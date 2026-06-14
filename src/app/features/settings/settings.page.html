@@ -1,0 +1,34 @@
+<div class="page-grid">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Me</p>
+      <h1>Profile and settings</h1>
+      <p>Keep app, training, nutrition, notification, and privacy preferences grouped clearly.</p>
+    </div>
+  </header>
+
+  <section class="record-grid">
+    @for (group of groups; track group.title) {
+      <article class="summary-card">
+        <span class="card-label">{{ group.title }}</span>
+        <div class="settings-list">
+          @for (item of group.items; track item) {
+            <button type="button" class="settings-row">
+              <span>{{ item }}</span>
+              <span aria-hidden="true">›</span>
+            </button>
+          }
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="summary-card">
+    <span class="card-label">Account</span>
+    <h2>Session</h2>
+    <p>Sign out clears local FitSync tokens and redirects through Cognito logout.</p>
+    <div style="margin-top: 16px">
+      <button class="button secondary" type="button" (click)="logout()">Sign out</button>
+    </div>
+  </section>
+</div>

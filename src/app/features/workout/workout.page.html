@@ -1,0 +1,49 @@
+<div class="page-grid">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Workout</p>
+      <h1>Plan and log training</h1>
+      <p>Manage reusable plans, performed sessions, and the exercise catalog.</p>
+    </div>
+    <button class="button workout" type="button">New plan</button>
+  </header>
+
+  <div class="segmented" role="tablist" aria-label="Workout sections">
+    <button [class.active]="selectedTab() === 'plans'" type="button" (click)="selectedTab.set('plans')">Plans</button>
+    <button [class.active]="selectedTab() === 'sessions'" type="button" (click)="selectedTab.set('sessions')">Sessions</button>
+    <button [class.active]="selectedTab() === 'exercises'" type="button" (click)="selectedTab.set('exercises')">Exercises</button>
+  </div>
+
+  @if (loading()) {
+    <div class="summary-card skeleton"></div>
+  } @else if (selectedTab() === 'plans') {
+    @if (plans().length) {
+      <section class="record-grid">
+        @for (plan of plans(); track plan.name) {
+          <article class="summary-card">
+            <span class="card-label">{{ plan.status }}</span>
+            <h2>{{ plan.name }}</h2>
+            <p>{{ plan.goalFocus }} · {{ plan.workoutType }} · {{ plan.difficulty }}</p>
+            <dl class="inline-stats">
+              <div>
+                <dt>Duration</dt>
+                <dd>{{ plan.estimatedDurationMinutes }} min</dd>
+              </div>
+              <div>
+                <dt>Exercises</dt>
+                <dd>{{ plan.exerciseCount }}</dd>
+              </div>
+            </dl>
+          </article>
+        }
+      </section>
+    } @else {
+      <app-state-panel title="No plans" message="Create your first reusable plan before starting a planned workout." />
+    }
+  } @else if (selectedTab() === 'sessions') {
+    <app-state-panel title="Session logging" message="This view maps to /api/v1/workouts/sessions for planned, in-progress, and completed workouts." />
+  } @else {
+    <app-state-panel title="Exercise catalog" message="Search and filter global or custom exercises by type, muscle group, equipment, and difficulty." />
+  }
+</div>
+

@@ -1,0 +1,38 @@
+<main class="auth-page">
+  <section class="auth-panel">
+    <a class="brand" href="/" aria-label="FitSync home">
+      <span class="brand-mark">F</span>
+      <span>
+        <strong>FitSync</strong>
+        <small>Training and nutrition</small>
+      </span>
+    </a>
+
+    <div>
+      <p class="eyebrow">Account</p>
+      <h1>Sign in to FitSync</h1>
+      <p class="auth-copy">Use Cognito managed login to protect your profile, workouts, meals, and progress data.</p>
+    </div>
+
+    @if (error()) {
+      <p class="form-error">{{ error() }}</p>
+    }
+
+    <div class="auth-actions">
+      <button class="button primary" type="button" [disabled]="loading()" (click)="signIn()">
+        {{ loading() === 'login' ? 'Redirecting...' : 'Sign in with Cognito' }}
+      </button>
+      <button class="button secondary" type="button" [disabled]="loading()" (click)="register()">
+        {{ loading() === 'signup' ? 'Redirecting...' : 'Create account' }}
+      </button>
+    </div>
+  </section>
+
+  <aside class="auth-preview" aria-label="FitSync preview">
+    <div class="preview-card">
+      <span class="card-label">Today</span>
+      <h2>Calories, workouts, and goals stay in sync.</h2>
+      <div class="preview-meter"><span></span></div>
+    </div>
+  </aside>
+</main>

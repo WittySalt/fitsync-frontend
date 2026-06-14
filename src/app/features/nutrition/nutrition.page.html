@@ -1,0 +1,70 @@
+<div class="page-grid nutrition-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Nutrition</p>
+      <h1>Track meals and macros</h1>
+      <p>Search foods, log meal snapshots, and keep daily calorie targets visible.</p>
+    </div>
+  </header>
+
+  <section class="nutrition-layout">
+    <form class="form-card" [formGroup]="mealForm" (ngSubmit)="saveMeal()">
+      <h2>Log Meal</h2>
+      <label>
+        Meal type
+        <select formControlName="mealType">
+          <option value="BREAKFAST">Breakfast</option>
+          <option value="LUNCH">Lunch</option>
+          <option value="DINNER">Dinner</option>
+          <option value="SNACK">Snack</option>
+        </select>
+      </label>
+      <label>
+        Food name
+        <input formControlName="foodName" placeholder="Grilled chicken rice bowl" />
+        @if (mealForm.controls.foodName.touched && mealForm.controls.foodName.invalid) {
+          <span class="field-error">Food name is required.</span>
+        }
+      </label>
+      <div class="form-grid two">
+        <label>
+          Calories
+          <input type="number" formControlName="calories" />
+        </label>
+        <label>
+          Protein
+          <input type="number" formControlName="proteinGrams" />
+        </label>
+      </div>
+      <button class="button nutrition" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Saving...' : 'Save meal' }}
+      </button>
+      @if (saveMessage()) {
+        <p class="success-text">{{ saveMessage() }}</p>
+      }
+    </form>
+
+    <section class="summary-card">
+      <span class="card-label">Food Search</span>
+      <h2>Verified foods</h2>
+      @if (loading()) {
+        <div class="skeleton"></div>
+      } @else if (foods().length) {
+        <div class="food-list">
+          @for (food of foods(); track food.displayName) {
+            <button type="button" class="food-row" (click)="mealForm.patchValue({ foodName: food.displayName, calories: food.calories, proteinGrams: food.proteinGrams })">
+              <span>
+                <strong>{{ food.displayName }}</strong>
+                <small>{{ food.brandName }} · {{ food.basisUnit }}</small>
+              </span>
+              <span>{{ food.calories }} kcal</span>
+            </button>
+          }
+        </div>
+      } @else {
+        <app-state-panel title="No foods" message="Create a custom food or search again." />
+      }
+    </section>
+  </section>
+</div>
+

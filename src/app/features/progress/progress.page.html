@@ -1,0 +1,44 @@
+<div class="page-grid progress-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Progress</p>
+      <h1>Body and goal trends</h1>
+      <p>Start with body metrics and active goals, then move to analytics read models when available.</p>
+    </div>
+  </header>
+
+  <section class="summary-card trend-card">
+    <div class="section-title">
+      <div>
+        <span class="card-label">Body Metrics</span>
+        <h2>Weight trend</h2>
+      </div>
+      <button class="button secondary" type="button">Record Weight</button>
+    </div>
+
+    <div class="chart-bars" aria-label="Weight trend preview">
+      @for (point of points; track $index) {
+        <span [style.height.%]="point + 35"></span>
+      }
+    </div>
+  </section>
+
+  <section class="record-grid">
+    <article class="summary-card">
+      <span class="card-label">BMI</span>
+      <h2>26.6</h2>
+      <p>Derived from latest height and weight facts.</p>
+    </article>
+    <article class="summary-card">
+      <span class="card-label">Body fat</span>
+      <h2>21.5%</h2>
+      <p>Latest manual measurement.</p>
+    </article>
+    <article class="summary-card">
+      <span class="card-label">Goal progress</span>
+      <h2>42%</h2>
+      <p>Weight target progress from current source facts.</p>
+    </article>
+  </section>
+</div>
+

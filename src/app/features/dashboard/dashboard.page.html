@@ -1,0 +1,141 @@
+<div class="page-grid dashboard-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">{{ today }}</p>
+      <h1>Today</h1>
+      <p>Keep training, meals, and body progress in one view.</p>
+    </div>
+    <a class="button primary" routerLink="/onboarding">Complete setup</a>
+  </header>
+
+  @if (loading()) {
+    <div class="summary-card skeleton tall"></div>
+    <div class="summary-card skeleton"></div>
+    <div class="summary-card skeleton"></div>
+  } @else if (error()) {
+    <app-state-panel
+      title="Dashboard unavailable"
+      [message]="error() ?? ''"
+      actionLabel="Retry"
+      [error]="true"
+      (action)="load()"
+    />
+  } @else if (data(); as dashboard) {
+    <section class="hero-panel">
+      <div>
+        <span class="avatar" aria-hidden="true">{{ dashboard.profile.displayName.charAt(0) }}</span>
+        <h2>Hi, {{ dashboard.profile.firstName }}</h2>
+        <p>{{ dashboard.profile.timezone }} · {{ dashboard.profile.activityLevel.replace('_', ' ') }}</p>
+      </div>
+      <div class="quick-actions" aria-label="Quick actions">
+        <a routerLink="/nutrition" class="button nutrition">Log Meal</a>
+        <a routerLink="/workout" class="button workout">Start Workout</a>
+        <a routerLink="/progress" class="button secondary">Record Weight</a>
+      </div>
+    </section>
+
+    <section class="metrics-grid">
+      <article class="metric-card calories">
+        <app-progress-ring label="Calories" [value]="caloriePercent()" />
+        <div>
+          <span>Calories</span>
+          <strong>{{ dashboard.nutrition.totalCalories }} / {{ dashboard.nutrition.targetCalories }}</strong>
+          <small>{{ dashboard.nutrition.mealCount }} meals logged</small>
+        </div>
+      </article>
+
+      <article class="metric-card protein">
+        <app-progress-ring label="Protein" [value]="proteinPercent()" />
+        <div>
+          <span>Protein</span>
+          <strong>{{ dashboard.nutrition.totalProteinGrams }}g / {{ dashboard.nutrition.targetProteinGrams }}g</strong>
+          <small>Daily target progress</small>
+        </div>
+      </article>
+
+      <article class="metric-card body">
+        <span class="metric-icon">kg</span>
+        <div>
+          <span>Latest body metric</span>
+          @if (dashboard.latestBodyMetric) {
+            <strong>{{ dashboard.latestBodyMetric.weightKg }} kg · BMI {{ dashboard.latestBodyMetric.bmi }}</strong>
+            <small>{{ dashboard.latestBodyMetric.measuredAt }}</small>
+          } @else {
+            <strong>No metric yet</strong>
+            <small>Record weight to start trends</small>
+          }
+        </div>
+      </article>
+    </section>
+
+    <section class="activity-grid">
+      <article class="summary-card">
+        <span class="card-label">Latest Workout</span>
+        @if (dashboard.latestWorkout) {
+          <h3>{{ dashboard.latestWorkout.name }}</h3>
+          <p>{{ dashboard.latestWorkout.workoutType }} · {{ dashboard.latestWorkout.durationMinutes }} min</p>
+          <dl>
+            <div>
+              <dt>Calories</dt>
+              <dd>{{ dashboard.latestWorkout.caloriesBurned }}</dd>
+            </div>
+            <div>
+              <dt>Exercises</dt>
+              <dd>{{ dashboard.latestWorkout.exerciseCount }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <app-state-panel title="No workout yet" message="Start a session to build your streak." />
+        }
+      </article>
+
+      <article class="summary-card">
+        <span class="card-label">Latest Meal</span>
+        @if (dashboard.latestMeal) {
+          <h3>{{ dashboard.latestMeal.name }}</h3>
+          <p>{{ dashboard.latestMeal.mealType }} · {{ dashboard.latestMeal.consumedAt }}</p>
+          <dl>
+            <div>
+              <dt>Calories</dt>
+              <dd>{{ dashboard.latestMeal.totalCalories }}</dd>
+            </div>
+            <div>
+              <dt>Protein</dt>
+              <dd>{{ dashboard.latestMeal.totalProteinGrams }}g</dd>
+            </div>
+          </dl>
+        } @else {
+          <app-state-panel title="No meal yet" message="Log your first meal for today's summary." />
+        }
+      </article>
+    </section>
+
+    <section class="summary-card goals-card">
+      <div class="section-title">
+        <div>
+          <span class="card-label">Goals</span>
+          <h2>Active targets</h2>
+        </div>
+        <a routerLink="/settings" class="text-link">Manage</a>
+      </div>
+
+      @if (dashboard.goals.length) {
+        <div class="goal-list">
+          @for (goal of dashboard.goals; track goal.goalType) {
+            <div class="goal-row">
+              <div>
+                <strong>{{ goal.goalType.replace('_', ' ') }}</strong>
+                <span>{{ goal.targetValue }} {{ goal.targetUnit }} by {{ goal.targetDate }}</span>
+              </div>
+              <div class="progress-track" aria-hidden="true">
+                <span [style.width.%]="goal.progressRatio * 100"></span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <app-state-panel title="No active goals" message="Set one measurable target to personalize FitSync." />
+      }
+    </section>
+  }
+</div>

@@ -1,0 +1,121 @@
+<div class="page-grid">
+  <header class="page-header compact">
+    <div>
+      <p class="eyebrow">Setup</p>
+      <h1>Personalize FitSync</h1>
+      <p>Capture the minimum profile, goal, training, and nutrition inputs needed for the backend workflow.</p>
+    </div>
+  </header>
+
+  <form class="form-card" [formGroup]="form" (ngSubmit)="submit()">
+    <section>
+      <h2>Profile</h2>
+      <div class="form-grid">
+        <label>
+          Display name
+          <input formControlName="displayName" placeholder="Alice Tan" />
+          @if (form.controls.displayName.touched && form.controls.displayName.invalid) {
+            <span class="field-error">Display name is required.</span>
+          }
+        </label>
+
+        <label>
+          Height
+          <input type="number" formControlName="heightCm" />
+          @if (form.controls.heightCm.touched && form.controls.heightCm.invalid) {
+            <span class="field-error">Enter a height between 80 and 240 cm.</span>
+          }
+        </label>
+
+        <label>
+          Current weight
+          <input type="number" formControlName="weightKg" />
+          @if (form.controls.weightKg.touched && form.controls.weightKg.invalid) {
+            <span class="field-error">Enter a valid body weight.</span>
+          }
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Goal</h2>
+      <div class="form-grid">
+        <label>
+          Goal type
+          <select formControlName="goalType">
+            <option value="WEIGHT">Weight</option>
+            <option value="CALORIES">Calories</option>
+            <option value="PROTEIN">Protein</option>
+            <option value="WORKOUT_FREQUENCY">Workout frequency</option>
+            <option value="STEPS">Steps</option>
+          </select>
+        </label>
+
+        <label>
+          Target value
+          <input type="number" formControlName="targetValue" />
+          @if (form.controls.targetValue.touched && form.controls.targetValue.invalid) {
+            <span class="field-error">Target value must be positive.</span>
+          }
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Training and nutrition</h2>
+      <div class="form-grid">
+        <label>
+          Weekly workout days
+          <input type="number" formControlName="weeklyWorkoutDays" />
+          @if (form.controls.weeklyWorkoutDays.touched && form.controls.weeklyWorkoutDays.invalid) {
+            <span class="field-error">Choose 1 to 7 days.</span>
+          }
+        </label>
+
+        <label>
+          Dietary pattern
+          <select formControlName="dietaryPattern">
+            <option value="NONE">None</option>
+            <option value="HALAL">Halal</option>
+            <option value="VEGETARIAN">Vegetarian</option>
+            <option value="VEGAN">Vegan</option>
+            <option value="LOW_CARB">Low carb</option>
+          </select>
+        </label>
+
+        <label>
+          Calorie tracking
+          <select formControlName="calorieTrackingMode">
+            <option value="OFF">Off</option>
+            <option value="FLEXIBLE">Flexible</option>
+            <option value="STRICT">Strict</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Reminders</h2>
+      <div class="toggle-grid">
+        <label class="toggle-row">
+          <input type="checkbox" formControlName="workoutReminderEnabled" />
+          <span>Workout reminder</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" formControlName="mealReminderEnabled" />
+          <span>Meal reminder</span>
+        </label>
+      </div>
+    </section>
+
+    @if (error()) {
+      <p class="form-error">{{ error() }}</p>
+    }
+
+    <div class="form-actions">
+      <button class="button primary" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Saving...' : 'Save and continue' }}
+      </button>
+    </div>
+  </form>
+</div>

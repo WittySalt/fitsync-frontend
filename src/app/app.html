@@ -1,0 +1,45 @@
+@if (isAuthRoute()) {
+  <router-outlet />
+} @else {
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Primary navigation">
+    <a class="brand" routerLink="/dashboard" aria-label="FitSync home">
+      <span class="brand-mark">F</span>
+      <span>
+        <strong>FitSync</strong>
+        <small>Training and nutrition</small>
+      </span>
+    </a>
+
+    <nav class="nav-list">
+      @for (item of navItems; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
+        >
+          <span class="nav-icon" [attr.data-icon]="item.icon"></span>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <main class="content-frame">
+    <router-outlet />
+  </main>
+
+  <nav class="bottom-nav" aria-label="Mobile navigation">
+    @for (item of navItems; track item.path) {
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
+      >
+        <span class="nav-icon" [attr.data-icon]="item.icon"></span>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</div>
+}
