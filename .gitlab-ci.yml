@@ -1,3 +1,7 @@
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -10,10 +14,12 @@ stages:
   - lint
   - test
   - build
+  - secret-detection
   - deploy
 
 variables:
   NODE_VERSION: "20"
+  SECRET_DETECTION_ENABLED: "true"
 
 default:
   image: node:20
@@ -23,21 +29,21 @@ default:
     paths:
       - node_modules/
 
-lint:
+typecheck:
   stage: lint
   script:
-    - npm ci
-    - npm run lint
+    - npm install
+    - npx tsc --noEmit
   rules:
     - exists:
         - package.json
 
 unit_test:
   stage: test
-  needs: ["lint"]
+  needs: ["typecheck"]
   script:
-    - npm ci
-    - npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+    - npm install
+    - npx ng test --watch=false --browsers=ChromeHeadless --code-coverage
   artifacts:
     when: always
     expire_in: 5 days
@@ -51,7 +57,7 @@ build:
   stage: build
   needs: ["unit_test"]
   script:
-    - npm ci
+    - npm install
     - npm run build -- --configuration production
   artifacts:
     when: on_success
@@ -61,6 +67,12 @@ build:
   rules:
     - exists:
         - package.json
+
+sast:
+  stage: test
+
+secret_detection:
+  stage: secret-detection
 
 deploy_s3:
   stage: deploy
