@@ -11,7 +11,7 @@ import { AuthService } from '../../core/auth/auth.service';
       <section class="summary-card">
         <p class="eyebrow">Authentication</p>
         <h1>{{ error() ? 'Sign-in failed' : 'Completing sign-in' }}</h1>
-        <p>{{ error() || 'Finishing Cognito token exchange and FitSync bootstrap.' }}</p>
+        <p>{{ error() || 'Redirecting to the FitSync sign-in page.' }}</p>
         @if (error()) {
           <a class="button primary" routerLink="/auth/login">Back to sign in</a>
         }
@@ -39,11 +39,7 @@ export class AuthCallbackPage implements OnInit {
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code') ?? '';
-    const state = params.get('state') ?? '';
-
-    this.authService.completeCallback(code, state).subscribe({
+    this.authService.completeCallback('', '').subscribe({
       next: () => this.router.navigateByUrl('/dashboard'),
       error: (error: Error) => this.error.set(error.message)
     });

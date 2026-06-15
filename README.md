@@ -7,10 +7,18 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 To start a local development server, run:
 
 ```bash
-ng serve
+npm run start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Once the server is running, open your browser and navigate to `http://localhost:3000/`. The default npm start script uses port 3000 because the current Cognito app client is configured with `http://localhost:3000/auth/callback` and `http://localhost:3000/logout/callback`.
+
+The current auth UI is implemented in Angular and calls Cognito User Pool APIs directly for sign-in, sign-up, email confirmation, and confirmation-code resend. The Cognito app client must enable `USER_PASSWORD_AUTH` for this custom login flow.
+
+If you need Angular's default dev port for a non-Cognito check, run:
+
+```bash
+npm run start:4200
+```
 
 ## Code scaffolding
 

@@ -1,14 +1,29 @@
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, map, Observable, switchMap, tap, throwError } from 'rxjs';
 
 import { AUTH_STORAGE_KEYS, COGNITO_AUTH_CONFIG } from './auth.config';
 
-interface TokenResponse {
-  access_token: string;
-  id_token?: string;
-  refresh_token?: string;
-  expires_in: number;
+interface CognitoAttribute {
+  Name: string;
+  Value: string;
+}
+
+interface CognitoTokenSet {
+  AccessToken: string;
+  IdToken?: string;
+  RefreshToken?: string;
+  ExpiresIn: number;
+}
+
+interface InitiateAuthResponse {
+  AuthenticationResult?: CognitoTokenSet;
+  ChallengeName?: string;
+}
+
+interface BootstrapAuthResponse {
+  accessToken: string;
+  tokenType: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -24,122 +39,190 @@ export class AuthService {
     return Boolean(token && expiresAt > Date.now());
   }
 
-  async startLogin(screenHint?: 'signup'): Promise<void> {
+  signIn(email: string, password: string): Observable<void> {
     this.authError.set(null);
-    const verifier = this.randomString(64);
-    const challenge = await this.pkceChallenge(verifier);
-    const state = this.randomString(32);
+    this.clearSession();
 
-    sessionStorage.setItem(AUTH_STORAGE_KEYS.pkceVerifier, verifier);
-    sessionStorage.setItem(AUTH_STORAGE_KEYS.oauthState, state);
+    return this.cognitoPost<InitiateAuthResponse>('InitiateAuth', {
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: this.config.clientId,
+      AuthParameters: {
+        USERNAME: email.trim(),
+        PASSWORD: password
+      }
+    }).pipe(
+      switchMap((response) => {
+        if (response.ChallengeName) {
+          return throwError(() => new Error(`Cognito challenge is not implemented yet: ${response.ChallengeName}`));
+        }
 
-    const params = new URLSearchParams({
-      client_id: this.config.clientId,
-      response_type: 'code',
-      scope: this.config.scope,
-      redirect_uri: this.config.redirectUri,
-      code_challenge_method: 'S256',
-      code_challenge: challenge,
-      state
-    });
+        const tokens = response.AuthenticationResult;
+        if (!tokens?.AccessToken || !tokens.IdToken) {
+          return throwError(() => new Error('Cognito did not return the required tokens.'));
+        }
 
-    if (screenHint) {
-      params.set('screen_hint', screenHint);
-    }
-
-    window.location.assign(`${this.config.domain}/oauth2/authorize?${params.toString()}`);
+        this.storeCognitoTokens(tokens);
+        return this.bootstrapWithCognitoToken(tokens.IdToken);
+      }),
+      catchError((error: HttpErrorResponse | Error) => {
+        this.clearSession();
+        return throwError(() => new Error(this.authErrorMessage(error)));
+      })
+    );
   }
 
-  completeCallback(code: string, returnedState: string): Observable<void> {
-    const verifier = sessionStorage.getItem(AUTH_STORAGE_KEYS.pkceVerifier);
-    const expectedState = sessionStorage.getItem(AUTH_STORAGE_KEYS.oauthState);
-
-    if (!code || !returnedState || !verifier || returnedState !== expectedState) {
-      return throwError(() => new Error('Invalid authentication callback. Please sign in again.'));
+  signUp(email: string, password: string, displayName: string): Observable<void> {
+    const userAttributes: CognitoAttribute[] = [{ Name: 'email', Value: email.trim() }];
+    const normalizedDisplayName = displayName.trim();
+    if (normalizedDisplayName) {
+      userAttributes.push({ Name: 'name', Value: normalizedDisplayName });
     }
 
-    const body = new HttpParams()
-      .set('grant_type', 'authorization_code')
-      .set('client_id', this.config.clientId)
-      .set('code', code)
-      .set('redirect_uri', this.config.redirectUri)
-      .set('code_verifier', verifier);
+    return this.cognitoPost('SignUp', {
+      ClientId: this.config.clientId,
+      Username: email.trim(),
+      Password: password,
+      UserAttributes: userAttributes
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
 
-    return this.http
-      .post<TokenResponse>(`${this.config.domain}/oauth2/token`, body.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      })
-      .pipe(
-        tap((tokens) => this.storeTokens(tokens)),
-        switchMap(() => this.http.post('/api/v1/auth/bootstrap', {})),
-        tap(() => this.clearPkceState()),
-        map(() => undefined),
-        catchError((error: HttpErrorResponse | Error) => {
-          this.clearSession();
-          return throwError(() => new Error(this.authErrorMessage(error)));
-        })
-      );
+  confirmSignUp(email: string, confirmationCode: string): Observable<void> {
+    return this.cognitoPost('ConfirmSignUp', {
+      ClientId: this.config.clientId,
+      Username: email.trim(),
+      ConfirmationCode: confirmationCode.trim()
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  resendConfirmationCode(email: string): Observable<void> {
+    return this.cognitoPost('ResendConfirmationCode', {
+      ClientId: this.config.clientId,
+      Username: email.trim()
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  completeCallback(_code: string, _returnedState: string): Observable<void> {
+    return throwError(() => new Error('Hosted UI callback is no longer used. Please sign in from the FitSync login page.'));
   }
 
   logout(): void {
     this.clearSession();
-
-    const params = new URLSearchParams({
-      client_id: this.config.clientId,
-      logout_uri: this.config.postLogoutRedirectUri
-    });
-
-    window.location.assign(`${this.config.domain}/logout?${params.toString()}`);
+    window.location.assign('/auth/login');
   }
 
   completeLogout(): void {
     this.clearSession();
   }
 
-  private storeTokens(tokens: TokenResponse): void {
-    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, tokens.access_token);
-    if (tokens.id_token) {
-      localStorage.setItem(AUTH_STORAGE_KEYS.idToken, tokens.id_token);
+  private cognitoPost<T>(operation: string, payload: object): Observable<T> {
+    return this.http.post<T>(this.config.apiEndpoint, payload, {
+      headers: new HttpHeaders({
+        'Content-Type': 'application/x-amz-json-1.1',
+        'X-Amz-Target': `AWSCognitoIdentityProviderService.${operation}`
+      })
+    });
+  }
+
+  private bootstrapWithCognitoToken(cognitoAccessToken: string): Observable<void> {
+    return this.http
+      .post<BootstrapAuthResponse>(
+        '/api/v1/auth/bootstrap',
+        {},
+        {
+          headers: new HttpHeaders({
+            Authorization: `Bearer ${cognitoAccessToken}`
+          })
+        }
+      )
+      .pipe(
+        tap((auth) => this.storeBootstrapToken(auth)),
+        map(() => undefined)
+      );
+  }
+
+  private storeCognitoTokens(tokens: CognitoTokenSet): void {
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoAccessToken, tokens.AccessToken);
+    if (tokens.IdToken) {
+      localStorage.setItem(AUTH_STORAGE_KEYS.cognitoIdToken, tokens.IdToken);
     }
-    if (tokens.refresh_token) {
-      localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, tokens.refresh_token);
+    if (tokens.RefreshToken) {
+      localStorage.setItem(AUTH_STORAGE_KEYS.cognitoRefreshToken, tokens.RefreshToken);
     }
-    localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(Date.now() + tokens.expires_in * 1000));
+  }
+
+  private storeBootstrapToken(auth: BootstrapAuthResponse): void {
+    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, auth.accessToken);
+    localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(this.jwtExpiresAt(auth.accessToken) ?? Date.now() + 2 * 60 * 60 * 1000));
   }
 
   private clearSession(): void {
     localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.idToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoAccessToken);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoIdToken);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoRefreshToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.expiresAt);
-    this.clearPkceState();
   }
 
-  private clearPkceState(): void {
-    sessionStorage.removeItem(AUTH_STORAGE_KEYS.pkceVerifier);
-    sessionStorage.removeItem(AUTH_STORAGE_KEYS.oauthState);
-  }
-
-  private randomString(length: number): string {
-    const bytes = new Uint8Array(length);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) => ('0' + (byte % 36).toString(36)).slice(-1)).join('');
-  }
-
-  private async pkceChallenge(verifier: string): Promise<string> {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-    return this.base64Url(new Uint8Array(digest));
-  }
-
-  private base64Url(bytes: Uint8Array): string {
-    const text = String.fromCharCode(...bytes);
-    return btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  private jwtExpiresAt(token: string): number | null {
+    const payload = token.split('.')[1];
+    if (!payload) {
+      return null;
+    }
+    try {
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const normalized = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+      const decoded = JSON.parse(atob(normalized));
+      return typeof decoded.exp === 'number' ? decoded.exp * 1000 : null;
+    } catch {
+      return null;
+    }
   }
 
   private authErrorMessage(error: HttpErrorResponse | Error): string {
-    if (error instanceof HttpErrorResponse && error.status === 0) {
-      return 'Unable to reach Cognito or FitSync backend. Check network and local gateway.';
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Unable to reach Cognito or FitSync backend. Check network and local gateway.';
+      }
+
+      const cognitoMessage = this.cognitoErrorMessage(error);
+      if (cognitoMessage) {
+        return cognitoMessage;
+      }
     }
+
     return error.message || 'Authentication failed. Please try again.';
+  }
+
+  private cognitoErrorMessage(error: HttpErrorResponse): string | null {
+    const body = error.error as { message?: string; __type?: string } | string | null;
+    if (typeof body === 'string') {
+      return body;
+    }
+
+    const code = body?.__type?.split('#').pop();
+    const message = body?.message;
+
+    if (code === 'UserNotConfirmedException') {
+      return 'Please confirm your email before signing in.';
+    }
+    if (code === 'NotAuthorizedException') {
+      return 'Invalid email or password.';
+    }
+    if (code === 'InvalidParameterException' && message?.includes('USER_PASSWORD_AUTH')) {
+      return 'Cognito app client must enable USER_PASSWORD_AUTH for custom sign-in.';
+    }
+
+    return message ?? null;
   }
 }

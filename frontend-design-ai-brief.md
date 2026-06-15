@@ -154,18 +154,19 @@ Suggested route map:
 
 ## 6. Auth Experience
 
-Auth should support Cognito managed login as the target flow.
+Auth should support FitSync-owned Angular pages backed by Cognito User Pool APIs as the target flow.
 
 Expected flow:
 
-1. user clicks sign in
-2. frontend redirects to Cognito managed login
-3. Cognito redirects back to `/auth/callback`
-4. frontend exchanges authorization code with PKCE
-5. frontend stores tokens
-6. frontend calls `POST /api/v1/auth/bootstrap`
-7. frontend calls `GET /api/v1/auth/me`
-8. protected routes become available
+1. user signs up in the FitSync auth page
+2. frontend calls Cognito `SignUp`
+3. user confirms the email code in the FitSync auth page
+4. frontend calls Cognito `ConfirmSignUp`
+5. frontend signs in with Cognito `InitiateAuth`
+6. frontend calls `POST /api/v1/auth/bootstrap` with the Cognito ID token
+7. frontend stores the returned local FitSync JWT
+8. frontend calls `GET /api/v1/auth/me`
+9. protected routes become available
 
 Temporary compatibility screens may support:
 
@@ -174,9 +175,9 @@ Temporary compatibility screens may support:
 
 Auth UI states:
 
-- loading while redirecting
+- loading while submitting auth forms
 - loading while hydrating current user
-- invalid callback error
+- invalid confirmation code error
 - expired session
 - unauthenticated route guard redirect
 

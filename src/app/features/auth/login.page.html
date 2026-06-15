@@ -10,22 +10,97 @@
 
     <div>
       <p class="eyebrow">Account</p>
-      <h1>Sign in to FitSync</h1>
-      <p class="auth-copy">Use Cognito managed login to protect your profile, workouts, meals, and progress data.</p>
+      <h1>
+        @if (mode() === 'signup') {
+          Create your FitSync account
+        } @else if (mode() === 'confirm') {
+          Confirm your email
+        } @else {
+          Sign in to FitSync
+        }
+      </h1>
+      <p class="auth-copy">Secure access for workouts, meals, goals, and progress.</p>
     </div>
 
     @if (error()) {
       <p class="form-error">{{ error() }}</p>
     }
 
-    <div class="auth-actions">
-      <button class="button primary" type="button" [disabled]="loading()" (click)="signIn()">
-        {{ loading() === 'login' ? 'Redirecting...' : 'Sign in with Cognito' }}
-      </button>
-      <button class="button secondary" type="button" [disabled]="loading()" (click)="register()">
-        {{ loading() === 'signup' ? 'Redirecting...' : 'Create account' }}
-      </button>
-    </div>
+    @if (notice()) {
+      <p class="form-notice">{{ notice() }}</p>
+    }
+
+    @if (mode() === 'signin') {
+      <form class="auth-form" (ngSubmit)="signIn()">
+        <label>
+          Email
+          <input name="email" type="email" autocomplete="email" required [(ngModel)]="email" />
+        </label>
+
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required [(ngModel)]="password" />
+        </label>
+
+        <button class="button primary" type="submit" [disabled]="loading() !== null">
+          {{ loading() === 'signin' ? 'Signing in...' : 'Sign in' }}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        <span>New to FitSync?</span>
+        <button type="button" (click)="showMode('signup')">Create account</button>
+      </div>
+    } @else if (mode() === 'signup') {
+      <form class="auth-form" (ngSubmit)="signUp()">
+        <label>
+          Display name
+          <input name="displayName" type="text" autocomplete="name" required [(ngModel)]="displayName" />
+        </label>
+
+        <label>
+          Email
+          <input name="signupEmail" type="email" autocomplete="email" required [(ngModel)]="email" />
+        </label>
+
+        <label>
+          Password
+          <input name="signupPassword" type="password" autocomplete="new-password" required [(ngModel)]="password" />
+        </label>
+
+        <button class="button primary" type="submit" [disabled]="loading() !== null">
+          {{ loading() === 'signup' ? 'Creating...' : 'Create account' }}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        <span>Already registered?</span>
+        <button type="button" (click)="showMode('signin')">Sign in</button>
+      </div>
+    } @else {
+      <form class="auth-form" (ngSubmit)="confirmSignUp()">
+        <label>
+          Email
+          <input name="confirmEmail" type="email" autocomplete="email" required [(ngModel)]="email" />
+        </label>
+
+        <label>
+          Confirmation code
+          <input name="confirmationCode" type="text" inputmode="numeric" autocomplete="one-time-code" required [(ngModel)]="confirmationCode" />
+        </label>
+
+        <button class="button primary" type="submit" [disabled]="loading() !== null">
+          {{ loading() === 'confirm' ? 'Confirming...' : 'Confirm account' }}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        <button type="button" [disabled]="loading() !== null" (click)="resendCode()">
+          {{ loading() === 'resend' ? 'Sending...' : 'Resend code' }}
+        </button>
+        <button type="button" (click)="showMode('signin')">Back to sign in</button>
+      </div>
+    }
   </section>
 
   <aside class="auth-preview" aria-label="FitSync preview">

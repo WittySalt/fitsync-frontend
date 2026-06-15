@@ -5,7 +5,7 @@ const TOKEN_STORAGE_KEY = 'fitsync.accessToken';
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
   const token = typeof localStorage === 'undefined' ? null : localStorage.getItem(TOKEN_STORAGE_KEY);
 
-  if (!token) {
+  if (!token || request.headers.has('Authorization')) {
     return next(request);
   }
 
@@ -17,4 +17,3 @@ export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
     })
   );
 };
-

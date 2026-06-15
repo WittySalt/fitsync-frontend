@@ -34,9 +34,51 @@
   line-height: 1.55;
 }
 
-.auth-actions {
+.auth-form {
   display: grid;
   gap: 12px;
+
+  .button {
+    margin-top: 4px;
+  }
+}
+
+.auth-switch {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 14px;
+
+  button {
+    min-height: 34px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--green);
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.form-error,
+.form-notice {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: #fff4f4;
+}
+
+.form-notice {
+  color: var(--green);
+  background: var(--green-soft);
 }
 
 .brand {

@@ -31,7 +31,7 @@ Frontend is built as a responsive SPA for workout tracking, nutrition management
 - Route Guards
 - HTTP Interceptors
 - JWT token persistence
-- AWS Cognito managed login integration
+- AWS Cognito user-pool authentication integration
 
 ---
 
@@ -109,55 +109,55 @@ GET /api/v1/dashboard
 
 ## Cognito Integration
 
-Frontend authentication should move to AWS Cognito managed login instead of posting credentials to local backend login endpoints.
+Frontend authentication uses FitSync-owned Angular pages and Cognito User Pool APIs instead of Cognito Hosted UI or legacy backend credential endpoints.
 
 Current confirmed local Cognito SPA settings:
 
-- Region: `ap-southeast-2`
-- User pool ID: `ap-southeast-2_8lgadn`
+- Region: `ap-southeast-1`
+- User pool ID: `ap-southeast-1_myVyuOmPD`
 - App client name: `FitSync`
 - App client ID: `4mvse0cgmkplgocfg827uolvad`
-- Managed login domain: `https://ap-southeast-2kjyn2vzun.auth.ap-southeast-2.amazoncognito.com`
+- Cognito domain: `https://ap-southeast-1myvyuompd.auth.ap-southeast-1.amazoncognito.com`
+- Cognito API endpoint: `https://cognito-idp.ap-southeast-1.amazonaws.com/`
 - Callback URL: `http://localhost:3000/auth/callback`
 - Sign-out URL: `http://localhost:3000/logout/callback`
 - OAuth grant type: `Authorization code grant`
+- Required custom-auth flow: `USER_PASSWORD_AUTH`
 - OIDC scopes: `openid email profile`
 
 Recommended frontend work items:
 
-- add an auth config source for Cognito values:
-  - `authority=https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_8lgadn`
+- keep an auth config source for Cognito values:
+  - `region=ap-southeast-1`
+  - `userPoolId=ap-southeast-1_myVyuOmPD`
   - `clientId=4mvse0cgmkplgocfg827uolvad`
-  - `redirectUri=http://localhost:3000/auth/callback`
-  - `postLogoutRedirectUri=http://localhost:3000/logout/callback`
-  - `responseType=code`
-  - `scope=openid email profile`
-- add a login action that redirects the browser to Cognito managed login with authorization code + PKCE
-- add a callback route at `/auth/callback` to complete code exchange and store Cognito tokens
-- add a logout flow that clears local auth state and redirects to Cognito sign-out
-- add a logout callback route at `/logout/callback`
-- update the HTTP auth interceptor to send the Cognito access token as `Authorization: Bearer <token>`
+  - `apiEndpoint=https://cognito-idp.ap-southeast-1.amazonaws.com/`
+- provide Angular forms for sign-in, sign-up, email confirmation, and confirmation-code resend
+- call Cognito `SignUp`, `ConfirmSignUp`, `ResendConfirmationCode`, and `InitiateAuth`
+- call `POST /api/v1/auth/bootstrap` with the Cognito ID token after sign-in
+- store the local FitSync JWT returned by bootstrap for protected backend API calls
+- update the HTTP auth interceptor to preserve manually supplied Cognito `Authorization` headers during bootstrap
 - update route guards to depend on Cognito-authenticated state instead of legacy local JWT-only assumptions
-- call `POST /api/v1/auth/bootstrap` once after first successful Cognito sign-in so `auth-service` can provision the local business user
 - call `GET /api/v1/auth/me` after bootstrap or on app startup to hydrate current-user state
 - keep legacy `POST /api/v1/auth/login` and `POST /api/v1/auth/register` support only as temporary compatibility paths if rollout is phased
 
 Expected frontend auth flow:
 
-1. user clicks `Sign in`
-2. frontend redirects to Cognito managed login
-3. Cognito redirects back to `/auth/callback` with an authorization code
-4. frontend completes the PKCE code exchange and stores tokens
-5. frontend calls `POST /api/v1/auth/bootstrap`
-6. frontend calls `GET /api/v1/auth/me`
-7. guarded routes and API calls proceed with the Cognito access token
+1. user signs up in the FitSync Angular form
+2. frontend calls Cognito `SignUp`
+3. user confirms the email code in the FitSync Angular form
+4. frontend calls Cognito `ConfirmSignUp`
+5. user signs in and frontend calls Cognito `InitiateAuth` with `USER_PASSWORD_AUTH`
+6. frontend calls `POST /api/v1/auth/bootstrap` with the Cognito ID token
+7. frontend stores the returned local FitSync JWT
+8. guarded routes and API calls proceed with the local FitSync JWT
 
 Implementation notes:
 
 - prefer a dedicated `core/auth/` area for Cognito config, token storage, guards, and interceptor logic
 - do not embed a client secret in frontend code; the active SPA app client is public and has no secret
 - prefer using email as the visible login identity
-- production and staging environments must register their own callback and sign-out URLs in Cognito before rollout
+- production and staging environments must enable the same app-client auth flow before rollout
 - when backend `COGNITO_ENABLED=true`, frontend and backend must use the same app client ID and user pool
 
 ---
