@@ -1,70 +1,219 @@
 <div class="page-grid nutrition-page">
-  <header class="page-header">
+  <header class="page-header compact">
     <div>
-      <p class="eyebrow">Nutrition</p>
-      <h1>Track meals and macros</h1>
-      <p>Search foods, log meal snapshots, and keep daily calorie targets visible.</p>
+      <p class="eyebrow">{{ today }}</p>
+      <h1>Nutrition</h1>
+      <p>Plan meals, track daily macros, and log food without leaving the nutrition workspace.</p>
     </div>
   </header>
 
-  <section class="nutrition-layout">
-    <form class="form-card" [formGroup]="mealForm" (ngSubmit)="saveMeal()">
-      <h2>Log Meal</h2>
-      <label>
-        Meal type
-        <select formControlName="mealType">
-          <option value="BREAKFAST">Breakfast</option>
-          <option value="LUNCH">Lunch</option>
-          <option value="DINNER">Dinner</option>
-          <option value="SNACK">Snack</option>
-        </select>
-      </label>
-      <label>
-        Food name
-        <input formControlName="foodName" placeholder="Grilled chicken rice bowl" />
-        @if (mealForm.controls.foodName.touched && mealForm.controls.foodName.invalid) {
-          <span class="field-error">Food name is required.</span>
-        }
-      </label>
-      <div class="form-grid two">
-        <label>
-          Calories
-          <input type="number" formControlName="calories" />
-        </label>
-        <label>
-          Protein
-          <input type="number" formControlName="proteinGrams" />
-        </label>
+  @if (loading()) {
+    <div class="summary-card skeleton tall"></div>
+    <div class="summary-card skeleton"></div>
+    <div class="summary-card skeleton"></div>
+  } @else if (error()) {
+    <app-state-panel
+      title="Nutrition unavailable"
+      [message]="error() ?? ''"
+      actionLabel="Retry"
+      [error]="true"
+      (action)="load()"
+    />
+  } @else {
+    <section class="nutrition-hero">
+      <div class="calorie-panel">
+        <span class="card-label">Daily Budget</span>
+        <div class="calorie-row">
+          <div>
+            <h2>{{ nutrition()?.totalCalories ?? 0 }}</h2>
+            <p>of {{ nutrition()?.targetCalories ?? 0 }} kcal logged</p>
+          </div>
+          <div class="calorie-ring" [style.--value]="calorieProgress() + '%'" aria-hidden="true">
+            <strong>{{ calorieProgress() }}%</strong>
+          </div>
+        </div>
+        <div class="budget-strip">
+          <div>
+            <span>Remaining</span>
+            <strong>{{ caloriesRemaining() }} kcal</strong>
+          </div>
+          <div>
+            <span>Meals</span>
+            <strong>{{ nutrition()?.mealCount ?? 0 }}</strong>
+          </div>
+          <div>
+            <span>Timezone</span>
+            <strong>{{ data()?.profile?.timezone ?? 'Asia/Singapore' }}</strong>
+          </div>
+        </div>
       </div>
-      <button class="button nutrition" type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Saving...' : 'Save meal' }}
-      </button>
-      @if (saveMessage()) {
-        <p class="success-text">{{ saveMessage() }}</p>
-      }
-    </form>
 
-    <section class="summary-card">
-      <span class="card-label">Food Search</span>
-      <h2>Verified foods</h2>
-      @if (loading()) {
-        <div class="skeleton"></div>
-      } @else if (foods().length) {
-        <div class="food-list">
-          @for (food of foods(); track food.displayName) {
-            <button type="button" class="food-row" (click)="mealForm.patchValue({ foodName: food.displayName, calories: food.calories, proteinGrams: food.proteinGrams })">
-              <span>
-                <strong>{{ food.displayName }}</strong>
-                <small>{{ food.brandName }} · {{ food.basisUnit }}</small>
-              </span>
-              <span>{{ food.calories }} kcal</span>
+      <div class="macro-panel">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Macros</span>
+            <h2>Daily balance</h2>
+          </div>
+        </div>
+        <div class="macro-list">
+          @for (macro of macroCards(); track macro.label) {
+            <div class="macro-row">
+              <div>
+                <strong>{{ macro.label }}</strong>
+                <span>{{ macro.value }}{{ macro.unit }} / {{ macro.target }}{{ macro.unit }}</span>
+              </div>
+              <div>
+                <span>{{ remaining(macro.value, macro.target) }}{{ macro.unit }} left</span>
+                <div [class]="'macro-bar ' + macro.tone" aria-hidden="true">
+                  <i [style.width.%]="progress(macro.value, macro.target)"></i>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="nutrition-workspace">
+      <form class="log-panel" [formGroup]="mealForm" (ngSubmit)="saveMeal()">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Log Meal</span>
+            <h2>Meal details</h2>
+          </div>
+          @if (selectedFood()) {
+            <span class="selected-pill">{{ selectedFood()?.basisUnit }}</span>
+          }
+        </div>
+
+        <div class="meal-type-grid" role="group" aria-label="Meal type">
+          @for (type of ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']; track type) {
+            <button
+              type="button"
+              [class.active]="mealForm.controls.mealType.value === type"
+              (click)="mealForm.controls.mealType.setValue(type)"
+            >
+              {{ type }}
             </button>
           }
         </div>
-      } @else {
-        <app-state-panel title="No foods" message="Create a custom food or search again." />
-      }
-    </section>
-  </section>
-</div>
 
+        <label>
+          Food name
+          <input formControlName="foodName" placeholder="Grilled chicken rice bowl" />
+          @if (mealForm.controls.foodName.touched && mealForm.controls.foodName.invalid) {
+            <span class="field-error">Food name is required.</span>
+          }
+        </label>
+
+        <div class="form-grid four">
+          <label>
+            Calories
+            <input type="number" formControlName="calories" />
+          </label>
+          <label>
+            Protein
+            <input type="number" formControlName="proteinGrams" />
+          </label>
+          <label>
+            Carbs
+            <input type="number" formControlName="carbsGrams" />
+          </label>
+          <label>
+            Fat
+            <input type="number" formControlName="fatGrams" />
+          </label>
+        </div>
+
+        <label>
+          Note
+          <input formControlName="note" placeholder="Post-workout meal, ate out, low sodium..." />
+        </label>
+
+        <button class="button nutrition" type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Saving...' : 'Save meal' }}
+        </button>
+        @if (saveMessage()) {
+          <p class="success-text">{{ saveMessage() }}</p>
+        }
+      </form>
+
+      <section class="food-panel">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Food Search</span>
+            <h2>Verified foods</h2>
+          </div>
+        </div>
+
+        @if (foods().length) {
+          <div class="food-list">
+            @for (food of foods(); track food.displayName) {
+              <button
+                type="button"
+                class="food-row"
+                [class.selected]="selectedFood()?.displayName === food.displayName"
+                (click)="applyFood(food)"
+              >
+                <span>
+                  <strong>{{ food.displayName }}</strong>
+                  <small>{{ food.brandName }} - {{ food.basisUnit }}</small>
+                </span>
+                <span>
+                  <strong>{{ food.calories }}</strong>
+                  <small>{{ food.proteinGrams }}g protein</small>
+                </span>
+              </button>
+            }
+          </div>
+        } @else {
+          <app-state-panel title="No foods" message="Create a custom food or search again." />
+        }
+      </section>
+    </section>
+
+    <section class="planning-grid">
+      <section class="timeline-panel">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Meal Plan</span>
+            <h2>Today timeline</h2>
+          </div>
+        </div>
+        <div class="timeline-list">
+          @for (meal of mealTimeline(); track meal.type) {
+            <article class="timeline-row">
+              <div class="time-badge">{{ meal.time }}</div>
+              <div>
+                <strong>{{ meal.type }}</strong>
+                <span>{{ meal.title }}</span>
+              </div>
+              <div>
+                <strong>{{ meal.calories }} kcal</strong>
+                <span>{{ meal.status }}</span>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+
+      <section class="guidance-panel">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Quality</span>
+            <h2>Nutrition checks</h2>
+          </div>
+        </div>
+        <div class="note-list">
+          @for (note of nutritionNotes; track note.label) {
+            <article>
+              <span>{{ note.label }}</span>
+              <strong>{{ note.value }}</strong>
+              <p>{{ note.detail }}</p>
+            </article>
+          }
+        </div>
+      </section>
+    </section>
+  }
+</div>

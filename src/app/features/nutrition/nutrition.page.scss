@@ -1,64 +1,360 @@
-.nutrition-layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
-  gap: 16px;
-}
+.nutrition-page {
+  .nutrition-hero,
+  .nutrition-workspace,
+  .planning-grid {
+    display: grid;
+    gap: 16px;
+  }
 
-.form-card {
-  display: grid;
-  gap: 14px;
-  padding: 20px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-}
+  .nutrition-hero {
+    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+  }
 
-.form-grid.two {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
+  .nutrition-workspace {
+    grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
 
-.food-list {
-  display: grid;
-  gap: 10px;
-}
+  .planning-grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  }
 
-.food-row {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
+  .calorie-panel,
+  .macro-panel,
+  .log-panel,
+  .food-panel,
+  .timeline-panel,
+  .guidance-panel {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
 
-  small {
-    display: block;
-    margin-top: 3px;
-    color: var(--muted);
+  .calorie-panel {
+    min-height: 260px;
+    display: grid;
+    align-content: space-between;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(232, 247, 239, 0.86)),
+      linear-gradient(135deg, rgba(32, 166, 107, 0.12), rgba(239, 138, 36, 0.08));
+  }
+
+  .calorie-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 22px;
+
+    h2 {
+      margin: 10px 0 4px;
+      font-size: clamp(48px, 8vw, 74px);
+      line-height: 0.9;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+  }
+
+  .calorie-ring {
+    --value: 0%;
+    width: 118px;
+    height: 118px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at center, #fff 58%, transparent 59%),
+      conic-gradient(var(--orange) var(--value), rgba(24, 35, 31, 0.08) 0);
+
+    strong {
+      font-size: 22px;
+    }
+  }
+
+  .budget-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+
+    div {
+      min-width: 0;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(221, 230, 225, 0.75);
+    }
+
+    span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    strong {
+      display: block;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .macro-panel,
+  .log-panel,
+  .food-panel,
+  .timeline-panel,
+  .guidance-panel {
+    h2 {
+      margin: 6px 0 0;
+    }
+  }
+
+  .macro-list,
+  .food-list,
+  .timeline-list,
+  .note-list,
+  .log-panel {
+    display: grid;
+    gap: 12px;
+  }
+
+  .macro-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1fr);
+    gap: 18px;
+    align-items: center;
+    padding: 14px;
+    border-radius: var(--radius);
+    background: var(--surface-strong);
+
+    strong,
+    span {
+      display: block;
+    }
+
+    span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  }
+
+  .macro-bar {
+    height: 10px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e3ebe7;
+
+    i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--green);
+    }
+  }
+
+  .macro-bar.protein i {
+    background: var(--blue);
+  }
+
+  .macro-bar.carbs i {
+    background: var(--orange);
+  }
+
+  .macro-bar.fat i {
+    background: var(--purple);
+  }
+
+  .selected-pill {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: var(--green-soft);
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .meal-type-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+
+    button {
+      min-height: 42px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-strong);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    button.active {
+      border-color: rgba(239, 138, 36, 0.36);
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+  }
+
+  .form-grid.four {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .food-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 74px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-strong);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+
+    > span {
+      min-width: 0;
+    }
+
+    > span:last-child {
+      text-align: right;
+      flex: 0 0 auto;
+    }
+
+    strong,
+    small {
+      display: block;
+    }
+
+    small {
+      margin-top: 4px;
+      color: var(--muted);
+    }
+  }
+
+  .food-row.selected {
+    border-color: rgba(32, 166, 107, 0.5);
+    background: var(--green-soft);
+  }
+
+  .timeline-row {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr) minmax(92px, auto);
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-strong);
+
+    strong,
+    span {
+      display: block;
+    }
+
+    span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    > div:last-child {
+      text-align: right;
+    }
+  }
+
+  .time-badge {
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .note-list {
+    grid-template-columns: 1fr;
+
+    article {
+      padding: 14px;
+      border-radius: var(--radius);
+      background: var(--surface-strong);
+    }
+
+    span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    strong {
+      display: block;
+      margin: 5px 0;
+      font-size: 22px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+  }
+
+  .success-text {
+    margin: 0;
+    color: var(--green);
+    font-weight: 800;
   }
 }
 
-.success-text {
-  margin: 0;
-  color: var(--green);
-  font-weight: 700;
-}
-
-@media (max-width: 900px) {
-  .nutrition-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 1040px) {
+  .nutrition-page {
+    .nutrition-hero,
+    .nutrition-workspace,
+    .planning-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }
 
-@media (max-width: 560px) {
-  .form-grid.two {
-    grid-template-columns: 1fr;
+@media (max-width: 700px) {
+  .nutrition-page {
+    .calorie-row,
+    .food-row {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .budget-strip,
+    .form-grid.four,
+    .macro-row,
+    .timeline-row {
+      grid-template-columns: 1fr;
+    }
+
+    .meal-type-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .food-row > span:last-child,
+    .timeline-row > div:last-child {
+      text-align: left;
+    }
   }
 }
