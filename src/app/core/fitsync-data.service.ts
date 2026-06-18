@@ -6,6 +6,7 @@ import {
   BodyMetric,
   FoodSearchResult,
   Goal,
+  LoggedFood,
   MealFormValue,
   Meal,
   NutritionSummary,
@@ -94,6 +95,30 @@ interface BackendNutritionSummary {
   targetCarbsGrams?: number | null;
   targetFatGrams?: number | null;
   mealCount?: number | null;
+}
+
+interface BackendFoodSearchResult {
+  foodId?: string | null;
+  displayName?: string | null;
+  brandName?: string | null;
+  calories?: number | null;
+  proteinGrams?: number | null;
+  basisLabel?: string | null;
+  basisUnit?: string | null;
+  verified?: boolean | null;
+}
+
+interface BackendLoggedFood {
+  foodName?: string | null;
+  brandName?: string | null;
+  snapshotServingLabel?: string | null;
+  servingSize?: number | string | null;
+  servingUnit?: string | null;
+  calories?: number | null;
+  proteinGrams?: number | string | null;
+  carbsGrams?: number | string | null;
+  fatGrams?: number | string | null;
+  timesLogged?: number | string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -251,36 +276,45 @@ export class FitSyncDataService {
     ]).pipe(delay(220));
   }
 
-  getFoods(): Observable<FoodSearchResult[]> {
-    return this.http.get<Partial<FoodSearchResult>[]>(`${this.apiBaseUrl}/nutrition/foods/search?q=`).pipe(
-      map((foods) => foods.map((food) => this.mapFood(food))),
-      catchError(() => this.getFallbackFoods())
-    );
+  searchFoods(query: string): Observable<FoodSearchResult[]> {
+    const params = new HttpParams().set('q', query ?? '');
+    return this.http
+      .get<BackendFoodSearchResult[]>(`${this.apiBaseUrl}/nutrition/foods/search`, { params })
+      .pipe(
+        map((foods) => foods.map((food) => this.mapFood(food))),
+        catchError(() => this.getFallbackFoods())
+      );
+  }
+
+  getRecentFoods(limit = 8): Observable<LoggedFood[]> {
+    const params = new HttpParams().set('limit', String(limit));
+    return this.http
+      .get<BackendLoggedFood[]>(`${this.apiBaseUrl}/nutrition/foods/recent`, { params })
+      .pipe(
+        map((foods) => foods.map((food) => this.mapLoggedFood(food))),
+        catchError(() => of([] as LoggedFood[]))
+      );
+  }
+
+  getTodayMeals(timezone?: string): Observable<Meal[]> {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const params = new HttpParams()
+      .set('from', start.toISOString())
+      .set('to', new Date().toISOString());
+    return this.http
+      .get<Partial<Meal>[]>(`${this.apiBaseUrl}/nutrition/meals`, { params })
+      .pipe(
+        map((meals) => meals.map((meal) => this.mapMeal(meal)).filter((meal): meal is Meal => meal !== null)),
+        catchError(() => of([] as Meal[]))
+      );
   }
 
   getFallbackFoods(): Observable<FoodSearchResult[]> {
-    return of([
-      {
-        displayName: 'Greek yogurt',
-        brandName: 'FitSync verified',
-        calories: 96,
-        proteinGrams: 10,
-        basisUnit: '100 g'
-      },
-      {
-        displayName: 'Grilled chicken breast',
-        brandName: 'Generic',
-        calories: 165,
-        proteinGrams: 31,
-        basisUnit: '100 g'
-      },
-      {
-        displayName: 'Brown rice',
-        brandName: 'Generic',
-        calories: 112,
-        proteinGrams: 2.6,
-        basisUnit: '100 g'
-      }
+    return of<FoodSearchResult[]>([
+      { foodId: null, displayName: 'Greek yogurt', brandName: 'Generic', calories: 96, proteinGrams: 10, basisUnit: '100 g', verified: true },
+      { foodId: null, displayName: 'Grilled chicken breast', brandName: 'Generic', calories: 165, proteinGrams: 31, basisUnit: '100 g', verified: true },
+      { foodId: null, displayName: 'Brown rice', brandName: 'Generic', calories: 112, proteinGrams: 2.6, basisUnit: '100 g', verified: true }
     ]).pipe(delay(180));
   }
 
@@ -644,13 +678,30 @@ export class FitSyncDataService {
     };
   }
 
-  private mapFood(food: Partial<FoodSearchResult>): FoodSearchResult {
+  private mapFood(food: BackendFoodSearchResult): FoodSearchResult {
     return {
+      foodId: food.foodId ?? null,
       displayName: food.displayName ?? 'Food',
       brandName: food.brandName ?? '',
       calories: food.calories ?? 0,
+      // Search results carry calories + basis only; macros require the food detail
+      // endpoint, so leave protein at 0 until the user picks a detailed/recent food.
       proteinGrams: food.proteinGrams ?? 0,
-      basisUnit: food.basisUnit ?? 'serving'
+      basisUnit: food.basisLabel ?? food.basisUnit ?? 'serving',
+      verified: food.verified ?? false
+    };
+  }
+
+  private mapLoggedFood(food: BackendLoggedFood): LoggedFood {
+    return {
+      foodName: food.foodName ?? 'Food',
+      brandName: food.brandName ?? '',
+      servingLabel: food.snapshotServingLabel ?? (food.servingSize ? `${food.servingSize} ${food.servingUnit ?? ''}`.trim() : ''),
+      calories: food.calories ?? 0,
+      proteinGrams: Number(food.proteinGrams ?? 0),
+      carbsGrams: Number(food.carbsGrams ?? 0),
+      fatGrams: Number(food.fatGrams ?? 0),
+      timesLogged: Number(food.timesLogged ?? 0)
     };
   }
 }
