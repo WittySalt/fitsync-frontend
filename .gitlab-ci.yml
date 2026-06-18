@@ -81,14 +81,6 @@ build:
     - exists:
         - package.json
 
-sast:
-  stage: test
-  rules:
-    - if: '$RUN_FRONTEND_CD == "true"'
-      when: never
-    - exists:
-        - package.json
-
 secret_detection:
   stage: secret-detection
   rules:
