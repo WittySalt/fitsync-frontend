@@ -42,9 +42,9 @@ export const routes: Routes = [
   },
   {
     path: 'me',
-    loadComponent: () => import('./features/settings/settings.page').then((module) => module.SettingsPage),
+    loadComponent: () => import('./features/profile/profile.page').then((module) => module.ProfilePage),
     canActivate: [authGuard],
-    title: 'FitSync Settings'
+    title: 'FitSync Profile'
   },
   {
     path: 'settings',

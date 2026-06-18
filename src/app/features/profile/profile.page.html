@@ -1,0 +1,118 @@
+<div class="page-grid profile-page">
+  @if (loading()) {
+    <div class="summary-card skeleton tall"></div>
+    <div class="summary-card skeleton"></div>
+  } @else if (error()) {
+    <app-state-panel
+      title="Profile unavailable"
+      [message]="error() ?? ''"
+      actionLabel="Retry"
+      [error]="true"
+      (action)="load()"
+    />
+  } @else if (data(); as dashboard) {
+    <header class="profile-hero">
+      <span class="profile-avatar" aria-hidden="true">{{ initials() }}</span>
+      <div class="profile-id">
+        <p class="eyebrow">Profile</p>
+        <h1>{{ dashboard.profile.displayName }}</h1>
+        <p class="profile-sub">
+          {{ label(dashboard.profile.activityLevel) }}@if (age() !== null) { · {{ age() }} yrs }
+          @if (dashboard.profile.timezone) { · {{ dashboard.profile.timezone }} }
+        </p>
+      </div>
+      <div class="profile-actions">
+        <a class="button secondary" routerLink="/settings" fragment="personal">Edit profile</a>
+        <a class="button secondary" routerLink="/settings">Settings</a>
+      </div>
+    </header>
+
+    <section class="summary-card">
+      <div class="section-title">
+        <div>
+          <span class="card-label">Lifetime stats</span>
+          <h2>Your training history</h2>
+        </div>
+      </div>
+      <app-state-panel
+        title="Stats coming soon"
+        message="Workout totals, hours trained, and personal records appear here once the analytics service is connected."
+      />
+    </section>
+
+    <section class="profile-split">
+      <article class="summary-card">
+        <span class="card-label">Consistency</span>
+        <h2>Streak</h2>
+        <app-state-panel
+          title="Streak coming soon"
+          message="Daily streaks light up here once activity rollups are available."
+        />
+      </article>
+
+      <article class="summary-card goal-card">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Current goal</span>
+            <h2>Active target</h2>
+          </div>
+          <a routerLink="/settings" fragment="personal" class="text-link">Manage</a>
+        </div>
+
+        @if (activeGoal(); as goal) {
+          <div class="goal-headline">
+            <strong>{{ label(goal.goalType) }}</strong>
+            <span>{{ goal.targetValue }} {{ goal.targetUnit }} · by {{ formatDate(goal.targetDate) }}</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <span [style.width.%]="goalProgress()"></span>
+          </div>
+          <p class="goal-progress-label">{{ goalProgress() }}% complete</p>
+        } @else {
+          <app-state-panel title="No active goal" message="Set a measurable target to track progress here." />
+        }
+      </article>
+    </section>
+
+    <section class="summary-card">
+      <div class="section-title">
+        <div>
+          <span class="card-label">Recent activity</span>
+          <h2>Latest entries</h2>
+        </div>
+      </div>
+
+      @if (recentActivity().length) {
+        <div class="activity-list">
+          @for (item of recentActivity(); track item.title + item.when) {
+            <article class="activity-row">
+              <span class="activity-icon">
+                <span class="fs-icon" [attr.data-icon]="item.icon" aria-hidden="true"></span>
+              </span>
+              <div class="activity-body">
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.detail }}</small>
+              </div>
+              <span class="activity-when">{{ formatDate(item.when) }}</span>
+            </article>
+          }
+        </div>
+      } @else {
+        <app-state-panel title="Nothing logged yet" message="Log a workout, meal, or weigh-in to see it here." />
+      }
+    </section>
+
+    <section class="summary-card">
+      <div class="section-title">
+        <div>
+          <span class="card-label">Achievements</span>
+          <h2>Badges &amp; milestones</h2>
+        </div>
+      </div>
+      <app-state-panel
+        title="Achievements coming soon"
+        message="Streak milestones and personal records unlock here once analytics events are wired."
+      />
+    </section>
+  }
+</div>

@@ -75,9 +75,9 @@
               </div>
 
               <a role="menuitem" routerLink="/me" (click)="closeAccountMenu()">Profile overview</a>
-              <a role="menuitem" routerLink="/me" fragment="profile" (click)="closeAccountMenu()">Personal settings</a>
-              <a role="menuitem" routerLink="/me" fragment="security" (click)="closeAccountMenu()">Security settings</a>
-              <a role="menuitem" routerLink="/me" fragment="notifications" (click)="closeAccountMenu()">Notifications</a>
+              <a role="menuitem" routerLink="/settings" fragment="personal" (click)="closeAccountMenu()">Personal settings</a>
+              <a role="menuitem" routerLink="/settings" fragment="security" (click)="closeAccountMenu()">Security settings</a>
+              <a role="menuitem" routerLink="/settings" fragment="notifications" (click)="closeAccountMenu()">Notifications</a>
 
               <button role="menuitem" type="button" class="logout-row" (click)="logout()">Sign out</button>
             </div>
