@@ -10,11 +10,13 @@
 - Trunk must always be the *real, current app*. It is **not** allowed to lag behind
   the shipped feature state.
 
-> **Corrective action (2026-06-18):** `main` had drifted to an ancient commit
-> (`356ae57`, scaffold era) while the entire real app — auth/onboarding redesign,
-> account center, nutrition/workout, design tokens (FE-1/2/3), charts (FE-4) — lived
-> only on `frontend-design-token-adoption` (`5e9e913`, a clean *linear descendant* of
-> `main`). Trunk is being fast-forwarded to that tip so `main` = the real app again.
+> **Current reality (2026-06-19):** on the GitLab remote the lines have **diverged** —
+> `origin/main` (`56c4fbc`) and `origin/frontend-design-token-adoption` (`5e9e913`,
+> the real app: auth/onboarding redesign, account center, nutrition/workout, design
+> tokens FE-1/2/3, charts FE-4) share no common ancestor and have forked. They must
+> be reconciled via a **Merge Request on GitLab**, never by moving `main` locally.
+> Until that reconciliation lands, treat `frontend-design-token-adoption` as the
+> integration base for new frontend feature branches and open MRs **against it**.
 
 ## 2. Always branch from up-to-date `main`
 ```bash
