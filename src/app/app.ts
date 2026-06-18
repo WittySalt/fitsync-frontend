@@ -1,5 +1,9 @@
-import { Component } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
+
+import { AccountDataService, AccountSummary } from './core/account-data.service';
+import { AuthService } from './core/auth/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -7,8 +11,14 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App {
-  constructor(protected readonly router: Router) {}
+export class App implements OnInit {
+  protected readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
+  private readonly accountDataService = inject(AccountDataService);
+
+  protected readonly accountMenuOpen = signal(false);
+  protected readonly account = signal<AccountSummary | null>(null);
+  private readonly accountLoading = signal(false);
 
   protected readonly navItems = [
     { path: '/dashboard', label: 'Home', icon: 'home' },
@@ -20,5 +30,61 @@ export class App {
 
   protected isAuthRoute(): boolean {
     return this.router.url.startsWith('/auth') || this.router.url.startsWith('/logout');
+  }
+
+  ngOnInit(): void {
+    this.loadAccountIfNeeded();
+    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => this.loadAccountIfNeeded());
+  }
+
+  protected toggleAccountMenu(): void {
+    this.accountMenuOpen.update((open) => !open);
+  }
+
+  protected closeAccountMenu(): void {
+    this.accountMenuOpen.set(false);
+  }
+
+  protected logout(): void {
+    this.closeAccountMenu();
+    this.authService.logout();
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeAccountMenuFromDocument(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (this.accountMenuOpen() && !target?.closest('.account-menu')) {
+      this.closeAccountMenu();
+    }
+  }
+
+  private loadAccountIfNeeded(): void {
+    if (this.isAuthRoute() || this.account() || this.accountLoading()) {
+      return;
+    }
+
+    this.accountLoading.set(true);
+    this.authService.ensureSession().subscribe({
+      next: (authenticated) => {
+        if (!authenticated) {
+          this.accountLoading.set(false);
+          this.account.set(null);
+          return;
+        }
+
+        this.accountDataService.getAccountSummary().subscribe({
+          next: (account) => {
+            this.account.set(account);
+            this.accountLoading.set(false);
+          },
+          error: () => {
+            this.accountLoading.set(false);
+          }
+        });
+      },
+      error: () => {
+        this.accountLoading.set(false);
+      }
+    });
   }
 }

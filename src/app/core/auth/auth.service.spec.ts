@@ -35,6 +35,46 @@ describe('AuthService', () => {
     expect(service.isAuthenticated()).toBeTrue();
   });
 
+  it('restores a local FitSync token from the stored Cognito ID token when needed', (done) => {
+    const localJwt = jwtWithExpiry(Math.floor((Date.now() + 3_600_000) / 1000));
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoIdToken, 'stored-cognito-id-token');
+
+    service.ensureSession().subscribe({
+      next: (authenticated) => {
+        expect(authenticated).toBeTrue();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBe(localJwt);
+        done();
+      },
+      error: done.fail
+    });
+
+    const bootstrapRequest = httpMock.expectOne('/api/v1/auth/bootstrap');
+    expect(bootstrapRequest.request.method).toBe('POST');
+    expect(bootstrapRequest.request.headers.get('Authorization')).toBe('Bearer stored-cognito-id-token');
+    bootstrapRequest.flush({
+      accessToken: localJwt,
+      tokenType: 'Bearer'
+    });
+  });
+
+  it('clears the browser session if bootstrap restoration fails', (done) => {
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoIdToken, 'stored-cognito-id-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoAccessToken, 'stored-cognito-access-token');
+
+    service.ensureSession().subscribe({
+      next: (authenticated) => {
+        expect(authenticated).toBeFalse();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.cognitoIdToken)).toBeNull();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+        done();
+      },
+      error: done.fail
+    });
+
+    const bootstrapRequest = httpMock.expectOne('/api/v1/auth/bootstrap');
+    bootstrapRequest.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+  });
+
   it('signs in with Cognito and stores the local FitSync token returned by bootstrap', (done) => {
     const localJwt = jwtWithExpiry(Math.floor((Date.now() + 3_600_000) / 1000));
 

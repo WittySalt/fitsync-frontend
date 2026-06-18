@@ -26,6 +26,49 @@
   </aside>
 
   <main class="content-frame">
+    <header class="topbar" aria-label="Account toolbar">
+      <div class="topbar-actions">
+        <div class="account-menu">
+          <button
+            class="account-button"
+            type="button"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="accountMenuOpen()"
+            (click)="toggleAccountMenu()"
+          >
+            @if (account()?.avatarUrl) {
+              <img class="account-avatar" [src]="account()?.avatarUrl ?? ''" alt="" />
+            } @else {
+              <span class="account-avatar" aria-hidden="true">{{ account()?.initials ?? 'FS' }}</span>
+            }
+          </button>
+
+          @if (accountMenuOpen()) {
+            <div class="account-popover" role="menu">
+              <div class="account-popover-header">
+                @if (account()?.avatarUrl) {
+                  <img class="account-avatar large" [src]="account()?.avatarUrl ?? ''" alt="" />
+                } @else {
+                  <span class="account-avatar large" aria-hidden="true">{{ account()?.initials ?? 'FS' }}</span>
+                }
+                <div>
+                  <strong>{{ account()?.displayName ?? 'FitSync User' }}</strong>
+                  <small>{{ account()?.email ?? 'Account loading' }}</small>
+                </div>
+              </div>
+
+              <a role="menuitem" routerLink="/me" (click)="closeAccountMenu()">Profile overview</a>
+              <a role="menuitem" routerLink="/me" fragment="profile" (click)="closeAccountMenu()">Personal settings</a>
+              <a role="menuitem" routerLink="/me" fragment="security" (click)="closeAccountMenu()">Security settings</a>
+              <a role="menuitem" routerLink="/me" fragment="notifications" (click)="closeAccountMenu()">Notifications</a>
+
+              <button role="menuitem" type="button" class="logout-row" (click)="logout()">Sign out</button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
     <router-outlet />
   </main>
 

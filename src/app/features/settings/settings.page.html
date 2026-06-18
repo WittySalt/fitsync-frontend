@@ -1,34 +1,359 @@
-<div class="page-grid">
-  <header class="page-header">
-    <div>
-      <p class="eyebrow">Me</p>
-      <h1>Profile and settings</h1>
-      <p>Keep app, training, nutrition, notification, and privacy preferences grouped clearly.</p>
-    </div>
-  </header>
-
-  <section class="record-grid">
-    @for (group of groups; track group.title) {
-      <article class="summary-card">
-        <span class="card-label">{{ group.title }}</span>
-        <div class="settings-list">
-          @for (item of group.items; track item) {
-            <button type="button" class="settings-row">
-              <span>{{ item }}</span>
-              <span aria-hidden="true">›</span>
-            </button>
-          }
+<div class="page-grid settings-page">
+  @if (loading()) {
+    <section class="settings-skeleton" aria-busy="true" aria-label="Loading account settings">
+      <div class="skeleton tall"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </section>
+  } @else if (error() && !data()) {
+    <section class="empty-state">
+      <p class="eyebrow">Account center</p>
+      <h1>Settings unavailable</h1>
+      <p>{{ error() }}</p>
+      <button class="button secondary" type="button" (click)="load()">Retry</button>
+    </section>
+  } @else if (data(); as account) {
+    <header class="settings-hero">
+      <div class="profile-lockup">
+        @if (account.user.profile.avatarUrl) {
+          <img class="profile-avatar" [src]="account.user.profile.avatarUrl" alt="" />
+        } @else {
+          <span class="profile-avatar" aria-hidden="true">{{ initials() }}</span>
+        }
+        <div>
+          <p class="eyebrow">Account center</p>
+          <h1>{{ account.user.profile.displayName }}</h1>
+          <p>{{ accountType() }}</p>
         </div>
-      </article>
-    }
-  </section>
+      </div>
 
-  <section class="summary-card">
-    <span class="card-label">Account</span>
-    <h2>Session</h2>
-    <p>Sign out clears local FitSync tokens and redirects through Cognito logout.</p>
-    <div style="margin-top: 16px">
-      <button class="button secondary" type="button" (click)="logout()">Sign out</button>
+      <div class="settings-account-menu">
+        <button class="icon-menu" type="button" aria-label="Account menu" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen()" (click)="toggleAccountMenu()">
+          {{ initials() }}
+        </button>
+        @if (accountMenuOpen()) {
+          <div class="settings-account-popover" role="menu">
+            <strong>{{ account.auth.email || account.user.email || 'Cognito account' }}</strong>
+            <a role="menuitem" href="#personal" (click)="closeAccountMenu()">Personal settings</a>
+            <a role="menuitem" href="#security" (click)="closeAccountMenu()">Security settings</a>
+            <button role="menuitem" type="button" class="logout-row" (click)="logout()">Sign out</button>
+          </div>
+        }
+      </div>
+    </header>
+
+    <section class="account-summary" aria-label="Account summary">
+      <article><span>Region</span><strong>{{ region() }}</strong></article>
+      <article><span>Activity</span><strong>{{ labelFor(account.user.profile.activityLevel) }}</strong></article>
+      <article><span>Security</span><strong>{{ account.security.securityLabel || 'Cognito protected' }}</strong></article>
+    </section>
+
+    @if (saveMessage()) {
+      <p class="form-notice">{{ saveMessage() }}</p>
+    }
+    @if (error()) {
+      <p class="form-error">{{ error() }}</p>
+    }
+
+    <div class="account-layout">
+      <nav class="section-nav" aria-label="Account sections">
+        @for (section of sections; track section.id) {
+          <a [href]="'#' + section.id">{{ section.label }}</a>
+        }
+      </nav>
+
+      <main class="settings-stack">
+        <section class="settings-section" id="personal">
+          <div class="section-heading">
+            <p class="eyebrow">Personal</p>
+            <h2>Personal settings</h2>
+            <p>{{ sections[0].description }}</p>
+          </div>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Identity</h3><button class="button secondary compact" type="button" (click)="startEdit('identity')">Edit</button></div>
+            @if (sectionErrors().identity; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'identity') {
+              <form class="settings-editor" [formGroup]="identityForm" (ngSubmit)="saveIdentity()">
+                <label>Display name<input formControlName="displayName" /></label>
+                <label>First name<input formControlName="firstName" /></label>
+                <label>Last name<input formControlName="lastName" /></label>
+                <label>Avatar URL<input formControlName="avatarUrl" /></label>
+                <label>Date of birth<input type="date" formControlName="birthDate" /></label>
+                <label>Gender<select formControlName="gender">@for (option of genderOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label class="wide">Bio<textarea rows="3" formControlName="bio"></textarea></label>
+                <label class="toggle-row"><input type="checkbox" formControlName="onboardingCompleted" /> Onboarding completed</label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'identity'">{{ saving() === 'identity' ? 'Saving...' : 'Save identity' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list">
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Display name</span><strong>{{ account.user.profile.displayName }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>First name</span><strong>{{ account.user.profile.firstName || 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Last name</span><strong>{{ account.user.profile.lastName || 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Gender</span><strong>{{ labelFor(account.user.profile.gender) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Date of birth</span><strong>{{ displayDate(account.user.profile.birthDate) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Avatar</span><strong>{{ account.user.profile.avatarUrl ? 'Custom image' : 'Initials avatar' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Bio</span><strong>{{ account.user.profile.bio || 'Not set' }}</strong><em>Edit</em></button>
+                <div class="field-row readonly"><span>Membership</span><strong>{{ labelFor(account.user.profile.membershipTier) }} - {{ labelFor(account.user.profile.membershipStatus) }}</strong><em>Read only</em></div>
+              </div>
+            }
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Location & timezone</h3><button class="button secondary compact" type="button" (click)="startEdit('location')">Edit</button></div>
+            @if (sectionErrors().location; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'location') {
+              <form class="settings-editor" [formGroup]="locationForm" (ngSubmit)="saveLocation()">
+                <label>Location<input formControlName="locationDisplay" /></label>
+                <label>Profile timezone<input formControlName="profileTimezone" /></label>
+                <label>App timezone<input formControlName="appTimezone" /></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'location'">{{ saving() === 'location' ? 'Saving...' : 'Save location' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list">
+                <button class="field-row" type="button" (click)="startEdit('location')"><span>Location</span><strong>{{ account.user.profile.locationDisplay || 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('location')"><span>Profile timezone</span><strong>{{ account.user.profile.timezone || 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('location')"><span>App timezone</span><strong>{{ account.user.preferences.app.timezone || 'Not set' }}</strong><em>Edit</em></button>
+              </div>
+            }
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Body metrics</h3><button class="button secondary compact" type="button" (click)="startEdit('body')">Edit</button></div>
+            @if (sectionErrors().body; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'body') {
+              <form class="settings-editor metric-grid" [formGroup]="bodyForm" (ngSubmit)="saveBody()">
+                <label>Height (cm)<input type="number" formControlName="heightCm" min="80" max="300" /></label>
+                <label>Weight (kg)<input type="number" formControlName="weightKg" min="1" max="500" /></label>
+                <label>Body fat %<input type="number" formControlName="bodyFatRate" min="0" max="100" /></label>
+                <label>Waist (cm)<input type="number" formControlName="waistCm" /></label>
+                <label>Hip (cm)<input type="number" formControlName="hipCm" /></label>
+                <label>Chest (cm)<input type="number" formControlName="chestCm" /></label>
+                <label>Arm (cm)<input type="number" formControlName="armCm" /></label>
+                <label>Thigh (cm)<input type="number" formControlName="thighCm" /></label>
+                <label>Calf (cm)<input type="number" formControlName="calfCm" /></label>
+                <label>Measured at<input type="datetime-local" formControlName="measuredAt" /></label>
+                <label>Source<select formControlName="source">@for (option of metricSourceOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label class="wide">Note<textarea rows="2" formControlName="note"></textarea></label>
+                <div class="derived-pill">BMI is calculated from height and latest weight: {{ account.user.latestBodyMetrics?.bmi ?? 'Not available' }}</div>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'body'">{{ saving() === 'body' ? 'Saving...' : 'Save body metrics' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list">
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Height</span><strong>{{ displayHeight(account.user.profile.heightCm) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Weight</span><strong>{{ displayWeight(account.user.latestBodyMetrics) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Body fat</span><strong>{{ displayMetric(account.user.latestBodyMetrics?.bodyFatRate, '%') }}</strong><em>Edit</em></button>
+                <div class="field-row readonly"><span>BMI</span><strong>{{ account.user.latestBodyMetrics?.bmi ?? 'Not available' }}</strong><em>Derived</em></div>
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Waist / hip / chest</span><strong>{{ displayMetric(account.user.latestBodyMetrics?.waistCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.hipCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.chestCm, 'cm') }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Arm / thigh / calf</span><strong>{{ displayMetric(account.user.latestBodyMetrics?.armCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.thighCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.calfCm, 'cm') }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Measured at</span><strong>{{ displayDateTime(account.user.latestBodyMetrics?.measuredAt) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('body')"><span>Source and note</span><strong>{{ labelFor(account.user.latestBodyMetrics?.source) }} - {{ account.user.latestBodyMetrics?.note || 'No note' }}</strong><em>Edit</em></button>
+              </div>
+            }
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Activity level</h3><button class="button secondary compact" type="button" (click)="startEdit('activity')">Edit</button></div>
+            @if (editPanel() === 'activity') {
+              <form class="settings-editor single" [formGroup]="activityForm" (ngSubmit)="saveActivity()">
+                <label>Activity level<select formControlName="activityLevel">@for (option of activityOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'activity'">Save activity</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <button class="field-row single-row" type="button" (click)="startEdit('activity')"><span>Activity level</span><strong>{{ labelFor(account.user.profile.activityLevel) }}</strong><em>Edit</em></button>
+            }
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Goals / targets</h3><button class="button secondary compact" type="button" (click)="startGoalEdit('WEIGHT')">Edit</button></div>
+            @if (sectionErrors().goals; as message) { <p class="section-error">{{ message }}</p> }
+            <div class="field-list">
+              @for (option of goalTypeOptions; track option.value) {
+                <button class="field-row" type="button" (click)="startGoalEdit(option.value)"><span>{{ option.label }}</span><strong>{{ goalSummary(option.value) }}</strong><em>Edit</em></button>
+              }
+            </div>
+            @if (goalPanelOpen()) {
+              <form class="settings-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
+                <label>Goal type<select formControlName="goalType" (change)="startGoalEdit(goalForm.controls.goalType.value)">@for (option of goalTypeOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Target value<input type="number" formControlName="targetValue" min="0" /></label>
+                <label>Target unit<input formControlName="targetUnit" /></label>
+                <label>Target date<input type="date" formControlName="targetDate" /></label>
+                <label>Status<select formControlName="status">@for (option of goalStatusOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label class="wide">Notes<textarea rows="2" formControlName="notes"></textarea></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'goals'">{{ saving() === 'goals' ? 'Saving...' : 'Save goal' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            }
+          </article>
+        </section>
+
+        <section class="settings-section" id="preferences">
+          <div class="section-heading"><p class="eyebrow">Preferences</p><h2>App preferences</h2><p>{{ sections[1].description }}</p></div>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Formatting</h3><button class="button secondary compact" type="button" (click)="startEdit('formatting')">Edit</button></div>
+            @if (sectionErrors().formatting; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'formatting') {
+              <form class="settings-editor single" [formGroup]="formattingForm" (ngSubmit)="savePreferences('formatting')">
+                <label>Units<select formControlName="preferredUnits">@for (option of unitOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Language<select formControlName="language">@for (option of languageOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'formatting'">Save formatting</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list"><button class="field-row" type="button" (click)="startEdit('formatting')"><span>Units</span><strong>{{ labelFor(account.user.preferences.app.preferredUnits) }}</strong><em>Edit</em></button><button class="field-row" type="button" (click)="startEdit('formatting')"><span>Language</span><strong>{{ labelFor(account.user.preferences.app.language) }}</strong><em>Edit</em></button></div>
+            }
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Training defaults</h3><button class="button secondary compact" type="button" (click)="startEdit('training')">Edit</button></div>
+            @if (sectionErrors().training; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'training') {
+              <form class="settings-editor" [formGroup]="trainingForm" (ngSubmit)="savePreferences('training')">
+                <label>Fitness level<select formControlName="fitnessLevel">@for (option of fitnessOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Training location<select formControlName="trainingLocation">@for (option of trainingLocationOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Weekly workout days<input type="number" formControlName="weeklyWorkoutDays" min="0" max="14" /></label>
+                <label>Duration minutes<input type="number" formControlName="preferredDurationMinutes" min="5" max="240" /></label>
+                <label>Workout time<input type="time" formControlName="preferredWorkoutTime" /></label>
+                <label>Intensity<select formControlName="intensityPreference">@for (option of intensityOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'training'">Save training</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list">
+                <button class="field-row" type="button" (click)="startEdit('training')"><span>Fitness level</span><strong>{{ labelFor(account.user.preferences.training.fitnessLevel) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('training')"><span>Training location</span><strong>{{ labelFor(account.user.preferences.training.trainingLocation) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('training')"><span>Weekly workout days</span><strong>{{ account.user.preferences.training.weeklyWorkoutDays ?? 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('training')"><span>Duration</span><strong>{{ account.user.preferences.training.preferredDurationMinutes ? account.user.preferences.training.preferredDurationMinutes + ' min' : 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('training')"><span>Workout time</span><strong>{{ displayTime(account.user.preferences.training.preferredWorkoutTime) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('training')"><span>Intensity</span><strong>{{ labelFor(account.user.preferences.training.intensityPreference) }}</strong><em>Edit</em></button>
+              </div>
+            }
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Nutrition tracking</h3><button class="button secondary compact" type="button" (click)="startEdit('nutrition')">Edit</button></div>
+            @if (sectionErrors().nutrition; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'nutrition') {
+              <form class="settings-editor" [formGroup]="nutritionForm" (ngSubmit)="savePreferences('nutrition')">
+                <label>Dietary pattern<select formControlName="dietaryPattern">@for (option of dietaryOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Meal frequency<input type="number" formControlName="mealFrequency" min="1" max="12" /></label>
+                <label>Calorie mode<select formControlName="calorieTrackingMode">@for (option of calorieModeOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Macro preference<select formControlName="macroPreference">@for (option of macroOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label>Water goal (ml)<input type="number" formControlName="waterGoalMl" min="0" max="10000" /></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'nutrition'">Save nutrition</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list">
+                <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Dietary pattern</span><strong>{{ labelFor(account.user.preferences.nutrition.dietaryPattern) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Meal frequency</span><strong>{{ account.user.preferences.nutrition.mealFrequency ?? 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Calorie mode</span><strong>{{ labelFor(account.user.preferences.nutrition.calorieTrackingMode) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Macro preference</span><strong>{{ labelFor(account.user.preferences.nutrition.macroPreference) }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Water goal</span><strong>{{ account.user.preferences.nutrition.waterGoalMl ? account.user.preferences.nutrition.waterGoalMl + ' ml' : 'Not set' }}</strong><em>Edit</em></button>
+              </div>
+            }
+          </article>
+        </section>
+
+        <section class="settings-section" id="security">
+          <div class="section-heading"><p class="eyebrow">Security</p><h2>Security settings</h2><p>{{ sections[2].description }}</p></div>
+          <article class="sub-card">
+            <h3>Password</h3>
+            <div class="field-row readonly"><span>Password</span><strong>{{ account.security.passwordManagedExternally ? 'Managed by Cognito' : 'Managed by FitSync' }}</strong><em>Cognito protected</em></div>
+            <div class="field-row readonly"><span>Two-step verification</span><strong>{{ account.security.twoFactorEnabled ? 'On' : (account.security.twoFactorConfigurable ? 'Ready to configure' : 'Coming soon') }}</strong><em>{{ account.security.twoFactorEnabled ? 'On' : 'Off' }}</em></div>
+          </article>
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Recovery email</h3>@if (account.security.recoveryEmailUpdatable) { <button class="button secondary compact" type="button" (click)="startEdit('recovery')">Edit</button> }</div>
+            @if (sectionErrors().recovery; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'recovery' && account.security.recoveryEmailUpdatable) {
+              <form class="settings-editor single" [formGroup]="recoveryForm" (ngSubmit)="saveRecoveryEmail()">
+                <label>Recovery email<input type="email" formControlName="email" /></label>
+                <label>Current password<input type="password" formControlName="currentPassword" /></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'recovery'">Save recovery email</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-row" [class.readonly]="!account.security.recoveryEmailUpdatable" (click)="account.security.recoveryEmailUpdatable ? startEdit('recovery') : null"><span>Recovery email</span><strong>{{ account.security.recoveryEmail || account.auth.email || 'Not set' }}</strong><em>{{ account.security.recoveryEmailUpdatable ? 'Edit' : 'Read only' }}</em></div>
+            }
+          </article>
+          <article class="sub-card">
+            <h3>Active sessions</h3>
+            <div class="field-list">
+              @for (session of account.sessions; track session.sessionId) {
+                <div class="field-row readonly"><span>{{ session.deviceLabel || 'Current device' }}</span><strong>{{ session.ipAddress || 'IP unavailable' }} - expires {{ displayDateTime(session.expiresAt) }}</strong><em>{{ session.revocable ? 'Revocable' : 'Read only' }}</em></div>
+              } @empty {
+                <div class="field-row readonly"><span>Sessions</span><strong>{{ account.security.sessionTrackingAvailable ? account.security.sessionCount + ' session(s)' : 'Session tracking unavailable' }}</strong><em>Read only</em></div>
+              }
+            </div>
+          </article>
+        </section>
+
+        <section class="settings-section" id="notifications">
+          <div class="section-heading"><p class="eyebrow">Notifications</p><h2>Notifications</h2><p>{{ sections[3].description }}</p></div>
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Channels & reminders</h3><button class="button secondary compact" type="button" (click)="startEdit('notifications')">Edit</button></div>
+            @if (sectionErrors().notifications; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'notifications') {
+              <form class="settings-editor" [formGroup]="notificationsForm" (ngSubmit)="savePreferences('notifications')">
+                <label class="toggle-row"><input type="checkbox" formControlName="pushEnabled" /> Push notifications</label>
+                <label class="toggle-row"><input type="checkbox" formControlName="emailEnabled" /> Email notifications</label>
+                <label class="toggle-row"><input type="checkbox" formControlName="workoutReminderEnabled" /> Workout reminders</label>
+                <label class="toggle-row"><input type="checkbox" formControlName="mealReminderEnabled" /> Meal reminders</label>
+                <label class="toggle-row"><input type="checkbox" formControlName="weighInReminderEnabled" /> Weigh-in reminders</label>
+                <label class="toggle-row"><input type="checkbox" formControlName="goalProgressReminderEnabled" /> Goal progress reminders</label>
+                <label class="toggle-row"><input type="checkbox" formControlName="weeklyProgressReportEnabled" /> Weekly progress report</label>
+                <label>Report channel<select formControlName="weeklyProgressReportChannel">@for (option of channelOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label class="toggle-row"><input type="checkbox" formControlName="marketingEmailsEnabled" /> Marketing emails</label>
+                <label>Quiet hours start<input type="time" formControlName="quietHoursStart" /></label>
+                <label>Quiet hours end<input type="time" formControlName="quietHoursEnd" /></label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'notifications'">Save notifications</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list">
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Push channel</span><strong>{{ account.user.preferences.notifications.pushEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Email channel</span><strong>{{ account.user.preferences.notifications.emailEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Workout reminders</span><strong>{{ account.user.preferences.notifications.workoutReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Meal reminders</span><strong>{{ account.user.preferences.notifications.mealReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Weigh-in reminders</span><strong>{{ account.user.preferences.notifications.weighInReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Goal progress reminders</span><strong>{{ account.user.preferences.notifications.goalProgressReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Weekly report</span><strong>{{ account.user.preferences.notifications.weeklyProgressReportEnabled ? 'On - ' + labelFor(account.user.preferences.notifications.weeklyProgressReportChannel) : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Marketing emails</span><strong>{{ account.user.preferences.notifications.marketingEmailsEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Quiet hours</span><strong>{{ displayTime(account.user.preferences.notifications.quietHoursStart) }} - {{ displayTime(account.user.preferences.notifications.quietHoursEnd) }}</strong><em>Edit</em></button>
+              </div>
+            }
+          </article>
+        </section>
+
+        <section class="settings-section" id="privacy-data">
+          <div class="section-heading"><p class="eyebrow">Privacy & Data</p><h2>Privacy and data</h2><p>{{ sections[4].description }}</p></div>
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Visibility & sharing</h3><button class="button secondary compact" type="button" (click)="startEdit('privacy')">Edit</button></div>
+            @if (sectionErrors().privacy; as message) { <p class="section-error">{{ message }}</p> }
+            @if (editPanel() === 'privacy') {
+              <form class="settings-editor single" [formGroup]="privacyForm" (ngSubmit)="savePreferences('privacy')">
+                <label>Profile visibility<select formControlName="privacyLevel">@for (option of privacyOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                <label class="toggle-row"><input type="checkbox" formControlName="dataSharingConsent" /> Health data sharing</label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'privacy'">Save privacy</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            } @else {
+              <div class="field-list"><button class="field-row" type="button" (click)="startEdit('privacy')"><span>Profile visibility</span><strong>{{ labelFor(account.user.preferences.app.privacyLevel) }}</strong><em>Edit</em></button><button class="field-row" type="button" (click)="startEdit('privacy')"><span>Health data sharing</span><strong>{{ account.user.preferences.app.dataSharingConsent ? 'On' : 'Off' }}</strong><em>Edit</em></button></div>
+            }
+          </article>
+          <article class="sub-card">
+            <h3>Download archive</h3>
+            <div class="field-row readonly"><span>Latest export</span><strong>{{ account.latestDataExport ? labelFor(account.latestDataExport.status) + ' - ' + displayDateTime(account.latestDataExport.requestedAt) : 'No export requested' }}</strong><em>{{ account.latestDataExport?.downloadAvailable ? 'Ready' : 'Status' }}</em></div>
+            <div class="action-row"><button class="button secondary" type="button" [disabled]="saving() === 'privacy'" (click)="requestDataExport()">Request archive</button><button class="button secondary" type="button" [disabled]="!account.latestDataExport?.downloadAvailable || saving() === 'privacy'" (click)="downloadDataExport()">Download</button></div>
+          </article>
+          <article class="sub-card danger-zone">
+            <div class="sub-card-header"><h3>Delete account</h3><button class="button danger compact" type="button" (click)="startEdit('delete')">Request deletion</button></div>
+            @if (sectionErrors().delete; as message) { <p class="section-error">{{ message }}</p> }
+            <div class="field-row readonly"><span>Deletion status</span><strong>{{ labelFor(account.accountDeletion.status) }}{{ account.accountDeletion.requestedAt ? ' - ' + displayDateTime(account.accountDeletion.requestedAt) : '' }}</strong><em>{{ account.accountDeletion.passwordConfirmationRequired ? 'Password required' : 'Confirmation required' }}</em></div>
+            @if (editPanel() === 'delete') {
+              <form class="settings-editor single" [formGroup]="deletionForm" (ngSubmit)="requestAccountDeletion()">
+                <label>Confirmation text<input formControlName="confirmationText" /></label>
+                <label>Current password<input type="password" formControlName="currentPassword" /></label>
+                <div class="editor-actions"><button class="button danger" type="submit" [disabled]="saving() === 'delete'">Submit deletion request</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            }
+          </article>
+        </section>
+      </main>
     </div>
-  </section>
+  }
 </div>
