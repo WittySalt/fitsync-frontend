@@ -21,7 +21,7 @@ describe('OnboardingPage', () => {
 
   it('renders the setup form', () => {
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Personalize FitSync');
+    expect(element.textContent).toContain('Set up your FitSync profile');
     expect(element.querySelector('form')).not.toBeNull();
   });
 

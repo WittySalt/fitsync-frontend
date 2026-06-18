@@ -206,66 +206,34 @@ export class FitSyncDataService {
 
   saveOnboarding(value: OnboardingFormValue): Observable<{ ok: true }> {
     this.lastSavedMessage.set(null);
-    const measuredAt = new Date().toISOString();
 
-    return forkJoin([
-      this.http.put(`${this.apiBaseUrl}/users/me/profile`, {
-        displayName: value.displayName,
-        firstName: value.displayName.split(' ')[0] ?? value.displayName,
-        lastName: value.displayName.split(' ').slice(1).join(' '),
-        heightCm: value.heightCm,
-        activityLevel: 'MODERATELY_ACTIVE',
-        timezone: 'Asia/Singapore',
-        bio: '',
-        onboardingCompleted: true
-      }),
-      this.http.put(`${this.apiBaseUrl}/users/me/preferences`, {
-        app: {
-          preferredUnits: 'METRIC',
-          language: 'EN',
-          timezone: 'Asia/Singapore',
-          privacyLevel: 'PRIVATE',
-          dataSharingConsent: false
-        },
-        training: {
-          fitnessLevel: 'BEGINNER',
-          trainingLocation: 'MIXED',
-          weeklyWorkoutDays: value.weeklyWorkoutDays,
-          preferredDurationMinutes: 45,
-          preferredWorkoutTime: '19:00:00',
-          intensityPreference: 'MODERATE'
-        },
-        nutrition: {
-          dietaryPattern: value.dietaryPattern,
-          mealFrequency: 4,
-          calorieTrackingMode: value.calorieTrackingMode,
-          macroPreference: 'BALANCED',
-          waterGoalMl: 2500
-        },
-        notifications: {
-          pushEnabled: true,
-          emailEnabled: false,
-          workoutReminderEnabled: value.workoutReminderEnabled,
-          mealReminderEnabled: value.mealReminderEnabled,
-          weighInReminderEnabled: true,
-          goalProgressReminderEnabled: true,
-          marketingEmailsEnabled: false,
-          quietHoursStart: '22:00:00',
-          quietHoursEnd: '07:00:00'
-        }
-      }),
-      this.http.post(`${this.apiBaseUrl}/users/me/body-metrics`, {
-        weightKg: value.weightKg,
-        measuredAt,
-        source: 'MANUAL'
-      }),
-      this.http.put(`${this.apiBaseUrl}/users/me/goals/${value.goalType}`, {
-        targetValue: value.targetValue,
-        targetUnit: value.goalType === 'WEIGHT' ? 'kg' : '',
-        targetDate: this.defaultTargetDate(),
-        status: 'ACTIVE'
-      })
-    ]).pipe(map(() => ({ ok: true as const })));
+    return this.http.post(`${this.apiBaseUrl}/users/me/onboarding`, {
+      displayName: value.displayName,
+      birthDate: value.birthDate || null,
+      gender: value.gender || 'PREFER_NOT_TO_SAY',
+      heightCm: value.heightCm,
+      activityLevel: value.activityLevel,
+      timezone: 'Asia/Singapore',
+      preferredUnits: value.preferredUnits,
+      currentWeightKg: value.currentWeightKg,
+      targetWeightKg: value.targetWeightKg,
+      bodyFatRate: value.bodyFatRate,
+      targetDate: value.targetDate || this.defaultTargetDate(),
+      fitnessLevel: value.fitnessLevel,
+      trainingLocation: value.trainingLocation,
+      weeklyWorkoutDays: value.weeklyWorkoutDays,
+      preferredDurationMinutes: value.preferredDurationMinutes,
+      preferredWorkoutTime: value.preferredWorkoutTime ? `${value.preferredWorkoutTime}:00` : null,
+      intensityPreference: value.intensityPreference,
+      dietaryPattern: value.dietaryPattern,
+      mealFrequency: value.mealFrequency,
+      calorieTrackingMode: value.calorieTrackingMode,
+      macroPreference: value.macroPreference,
+      waterGoalMl: value.waterGoalMl,
+      workoutReminderEnabled: value.workoutReminderEnabled,
+      mealReminderEnabled: value.mealReminderEnabled,
+      weighInReminderEnabled: value.weighInReminderEnabled
+    }).pipe(map(() => ({ ok: true as const })));
   }
 
   saveMeal(value: MealFormValue): Observable<{ ok: true }> {
@@ -273,16 +241,20 @@ export class FitSyncDataService {
 
     return this.http.post(`${this.apiBaseUrl}/nutrition/meals`, {
       mealType: value.mealType,
+      name: value.foodName,
       source: 'MANUAL',
       consumedAt: new Date().toISOString(),
       timezone: 'Asia/Singapore',
+      note: value.note || null,
       items: [
         {
           foodName: value.foodName,
           quantity: 1,
           unit: 'serving',
           calories: value.calories,
-          proteinGrams: value.proteinGrams
+          proteinGrams: value.proteinGrams,
+          carbsGrams: value.carbsGrams,
+          fatGrams: value.fatGrams
         }
       ]
     }).pipe(

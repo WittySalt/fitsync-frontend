@@ -10,15 +10,29 @@ export interface UserProfile {
 
 export interface OnboardingFormValue {
   displayName: string;
+  birthDate: string;
+  gender: string;
   heightCm: number;
-  weightKg: number;
-  goalType: string;
-  targetValue: number;
+  activityLevel: string;
+  currentWeightKg: number;
+  targetWeightKg: number;
+  bodyFatRate: number | null;
+  targetDate: string;
+  preferredUnits: string;
+  fitnessLevel: string;
+  trainingLocation: string;
   weeklyWorkoutDays: number;
+  preferredDurationMinutes: number;
+  preferredWorkoutTime: string;
+  intensityPreference: string;
   dietaryPattern: string;
+  mealFrequency: number;
   calorieTrackingMode: string;
+  macroPreference: string;
+  waterGoalMl: number;
   workoutReminderEnabled: boolean;
   mealReminderEnabled: boolean;
+  weighInReminderEnabled: boolean;
 }
 
 export interface NutritionSummary {
@@ -90,4 +104,7 @@ export interface MealFormValue {
   foodName: string;
   calories: number;
   proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  note: string;
 }
