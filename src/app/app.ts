@@ -4,6 +4,7 @@ import { filter } from 'rxjs';
 
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
+import { ThemeService } from './core/theme/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -15,6 +16,7 @@ export class App implements OnInit {
   protected readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly accountDataService = inject(AccountDataService);
+  protected readonly themeService = inject(ThemeService);
 
   protected readonly accountMenuOpen = signal(false);
   protected readonly account = signal<AccountSummary | null>(null);
@@ -43,6 +45,10 @@ export class App implements OnInit {
 
   protected closeAccountMenu(): void {
     this.accountMenuOpen.set(false);
+  }
+
+  protected toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   protected logout(): void {

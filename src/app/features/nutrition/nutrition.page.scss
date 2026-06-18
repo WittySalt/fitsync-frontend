@@ -27,7 +27,7 @@
   .guidance-panel {
     padding: 20px;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     background: var(--surface);
     box-shadow: var(--shadow-sm);
   }
@@ -37,8 +37,8 @@
     display: grid;
     align-content: space-between;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(232, 247, 239, 0.86)),
-      linear-gradient(135deg, rgba(32, 166, 107, 0.12), rgba(239, 138, 36, 0.08));
+      linear-gradient(135deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-tint) 86%, transparent)),
+      linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--amber-500) 8%, transparent));
   }
 
   .calorie-row {
@@ -49,14 +49,14 @@
 
     h2 {
       margin: 10px 0 4px;
-      font-size: clamp(48px, 8vw, 74px);
+      font-size: var(--text-5xl);
       line-height: 0.9;
     }
 
     p {
       margin: 0;
-      color: var(--muted);
-      font-weight: 700;
+      color: var(--text-secondary);
+      font-weight: var(--fw-bold);
     }
   }
 
@@ -69,8 +69,8 @@
     flex: 0 0 auto;
     border-radius: 50%;
     background:
-      radial-gradient(circle at center, #fff 58%, transparent 59%),
-      conic-gradient(var(--orange) var(--value), rgba(24, 35, 31, 0.08) 0);
+      radial-gradient(circle at center, var(--surface) 58%, transparent 59%),
+      conic-gradient(var(--amber-500) var(--value), color-mix(in srgb, var(--text-primary) 8%, transparent) 0);
 
     strong {
       font-size: 22px;
@@ -86,16 +86,16 @@
     div {
       min-width: 0;
       padding: 12px;
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(221, 230, 225, 0.75);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--surface) 72%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
     }
 
     span {
       display: block;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 12px;
-      font-weight: 800;
+      font-weight: var(--fw-bold);
     }
 
     strong {
@@ -130,8 +130,8 @@
     gap: 18px;
     align-items: center;
     padding: 14px;
-    border-radius: var(--radius);
-    background: var(--surface-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
 
     strong,
     span {
@@ -140,7 +140,7 @@
 
     span {
       margin-top: 4px;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 13px;
     }
   }
@@ -150,35 +150,35 @@
     margin-top: 8px;
     overflow: hidden;
     border-radius: 999px;
-    background: #e3ebe7;
+    background: var(--surface-sunken);
 
     i {
       display: block;
       height: 100%;
       border-radius: inherit;
-      background: var(--green);
+      background: var(--accent);
     }
   }
 
   .macro-bar.protein i {
-    background: var(--blue);
+    background: var(--blue-500);
   }
 
   .macro-bar.carbs i {
-    background: var(--orange);
+    background: var(--amber-500);
   }
 
   .macro-bar.fat i {
-    background: var(--purple);
+    background: var(--blue-500);
   }
 
   .selected-pill {
     padding: 7px 10px;
     border-radius: 999px;
-    background: var(--green-soft);
-    color: var(--green);
+    background: var(--accent-subtle);
+    color: var(--accent);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: var(--fw-bold);
   }
 
   .meal-type-grid {
@@ -190,18 +190,18 @@
       min-height: 42px;
       padding: 0 8px;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--surface-strong);
-      color: var(--muted);
+      border-radius: var(--radius-md);
+      background: var(--surface-sunken);
+      color: var(--text-secondary);
       font-size: 12px;
-      font-weight: 900;
+      font-weight: var(--fw-bold);
       cursor: pointer;
     }
 
     button.active {
-      border-color: rgba(239, 138, 36, 0.36);
-      background: var(--orange-soft);
-      color: var(--orange);
+      border-color: color-mix(in srgb, var(--amber-500) 36%, var(--border));
+      background: color-mix(in srgb, var(--amber-500) 14%, var(--surface));
+      color: var(--amber-500);
     }
   }
 
@@ -219,9 +219,9 @@
     min-height: 74px;
     padding: 14px;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-strong);
-    color: var(--text);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    color: var(--text-primary);
     text-align: left;
     cursor: pointer;
 
@@ -241,13 +241,13 @@
 
     small {
       margin-top: 4px;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
   }
 
   .food-row.selected {
-    border-color: rgba(32, 166, 107, 0.5);
-    background: var(--green-soft);
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    background: var(--accent-subtle);
   }
 
   .timeline-row {
@@ -257,8 +257,8 @@
     align-items: center;
     padding: 14px;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
 
     strong,
     span {
@@ -267,7 +267,7 @@
 
     span {
       margin-top: 4px;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 13px;
     }
 
@@ -280,11 +280,11 @@
     min-height: 42px;
     display: grid;
     place-items: center;
-    border-radius: var(--radius);
-    background: #fff;
-    color: var(--green);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--accent);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: var(--fw-bold);
   }
 
   .note-list {
@@ -292,14 +292,14 @@
 
     article {
       padding: 14px;
-      border-radius: var(--radius);
-      background: var(--surface-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface-sunken);
     }
 
     span {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 12px;
-      font-weight: 900;
+      font-weight: var(--fw-bold);
       text-transform: uppercase;
     }
 
@@ -311,15 +311,15 @@
 
     p {
       margin: 0;
-      color: var(--muted);
+      color: var(--text-secondary);
       line-height: 1.45;
     }
   }
 
   .success-text {
     margin: 0;
-    color: var(--green);
-    font-weight: 800;
+    color: var(--accent);
+    font-weight: var(--fw-bold);
   }
 }
 

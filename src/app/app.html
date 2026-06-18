@@ -28,6 +28,23 @@
   <main class="content-frame">
     <header class="topbar" aria-label="Account toolbar">
       <div class="topbar-actions">
+        <button
+          class="theme-toggle"
+          type="button"
+          [attr.aria-label]="themeService.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          [attr.title]="themeService.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          (click)="toggleTheme()"
+        >
+          @if (themeService.theme() === 'dark') {
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1-1 1Zm0-18a1 1 0 0 1-1-1V2a1 1 0 0 1 2 0v1a1 1 0 0 1-1 1Zm10 8a1 1 0 0 1-1 1h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 1 1ZM4 12a1 1 0 0 1-1 1H2a1 1 0 0 1 0-2h1a1 1 0 0 1 1 1Zm14.1 7.5a1 1 0 0 1-.7-.3l-.7-.7a1 1 0 0 1 1.4-1.4l.7.7a1 1 0 0 1-.7 1.7ZM6.6 6.9a1 1 0 0 1-.7-.3l-.7-.7a1 1 0 0 1 1.4-1.4l.7.7a1 1 0 0 1-.7 1.7Zm10.8 0a1 1 0 0 1-.7-1.7l.7-.7a1 1 0 1 1 1.4 1.4l-.7.7a1 1 0 0 1-.7.3ZM5.9 19.5a1 1 0 0 1-.7-1.7l.7-.7a1 1 0 0 1 1.4 1.4l-.7.7a1 1 0 0 1-.7.3Z" />
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M21 14.2A8 8 0 0 1 9.8 3a7 7 0 1 0 11.2 11.2Z" />
+            </svg>
+          }
+        </button>
         <div class="account-menu">
           <button
             class="account-button"

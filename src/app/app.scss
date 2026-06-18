@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
-  background: var(--page-bg);
+  background: var(--bg);
   max-width: 100vw;
   overflow-x: hidden;
 }
@@ -12,7 +12,7 @@
   top: 0;
   height: 100vh;
   padding: 24px 18px;
-  background: rgba(255, 255, 255, 0.84);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
   border-right: 1px solid var(--border);
   backdrop-filter: blur(18px);
 }
@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--text);
+  color: var(--text-primary);
   text-decoration: none;
   margin-bottom: 28px;
 
@@ -37,7 +37,7 @@
 
   small {
     margin-top: 3px;
-    color: var(--muted);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 }
@@ -48,10 +48,10 @@
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: var(--green);
-  color: #fff;
-  font-weight: 800;
-  box-shadow: 0 12px 28px rgba(31, 168, 108, 0.22);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: var(--fw-bold);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .nav-list {
@@ -65,16 +65,16 @@
     min-height: 44px;
     padding: 0 12px;
     border-radius: 8px;
-    color: var(--muted);
+    color: var(--text-secondary);
     text-decoration: none;
-    font-weight: 650;
+    font-weight: var(--fw-semibold);
     font-size: 14px;
   }
 
   a:hover,
   a.active {
-    color: var(--text);
-    background: var(--surface-strong);
+    color: var(--text-primary);
+    background: var(--surface-sunken);
   }
 }
 
@@ -98,6 +98,26 @@
   position: relative;
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.theme-toggle {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+  }
 }
 
 .account-menu {
@@ -111,8 +131,8 @@
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
@@ -124,10 +144,10 @@
   place-items: center;
   flex: 0 0 auto;
   border-radius: 50%;
-  color: #fff;
-  background: linear-gradient(145deg, #18231f, var(--green));
+  color: var(--text-on-accent);
+  background: linear-gradient(145deg, var(--slate-900), var(--accent));
   font-size: 13px;
-  font-weight: 900;
+  font-weight: var(--fw-bold);
 }
 
 .account-avatar.large {
@@ -156,11 +176,11 @@
     align-items: center;
     padding: 0 10px;
     border: 0;
-    border-radius: var(--radius);
-    color: var(--text);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
     background: transparent;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: var(--fw-bold);
     text-align: left;
     text-decoration: none;
     cursor: pointer;
@@ -168,7 +188,7 @@
 
   a:hover,
   button:hover {
-    background: var(--surface-strong);
+    background: var(--surface-sunken);
   }
 }
 
@@ -178,8 +198,8 @@
   gap: 12px;
   padding: 10px;
   margin-bottom: 6px;
-  border-radius: var(--radius);
-  background: var(--surface-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
 
   strong,
   small {
@@ -188,7 +208,7 @@
 
   small {
     margin-top: 3px;
-    color: var(--muted);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 }
@@ -237,7 +257,7 @@
     min-height: 64px;
     padding: 7px;
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.94);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(20px);
@@ -248,10 +268,10 @@
       display: grid;
       place-items: center;
       gap: 2px;
-      color: var(--muted);
+      color: var(--text-secondary);
       text-decoration: none;
       font-size: 10px;
-      font-weight: 700;
+      font-weight: var(--fw-bold);
       border-radius: 12px;
     }
 
@@ -263,8 +283,8 @@
     }
 
     a.active {
-      color: var(--green);
-      background: var(--green-soft);
+      color: var(--accent);
+      background: var(--accent-subtle);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
 
@@ -10,6 +10,7 @@ import {
   Meal,
   NutritionSummary,
   OnboardingFormValue,
+  OnboardingSeed,
   UserProfile,
   WorkoutPlan,
   WorkoutSession
@@ -24,14 +25,63 @@ export interface DashboardData {
   goals: Goal[];
 }
 
+export type ProgressMetricKey = 'weightKg' | 'bmi' | 'bodyFatRate' | 'waistCm';
+
+export interface ProgressDateRange {
+  startDate: string;
+  endDate: string;
+}
+
+export interface ProgressBodyMetric {
+  weightKg: number | null;
+  bodyFatRate: number | null;
+  bmi: number | null;
+  waistCm: number | null;
+  measuredAt: string | null;
+}
+
+export interface ProgressData {
+  latestBodyMetric: ProgressBodyMetric | null;
+  bodyMetrics: ProgressBodyMetric[];
+  trendPoints: ProgressBodyMetric[];
+  goals: Goal[];
+}
+
 interface PageResponse<T> {
   content: T[];
 }
 
 interface BackendCurrentUser {
   profile?: Partial<UserProfile> | null;
+  preferences?: BackendUserPreferences | null;
   activeGoals?: Array<Partial<Goal>> | null;
   latestBodyMetrics?: Partial<BodyMetric> | null;
+}
+
+interface BackendUserPreferences {
+  app?: {
+    preferredUnits?: string | null;
+  } | null;
+  training?: {
+    fitnessLevel?: string | null;
+    trainingLocation?: string | null;
+    weeklyWorkoutDays?: number | null;
+    preferredDurationMinutes?: number | null;
+    preferredWorkoutTime?: string | null;
+    intensityPreference?: string | null;
+  } | null;
+  nutrition?: {
+    dietaryPattern?: string | null;
+    mealFrequency?: number | null;
+    calorieTrackingMode?: string | null;
+    macroPreference?: string | null;
+    waterGoalMl?: number | null;
+  } | null;
+  notifications?: {
+    workoutReminderEnabled?: boolean | null;
+    mealReminderEnabled?: boolean | null;
+    weighInReminderEnabled?: boolean | null;
+  } | null;
 }
 
 interface BackendNutritionSummary {
@@ -141,6 +191,36 @@ export class FitSyncDataService {
     }).pipe(delay(260));
   }
 
+  getProgressData(range: ProgressDateRange): Observable<ProgressData> {
+    const params = this.dateRangeParams(range);
+
+    return forkJoin({
+      bodyMetrics: this.http.get<unknown>(`${this.apiBaseUrl}/users/me/body-metrics`, { params }),
+      trends: this.http.get<unknown>(`${this.apiBaseUrl}/users/me/body-metrics/trends`, { params }),
+      goals: this.http.get<unknown>(`${this.apiBaseUrl}/users/me/goals`, {
+        params: new HttpParams().set('status', 'ACTIVE')
+      })
+    }).pipe(
+      map(({ bodyMetrics, trends, goals }) => {
+        const metricRows = this.extractList<Partial<ProgressBodyMetric>>(bodyMetrics).map((metric) =>
+          this.mapProgressBodyMetric(metric)
+        );
+        const trendRows = this.extractList<Partial<ProgressBodyMetric>>(trends).map((metric) =>
+          this.mapProgressBodyMetric(metric)
+        );
+        const mappedGoals = this.extractList<Partial<Goal>>(goals).map((goal) => this.mapGoal(goal));
+
+        return {
+          latestBodyMetric: metricRows[0] ?? trendRows.at(-1) ?? null,
+          bodyMetrics: metricRows,
+          trendPoints: trendRows.length ? trendRows : metricRows.slice().reverse(),
+          goals: mappedGoals
+        };
+      }),
+      catchError(() => throwError(() => new Error('Unable to load progress data. Please retry.')))
+    );
+  }
+
   getWorkoutPlans(): Observable<WorkoutPlan[]> {
     return this.http.get<PageResponse<Partial<WorkoutPlan>>>(`${this.apiBaseUrl}/workouts/plans?status=ACTIVE`).pipe(
       map((response) => response.content.map((plan) => this.mapWorkoutPlan(plan))),
@@ -204,35 +284,53 @@ export class FitSyncDataService {
     ]).pipe(delay(180));
   }
 
+  getOnboardingSeed(): Observable<OnboardingSeed> {
+    return this.http
+      .get<BackendCurrentUser>(`${this.apiBaseUrl}/users/me`)
+      .pipe(map((user) => this.mapOnboardingSeed(user)));
+  }
+
   saveOnboarding(value: OnboardingFormValue): Observable<{ ok: true }> {
     this.lastSavedMessage.set(null);
 
+    const heightCm = this.getOnboardingHeightCm(value);
+    const currentWeightKg = this.getOnboardingCurrentWeightKg(value);
+    const targetWeightKg = this.getOnboardingTargetWeightKg(value);
+
     return this.http.post(`${this.apiBaseUrl}/users/me/onboarding`, {
+      primaryGoal: value.primaryGoal,
       displayName: value.displayName,
       birthDate: value.birthDate || null,
       gender: value.gender || 'PREFER_NOT_TO_SAY',
-      heightCm: value.heightCm,
+      heightCm,
       activityLevel: value.activityLevel,
-      timezone: 'Asia/Singapore',
+      timezone: this.getLocalTimezone(),
       preferredUnits: value.preferredUnits,
-      currentWeightKg: value.currentWeightKg,
-      targetWeightKg: value.targetWeightKg,
-      bodyFatRate: value.bodyFatRate,
-      targetDate: value.targetDate || this.defaultTargetDate(),
-      fitnessLevel: value.fitnessLevel,
-      trainingLocation: value.trainingLocation,
+      currentWeightKg,
+      targetWeightKg,
+      bodyFatRate: null,
+      weeklyPaceKg: value.weeklyPaceKg,
+      targetDate: value.projectedTargetDate || this.defaultTargetDate(),
+      targetCalories: value.targetCalories,
+      targetProteinGrams: value.targetProteinGrams,
+      targetCarbsGrams: value.targetCarbsGrams,
+      targetFatGrams: value.targetFatGrams,
+      // Streamlined goal-driven onboarding no longer collects these; FE-19 guided
+      // training flow will replace the defaults with real inputs.
+      fitnessLevel: 'BEGINNER',
+      trainingLocation: 'MIXED',
       weeklyWorkoutDays: value.weeklyWorkoutDays,
-      preferredDurationMinutes: value.preferredDurationMinutes,
-      preferredWorkoutTime: value.preferredWorkoutTime ? `${value.preferredWorkoutTime}:00` : null,
-      intensityPreference: value.intensityPreference,
+      preferredDurationMinutes: 45,
+      preferredWorkoutTime: '19:00:00',
+      intensityPreference: 'MODERATE',
       dietaryPattern: value.dietaryPattern,
-      mealFrequency: value.mealFrequency,
+      mealFrequency: 4,
       calorieTrackingMode: value.calorieTrackingMode,
-      macroPreference: value.macroPreference,
-      waterGoalMl: value.waterGoalMl,
+      macroPreference: 'BALANCED',
+      waterGoalMl: 2500,
       workoutReminderEnabled: value.workoutReminderEnabled,
       mealReminderEnabled: value.mealReminderEnabled,
-      weighInReminderEnabled: value.weighInReminderEnabled
+      weighInReminderEnabled: true
     }).pipe(map(() => ({ ok: true as const })));
   }
 
@@ -274,6 +372,8 @@ export class FitSyncDataService {
       displayName: profile?.displayName ?? 'FitSync User',
       firstName: profile?.firstName ?? profile?.displayName?.split(' ')[0] ?? 'FitSync',
       lastName: profile?.lastName ?? '',
+      gender: profile?.gender,
+      birthDate: profile?.birthDate,
       heightCm: profile?.heightCm ?? 0,
       activityLevel: profile?.activityLevel ?? 'NOT_SET',
       timezone: profile?.timezone ?? 'Asia/Singapore',
@@ -299,6 +399,139 @@ export class FitSyncDataService {
     const targetDate = new Date();
     targetDate.setMonth(targetDate.getMonth() + 3);
     return targetDate.toISOString().slice(0, 10);
+  }
+
+  private getOnboardingHeightCm(value: OnboardingFormValue): number {
+    if (value.preferredUnits === 'IMPERIAL') {
+      const totalInches = (value.heightFt ?? 0) * 12 + (value.heightIn ?? 0);
+      return Math.round(totalInches * 2.54);
+    }
+    return value.heightCm ?? 0;
+  }
+
+  private getOnboardingCurrentWeightKg(value: OnboardingFormValue): number {
+    if (value.preferredUnits === 'IMPERIAL') {
+      return this.lbToKg(value.currentWeightLb ?? 0);
+    }
+    return value.currentWeightKg ?? 0;
+  }
+
+  private getOnboardingTargetWeightKg(value: OnboardingFormValue): number | null {
+    if (value.preferredUnits === 'IMPERIAL') {
+      return value.targetWeightLb != null ? this.lbToKg(value.targetWeightLb) : null;
+    }
+    return value.targetWeightKg;
+  }
+
+  private lbToKg(value: number): number {
+    return Math.round((value / 2.20462) * 10) / 10;
+  }
+
+  private getLocalTimezone(): string {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
+    } catch {
+      return 'Asia/Singapore';
+    }
+  }
+
+  // FE-12.1: prefill onboarding for returning users + normalize backend numeric enum codes.
+  private mapOnboardingSeed(user: BackendCurrentUser): OnboardingSeed {
+    const profile = user.profile;
+    const preferences = user.preferences;
+    const goals = user.activeGoals ?? [];
+    const weightGoal = goals.find((goal) => goal.goalType === 'WEIGHT');
+    const caloriesGoal = goals.find((goal) => goal.goalType === 'CALORIES');
+    const proteinGoal = goals.find((goal) => goal.goalType === 'PROTEIN');
+    const latestBodyMetric = user.latestBodyMetrics;
+    const hasCompletedOnboarding = profile?.onboardingCompleted === true;
+    const value: Partial<OnboardingFormValue> = {};
+
+    if (profile?.displayName?.trim()) {
+      value.displayName = profile.displayName.trim();
+    }
+    if (profile?.gender) {
+      value.gender = profile.gender;
+    }
+    if (profile?.birthDate) {
+      value.birthDate = profile.birthDate;
+    }
+    if (profile?.heightCm) {
+      value.heightCm = profile.heightCm;
+    }
+    if (profile?.activityLevel) {
+      value.activityLevel = profile.activityLevel;
+    }
+    if (latestBodyMetric?.weightKg) {
+      value.currentWeightKg = latestBodyMetric.weightKg;
+    }
+    if (weightGoal?.targetValue != null) {
+      value.targetWeightKg = weightGoal.targetValue;
+    }
+
+    const app = preferences?.app;
+    const training = preferences?.training;
+    const nutrition = preferences?.nutrition;
+    const notifications = preferences?.notifications;
+
+    const preferredUnits = this.normalizeEnum(app?.preferredUnits, {
+      '100001': 'METRIC',
+      '100002': 'IMPERIAL'
+    });
+    if (preferredUnits) {
+      value.preferredUnits = preferredUnits;
+    }
+    const dietaryPattern = this.normalizeEnum(nutrition?.dietaryPattern, {
+      '300001': 'NONE',
+      '300002': 'HALAL',
+      '300003': 'VEGETARIAN',
+      '300004': 'VEGAN',
+      '300005': 'KETO',
+      '300006': 'LOW_CARB'
+    });
+    if (dietaryPattern) {
+      value.dietaryPattern = dietaryPattern;
+    }
+    const calorieTrackingMode = this.normalizeEnum(nutrition?.calorieTrackingMode, {
+      '310001': 'OFF',
+      '310002': 'FLEXIBLE',
+      '310003': 'STRICT'
+    });
+    if (calorieTrackingMode) {
+      value.calorieTrackingMode = calorieTrackingMode;
+    }
+
+    if (training?.weeklyWorkoutDays != null) {
+      value.weeklyWorkoutDays = training.weeklyWorkoutDays;
+    }
+    if (caloriesGoal?.targetValue != null) {
+      value.targetCalories = caloriesGoal.targetValue;
+    }
+    if (proteinGoal?.targetValue != null) {
+      value.targetProteinGrams = proteinGoal.targetValue;
+    }
+    if (notifications?.workoutReminderEnabled != null) {
+      value.workoutReminderEnabled = notifications.workoutReminderEnabled;
+    }
+    if (notifications?.mealReminderEnabled != null) {
+      value.mealReminderEnabled = notifications.mealReminderEnabled;
+    }
+
+    return {
+      value,
+      hasExistingBodyBaseline:
+        hasCompletedOnboarding || Boolean(latestBodyMetric?.weightKg || weightGoal?.targetValue),
+      hasExistingTrainingBaseline: hasCompletedOnboarding || Boolean(training?.weeklyWorkoutDays),
+      hasExistingNutritionBaseline:
+        hasCompletedOnboarding || Boolean(caloriesGoal?.targetValue || proteinGoal?.targetValue)
+    };
+  }
+
+  private normalizeEnum(value: string | null | undefined, codeMap: Record<string, string>): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+    return codeMap[value] ?? value.toUpperCase();
   }
 
   private mapWorkoutSession(session?: Partial<WorkoutSession> | null): WorkoutSession | null {
@@ -344,6 +577,18 @@ export class FitSyncDataService {
     };
   }
 
+  private mapProgressBodyMetric(metric: Partial<ProgressBodyMetric> & Record<string, unknown>): ProgressBodyMetric {
+    const measuredAt = this.stringValue(metric['measuredAt'] ?? metric['date'] ?? metric['metricDate'] ?? metric['recordedAt']);
+
+    return {
+      weightKg: this.numberValue(metric['weightKg'] ?? metric['weight']),
+      bodyFatRate: this.numberValue(metric['bodyFatRate'] ?? metric['bodyFatPercentage'] ?? metric['bodyFat']),
+      bmi: this.numberValue(metric['bmi']),
+      waistCm: this.numberValue(metric['waistCm'] ?? metric['waist']),
+      measuredAt
+    };
+  }
+
   private mapGoal(goal: Partial<Goal>): Goal {
     return {
       goalType: goal.goalType ?? 'GOAL',
@@ -353,6 +598,38 @@ export class FitSyncDataService {
       status: goal.status ?? 'ACTIVE',
       progressRatio: goal.progressRatio ?? 0
     };
+  }
+
+  private dateRangeParams(range: ProgressDateRange): HttpParams {
+    return new HttpParams().set('startDate', range.startDate).set('endDate', range.endDate);
+  }
+
+  private extractList<T>(response: unknown): T[] {
+    if (Array.isArray(response)) {
+      return response as T[];
+    }
+
+    if (!response || typeof response !== 'object') {
+      return [];
+    }
+
+    const record = response as Record<string, unknown>;
+    for (const key of ['content', 'items', 'results', 'data', 'points', 'metrics', 'goals']) {
+      const value = record[key];
+      if (Array.isArray(value)) {
+        return value as T[];
+      }
+    }
+
+    return [];
+  }
+
+  private numberValue(value: unknown): number | null {
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }
+
+  private stringValue(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() ? value : null;
   }
 
   private mapWorkoutPlan(plan: Partial<WorkoutPlan>): WorkoutPlan {

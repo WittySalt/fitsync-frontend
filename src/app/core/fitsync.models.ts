@@ -2,6 +2,8 @@ export interface UserProfile {
   displayName: string;
   firstName: string;
   lastName: string;
+  gender?: string;
+  birthDate?: string;
   heightCm: number;
   activityLevel: string;
   timezone: string;
@@ -9,30 +11,37 @@ export interface UserProfile {
 }
 
 export interface OnboardingFormValue {
+  primaryGoal: string;
   displayName: string;
-  birthDate: string;
   gender: string;
-  heightCm: number;
-  activityLevel: string;
-  currentWeightKg: number;
-  targetWeightKg: number;
-  bodyFatRate: number | null;
-  targetDate: string;
+  birthDate: string;
   preferredUnits: string;
-  fitnessLevel: string;
-  trainingLocation: string;
+  heightCm: number | null;
+  heightFt: number | null;
+  heightIn: number | null;
+  currentWeightKg: number | null;
+  currentWeightLb: number | null;
+  targetWeightKg: number | null;
+  targetWeightLb: number | null;
+  weeklyPaceKg: number | null;
+  activityLevel: string;
   weeklyWorkoutDays: number;
-  preferredDurationMinutes: number;
-  preferredWorkoutTime: string;
-  intensityPreference: string;
   dietaryPattern: string;
-  mealFrequency: number;
   calorieTrackingMode: string;
-  macroPreference: string;
-  waterGoalMl: number;
+  targetCalories: number | null;
+  targetProteinGrams: number | null;
+  targetCarbsGrams: number | null;
+  targetFatGrams: number | null;
+  projectedTargetDate: string | null;
   workoutReminderEnabled: boolean;
   mealReminderEnabled: boolean;
-  weighInReminderEnabled: boolean;
+}
+
+export interface OnboardingSeed {
+  value: Partial<OnboardingFormValue>;
+  hasExistingBodyBaseline: boolean;
+  hasExistingTrainingBaseline: boolean;
+  hasExistingNutritionBaseline: boolean;
 }
 
 export interface NutritionSummary {
