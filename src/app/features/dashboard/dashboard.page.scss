@@ -6,19 +6,19 @@
     align-items: center;
     padding: 24px;
     border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, #ffffff 0%, #effaf4 100%);
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-tint) 100%);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
 
     h2 {
       margin: 12px 0 4px;
-      font-size: clamp(28px, 4vw, 42px);
+      font-size: var(--text-3xl);
       line-height: 1;
     }
 
     p {
       margin: 0;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
   }
 
@@ -28,9 +28,9 @@
     display: grid;
     place-items: center;
     border-radius: 14px;
-    color: #fff;
-    background: var(--green);
-    font-weight: 800;
+    color: var(--text-on-accent);
+    background: var(--accent);
+    font-weight: var(--fw-bold);
   }
 
   .quick-actions {
@@ -60,14 +60,14 @@
     gap: 16px;
     min-height: 132px;
     padding: 20px;
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     background: var(--surface);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
 
     span,
     small {
-      color: var(--muted);
+      color: var(--text-secondary);
     }
 
     strong {
@@ -83,9 +83,9 @@
     border-radius: 18px;
     display: grid;
     place-items: center;
-    background: var(--green-soft);
-    color: var(--green) !important;
-    font-weight: 800;
+    background: var(--accent-subtle);
+    color: var(--accent) !important;
+    font-weight: var(--fw-bold);
   }
 
   dl {
@@ -96,19 +96,19 @@
 
     div {
       padding: 14px;
-      border-radius: var(--radius);
-      background: var(--surface-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface-sunken);
     }
 
     dt {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 12px;
     }
 
     dd {
       margin: 4px 0 0;
       font-size: 20px;
-      font-weight: 800;
+      font-weight: var(--fw-bold);
     }
   }
 
@@ -126,7 +126,7 @@
     span {
       display: block;
       margin-top: 4px;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 13px;
     }
   }

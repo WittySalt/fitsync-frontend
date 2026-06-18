@@ -18,7 +18,7 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -36,13 +36,13 @@
 
   h1 {
     margin: 2px 0;
-    font-size: clamp(28px, 4vw, 42px);
+    font-size: var(--text-3xl);
     line-height: 1;
   }
 
   p {
     margin: 0;
-    color: var(--muted);
+    color: var(--text-secondary);
   }
 }
 
@@ -51,9 +51,9 @@
   display: grid;
   place-items: center;
   border-radius: 16px;
-  color: #fff;
-  background: #14201b;
-  font-weight: 900;
+  color: var(--text-on-accent);
+  background: var(--slate-900);
+  font-weight: var(--fw-bold);
 }
 
 .profile-avatar {
@@ -66,7 +66,7 @@
   width: 42px;
   height: 42px;
   border: 0;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--surface) 14%, transparent);
   cursor: pointer;
 }
 
@@ -102,17 +102,17 @@
     min-height: 38px;
     padding: 0 10px;
     border: 0;
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     background: transparent;
-    color: var(--text);
-    font-weight: 800;
+    color: var(--text-primary);
+    font-weight: var(--fw-bold);
     text-decoration: none;
     cursor: pointer;
   }
 
   a:hover,
   button:hover {
-    background: var(--surface-strong);
+    background: var(--surface-sunken);
   }
 }
 
@@ -124,14 +124,14 @@
   article {
     padding: 14px;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     background: var(--surface);
   }
 
   span {
-    color: var(--muted);
+    color: var(--text-secondary);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: var(--fw-bold);
   }
 
   strong {
@@ -160,16 +160,16 @@
     display: flex;
     align-items: center;
     padding: 0 10px;
-    border-radius: var(--radius);
-    color: var(--muted);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
     font-size: 13px;
-    font-weight: 850;
+    font-weight: var(--fw-bold);
     text-decoration: none;
   }
 
   a:hover {
-    color: var(--green);
-    background: var(--green-soft);
+    color: var(--accent);
+    background: var(--accent-subtle);
   }
 }
 
@@ -181,7 +181,7 @@
 
   p {
     margin: 0;
-    color: var(--muted);
+    color: var(--text-secondary);
   }
 }
 
@@ -209,7 +209,7 @@
 .field-list {
   display: grid;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -222,8 +222,8 @@
   padding: 9px 12px;
   border: 0;
   border-bottom: 1px solid var(--border);
-  background: #fff;
-  color: var(--text);
+  background: var(--surface);
+  color: var(--text-primary);
   text-align: left;
 
   &:last-child {
@@ -231,9 +231,9 @@
   }
 
   span {
-    color: var(--muted);
+    color: var(--text-secondary);
     font-size: 12px;
-    font-weight: 850;
+    font-weight: var(--fw-bold);
   }
 
   strong {
@@ -250,11 +250,11 @@
     align-items: center;
     padding: 0 8px;
     border-radius: 999px;
-    color: var(--green);
-    background: var(--green-soft);
+    color: var(--accent);
+    background: var(--accent-subtle);
     font-size: 12px;
     font-style: normal;
-    font-weight: 850;
+    font-weight: var(--fw-bold);
   }
 }
 
@@ -263,21 +263,21 @@ button.field-row {
 }
 
 button.field-row:hover {
-  background: var(--surface-strong);
+  background: var(--surface-sunken);
 }
 
 .field-row.readonly {
   cursor: default;
 
   em {
-    color: var(--muted);
-    background: var(--surface-strong);
+    color: var(--text-secondary);
+    background: var(--surface-sunken);
   }
 }
 
 .single-row {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
 }
 
 .settings-editor {
@@ -285,15 +285,15 @@ button.field-row:hover {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding: 14px;
-  border-radius: var(--radius);
-  background: var(--surface-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
 
   label {
     display: grid;
     gap: 6px;
-    color: var(--muted);
+    color: var(--text-secondary);
     font-size: 12px;
-    font-weight: 850;
+    font-weight: var(--fw-bold);
   }
 
   input,
@@ -330,29 +330,29 @@ button.field-row:hover {
 .form-error,
 .section-error {
   padding: 10px 12px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--fw-bold);
 }
 
 .derived-pill,
 .form-notice {
-  color: var(--green);
-  background: var(--green-soft);
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 .form-error,
 .section-error {
   color: var(--danger);
-  background: rgba(190, 18, 60, 0.08);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 
 .danger-zone {
-  border-color: rgba(190, 18, 60, 0.28);
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--border));
 }
 
 .button.danger {
-  color: #fff;
+  color: var(--text-on-accent);
   background: var(--danger);
 }
 
