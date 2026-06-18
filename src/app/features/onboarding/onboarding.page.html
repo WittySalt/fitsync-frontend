@@ -1,121 +1,456 @@
-<div class="page-grid">
-  <header class="page-header compact">
+<div class="onboarding-page">
+  <header class="setup-header">
     <div>
-      <p class="eyebrow">Setup</p>
-      <h1>Personalize FitSync</h1>
-      <p>Capture the minimum profile, goal, training, and nutrition inputs needed for the backend workflow.</p>
+      <p class="eyebrow">Starter setup</p>
+      <h1>Set up your FitSync profile</h1>
+      <p>Complete the essentials once so the dashboard, nutrition goals, and training targets start with useful data.</p>
+    </div>
+    <div class="step-counter">
+      <strong>{{ stepIndex() + 1 }}</strong>
+      <span>of {{ steps.length }}</span>
     </div>
   </header>
 
-  <form class="form-card" [formGroup]="form" (ngSubmit)="submit()">
-    <section>
-      <h2>Profile</h2>
-      <div class="form-grid">
-        <label>
-          Display name
-          <input formControlName="displayName" placeholder="Alice Tan" />
-          @if (form.controls.displayName.touched && form.controls.displayName.invalid) {
-            <span class="field-error">Display name is required.</span>
+  <nav class="step-tabs" aria-label="Onboarding steps">
+    @for (step of steps; track step.id; let index = $index) {
+      <button
+        type="button"
+        [class.active]="index === stepIndex()"
+        [class.complete]="index < stepIndex()"
+        (click)="goToStep(index)">
+        <span class="step-node">
+          @if (index < stepIndex()) {
+            <span class="fs-icon" data-icon="check" aria-hidden="true"></span>
+          } @else {
+            <span class="step-number">{{ index + 1 }}</span>
           }
-        </label>
-
-        <label>
-          Height
-          <input type="number" formControlName="heightCm" />
-          @if (form.controls.heightCm.touched && form.controls.heightCm.invalid) {
-            <span class="field-error">Enter a height between 80 and 240 cm.</span>
-          }
-        </label>
-
-        <label>
-          Current weight
-          <input type="number" formControlName="weightKg" />
-          @if (form.controls.weightKg.touched && form.controls.weightKg.invalid) {
-            <span class="field-error">Enter a valid body weight.</span>
-          }
-        </label>
-      </div>
-    </section>
-
-    <section>
-      <h2>Goal</h2>
-      <div class="form-grid">
-        <label>
-          Goal type
-          <select formControlName="goalType">
-            <option value="WEIGHT">Weight</option>
-            <option value="CALORIES">Calories</option>
-            <option value="PROTEIN">Protein</option>
-            <option value="WORKOUT_FREQUENCY">Workout frequency</option>
-            <option value="STEPS">Steps</option>
-          </select>
-        </label>
-
-        <label>
-          Target value
-          <input type="number" formControlName="targetValue" />
-          @if (form.controls.targetValue.touched && form.controls.targetValue.invalid) {
-            <span class="field-error">Target value must be positive.</span>
-          }
-        </label>
-      </div>
-    </section>
-
-    <section>
-      <h2>Training and nutrition</h2>
-      <div class="form-grid">
-        <label>
-          Weekly workout days
-          <input type="number" formControlName="weeklyWorkoutDays" />
-          @if (form.controls.weeklyWorkoutDays.touched && form.controls.weeklyWorkoutDays.invalid) {
-            <span class="field-error">Choose 1 to 7 days.</span>
-          }
-        </label>
-
-        <label>
-          Dietary pattern
-          <select formControlName="dietaryPattern">
-            <option value="NONE">None</option>
-            <option value="HALAL">Halal</option>
-            <option value="VEGETARIAN">Vegetarian</option>
-            <option value="VEGAN">Vegan</option>
-            <option value="LOW_CARB">Low carb</option>
-          </select>
-        </label>
-
-        <label>
-          Calorie tracking
-          <select formControlName="calorieTrackingMode">
-            <option value="OFF">Off</option>
-            <option value="FLEXIBLE">Flexible</option>
-            <option value="STRICT">Strict</option>
-          </select>
-        </label>
-      </div>
-    </section>
-
-    <section>
-      <h2>Reminders</h2>
-      <div class="toggle-grid">
-        <label class="toggle-row">
-          <input type="checkbox" formControlName="workoutReminderEnabled" />
-          <span>Workout reminder</span>
-        </label>
-        <label class="toggle-row">
-          <input type="checkbox" formControlName="mealReminderEnabled" />
-          <span>Meal reminder</span>
-        </label>
-      </div>
-    </section>
-
-    @if (error()) {
-      <p class="form-error">{{ error() }}</p>
-    }
-
-    <div class="form-actions">
-      <button class="button primary" type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Saving...' : 'Save and continue' }}
+        </span>
+        <span
+          class="fs-icon step-glyph"
+          [attr.data-icon]="
+            step.id === 'profile' ? 'user' :
+            step.id === 'body' ? 'scale' :
+            step.id === 'goal' ? 'target' :
+            step.id === 'training' ? 'dumbbell' :
+            step.id === 'nutrition' ? 'utensils' :
+            'check'
+          "
+          aria-hidden="true"></span>
+        <span class="step-label">{{ step.label }}</span>
       </button>
-    </div>
-  </form>
+    }
+  </nav>
+
+  <div class="progress-track" aria-hidden="true">
+    <span [style.width.%]="progressPercent()"></span>
+  </div>
+
+  <div class="setup-layout">
+    <main class="setup-main">
+      <form class="setup-panel" [formGroup]="form" (ngSubmit)="submit()">
+        @if (currentStep().id === 'profile') {
+          <section class="step-section">
+            <div class="section-heading">
+              <p class="eyebrow">Profile</p>
+              <h2>Tell us who this plan is for</h2>
+              <p>These details personalize units, account display, and basic target estimates.</p>
+            </div>
+
+            <div class="form-grid two">
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="user" aria-hidden="true"></span>Display name</span>
+                <input formControlName="displayName" placeholder="Alice Tan" />
+                @if (form.controls.displayName.touched && form.controls.displayName.invalid) {
+                  <span class="field-error">Enter at least 2 characters.</span>
+                }
+              </label>
+
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="calendar" aria-hidden="true"></span>Birth date</span>
+                <input type="date" formControlName="birthDate" />
+                @if (form.controls.birthDate.touched && form.controls.birthDate.invalid) {
+                  <span class="field-error">Birth date is required.</span>
+                }
+              </label>
+            </div>
+
+            <div class="form-group">
+              <span class="group-label">Gender</span>
+              <div class="option-row">
+                <label class="option-card">
+                  <input type="radio" formControlName="gender" value="MALE" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="user" aria-hidden="true"></span></span>
+                  <span>Male</span>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="gender" value="FEMALE" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="user" aria-hidden="true"></span></span>
+                  <span>Female</span>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="gender" value="PREFER_NOT_TO_SAY" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="user" aria-hidden="true"></span></span>
+                  <span>Prefer not to say</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group compact">
+              <span class="group-label">Units</span>
+              <div class="segmented">
+                <label>
+                  <input type="radio" formControlName="preferredUnits" value="METRIC" />
+                  <span>Metric</span>
+                </label>
+                <label>
+                  <input type="radio" formControlName="preferredUnits" value="IMPERIAL" />
+                  <span>Imperial</span>
+                </label>
+              </div>
+            </div>
+          </section>
+        }
+
+        @if (currentStep().id === 'body') {
+          <section class="step-section">
+            <div class="section-heading">
+              <p class="eyebrow">Body baseline</p>
+              <h2>Start progress tracking</h2>
+              <p>Your first body metrics become the baseline for weight, BMI, and nutrition recommendations.</p>
+            </div>
+
+            <div class="metric-grid">
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="ruler" aria-hidden="true"></span>Height</span>
+                <input type="number" formControlName="heightCm" />
+                <span class="unit-label">cm</span>
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="scale" aria-hidden="true"></span>Current weight</span>
+                <input type="number" formControlName="currentWeightKg" />
+                <span class="unit-label">kg</span>
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="target" aria-hidden="true"></span>Target weight</span>
+                <input type="number" formControlName="targetWeightKg" />
+                <span class="unit-label">kg</span>
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="activity" aria-hidden="true"></span>Body fat</span>
+                <input type="number" formControlName="bodyFatRate" placeholder="Optional" />
+                <span class="unit-label">%</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <span class="group-label">Activity level</span>
+              <div class="option-grid">
+                <label class="option-card">
+                  <input type="radio" formControlName="activityLevel" value="SEDENTARY" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="activity" aria-hidden="true"></span></span>
+                  <span>Sedentary</span>
+                  <small>Mostly desk-based</small>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="activityLevel" value="LIGHTLY_ACTIVE" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="activity" aria-hidden="true"></span></span>
+                  <span>Light</span>
+                  <small>Some movement</small>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="activityLevel" value="MODERATELY_ACTIVE" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="activity" aria-hidden="true"></span></span>
+                  <span>Moderate</span>
+                  <small>Regular training</small>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="activityLevel" value="VERY_ACTIVE" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="activity" aria-hidden="true"></span></span>
+                  <span>Very active</span>
+                  <small>Most days</small>
+                </label>
+              </div>
+            </div>
+          </section>
+        }
+
+        @if (currentStep().id === 'goal') {
+          <section class="step-section">
+            <div class="section-heading">
+              <p class="eyebrow">Goal pace</p>
+              <h2>Define the first target</h2>
+              <p>This creates the initial weight, calorie, and protein targets shown in your dashboard.</p>
+            </div>
+
+            <div class="goal-strip">
+              <div>
+                <span>Current</span>
+                <strong>{{ form.controls.currentWeightKg.value }} kg</strong>
+              </div>
+              <div>
+                <span>Target</span>
+                <strong>{{ form.controls.targetWeightKg.value }} kg</strong>
+              </div>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="calendar" aria-hidden="true"></span>Target date</span>
+                <input type="date" formControlName="targetDate" />
+              </label>
+            </div>
+
+            <div class="recommendation-grid">
+              <article>
+                <span>Daily calories</span>
+                <strong>{{ estimatedCalories() }}</strong>
+                <small>Estimated from your current profile</small>
+              </article>
+              <article>
+                <span>Daily protein</span>
+                <strong>{{ estimatedProtein() }}g</strong>
+                <small>Initial target for muscle retention</small>
+              </article>
+            </div>
+          </section>
+        }
+
+        @if (currentStep().id === 'training') {
+          <section class="step-section">
+            <div class="section-heading">
+              <p class="eyebrow">Training</p>
+              <h2>Set your training rhythm</h2>
+              <p>These defaults shape your weekly goal and future workout plan suggestions.</p>
+            </div>
+
+            <div class="form-grid three">
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="activity" aria-hidden="true"></span>Experience</span>
+                <select formControlName="fitnessLevel">
+                  <option value="BEGINNER">Beginner</option>
+                  <option value="INTERMEDIATE">Intermediate</option>
+                  <option value="ADVANCED">Advanced</option>
+                </select>
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="target" aria-hidden="true"></span>Location</span>
+                <select formControlName="trainingLocation">
+                  <option value="HOME">Home</option>
+                  <option value="GYM">Gym</option>
+                  <option value="OUTDOOR">Outdoor</option>
+                  <option value="MIXED">Mixed</option>
+                </select>
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="flame" aria-hidden="true"></span>Intensity</span>
+                <select formControlName="intensityPreference">
+                  <option value="LOW">Low</option>
+                  <option value="MODERATE">Moderate</option>
+                  <option value="HIGH">High</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="form-grid three">
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="dumbbell" aria-hidden="true"></span>Sessions / week</span>
+                <input type="number" formControlName="weeklyWorkoutDays" />
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="clock" aria-hidden="true"></span>Duration</span>
+                <input type="number" formControlName="preferredDurationMinutes" />
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="clock" aria-hidden="true"></span>Preferred time</span>
+                <input type="time" formControlName="preferredWorkoutTime" />
+              </label>
+            </div>
+          </section>
+        }
+
+        @if (currentStep().id === 'nutrition') {
+          <section class="step-section">
+            <div class="section-heading">
+              <p class="eyebrow">Nutrition</p>
+              <h2>Choose tracking defaults</h2>
+              <p>FitSync will use these settings for meal logging, daily targets, and nutrition summaries.</p>
+            </div>
+
+            <div class="form-grid three">
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="utensils" aria-hidden="true"></span>Dietary pattern</span>
+                <select formControlName="dietaryPattern">
+                  <option value="NONE">No preference</option>
+                  <option value="HALAL">Halal</option>
+                  <option value="VEGETARIAN">Vegetarian</option>
+                  <option value="VEGAN">Vegan</option>
+                  <option value="KETO">Keto</option>
+                  <option value="LOW_CARB">Low carb</option>
+                </select>
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="utensils" aria-hidden="true"></span>Meals / day</span>
+                <input type="number" formControlName="mealFrequency" />
+              </label>
+              <label>
+                <span class="label-line"><span class="fs-icon" data-icon="droplet" aria-hidden="true"></span>Water goal</span>
+                <input type="number" formControlName="waterGoalMl" />
+              </label>
+            </div>
+
+            <div class="form-group">
+              <span class="group-label">Calorie tracking</span>
+              <div class="option-row">
+                <label class="option-card">
+                  <input type="radio" formControlName="calorieTrackingMode" value="FLEXIBLE" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="flame" aria-hidden="true"></span></span>
+                  <span>Flexible</span>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="calorieTrackingMode" value="STRICT" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="target" aria-hidden="true"></span></span>
+                  <span>Strict</span>
+                </label>
+                <label class="option-card">
+                  <input type="radio" formControlName="calorieTrackingMode" value="OFF" />
+                  <span class="choice-check"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span class="choice-icon"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                  <span>Off</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group compact">
+              <span class="group-label">Macro preference</span>
+              <div class="segmented wide">
+                <label>
+                  <input type="radio" formControlName="macroPreference" value="BALANCED" />
+                  <span>Balanced</span>
+                </label>
+                <label>
+                  <input type="radio" formControlName="macroPreference" value="HIGH_PROTEIN" />
+                  <span>High protein</span>
+                </label>
+                <label>
+                  <input type="radio" formControlName="macroPreference" value="LOW_CARB" />
+                  <span>Low carb</span>
+                </label>
+              </div>
+            </div>
+          </section>
+        }
+
+        @if (currentStep().id === 'review') {
+          <section class="step-section">
+            <div class="section-heading">
+              <p class="eyebrow">Review</p>
+              <h2>Confirm your baseline</h2>
+              <p>This baseline will be saved and your dashboard will use it immediately.</p>
+            </div>
+
+            <div class="review-grid">
+              <article>
+                <span class="review-icon"><span class="fs-icon" data-icon="user" aria-hidden="true"></span></span>
+                <span>Profile</span>
+                <strong>{{ form.controls.displayName.value }}</strong>
+                <small>{{ form.controls.gender.value }} / {{ form.controls.activityLevel.value }}</small>
+              </article>
+              <article>
+                <span class="review-icon"><span class="fs-icon" data-icon="scale" aria-hidden="true"></span></span>
+                <span>Body</span>
+                <strong>{{ form.controls.currentWeightKg.value }} kg -> {{ form.controls.targetWeightKg.value }} kg</strong>
+                <small>{{ form.controls.heightCm.value }} cm</small>
+              </article>
+              <article>
+                <span class="review-icon"><span class="fs-icon" data-icon="dumbbell" aria-hidden="true"></span></span>
+                <span>Training</span>
+                <strong>{{ form.controls.weeklyWorkoutDays.value }} sessions / week</strong>
+                <small>{{ form.controls.preferredDurationMinutes.value }} min / {{ form.controls.trainingLocation.value }}</small>
+              </article>
+              <article>
+                <span class="review-icon"><span class="fs-icon" data-icon="utensils" aria-hidden="true"></span></span>
+                <span>Nutrition</span>
+                <strong>{{ estimatedCalories() }} kcal / {{ estimatedProtein() }}g protein</strong>
+                <small>{{ form.controls.dietaryPattern.value }} / {{ form.controls.macroPreference.value }}</small>
+              </article>
+            </div>
+
+            <div class="toggle-grid">
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="workoutReminderEnabled" />
+                <span class="toggle-box"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                <span class="fs-icon" data-icon="dumbbell" aria-hidden="true"></span>
+                <span>Workout reminders</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="mealReminderEnabled" />
+                <span class="toggle-box"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                <span class="fs-icon" data-icon="utensils" aria-hidden="true"></span>
+                <span>Meal reminders</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="weighInReminderEnabled" />
+                <span class="toggle-box"><span class="fs-icon" data-icon="check" aria-hidden="true"></span></span>
+                <span class="fs-icon" data-icon="scale" aria-hidden="true"></span>
+                <span>Weigh-in reminders</span>
+              </label>
+            </div>
+          </section>
+        }
+
+        @if (error()) {
+          <p class="form-error">{{ error() }}</p>
+        }
+
+        <div class="form-actions">
+          @if (stepIndex() > 0) {
+            <button class="button secondary" type="button" (click)="previous()">
+              <span class="fs-icon" data-icon="arrow-left" aria-hidden="true"></span>
+              Back
+            </button>
+          }
+
+          @if (stepIndex() < steps.length - 1) {
+            <button class="button primary" type="button" (click)="next()">
+              Continue
+              <span class="fs-icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
+          } @else {
+            <button class="button primary" type="submit" [disabled]="submitting()">
+              <span class="fs-icon" [attr.data-icon]="submitting() ? 'clock' : 'spark'" aria-hidden="true"></span>
+              {{ submitting() ? 'Saving...' : 'Start FitSync' }}
+            </button>
+          }
+        </div>
+      </form>
+    </main>
+
+    <aside class="setup-summary" aria-label="Setup summary">
+      <p class="eyebrow">Summary</p>
+      <div class="summary-person">
+        <span class="summary-avatar">{{ (form.controls.displayName.value || 'N').charAt(0) }}</span>
+        <h2>{{ form.controls.displayName.value || 'New profile' }}</h2>
+      </div>
+      <dl>
+        <div>
+          <dt><span class="fs-icon" data-icon="scale" aria-hidden="true"></span>Body</dt>
+          <dd>{{ form.controls.currentWeightKg.value }} kg -> {{ form.controls.targetWeightKg.value }} kg</dd>
+        </div>
+        <div>
+          <dt><span class="fs-icon" data-icon="dumbbell" aria-hidden="true"></span>Training</dt>
+          <dd>{{ form.controls.weeklyWorkoutDays.value }} sessions / week</dd>
+        </div>
+        <div>
+          <dt><span class="fs-icon" data-icon="utensils" aria-hidden="true"></span>Nutrition</dt>
+          <dd>{{ estimatedCalories() }} kcal / {{ estimatedProtein() }}g protein</dd>
+        </div>
+      </dl>
+    </aside>
+  </div>
 </div>

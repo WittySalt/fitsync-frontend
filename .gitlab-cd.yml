@@ -1,0 +1,72 @@
+variables:
+  DEPLOY_TARGET: "staging"
+
+cd_build:
+  stage: build
+  image: node:20
+  script:
+    - npm ci
+    - npm run build -- --configuration production
+  artifacts:
+    when: on_success
+    expire_in: 5 days
+    paths:
+      - dist/fitsync-frontend/browser/
+  rules:
+    - if: '$RUN_FRONTEND_CD == "true" && $CI_PIPELINE_SOURCE == "web"'
+    - when: never
+
+deploy_s3:
+  stage: deploy
+  image: alpine:3.20
+  needs:
+    - job: cd_build
+      artifacts: true
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: sts.amazonaws.com
+  before_script:
+    - apk add --no-cache bash python3 py3-pip
+    - pip install --break-system-packages awscli
+    - >
+      aws_sts_output=$(aws sts assume-role-with-web-identity
+      --role-arn "$AWS_ROLE_ARN"
+      --role-session-name "gitlab-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+      --web-identity-token "$GITLAB_OIDC_TOKEN"
+      --duration-seconds 3600
+      --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
+      --output text)
+    - export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" $aws_sts_output)
+    - export AWS_DEFAULT_REGION="$AWS_REGION"
+  script:
+    - |
+      case "$DEPLOY_TARGET" in
+        production)
+          TARGET_BUCKET="$S3_BUCKET_PROD"
+          ;;
+        staging)
+          TARGET_BUCKET="$S3_BUCKET_STAGING"
+          ;;
+        *)
+          echo "DEPLOY_TARGET must be 'staging' or 'production'."
+          exit 1
+          ;;
+      esac
+
+      if [ -z "$TARGET_BUCKET" ]; then
+        echo "Target S3 bucket variable is not configured for DEPLOY_TARGET=$DEPLOY_TARGET."
+        exit 1
+      fi
+    - aws s3 sync dist/fitsync-frontend/browser/ "s3://$TARGET_BUCKET" --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
+    - aws s3 cp dist/fitsync-frontend/browser/index.html "s3://$TARGET_BUCKET/index.html" --cache-control "no-cache,no-store,must-revalidate"
+    - |
+      if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
+        aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
+      else
+        echo "CLOUDFRONT_DISTRIBUTION_ID is not set; skipping CloudFront invalidation."
+      fi
+  rules:
+    - if: '$RUN_FRONTEND_CD == "true" && $CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: false
+    - when: never

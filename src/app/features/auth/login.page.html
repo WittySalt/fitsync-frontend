@@ -1,113 +1,156 @@
 <main class="auth-page">
   <section class="auth-panel">
-    <a class="brand" href="/" aria-label="FitSync home">
-      <span class="brand-mark">F</span>
-      <span>
-        <strong>FitSync</strong>
-        <small>Training and nutrition</small>
-      </span>
-    </a>
+    <div class="auth-shell">
+      <a class="brand" href="/" aria-label="FitSync home">
+        <span class="brand-mark" aria-hidden="true">FS</span>
+        <span>
+          <strong>FitSync</strong>
+          <small>Training / Meals / Progress</small>
+        </span>
+      </a>
 
-    <div>
-      <p class="eyebrow">Account</p>
-      <h1>
-        @if (mode() === 'signup') {
-          Create your FitSync account
-        } @else if (mode() === 'confirm') {
-          Confirm your email
-        } @else {
-          Sign in to FitSync
-        }
-      </h1>
-      <p class="auth-copy">Secure access for workouts, meals, goals, and progress.</p>
+      <header class="auth-heading">
+        <p class="eyebrow">Welcome back</p>
+        <h1>
+          @if (mode() === 'signup') {
+            Create your FitSync account
+          } @else if (mode() === 'confirm') {
+            Confirm your email
+          } @else {
+            Sign in to FitSync
+          }
+        </h1>
+        <p>Plan training, track meals, and measure progress from one focused dashboard.</p>
+      </header>
+
+      @if (error()) {
+        <p class="form-alert error">{{ error() }}</p>
+      }
+
+      @if (notice()) {
+        <p class="form-alert notice">{{ notice() }}</p>
+      }
+
+      @if (mode() === 'signin') {
+        <form class="auth-form" [formGroup]="signInForm" (ngSubmit)="signIn()" novalidate>
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" formControlName="email" [class.invalid]="signInForm.controls.email.invalid && signInForm.controls.email.touched" />
+          @if (signInForm.controls.email.invalid && signInForm.controls.email.touched) {
+            <span class="field-error">Enter a valid email address.</span>
+          }
+
+          <div class="field-row">
+            <label for="password">Password</label>
+            <button class="link-button muted" type="button" (click)="notice.set('Password reset is not connected yet.')">Forgot password?</button>
+          </div>
+          <div class="password-field">
+            <input id="password" [type]="showPassword() ? 'text' : 'password'" autocomplete="current-password" formControlName="password" [class.invalid]="signInForm.controls.password.invalid && signInForm.controls.password.touched" />
+            <button type="button" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" (click)="togglePasswordVisibility()">
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          @if (signInForm.controls.password.invalid && signInForm.controls.password.touched) {
+            <span class="field-error">Password is required.</span>
+          }
+
+          <button class="button primary" type="submit" [disabled]="loading() !== null">
+            {{ loading() === 'signin' ? 'Signing in...' : 'Sign in' }}
+          </button>
+        </form>
+
+        <div class="social-auth" aria-label="Alternative sign-in options">
+          <div class="divider"><span>or continue with</span></div>
+          <div class="social-grid">
+            <button type="button" aria-label="Continue with Google" (click)="showUnavailableSignIn('Google')">
+              <svg class="si" width="19" height="19" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.1-.2-1.6H9v3.1h4.8c-.2 1-.8 1.9-1.7 2.5v2h2.7c1.7-1.5 2.8-3.7 2.8-6Z" />
+                <path fill="#34A853" d="M9 18c2.4 0 4.4-.8 5.8-2.2l-2.7-2c-.7.5-1.7.8-3.1.8-2.3 0-4.3-1.6-5-3.7H1.3v2.1C2.8 16 5.7 18 9 18Z" />
+                <path fill="#FBBC05" d="M4 10.9c-.2-.6-.3-1.2-.3-1.9S3.8 7.7 4 7.1V5H1.3C.5 6.2 0 7.6 0 9s.5 2.8 1.3 4L4 10.9Z" />
+                <path fill="#EA4335" d="M9 3.4c1.3 0 2.5.5 3.4 1.3l2.5-2.5C13.4.8 11.4 0 9 0 5.7 0 2.8 2 1.3 5L4 7.1c.7-2.1 2.7-3.7 5-3.7Z" />
+              </svg>
+              <span class="social-label">Google</span>
+            </button>
+            <button type="button" aria-label="Continue with Apple" (click)="showUnavailableSignIn('Apple')">
+              <svg class="si" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M17.1 12.7c0-2 1.6-3 1.7-3.1-1-.1-1.9-.7-2.4-1.4-1-.9-2-.8-2.5-.8-1.1.1-2.1.7-2.7.7-.6 0-1.5-.7-2.5-.7-1.3 0-2.5.8-3.2 2-1.4 2.5-.4 6.1 1 8.1.7 1 1.5 2.1 2.5 2.1s1.4-.6 2.6-.6 1.5.6 2.6.6 1.8-1 2.5-2c.8-1.2 1.1-2.3 1.1-2.4 0-.1-2.2-.9-2.2-3.5ZM13.3 6.2c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.7-1 1.7-.9 2.6 1 0 1.9-.5 2.5-1.2Z" />
+              </svg>
+              <span class="social-label">Apple</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="auth-switch">
+          New to FitSync?
+          <button class="link-button" type="button" (click)="showMode('signup')">Create account</button>
+        </p>
+      } @else if (mode() === 'signup') {
+        <form class="auth-form" [formGroup]="signUpForm" (ngSubmit)="signUp()" novalidate>
+          <label for="displayName">Display name</label>
+          <input id="displayName" type="text" autocomplete="name" formControlName="displayName" />
+
+          <label for="signupEmail">Email</label>
+          <input id="signupEmail" type="email" autocomplete="email" formControlName="email" />
+
+          <label for="signupPassword">Password</label>
+          <input id="signupPassword" [type]="showPassword() ? 'text' : 'password'" autocomplete="new-password" formControlName="password" />
+
+          <button class="button primary" type="submit" [disabled]="loading() !== null">
+            {{ loading() === 'signup' ? 'Creating...' : 'Create account' }}
+          </button>
+        </form>
+
+        <p class="auth-switch">
+          Already registered?
+          <button class="link-button" type="button" (click)="showMode('signin')">Sign in</button>
+        </p>
+      } @else {
+        <form class="auth-form" [formGroup]="confirmForm" (ngSubmit)="confirmSignUp()" novalidate>
+          <label for="confirmEmail">Email</label>
+          <input id="confirmEmail" type="email" autocomplete="email" formControlName="email" />
+
+          <label for="confirmationCode">Confirmation code</label>
+          <input id="confirmationCode" type="text" inputmode="numeric" autocomplete="one-time-code" formControlName="confirmationCode" />
+
+          <button class="button primary" type="submit" [disabled]="loading() !== null">
+            {{ loading() === 'confirm' ? 'Confirming...' : 'Confirm account' }}
+          </button>
+        </form>
+
+        <div class="auth-actions">
+          <button class="link-button" type="button" [disabled]="loading() !== null" (click)="resendCode()">
+            {{ loading() === 'resend' ? 'Sending...' : 'Resend code' }}
+          </button>
+          <button class="link-button muted" type="button" (click)="showMode('signin')">Back to sign in</button>
+        </div>
+      }
     </div>
-
-    @if (error()) {
-      <p class="form-error">{{ error() }}</p>
-    }
-
-    @if (notice()) {
-      <p class="form-notice">{{ notice() }}</p>
-    }
-
-    @if (mode() === 'signin') {
-      <form class="auth-form" (ngSubmit)="signIn()">
-        <label>
-          Email
-          <input name="email" type="email" autocomplete="email" required [(ngModel)]="email" />
-        </label>
-
-        <label>
-          Password
-          <input name="password" type="password" autocomplete="current-password" required [(ngModel)]="password" />
-        </label>
-
-        <button class="button primary" type="submit" [disabled]="loading() !== null">
-          {{ loading() === 'signin' ? 'Signing in...' : 'Sign in' }}
-        </button>
-      </form>
-
-      <div class="auth-switch">
-        <span>New to FitSync?</span>
-        <button type="button" (click)="showMode('signup')">Create account</button>
-      </div>
-    } @else if (mode() === 'signup') {
-      <form class="auth-form" (ngSubmit)="signUp()">
-        <label>
-          Display name
-          <input name="displayName" type="text" autocomplete="name" required [(ngModel)]="displayName" />
-        </label>
-
-        <label>
-          Email
-          <input name="signupEmail" type="email" autocomplete="email" required [(ngModel)]="email" />
-        </label>
-
-        <label>
-          Password
-          <input name="signupPassword" type="password" autocomplete="new-password" required [(ngModel)]="password" />
-        </label>
-
-        <button class="button primary" type="submit" [disabled]="loading() !== null">
-          {{ loading() === 'signup' ? 'Creating...' : 'Create account' }}
-        </button>
-      </form>
-
-      <div class="auth-switch">
-        <span>Already registered?</span>
-        <button type="button" (click)="showMode('signin')">Sign in</button>
-      </div>
-    } @else {
-      <form class="auth-form" (ngSubmit)="confirmSignUp()">
-        <label>
-          Email
-          <input name="confirmEmail" type="email" autocomplete="email" required [(ngModel)]="email" />
-        </label>
-
-        <label>
-          Confirmation code
-          <input name="confirmationCode" type="text" inputmode="numeric" autocomplete="one-time-code" required [(ngModel)]="confirmationCode" />
-        </label>
-
-        <button class="button primary" type="submit" [disabled]="loading() !== null">
-          {{ loading() === 'confirm' ? 'Confirming...' : 'Confirm account' }}
-        </button>
-      </form>
-
-      <div class="auth-switch">
-        <button type="button" [disabled]="loading() !== null" (click)="resendCode()">
-          {{ loading() === 'resend' ? 'Sending...' : 'Resend code' }}
-        </button>
-        <button type="button" (click)="showMode('signin')">Back to sign in</button>
-      </div>
-    }
   </section>
 
-  <aside class="auth-preview" aria-label="FitSync preview">
-    <div class="preview-card">
-      <span class="card-label">Today</span>
-      <h2>Calories, workouts, and goals stay in sync.</h2>
-      <div class="preview-meter"><span></span></div>
+  <aside class="bp" aria-label="FitSync brand panel" (mouseenter)="pauseQuoteRotation()" (mouseleave)="resumeQuoteRotation()" (focusin)="pauseQuoteRotation()" (focusout)="resumeQuoteRotation()">
+    <div>
+      <p class="eyebrow">FitSync Method</p>
+      <div class="qs" aria-live="polite">
+        @for (quote of brandQuotes; track quote.headline; let index = $index) {
+          <div class="q" [class.active]="activeQuoteIndex() === index">
+            <h2>{{ quote.headline }}</h2>
+            <p>{{ quote.sub }}</p>
+          </div>
+        }
+      </div>
+      <div class="qd" aria-label="Quote carousel controls">
+        @for (quote of brandQuotes; track quote.headline; let index = $index) {
+          <button type="button" [class.active]="activeQuoteIndex() === index" [attr.aria-label]="'Show quote ' + (index + 1)" (click)="selectQuote(index)"></button>
+        }
+      </div>
+    </div>
+    <div class="fc">
+      <div class="fl eyebrow">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M9 21h6v-1.5H9V21Zm3-19a7 7 0 0 0-4 12.7V17c0 .8.7 1.5 1.5 1.5h5A1.5 1.5 0 0 0 16 17v-2.3A7 7 0 0 0 12 2Zm2 11.5-.7.4V17h-2.6v-3.1l-.7-.4A5 5 0 1 1 14 13.5Z" />
+        </svg>
+        <span>Did you know?</span>
+      </div>
+      <p>{{ currentFact() }}</p>
     </div>
   </aside>
 </main>

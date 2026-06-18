@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, map, Observable, switchMap, tap, throwError } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
 
 import { AUTH_STORAGE_KEYS, COGNITO_AUTH_CONFIG } from './auth.config';
 
@@ -37,6 +37,26 @@ export class AuthService {
     const token = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
     const expiresAt = Number(localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt) ?? 0);
     return Boolean(token && expiresAt > Date.now());
+  }
+
+  ensureSession(): Observable<boolean> {
+    if (this.isAuthenticated()) {
+      return of(true);
+    }
+
+    const cognitoIdToken = localStorage.getItem(AUTH_STORAGE_KEYS.cognitoIdToken);
+    if (!cognitoIdToken) {
+      this.clearLocalAccessToken();
+      return of(false);
+    }
+
+    return this.bootstrapWithCognitoToken(cognitoIdToken).pipe(
+      map(() => true),
+      catchError(() => {
+        this.clearSession();
+        return of(false);
+      })
+    );
   }
 
   signIn(email: string, password: string): Observable<void> {
@@ -165,12 +185,16 @@ export class AuthService {
   }
 
   private clearSession(): void {
-    localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
-    localStorage.removeItem(AUTH_STORAGE_KEYS.idToken);
-    localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+    this.clearLocalAccessToken();
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoAccessToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoIdToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoRefreshToken);
+  }
+
+  private clearLocalAccessToken(): void {
+    localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.idToken);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.expiresAt);
   }
 

@@ -85,6 +85,119 @@
   padding: 32px;
 }
 
+.topbar {
+  max-width: 1180px;
+  min-height: 58px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin: 0 auto 20px;
+}
+
+.topbar-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.account-menu {
+  position: relative;
+}
+
+.account-button {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.account-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #18231f, var(--green));
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.account-avatar.large {
+  width: 48px;
+  height: 48px;
+  font-size: 15px;
+}
+
+.account-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  width: min(300px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+
+  a,
+  button {
+    width: 100%;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius);
+    color: var(--text);
+    background: transparent;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  a:hover,
+  button:hover {
+    background: var(--surface-strong);
+  }
+}
+
+.account-popover-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+
+  strong,
+  small {
+    display: block;
+  }
+
+  small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+}
+
+.logout-row {
+  margin-top: 6px;
+  color: var(--danger) !important;
+}
+
 .bottom-nav {
   display: none;
 }
@@ -100,6 +213,15 @@
 
   .content-frame {
     padding: 18px 16px 92px;
+  }
+
+  .topbar {
+    margin-bottom: 16px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .bottom-nav {
