@@ -10,6 +10,7 @@ import {
   Goal,
   LoggedFood,
   MealFormValue,
+  WorkoutSessionFormValue,
   Meal,
   NutritionSummary,
   OnboardingFormValue,
@@ -473,6 +474,27 @@ export class FitSyncDataService {
       mealReminderEnabled: value.mealReminderEnabled,
       weighInReminderEnabled: true
     }).pipe(map(() => ({ ok: true as const })));
+  }
+
+  saveWorkoutSession(value: WorkoutSessionFormValue): Observable<{ ok: true }> {
+    const completedAt = new Date();
+    const startedAt = new Date(completedAt.getTime() - Math.max(0, value.durationMinutes) * 60_000);
+
+    return this.http
+      .post(`${this.apiBaseUrl}/workouts/sessions`, {
+        name: value.name,
+        workoutType: value.workoutType,
+        status: 'COMPLETED',
+        source: 'MANUAL',
+        startedAt: startedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+        durationMinutes: value.durationMinutes,
+        caloriesBurned: value.caloriesBurned,
+        perceivedExertion: value.perceivedExertion,
+        notes: value.notes || null,
+        exercises: []
+      })
+      .pipe(map(() => ({ ok: true as const })));
   }
 
   saveMeal(value: MealFormValue): Observable<{ ok: true }> {

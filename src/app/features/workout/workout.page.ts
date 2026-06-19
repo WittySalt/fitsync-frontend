@@ -1,7 +1,9 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Exercise, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 interface TrainingMetric {
@@ -13,19 +15,34 @@ interface TrainingMetric {
 
 @Component({
   selector: 'app-workout-page',
-  imports: [StatePanelComponent],
+  imports: [StatePanelComponent, ReactiveFormsModule],
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
 export class WorkoutPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly fb = inject(FormBuilder);
+  private readonly toast = inject(ToastService);
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
   readonly exercises = signal<Exercise[]>([]);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
+  readonly submitting = signal(false);
+  readonly logFormOpen = signal(false);
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
+
+  readonly workoutTypes = ['STRENGTH', 'CARDIO', 'HIIT', 'MOBILITY', 'SPORT', 'OTHER'];
+
+  readonly logForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
+    workoutType: ['STRENGTH', Validators.required],
+    durationMinutes: [45, [Validators.required, Validators.min(1), Validators.max(600)]],
+    caloriesBurned: [350, [Validators.required, Validators.min(0), Validators.max(5000)]],
+    perceivedExertion: [7, [Validators.min(1), Validators.max(10)]],
+    notes: ['', Validators.maxLength(300)]
+  });
 
   readonly latestSession = computed(() => {
     const sorted = [...this.sessions()].sort((a, b) => this.timeOf(b) - this.timeOf(a));
@@ -64,6 +81,39 @@ export class WorkoutPage implements OnInit {
     this.dataService.getWorkoutSessions().subscribe((sessions) => this.sessions.set(sessions));
     this.dataService.getExercises().subscribe((exercises) => this.exercises.set(exercises));
     this.dataService.getActivePlan().subscribe((plan) => this.activePlan.set(plan));
+  }
+
+  toggleLogForm(): void {
+    this.logFormOpen.update((open) => !open);
+  }
+
+  logWorkout(): void {
+    this.logForm.markAllAsTouched();
+    if (this.logForm.invalid) {
+      return;
+    }
+
+    this.submitting.set(true);
+    this.dataService.saveWorkoutSession(this.logForm.getRawValue()).subscribe({
+      next: () => {
+        this.submitting.set(false);
+        this.logFormOpen.set(false);
+        this.logForm.reset({
+          name: '',
+          workoutType: 'STRENGTH',
+          durationMinutes: 45,
+          caloriesBurned: 350,
+          perceivedExertion: 7,
+          notes: ''
+        });
+        this.toast.success('Workout logged.');
+        this.dataService.getWorkoutSessions().subscribe((sessions) => this.sessions.set(sessions));
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.toast.error('Unable to log workout. Check your connection and try again.');
+      }
+    });
   }
 
   formatLabel(value: string | null | undefined): string {

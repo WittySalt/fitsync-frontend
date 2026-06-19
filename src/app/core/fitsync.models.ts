@@ -76,6 +76,15 @@ export interface WorkoutSession {
   exerciseCount: number;
 }
 
+export interface WorkoutSessionFormValue {
+  name: string;
+  workoutType: string;
+  durationMinutes: number;
+  caloriesBurned: number;
+  perceivedExertion: number | null;
+  notes: string;
+}
+
 export interface Exercise {
   exerciseId: string | null;
   name: string;

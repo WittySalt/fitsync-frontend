@@ -29,12 +29,14 @@ describe('WorkoutPage', () => {
       'getWorkoutPlans',
       'getWorkoutSessions',
       'getExercises',
-      'getActivePlan'
+      'getActivePlan',
+      'saveWorkoutSession'
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessions.and.returnValue(of([]));
     dataService.getExercises.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
+    dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
 
     await TestBed.configureTestingModule({
       imports: [WorkoutPage],
@@ -85,5 +87,35 @@ describe('WorkoutPage', () => {
     expect(compiled.querySelector('#workout-tab-plans')?.getAttribute('aria-selected')).toBe('true');
     expect(plansPanel?.getAttribute('role')).toBe('tabpanel');
     expect(plansPanel?.getAttribute('aria-labelledby')).toBe('workout-tab-plans');
+  });
+
+  it('logs a workout through the data service when the form is valid', () => {
+    component.logForm.setValue({
+      name: 'Leg day',
+      workoutType: 'STRENGTH',
+      durationMinutes: 50,
+      caloriesBurned: 380,
+      perceivedExertion: 7,
+      notes: ''
+    });
+
+    component.logWorkout();
+
+    expect(dataService.saveWorkoutSession).toHaveBeenCalled();
+  });
+
+  it('does not log when the workout name is missing', () => {
+    component.logForm.setValue({
+      name: '',
+      workoutType: 'STRENGTH',
+      durationMinutes: 50,
+      caloriesBurned: 380,
+      perceivedExertion: 7,
+      notes: ''
+    });
+
+    component.logWorkout();
+
+    expect(dataService.saveWorkoutSession).not.toHaveBeenCalled();
   });
 });

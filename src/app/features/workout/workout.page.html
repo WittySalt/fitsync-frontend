@@ -30,7 +30,63 @@
   </div>
 
   @if (selectedTab() === 'overview') {
-    <section id="workout-panel-overview" class="workout-layout" role="tabpanel" aria-labelledby="workout-tab-overview">
+    <div id="workout-panel-overview" role="tabpanel" aria-labelledby="workout-tab-overview" class="overview-panel">
+      <article class="summary-card log-workout-card">
+        <div class="section-title">
+          <div>
+            <span class="card-label">Log</span>
+            <h2>Record a workout</h2>
+          </div>
+          <button class="button workout" type="button" [attr.aria-expanded]="logFormOpen()" (click)="toggleLogForm()">
+            {{ logFormOpen() ? 'Cancel' : 'Log workout' }}
+          </button>
+        </div>
+
+        @if (logFormOpen()) {
+          <form class="log-workout-form" [formGroup]="logForm" (ngSubmit)="logWorkout()">
+            <label>
+              Workout name
+              <input formControlName="name" placeholder="Upper body strength" />
+              @if (logForm.controls.name.touched && logForm.controls.name.invalid) {
+                <span class="field-error">A name is required.</span>
+              }
+            </label>
+            <div class="log-grid">
+              <label>
+                Type
+                <select formControlName="workoutType">
+                  @for (type of workoutTypes; track type) {
+                    <option [value]="type">{{ formatLabel(type) }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                Duration (min)
+                <input type="number" formControlName="durationMinutes" min="1" max="600" />
+              </label>
+              <label>
+                Calories
+                <input type="number" formControlName="caloriesBurned" min="0" max="5000" />
+              </label>
+              <label>
+                Effort (RPE)
+                <input type="number" formControlName="perceivedExertion" min="1" max="10" />
+              </label>
+            </div>
+            <label>
+              Notes
+              <input formControlName="notes" placeholder="How did the session go?" />
+            </label>
+            <button class="button workout" type="submit" [disabled]="submitting()">
+              {{ submitting() ? 'Saving...' : 'Save workout' }}
+            </button>
+          </form>
+        } @else {
+          <p>Log a completed session to build your training history and metrics.</p>
+        }
+      </article>
+
+      <div class="workout-layout">
       <article class="summary-card">
         <div class="section-title">
           <div>
@@ -84,7 +140,8 @@
           <app-state-panel title="No sessions yet" message="Start a workout to build your training history." />
         }
       </article>
-    </section>
+      </div>
+    </div>
   } @else if (selectedTab() === 'plans') {
     @if (loading()) {
       <div id="workout-panel-plans" class="summary-card skeleton tall" role="tabpanel" aria-labelledby="workout-tab-plans"></div>

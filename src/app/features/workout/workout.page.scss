@@ -346,3 +346,26 @@
   font-weight: 600;
   vertical-align: middle;
 }
+
+.overview-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.log-workout-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.log-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .log-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
