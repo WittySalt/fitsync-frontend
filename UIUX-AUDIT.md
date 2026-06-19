@@ -171,6 +171,9 @@ The weakest page. Currently dead arrays + fake numbers + CSS bars; no API.
 2. Implement real food search (`GET /api/v1/nutrition/foods/search?q=`) with
    debounce, loading, and empty results — currently `foods()` is seeded demo data.
 3. Keep the working meal form; add success toast (see FE-8).
+> FE-6 is only the seed. The backend nutrition API has grown a lot (search filters, categories,
+> recent/favorites, templates, quick-add/copy, micronutrient summary, water, barcode/export) —
+> see **§G (FE-20..FE-27)** for the full integration backlog.
 
 ### P2 — FE-7: Single Lucide icon system
 Consolidate `.nav-icon`, `.fs-icon`, and login inline SVGs into one approach
@@ -321,3 +324,54 @@ FE-11 should consume the analytics dashboard/read APIs, not a new user-service
 endpoint. Until those land, FE-11/FE-19 render honest empty/"session-only" states —
 no fabricated totals, no silent local write-persistence. Validate payloads,
 parameterized queries, authz on every endpoint (root `AGENTS.md` security rules).
+
+---
+
+## G. Nutrition backend integration (backend NU-1..15 shipped — FE must consume)
+
+**Context (2026-06-19).** `nutrition-service` gained a large API surface that the FE does
+not yet use. FE-6 (above) is just the seed (basic search + meal form). All endpoints below are
+live on `main`, under `/api/v1/nutrition`, JWT-scoped. **Cross-period trends/charts are NOT here —
+they belong to `analytics-service`; the Nutrition page should call analytics for history, nutrition
+for "today".** Each ticket = its own PR (per the FE-4/5/6 isolation rule).
+
+### P1 — FE-20: Food search upgrade (pagination + filters)
+`GET /foods/search` now takes `page,size,categoryId,includeSubcategories,brandId,verified,scope`
+and is server-side relevance-ranked. Wire pagination (infinite-scroll or pager) + filter controls.
+**Response is a plain array** (no total/hasMore) — infer "more" by `results.length === size`.
+
+### P1 — FE-21: Category browse (e-commerce-style hierarchical filter)
+`GET /categories` returns a 2-level tree (`children[]`). Render a group→subcategory picker; tapping
+a node filters search by `categoryId` (+ `includeSubcategories=true` for a group).
+
+### P1 — FE-22: Quick-log surfaces (recent / frequent / favorites)
+`GET /foods/recent`, `/foods/frequent` (carry last-used serving + macros → one-tap re-log), and
+favorites: `POST/DELETE /foods/{foodId}/favorite` + `GET /favorites`. Add a "quick log" rail.
+
+### P1 — FE-23: Saved meals (templates)
+`POST /meal-templates` (inline items OR `fromMealId` to snapshot an existing meal), `GET`/`GET/{id}`/
+`DELETE /meal-templates`, and one-tap `POST /meals/from-template/{id}` (with `consumedAt`).
+
+### P1 — FE-24: Quick-add + copy
+`POST /meals/quick-add` (kcal-only fast entry); copy controls `POST /meals/{id}/copy` and
+`POST /days/{date}/copy-to` ("repeat yesterday").
+
+### P1 — FE-25: Daily summary micronutrients + limit flags
+`GET /summary/daily` now returns `totalFiberGrams/totalSugarGrams/totalSodiumMg`, the reference
+values (`fiberTargetGrams/sugarLimitGrams/sodiumLimitMg`), and flags
+(`fiberTargetMet/sugarWithinLimit/sodiumWithinLimit`). Render these (e.g. fiber progress, sugar/
+sodium over-limit warnings). Additive fields — safe to add.
+
+### P2 — FE-26: Water (hydration) tracker
+`POST /water` (amountMl + optional loggedAt/timezone), `GET /water?date&timezone` (entries + daily
+total), `DELETE /water/{id}`. Add a hydration widget to the Nutrition page.
+
+### P2 — FE-27: Barcode (+ external) + CSV export
+Barcode scan → `GET /barcodes/{barcode}`. **It may now return an OpenFoodFacts result with
+`foodId == null`** (external, not in catalog) when the local catalog misses + the feature is enabled
+server-side — handle that case by logging it as a manual item (use the returned name + per-100g
+macros), not via `foodCatalogItemId`. Add a "Export diary" download for `GET /export?from&to`
+(CSV; range ≤ 370 days).
+
+**Suggested order:** FE-20 → FE-21 → FE-22 (the search/quick-log core) → FE-23/24 (logging
+convenience) → FE-25 (summary depth) → FE-26/27 (water, barcode/export).
