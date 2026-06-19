@@ -23,14 +23,14 @@
   </section>
 
   <div class="segmented workout-tabs" role="tablist" aria-label="Workout sections">
-    <button [class.active]="selectedTab() === 'overview'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'overview'" (click)="selectedTab.set('overview')">Today</button>
-    <button [class.active]="selectedTab() === 'plans'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'plans'" (click)="selectedTab.set('plans')">Plans</button>
-    <button [class.active]="selectedTab() === 'history'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'history'" (click)="selectedTab.set('history')">History</button>
-    <button [class.active]="selectedTab() === 'library'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'library'" (click)="selectedTab.set('library')">Library</button>
+    <button id="workout-tab-overview" [class.active]="selectedTab() === 'overview'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'overview'" aria-controls="workout-panel-overview" (click)="selectedTab.set('overview')">Today</button>
+    <button id="workout-tab-plans" [class.active]="selectedTab() === 'plans'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'plans'" aria-controls="workout-panel-plans" (click)="selectedTab.set('plans')">Plans</button>
+    <button id="workout-tab-history" [class.active]="selectedTab() === 'history'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'history'" aria-controls="workout-panel-history" (click)="selectedTab.set('history')">History</button>
+    <button id="workout-tab-library" [class.active]="selectedTab() === 'library'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'library'" aria-controls="workout-panel-library" (click)="selectedTab.set('library')">Library</button>
   </div>
 
   @if (selectedTab() === 'overview') {
-    <section class="workout-layout">
+    <section id="workout-panel-overview" class="workout-layout" role="tabpanel" aria-labelledby="workout-tab-overview">
       <article class="summary-card">
         <div class="section-title">
           <div>
@@ -87,9 +87,9 @@
     </section>
   } @else if (selectedTab() === 'plans') {
     @if (loading()) {
-      <div class="summary-card skeleton tall"></div>
+      <div id="workout-panel-plans" class="summary-card skeleton tall" role="tabpanel" aria-labelledby="workout-tab-plans"></div>
     } @else if (plans().length) {
-      <section class="plan-grid">
+      <section id="workout-panel-plans" class="plan-grid" role="tabpanel" aria-labelledby="workout-tab-plans">
         @for (plan of plans(); track plan.name) {
           <article class="plan-card">
             <div class="plan-card-header">
@@ -112,10 +112,16 @@
         }
       </section>
     } @else {
-      <app-state-panel title="No plans yet" message="Create a reusable plan to start a planned workout." />
+      <app-state-panel
+        id="workout-panel-plans"
+        role="tabpanel"
+        aria-labelledby="workout-tab-plans"
+        title="No plans yet"
+        message="Create a reusable plan to start a planned workout."
+      />
     }
   } @else if (selectedTab() === 'history') {
-    <section class="summary-card">
+    <section id="workout-panel-history" class="summary-card" role="tabpanel" aria-labelledby="workout-tab-history">
       <div class="section-title">
         <div>
           <span class="card-label">Recent sessions</span>
@@ -140,7 +146,7 @@
       }
     </section>
   } @else {
-    <section class="summary-card">
+    <section id="workout-panel-library" class="summary-card" role="tabpanel" aria-labelledby="workout-tab-library">
       <div class="section-title">
         <div>
           <span class="card-label">Exercise catalog</span>

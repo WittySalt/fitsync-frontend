@@ -1,6 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 
+import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
 import { WorkoutSession } from '../../core/fitsync.models';
 
@@ -20,9 +22,25 @@ function session(overrides: Partial<WorkoutSession>): WorkoutSession {
 
 describe('WorkoutPage', () => {
   let component: WorkoutPage;
+  let dataService: jasmine.SpyObj<FitSyncDataService>;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient()] });
+  beforeEach(async () => {
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
+      'getWorkoutPlans',
+      'getWorkoutSessions',
+      'getExercises',
+      'getActivePlan'
+    ]);
+    dataService.getWorkoutPlans.and.returnValue(of([]));
+    dataService.getWorkoutSessions.and.returnValue(of([]));
+    dataService.getExercises.and.returnValue(of([]));
+    dataService.getActivePlan.and.returnValue(of(null));
+
+    await TestBed.configureTestingModule({
+      imports: [WorkoutPage],
+      providers: [provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }]
+    }).compileComponents();
+
     component = TestBed.createComponent(WorkoutPage).componentInstance;
   });
 
@@ -44,5 +62,28 @@ describe('WorkoutPage', () => {
     const metrics = component.metrics();
     expect(metrics[0].value).toBe('2');
     expect(metrics[1].value).toBe('1');
+  });
+
+  it('wires workout tabs to their active tabpanel', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const todayTab = compiled.querySelector<HTMLButtonElement>('#workout-tab-overview');
+    const todayPanel = compiled.querySelector<HTMLElement>('#workout-panel-overview');
+
+    expect(todayTab?.getAttribute('role')).toBe('tab');
+    expect(todayTab?.getAttribute('aria-selected')).toBe('true');
+    expect(todayTab?.getAttribute('aria-controls')).toBe('workout-panel-overview');
+    expect(todayPanel?.getAttribute('role')).toBe('tabpanel');
+    expect(todayPanel?.getAttribute('aria-labelledby')).toBe('workout-tab-overview');
+
+    compiled.querySelector<HTMLButtonElement>('#workout-tab-plans')?.click();
+    fixture.detectChanges();
+
+    const plansPanel = compiled.querySelector<HTMLElement>('#workout-panel-plans');
+    expect(compiled.querySelector('#workout-tab-plans')?.getAttribute('aria-selected')).toBe('true');
+    expect(plansPanel?.getAttribute('role')).toBe('tabpanel');
+    expect(plansPanel?.getAttribute('aria-labelledby')).toBe('workout-tab-plans');
   });
 });

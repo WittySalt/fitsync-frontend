@@ -30,8 +30,10 @@
     <div class="metric-toggle" role="tablist" aria-label="Trend metric">
       @for (option of metricOptions; track option.key) {
         <button
+          id="progress-metric-tab-{{ option.key }}"
           type="button"
           role="tab"
+          aria-controls="progress-trend-panel"
           [class.active]="selectedMetric() === option.key"
           [attr.aria-selected]="selectedMetric() === option.key"
           (click)="selectMetric(option.key)"
@@ -85,7 +87,12 @@
       </article>
     </section>
 
-    <section class="summary-card trend-card">
+    <section
+      id="progress-trend-panel"
+      class="summary-card trend-card"
+      role="tabpanel"
+      [attr.aria-labelledby]="'progress-metric-tab-' + selectedMetric()"
+    >
       <div class="section-title">
         <div>
           <span class="card-label">Body Metrics</span>

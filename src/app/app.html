@@ -49,6 +49,7 @@
           <button
             class="account-button"
             type="button"
+            [attr.aria-label]="accountMenuOpen() ? 'Close account menu' : 'Open account menu'"
             aria-haspopup="menu"
             [attr.aria-expanded]="accountMenuOpen()"
             (click)="toggleAccountMenu()"
