@@ -4,6 +4,7 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { FoodSearchResult, LoggedFood, Meal } from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 @Component({
@@ -15,6 +16,7 @@ import { StatePanelComponent } from '../../shared/state-panel.component';
 export class NutritionPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
+  private readonly toast = inject(ToastService);
 
   readonly data = signal<DashboardData | null>(null);
   readonly foods = signal<FoodSearchResult[]>([]);
@@ -24,7 +26,6 @@ export class NutritionPage implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly submitting = signal(false);
-  readonly saveMessage = this.dataService.lastSavedMessage;
   readonly selectedFood = signal<FoodSearchResult | null>(null);
   readonly searchControl = new FormControl('', { nonNullable: true });
 
@@ -164,11 +165,12 @@ export class NutritionPage implements OnInit {
     this.dataService.saveMeal(this.mealForm.getRawValue()).subscribe({
       next: () => {
         this.submitting.set(false);
+        this.toast.success('Meal saved to your day.');
         this.load();
       },
       error: () => {
-        this.dataService.lastSavedMessage.set('Unable to save meal. Check authentication and backend availability.');
         this.submitting.set(false);
+        this.toast.error('Unable to save meal. Check your connection and try again.');
       }
     });
   }

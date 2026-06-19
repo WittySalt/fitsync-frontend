@@ -133,9 +133,6 @@
         <button class="button nutrition" type="submit" [disabled]="submitting()">
           {{ submitting() ? 'Saving...' : 'Save meal' }}
         </button>
-        @if (saveMessage()) {
-          <p class="success-text">{{ saveMessage() }}</p>
-        }
       </form>
 
       <section class="food-panel">
