@@ -2,6 +2,8 @@ import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 
+import { ToastService } from '../../core/toast/toast.service';
+
 import {
   AccountBodyMetric,
   AccountCenterData,
@@ -53,6 +55,7 @@ export class SettingsPage implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly accountDataService = inject(AccountDataService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly toast = inject(ToastService);
 
   readonly data = signal<AccountCenterData | null>(null);
   readonly loading = signal(true);
@@ -894,15 +897,18 @@ export class SettingsPage implements OnInit {
     this.saving.set(null);
     this.editPanel.set(null);
     this.saveMessage.set(message);
+    this.toast.success(message);
     this.clearSectionError(panel);
   }
 
   private handleSaveError(panel: EditablePanel, error: Error): void {
     this.saving.set(null);
+    const message = error.message || 'Unable to save account settings.';
     this.sectionErrors.update((errors) => ({
       ...errors,
-      [panel]: error.message || 'Unable to save account settings.'
+      [panel]: message
     }));
+    this.toast.error(message);
   }
 
   private clearSectionError(panel: EditablePanel): void {

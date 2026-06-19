@@ -5,10 +5,11 @@ import { filter } from 'rxjs';
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
 import { ThemeService } from './core/theme/theme.service';
+import { ToastOutletComponent } from './shared/toast-outlet.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, ToastOutletComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

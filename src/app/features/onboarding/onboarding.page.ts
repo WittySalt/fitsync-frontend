@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import {
   GoalProjection,
@@ -53,6 +54,7 @@ export class OnboardingPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly dataService = inject(FitSyncDataService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
@@ -220,11 +222,13 @@ export class OnboardingPage implements OnInit {
 
     this.dataService.saveOnboarding(this.toOnboardingValue()).subscribe({
       next: () => {
-        this.success.set('Plan saved. Taking you to your dashboard...');
+        this.toast.success('Your plan is ready. Welcome to FitSync!');
         this.router.navigateByUrl('/dashboard');
       },
       error: (error: Error) => {
-        this.error.set(error.message || 'Unable to save onboarding data. Please check the backend connection.');
+        const message = error.message || 'Unable to save onboarding data. Please check the backend connection.';
+        this.error.set(message);
+        this.toast.error(message);
         this.submitting.set(false);
       }
     });
