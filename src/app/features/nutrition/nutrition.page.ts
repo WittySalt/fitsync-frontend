@@ -1,8 +1,9 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodSearchResult } from '../../core/fitsync.models';
+import { FoodSearchResult, LoggedFood, Meal } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 @Component({
@@ -17,11 +18,15 @@ export class NutritionPage implements OnInit {
 
   readonly data = signal<DashboardData | null>(null);
   readonly foods = signal<FoodSearchResult[]>([]);
+  readonly recentFoods = signal<LoggedFood[]>([]);
+  readonly todayMeals = signal<Meal[]>([]);
+  readonly searching = signal(false);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly submitting = signal(false);
   readonly saveMessage = this.dataService.lastSavedMessage;
   readonly selectedFood = signal<FoodSearchResult | null>(null);
+  readonly searchControl = new FormControl('', { nonNullable: true });
 
   readonly today = new Intl.DateTimeFormat('en-SG', {
     weekday: 'long',
@@ -64,40 +69,15 @@ export class NutritionPage implements OnInit {
     ];
   });
 
-  readonly mealTimeline = computed(() => {
-    const latestMeal = this.data()?.latestMeal;
-
-    return [
-      {
-        type: 'Breakfast',
-        time: '07:30',
-        title: latestMeal?.mealType === 'BREAKFAST' ? latestMeal.name : 'Plan a high-protein start',
-        calories: latestMeal?.mealType === 'BREAKFAST' ? latestMeal.totalCalories : 0,
-        status: latestMeal?.mealType === 'BREAKFAST' ? 'Logged' : 'Open'
-      },
-      {
-        type: 'Lunch',
-        time: '12:30',
-        title: latestMeal?.mealType === 'LUNCH' ? latestMeal.name : 'Keep lunch balanced',
-        calories: latestMeal?.mealType === 'LUNCH' ? latestMeal.totalCalories : 0,
-        status: latestMeal?.mealType === 'LUNCH' ? 'Logged' : 'Open'
-      },
-      {
-        type: 'Dinner',
-        time: '19:00',
-        title: latestMeal?.mealType === 'DINNER' ? latestMeal.name : 'Reserve calories for dinner',
-        calories: latestMeal?.mealType === 'DINNER' ? latestMeal.totalCalories : 0,
-        status: latestMeal?.mealType === 'DINNER' ? 'Logged' : 'Open'
-      },
-      {
-        type: 'Snack',
-        time: 'Flexible',
-        title: latestMeal?.mealType === 'SNACK' ? latestMeal.name : 'Use snacks to close macro gaps',
-        calories: latestMeal?.mealType === 'SNACK' ? latestMeal.totalCalories : 0,
-        status: latestMeal?.mealType === 'SNACK' ? 'Logged' : 'Open'
-      }
-    ];
-  });
+  readonly mealTimeline = computed(() =>
+    this.todayMeals().map((meal) => ({
+      type: this.label(meal.mealType),
+      time: this.formatTime(meal.consumedAt),
+      title: meal.name,
+      calories: meal.totalCalories,
+      protein: Math.round(meal.totalProteinGrams)
+    }))
+  );
 
   readonly nutritionNotes = [
     { label: 'Fiber', value: '25g+', detail: 'Aim for vegetables, fruit, oats, and legumes.' },
@@ -117,6 +97,20 @@ export class NutritionPage implements OnInit {
 
   ngOnInit(): void {
     this.load();
+
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        switchMap((query) => {
+          this.searching.set(true);
+          return this.dataService.searchFoods(query);
+        })
+      )
+      .subscribe((foods) => {
+        this.foods.set(foods);
+        this.searching.set(false);
+      });
   }
 
   load(): void {
@@ -134,17 +128,28 @@ export class NutritionPage implements OnInit {
       }
     });
 
-    this.dataService.getFoods().subscribe((foods) => this.foods.set(foods));
+    this.dataService.searchFoods(this.searchControl.value).subscribe((foods) => this.foods.set(foods));
+    this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
+    this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
   }
 
   applyFood(food: FoodSearchResult): void {
     this.selectedFood.set(food);
+    // Search results carry calories + basis only; the user confirms macros.
     this.mealForm.patchValue({
       foodName: food.displayName,
+      calories: food.calories
+    });
+  }
+
+  applyRecentFood(food: LoggedFood): void {
+    this.selectedFood.set(null);
+    this.mealForm.patchValue({
+      foodName: food.foodName,
       calories: food.calories,
-      proteinGrams: food.proteinGrams,
-      carbsGrams: this.estimateCarbs(food),
-      fatGrams: this.estimateFat(food)
+      proteinGrams: Math.round(food.proteinGrams),
+      carbsGrams: Math.round(food.carbsGrams),
+      fatGrams: Math.round(food.fatGrams)
     });
   }
 
@@ -181,11 +186,21 @@ export class NutritionPage implements OnInit {
     return Math.max(Math.round(target - value), 0);
   }
 
-  private estimateCarbs(food: FoodSearchResult): number {
-    return Math.max(Math.round((food.calories - food.proteinGrams * 4) / 6), 0);
+  label(value: string | null | undefined): string {
+    return (value ?? '')
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
-  private estimateFat(food: FoodSearchResult): number {
-    return Math.max(Math.round((food.calories - food.proteinGrams * 4) / 18), 0);
+  formatTime(value: string | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return new Intl.DateTimeFormat('en-SG', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
   }
 }

@@ -142,13 +142,38 @@
         <div class="section-title">
           <div>
             <span class="card-label">Food Search</span>
-            <h2>Verified foods</h2>
+            <h2>Find a food</h2>
           </div>
         </div>
 
-        @if (foods().length) {
+        <label class="search-field">
+          <span class="fs-icon" data-icon="spark" aria-hidden="true"></span>
+          <input
+            type="search"
+            [formControl]="searchControl"
+            placeholder="Search foods (e.g. chicken, oats, yogurt)"
+            aria-label="Search foods"
+          />
+        </label>
+
+        @if (recentFoods().length) {
+          <div class="recent-foods" aria-label="Recent foods">
+            <span class="card-label">Recent</span>
+            <div class="recent-chips">
+              @for (food of recentFoods(); track food.foodName) {
+                <button type="button" class="recent-chip" (click)="applyRecentFood(food)">
+                  {{ food.foodName }} · {{ food.calories }} kcal
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        @if (searching()) {
+          <div class="summary-card skeleton"></div>
+        } @else if (foods().length) {
           <div class="food-list">
-            @for (food of foods(); track food.displayName) {
+            @for (food of foods(); track food.foodId ?? food.displayName) {
               <button
                 type="button"
                 class="food-row"
@@ -156,18 +181,21 @@
                 (click)="applyFood(food)"
               >
                 <span>
-                  <strong>{{ food.displayName }}</strong>
-                  <small>{{ food.brandName }} - {{ food.basisUnit }}</small>
+                  <strong>
+                    {{ food.displayName }}
+                    @if (food.verified) { <span class="verified-tag">Verified</span> }
+                  </strong>
+                  <small>{{ food.brandName || 'Generic' }} · per {{ food.basisUnit }}</small>
                 </span>
-                <span>
+                <span class="food-cal">
                   <strong>{{ food.calories }}</strong>
-                  <small>{{ food.proteinGrams }}g protein</small>
+                  <small>kcal</small>
                 </span>
               </button>
             }
           </div>
         } @else {
-          <app-state-panel title="No foods" message="Create a custom food or search again." />
+          <app-state-panel title="No matches" message="Try another search term, or create a custom food." />
         }
       </section>
     </section>
@@ -176,25 +204,29 @@
       <section class="timeline-panel">
         <div class="section-title">
           <div>
-            <span class="card-label">Meal Plan</span>
-            <h2>Today timeline</h2>
+            <span class="card-label">Today</span>
+            <h2>Logged meals</h2>
           </div>
         </div>
-        <div class="timeline-list">
-          @for (meal of mealTimeline(); track meal.type) {
-            <article class="timeline-row">
-              <div class="time-badge">{{ meal.time }}</div>
-              <div>
-                <strong>{{ meal.type }}</strong>
-                <span>{{ meal.title }}</span>
-              </div>
-              <div>
-                <strong>{{ meal.calories }} kcal</strong>
-                <span>{{ meal.status }}</span>
-              </div>
-            </article>
-          }
-        </div>
+        @if (mealTimeline().length) {
+          <div class="timeline-list">
+            @for (meal of mealTimeline(); track meal.title + meal.time) {
+              <article class="timeline-row">
+                <div class="time-badge">{{ meal.time }}</div>
+                <div>
+                  <strong>{{ meal.type }}</strong>
+                  <span>{{ meal.title }}</span>
+                </div>
+                <div>
+                  <strong>{{ meal.calories }} kcal</strong>
+                  <span>{{ meal.protein }}g protein</span>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <app-state-panel title="No meals logged today" message="Log your first meal to build today's timeline." />
+        }
       </section>
 
       <section class="guidance-panel">

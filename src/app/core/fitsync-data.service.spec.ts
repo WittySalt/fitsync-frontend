@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { OnboardingFormValue, OnboardingSeed } from './fitsync.models';
+import { FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -179,5 +179,57 @@ describe('FitSyncDataService', () => {
     expect(seed?.value.workoutReminderEnabled).toBeFalse();
     expect(seed?.hasExistingBodyBaseline).toBeTrue();
     expect(seed?.hasExistingNutritionBaseline).toBeTrue();
+  });
+
+  it('searches foods by query and maps calories + basis (no macros in search results)', () => {
+    let result: FoodSearchResult[] | undefined;
+    service.searchFoods('chicken').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/nutrition/foods/search' && req.params.get('q') === 'chicken'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      { foodId: 'f1', displayName: 'Grilled chicken breast', brandName: 'Generic', calories: 165, basisLabel: '100 g', verified: true }
+    ]);
+
+    expect(result?.length).toBe(1);
+    expect(result?.[0].foodId).toBe('f1');
+    expect(result?.[0].calories).toBe(165);
+    expect(result?.[0].basisUnit).toBe('100 g');
+    expect(result?.[0].verified).toBeTrue();
+    expect(result?.[0].proteinGrams).toBe(0);
+  });
+
+  it('maps recent foods with full macros for one-tap re-logging', () => {
+    let result: LoggedFood[] | undefined;
+    service.getRecentFoods(5).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/nutrition/foods/recent' && req.params.get('limit') === '5'
+    );
+    request.flush([
+      { foodName: 'Greek yogurt', brandName: 'Generic', snapshotServingLabel: '170 g', calories: 100, proteinGrams: 17, carbsGrams: 6, fatGrams: 0, timesLogged: 4 }
+    ]);
+
+    expect(result?.[0].proteinGrams).toBe(17);
+    expect(result?.[0].servingLabel).toBe('170 g');
+    expect(result?.[0].timesLogged).toBe(4);
+  });
+
+  it('fetches today meals within a from/to day window', () => {
+    let result: Meal[] | undefined;
+    service.getTodayMeals().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/nutrition/meals' && req.params.has('from') && req.params.has('to')
+    );
+    request.flush([
+      { mealType: 'LUNCH', name: 'Chicken rice', totalCalories: 640, totalProteinGrams: 48, consumedAt: '2026-06-19T04:30:00Z', itemCount: 1 }
+    ]);
+
+    expect(result?.length).toBe(1);
+    expect(result?.[0].mealType).toBe('LUNCH');
+    expect(result?.[0].totalCalories).toBe(640);
   });
 });

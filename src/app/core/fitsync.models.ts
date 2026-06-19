@@ -101,11 +101,25 @@ export interface WorkoutPlan {
 }
 
 export interface FoodSearchResult {
+  foodId: string | null;
   displayName: string;
   brandName: string;
   calories: number;
   proteinGrams: number;
   basisUnit: string;
+  verified: boolean;
+}
+
+/** A previously logged food surfaced for one-tap re-logging (recent / frequent). */
+export interface LoggedFood {
+  foodName: string;
+  brandName: string;
+  servingLabel: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  timesLogged: number;
 }
 
 export interface MealFormValue {
