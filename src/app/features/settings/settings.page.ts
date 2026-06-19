@@ -68,6 +68,9 @@ export class SettingsPage implements OnInit {
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
   readonly goalPanelOpen = signal(false);
+  readonly bodyMetricHistory = signal<AccountBodyMetric[]>([]);
+  readonly bodyMetricHistoryLoading = signal(false);
+  readonly bodyMetricHistoryError = signal<string | null>(null);
 
   readonly sections: SectionNavItem[] = [
     { id: 'personal', label: 'Personal', description: 'Identity, location, body metrics, activity, and targets.' },
@@ -275,6 +278,7 @@ export class SettingsPage implements OnInit {
       next: (data) => {
         this.setData(data);
         this.loading.set(false);
+        this.loadBodyMetricHistory();
       },
       error: (error: Error) => {
         this.error.set(error.message || 'Unable to load account settings.');
@@ -352,6 +356,20 @@ export class SettingsPage implements OnInit {
     const profile = this.data()?.user.profile;
     const metric = this.data()?.user.latestBodyMetrics;
     return `${this.displayHeight(profile?.heightCm)} / ${this.displayWeight(metric)} / ${metric?.bmi ? `BMI ${metric.bmi}` : 'BMI unavailable'}`;
+  }
+
+  bodyMetricDetailSummary(metric: AccountBodyMetric): string {
+    const measurements = [
+      metric.bodyFatRate === null || metric.bodyFatRate === undefined ? null : `Body fat ${metric.bodyFatRate}%`,
+      metric.waistCm === null || metric.waistCm === undefined ? null : `Waist ${metric.waistCm} cm`,
+      metric.hipCm === null || metric.hipCm === undefined ? null : `Hip ${metric.hipCm} cm`,
+      metric.chestCm === null || metric.chestCm === undefined ? null : `Chest ${metric.chestCm} cm`,
+      metric.armCm === null || metric.armCm === undefined ? null : `Arm ${metric.armCm} cm`,
+      metric.thighCm === null || metric.thighCm === undefined ? null : `Thigh ${metric.thighCm} cm`,
+      metric.calfCm === null || metric.calfCm === undefined ? null : `Calf ${metric.calfCm} cm`
+    ].filter((entry): entry is string => Boolean(entry));
+
+    return measurements.length ? measurements.join(' / ') : 'No additional measurements';
   }
 
   trainingDefaults(): string {
@@ -544,12 +562,7 @@ export class SettingsPage implements OnInit {
       heightCm: toNullableNumber(this.bodyForm.controls.heightCm.value)
     };
     const metricRequest = this.bodyMetricRequest();
-    const metricId = data.user.latestBodyMetrics?.metricId;
-    const metric$ = metricRequest
-      ? metricId
-        ? this.accountDataService.replaceBodyMetric(metricId, metricRequest)
-        : this.accountDataService.createBodyMetric(metricRequest)
-      : of(data.user.latestBodyMetrics);
+    const metric$ = metricRequest ? this.accountDataService.createBodyMetric(metricRequest) : of(null);
 
     this.saving.set('body');
     forkJoin({
@@ -557,8 +570,19 @@ export class SettingsPage implements OnInit {
       metric: metric$
     }).subscribe({
       next: ({ profile: updatedProfile, metric }) => {
-        this.setData({ ...data, user: { ...data.user, profile: updatedProfile, latestBodyMetrics: metric } });
-        this.finishSave('body', 'Body metrics updated.');
+        this.setData({
+          ...data,
+          user: {
+            ...data.user,
+            profile: updatedProfile,
+            latestBodyMetrics: this.latestMetricAfterCreate(data.user.latestBodyMetrics, metric)
+          }
+        });
+        if (metric) {
+          this.bodyMetricHistory.set(this.sortedBodyMetrics([metric, ...this.bodyMetricHistory()]));
+          this.loadBodyMetricHistory();
+        }
+        this.finishSave('body', metric ? 'Measurement recorded.' : 'Body profile updated.');
       },
       error: (error: Error) => this.handleSaveError('body', error)
     });
@@ -707,6 +731,21 @@ export class SettingsPage implements OnInit {
     this.themeService.setTheme(preference);
   }
 
+  loadBodyMetricHistory(): void {
+    this.bodyMetricHistoryLoading.set(true);
+    this.bodyMetricHistoryError.set(null);
+    this.accountDataService.listBodyMetrics({ limit: 50 }).subscribe({
+      next: (metrics) => {
+        this.bodyMetricHistory.set(this.sortedBodyMetrics(metrics));
+        this.bodyMetricHistoryLoading.set(false);
+      },
+      error: (error: Error) => {
+        this.bodyMetricHistoryError.set(error.message || 'Unable to load measurement history.');
+        this.bodyMetricHistoryLoading.set(false);
+      }
+    });
+  }
+
   @HostListener('document:click', ['$event'])
   protected closeMenusFromDocument(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
@@ -723,7 +762,6 @@ export class SettingsPage implements OnInit {
   private patchForms(data: AccountCenterData): void {
     const profile = data.user.profile;
     const preferences = data.user.preferences;
-    const metric = data.user.latestBodyMetrics;
 
     this.identityForm.patchValue({
       displayName: profile.displayName,
@@ -742,17 +780,17 @@ export class SettingsPage implements OnInit {
     });
     this.bodyForm.patchValue({
       heightCm: toFormNumber(profile.heightCm),
-      weightKg: toFormNumber(metric?.weightKg),
-      bodyFatRate: toFormNumber(metric?.bodyFatRate),
-      waistCm: toFormNumber(metric?.waistCm),
-      hipCm: toFormNumber(metric?.hipCm),
-      chestCm: toFormNumber(metric?.chestCm),
-      armCm: toFormNumber(metric?.armCm),
-      thighCm: toFormNumber(metric?.thighCm),
-      calfCm: toFormNumber(metric?.calfCm),
-      measuredAt: toDateTimeInput(metric?.measuredAt),
-      source: metric?.source ?? 'MANUAL',
-      note: metric?.note ?? ''
+      weightKg: '',
+      bodyFatRate: '',
+      waistCm: '',
+      hipCm: '',
+      chestCm: '',
+      armCm: '',
+      thighCm: '',
+      calfCm: '',
+      measuredAt: toDateTimeInput(null),
+      source: 'MANUAL',
+      note: ''
     });
     this.activityForm.patchValue({ activityLevel: profile.activityLevel ?? '' });
     this.formattingForm.patchValue({
@@ -929,6 +967,26 @@ export class SettingsPage implements OnInit {
       delete next[panel];
       return next;
     });
+  }
+
+  private latestMetricAfterCreate(current: AccountBodyMetric | null, created: AccountBodyMetric | null): AccountBodyMetric | null {
+    if (!created) {
+      return current;
+    }
+    if (!current?.measuredAt || !created.measuredAt) {
+      return created;
+    }
+    return Date.parse(created.measuredAt) >= Date.parse(current.measuredAt) ? created : current;
+  }
+
+  private sortedBodyMetrics(metrics: AccountBodyMetric[]): AccountBodyMetric[] {
+    const unique = new Map<string, AccountBodyMetric>();
+    metrics.forEach((metric, index) => {
+      unique.set(metric.metricId ?? `metric-${index}-${metric.measuredAt ?? ''}`, metric);
+    });
+    return [...unique.values()].sort((left, right) =>
+      Date.parse(right.measuredAt ?? '') - Date.parse(left.measuredAt ?? '')
+    );
   }
 
   private toTimeInput(value: string | null | undefined): string {

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import {
+  AccountBodyMetric,
   AccountCenterData,
   AccountDataService,
   AccountDataExportPayload,
@@ -141,6 +142,36 @@ describe('SettingsPage', () => {
       passwordConfirmationRequired: true
     }
   };
+  const olderBodyMetric: AccountBodyMetric = {
+    metricId: 'metric-0',
+    weightKg: 73.1,
+    bodyFatRate: 18.9,
+    waistCm: 83,
+    hipCm: 97,
+    chestCm: 99,
+    armCm: 32.5,
+    thighCm: 56,
+    calfCm: 37.5,
+    bmi: 24.7,
+    measuredAt: '2026-06-10T07:20:00Z',
+    source: 'MANUAL',
+    note: 'Previous check-in'
+  };
+  const createdBodyMetric: AccountBodyMetric = {
+    metricId: 'metric-2',
+    weightKg: 71.9,
+    bodyFatRate: 17.8,
+    waistCm: 81,
+    hipCm: null,
+    chestCm: null,
+    armCm: null,
+    thighCm: null,
+    calfCm: null,
+    bmi: 24.3,
+    measuredAt: '2026-06-18T00:30:00.000Z',
+    source: 'MANUAL',
+    note: 'New log'
+  };
 
   beforeEach(async () => {
     localStorage.removeItem('fs-theme');
@@ -155,6 +186,7 @@ describe('SettingsPage', () => {
         'updateProfile',
         'updatePreferences',
         'createBodyMetric',
+        'listBodyMetrics',
         'replaceBodyMetric',
         'updateGoal',
         'updateRecoveryEmail',
@@ -166,6 +198,8 @@ describe('SettingsPage', () => {
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
     accountDataService.updateProfile.and.returnValue(of(accountData.user.profile));
     accountDataService.updatePreferences.and.returnValue(of(accountData.user.preferences));
+    accountDataService.createBodyMetric.and.returnValue(of(createdBodyMetric));
+    accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!, olderBodyMetric]));
     accountDataService.replaceBodyMetric.and.returnValue(of(accountData.user.latestBodyMetrics!));
     accountDataService.updateGoal.and.returnValue(of(weightGoal));
     accountDataService.requestDataExport.and.returnValue(of(accountData.latestDataExport!));
@@ -202,6 +236,46 @@ describe('SettingsPage', () => {
     expect(text).toContain('Managed by Cognito');
     expect(text).toContain('BMI');
     expect(text).toContain('Derived');
+  });
+
+  it('renders body metric history from the body-metrics list endpoint', () => {
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(accountDataService.listBodyMetrics).toHaveBeenCalledWith({ limit: 50 });
+    expect(text).toContain('Measurement history');
+    expect(text).toContain('Morning weigh-in');
+    expect(text).toContain('Previous check-in');
+    expect(text).toContain('72.4 kg');
+  });
+
+  it('creates a new body metric instead of replacing the latest metric', () => {
+    const component = fixture.componentInstance;
+    const measuredAt = '2026-06-18T08:30';
+
+    component.startEdit('body');
+    component.bodyForm.patchValue({
+      heightCm: '172',
+      weightKg: '71.9',
+      bodyFatRate: '17.8',
+      waistCm: '81',
+      measuredAt,
+      source: 'MANUAL',
+      note: 'New log'
+    });
+    component.saveBody();
+    fixture.detectChanges();
+
+    expect(accountDataService.createBodyMetric).toHaveBeenCalledWith(jasmine.objectContaining({
+      weightKg: 71.9,
+      bodyFatRate: 17.8,
+      waistCm: 81,
+      measuredAt: new Date(measuredAt).toISOString(),
+      source: 'MANUAL',
+      note: 'New log'
+    }));
+    expect(accountDataService.replaceBodyMetric).not.toHaveBeenCalled();
+    expect(accountDataService.listBodyMetrics).toHaveBeenCalledTimes(2);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Measurement recorded.');
   });
 
   it('renders appearance controls and stores the selected theme preference', () => {
