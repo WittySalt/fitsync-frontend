@@ -164,6 +164,9 @@ The weakest page. Currently dead arrays + fake numbers + CSS bars; no API.
 3. The "live set logger" `<input value="62.5">` must become a real Reactive Form
    with validation + submit + disabled-while-saving.
 4. Add `role="tab"`/`aria-selected`/`tabpanel` wiring to the segmented tabs.
+> FE-5 only wired the read GETs. The backend workout API has grown a lot (log a workout, plan
+> lifecycle, PRs/per-exercise history, live set logging, library CRUD, repeat, import/export) —
+> see **§H (FE-28..FE-34)** for the full integration backlog.
 
 ### P1 — FE-6: Finish Nutrition data wiring
 1. Replace mock `mealTimeline` and `nutritionNotes` with real meal data (today's
@@ -375,3 +378,69 @@ macros), not via `foodCatalogItemId`. Add a "Export diary" download for `GET /ex
 
 **Suggested order:** FE-20 → FE-21 → FE-22 (the search/quick-log core) → FE-23/24 (logging
 convenience) → FE-25 (summary depth) → FE-26/27 (water, barcode/export).
+
+## H. Workout backend integration (backend WO-1..11 shipped — FE must consume)
+
+**Context (2026-06-19).** `workout-service` shipped a full API surface (WO-1..11, **all live on
+backend `main`**, verified against backend `origin/main` `9f481c7`). FE-5 (above) wired only **5
+read GETs** (`/sessions`, `/sessions/latest`, `/exercises`, `/plans?status=ACTIVE`,
+`/plans/active`). **The Workout page is therefore read-only — a user cannot log a workout, build or
+follow a plan, track sets live, or see PRs.** Ironically the FE can't even `POST /sessions`, so the
+sessions it displays can only come from seed data / other clients. All endpoints below are under
+`/api/v1/workouts`, JWT-scoped; **list endpoints return `PageResponse<T>` (`.content`)**. Each
+ticket = its own PR (FE-4/5/6 isolation rule). **Verify each DTO against backend `origin/main`
+before wiring** (`git -C backend show origin/main:workout-service/.../WorkoutController.java`).
+
+### P1 — FE-28: Log a workout (the #1 gap — the write path)
+`POST /sessions` (`UpsertWorkoutSessionRequest`: `name, workoutType, status, source=MANUAL,
+startedAt, completedAt, durationMinutes, caloriesBurned, perceivedExertion, notes, exercises[]` each
+with `sets[]`). Reactive form to record a session; on success reload sessions + toast. **Gotcha:**
+`completedAt` is required iff `status=COMPLETED` and forbidden otherwise (400). The backend derives
+volume/duration server-side — don't recompute client-side.
+
+### P1 — FE-29: Plan lifecycle (create / edit / activate / archive / start)
+`POST /plans`, `PUT /plans/{id}`, `POST /plans/{id}/activate` (**single active plan per user** —
+activating one demotes the others to DRAFT), `DELETE /plans/{id}` (archive), and
+`POST /plans/{id}/start` → seeds an `IN_PROGRESS` session from the plan (feeds FE-31). The Plans tab
+currently hardcodes `?status=ACTIVE`; add a status filter so DRAFT/ARCHIVED are reachable.
+
+### P1 — FE-30: Personal records + per-exercise progress
+`GET /exercises/{id}/records` (`maxWeightKg, maxReps, maxSingleSetVolumeKg, estimatedOneRepMaxKg`
+(Epley), `bestSessionVolumeKg` — **fields are null when there's no logged data → honest empty
+state**) and `GET /exercises/{id}/history?from&to&page&size` (`PageResponse`, COMPLETED + logged
+sets only, range ≤ 370 days → 400 over). Add an exercise-detail view: PR summary + a history trend
+(reuse `<fs-chart>`). This is the core progression view, currently absent.
+
+### P2 — FE-31: Live workout logger (the WO-6 save-as-you-go flow)
+Rebuild the real in-workout logger (FE-5 removed the fake one). Flow: start a session
+(`POST /plans/{id}/start`, or `POST /sessions` as `IN_PROGRESS`) → `POST /sessions/{id}/exercises`
+(add one exercise) → `PUT /sessions/{id}/exercises/{exerciseLogId}/sets/{setNumber}` (log each set)
+→ `POST /sessions/{id}/complete` (emits `WorkoutLogged`) or `POST /sessions/{id}/cancel`. **Only
+PLANNED/IN_PROGRESS sessions are editable (terminal → 400).** Logging sets through these granular
+endpoints is what marks them "performed" server-side, so they count toward PRs/aggregates — a
+one-shot `PUT /sessions/{id}` full replace does not give per-set live UX. Coordinate with FE-19.
+
+### P2 — FE-32: Exercise library management + metadata-driven controls
+`POST /exercises` (create custom), `GET /exercises/{id}`, `PUT /exercises/{id}` (owner-only;
+editing a global exercise → 403), `DELETE /exercises/{id}` (soft-archive). Drive the library
+filters and create/edit forms off `GET /exercises/metadata` (`exerciseTypes, muscleGroups,
+equipment, difficulties, workoutTypes, goalFocuses`) instead of hardcoding enums.
+
+### P2 — FE-33: Session detail / edit / delete + repeat
+`GET /sessions/{id}` (detail view — history rows are non-interactive today), `PUT /sessions/{id}`
+(edit), `DELETE /sessions/{id}`, plus quick "repeat last workout" actions `POST /sessions/{id}/repeat`
+and `POST /sessions/repeat-latest` (seeds a fresh `IN_PROGRESS` session from a past one).
+
+### P3 — FE-34: Device import + workout data export
+`POST /sessions/import` (batch external sessions, `source=DEVICE|IMPORTED` + `externalId`,
+idempotent skip, per-row partial-success result) — surface behind a "connect / import" flow, or
+defer until a real device/Strava source exists. `GET /export` returns the full workout data JSON
+(custom exercises + plans + sessions) — pair it with the account/settings data-export.
+
+**Events note (not a Workout-page ticket).** Logging via FE-28/FE-31 finally emits `WorkoutLogged`
+→ the analytics dashboard populates for real. `PersonalRecordAchieved` (WO-5) is emitted on a new PR
+but currently has **no consumer / notification surface** — wiring notification-service + a FE
+notification center is a separate cross-service gap (see analytics AN-10), not scoped here.
+
+**Suggested order:** FE-28 (log a workout) → FE-29 (plans) → FE-30 (PRs/history) → FE-31 (live
+logger) → FE-32 (library mgmt) → FE-33 (session detail/repeat) → FE-34 (import/export).
