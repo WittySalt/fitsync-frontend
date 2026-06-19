@@ -59,10 +59,22 @@ export interface NutritionSummary {
 export interface WorkoutSession {
   name: string;
   workoutType: string;
+  status: string;
+  startedAt: string;
   durationMinutes: number;
   caloriesBurned: number;
   completedAt: string;
   exerciseCount: number;
+}
+
+export interface Exercise {
+  exerciseId: string | null;
+  name: string;
+  exerciseType: string;
+  primaryMuscleGroup: string;
+  equipment: string;
+  difficulty: string;
+  custom: boolean;
 }
 
 export interface Meal {

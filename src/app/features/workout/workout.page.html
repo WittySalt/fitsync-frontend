@@ -3,55 +3,12 @@
     <div>
       <p class="eyebrow">Workout</p>
       <h1>Train with intent</h1>
-      <p>Start today's session, track working sets, review recent training, and keep the exercise library close.</p>
-    </div>
-    <div class="header-actions" aria-label="Workout actions">
-      <button class="button secondary" type="button">Build plan</button>
-      <button class="button workout" type="button">Start session</button>
+      <p>Review your plans, training history, and the exercise library — all from your FitSync data.</p>
     </div>
   </header>
 
-  <section class="training-hero" aria-label="Today training plan">
-    <div class="hero-copy">
-      <span class="card-label">Today</span>
-      <h2>Upper Body Strength</h2>
-      <p>Bench priority, back volume, and shoulder stability. Estimated 52 minutes.</p>
-      <div class="hero-tags" aria-label="Session details">
-        <span>Strength</span>
-        <span>Intermediate</span>
-        <span>6 exercises</span>
-      </div>
-    </div>
-
-    <div class="live-panel" aria-label="Active set logger">
-      <div class="live-header">
-        <span class="card-label">Current set</span>
-        <strong>Bench press</strong>
-      </div>
-      <div class="set-grid">
-        <label>
-          Weight
-          <input type="number" value="62.5" aria-label="Set weight in kilograms" />
-        </label>
-        <label>
-          Reps
-          <input type="number" value="6" aria-label="Set repetitions" />
-        </label>
-        <label>
-          RPE
-          <select aria-label="Set effort">
-            <option>8</option>
-            <option>7</option>
-            <option>9</option>
-          </select>
-        </label>
-      </div>
-      <button class="button primary" type="button">Log set</button>
-    </div>
-  </section>
-
   <section class="metric-strip" aria-label="Training summary">
-    @for (metric of metrics; track metric.label) {
+    @for (metric of metrics(); track metric.label) {
       <article
         class="training-metric"
         [class.green]="metric.tone === 'green'"
@@ -66,56 +23,67 @@
   </section>
 
   <div class="segmented workout-tabs" role="tablist" aria-label="Workout sections">
-    <button [class.active]="selectedTab() === 'overview'" type="button" (click)="selectedTab.set('overview')">Today</button>
-    <button [class.active]="selectedTab() === 'plans'" type="button" (click)="selectedTab.set('plans')">Plans</button>
-    <button [class.active]="selectedTab() === 'history'" type="button" (click)="selectedTab.set('history')">History</button>
-    <button [class.active]="selectedTab() === 'library'" type="button" (click)="selectedTab.set('library')">Library</button>
+    <button [class.active]="selectedTab() === 'overview'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'overview'" (click)="selectedTab.set('overview')">Today</button>
+    <button [class.active]="selectedTab() === 'plans'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'plans'" (click)="selectedTab.set('plans')">Plans</button>
+    <button [class.active]="selectedTab() === 'history'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'history'" (click)="selectedTab.set('history')">History</button>
+    <button [class.active]="selectedTab() === 'library'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'library'" (click)="selectedTab.set('library')">Library</button>
   </div>
 
   @if (selectedTab() === 'overview') {
     <section class="workout-layout">
-      <article class="summary-card session-card">
+      <article class="summary-card">
         <div class="section-title">
           <div>
-            <span class="card-label">Session flow</span>
-            <h2>Working sets</h2>
+            <span class="card-label">Active plan</span>
+            <h2>Current programme</h2>
           </div>
-          <button class="button secondary" type="button">Add exercise</button>
         </div>
-
-        <div class="set-list">
-          @for (set of todaySets; track set.exercise) {
-            <div class="set-row" [class.active]="set.status === 'Active'">
-              <span class="set-status">{{ set.status }}</span>
-              <div>
-                <strong>{{ set.exercise }}</strong>
-                <small>{{ set.target }}</small>
-              </div>
-              <span>{{ set.logged }}</span>
+        @if (activePlan(); as plan) {
+          <h3>{{ plan.name }}</h3>
+          <p>{{ formatLabel(plan.goalFocus) }} · {{ formatLabel(plan.workoutType) }} · {{ formatLabel(plan.difficulty) }}</p>
+          <dl class="inline-stats">
+            <div>
+              <dt>Duration</dt>
+              <dd>{{ plan.estimatedDurationMinutes }} min</dd>
             </div>
-          }
-        </div>
+            <div>
+              <dt>Exercises</dt>
+              <dd>{{ plan.exerciseCount }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <app-state-panel title="No active plan" message="Activate a plan to see your current programme here." />
+        }
       </article>
 
-      <aside class="summary-card coaching-card">
-        <span class="card-label">Coach notes</span>
-        <h2>Keep the main lift clean</h2>
-        <p>Rest 2-3 minutes on bench sets. Stop one rep before form breaks, then move to rows without chasing fatigue.</p>
-        <div class="readiness-list">
+      <article class="summary-card">
+        <div class="section-title">
           <div>
-            <strong>Warm-up</strong>
-            <span>8 min mobility + ramp sets</span>
-          </div>
-          <div>
-            <strong>Target effort</strong>
-            <span>RPE 7-8 on compound lifts</span>
-          </div>
-          <div>
-            <strong>Finish</strong>
-            <span>Log notes and soreness</span>
+            <span class="card-label">Latest session</span>
+            <h2>Most recent training</h2>
           </div>
         </div>
-      </aside>
+        @if (latestSession(); as session) {
+          <h3>{{ session.name }}</h3>
+          <p>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</p>
+          <dl class="inline-stats">
+            <div>
+              <dt>Duration</dt>
+              <dd>{{ session.durationMinutes }} min</dd>
+            </div>
+            <div>
+              <dt>Calories</dt>
+              <dd>{{ session.caloriesBurned }}</dd>
+            </div>
+            <div>
+              <dt>Exercises</dt>
+              <dd>{{ session.exerciseCount }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <app-state-panel title="No sessions yet" message="Start a workout to build your training history." />
+        }
+      </article>
     </section>
   } @else if (selectedTab() === 'plans') {
     @if (loading()) {
@@ -125,29 +93,26 @@
         @for (plan of plans(); track plan.name) {
           <article class="plan-card">
             <div class="plan-card-header">
-              <span class="card-label">{{ plan.status }}</span>
+              <span class="card-label">{{ formatLabel(plan.status) }}</span>
               <span>{{ plan.exerciseCount }} exercises</span>
             </div>
             <h2>{{ plan.name }}</h2>
-            <p>{{ formatLabel(plan.goalFocus) }} / {{ formatLabel(plan.workoutType) }} / {{ formatLabel(plan.difficulty) }}</p>
+            <p>{{ formatLabel(plan.goalFocus) }} · {{ formatLabel(plan.workoutType) }} · {{ formatLabel(plan.difficulty) }}</p>
             <dl class="inline-stats">
               <div>
                 <dt>Duration</dt>
                 <dd>{{ plan.estimatedDurationMinutes }} min</dd>
               </div>
               <div>
-                <dt>Completion</dt>
-                <dd>{{ planCompletion(plan) }}%</dd>
+                <dt>Status</dt>
+                <dd>{{ formatLabel(plan.status) }}</dd>
               </div>
             </dl>
-            <div class="progress-track" aria-hidden="true">
-              <span [style.width.%]="planCompletion(plan)"></span>
-            </div>
           </article>
         }
       </section>
     } @else {
-      <app-state-panel title="No plans" message="Create a reusable plan before starting a planned workout." />
+      <app-state-panel title="No plans yet" message="Create a reusable plan to start a planned workout." />
     }
   } @else if (selectedTab() === 'history') {
     <section class="summary-card">
@@ -156,20 +121,23 @@
           <span class="card-label">Recent sessions</span>
           <h2>Training history</h2>
         </div>
-        <button class="button secondary" type="button">Export</button>
       </div>
-      <div class="history-list">
-        @for (session of history; track session.name + session.completedAt) {
-          <article class="history-row">
-            <div>
-              <strong>{{ session.name }}</strong>
-              <small>{{ session.type }} / {{ session.completedAt }}</small>
-            </div>
-            <span>{{ session.duration }}</span>
-            <span>{{ session.volume }}</span>
-          </article>
-        }
-      </div>
+      @if (sessions().length) {
+        <div class="history-list">
+          @for (session of sessions(); track session.name + session.startedAt) {
+            <article class="history-row">
+              <div>
+                <strong>{{ session.name }}</strong>
+                <small>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</small>
+              </div>
+              <span>{{ session.durationMinutes }} min</span>
+              <span>{{ formatLabel(session.status) }}</span>
+            </article>
+          }
+        </div>
+      } @else {
+        <app-state-panel title="No sessions logged" message="Your completed workouts will appear here." />
+      }
     </section>
   } @else {
     <section class="summary-card">
@@ -178,17 +146,20 @@
           <span class="card-label">Exercise catalog</span>
           <h2>Find the right movement</h2>
         </div>
-        <button class="button secondary" type="button">New custom exercise</button>
       </div>
-      <div class="catalog-grid">
-        @for (exercise of catalog; track exercise.name) {
-          <article class="exercise-card">
-            <strong>{{ exercise.name }}</strong>
-            <span>{{ exercise.muscles }}</span>
-            <small>{{ exercise.equipment }} / {{ exercise.level }}</small>
-          </article>
-        }
-      </div>
+      @if (exercises().length) {
+        <div class="catalog-grid">
+          @for (exercise of exercises(); track exercise.exerciseId ?? exercise.name) {
+            <article class="exercise-card">
+              <strong>{{ exercise.name }}@if (exercise.custom) { <span class="verified-tag">Custom</span> }</strong>
+              <span>{{ formatLabel(exercise.primaryMuscleGroup) || 'General' }}</span>
+              <small>{{ formatLabel(exercise.equipment) || 'No equipment' }} · {{ formatLabel(exercise.difficulty) }}</small>
+            </article>
+          }
+        </div>
+      } @else {
+        <app-state-panel title="No exercises" message="The exercise library is empty or unavailable right now." />
+      }
     </section>
   }
 </div>

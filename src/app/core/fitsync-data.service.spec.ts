@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed } from './fitsync.models';
+import { Exercise, FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -231,5 +231,49 @@ describe('FitSyncDataService', () => {
     expect(result?.length).toBe(1);
     expect(result?.[0].mealType).toBe('LUNCH');
     expect(result?.[0].totalCalories).toBe(640);
+  });
+
+  it('lists workout sessions from the paginated sessions endpoint', () => {
+    let result: WorkoutSession[] | undefined;
+    service.getWorkoutSessions().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/workouts/sessions' && req.params.get('size') === '20'
+    );
+    request.flush({
+      content: [
+        { name: 'Lower body', workoutType: 'STRENGTH', status: 'COMPLETED', startedAt: '2026-06-18T10:00:00Z', completedAt: '2026-06-18T11:00:00Z', durationMinutes: 54, caloriesBurned: 400, exerciseCount: 6 }
+      ]
+    });
+
+    expect(result?.length).toBe(1);
+    expect(result?.[0].status).toBe('COMPLETED');
+    expect(result?.[0].durationMinutes).toBe(54);
+  });
+
+  it('lists exercises from the paginated catalog endpoint', () => {
+    let result: Exercise[] | undefined;
+    service.getExercises('squat').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/workouts/exercises' && req.params.get('q') === 'squat'
+    );
+    request.flush({
+      content: [
+        { exerciseId: 'e1', name: 'Back squat', primaryMuscleGroup: 'QUADS', equipment: 'BARBELL', difficulty: 'INTERMEDIATE', custom: false }
+      ]
+    });
+
+    expect(result?.[0].name).toBe('Back squat');
+    expect(result?.[0].exerciseId).toBe('e1');
+  });
+
+  it('returns a null active plan when none is set', () => {
+    let result: WorkoutPlan | null | undefined = undefined;
+    service.getActivePlan().subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/workouts/plans/active').flush({});
+
+    expect(result).toBeNull();
   });
 });
