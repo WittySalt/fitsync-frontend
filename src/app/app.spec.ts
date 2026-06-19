@@ -56,9 +56,12 @@ describe('App', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const accountButton = compiled.querySelector<HTMLButtonElement>('.account-button');
+    expect(accountButton?.getAttribute('aria-label')).toBe('Open account menu');
+
     accountButton?.click();
     fixture.detectChanges();
 
+    expect(accountButton?.getAttribute('aria-label')).toBe('Close account menu');
     expect(compiled.textContent).toContain('Profile overview');
     expect(compiled.textContent).toContain('Security settings');
     expect(compiled.textContent).toContain('Sign out');

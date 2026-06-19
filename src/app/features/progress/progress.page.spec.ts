@@ -78,6 +78,22 @@ describe('ProgressPage', () => {
     expect(compiled.textContent).not.toContain('42%');
   });
 
+  it('wires metric tabs to the trend panel', () => {
+    const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const tabs = Array.from(compiled.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const panel = compiled.querySelector<HTMLElement>('#progress-trend-panel');
+
+    expect(tabs.length).toBe(4);
+    expect(tabs[0].id).toBe('progress-metric-tab-weightKg');
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(tabs[0].getAttribute('aria-controls')).toBe('progress-trend-panel');
+    expect(panel?.getAttribute('role')).toBe('tabpanel');
+    expect(panel?.getAttribute('aria-labelledby')).toBe('progress-metric-tab-weightKg');
+  });
+
   it('shows the real empty state when no body metrics exist', () => {
     dataService.getProgressData.and.returnValue(
       of({
