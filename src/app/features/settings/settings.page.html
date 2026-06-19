@@ -186,8 +186,36 @@
           </article>
         </section>
 
+        <section class="settings-section" id="appearance">
+          <div class="section-heading"><p class="eyebrow">Appearance</p><h2>Appearance</h2><p>{{ sections[1].description }}</p></div>
+
+          <article class="sub-card">
+            <div class="sub-card-header"><h3>Theme</h3></div>
+            <div class="appearance-row">
+              <div class="appearance-copy">
+                <strong>Color mode</strong>
+                <p>Current theme: {{ labelFor(themeService.theme()) }}</p>
+              </div>
+              <div class="segmented appearance-toggle" role="radiogroup" aria-label="Theme preference">
+                @for (option of themeOptions; track option.value) {
+                  <button
+                    type="button"
+                    role="radio"
+                    [class.active]="themeService.preference() === option.value"
+                    [attr.aria-checked]="themeService.preference() === option.value"
+                    (click)="setThemePreference(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            </div>
+            <p class="settings-help">System follows your device appearance preference.</p>
+          </article>
+        </section>
+
         <section class="settings-section" id="preferences">
-          <div class="section-heading"><p class="eyebrow">Preferences</p><h2>App preferences</h2><p>{{ sections[1].description }}</p></div>
+          <div class="section-heading"><p class="eyebrow">Preferences</p><h2>App preferences</h2><p>{{ sections[2].description }}</p></div>
 
           <article class="sub-card">
             <div class="sub-card-header"><h3>Formatting</h3><button class="button secondary compact" type="button" (click)="startEdit('formatting')">Edit</button></div>
@@ -253,7 +281,7 @@
         </section>
 
         <section class="settings-section" id="security">
-          <div class="section-heading"><p class="eyebrow">Security</p><h2>Security settings</h2><p>{{ sections[2].description }}</p></div>
+          <div class="section-heading"><p class="eyebrow">Security</p><h2>Security settings</h2><p>{{ sections[3].description }}</p></div>
           <article class="sub-card">
             <h3>Password</h3>
             <div class="field-row readonly"><span>Password</span><strong>{{ account.security.passwordManagedExternally ? 'Managed by Cognito' : 'Managed by FitSync' }}</strong><em>Cognito protected</em></div>
@@ -285,7 +313,7 @@
         </section>
 
         <section class="settings-section" id="notifications">
-          <div class="section-heading"><p class="eyebrow">Notifications</p><h2>Notifications</h2><p>{{ sections[3].description }}</p></div>
+          <div class="section-heading"><p class="eyebrow">Notifications</p><h2>Notifications</h2><p>{{ sections[4].description }}</p></div>
           <article class="sub-card">
             <div class="sub-card-header"><h3>Channels & reminders</h3><button class="button secondary compact" type="button" (click)="startEdit('notifications')">Edit</button></div>
             @if (sectionErrors().notifications; as message) { <p class="section-error">{{ message }}</p> }
@@ -321,7 +349,7 @@
         </section>
 
         <section class="settings-section" id="privacy-data">
-          <div class="section-heading"><p class="eyebrow">Privacy & Data</p><h2>Privacy and data</h2><p>{{ sections[4].description }}</p></div>
+          <div class="section-heading"><p class="eyebrow">Privacy & Data</p><h2>Privacy and data</h2><p>{{ sections[5].description }}</p></div>
           <article class="sub-card">
             <div class="sub-card-header"><h3>Visibility & sharing</h3><button class="button secondary compact" type="button" (click)="startEdit('privacy')">Edit</button></div>
             @if (sectionErrors().privacy; as message) { <p class="section-error">{{ message }}</p> }

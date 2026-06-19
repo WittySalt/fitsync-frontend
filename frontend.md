@@ -1,5 +1,26 @@
 # FitSync AI — Frontend Tech Stack
 
+## Current actual stack
+
+The current FitSync frontend is built with:
+
+- Angular 20 standalone components
+- Angular Router
+- Reactive Forms
+- RxJS
+- SCSS with FitSync design tokens
+- chart.js and ng2-charts for Progress charts
+
+Not installed in the current app:
+
+- Angular Material
+- Tailwind CSS
+- NgRx Store / Effects
+
+---
+
+## Aspirational / not yet installed
+
 ## Overview
 Frontend is built as a responsive SPA for workout tracking, nutrition management, and progress analytics.
 

@@ -19,6 +19,7 @@ import {
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
 
 type EditablePanel =
   | 'identity'
@@ -55,6 +56,7 @@ export class SettingsPage implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly accountDataService = inject(AccountDataService);
   private readonly fb = inject(NonNullableFormBuilder);
+  protected readonly themeService = inject(ThemeService);
   private readonly toast = inject(ToastService);
 
   readonly data = signal<AccountCenterData | null>(null);
@@ -69,10 +71,16 @@ export class SettingsPage implements OnInit {
 
   readonly sections: SectionNavItem[] = [
     { id: 'personal', label: 'Personal', description: 'Identity, location, body metrics, activity, and targets.' },
+    { id: 'appearance', label: 'Appearance', description: 'Theme mode and display preferences.' },
     { id: 'preferences', label: 'Preferences', description: 'Formatting, training defaults, and nutrition tracking.' },
     { id: 'security', label: 'Security', description: 'Password state, recovery email, and active sessions.' },
     { id: 'notifications', label: 'Notifications', description: 'Channels, reminders, reports, and quiet hours.' },
     { id: 'privacy-data', label: 'Privacy & Data', description: 'Visibility, sharing, exports, and account deletion.' }
+  ];
+  readonly themeOptions: { value: ThemePreference; label: string }[] = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'system', label: 'System' }
   ];
 
   readonly genderOptions: Option[] = [
@@ -693,6 +701,10 @@ export class SettingsPage implements OnInit {
 
   logout(): void {
     this.authService.logout();
+  }
+
+  setThemePreference(preference: ThemePreference): void {
+    this.themeService.setTheme(preference);
   }
 
   @HostListener('document:click', ['$event'])
