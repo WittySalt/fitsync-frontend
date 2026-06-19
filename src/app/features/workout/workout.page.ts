@@ -1,7 +1,7 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { WorkoutPlan } from '../../core/fitsync.models';
+import { Exercise, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 interface TrainingMetric {
@@ -9,28 +9,6 @@ interface TrainingMetric {
   value: string;
   detail: string;
   tone: 'green' | 'blue' | 'orange';
-}
-
-interface WorkoutSet {
-  exercise: string;
-  target: string;
-  logged: string;
-  status: 'Ready' | 'Active' | 'Done';
-}
-
-interface WorkoutHistoryItem {
-  name: string;
-  type: string;
-  completedAt: string;
-  duration: string;
-  volume: string;
-}
-
-interface ExerciseCatalogItem {
-  name: string;
-  muscles: string;
-  equipment: string;
-  level: string;
 }
 
 @Component({
@@ -43,55 +21,78 @@ export class WorkoutPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
 
   readonly plans = signal<WorkoutPlan[]>([]);
+  readonly sessions = signal<WorkoutSession[]>([]);
+  readonly exercises = signal<Exercise[]>([]);
+  readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
 
-  readonly metrics: TrainingMetric[] = [
-    { label: 'Weekly load', value: '18.4k kg', detail: '+12% from last week', tone: 'green' },
-    { label: 'Consistency', value: '4 / 5', detail: 'sessions completed', tone: 'blue' },
-    { label: 'Recovery', value: 'Ready', detail: 'next hard day allowed', tone: 'orange' }
-  ];
+  readonly latestSession = computed(() => {
+    const sorted = [...this.sessions()].sort((a, b) => this.timeOf(b) - this.timeOf(a));
+    return sorted[0] ?? null;
+  });
 
-  readonly todaySets: WorkoutSet[] = [
-    { exercise: 'Barbell bench press', target: '4 x 6 at 62.5 kg', logged: '3 sets logged', status: 'Active' },
-    { exercise: 'One-arm row', target: '3 x 10 each side', logged: 'Next exercise', status: 'Ready' },
-    { exercise: 'Incline dumbbell press', target: '3 x 8', logged: 'Accessory block', status: 'Ready' },
-    { exercise: 'Cable face pull', target: '3 x 15', logged: 'Shoulder health', status: 'Ready' }
-  ];
+  readonly metrics = computed<TrainingMetric[]>(() => {
+    const sessions = this.sessions();
+    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    const thisWeek = sessions.filter((session) => this.timeOf(session) >= weekAgo).length;
+    const latest = this.latestSession();
 
-  readonly history: WorkoutHistoryItem[] = [
-    { name: 'Lower Body Strength', type: 'Strength', completedAt: 'Yesterday 18:40', duration: '54 min', volume: '7.8k kg' },
-    { name: 'Zone 2 Run', type: 'Cardio', completedAt: 'Mon 07:15', duration: '36 min', volume: '5.7 km' },
-    { name: 'Upper Body Strength', type: 'Strength', completedAt: 'Sat 10:20', duration: '49 min', volume: '6.9k kg' }
-  ];
-
-  readonly catalog: ExerciseCatalogItem[] = [
-    { name: 'Back squat', muscles: 'Quads, glutes', equipment: 'Barbell', level: 'Intermediate' },
-    { name: 'Romanian deadlift', muscles: 'Hamstrings', equipment: 'Barbell', level: 'Intermediate' },
-    { name: 'Lat pulldown', muscles: 'Back', equipment: 'Cable', level: 'Beginner' },
-    { name: 'Plank shoulder tap', muscles: 'Core', equipment: 'Bodyweight', level: 'Beginner' }
-  ];
+    return [
+      { label: 'Sessions logged', value: String(sessions.length), detail: 'recent history', tone: 'green' },
+      { label: 'This week', value: String(thisWeek), detail: 'in the last 7 days', tone: 'blue' },
+      {
+        label: 'Last session',
+        value: latest ? this.formatDate(latest.completedAt || latest.startedAt) : '—',
+        detail: latest ? this.formatLabel(latest.workoutType) : 'none yet',
+        tone: 'orange'
+      }
+    ];
+  });
 
   ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.loading.set(true);
+
     this.dataService.getWorkoutPlans().subscribe((plans) => {
       this.plans.set(plans);
       this.loading.set(false);
     });
+    this.dataService.getWorkoutSessions().subscribe((sessions) => this.sessions.set(sessions));
+    this.dataService.getExercises().subscribe((exercises) => this.exercises.set(exercises));
+    this.dataService.getActivePlan().subscribe((plan) => this.activePlan.set(plan));
   }
 
-  formatLabel(value: string): string {
-    return value.replaceAll('_', ' ').toLowerCase();
+  formatLabel(value: string | null | undefined): string {
+    return (value ?? '')
+      .replaceAll('_', ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
-  planCompletion(plan: WorkoutPlan): number {
-    if (plan.status === 'ACTIVE') {
-      return 72;
+  formatDate(value: string | null | undefined): string {
+    if (!value) {
+      return '—';
     }
-
-    if (plan.status === 'DRAFT') {
-      return 34;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '—';
     }
+    return new Intl.DateTimeFormat('en-SG', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(date);
+  }
 
-    return 50;
+  private timeOf(session: WorkoutSession): number {
+    const value = session.completedAt || session.startedAt;
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isNaN(time) ? 0 : time;
   }
 }

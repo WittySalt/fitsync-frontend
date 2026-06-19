@@ -31,6 +31,8 @@ const mockDashboard: DashboardData = {
   latestWorkout: {
     name: 'Upper body strength',
     workoutType: 'STRENGTH',
+    status: 'COMPLETED',
+    startedAt: '2026-06-18T08:08:00Z',
     durationMinutes: 52,
     caloriesBurned: 320,
     completedAt: '2026-06-18T09:00:00Z',

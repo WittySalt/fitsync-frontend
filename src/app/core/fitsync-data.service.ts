@@ -4,6 +4,7 @@ import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rx
 
 import {
   BodyMetric,
+  Exercise,
   FoodSearchResult,
   Goal,
   LoggedFood,
@@ -176,6 +177,8 @@ export class FitSyncDataService {
       latestWorkout: {
         name: 'Upper Body Strength',
         workoutType: 'STRENGTH',
+        status: 'COMPLETED',
+        startedAt: 'Today 18:24',
         durationMinutes: 48,
         caloriesBurned: 390,
         completedAt: 'Today 19:12',
@@ -274,6 +277,39 @@ export class FitSyncDataService {
         exerciseCount: 5
       }
     ]).pipe(delay(220));
+  }
+
+  getWorkoutSessions(limit = 20): Observable<WorkoutSession[]> {
+    const params = new HttpParams().set('size', String(limit));
+    return this.http
+      .get<PageResponse<Partial<WorkoutSession>>>(`${this.apiBaseUrl}/workouts/sessions`, { params })
+      .pipe(
+        map((response) =>
+          (response.content ?? [])
+            .map((session) => this.mapWorkoutSession(session))
+            .filter((session): session is WorkoutSession => session !== null)
+        ),
+        catchError(() => of([] as WorkoutSession[]))
+      );
+  }
+
+  getExercises(query = ''): Observable<Exercise[]> {
+    const params = new HttpParams().set('q', query ?? '').set('size', '30');
+    return this.http
+      .get<PageResponse<Partial<Exercise>>>(`${this.apiBaseUrl}/workouts/exercises`, { params })
+      .pipe(
+        map((response) => (response.content ?? []).map((exercise) => this.mapExercise(exercise))),
+        catchError(() => of([] as Exercise[]))
+      );
+  }
+
+  getActivePlan(): Observable<WorkoutPlan | null> {
+    return this.http
+      .get<Partial<WorkoutPlan>>(`${this.apiBaseUrl}/workouts/plans/active`)
+      .pipe(
+        map((plan) => (plan && plan.name ? this.mapWorkoutPlan(plan) : null)),
+        catchError(() => of(null))
+      );
   }
 
   searchFoods(query: string): Observable<FoodSearchResult[]> {
@@ -576,10 +612,24 @@ export class FitSyncDataService {
     return {
       name: session.name,
       workoutType: session.workoutType ?? 'CUSTOM',
+      status: session.status ?? 'COMPLETED',
+      startedAt: session.startedAt ?? '',
       durationMinutes: session.durationMinutes ?? 0,
       caloriesBurned: session.caloriesBurned ?? 0,
       completedAt: session.completedAt ?? '',
       exerciseCount: session.exerciseCount ?? 0
+    };
+  }
+
+  private mapExercise(exercise: Partial<Exercise>): Exercise {
+    return {
+      exerciseId: exercise.exerciseId ?? null,
+      name: exercise.name ?? 'Exercise',
+      exerciseType: exercise.exerciseType ?? '',
+      primaryMuscleGroup: exercise.primaryMuscleGroup ?? '',
+      equipment: exercise.equipment ?? '',
+      difficulty: exercise.difficulty ?? '',
+      custom: exercise.custom ?? false
     };
   }
 
