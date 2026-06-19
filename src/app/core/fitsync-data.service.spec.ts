@@ -181,6 +181,53 @@ describe('FitSyncDataService', () => {
     expect(seed?.hasExistingNutritionBaseline).toBeTrue();
   });
 
+  it('maps daily nutrition summary micronutrients from dashboard load', () => {
+    let result: number | null | undefined;
+    service.getDashboard().subscribe((value) => {
+      result = value.nutrition.totalFiberGrams;
+      expect(value.nutrition.totalSugarGrams).toBe(42.5);
+      expect(value.nutrition.totalSodiumMg).toBe(1800);
+      expect(value.nutrition.fiberTargetGrams).toBe(25);
+      expect(value.nutrition.sugarLimitGrams).toBe(50);
+      expect(value.nutrition.sodiumLimitMg).toBe(2300);
+      expect(value.nutrition.fiberTargetMet).toBeTrue();
+      expect(value.nutrition.sugarWithinLimit).toBeTrue();
+      expect(value.nutrition.sodiumWithinLimit).toBeTrue();
+    });
+
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
+
+    const summaryRequest = httpTesting.expectOne(
+      (req) =>
+        req.urlWithParams.startsWith('/api/v1/nutrition/summary/daily?') &&
+        req.urlWithParams.includes('timezone=Asia/Singapore')
+    );
+    summaryRequest.flush({
+      totalCalories: 1800,
+      targetCalories: 2200,
+      totalProteinGrams: '140.5',
+      targetProteinGrams: '150',
+      totalCarbsGrams: 210,
+      targetCarbsGrams: 240,
+      totalFatGrams: 55,
+      targetFatGrams: 70,
+      mealCount: 3,
+      totalFiberGrams: '27.5',
+      totalSugarGrams: '42.5',
+      totalSodiumMg: '1800',
+      fiberTargetGrams: '25',
+      sugarLimitGrams: '50',
+      sodiumLimitMg: '2300',
+      fiberTargetMet: true,
+      sugarWithinLimit: true,
+      sodiumWithinLimit: true
+    });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result).toBe(27.5);
+  });
+
   it('searches foods by query and maps calories + basis (no macros in search results)', () => {
     let result: FoodSearchResult[] | undefined;
     service.searchFoods('chicken').subscribe((value) => (result = value));
@@ -199,6 +246,32 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].basisUnit).toBe('100 g');
     expect(result?.[0].verified).toBeTrue();
     expect(result?.[0].proteinGrams).toBe(0);
+  });
+
+  it('lists favorite foods from the favorites endpoint', () => {
+    let result: FoodSearchResult[] | undefined;
+    service.getFavoriteFoods().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/favorites');
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      { foodId: 'f1', displayName: 'Greek yogurt', brandName: 'Generic', calories: 96, basisLabel: '100 g', verified: true }
+    ]);
+
+    expect(result?.[0].foodId).toBe('f1');
+    expect(result?.[0].displayName).toBe('Greek yogurt');
+  });
+
+  it('adds and removes a favorite food through the favorite endpoints', () => {
+    service.addFavoriteFood('f1').subscribe();
+    const addRequest = httpTesting.expectOne('/api/v1/nutrition/foods/f1/favorite');
+    expect(addRequest.request.method).toBe('POST');
+    addRequest.flush(null);
+
+    service.removeFavoriteFood('f1').subscribe();
+    const removeRequest = httpTesting.expectOne('/api/v1/nutrition/foods/f1/favorite');
+    expect(removeRequest.request.method).toBe('DELETE');
+    removeRequest.flush(null);
   });
 
   it('maps recent foods with full macros for one-tap re-logging', () => {

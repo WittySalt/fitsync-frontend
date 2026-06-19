@@ -245,6 +245,13 @@
     }
   }
 
+  .food-result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+  }
+
   .food-row.selected {
     border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
     background: var(--accent-subtle);
@@ -314,13 +321,16 @@
       color: var(--text-secondary);
       line-height: 1.45;
     }
+
+    article.success {
+      border: 1px solid var(--border-accent);
+    }
+
+    article.warning {
+      border: 1px solid var(--amber-500);
+    }
   }
 
-  .success-text {
-    margin: 0;
-    color: var(--accent);
-    font-weight: var(--fw-bold);
-  }
 }
 
 @media (max-width: 1040px) {

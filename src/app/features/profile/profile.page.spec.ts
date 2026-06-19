@@ -26,7 +26,16 @@ const mockDashboard: DashboardData = {
     targetCarbsGrams: 0,
     totalFatGrams: 0,
     targetFatGrams: 0,
-    mealCount: 0
+    mealCount: 0,
+    totalFiberGrams: null,
+    totalSugarGrams: null,
+    totalSodiumMg: null,
+    fiberTargetGrams: null,
+    sugarLimitGrams: null,
+    sodiumLimitMg: null,
+    fiberTargetMet: null,
+    sugarWithinLimit: null,
+    sodiumWithinLimit: null
   },
   latestWorkout: {
     name: 'Upper body strength',
