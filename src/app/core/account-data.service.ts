@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, map } from 'rxjs';
 
@@ -198,6 +198,12 @@ export interface CreateBodyMetricRequest {
   note: string | null;
 }
 
+export interface ListBodyMetricsOptions {
+  from?: string;
+  to?: string;
+  limit?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AccountDataService {
   private readonly http = inject(HttpClient);
@@ -228,6 +234,20 @@ export class AccountDataService {
 
   createBodyMetric(request: CreateBodyMetricRequest): Observable<AccountBodyMetric> {
     return this.http.post<AccountBodyMetric>(`${this.apiBaseUrl}/users/me/body-metrics`, request);
+  }
+
+  listBodyMetrics(options: ListBodyMetricsOptions = {}): Observable<AccountBodyMetric[]> {
+    let params = new HttpParams();
+    if (options.from) {
+      params = params.set('from', options.from);
+    }
+    if (options.to) {
+      params = params.set('to', options.to);
+    }
+    if (options.limit !== undefined) {
+      params = params.set('limit', String(options.limit));
+    }
+    return this.http.get<AccountBodyMetric[]>(`${this.apiBaseUrl}/users/me/body-metrics`, { params });
   }
 
   replaceBodyMetric(metricId: string, request: CreateBodyMetricRequest): Observable<AccountBodyMetric> {
