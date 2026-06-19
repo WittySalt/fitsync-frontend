@@ -23,6 +23,7 @@ describe('ThemeService', () => {
 
     const service = TestBed.inject(ThemeService);
 
+    expect(service.preference()).toBe('dark');
     expect(service.theme()).toBe('dark');
     expect(root.getAttribute('data-theme')).toBe('dark');
   });
@@ -32,6 +33,7 @@ describe('ThemeService', () => {
 
     service.setTheme('dark');
 
+    expect(service.preference()).toBe('dark');
     expect(service.theme()).toBe('dark');
     expect(localStorage.getItem('fs-theme')).toBe('dark');
     expect(root.getAttribute('data-theme')).toBe('dark');
@@ -42,16 +44,49 @@ describe('ThemeService', () => {
 
     service.toggleTheme();
 
+    expect(service.preference()).toBe('dark');
     expect(service.theme()).toBe('dark');
     expect(root.getAttribute('data-theme')).toBe('dark');
   });
 
-  it('falls back to the OS theme when nothing is persisted', () => {
+  it('defaults to system preference and follows the OS theme when nothing is persisted', () => {
     matchMediaSpy.and.returnValue({ matches: true } as MediaQueryList);
 
     const service = TestBed.inject(ThemeService);
 
+    expect(service.preference()).toBe('system');
     expect(service.theme()).toBe('dark');
+    expect(root.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('persists system preference without storing a concrete theme', () => {
+    const service = TestBed.inject(ThemeService);
+
+    service.setTheme('system');
+
+    expect(service.preference()).toBe('system');
+    expect(localStorage.getItem('fs-theme')).toBe('system');
+    expect(root.getAttribute('data-theme')).toBe('light');
+  });
+
+  it('updates the applied theme when system color scheme changes', () => {
+    const changeListener: { current: EventListener | null } = { current: null };
+    const query = {
+      matches: false,
+      addEventListener: jasmine.createSpy('addEventListener').and.callFake((_event: string, listener: EventListener) => {
+        changeListener.current = listener;
+      })
+    } as unknown as MediaQueryList;
+    matchMediaSpy.and.returnValue(query);
+
+    const service = TestBed.inject(ThemeService);
+    service.setTheme('system');
+    (query as { matches: boolean }).matches = true;
+    changeListener.current?.(new Event('change'));
+
+    expect(service.preference()).toBe('system');
+    expect(service.theme()).toBe('dark');
+    expect(localStorage.getItem('fs-theme')).toBe('system');
     expect(root.getAttribute('data-theme')).toBe('dark');
   });
 });

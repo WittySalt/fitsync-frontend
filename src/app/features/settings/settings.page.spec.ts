@@ -8,6 +8,7 @@ import {
   UserGoal
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { ThemeService } from '../../core/theme/theme.service';
 import { SettingsPage } from './settings.page';
 
 describe('SettingsPage', () => {
@@ -142,6 +143,10 @@ describe('SettingsPage', () => {
   };
 
   beforeEach(async () => {
+    localStorage.removeItem('fs-theme');
+    document.documentElement.removeAttribute('data-theme');
+    spyOn(window, 'matchMedia').and.returnValue({ matches: false } as MediaQueryList);
+
     authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout']);
     accountDataService = jasmine.createSpyObj<AccountDataService>(
       'AccountDataService',
@@ -197,6 +202,33 @@ describe('SettingsPage', () => {
     expect(text).toContain('Managed by Cognito');
     expect(text).toContain('BMI');
     expect(text).toContain('Derived');
+  });
+
+  it('renders appearance controls and stores the selected theme preference', () => {
+    const service = TestBed.inject(ThemeService);
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.appearance-toggle button')
+    );
+    const darkButton = buttons.find((button) => button.textContent?.trim() === 'Dark');
+    const systemButton = buttons.find((button) => button.textContent?.trim() === 'System');
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Appearance');
+    expect(darkButton).toBeTruthy();
+    expect(systemButton).toBeTruthy();
+
+    darkButton?.click();
+    fixture.detectChanges();
+
+    expect(service.preference()).toBe('dark');
+    expect(localStorage.getItem('fs-theme')).toBe('dark');
+    expect(darkButton?.getAttribute('aria-checked')).toBe('true');
+
+    systemButton?.click();
+    fixture.detectChanges();
+
+    expect(service.preference()).toBe('system');
+    expect(localStorage.getItem('fs-theme')).toBe('system');
+    expect(systemButton?.getAttribute('aria-checked')).toBe('true');
   });
 
   it('saves identity fields through the profile endpoint', () => {
