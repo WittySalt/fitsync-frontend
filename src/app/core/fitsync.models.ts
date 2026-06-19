@@ -131,6 +131,16 @@ export interface FoodSearchResult {
   verified: boolean;
 }
 
+export interface FoodCategory {
+  categoryId: string;
+  parentId: string | null;
+  code: string;
+  displayName: string;
+  slug: string;
+  sortOrder: number;
+  children: FoodCategory[];
+}
+
 /** A previously logged food surfaced for one-tap re-logging (recent / frequent). */
 export interface LoggedFood {
   foodName: string;

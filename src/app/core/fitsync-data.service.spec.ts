@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
+import { Exercise, FoodCategory, FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -274,6 +274,58 @@ describe('FitSyncDataService', () => {
     removeRequest.flush(null);
   });
 
+  it('searches foods by category with includeSubcategories when a category is selected', () => {
+    let result: FoodSearchResult[] | undefined;
+    service
+      .searchFoods('rice', { categoryId: 'cat-grains', includeSubcategories: true })
+      .subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/nutrition/foods/search' &&
+        req.params.get('q') === 'rice' &&
+        req.params.get('categoryId') === 'cat-grains' &&
+        req.params.get('includeSubcategories') === 'true'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([{ foodId: 'f2', displayName: 'Brown rice', brandName: 'Generic', calories: 112, basisLabel: '100 g' }]);
+
+    expect(result?.[0].displayName).toBe('Brown rice');
+  });
+
+  it('maps nutrition category trees for category browsing', () => {
+    let result: FoodCategory[] | undefined;
+    service.getFoodCategories().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/categories');
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      {
+        categoryId: 'cat-protein',
+        parentId: null,
+        code: 'PROTEIN',
+        displayName: 'Protein',
+        slug: 'protein',
+        sortOrder: 10,
+        children: [
+          {
+            categoryId: 'cat-poultry',
+            parentId: 'cat-protein',
+            code: 'POULTRY',
+            displayName: 'Poultry',
+            slug: 'poultry',
+            sortOrder: 11,
+            children: []
+          }
+        ]
+      }
+    ]);
+
+    expect(result?.[0].displayName).toBe('Protein');
+    expect(result?.[0].children[0].parentId).toBe('cat-protein');
+    expect(result?.[0].children[0].displayName).toBe('Poultry');
+  });
+
   it('maps recent foods with full macros for one-tap re-logging', () => {
     let result: LoggedFood[] | undefined;
     service.getRecentFoods(5).subscribe((value) => (result = value));
@@ -288,6 +340,22 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].proteinGrams).toBe(17);
     expect(result?.[0].servingLabel).toBe('170 g');
     expect(result?.[0].timesLogged).toBe(4);
+  });
+
+  it('maps frequent foods with full macros for one-tap re-logging', () => {
+    let result: LoggedFood[] | undefined;
+    service.getFrequentFoods(6).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/nutrition/foods/frequent' && req.params.get('limit') === '6'
+    );
+    request.flush([
+      { foodName: 'Chicken rice', brandName: 'Hawker', snapshotServingLabel: '1 plate', calories: 620, proteinGrams: '38', carbsGrams: '72', fatGrams: '18', timesLogged: '9' }
+    ]);
+
+    expect(result?.[0].foodName).toBe('Chicken rice');
+    expect(result?.[0].proteinGrams).toBe(38);
+    expect(result?.[0].timesLogged).toBe(9);
   });
 
   it('fetches today meals within a from/to day window', () => {

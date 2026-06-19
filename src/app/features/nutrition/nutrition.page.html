@@ -153,13 +153,68 @@
           />
         </label>
 
+        <div class="category-browser" aria-label="Food categories">
+          <div class="category-heading">
+            <div>
+              <span class="card-label">Categories</span>
+              <strong>{{ categoryLabel() }}</strong>
+            </div>
+            @if (selectedCategory()) {
+              <button type="button" class="category-chip" (click)="selectCategory(null)">Clear</button>
+            }
+          </div>
+
+          @if (categoriesLoading()) {
+            <div class="summary-card skeleton"></div>
+          } @else if (categoryOptions().length) {
+            <div class="category-list">
+              <button
+                type="button"
+                class="category-chip"
+                [class.active]="!selectedCategory()"
+                (click)="selectCategory(null)"
+              >
+                All
+              </button>
+              @for (category of categoryOptions(); track category.categoryId) {
+                <button
+                  type="button"
+                  class="category-chip"
+                  [class.active]="selectedCategory()?.categoryId === category.categoryId"
+                  (click)="selectCategory(category)"
+                >
+                  {{ category.displayName }}
+                </button>
+              }
+            </div>
+          } @else {
+            <app-state-panel title="Categories unavailable" message="Food categories will appear here when the catalog API returns them." />
+          }
+        </div>
+
         @if (recentFoods().length) {
           <div class="recent-foods" aria-label="Recent foods">
             <span class="card-label">Recent</span>
             <div class="recent-chips">
               @for (food of recentFoods(); track food.foodName) {
-                <button type="button" class="recent-chip" (click)="applyRecentFood(food)">
+                <button type="button" class="quick-food-chip" (click)="applyLoggedFood(food)">
                   {{ food.foodName }} - {{ food.calories }} kcal
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        @if (frequentFoods().length) {
+          <div class="recent-foods" aria-label="Frequent foods">
+            <span class="card-label">Frequent</span>
+            <div class="recent-chips">
+              @for (food of frequentFoods(); track food.foodName) {
+                <button type="button" class="quick-food-chip" (click)="applyLoggedFood(food)">
+                  {{ food.foodName }} - {{ food.calories }} kcal
+                  @if (food.timesLogged) {
+                    <small>{{ food.timesLogged }} logs</small>
+                  }
                 </button>
               }
             </div>
@@ -171,12 +226,12 @@
           @if (favoriteFoods().length) {
             <div class="recent-chips">
               @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
-                <button type="button" class="recent-chip" (click)="applyFavoriteFood(food)">
+                <button type="button" class="quick-food-chip" (click)="applyFavoriteFood(food)">
                   {{ food.displayName }} - {{ food.calories }} kcal
                 </button>
                 <button
                   type="button"
-                  class="recent-chip"
+                  class="quick-food-chip"
                   [disabled]="isFavoriteUpdating(food)"
                   [attr.aria-label]="'Remove ' + food.displayName + ' from favorites'"
                   (click)="toggleFavorite(food)"
@@ -216,7 +271,7 @@
                 </button>
                 <button
                   type="button"
-                  class="recent-chip"
+                  class="quick-food-chip"
                   [class.active]="isFavorite(food)"
                   [disabled]="!food.foodId || isFavoriteUpdating(food)"
                   [attr.aria-label]="isFavorite(food) ? 'Remove from favorites' : 'Add to favorites'"

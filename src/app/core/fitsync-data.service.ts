@@ -5,6 +5,7 @@ import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rx
 import {
   BodyMetric,
   Exercise,
+  FoodCategory,
   FoodSearchResult,
   Goal,
   LoggedFood,
@@ -111,11 +112,22 @@ interface BackendFoodSearchResult {
   foodId?: string | null;
   displayName?: string | null;
   brandName?: string | null;
+  categoryCode?: string | null;
   calories?: number | null;
   proteinGrams?: number | null;
   basisLabel?: string | null;
   basisUnit?: string | null;
   verified?: boolean | null;
+}
+
+interface BackendFoodCategory {
+  categoryId?: string | null;
+  parentId?: string | null;
+  code?: string | null;
+  displayName?: string | null;
+  slug?: string | null;
+  sortOrder?: number | null;
+  children?: BackendFoodCategory[] | null;
 }
 
 interface BackendLoggedFood {
@@ -330,14 +342,30 @@ export class FitSyncDataService {
       );
   }
 
-  searchFoods(query: string): Observable<FoodSearchResult[]> {
-    const params = new HttpParams().set('q', query ?? '');
+  searchFoods(
+    query: string,
+    options: { categoryId?: string | null; includeSubcategories?: boolean } = {}
+  ): Observable<FoodSearchResult[]> {
+    let params = new HttpParams().set('q', query ?? '');
+    if (options.categoryId) {
+      params = params
+        .set('categoryId', options.categoryId)
+        .set('includeSubcategories', String(options.includeSubcategories ?? true));
+    }
+
     return this.http
       .get<BackendFoodSearchResult[]>(`${this.apiBaseUrl}/nutrition/foods/search`, { params })
       .pipe(
         map((foods) => foods.map((food) => this.mapFood(food))),
-        catchError(() => this.getFallbackFoods())
+        catchError(() => (options.categoryId ? of([] as FoodSearchResult[]) : this.getFallbackFoods()))
       );
+  }
+
+  getFoodCategories(): Observable<FoodCategory[]> {
+    return this.http.get<BackendFoodCategory[]>(`${this.apiBaseUrl}/nutrition/categories`).pipe(
+      map((categories) => categories.map((category) => this.mapFoodCategory(category))),
+      catchError(() => of([] as FoodCategory[]))
+    );
   }
 
   getRecentFoods(limit = 8): Observable<LoggedFood[]> {
@@ -363,6 +391,16 @@ export class FitSyncDataService {
 
   removeFavoriteFood(foodId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/nutrition/foods/${foodId}/favorite`);
+  }
+
+  getFrequentFoods(limit = 8): Observable<LoggedFood[]> {
+    const params = new HttpParams().set('limit', String(limit));
+    return this.http
+      .get<BackendLoggedFood[]>(`${this.apiBaseUrl}/nutrition/foods/frequent`, { params })
+      .pipe(
+        map((foods) => foods.map((food) => this.mapLoggedFood(food))),
+        catchError(() => of([] as LoggedFood[]))
+      );
   }
 
   getTodayMeals(timezone?: string): Observable<Meal[]> {
@@ -805,6 +843,18 @@ export class FitSyncDataService {
       carbsGrams: Number(food.carbsGrams ?? 0),
       fatGrams: Number(food.fatGrams ?? 0),
       timesLogged: Number(food.timesLogged ?? 0)
+    };
+  }
+
+  private mapFoodCategory(category: BackendFoodCategory): FoodCategory {
+    return {
+      categoryId: category.categoryId ?? '',
+      parentId: category.parentId ?? null,
+      code: category.code ?? '',
+      displayName: category.displayName ?? 'Category',
+      slug: category.slug ?? '',
+      sortOrder: category.sortOrder ?? 0,
+      children: (category.children ?? []).map((child) => this.mapFoodCategory(child))
     };
   }
 }

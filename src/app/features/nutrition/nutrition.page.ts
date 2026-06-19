@@ -3,7 +3,7 @@ import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angu
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodSearchResult, LoggedFood, Meal } from '../../core/fitsync.models';
+import { FoodCategory, FoodSearchResult, LoggedFood, Meal } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
@@ -30,15 +30,19 @@ export class NutritionPage implements OnInit {
 
   readonly data = signal<DashboardData | null>(null);
   readonly foods = signal<FoodSearchResult[]>([]);
+  readonly categories = signal<FoodCategory[]>([]);
   readonly recentFoods = signal<LoggedFood[]>([]);
   readonly favoriteFoods = signal<FoodSearchResult[]>([]);
   readonly favoriteUpdating = signal<Set<string>>(new Set());
+  readonly frequentFoods = signal<LoggedFood[]>([]);
   readonly todayMeals = signal<Meal[]>([]);
   readonly searching = signal(false);
+  readonly categoriesLoading = signal(false);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly submitting = signal(false);
   readonly selectedFood = signal<FoodSearchResult | null>(null);
+  readonly selectedCategory = signal<FoodCategory | null>(null);
   readonly searchControl = new FormControl('', { nonNullable: true });
 
   readonly today = new Intl.DateTimeFormat('en-SG', {
@@ -109,6 +113,10 @@ export class NutritionPage implements OnInit {
     ].filter((check): check is NutritionCheck => check !== null);
   });
 
+  readonly categoryOptions = computed(() => this.flattenCategories(this.categories()));
+
+  readonly categoryLabel = computed(() => this.selectedCategory()?.displayName ?? 'All foods');
+
   readonly mealForm = this.fb.nonNullable.group({
     mealType: ['LUNCH', Validators.required],
     foodName: ['', [Validators.required, Validators.maxLength(120)]],
@@ -128,7 +136,7 @@ export class NutritionPage implements OnInit {
         distinctUntilChanged(),
         switchMap((query) => {
           this.searching.set(true);
-          return this.dataService.searchFoods(query);
+          return this.searchFoods(query);
         })
       )
       .subscribe((foods) => {
@@ -152,10 +160,29 @@ export class NutritionPage implements OnInit {
       }
     });
 
-    this.dataService.searchFoods(this.searchControl.value).subscribe((foods) => this.foods.set(foods));
+    this.searching.set(true);
+    this.searchFoods(this.searchControl.value).subscribe((foods) => {
+      this.foods.set(foods);
+      this.searching.set(false);
+    });
+    this.categoriesLoading.set(true);
+    this.dataService.getFoodCategories().subscribe((categories) => {
+      this.categories.set(categories);
+      this.categoriesLoading.set(false);
+    });
     this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
     this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
+    this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
     this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+  }
+
+  selectCategory(category: FoodCategory | null): void {
+    this.selectedCategory.set(category);
+    this.searching.set(true);
+    this.searchFoods(this.searchControl.value).subscribe((foods) => {
+      this.foods.set(foods);
+      this.searching.set(false);
+    });
   }
 
   applyFood(food: FoodSearchResult): void {
@@ -174,7 +201,7 @@ export class NutritionPage implements OnInit {
     this.applyFood(food);
   }
 
-  applyRecentFood(food: LoggedFood): void {
+  applyLoggedFood(food: LoggedFood): void {
     this.selectedFood.set(null);
     this.mealForm.patchValue({
       foodName: food.foodName,
@@ -324,5 +351,17 @@ export class NutritionPage implements OnInit {
       next.delete(foodId);
     }
     this.favoriteUpdating.set(next);
+  }
+
+  private searchFoods(query: string) {
+    const category = this.selectedCategory();
+    return this.dataService.searchFoods(query, {
+      categoryId: category?.categoryId ?? null,
+      includeSubcategories: category ? category.children.length > 0 : false
+    });
+  }
+
+  private flattenCategories(categories: FoodCategory[]): FoodCategory[] {
+    return categories.flatMap((category) => [category, ...this.flattenCategories(category.children)]);
   }
 }
