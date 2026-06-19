@@ -89,14 +89,23 @@ interface BackendUserPreferences {
 
 interface BackendNutritionSummary {
   totalCalories?: number | null;
-  totalProteinGrams?: number | null;
-  totalCarbsGrams?: number | null;
-  totalFatGrams?: number | null;
+  totalProteinGrams?: number | string | null;
+  totalCarbsGrams?: number | string | null;
+  totalFatGrams?: number | string | null;
   targetCalories?: number | null;
-  targetProteinGrams?: number | null;
-  targetCarbsGrams?: number | null;
-  targetFatGrams?: number | null;
+  targetProteinGrams?: number | string | null;
+  targetCarbsGrams?: number | string | null;
+  targetFatGrams?: number | string | null;
   mealCount?: number | null;
+  totalFiberGrams?: number | string | null;
+  totalSugarGrams?: number | string | null;
+  totalSodiumMg?: number | string | null;
+  fiberTargetGrams?: number | string | null;
+  sugarLimitGrams?: number | string | null;
+  sodiumLimitMg?: number | string | null;
+  fiberTargetMet?: boolean | null;
+  sugarWithinLimit?: boolean | null;
+  sodiumWithinLimit?: boolean | null;
 }
 
 interface BackendFoodSearchResult {
@@ -184,7 +193,16 @@ export class FitSyncDataService {
         targetCarbsGrams: 230,
         totalFatGrams: 52,
         targetFatGrams: 70,
-        mealCount: 3
+        mealCount: 3,
+        totalFiberGrams: null,
+        totalSugarGrams: null,
+        totalSodiumMg: null,
+        fiberTargetGrams: null,
+        sugarLimitGrams: null,
+        sodiumLimitMg: null,
+        fiberTargetMet: null,
+        sugarWithinLimit: null,
+        sodiumWithinLimit: null
       },
       latestWorkout: {
         name: 'Upper Body Strength',
@@ -360,6 +378,21 @@ export class FitSyncDataService {
       );
   }
 
+  getFavoriteFoods(): Observable<FoodSearchResult[]> {
+    return this.http.get<BackendFoodSearchResult[]>(`${this.apiBaseUrl}/nutrition/favorites`).pipe(
+      map((foods) => foods.map((food) => this.mapFood(food))),
+      catchError(() => of([] as FoodSearchResult[]))
+    );
+  }
+
+  addFavoriteFood(foodId: string): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/nutrition/foods/${foodId}/favorite`, {});
+  }
+
+  removeFavoriteFood(foodId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/nutrition/foods/${foodId}/favorite`);
+  }
+
   getFrequentFoods(limit = 8): Observable<LoggedFood[]> {
     const params = new HttpParams().set('limit', String(limit));
     return this.http
@@ -493,13 +526,22 @@ export class FitSyncDataService {
     return {
       totalCalories: summary.totalCalories ?? 0,
       targetCalories: summary.targetCalories ?? 0,
-      totalProteinGrams: summary.totalProteinGrams ?? 0,
-      targetProteinGrams: summary.targetProteinGrams ?? 0,
-      totalCarbsGrams: summary.totalCarbsGrams ?? 0,
-      targetCarbsGrams: summary.targetCarbsGrams ?? 0,
-      totalFatGrams: summary.totalFatGrams ?? 0,
-      targetFatGrams: summary.targetFatGrams ?? 0,
-      mealCount: summary.mealCount ?? 0
+      totalProteinGrams: this.numericValue(summary.totalProteinGrams) ?? 0,
+      targetProteinGrams: this.numericValue(summary.targetProteinGrams) ?? 0,
+      totalCarbsGrams: this.numericValue(summary.totalCarbsGrams) ?? 0,
+      targetCarbsGrams: this.numericValue(summary.targetCarbsGrams) ?? 0,
+      totalFatGrams: this.numericValue(summary.totalFatGrams) ?? 0,
+      targetFatGrams: this.numericValue(summary.targetFatGrams) ?? 0,
+      mealCount: summary.mealCount ?? 0,
+      totalFiberGrams: this.numericValue(summary.totalFiberGrams),
+      totalSugarGrams: this.numericValue(summary.totalSugarGrams),
+      totalSodiumMg: this.numericValue(summary.totalSodiumMg),
+      fiberTargetGrams: this.numericValue(summary.fiberTargetGrams),
+      sugarLimitGrams: this.numericValue(summary.sugarLimitGrams),
+      sodiumLimitMg: this.numericValue(summary.sodiumLimitMg),
+      fiberTargetMet: summary.fiberTargetMet ?? null,
+      sugarWithinLimit: summary.sugarWithinLimit ?? null,
+      sodiumWithinLimit: summary.sodiumWithinLimit ?? null
     };
   }
 
@@ -748,6 +790,17 @@ export class FitSyncDataService {
 
   private numberValue(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }
+
+  private numericValue(value: number | string | null | undefined): number | null {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 
   private stringValue(value: unknown): string | null {

@@ -36,9 +36,7 @@
     min-height: 260px;
     display: grid;
     align-content: space-between;
-    background:
-      linear-gradient(135deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-tint) 86%, transparent)),
-      linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--amber-500) 8%, transparent));
+    background: linear-gradient(135deg, var(--surface), var(--surface-tint));
   }
 
   .calorie-row {
@@ -87,8 +85,8 @@
       min-width: 0;
       padding: 12px;
       border-radius: var(--radius-md);
-      background: color-mix(in srgb, var(--surface) 72%, transparent);
-      border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+      background: var(--surface-sunken);
+      border: 1px solid var(--border);
     }
 
     span {
@@ -160,16 +158,13 @@
     }
   }
 
-  .macro-bar.protein i {
+  .macro-bar.protein i,
+  .macro-bar.fat i {
     background: var(--blue-500);
   }
 
   .macro-bar.carbs i {
     background: var(--amber-500);
-  }
-
-  .macro-bar.fat i {
-    background: var(--blue-500);
   }
 
   .selected-pill {
@@ -245,6 +240,13 @@
     }
   }
 
+  .food-result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+  }
+
   .food-row.selected {
     border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
     background: var(--accent-subtle);
@@ -313,6 +315,14 @@
       margin: 0;
       color: var(--text-secondary);
       line-height: 1.45;
+    }
+
+    article.success {
+      border: 1px solid var(--border-accent);
+    }
+
+    article.warning {
+      border: 1px solid var(--amber-500);
     }
   }
 

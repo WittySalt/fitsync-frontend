@@ -7,6 +7,16 @@ import { FoodCategory, FoodSearchResult, LoggedFood, Meal } from '../../core/fit
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
+interface NutritionCheck {
+  label: string;
+  value: number | null;
+  target: number | null;
+  unit: 'g' | 'mg';
+  status: 'success' | 'warning' | 'neutral';
+  statusLabel: string;
+  detail: string;
+}
+
 @Component({
   selector: 'app-nutrition-page',
   imports: [ReactiveFormsModule, StatePanelComponent],
@@ -22,6 +32,8 @@ export class NutritionPage implements OnInit {
   readonly foods = signal<FoodSearchResult[]>([]);
   readonly categories = signal<FoodCategory[]>([]);
   readonly recentFoods = signal<LoggedFood[]>([]);
+  readonly favoriteFoods = signal<FoodSearchResult[]>([]);
+  readonly favoriteUpdating = signal<Set<string>>(new Set());
   readonly frequentFoods = signal<LoggedFood[]>([]);
   readonly todayMeals = signal<Meal[]>([]);
   readonly searching = signal(false);
@@ -84,15 +96,26 @@ export class NutritionPage implements OnInit {
     }))
   );
 
+  readonly favoriteIds = computed(
+    () => new Set(this.favoriteFoods().map((food) => food.foodId).filter((foodId): foodId is string => Boolean(foodId)))
+  );
+
+  readonly nutritionChecks = computed(() => {
+    const nutrition = this.nutrition();
+    if (!nutrition) {
+      return [];
+    }
+
+    return [
+      this.nutritionCheck('Fiber', nutrition.totalFiberGrams, nutrition.fiberTargetGrams, 'g', nutrition.fiberTargetMet, 'target'),
+      this.nutritionCheck('Sugar', nutrition.totalSugarGrams, nutrition.sugarLimitGrams, 'g', nutrition.sugarWithinLimit, 'limit'),
+      this.nutritionCheck('Sodium', nutrition.totalSodiumMg, nutrition.sodiumLimitMg, 'mg', nutrition.sodiumWithinLimit, 'limit')
+    ].filter((check): check is NutritionCheck => check !== null);
+  });
+
   readonly categoryOptions = computed(() => this.flattenCategories(this.categories()));
 
   readonly categoryLabel = computed(() => this.selectedCategory()?.displayName ?? 'All foods');
-
-  readonly nutritionNotes = [
-    { label: 'Fiber', value: '25g+', detail: 'Aim for vegetables, fruit, oats, and legumes.' },
-    { label: 'Sodium', value: '< 2,300mg', detail: 'Watch sauces, soups, processed meals, and snacks.' },
-    { label: 'Hydration', value: '2.5L', detail: 'Spread water through the day, especially around workouts.' }
-  ];
 
   readonly mealForm = this.fb.nonNullable.group({
     mealType: ['LUNCH', Validators.required],
@@ -148,6 +171,7 @@ export class NutritionPage implements OnInit {
       this.categoriesLoading.set(false);
     });
     this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
+    this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
     this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
     this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
   }
@@ -166,8 +190,15 @@ export class NutritionPage implements OnInit {
     // Search results carry calories + basis only; the user confirms macros.
     this.mealForm.patchValue({
       foodName: food.displayName,
-      calories: food.calories
+      calories: food.calories,
+      proteinGrams: Math.round(food.proteinGrams),
+      carbsGrams: 0,
+      fatGrams: 0
     });
+  }
+
+  applyFavoriteFood(food: FoodSearchResult): void {
+    this.applyFood(food);
   }
 
   applyLoggedFood(food: LoggedFood): void {
@@ -231,6 +262,95 @@ export class NutritionPage implements OnInit {
       return '';
     }
     return new Intl.DateTimeFormat('en-SG', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+  }
+
+  formatAmount(value: number | null, unit: 'g' | 'mg'): string {
+    if (value == null) {
+      return 'No data';
+    }
+    const rounded = unit === 'mg' ? Math.round(value) : Math.round(value * 10) / 10;
+    return `${rounded}${unit}`;
+  }
+
+  isFavorite(food: FoodSearchResult): boolean {
+    return Boolean(food.foodId && this.favoriteIds().has(food.foodId));
+  }
+
+  isFavoriteUpdating(food: FoodSearchResult): boolean {
+    return Boolean(food.foodId && this.favoriteUpdating().has(food.foodId));
+  }
+
+  toggleFavorite(food: FoodSearchResult): void {
+    const foodId = food.foodId;
+    if (!foodId || this.isFavoriteUpdating(food)) {
+      return;
+    }
+
+    const wasFavorite = this.isFavorite(food);
+    const previous = this.favoriteFoods();
+    this.setFavoriteUpdating(foodId, true);
+    this.favoriteFoods.set(
+      wasFavorite ? previous.filter((favorite) => favorite.foodId !== foodId) : [food, ...previous.filter((favorite) => favorite.foodId !== foodId)]
+    );
+
+    const request = wasFavorite ? this.dataService.removeFavoriteFood(foodId) : this.dataService.addFavoriteFood(foodId);
+    request.subscribe({
+      next: () => this.toast.success(wasFavorite ? 'Removed from favorites.' : 'Added to favorites.'),
+      error: () => {
+        this.favoriteFoods.set(previous);
+        this.setFavoriteUpdating(foodId, false);
+        this.toast.error('Unable to update favorites. Please retry.');
+      },
+      complete: () => this.setFavoriteUpdating(foodId, false)
+    });
+  }
+
+  private nutritionCheck(
+    label: string,
+    value: number | null,
+    target: number | null,
+    unit: 'g' | 'mg',
+    status: boolean | null,
+    mode: 'target' | 'limit'
+  ): NutritionCheck | null {
+    if (value == null && target == null && status == null) {
+      return null;
+    }
+
+    const isGood = status === true;
+    const state = status == null ? 'neutral' : isGood ? 'success' : 'warning';
+    const statusLabel =
+      status == null
+        ? 'Waiting for target'
+        : isGood
+          ? mode === 'target'
+            ? 'Target met'
+            : 'Within limit'
+          : mode === 'target'
+            ? 'Below target'
+            : 'Over limit';
+    let detail = 'Waiting for nutrition summary targets.';
+
+    if (value != null && target != null) {
+      const delta = Math.abs(target - value);
+      if (mode === 'target') {
+        detail = isGood ? `${label} target met.` : `${this.formatAmount(delta, unit)} left to target.`;
+      } else {
+        detail = isGood ? `${label} is within today's limit.` : `${this.formatAmount(delta, unit)} over today's limit.`;
+      }
+    }
+
+    return { label, value, target, unit, status: state, statusLabel, detail };
+  }
+
+  private setFavoriteUpdating(foodId: string, updating: boolean): void {
+    const next = new Set(this.favoriteUpdating());
+    if (updating) {
+      next.add(foodId);
+    } else {
+      next.delete(foodId);
+    }
+    this.favoriteUpdating.set(next);
   }
 
   private searchFoods(query: string) {

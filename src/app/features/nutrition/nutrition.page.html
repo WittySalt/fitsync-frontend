@@ -221,12 +221,28 @@
           </div>
         }
 
-        <div class="category-browser favorites-placeholder" aria-label="Favorite foods">
-          <div>
-            <span class="card-label">Favorites</span>
-            <p>Coming soon when the nutrition API exposes favorite foods.</p>
-          </div>
-          <button type="button" disabled>Unavailable</button>
+        <div class="recent-foods" aria-label="Favorite foods">
+          <span class="card-label">Favorites</span>
+          @if (favoriteFoods().length) {
+            <div class="recent-chips">
+              @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
+                <button type="button" class="quick-food-chip" (click)="applyFavoriteFood(food)">
+                  {{ food.displayName }} - {{ food.calories }} kcal
+                </button>
+                <button
+                  type="button"
+                  class="quick-food-chip"
+                  [disabled]="isFavoriteUpdating(food)"
+                  [attr.aria-label]="'Remove ' + food.displayName + ' from favorites'"
+                  (click)="toggleFavorite(food)"
+                >
+                  {{ isFavoriteUpdating(food) ? 'Saving...' : 'Remove' }}
+                </button>
+              }
+            </div>
+          } @else {
+            <app-state-panel title="No favorite foods yet" message="Save foods from search results to build a quick list." />
+          }
         </div>
 
         @if (searching()) {
@@ -234,24 +250,36 @@
         } @else if (foods().length) {
           <div class="food-list">
             @for (food of foods(); track food.foodId ?? food.displayName) {
-              <button
-                type="button"
-                class="food-row"
-                [class.selected]="selectedFood()?.displayName === food.displayName"
-                (click)="applyFood(food)"
-              >
-                <span>
-                  <strong>
-                    {{ food.displayName }}
-                    @if (food.verified) { <span class="verified-tag">Verified</span> }
-                  </strong>
-                  <small>{{ food.brandName || 'Generic' }} - per {{ food.basisUnit }}</small>
-                </span>
-                <span class="food-cal">
-                  <strong>{{ food.calories }}</strong>
-                  <small>kcal</small>
-                </span>
-              </button>
+              <div class="food-result">
+                <button
+                  type="button"
+                  class="food-row"
+                  [class.selected]="selectedFood()?.displayName === food.displayName"
+                  (click)="applyFood(food)"
+                >
+                  <span>
+                    <strong>
+                      {{ food.displayName }}
+                      @if (food.verified) { <span class="verified-tag">Verified</span> }
+                    </strong>
+                    <small>{{ food.brandName || 'Generic' }} - per {{ food.basisUnit }}</small>
+                  </span>
+                  <span class="food-cal">
+                    <strong>{{ food.calories }}</strong>
+                    <small>kcal</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="quick-food-chip"
+                  [class.active]="isFavorite(food)"
+                  [disabled]="!food.foodId || isFavoriteUpdating(food)"
+                  [attr.aria-label]="isFavorite(food) ? 'Remove from favorites' : 'Add to favorites'"
+                  (click)="toggleFavorite(food)"
+                >
+                  {{ isFavorite(food) ? 'Saved' : 'Save' }}
+                </button>
+              </div>
             }
           </div>
         } @else {
@@ -296,15 +324,22 @@
             <h2>Nutrition checks</h2>
           </div>
         </div>
-        <div class="note-list">
-          @for (note of nutritionNotes; track note.label) {
-            <article>
-              <span>{{ note.label }}</span>
-              <strong>{{ note.value }}</strong>
-              <p>{{ note.detail }}</p>
-            </article>
-          }
-        </div>
+        @if (nutritionChecks().length) {
+          <div class="note-list">
+            @for (check of nutritionChecks(); track check.label) {
+              <article [class.success]="check.status === 'success'" [class.warning]="check.status === 'warning'">
+                <span>{{ check.label }}</span>
+                <strong>{{ formatAmount(check.value, check.unit) }}</strong>
+                <p>{{ check.statusLabel }} - {{ check.detail }}</p>
+                @if (check.target != null) {
+                  <small>Reference: {{ formatAmount(check.target, check.unit) }}</small>
+                }
+              </article>
+            }
+          </div>
+        } @else {
+          <app-state-panel title="Micronutrient summary unavailable" message="Fiber, sugar, and sodium checks will appear once today's summary includes those values." />
+        }
       </section>
     </section>
   }

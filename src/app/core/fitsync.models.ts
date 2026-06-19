@@ -54,6 +54,15 @@ export interface NutritionSummary {
   totalFatGrams: number;
   targetFatGrams: number;
   mealCount: number;
+  totalFiberGrams: number | null;
+  totalSugarGrams: number | null;
+  totalSodiumMg: number | null;
+  fiberTargetGrams: number | null;
+  sugarLimitGrams: number | null;
+  sodiumLimitMg: number | null;
+  fiberTargetMet: boolean | null;
+  sugarWithinLimit: boolean | null;
+  sodiumWithinLimit: boolean | null;
 }
 
 export interface WorkoutSession {
