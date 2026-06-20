@@ -6,6 +6,7 @@ import { of } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
 import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
+import { LiveStartCardComponent } from './live-start-card.component';
 import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 
@@ -195,36 +196,34 @@ describe('WorkoutPage', () => {
     expect(plansPanel?.getAttribute('aria-labelledby')).toBe('workout-tab-plans');
   });
 
-  it('logs a workout through the data service when the form is valid', () => {
-    component.logForm.setValue({
-      name: 'Leg day',
-      workoutType: 'STRENGTH',
-      durationMinutes: 50,
-      caloriesBurned: 380,
-      perceivedExertion: 7,
-      notes: ''
-    });
-
-    component.logWorkout();
-
-    expect(dataService.saveWorkoutSession).toHaveBeenCalled();
-  });
-
-  it('keeps the past workout form collapsed behind guided today by default', () => {
+  it('renders the live start card behind guided today without a top-level past workout form', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const overviewPanel = compiled.querySelector<HTMLElement>('#workout-panel-overview');
     const firstContent = overviewPanel?.firstElementChild;
-    const toggle = compiled.querySelector<HTMLButtonElement>('.log-workout-card .button.secondary');
 
     expect(firstContent?.tagName.toLowerCase()).toBe('app-today-overview');
-    expect(fixture.componentInstance.logFormOpen()).toBeFalse();
-    expect(toggle?.textContent?.trim()).toBe('Log a past workout');
-    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
-    expect(toggle?.getAttribute('aria-controls')).toBe('past-workout-form');
+    expect(compiled.querySelector('app-live-start-card')).not.toBeNull();
+    expect(compiled.querySelector('.log-workout-card')).toBeNull();
     expect(compiled.querySelector('#past-workout-form')).toBeNull();
+  });
+
+  it('opens the free or goal live tracker when the start card emits a started session', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+    startCard.started.emit({
+      session: sessionDetail({ sessionId: 'session-live', name: 'Goal run', workoutType: 'CARDIO' }),
+      goal: { type: 'MINUTES', target: 30 }
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.liveTrackerSession()?.sessionId).toBe('session-live');
+    expect(fixture.componentInstance.liveTrackerGoal()).toEqual({ type: 'MINUTES', target: 30 });
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-live-tracker')).not.toBeNull();
   });
 
   it('starts today from the guided overview and opens the exercise player', () => {
@@ -297,45 +296,18 @@ describe('WorkoutPage', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
 
-  it('expands the past workout form and still submits through the data service', () => {
+  it('refreshes sessions when the nested past workout flow finishes', () => {
+    const backfilled = session({ sessionId: 'session-backfilled', name: 'Backfilled', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([backfilled]));
+
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const toggle = compiled.querySelector<HTMLButtonElement>('.log-workout-card .button.secondary');
-    toggle?.click();
-    fixture.detectChanges();
+    const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+    startCard.backfilled.emit();
 
-    expect(fixture.componentInstance.logFormOpen()).toBeTrue();
-    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
-
-    fixture.componentInstance.logForm.setValue({
-      name: 'Evening run',
-      workoutType: 'CARDIO',
-      durationMinutes: 35,
-      caloriesBurned: 300,
-      perceivedExertion: 6,
-      notes: 'Backfilled after the run.'
-    });
-    fixture.detectChanges();
-    compiled.querySelector<HTMLButtonElement>('#past-workout-form button[type="submit"]')?.click();
-
-    expect(dataService.saveWorkoutSession).toHaveBeenCalled();
-  });
-
-  it('does not log when the workout name is missing', () => {
-    component.logForm.setValue({
-      name: '',
-      workoutType: 'STRENGTH',
-      durationMinutes: 50,
-      caloriesBurned: 380,
-      perceivedExertion: 7,
-      notes: ''
-    });
-
-    component.logWorkout();
-
-    expect(dataService.saveWorkoutSession).not.toHaveBeenCalled();
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(fixture.componentInstance.sessions()[0].sessionId).toBe('session-backfilled');
   });
 
   it('submits a workout plan with a real exercise blueprint', () => {
@@ -389,14 +361,16 @@ describe('WorkoutPage', () => {
     expect(component.selectedTab()).toBe('history');
   });
 
-  it('refreshes sessions and opens history when live logger completes', () => {
+  it('refreshes sessions and opens history when the live tracker completes', () => {
     const completed = session({ sessionId: 'session-2', name: 'Finished', status: 'COMPLETED' });
     dataService.getWorkoutSessions.and.returnValue(of([completed]));
+    component.liveTrackerSession.set(sessionDetail({ sessionId: 'session-live' }));
 
-    component.handleLiveWorkoutFinished();
+    component.handleLiveTrackerFinished();
 
     expect(dataService.getWorkoutSessions).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-2');
+    expect(component.liveTrackerSession()).toBeNull();
     expect(component.selectedTab()).toBe('history');
   });
 

@@ -1,0 +1,78 @@
+:host {
+  display: block;
+}
+
+.live-start-card,
+.start-form,
+.past-workout-form {
+  display: grid;
+  gap: 16px;
+}
+
+.mode-switch {
+  width: fit-content;
+}
+
+.form-grid,
+.goal-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 9px 11px;
+}
+
+.helper-copy,
+.past-workout-disclosure p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.past-workout-disclosure {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.past-workout-disclosure .button {
+  width: fit-content;
+}
+
+.past-workout-form {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+}
+
+@media (max-width: 760px) {
+  .mode-switch,
+  .past-workout-disclosure .button {
+    width: 100%;
+  }
+}
