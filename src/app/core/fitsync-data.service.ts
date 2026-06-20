@@ -17,6 +17,8 @@ import {
   OnboardingSeed,
   UserProfile,
   WorkoutPlan,
+  WorkoutPlanRequest,
+  WorkoutPlanStatus,
   WorkoutSession
 } from './fitsync.models';
 
@@ -127,6 +129,46 @@ interface BackendFoodSearchResult {
   basisLabel?: string | null;
   basisUnit?: string | null;
   verified?: boolean | null;
+}
+
+interface BackendWorkoutPlanExercise {
+  planExerciseId?: string | null;
+  exerciseId?: string | null;
+  exerciseNameSnapshot?: string | null;
+  sequence?: number | null;
+  targetSets?: number | null;
+  targetReps?: number | null;
+  targetWeightKg?: number | string | null;
+  targetDurationSeconds?: number | null;
+  targetDistanceKm?: number | string | null;
+  restSeconds?: number | null;
+  notes?: string | null;
+  setTargets?: BackendWorkoutPlanExerciseSetTarget[] | null;
+}
+
+interface BackendWorkoutPlanExerciseSetTarget {
+  setTargetId?: string | null;
+  setNumber?: number | null;
+  targetReps?: number | null;
+  targetWeightKg?: number | string | null;
+  targetDurationSeconds?: number | null;
+  targetDistanceKm?: number | string | null;
+  restSeconds?: number | null;
+}
+
+interface BackendWorkoutPlan {
+  planId?: string | null;
+  name?: string | null;
+  description?: string | null;
+  goalFocus?: string | null;
+  workoutType?: string | null;
+  difficulty?: string | null;
+  estimatedDurationMinutes?: number | null;
+  status?: string | null;
+  exerciseCount?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  exercises?: BackendWorkoutPlanExercise[] | null;
 }
 
 interface BackendFoodCategory {
@@ -300,10 +342,15 @@ export class FitSyncDataService {
     );
   }
 
-  getWorkoutPlans(): Observable<WorkoutPlan[]> {
-    return this.http.get<PageResponse<Partial<WorkoutPlan>>>(`${this.apiBaseUrl}/workouts/plans?status=ACTIVE`).pipe(
-      map((response) => response.content.map((plan) => this.mapWorkoutPlan(plan))),
-      catchError(() => this.getFallbackWorkoutPlans())
+  getWorkoutPlans(status: WorkoutPlanStatus | null = 'ACTIVE'): Observable<WorkoutPlan[]> {
+    let params = new HttpParams().set('size', '20');
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<PageResponse<BackendWorkoutPlan>>(`${this.apiBaseUrl}/workouts/plans`, { params }).pipe(
+      map((response) => (response.content ?? []).map((plan) => this.mapWorkoutPlan(plan))),
+      catchError(() => (status === 'ACTIVE' ? this.getFallbackWorkoutPlans() : of([] as WorkoutPlan[])))
     );
   }
 
@@ -311,23 +358,65 @@ export class FitSyncDataService {
     return of([
       {
         name: 'Four Day Strength Base',
+        planId: null,
+        description: '',
         goalFocus: 'STRENGTH',
         workoutType: 'STRENGTH',
         difficulty: 'INTERMEDIATE',
         estimatedDurationMinutes: 50,
         status: 'ACTIVE',
-        exerciseCount: 7
+        exerciseCount: 7,
+        exercises: []
       },
       {
         name: 'Low Impact Conditioning',
+        planId: null,
+        description: '',
         goalFocus: 'ENDURANCE',
         workoutType: 'CARDIO',
         difficulty: 'BEGINNER',
         estimatedDurationMinutes: 32,
         status: 'DRAFT',
-        exerciseCount: 5
+        exerciseCount: 5,
+        exercises: []
       }
     ]).pipe(delay(220));
+  }
+
+  createWorkoutPlan(request: WorkoutPlanRequest): Observable<WorkoutPlan> {
+    return this.http
+      .post<BackendWorkoutPlan>(`${this.apiBaseUrl}/workouts/plans`, request)
+      .pipe(map((plan) => this.mapWorkoutPlan(plan)));
+  }
+
+  updateWorkoutPlan(planId: string, request: WorkoutPlanRequest): Observable<WorkoutPlan> {
+    return this.http
+      .put<BackendWorkoutPlan>(`${this.apiBaseUrl}/workouts/plans/${planId}`, request)
+      .pipe(map((plan) => this.mapWorkoutPlan(plan)));
+  }
+
+  activateWorkoutPlan(planId: string): Observable<WorkoutPlan> {
+    return this.http
+      .post<BackendWorkoutPlan>(`${this.apiBaseUrl}/workouts/plans/${planId}/activate`, {})
+      .pipe(map((plan) => this.mapWorkoutPlan(plan)));
+  }
+
+  archiveWorkoutPlan(planId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/workouts/plans/${planId}`);
+  }
+
+  startWorkoutPlan(planId: string): Observable<WorkoutSession> {
+    return this.http
+      .post<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/plans/${planId}/start`, {})
+      .pipe(
+        map((session) => {
+          const mapped = this.mapWorkoutSession(session);
+          if (!mapped) {
+            throw new Error('Workout plan started but the session response was empty.');
+          }
+          return mapped;
+        })
+      );
   }
 
   getWorkoutSessions(limit = 20): Observable<WorkoutSession[]> {
@@ -356,7 +445,7 @@ export class FitSyncDataService {
 
   getActivePlan(): Observable<WorkoutPlan | null> {
     return this.http
-      .get<Partial<WorkoutPlan>>(`${this.apiBaseUrl}/workouts/plans/active`)
+      .get<BackendWorkoutPlan>(`${this.apiBaseUrl}/workouts/plans/active`)
       .pipe(
         map((plan) => (plan && plan.name ? this.mapWorkoutPlan(plan) : null)),
         catchError(() => of(null))
@@ -771,9 +860,12 @@ export class FitSyncDataService {
     }
 
     return {
+      sessionId: session.sessionId ?? null,
+      planId: session.planId ?? null,
       name: session.name,
       workoutType: session.workoutType ?? 'CUSTOM',
       status: session.status ?? 'COMPLETED',
+      source: session.source ?? null,
       startedAt: session.startedAt ?? '',
       durationMinutes: session.durationMinutes ?? 0,
       caloriesBurned: session.caloriesBurned ?? 0,
@@ -889,15 +981,46 @@ export class FitSyncDataService {
     return typeof value === 'string' && value.trim() ? value : null;
   }
 
-  private mapWorkoutPlan(plan: Partial<WorkoutPlan>): WorkoutPlan {
+  private mapWorkoutPlan(plan: BackendWorkoutPlan): WorkoutPlan {
+    const exercises = (plan.exercises ?? []).map((exercise) => this.mapWorkoutPlanExercise(exercise));
     return {
+      planId: plan.planId ?? null,
       name: plan.name ?? 'Workout plan',
+      description: plan.description ?? '',
       goalFocus: plan.goalFocus ?? 'GENERAL_FITNESS',
       workoutType: plan.workoutType ?? 'CUSTOM',
       difficulty: plan.difficulty ?? 'BEGINNER',
       estimatedDurationMinutes: plan.estimatedDurationMinutes ?? 0,
       status: plan.status ?? 'ACTIVE',
-      exerciseCount: plan.exerciseCount ?? 0
+      exerciseCount: plan.exerciseCount ?? exercises.length,
+      exercises,
+      createdAt: plan.createdAt ?? null,
+      updatedAt: plan.updatedAt ?? null
+    };
+  }
+
+  private mapWorkoutPlanExercise(exercise: BackendWorkoutPlanExercise) {
+    return {
+      planExerciseId: exercise.planExerciseId ?? null,
+      exerciseId: exercise.exerciseId ?? null,
+      exerciseNameSnapshot: exercise.exerciseNameSnapshot ?? 'Exercise',
+      sequence: exercise.sequence ?? 1,
+      targetSets: exercise.targetSets ?? null,
+      targetReps: exercise.targetReps ?? null,
+      targetWeightKg: this.numericValue(exercise.targetWeightKg),
+      targetDurationSeconds: exercise.targetDurationSeconds ?? null,
+      targetDistanceKm: this.numericValue(exercise.targetDistanceKm),
+      restSeconds: exercise.restSeconds ?? null,
+      notes: exercise.notes ?? '',
+      setTargets: (exercise.setTargets ?? []).map((target) => ({
+        setTargetId: target.setTargetId ?? null,
+        setNumber: target.setNumber ?? 1,
+        targetReps: target.targetReps ?? null,
+        targetWeightKg: this.numericValue(target.targetWeightKg),
+        targetDurationSeconds: target.targetDurationSeconds ?? null,
+        targetDistanceKm: this.numericValue(target.targetDistanceKm),
+        restSeconds: target.restSeconds ?? null
+      }))
     };
   }
 

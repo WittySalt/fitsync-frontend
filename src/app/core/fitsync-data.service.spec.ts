@@ -472,6 +472,116 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].exerciseId).toBe('e1');
   });
 
+  it('lists workout plans with a status filter and maps exercise blueprints', () => {
+    let result: WorkoutPlan[] | undefined;
+    service.getWorkoutPlans('DRAFT').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/plans' &&
+        req.params.get('status') === 'DRAFT' &&
+        req.params.get('size') === '20'
+    );
+    request.flush({
+      content: [
+        {
+          planId: 'plan-1',
+          name: 'Strength base',
+          description: 'Foundation plan',
+          goalFocus: 'STRENGTH',
+          workoutType: 'STRENGTH',
+          difficulty: 'INTERMEDIATE',
+          estimatedDurationMinutes: 50,
+          status: 'DRAFT',
+          exercises: [
+            {
+              planExerciseId: 'plan-ex-1',
+              exerciseId: 'exercise-1',
+              exerciseNameSnapshot: 'Back squat',
+              sequence: 1,
+              targetSets: 3,
+              targetReps: 8,
+              targetWeightKg: '60.5',
+              restSeconds: 120,
+              setTargets: []
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(result?.[0].planId).toBe('plan-1');
+    expect(result?.[0].exerciseCount).toBe(1);
+    expect(result?.[0].exercises[0].targetWeightKg).toBe(60.5);
+  });
+
+  it('creates and updates workout plans through the plan endpoints', () => {
+    const payload = {
+      name: 'Plan',
+      description: '',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'BEGINNER',
+      estimatedDurationMinutes: 45,
+      exercises: [
+        {
+          exerciseId: 'exercise-1',
+          sequence: 1,
+          targetSets: 3,
+          targetReps: 8,
+          targetWeightKg: null,
+          targetDurationSeconds: null,
+          targetDistanceKm: null,
+          restSeconds: 90,
+          notes: '',
+          setTargets: []
+        }
+      ]
+    };
+
+    service.createWorkoutPlan(payload).subscribe();
+    const createRequest = httpTesting.expectOne('/api/v1/workouts/plans');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body).toEqual(payload);
+    createRequest.flush({ planId: 'plan-1', name: 'Plan', exercises: [] });
+
+    service.updateWorkoutPlan('plan-1', payload).subscribe();
+    const updateRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual(payload);
+    updateRequest.flush({ planId: 'plan-1', name: 'Plan', exercises: [] });
+  });
+
+  it('activates, archives, and starts a workout plan', () => {
+    let started: WorkoutSession | undefined;
+
+    service.activateWorkoutPlan('plan-1').subscribe();
+    const activateRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1/activate');
+    expect(activateRequest.request.method).toBe('POST');
+    activateRequest.flush({ planId: 'plan-1', name: 'Plan', status: 'ACTIVE', exercises: [] });
+
+    service.archiveWorkoutPlan('plan-1').subscribe();
+    const archiveRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1');
+    expect(archiveRequest.request.method).toBe('DELETE');
+    archiveRequest.flush(null);
+
+    service.startWorkoutPlan('plan-1').subscribe((session) => (started = session));
+    const startRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1/start');
+    expect(startRequest.request.method).toBe('POST');
+    startRequest.flush({
+      sessionId: 'session-1',
+      planId: 'plan-1',
+      name: 'Plan',
+      workoutType: 'STRENGTH',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-06-20T02:00:00Z',
+      exerciseCount: 1
+    });
+
+    expect(started?.sessionId).toBe('session-1');
+    expect(started?.status).toBe('IN_PROGRESS');
+  });
+
   it('returns a null active plan when none is set', () => {
     let result: WorkoutPlan | null | undefined = undefined;
     service.getActivePlan().subscribe((value) => (result = value));
