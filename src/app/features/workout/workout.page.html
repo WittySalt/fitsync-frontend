@@ -86,6 +86,14 @@
         }
       </article>
 
+      <app-live-logger
+        [plans]="plans()"
+        [activePlan]="activePlan()"
+        [exercises]="exercises()"
+        (completed)="handleLiveWorkoutFinished()"
+        (cancelled)="handleLiveWorkoutCancelled()"
+      />
+
       <div class="workout-layout">
       <article class="summary-card">
         <div class="section-title">

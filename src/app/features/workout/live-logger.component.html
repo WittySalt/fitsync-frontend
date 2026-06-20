@@ -1,0 +1,159 @@
+<article class="live-logger summary-card" aria-label="Live workout logger">
+  <div class="section-title">
+    <div>
+      <span class="card-label">Live workout</span>
+      <h2>Log as you train</h2>
+    </div>
+    @if (session(); as current) {
+      <span class="status-pill">{{ formatLabel(current.status) }}</span>
+    }
+  </div>
+
+  @if (!session()) {
+    <div class="logger-start">
+      <form class="start-panel" [formGroup]="planForm" (ngSubmit)="startSelectedPlan()">
+        <h3>Start from a plan</h3>
+        @if (planOptions().length) {
+          <label>
+            Plan
+            <select formControlName="planId">
+              <option value="">Use active plan</option>
+              @for (plan of planOptions(); track plan.planId) {
+                <option [value]="plan.planId">{{ plan.name }}</option>
+              }
+            </select>
+          </label>
+          <button class="button primary" type="submit" [disabled]="busy()">
+            {{ busy() ? 'Starting...' : 'Start plan workout' }}
+          </button>
+        } @else {
+          <app-state-panel title="No plan ready" message="Create or activate a plan, or start a one-off workout." />
+        }
+      </form>
+
+      <form class="start-panel" [formGroup]="adHocForm" (ngSubmit)="startAdHoc()">
+        <h3>Start without a plan</h3>
+        <label>
+          Workout name
+          <input formControlName="name" maxlength="120" placeholder="Upper body strength" autocomplete="off" />
+        </label>
+        <label>
+          Type
+          <select formControlName="workoutType">
+            <option value="STRENGTH">Strength</option>
+            <option value="CARDIO">Cardio</option>
+            <option value="HIIT">HIIT</option>
+            <option value="MOBILITY">Mobility</option>
+            <option value="CUSTOM">Custom</option>
+          </select>
+        </label>
+        <button class="button workout" type="submit" [disabled]="busy()">
+          {{ busy() ? 'Starting...' : 'Start ad hoc workout' }}
+        </button>
+      </form>
+    </div>
+  } @else {
+    @let current = session();
+    <div class="live-session">
+      @if (!canWrite()) {
+        <app-state-panel title="Session closed" message="This workout is terminal, so live edits are disabled." />
+      }
+
+      <div class="session-summary">
+        <div>
+          <span>Workout</span>
+          <strong>{{ current?.name }}</strong>
+        </div>
+        <div>
+          <span>Exercises</span>
+          <strong>{{ current?.exerciseCount }}</strong>
+        </div>
+        <div>
+          <span>Duration</span>
+          <strong>{{ current?.durationMinutes }} min</strong>
+        </div>
+      </div>
+
+      <form class="add-exercise" [formGroup]="exerciseForm" (ngSubmit)="addExercise()">
+        <label>
+          Add exercise
+          <select formControlName="exerciseId">
+            <option value="">Choose exercise</option>
+            @for (exercise of exercises; track exercise.exerciseId ?? exercise.name) {
+              @if (exercise.exerciseId) {
+                <option [value]="exercise.exerciseId">{{ exercise.name }}</option>
+              }
+            }
+          </select>
+        </label>
+        <button class="button secondary" type="submit" [disabled]="!canWrite() || addingExercise() || !exercises.length">
+          {{ addingExercise() ? 'Adding...' : 'Add exercise' }}
+        </button>
+      </form>
+
+      @if (current?.exercises?.length) {
+        <div class="exercise-log-list">
+          @for (log of current?.exercises ?? []; track log.exerciseLogId) {
+            <section class="exercise-log">
+              <div class="exercise-log-header">
+                <div>
+                  <span class="card-label">#{{ log.sequence }}</span>
+                  <h3>{{ log.exerciseNameSnapshot }}</h3>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Sets</dt>
+                    <dd>{{ formatNumber(log.performedSets) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Reps</dt>
+                    <dd>{{ formatNumber(log.performedReps) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Volume</dt>
+                    <dd>{{ formatNumber(log.totalVolumeKg, ' kg') }}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              @if (log.sets.length) {
+                <div class="set-list">
+                  @for (set of log.sets; track set.setLogId || set.setNumber) {
+                    <form class="set-row" [formGroup]="setForm(log, set)" (ngSubmit)="saveSet(log, set)">
+                      <span class="set-state" [class.logged]="set.logged">
+                        {{ set.logged ? 'Recorded' : 'Pending' }} · Set {{ set.setNumber }}
+                      </span>
+                      <input aria-label="Reps" formControlName="reps" type="number" min="0" placeholder="Reps" />
+                      <input aria-label="Weight kg" formControlName="weightKg" type="number" min="0" step="0.5" placeholder="kg" />
+                      <input aria-label="Rest seconds" formControlName="restSeconds" type="number" min="0" placeholder="Rest" />
+                      <input aria-label="RPE" formControlName="perceivedExertion" type="number" min="1" max="10" placeholder="RPE" />
+                      <input aria-label="Set notes" formControlName="notes" maxlength="300" placeholder="Notes" />
+                      <button class="button secondary" type="submit" [disabled]="!canWrite() || savingSet() !== null">Save</button>
+                    </form>
+                  }
+                </div>
+              }
+
+              <form class="set-row new-set" [formGroup]="setForm(log)" (ngSubmit)="saveSet(log)">
+                <span class="set-state">New set {{ nextSetNumber(log) }}</span>
+                <input aria-label="New set reps" formControlName="reps" type="number" min="0" placeholder="Reps" />
+                <input aria-label="New set weight kg" formControlName="weightKg" type="number" min="0" step="0.5" placeholder="kg" />
+                <input aria-label="New set rest seconds" formControlName="restSeconds" type="number" min="0" placeholder="Rest" />
+                <input aria-label="New set RPE" formControlName="perceivedExertion" type="number" min="1" max="10" placeholder="RPE" />
+                <input aria-label="New set notes" formControlName="notes" maxlength="300" placeholder="Notes" />
+                <button class="button primary" type="submit" [disabled]="!canWrite() || savingSet() !== null">Save set</button>
+              </form>
+            </section>
+          }
+        </div>
+      } @else {
+        <app-state-panel title="No exercises added" message="Add the first exercise to begin save-as-you-go logging." />
+      }
+
+      <div class="logger-actions">
+        <button class="button primary" type="button" [disabled]="!canWrite() || busy()" (click)="completeSession()">Complete</button>
+        <button class="button secondary" type="button" [disabled]="!canWrite() || busy()" (click)="cancelSession()">Cancel</button>
+      </div>
+    </div>
+  }
+</article>

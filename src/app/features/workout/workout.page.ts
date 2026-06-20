@@ -17,6 +17,7 @@ import {
 import { ToastService } from '../../core/toast/toast.service';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { LiveLoggerComponent } from './live-logger.component';
 
 interface TrainingMetric {
   label: string;
@@ -38,7 +39,7 @@ interface HistoryTrend {
 
 @Component({
   selector: 'app-workout-page',
-  imports: [ReactiveFormsModule, FsChartComponent, StatePanelComponent],
+  imports: [ReactiveFormsModule, FsChartComponent, StatePanelComponent, LiveLoggerComponent],
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
@@ -342,6 +343,16 @@ export class WorkoutPage implements OnInit {
 
   isPlanMutating(plan: WorkoutPlan): boolean {
     return Boolean(plan.planId && this.planMutations().has(plan.planId));
+  }
+
+  handleLiveWorkoutFinished(): void {
+    this.loadSessions();
+    this.loadActivePlan();
+    this.selectedTab.set('history');
+  }
+
+  handleLiveWorkoutCancelled(): void {
+    this.loadSessions();
   }
 
   isExerciseSelectable(exercise: Exercise): boolean {

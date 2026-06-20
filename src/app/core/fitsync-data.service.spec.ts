@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
+import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -628,7 +628,7 @@ describe('FitSyncDataService', () => {
   });
 
   it('activates, archives, and starts a workout plan', () => {
-    let started: WorkoutSession | undefined;
+    let started: WorkoutSessionDetail | undefined;
 
     service.activateWorkoutPlan('plan-1').subscribe();
     const activateRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1/activate');
@@ -650,11 +650,154 @@ describe('FitSyncDataService', () => {
       workoutType: 'STRENGTH',
       status: 'IN_PROGRESS',
       startedAt: '2026-06-20T02:00:00Z',
-      exerciseCount: 1
+      exerciseCount: 1,
+      exercises: []
     });
 
     expect(started?.sessionId).toBe('session-1');
     expect(started?.status).toBe('IN_PROGRESS');
+  });
+
+  it('starts an ad hoc in-progress session without completedAt', () => {
+    let started: WorkoutSessionDetail | undefined;
+    service.startAdHocSession({ name: 'Live upper', workoutType: 'STRENGTH', notes: 'Warm up well' }).subscribe((session) => {
+      started = session;
+    });
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.name).toBe('Live upper');
+    expect(request.request.body.status).toBe('IN_PROGRESS');
+    expect(request.request.body.completedAt).toBeUndefined();
+    expect(request.request.body.exercises).toEqual([]);
+    request.flush({
+      sessionId: 'session-live',
+      name: 'Live upper',
+      workoutType: 'STRENGTH',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-06-20T02:00:00Z',
+      exercises: []
+    });
+
+    expect(started?.sessionId).toBe('session-live');
+    expect(started?.exercises).toEqual([]);
+  });
+
+  it('adds an exercise to a live session and maps server-derived totals', () => {
+    let updated: WorkoutSessionDetail | undefined;
+    service
+      .addSessionExercise('session-live', {
+        exerciseId: 'exercise-1',
+        sequence: 1,
+        performedSets: null,
+        performedReps: null,
+        totalVolumeKg: null,
+        distanceKm: null,
+        durationSeconds: null,
+        averageHeartRate: null,
+        maxHeartRate: null,
+        notes: null,
+        sets: []
+      })
+      .subscribe((session) => (updated = session));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions/session-live/exercises');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.exerciseId).toBe('exercise-1');
+    expect(request.request.body.sequence).toBe(1);
+    request.flush({
+      sessionId: 'session-live',
+      name: 'Live upper',
+      workoutType: 'STRENGTH',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-06-20T02:00:00Z',
+      exercises: [
+        {
+          exerciseLogId: 'log-1',
+          exerciseId: 'exercise-1',
+          exerciseNameSnapshot: 'Back squat',
+          sequence: 1,
+          performedSets: 2,
+          performedReps: 15,
+          totalVolumeKg: '900',
+          sets: []
+        }
+      ]
+    });
+
+    expect(updated?.exercises[0].performedSets).toBe(2);
+    expect(updated?.exercises[0].totalVolumeKg).toBe(900);
+  });
+
+  it('upserts a live session set through the set-number path', () => {
+    service
+      .upsertSessionSet('session-live', 'log-1', 3, {
+        reps: 8,
+        weightKg: 55,
+        durationSeconds: null,
+        distanceKm: null,
+        restSeconds: 120,
+        perceivedExertion: 7,
+        notes: 'Working set'
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions/session-live/exercises/log-1/sets/3');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({
+      reps: 8,
+      weightKg: 55,
+      durationSeconds: null,
+      distanceKm: null,
+      restSeconds: 120,
+      perceivedExertion: 7,
+      notes: 'Working set'
+    });
+    request.flush({
+      sessionId: 'session-live',
+      name: 'Live upper',
+      workoutType: 'STRENGTH',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-06-20T02:00:00Z',
+      exercises: [
+        {
+          exerciseLogId: 'log-1',
+          exerciseId: 'exercise-1',
+          exerciseNameSnapshot: 'Back squat',
+          sequence: 1,
+          sets: [{ setLogId: 'set-3', setNumber: 3, reps: 8, weightKg: '55', logged: true }]
+        }
+      ]
+    });
+  });
+
+  it('completes and cancels live sessions through action endpoints', () => {
+    service.completeSession('session-live', '2026-06-20T03:00:00Z').subscribe();
+    const completeRequest = httpTesting.expectOne('/api/v1/workouts/sessions/session-live/complete');
+    expect(completeRequest.request.method).toBe('POST');
+    expect(completeRequest.request.body.completedAt).toBe('2026-06-20T03:00:00Z');
+    completeRequest.flush({
+      sessionId: 'session-live',
+      name: 'Live upper',
+      workoutType: 'STRENGTH',
+      status: 'COMPLETED',
+      startedAt: '2026-06-20T02:00:00Z',
+      completedAt: '2026-06-20T03:00:00Z',
+      exercises: []
+    });
+
+    service.cancelSession('session-live').subscribe();
+    const cancelRequest = httpTesting.expectOne('/api/v1/workouts/sessions/session-live/cancel');
+    expect(cancelRequest.request.method).toBe('POST');
+    expect(cancelRequest.request.body).toEqual({});
+    cancelRequest.flush({
+      sessionId: 'session-live',
+      name: 'Live upper',
+      workoutType: 'STRENGTH',
+      status: 'CANCELLED',
+      startedAt: '2026-06-20T02:00:00Z',
+      exercises: []
+    });
   });
 
   it('returns a null active plan when none is set', () => {
