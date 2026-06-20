@@ -4,8 +4,9 @@ const TOKEN_STORAGE_KEY = 'fitsync.accessToken';
 
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
   const token = typeof localStorage === 'undefined' ? null : localStorage.getItem(TOKEN_STORAGE_KEY);
+  const isCognitoIdpRequest = request.url.startsWith('https://cognito-idp.');
 
-  if (!token || request.headers.has('Authorization')) {
+  if (isCognitoIdpRequest || !token || request.headers.has('Authorization')) {
     return next(request);
   }
 

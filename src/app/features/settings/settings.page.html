@@ -324,6 +324,7 @@
             <div class="field-row readonly"><span>Password</span><strong>{{ account.security.passwordManagedExternally ? 'Managed by Cognito' : 'Managed by FitSync' }}</strong><em>Cognito protected</em></div>
             <div class="field-row readonly"><span>Two-step verification</span><strong>{{ account.security.twoFactorEnabled ? 'On' : (account.security.twoFactorConfigurable ? 'Ready to configure' : 'Coming soon') }}</strong><em>{{ account.security.twoFactorEnabled ? 'On' : 'Off' }}</em></div>
           </article>
+          <app-account-security-actions />
           <article class="sub-card">
             <div class="sub-card-header"><h3>Recovery email</h3>@if (account.security.recoveryEmailUpdatable) { <button class="button secondary compact" type="button" (click)="startEdit('recovery')">Edit</button> }</div>
             @if (sectionErrors().recovery; as message) { <p class="section-error">{{ message }}</p> }

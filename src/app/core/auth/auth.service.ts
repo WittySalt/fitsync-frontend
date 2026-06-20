@@ -130,6 +130,32 @@ export class AuthService {
     );
   }
 
+  changePassword(previousPassword: string, proposedPassword: string): Observable<void> {
+    return this.cognitoPostWithAccessToken('ChangePassword', {
+      PreviousPassword: previousPassword,
+      ProposedPassword: proposedPassword
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  signOutEverywhere(): Observable<void> {
+    return this.cognitoPostWithAccessToken('GlobalSignOut', {}).pipe(
+      tap(() => this.logout()),
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  deleteAccount(): Observable<void> {
+    return this.cognitoPostWithAccessToken('DeleteUser', {}).pipe(
+      tap(() => this.logout()),
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
   completeCallback(_code: string, _returnedState: string): Observable<void> {
     return throwError(() => new Error('Hosted UI callback is no longer used. Please sign in from the FitSync login page.'));
   }
@@ -149,6 +175,18 @@ export class AuthService {
         'Content-Type': 'application/x-amz-json-1.1',
         'X-Amz-Target': `AWSCognitoIdentityProviderService.${operation}`
       })
+    });
+  }
+
+  private cognitoPostWithAccessToken<T>(operation: string, payload: object): Observable<T> {
+    const accessToken = localStorage.getItem(AUTH_STORAGE_KEYS.cognitoAccessToken);
+    if (!accessToken) {
+      return throwError(() => new Error('Cognito session has expired. Please sign in again.'));
+    }
+
+    return this.cognitoPost<T>(operation, {
+      AccessToken: accessToken,
+      ...payload
     });
   }
 

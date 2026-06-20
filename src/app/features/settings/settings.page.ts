@@ -20,6 +20,7 @@ import {
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
+import { AccountSecurityActionsComponent } from './account-security-actions.component';
 
 type EditablePanel =
   | 'identity'
@@ -48,7 +49,7 @@ interface SectionNavItem {
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AccountSecurityActionsComponent],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss'
 })

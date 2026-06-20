@@ -153,6 +153,64 @@ describe('AuthService', () => {
     request.flush({});
   });
 
+  it('changes password through Cognito with the stored access token', (done) => {
+    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, 'local-fitsync-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoAccessToken, 'cognito-access-token');
+
+    service.changePassword('old-password', 'NewPassword1').subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.headers.get('X-Amz-Target')).toBe('AWSCognitoIdentityProviderService.ChangePassword');
+    expect(request.request.headers.has('Authorization')).toBeFalse();
+    expect(request.request.body).toEqual({
+      AccessToken: 'cognito-access-token',
+      PreviousPassword: 'old-password',
+      ProposedPassword: 'NewPassword1'
+    });
+    request.flush({});
+  });
+
+  it('signs out everywhere through Cognito and clears stored tokens', (done) => {
+    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, 'local-fitsync-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoAccessToken, 'cognito-access-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoIdToken, 'cognito-id-token');
+    spyOn(service, 'logout').and.callFake(() => service.completeLogout());
+
+    service.signOutEverywhere().subscribe({
+      next: () => {
+        expect(service.logout).toHaveBeenCalled();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.cognitoAccessToken)).toBeNull();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.cognitoIdToken)).toBeNull();
+        done();
+      },
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.headers.get('X-Amz-Target')).toBe('AWSCognitoIdentityProviderService.GlobalSignOut');
+    expect(request.request.body).toEqual({ AccessToken: 'cognito-access-token' });
+    request.flush({});
+  });
+
+  it('deletes the Cognito user with the stored access token', (done) => {
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoAccessToken, 'cognito-access-token');
+    spyOn(service, 'logout').and.callFake(() => service.completeLogout());
+
+    service.deleteAccount().subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.headers.get('X-Amz-Target')).toBe('AWSCognitoIdentityProviderService.DeleteUser');
+    expect(request.request.body).toEqual({ AccessToken: 'cognito-access-token' });
+    request.flush({});
+  });
+
   function jwtWithExpiry(exp: number): string {
     return ['header', base64Url(JSON.stringify({ exp })), 'signature'].join('.');
   }
