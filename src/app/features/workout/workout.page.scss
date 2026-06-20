@@ -235,6 +235,75 @@
     gap: 16px;
   }
 
+  .plans-panel,
+  .plan-form,
+  .plan-blueprint {
+    display: grid;
+    gap: 16px;
+  }
+
+  .plan-toolbar {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .form-grid,
+  .exercise-row {
+    display: grid;
+    gap: 12px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .exercise-row {
+    grid-template-columns: minmax(190px, 1.2fr) repeat(4, minmax(86px, 0.5fr)) minmax(160px, 1fr) auto;
+    align-items: end;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+  }
+
+  .form-grid label,
+  .exercise-row label {
+    display: grid;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+
+  .form-grid .wide,
+  .exercise-row .wide {
+    grid-column: span 2;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    padding: 9px 11px;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  .plan-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
   .plan-card,
   .exercise-card {
     padding: 18px;
@@ -320,7 +389,9 @@
 
     .set-grid,
     .set-row,
-    .history-row {
+    .history-row,
+    .form-grid,
+    .exercise-row {
       grid-template-columns: 1fr;
     }
 
@@ -331,6 +402,11 @@
 
     .workout-tabs {
       width: 100%;
+    }
+
+    .form-grid .wide,
+    .exercise-row .wide {
+      grid-column: auto;
     }
   }
 }

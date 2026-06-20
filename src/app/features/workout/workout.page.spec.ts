@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
-import { WorkoutSession } from '../../core/fitsync.models';
+import { Exercise, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
 
 function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   return {
@@ -20,6 +20,35 @@ function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   };
 }
 
+function exercise(overrides: Partial<Exercise> = {}): Exercise {
+  return {
+    exerciseId: 'exercise-1',
+    name: 'Back squat',
+    exerciseType: 'STRENGTH',
+    primaryMuscleGroup: 'QUADS',
+    equipment: 'BARBELL',
+    difficulty: 'INTERMEDIATE',
+    custom: false,
+    ...overrides
+  };
+}
+
+function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
+  return {
+    planId: 'plan-1',
+    name: 'Strength base',
+    description: '',
+    goalFocus: 'STRENGTH',
+    workoutType: 'STRENGTH',
+    difficulty: 'INTERMEDIATE',
+    estimatedDurationMinutes: 45,
+    status: 'DRAFT',
+    exerciseCount: 1,
+    exercises: [],
+    ...overrides
+  };
+}
+
 describe('WorkoutPage', () => {
   let component: WorkoutPage;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -29,12 +58,22 @@ describe('WorkoutPage', () => {
       'getWorkoutPlans',
       'getWorkoutSessions',
       'getExercises',
-      'getActivePlan'
+      'getActivePlan',
+      'createWorkoutPlan',
+      'updateWorkoutPlan',
+      'activateWorkoutPlan',
+      'archiveWorkoutPlan',
+      'startWorkoutPlan'
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessions.and.returnValue(of([]));
     dataService.getExercises.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
+    dataService.createWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
+    dataService.updateWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
+    dataService.activateWorkoutPlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
+    dataService.archiveWorkoutPlan.and.returnValue(of(void 0));
+    dataService.startWorkoutPlan.and.returnValue(of(session({ sessionId: 'session-1', status: 'IN_PROGRESS' })));
 
     await TestBed.configureTestingModule({
       imports: [WorkoutPage],
@@ -85,5 +124,56 @@ describe('WorkoutPage', () => {
     expect(compiled.querySelector('#workout-tab-plans')?.getAttribute('aria-selected')).toBe('true');
     expect(plansPanel?.getAttribute('role')).toBe('tabpanel');
     expect(plansPanel?.getAttribute('aria-labelledby')).toBe('workout-tab-plans');
+  });
+
+  it('submits a workout plan with a real exercise blueprint', () => {
+    component.exercises.set([exercise()]);
+    component.planForm.patchValue({
+      name: 'Strength base',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'INTERMEDIATE',
+      estimatedDurationMinutes: 50
+    });
+    component.planExercises.at(0).patchValue({
+      exerciseId: 'exercise-1',
+      targetSets: 3,
+      targetReps: 8,
+      targetWeightKg: 60,
+      restSeconds: 120,
+      notes: 'Controlled'
+    });
+
+    component.savePlan();
+
+    expect(dataService.createWorkoutPlan).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        name: 'Strength base',
+        goalFocus: 'STRENGTH',
+        exercises: [
+          jasmine.objectContaining({
+            exerciseId: 'exercise-1',
+            sequence: 1,
+            targetSets: 3,
+            targetReps: 8,
+            targetWeightKg: 60,
+            restSeconds: 120,
+            setTargets: []
+          })
+        ]
+      })
+    );
+  });
+
+  it('starts a plan and moves the user to training history', () => {
+    const started = session({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
+    dataService.startWorkoutPlan.and.returnValue(of(started));
+    dataService.getWorkoutSessions.and.returnValue(of([started]));
+
+    component.startPlan(plan({ status: 'ACTIVE' }));
+
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1');
+    expect(component.sessions()[0].sessionId).toBe('session-1');
+    expect(component.selectedTab()).toBe('history');
   });
 });

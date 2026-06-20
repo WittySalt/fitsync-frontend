@@ -1,9 +1,9 @@
-<div class="page-grid workout-page">
+﻿<div class="page-grid workout-page">
   <header class="page-header workout-header">
     <div>
       <p class="eyebrow">Workout</p>
       <h1>Train with intent</h1>
-      <p>Review your plans, training history, and the exercise library — all from your FitSync data.</p>
+      <p>Review your plans, training history, and the exercise library - all from your FitSync data.</p>
     </div>
   </header>
 
@@ -40,7 +40,7 @@
         </div>
         @if (activePlan(); as plan) {
           <h3>{{ plan.name }}</h3>
-          <p>{{ formatLabel(plan.goalFocus) }} · {{ formatLabel(plan.workoutType) }} · {{ formatLabel(plan.difficulty) }}</p>
+          <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>
           <dl class="inline-stats">
             <div>
               <dt>Duration</dt>
@@ -65,7 +65,7 @@
         </div>
         @if (latestSession(); as session) {
           <h3>{{ session.name }}</h3>
-          <p>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</p>
+          <p>{{ formatLabel(session.workoutType) }} - {{ formatDate(session.completedAt || session.startedAt) }}</p>
           <dl class="inline-stats">
             <div>
               <dt>Duration</dt>
@@ -86,40 +86,163 @@
       </article>
     </section>
   } @else if (selectedTab() === 'plans') {
-    @if (loading()) {
-      <div id="workout-panel-plans" class="summary-card skeleton tall" role="tabpanel" aria-labelledby="workout-tab-plans"></div>
-    } @else if (plans().length) {
-      <section id="workout-panel-plans" class="plan-grid" role="tabpanel" aria-labelledby="workout-tab-plans">
-        @for (plan of plans(); track plan.name) {
-          <article class="plan-card">
-            <div class="plan-card-header">
-              <span class="card-label">{{ formatLabel(plan.status) }}</span>
-              <span>{{ plan.exerciseCount }} exercises</span>
+    <section id="workout-panel-plans" class="plans-panel" role="tabpanel" aria-labelledby="workout-tab-plans">
+      <form class="summary-card plan-form" [formGroup]="planForm" (ngSubmit)="savePlan()">
+        <div class="section-title">
+          <div>
+            <span class="card-label">{{ editingPlanId() ? 'Edit plan' : 'New plan' }}</span>
+            <h2>{{ editingPlanId() ? 'Update workout plan' : 'Create workout plan' }}</h2>
+          </div>
+          @if (editingPlanId()) {
+            <button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button>
+          }
+        </div>
+
+        <div class="form-grid">
+          <label>
+            Name
+            <input formControlName="name" type="text" maxlength="120" autocomplete="off" />
+          </label>
+          <label>
+            Duration
+            <input formControlName="estimatedDurationMinutes" type="number" min="1" inputmode="numeric" />
+          </label>
+          <label>
+            Goal focus
+            <select formControlName="goalFocus">
+              @for (option of goalFocusOptions; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Workout type
+            <select formControlName="workoutType">
+              @for (option of workoutTypeOptions; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select formControlName="difficulty">
+              @for (option of difficultyOptions; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">
+            Description
+            <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
+          </label>
+        </div>
+
+        <div class="plan-blueprint" formArrayName="exercises">
+          <div class="plan-card-header">
+            <span class="card-label">Exercise blueprint</span>
+            <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
+          </div>
+          @if (!exercises().length) {
+            <app-state-panel title="Exercise catalog unavailable" message="Load the exercise library before saving a plan." />
+          }
+          @for (group of planExercises.controls; track $index) {
+            <div class="exercise-row" [formGroupName]="$index">
+              <label>
+                Exercise
+                <select formControlName="exerciseId">
+                  <option value="">Choose exercise</option>
+                  @for (exercise of exercises(); track exercise.exerciseId ?? exercise.name) {
+                    @if (exercise.exerciseId) {
+                      <option [value]="exercise.exerciseId">{{ exercise.name }}</option>
+                    }
+                  }
+                </select>
+              </label>
+              <label>
+                Sets
+                <input formControlName="targetSets" type="number" min="0" inputmode="numeric" />
+              </label>
+              <label>
+                Reps
+                <input formControlName="targetReps" type="number" min="0" inputmode="numeric" />
+              </label>
+              <label>
+                Weight kg
+                <input formControlName="targetWeightKg" type="number" min="0" step="0.5" inputmode="decimal" />
+              </label>
+              <label>
+                Rest sec
+                <input formControlName="restSeconds" type="number" min="0" inputmode="numeric" />
+              </label>
+              <label class="wide">
+                Notes
+                <input formControlName="notes" type="text" maxlength="300" autocomplete="off" />
+              </label>
+              <button class="button secondary" type="button" (click)="removePlanExercise($index)">Remove</button>
             </div>
-            <h2>{{ plan.name }}</h2>
-            <p>{{ formatLabel(plan.goalFocus) }} · {{ formatLabel(plan.workoutType) }} · {{ formatLabel(plan.difficulty) }}</p>
-            <dl class="inline-stats">
-              <div>
-                <dt>Duration</dt>
-                <dd>{{ plan.estimatedDurationMinutes }} min</dd>
+          }
+        </div>
+
+        <button class="button primary" type="submit" [disabled]="savingPlan() || !exercises().length">
+          {{ savingPlan() ? 'Saving...' : editingPlanId() ? 'Update plan' : 'Create plan' }}
+        </button>
+      </form>
+
+      <div class="plan-toolbar">
+        <div class="segmented" role="group" aria-label="Plan status filter">
+          @for (status of planStatusOptions; track status ?? 'ALL') {
+            <button
+              type="button"
+              [class.active]="planStatus() === status"
+              [attr.aria-pressed]="planStatus() === status"
+              (click)="selectPlanStatus(status)"
+            >
+              {{ status ? formatLabel(status) : 'All' }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (loading()) {
+        <div class="summary-card skeleton tall"></div>
+      } @else if (planError()) {
+        <app-state-panel title="Plans unavailable" [message]="planError() ?? 'Unable to load workout plans.'" />
+      } @else if (plans().length) {
+        <div class="plan-grid">
+          @for (plan of plans(); track plan.planId ?? plan.name) {
+            <article class="plan-card">
+              <div class="plan-card-header">
+                <span class="card-label">{{ formatLabel(plan.status) }}</span>
+                <span>{{ plan.exerciseCount }} exercises</span>
               </div>
-              <div>
-                <dt>Status</dt>
-                <dd>{{ formatLabel(plan.status) }}</dd>
+              <h2>{{ plan.name }}</h2>
+              <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>
+              <dl class="inline-stats">
+                <div>
+                  <dt>Duration</dt>
+                  <dd>{{ plan.estimatedDurationMinutes }} min</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{{ formatLabel(plan.status) }}</dd>
+                </div>
+              </dl>
+              <div class="plan-actions">
+                <button class="button secondary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="editPlan(plan)">Edit</button>
+                <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ACTIVE' || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
+                <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
+                <button class="button primary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
               </div>
-            </dl>
-          </article>
-        }
-      </section>
-    } @else {
-      <app-state-panel
-        id="workout-panel-plans"
-        role="tabpanel"
-        aria-labelledby="workout-tab-plans"
-        title="No plans yet"
-        message="Create a reusable plan to start a planned workout."
-      />
-    }
+            </article>
+          }
+        </div>
+      } @else {
+        <app-state-panel
+          title="No plans yet"
+          message="Create a reusable plan or switch the status filter to find archived plans."
+        />
+      }
+    </section>
   } @else if (selectedTab() === 'history') {
     <section id="workout-panel-history" class="summary-card" role="tabpanel" aria-labelledby="workout-tab-history">
       <div class="section-title">
@@ -134,7 +257,7 @@
             <article class="history-row">
               <div>
                 <strong>{{ session.name }}</strong>
-                <small>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</small>
+                <small>{{ formatLabel(session.workoutType) }} - {{ formatDate(session.completedAt || session.startedAt) }}</small>
               </div>
               <span>{{ session.durationMinutes }} min</span>
               <span>{{ formatLabel(session.status) }}</span>
@@ -159,7 +282,7 @@
             <article class="exercise-card">
               <strong>{{ exercise.name }}@if (exercise.custom) { <span class="verified-tag">Custom</span> }</strong>
               <span>{{ formatLabel(exercise.primaryMuscleGroup) || 'General' }}</span>
-              <small>{{ formatLabel(exercise.equipment) || 'No equipment' }} · {{ formatLabel(exercise.difficulty) }}</small>
+              <small>{{ formatLabel(exercise.equipment) || 'No equipment' }} - {{ formatLabel(exercise.difficulty) }}</small>
             </article>
           }
         </div>
