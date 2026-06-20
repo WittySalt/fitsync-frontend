@@ -24,6 +24,7 @@ import {
   OnboardingSeed,
   UserProfile,
   StartAdHocSessionInput,
+  UpsertWorkoutSessionRequest,
   WorkoutExerciseLogInput,
   WorkoutExerciseSetInput,
   WorkoutPlan,
@@ -581,6 +582,41 @@ export class FitSyncDataService {
         ),
         catchError(() => of([] as WorkoutSession[]))
       );
+  }
+
+  getSession(sessionId: string): Observable<WorkoutSessionDetail | null> {
+    if (!sessionId) {
+      return of(null);
+    }
+
+    return this.http
+      .get<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}`)
+      .pipe(
+        map((session) => this.mapWorkoutSessionDetail(session)),
+        catchError(() => of(null))
+      );
+  }
+
+  updateSession(sessionId: string, request: UpsertWorkoutSessionRequest): Observable<WorkoutSessionDetail> {
+    return this.http
+      .put<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}`, request)
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  deleteSession(sessionId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}`);
+  }
+
+  repeatSession(sessionId: string): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}/repeat`, {})
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  repeatLatestSession(): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/repeat-latest`, {})
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
   }
 
   getExercises(queryOrOptions: string | ExerciseSearchOptions = ''): Observable<Exercise[]> {

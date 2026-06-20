@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertWorkoutSessionRequest, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -635,6 +635,103 @@ describe('FitSyncDataService', () => {
         reps: 5
       })
     );
+  });
+
+  it('loads a workout session detail and maps nested exercises', () => {
+    let result: WorkoutSessionDetail | null | undefined;
+    service.getSession('session-1').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions/session-1');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      sessionId: 'session-1',
+      name: 'Push day',
+      workoutType: 'STRENGTH',
+      status: 'COMPLETED',
+      source: 'MANUAL',
+      startedAt: '2026-06-20T10:00:00Z',
+      completedAt: '2026-06-20T11:00:00Z',
+      durationMinutes: 60,
+      caloriesBurned: 420,
+      perceivedExertion: 8,
+      notes: 'Solid work',
+      exercises: [
+        {
+          exerciseLogId: 'log-1',
+          exerciseId: 'exercise-1',
+          exerciseNameSnapshot: 'Bench press',
+          sequence: 1,
+          performedSets: 1,
+          performedReps: 5,
+          totalVolumeKg: '500.5',
+          sets: [
+            {
+              setLogId: 'set-1',
+              setNumber: 1,
+              reps: 5,
+              weightKg: '100.1',
+              restSeconds: 180,
+              logged: true,
+              notes: 'Top set'
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(result?.sessionId).toBe('session-1');
+    expect(result?.exercises[0].totalVolumeKg).toBe(500.5);
+    expect(result?.exercises[0].sets[0].weightKg).toBe(100.1);
+  });
+
+  it('returns null when workout session detail fails', () => {
+    let result: unknown = 'pending';
+    service.getSession('session-1').subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/workouts/sessions/session-1').flush('nope', {
+      status: 500,
+      statusText: 'Server Error'
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('updates, deletes, and repeats workout sessions through session endpoints', () => {
+    const payload: UpsertWorkoutSessionRequest = {
+      planId: null,
+      name: 'Push day',
+      workoutType: 'STRENGTH',
+      status: 'COMPLETED',
+      source: 'MANUAL',
+      startedAt: '2026-06-20T10:00:00Z',
+      completedAt: '2026-06-20T11:00:00Z',
+      durationMinutes: 60,
+      caloriesBurned: 420,
+      perceivedExertion: 8,
+      notes: 'Updated',
+      exercises: []
+    };
+
+    service.updateSession('session-1', payload).subscribe();
+    const updateRequest = httpTesting.expectOne('/api/v1/workouts/sessions/session-1');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual(payload);
+    updateRequest.flush({ sessionId: 'session-1', ...payload, exerciseCount: 0 });
+
+    service.deleteSession('session-1').subscribe();
+    const deleteRequest = httpTesting.expectOne('/api/v1/workouts/sessions/session-1');
+    expect(deleteRequest.request.method).toBe('DELETE');
+    deleteRequest.flush(null);
+
+    service.repeatSession('session-1').subscribe();
+    const repeatRequest = httpTesting.expectOne('/api/v1/workouts/sessions/session-1/repeat');
+    expect(repeatRequest.request.method).toBe('POST');
+    repeatRequest.flush({ sessionId: 'session-2', name: 'Push day', workoutType: 'STRENGTH', status: 'IN_PROGRESS' });
+
+    service.repeatLatestSession().subscribe();
+    const repeatLatestRequest = httpTesting.expectOne('/api/v1/workouts/sessions/repeat-latest');
+    expect(repeatLatestRequest.request.method).toBe('POST');
+    repeatLatestRequest.flush({ sessionId: 'session-3', name: 'Latest repeat', workoutType: 'STRENGTH', status: 'IN_PROGRESS' });
   });
 
   it('lists workout plans with a status filter and maps exercise blueprints', () => {

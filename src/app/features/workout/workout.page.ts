@@ -8,12 +8,14 @@ import {
   WorkoutPlanExerciseInput,
   WorkoutPlanRequest,
   WorkoutPlanStatus,
-  WorkoutSession
+  WorkoutSession,
+  WorkoutSessionDetail
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveLoggerComponent } from './live-logger.component';
+import { SessionDetailComponent } from './session-detail.component';
 
 interface TrainingMetric {
   label: string;
@@ -24,7 +26,13 @@ interface TrainingMetric {
 
 @Component({
   selector: 'app-workout-page',
-  imports: [ReactiveFormsModule, StatePanelComponent, LiveLoggerComponent, ExerciseLibraryComponent],
+  imports: [
+    ReactiveFormsModule,
+    StatePanelComponent,
+    LiveLoggerComponent,
+    ExerciseLibraryComponent,
+    SessionDetailComponent
+  ],
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
@@ -46,6 +54,8 @@ export class WorkoutPage implements OnInit {
   readonly savingPlan = signal(false);
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
+  readonly selectedSessionId = signal<string | null>(null);
+  readonly repeatingLatest = signal(false);
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
@@ -288,6 +298,51 @@ export class WorkoutPage implements OnInit {
 
   handleExerciseLibraryChanged(exercises: Exercise[]): void {
     this.exercises.set(exercises);
+  }
+
+  openSessionDetail(session: WorkoutSession): void {
+    if (!session.sessionId) {
+      return;
+    }
+    this.selectedSessionId.set(session.sessionId);
+  }
+
+  closeSessionDetail(): void {
+    this.selectedSessionId.set(null);
+  }
+
+  handleSessionUpdated(session: WorkoutSessionDetail): void {
+    this.sessions.update((sessions) => sessions.map((item) => (item.sessionId === session.sessionId ? session : item)));
+    this.loadSessions();
+  }
+
+  handleSessionDeleted(): void {
+    this.selectedSessionId.set(null);
+    this.loadSessions();
+  }
+
+  handleSessionRepeated(session: WorkoutSessionDetail): void {
+    this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
+    this.loadSessions();
+  }
+
+  repeatLatestSession(): void {
+    if (this.repeatingLatest()) {
+      return;
+    }
+
+    this.repeatingLatest.set(true);
+    this.dataService.repeatLatestSession().subscribe({
+      next: (session) => {
+        this.toast.success('Latest workout repeated.');
+        this.handleSessionRepeated(session);
+      },
+      error: () => {
+        this.toast.error('Unable to repeat the latest session. Please retry.');
+        this.repeatingLatest.set(false);
+      },
+      complete: () => this.repeatingLatest.set(false)
+    });
   }
 
   toggleLogForm(): void {
