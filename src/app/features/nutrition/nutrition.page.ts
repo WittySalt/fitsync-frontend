@@ -45,6 +45,8 @@ export class NutritionPage implements OnInit {
   readonly selectedFood = signal<FoodSearchResult | null>(null);
   readonly selectedCategory = signal<FoodCategory | null>(null);
   readonly searchControl = new FormControl('', { nonNullable: true });
+  readonly barcodeControl = new FormControl('', { nonNullable: true });
+  readonly barcodeLooking = signal(false);
   readonly verifiedOnly = signal(false);
   readonly hasMoreFoods = signal(false);
   readonly loadingMore = signal(false);
@@ -94,6 +96,8 @@ export class NutritionPage implements OnInit {
 
   readonly mealTimeline = computed(() =>
     this.todayMeals().map((meal) => ({
+      mealId: meal.mealId,
+      mealType: meal.mealType,
       type: this.label(meal.mealType),
       time: this.formatTime(meal.consumedAt),
       title: meal.name,
@@ -188,6 +192,42 @@ export class NutritionPage implements OnInit {
         this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
       },
       error: () => this.toast.error('Unable to log from template. Please retry.')
+    });
+  }
+
+  copyMeal(mealId: string, mealType: string): void {
+    if (!mealId) {
+      return;
+    }
+    this.dataService.copyMeal(mealId, mealType).subscribe({
+      next: () => {
+        this.toast.success('Meal copied to now.');
+        this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+      },
+      error: () => this.toast.error('Unable to copy meal. Please retry.')
+    });
+  }
+
+  lookupBarcode(): void {
+    const barcode = this.barcodeControl.value.trim();
+    if (!barcode || this.barcodeLooking()) {
+      return;
+    }
+    this.barcodeLooking.set(true);
+    this.dataService.getFoodByBarcode(barcode).subscribe({
+      next: (food) => {
+        this.barcodeLooking.set(false);
+        if (!food) {
+          this.toast.error('No food found for that barcode.');
+          return;
+        }
+        this.applyLoggedFood(food);
+        this.toast.success(`Found "${food.foodName}".`);
+      },
+      error: () => {
+        this.barcodeLooking.set(false);
+        this.toast.error('Barcode lookup failed. Please retry.');
+      }
     });
   }
 

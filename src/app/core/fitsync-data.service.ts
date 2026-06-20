@@ -139,6 +139,17 @@ interface BackendFoodCategory {
   children?: BackendFoodCategory[] | null;
 }
 
+interface BackendFoodDetail {
+  foodId?: string | null;
+  displayName?: string | null;
+  brandName?: string | null;
+  calories?: number | null;
+  proteinGrams?: number | string | null;
+  carbsGrams?: number | string | null;
+  fatGrams?: number | string | null;
+  basisUnit?: string | null;
+}
+
 interface BackendLoggedFood {
   foodName?: string | null;
   brandName?: string | null;
@@ -224,6 +235,7 @@ export class FitSyncDataService {
         exerciseCount: 6
       },
       latestMeal: {
+        mealId: 'demo-meal',
         mealType: 'LUNCH',
         name: 'Chicken rice bowl',
         totalCalories: 620,
@@ -506,6 +518,34 @@ export class FitSyncDataService {
       .pipe(map(() => ({ ok: true as const })));
   }
 
+  copyMeal(mealId: string, mealType: string): Observable<{ ok: true }> {
+    return this.http
+      .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, { mealType })
+      .pipe(map(() => ({ ok: true as const })));
+  }
+
+  getFoodByBarcode(barcode: string): Observable<LoggedFood | null> {
+    return this.http
+      .get<BackendFoodDetail>(`${this.apiBaseUrl}/nutrition/barcodes/${encodeURIComponent(barcode)}`)
+      .pipe(
+        map((food) =>
+          food && food.displayName
+            ? {
+                foodName: food.displayName,
+                brandName: food.brandName ?? '',
+                servingLabel: food.basisUnit ?? '',
+                calories: food.calories ?? 0,
+                proteinGrams: Number(food.proteinGrams ?? 0),
+                carbsGrams: Number(food.carbsGrams ?? 0),
+                fatGrams: Number(food.fatGrams ?? 0),
+                timesLogged: 0
+              }
+            : null
+        ),
+        catchError(() => of(null))
+      );
+  }
+
   private mapMealTemplate(template: Partial<MealTemplate>): MealTemplate {
     return {
       templateId: template.templateId ?? '',
@@ -760,6 +800,7 @@ export class FitSyncDataService {
     }
 
     return {
+      mealId: meal.mealId ?? '',
       mealType: meal.mealType ?? 'MEAL',
       name: meal.name ?? meal.mealType ?? 'Meal',
       totalCalories: meal.totalCalories ?? 0,

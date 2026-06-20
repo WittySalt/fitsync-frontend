@@ -87,6 +87,7 @@ export interface Exercise {
 }
 
 export interface Meal {
+  mealId: string;
   mealType: string;
   name: string;
   totalCalories: number;

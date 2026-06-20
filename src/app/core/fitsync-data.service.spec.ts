@@ -324,6 +324,38 @@ describe('FitSyncDataService', () => {
     expect(ok).toBeTrue();
   });
 
+  it('copies a meal to now via POST /meals/{id}/copy', () => {
+    let ok = false;
+    service.copyMeal('m1', 'LUNCH').subscribe(() => (ok = true));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals/m1/copy');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.mealType).toBe('LUNCH');
+    request.flush({});
+    expect(ok).toBeTrue();
+  });
+
+  it('looks up a food by barcode and maps full macros', () => {
+    let food: LoggedFood | null | undefined;
+    service.getFoodByBarcode('123456').subscribe((value) => (food = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/barcodes/123456');
+    expect(request.request.method).toBe('GET');
+    request.flush({ foodId: 'f9', displayName: 'Oat bar', brandName: 'Acme', calories: 180, proteinGrams: 5, carbsGrams: 28, fatGrams: 6, basisUnit: 'bar' });
+
+    expect(food?.foodName).toBe('Oat bar');
+    expect(food?.proteinGrams).toBe(5);
+  });
+
+  it('returns null when a barcode lookup fails', () => {
+    let food: LoggedFood | null | undefined = undefined;
+    service.getFoodByBarcode('000').subscribe((value) => (food = value));
+
+    httpTesting.expectOne('/api/v1/nutrition/barcodes/000').flush('not found', { status: 404, statusText: 'Not Found' });
+
+    expect(food).toBeNull();
+  });
+
   it('maps nutrition category trees for category browsing', () => {
     let result: FoodCategory[] | undefined;
     service.getFoodCategories().subscribe((value) => (result = value));
