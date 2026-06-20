@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
-import { Exercise, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
+import { Exercise, ExerciseHistoryEntry, ExerciseRecords, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
 
 function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   return {
@@ -49,6 +49,42 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
   };
 }
 
+function records(overrides: Partial<ExerciseRecords> = {}): ExerciseRecords {
+  return {
+    exerciseId: 'exercise-1',
+    exerciseName: 'Back squat',
+    maxWeightKg: null,
+    maxReps: null,
+    maxSingleSetVolumeKg: null,
+    estimatedOneRepMaxKg: null,
+    bestSessionVolumeKg: null,
+    ...overrides
+  };
+}
+
+function historyEntry(overrides: Partial<ExerciseHistoryEntry>): ExerciseHistoryEntry {
+  return {
+    sessionId: 'session-1',
+    exerciseLogId: 'log-1',
+    setLogId: 'set-1',
+    exerciseId: 'exercise-1',
+    exerciseNameSnapshot: 'Back squat',
+    sessionName: 'Lower body',
+    startedAt: '2026-06-12T10:00:00Z',
+    completedAt: '2026-06-12T11:00:00Z',
+    sequence: 1,
+    setNumber: 1,
+    reps: 5,
+    weightKg: 100,
+    durationSeconds: null,
+    distanceKm: null,
+    restSeconds: 180,
+    perceivedExertion: 8,
+    notes: '',
+    ...overrides
+  };
+}
+
 describe('WorkoutPage', () => {
   let component: WorkoutPage;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -64,7 +100,9 @@ describe('WorkoutPage', () => {
       'updateWorkoutPlan',
       'activateWorkoutPlan',
       'archiveWorkoutPlan',
-      'startWorkoutPlan'
+      'startWorkoutPlan',
+      'getExerciseRecords',
+      'getExerciseHistory'
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessions.and.returnValue(of([]));
@@ -76,6 +114,8 @@ describe('WorkoutPage', () => {
     dataService.activateWorkoutPlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
     dataService.archiveWorkoutPlan.and.returnValue(of(void 0));
     dataService.startWorkoutPlan.and.returnValue(of(session({ sessionId: 'session-1', status: 'IN_PROGRESS' })));
+    dataService.getExerciseRecords.and.returnValue(of(null));
+    dataService.getExerciseHistory.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [WorkoutPage],
@@ -207,5 +247,68 @@ describe('WorkoutPage', () => {
     expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1');
     expect(component.sessions()[0].sessionId).toBe('session-1');
     expect(component.selectedTab()).toBe('history');
+  });
+
+  it('opens exercise records when clicking a non-sample catalog exercise', () => {
+    dataService.getExercises.and.returnValue(of([exercise()]));
+    dataService.getExerciseRecords.and.returnValue(
+      of(
+        records({
+          maxWeightKg: { value: 125, sessionId: 'session-1', achievedAt: '2026-06-12T11:00:00Z' }
+        })
+      )
+    );
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('library');
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.exercise-card')?.click();
+    fixture.detectChanges();
+
+    expect(dataService.getExerciseRecords).toHaveBeenCalledWith('exercise-1');
+    expect(dataService.getExerciseHistory).toHaveBeenCalledWith('exercise-1');
+    expect(fixture.componentInstance.selectedExercise()?.exerciseId).toBe('exercise-1');
+  });
+
+  it('renders personal record null values as an honest empty state', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('library');
+    fixture.componentInstance.selectedExercise.set(exercise());
+    fixture.componentInstance.exerciseRecords.set(records());
+    fixture.componentInstance.exerciseDetailLoading.set(false);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('No data yet');
+    expect(text).not.toContain('0 kg');
+    expect(text).not.toContain('0 reps');
+  });
+
+  it('aggregates exercise history into a max-weight chart series by session', () => {
+    component.exerciseHistory.set([
+      historyEntry({
+        sessionId: 'session-2',
+        completedAt: '2026-06-14T11:00:00Z',
+        weightKg: 92.5
+      }),
+      historyEntry({
+        sessionId: 'session-1',
+        completedAt: '2026-06-12T11:00:00Z',
+        weightKg: 100
+      }),
+      historyEntry({
+        sessionId: 'session-1',
+        setLogId: 'set-2',
+        completedAt: '2026-06-12T11:00:00Z',
+        weightKg: 105
+      })
+    ]);
+
+    const trend = component.historyTrend();
+    expect(trend.labels.length).toBe(2);
+    expect(trend.series[0].values).toEqual([105, 92.5]);
+    expect(trend.series[0].label).toBe('Max weight');
   });
 });

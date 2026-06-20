@@ -1,9 +1,21 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, WorkoutPlan, WorkoutPlanExerciseInput, WorkoutPlanRequest, WorkoutPlanStatus, WorkoutSession } from '../../core/fitsync.models';
+import {
+  Exercise,
+  ExerciseHistoryEntry,
+  ExerciseRecordValue,
+  ExerciseRecords,
+  WorkoutPlan,
+  WorkoutPlanExerciseInput,
+  WorkoutPlanRequest,
+  WorkoutPlanStatus,
+  WorkoutSession
+} from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 interface TrainingMetric {
@@ -13,9 +25,20 @@ interface TrainingMetric {
   tone: 'green' | 'blue' | 'orange';
 }
 
+interface RecordCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+interface HistoryTrend {
+  labels: string[];
+  series: FsChartSeries[];
+}
+
 @Component({
   selector: 'app-workout-page',
-  imports: [ReactiveFormsModule, StatePanelComponent],
+  imports: [ReactiveFormsModule, FsChartComponent, StatePanelComponent],
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
@@ -37,6 +60,10 @@ export class WorkoutPage implements OnInit {
   readonly savingPlan = signal(false);
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
+  readonly selectedExercise = signal<Exercise | null>(null);
+  readonly exerciseRecords = signal<ExerciseRecords | null>(null);
+  readonly exerciseHistory = signal<ExerciseHistoryEntry[]>([]);
+  readonly exerciseDetailLoading = signal(false);
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
@@ -84,6 +111,56 @@ export class WorkoutPage implements OnInit {
         tone: 'orange'
       }
     ];
+  });
+
+  readonly recordCards = computed<RecordCard[]>(() => {
+    const records = this.exerciseRecords();
+    return [
+      this.recordCard('Max weight', records?.maxWeightKg ?? null, 'kg', 1),
+      this.recordCard('Max reps', records?.maxReps ?? null, 'reps', 0),
+      this.recordCard('Estimated 1RM', records?.estimatedOneRepMaxKg ?? null, 'kg', 1),
+      this.recordCard('Single-set volume', records?.maxSingleSetVolumeKg ?? null, 'kg', 1),
+      this.recordCard('Best session volume', records?.bestSessionVolumeKg ?? null, 'kg', 1)
+    ];
+  });
+
+  readonly historyTrend = computed<HistoryTrend>(() => {
+    const points = new Map<string, { label: string; time: number; value: number }>();
+
+    this.exerciseHistory().forEach((entry) => {
+      if (entry.weightKg == null) {
+        return;
+      }
+      const dateValue = entry.completedAt || entry.startedAt;
+      const time = dateValue ? new Date(dateValue).getTime() : NaN;
+      if (Number.isNaN(time)) {
+        return;
+      }
+
+      const key = entry.sessionId || `${entry.sessionName}-${dateValue}`;
+      const existing = points.get(key);
+      if (!existing || entry.weightKg > existing.value) {
+        points.set(key, {
+          label: this.formatDateOnly(dateValue),
+          time,
+          value: entry.weightKg
+        });
+      }
+    });
+
+    const sorted = [...points.values()].sort((a, b) => a.time - b.time);
+    return {
+      labels: sorted.map((point) => point.label),
+      series: sorted.length
+        ? [
+            {
+              label: 'Max weight',
+              values: sorted.map((point) => point.value),
+              colorToken: '--accent'
+            }
+          ]
+        : []
+    };
   });
 
   ngOnInit(): void {
@@ -267,6 +344,46 @@ export class WorkoutPage implements OnInit {
     return Boolean(plan.planId && this.planMutations().has(plan.planId));
   }
 
+  isExerciseSelectable(exercise: Exercise): boolean {
+    return Boolean(exercise.exerciseId);
+  }
+
+  selectExercise(exercise: Exercise): void {
+    if (!exercise.exerciseId) {
+      return;
+    }
+
+    this.selectedExercise.set(exercise);
+    this.exerciseRecords.set(null);
+    this.exerciseHistory.set([]);
+    this.exerciseDetailLoading.set(true);
+
+    forkJoin({
+      records: this.dataService.getExerciseRecords(exercise.exerciseId),
+      history: this.dataService.getExerciseHistory(exercise.exerciseId)
+    }).subscribe({
+      next: ({ records, history }) => {
+        if (this.selectedExercise()?.exerciseId !== exercise.exerciseId) {
+          return;
+        }
+        this.exerciseRecords.set(records);
+        this.exerciseHistory.set(history);
+        this.exerciseDetailLoading.set(false);
+      },
+      error: () => {
+        this.exerciseRecords.set(null);
+        this.exerciseHistory.set([]);
+        this.exerciseDetailLoading.set(false);
+      }
+    });
+  }
+
+  clearSelectedExercise(): void {
+    this.selectedExercise.set(null);
+    this.exerciseRecords.set(null);
+    this.exerciseHistory.set([]);
+  }
+
   toggleLogForm(): void {
     this.logFormOpen.update((open) => !open);
   }
@@ -321,6 +438,21 @@ export class WorkoutPage implements OnInit {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
+    }).format(date);
+  }
+
+  formatDateOnly(value: string | null | undefined): string {
+    if (!value) {
+      return '—';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '—';
+    }
+    return new Intl.DateTimeFormat('en-SG', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     }).format(date);
   }
 
@@ -407,6 +539,18 @@ export class WorkoutPage implements OnInit {
   private optionalNumber(value: unknown): number | null {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private recordCard(label: string, record: ExerciseRecordValue | null, unit: string, digits: number): RecordCard {
+    if (!record || record.value == null) {
+      return { label, value: '—', detail: 'No data yet' };
+    }
+
+    return {
+      label,
+      value: `${record.value.toFixed(digits)} ${unit}`,
+      detail: this.formatDateOnly(record.achievedAt)
+    };
   }
 
   private setPlanMutating(planId: string, mutating: boolean): void {

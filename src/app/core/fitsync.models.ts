@@ -98,6 +98,42 @@ export interface Exercise {
   custom: boolean;
 }
 
+export interface ExerciseRecordValue {
+  value: number | null;
+  sessionId: string;
+  achievedAt: string;
+}
+
+export interface ExerciseRecords {
+  exerciseId: string;
+  exerciseName: string;
+  maxWeightKg: ExerciseRecordValue | null;
+  maxReps: ExerciseRecordValue | null;
+  maxSingleSetVolumeKg: ExerciseRecordValue | null;
+  estimatedOneRepMaxKg: ExerciseRecordValue | null;
+  bestSessionVolumeKg: ExerciseRecordValue | null;
+}
+
+export interface ExerciseHistoryEntry {
+  sessionId: string;
+  exerciseLogId: string;
+  setLogId: string;
+  exerciseId: string;
+  exerciseNameSnapshot: string;
+  sessionName: string;
+  startedAt: string;
+  completedAt: string;
+  sequence: number | null;
+  setNumber: number | null;
+  reps: number | null;
+  weightKg: number | null;
+  durationSeconds: number | null;
+  distanceKm: number | null;
+  restSeconds: number | null;
+  perceivedExertion: number | null;
+  notes: string;
+}
+
 export interface Meal {
   mealId: string;
   mealType: string;
