@@ -78,7 +78,33 @@
                 <label>Display name<input formControlName="displayName" /></label>
                 <label>First name<input formControlName="firstName" /></label>
                 <label>Last name<input formControlName="lastName" /></label>
-                <label>Avatar URL<input formControlName="avatarUrl" /></label>
+                <div class="avatar-settings wide">
+                  @if (account.user.profile.avatarUrl) {
+                    <img class="avatar-settings-preview" [src]="account.user.profile.avatarUrl" alt="Current profile photo" />
+                  } @else {
+                    <span class="avatar-settings-preview" aria-hidden="true">{{ initials() }}</span>
+                  }
+                  <div class="avatar-settings-copy">
+                    <strong>Profile photo</strong>
+                    <p>Upload a local image and crop it into a circular avatar.</p>
+                    <div class="action-row">
+                      <button class="button secondary compact" type="button" (click)="openAvatarUploader()">Change photo</button>
+                      <button class="button secondary compact" type="button" [attr.aria-expanded]="manualAvatarOpen()" aria-controls="manual-avatar-url" (click)="toggleManualAvatar()">Manual URL</button>
+                    </div>
+                  </div>
+                </div>
+                @if (avatarUploaderOpen()) {
+                  <app-avatar-uploader
+                    class="wide"
+                    [currentAvatarUrl]="account.user.profile.avatarUrl"
+                    [initials]="initials()"
+                    (uploaded)="handleAvatarUploaded($event)"
+                    (cancel)="closeAvatarUploader()"
+                  />
+                }
+                @if (manualAvatarOpen()) {
+                  <label class="wide" id="manual-avatar-url">Avatar URL<input formControlName="avatarUrl" /></label>
+                }
                 <label>Date of birth<input type="date" formControlName="birthDate" /></label>
                 <label>Gender<select formControlName="gender">@for (option of genderOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
                 <label class="wide">Bio<textarea rows="3" formControlName="bio"></textarea></label>
@@ -92,7 +118,7 @@
                 <button class="field-row" type="button" (click)="startEdit('identity')"><span>Last name</span><strong>{{ account.user.profile.lastName || 'Not set' }}</strong><em>Edit</em></button>
                 <button class="field-row" type="button" (click)="startEdit('identity')"><span>Gender</span><strong>{{ labelFor(account.user.profile.gender) }}</strong><em>Edit</em></button>
                 <button class="field-row" type="button" (click)="startEdit('identity')"><span>Date of birth</span><strong>{{ displayDate(account.user.profile.birthDate) }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('identity')"><span>Avatar</span><strong>{{ account.user.profile.avatarUrl ? 'Custom image' : 'Initials avatar' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('identity'); openAvatarUploader()"><span>Avatar</span><strong>{{ account.user.profile.avatarUrl ? 'Custom image' : 'Initials avatar' }}</strong><em>Edit</em></button>
                 <button class="field-row" type="button" (click)="startEdit('identity')"><span>Bio</span><strong>{{ account.user.profile.bio || 'Not set' }}</strong><em>Edit</em></button>
                 <div class="field-row readonly"><span>Membership</span><strong>{{ labelFor(account.user.profile.membershipTier) }} - {{ labelFor(account.user.profile.membershipStatus) }}</strong><em>Read only</em></div>
               </div>

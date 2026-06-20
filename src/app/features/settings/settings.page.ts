@@ -21,6 +21,7 @@ import {
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
+import { AvatarUploaderComponent } from './avatar-uploader.component';
 
 type EditablePanel =
   | 'identity'
@@ -49,7 +50,7 @@ interface SectionNavItem {
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, AccountSecurityActionsComponent],
+  imports: [ReactiveFormsModule, AccountSecurityActionsComponent, AvatarUploaderComponent],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss'
 })
@@ -69,6 +70,8 @@ export class SettingsPage implements OnInit {
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
   readonly goalPanelOpen = signal(false);
+  readonly avatarUploaderOpen = signal(false);
+  readonly manualAvatarOpen = signal(false);
   readonly bodyMetricHistory = signal<AccountBodyMetric[]>([]);
   readonly bodyMetricHistoryLoading = signal(false);
   readonly bodyMetricHistoryError = signal<string | null>(null);
@@ -479,6 +482,31 @@ export class SettingsPage implements OnInit {
     }
     this.editPanel.set(null);
     this.goalPanelOpen.set(false);
+    this.avatarUploaderOpen.set(false);
+    this.manualAvatarOpen.set(false);
+  }
+
+  openAvatarUploader(): void {
+    this.avatarUploaderOpen.set(true);
+  }
+
+  closeAvatarUploader(): void {
+    this.avatarUploaderOpen.set(false);
+  }
+
+  toggleManualAvatar(): void {
+    this.manualAvatarOpen.update((open) => !open);
+  }
+
+  handleAvatarUploaded(profile: AccountProfile): void {
+    const data = this.data();
+    if (!data) {
+      return;
+    }
+    this.setData({ ...data, user: { ...data.user, profile } });
+    this.avatarUploaderOpen.set(false);
+    this.manualAvatarOpen.set(false);
+    this.saveMessage.set('Avatar updated.');
   }
 
   startGoalEdit(goalType: string): void {

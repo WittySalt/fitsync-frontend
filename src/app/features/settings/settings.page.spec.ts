@@ -189,6 +189,7 @@ describe('SettingsPage', () => {
       [
         'getAccountCenter',
         'updateProfile',
+        'uploadAvatar',
         'updatePreferences',
         'createBodyMetric',
         'listBodyMetrics',
@@ -202,6 +203,7 @@ describe('SettingsPage', () => {
     );
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
     accountDataService.updateProfile.and.returnValue(of(accountData.user.profile));
+    accountDataService.uploadAvatar.and.returnValue(of(accountData.user.profile));
     accountDataService.updatePreferences.and.returnValue(of(accountData.user.preferences));
     accountDataService.createBodyMetric.and.returnValue(of(createdBodyMetric));
     accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!, olderBodyMetric]));
@@ -329,6 +331,24 @@ describe('SettingsPage', () => {
       gender: 'FEMALE',
       birthDate: '1995-04-12'
     }));
+  });
+
+  it('applies an uploaded avatar to the current settings data', () => {
+    const component = fixture.componentInstance;
+    const updatedProfile = {
+      ...accountData.user.profile,
+      avatarUrl: 'https://cdn.example/avatar.png'
+    };
+
+    component.startEdit('identity');
+    component.openAvatarUploader();
+    component.handleAvatarUploaded(updatedProfile);
+    fixture.detectChanges();
+
+    expect(component.data()?.user.profile.avatarUrl).toBe('https://cdn.example/avatar.png');
+    expect(component.avatarUploaderOpen()).toBeFalse();
+    expect(component.identityForm.controls.avatarUrl.value).toBe('https://cdn.example/avatar.png');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Avatar updated.');
   });
 
   it('updates goals through the goal endpoint', () => {
