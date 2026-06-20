@@ -59,6 +59,7 @@ describe('WorkoutPage', () => {
       'getWorkoutSessions',
       'getExercises',
       'getActivePlan',
+      'saveWorkoutSession',
       'createWorkoutPlan',
       'updateWorkoutPlan',
       'activateWorkoutPlan',
@@ -69,6 +70,7 @@ describe('WorkoutPage', () => {
     dataService.getWorkoutSessions.and.returnValue(of([]));
     dataService.getExercises.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
+    dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
     dataService.createWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
     dataService.updateWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
     dataService.activateWorkoutPlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
@@ -124,6 +126,36 @@ describe('WorkoutPage', () => {
     expect(compiled.querySelector('#workout-tab-plans')?.getAttribute('aria-selected')).toBe('true');
     expect(plansPanel?.getAttribute('role')).toBe('tabpanel');
     expect(plansPanel?.getAttribute('aria-labelledby')).toBe('workout-tab-plans');
+  });
+
+  it('logs a workout through the data service when the form is valid', () => {
+    component.logForm.setValue({
+      name: 'Leg day',
+      workoutType: 'STRENGTH',
+      durationMinutes: 50,
+      caloriesBurned: 380,
+      perceivedExertion: 7,
+      notes: ''
+    });
+
+    component.logWorkout();
+
+    expect(dataService.saveWorkoutSession).toHaveBeenCalled();
+  });
+
+  it('does not log when the workout name is missing', () => {
+    component.logForm.setValue({
+      name: '',
+      workoutType: 'STRENGTH',
+      durationMinutes: 50,
+      caloriesBurned: 380,
+      perceivedExertion: 7,
+      notes: ''
+    });
+
+    component.logWorkout();
+
+    expect(dataService.saveWorkoutSession).not.toHaveBeenCalled();
   });
 
   it('submits a workout plan with a real exercise blueprint', () => {

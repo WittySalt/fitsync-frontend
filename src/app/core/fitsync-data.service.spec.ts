@@ -590,4 +590,27 @@ describe('FitSyncDataService', () => {
 
     expect(result).toBeNull();
   });
+
+  it('logs a completed workout session via POST /workouts/sessions', () => {
+    service
+      .saveWorkoutSession({
+        name: 'Upper body strength',
+        workoutType: 'STRENGTH',
+        durationMinutes: 60,
+        caloriesBurned: 400,
+        perceivedExertion: 8,
+        notes: 'Strong session'
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.name).toBe('Upper body strength');
+    expect(request.request.body.status).toBe('COMPLETED');
+    expect(request.request.body.source).toBe('MANUAL');
+    expect(request.request.body.durationMinutes).toBe(60);
+    expect(typeof request.request.body.startedAt).toBe('string');
+    expect(typeof request.request.body.completedAt).toBe('string');
+    request.flush({});
+  });
 });

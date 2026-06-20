@@ -29,6 +29,8 @@ export class WorkoutPage implements OnInit {
   readonly exercises = signal<Exercise[]>([]);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
+  readonly submitting = signal(false);
+  readonly logFormOpen = signal(false);
   readonly planError = signal<string | null>(null);
   readonly planStatus = signal<WorkoutPlanStatus | null>('ACTIVE');
   readonly editingPlanId = signal<string | null>(null);
@@ -48,6 +50,17 @@ export class WorkoutPage implements OnInit {
     difficulty: ['BEGINNER', Validators.required],
     estimatedDurationMinutes: [45, [Validators.required, Validators.min(1)]],
     exercises: this.fb.array([this.createExerciseGroup()])
+  });
+
+  readonly workoutTypes = ['STRENGTH', 'CARDIO', 'HIIT', 'MOBILITY', 'SPORT', 'OTHER'];
+
+  readonly logForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
+    workoutType: ['STRENGTH', Validators.required],
+    durationMinutes: [45, [Validators.required, Validators.min(1), Validators.max(600)]],
+    caloriesBurned: [350, [Validators.required, Validators.min(0), Validators.max(5000)]],
+    perceivedExertion: [7, [Validators.min(1), Validators.max(10)]],
+    notes: ['', Validators.maxLength(300)]
   });
 
   readonly latestSession = computed(() => {
@@ -252,6 +265,39 @@ export class WorkoutPage implements OnInit {
 
   isPlanMutating(plan: WorkoutPlan): boolean {
     return Boolean(plan.planId && this.planMutations().has(plan.planId));
+  }
+
+  toggleLogForm(): void {
+    this.logFormOpen.update((open) => !open);
+  }
+
+  logWorkout(): void {
+    this.logForm.markAllAsTouched();
+    if (this.logForm.invalid) {
+      return;
+    }
+
+    this.submitting.set(true);
+    this.dataService.saveWorkoutSession(this.logForm.getRawValue()).subscribe({
+      next: () => {
+        this.submitting.set(false);
+        this.logFormOpen.set(false);
+        this.logForm.reset({
+          name: '',
+          workoutType: 'STRENGTH',
+          durationMinutes: 45,
+          caloriesBurned: 350,
+          perceivedExertion: 7,
+          notes: ''
+        });
+        this.toast.success('Workout logged.');
+        this.dataService.getWorkoutSessions().subscribe((sessions) => this.sessions.set(sessions));
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.toast.error('Unable to log workout. Check your connection and try again.');
+      }
+    });
   }
 
   formatLabel(value: string | null | undefined): string {
