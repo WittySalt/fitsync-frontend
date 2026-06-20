@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, FoodCategory, FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
+import { Exercise, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -293,6 +293,69 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].displayName).toBe('Brown rice');
   });
 
+  it('passes verified filter, page, and size params to the food search', () => {
+    service.searchFoods('oat', { verified: true, page: 2, size: 20 }).subscribe();
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/nutrition/foods/search' &&
+        req.params.get('verified') === 'true' &&
+        req.params.get('page') === '2' &&
+        req.params.get('size') === '20'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+  });
+
+  it('lists meal templates and logs a meal from a template', () => {
+    let templates: MealTemplate[] | undefined;
+    service.getMealTemplates().subscribe((value) => (templates = value));
+    httpTesting.expectOne('/api/v1/nutrition/meal-templates').flush([
+      { templateId: 't1', name: 'Protein breakfast', mealType: 'BREAKFAST', note: '', totalCalories: 520 }
+    ]);
+    expect(templates?.[0].name).toBe('Protein breakfast');
+    expect(templates?.[0].totalCalories).toBe(520);
+
+    let ok = false;
+    service.logMealFromTemplate('t1').subscribe(() => (ok = true));
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals/from-template/t1');
+    expect(request.request.method).toBe('POST');
+    request.flush({});
+    expect(ok).toBeTrue();
+  });
+
+  it('copies a meal to now via POST /meals/{id}/copy', () => {
+    let ok = false;
+    service.copyMeal('m1', 'LUNCH').subscribe(() => (ok = true));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals/m1/copy');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.mealType).toBe('LUNCH');
+    request.flush({});
+    expect(ok).toBeTrue();
+  });
+
+  it('looks up a food by barcode and maps full macros', () => {
+    let food: LoggedFood | null | undefined;
+    service.getFoodByBarcode('123456').subscribe((value) => (food = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/barcodes/123456');
+    expect(request.request.method).toBe('GET');
+    request.flush({ foodId: 'f9', displayName: 'Oat bar', brandName: 'Acme', calories: 180, proteinGrams: 5, carbsGrams: 28, fatGrams: 6, basisUnit: 'bar' });
+
+    expect(food?.foodName).toBe('Oat bar');
+    expect(food?.proteinGrams).toBe(5);
+  });
+
+  it('returns null when a barcode lookup fails', () => {
+    let food: LoggedFood | null | undefined = undefined;
+    service.getFoodByBarcode('000').subscribe((value) => (food = value));
+
+    httpTesting.expectOne('/api/v1/nutrition/barcodes/000').flush('not found', { status: 404, statusText: 'Not Found' });
+
+    expect(food).toBeNull();
+  });
+
   it('maps nutrition category trees for category browsing', () => {
     let result: FoodCategory[] | undefined;
     service.getFoodCategories().subscribe((value) => (result = value));
@@ -407,6 +470,116 @@ describe('FitSyncDataService', () => {
 
     expect(result?.[0].name).toBe('Back squat');
     expect(result?.[0].exerciseId).toBe('e1');
+  });
+
+  it('lists workout plans with a status filter and maps exercise blueprints', () => {
+    let result: WorkoutPlan[] | undefined;
+    service.getWorkoutPlans('DRAFT').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/plans' &&
+        req.params.get('status') === 'DRAFT' &&
+        req.params.get('size') === '20'
+    );
+    request.flush({
+      content: [
+        {
+          planId: 'plan-1',
+          name: 'Strength base',
+          description: 'Foundation plan',
+          goalFocus: 'STRENGTH',
+          workoutType: 'STRENGTH',
+          difficulty: 'INTERMEDIATE',
+          estimatedDurationMinutes: 50,
+          status: 'DRAFT',
+          exercises: [
+            {
+              planExerciseId: 'plan-ex-1',
+              exerciseId: 'exercise-1',
+              exerciseNameSnapshot: 'Back squat',
+              sequence: 1,
+              targetSets: 3,
+              targetReps: 8,
+              targetWeightKg: '60.5',
+              restSeconds: 120,
+              setTargets: []
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(result?.[0].planId).toBe('plan-1');
+    expect(result?.[0].exerciseCount).toBe(1);
+    expect(result?.[0].exercises[0].targetWeightKg).toBe(60.5);
+  });
+
+  it('creates and updates workout plans through the plan endpoints', () => {
+    const payload = {
+      name: 'Plan',
+      description: '',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'BEGINNER',
+      estimatedDurationMinutes: 45,
+      exercises: [
+        {
+          exerciseId: 'exercise-1',
+          sequence: 1,
+          targetSets: 3,
+          targetReps: 8,
+          targetWeightKg: null,
+          targetDurationSeconds: null,
+          targetDistanceKm: null,
+          restSeconds: 90,
+          notes: '',
+          setTargets: []
+        }
+      ]
+    };
+
+    service.createWorkoutPlan(payload).subscribe();
+    const createRequest = httpTesting.expectOne('/api/v1/workouts/plans');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body).toEqual(payload);
+    createRequest.flush({ planId: 'plan-1', name: 'Plan', exercises: [] });
+
+    service.updateWorkoutPlan('plan-1', payload).subscribe();
+    const updateRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual(payload);
+    updateRequest.flush({ planId: 'plan-1', name: 'Plan', exercises: [] });
+  });
+
+  it('activates, archives, and starts a workout plan', () => {
+    let started: WorkoutSession | undefined;
+
+    service.activateWorkoutPlan('plan-1').subscribe();
+    const activateRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1/activate');
+    expect(activateRequest.request.method).toBe('POST');
+    activateRequest.flush({ planId: 'plan-1', name: 'Plan', status: 'ACTIVE', exercises: [] });
+
+    service.archiveWorkoutPlan('plan-1').subscribe();
+    const archiveRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1');
+    expect(archiveRequest.request.method).toBe('DELETE');
+    archiveRequest.flush(null);
+
+    service.startWorkoutPlan('plan-1').subscribe((session) => (started = session));
+    const startRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1/start');
+    expect(startRequest.request.method).toBe('POST');
+    startRequest.flush({
+      sessionId: 'session-1',
+      planId: 'plan-1',
+      name: 'Plan',
+      workoutType: 'STRENGTH',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-06-20T02:00:00Z',
+      exerciseCount: 1
+    });
+
+    expect(started?.sessionId).toBe('session-1');
+    expect(started?.status).toBe('IN_PROGRESS');
   });
 
   it('returns a null active plan when none is set', () => {

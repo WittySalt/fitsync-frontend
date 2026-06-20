@@ -66,9 +66,12 @@ export interface NutritionSummary {
 }
 
 export interface WorkoutSession {
+  sessionId?: string | null;
+  planId?: string | null;
   name: string;
   workoutType: string;
   status: string;
+  source?: string | null;
   startedAt: string;
   durationMinutes: number;
   caloriesBurned: number;
@@ -96,6 +99,7 @@ export interface Exercise {
 }
 
 export interface Meal {
+  mealId: string;
   mealType: string;
   name: string;
   totalCalories: number;
@@ -121,13 +125,77 @@ export interface Goal {
 }
 
 export interface WorkoutPlan {
+  planId: string | null;
   name: string;
+  description: string;
   goalFocus: string;
   workoutType: string;
   difficulty: string;
   estimatedDurationMinutes: number;
   status: string;
   exerciseCount: number;
+  exercises: WorkoutPlanExercise[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface WorkoutPlanExercise {
+  planExerciseId?: string | null;
+  exerciseId: string | null;
+  exerciseNameSnapshot: string;
+  sequence: number;
+  targetSets: number | null;
+  targetReps: number | null;
+  targetWeightKg: number | null;
+  targetDurationSeconds: number | null;
+  targetDistanceKm: number | null;
+  restSeconds: number | null;
+  notes: string;
+  setTargets: WorkoutPlanExerciseSetTarget[];
+}
+
+export interface WorkoutPlanExerciseSetTarget {
+  setTargetId?: string | null;
+  setNumber: number;
+  targetReps: number | null;
+  targetWeightKg: number | null;
+  targetDurationSeconds: number | null;
+  targetDistanceKm: number | null;
+  restSeconds: number | null;
+}
+
+export type WorkoutPlanStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+
+export interface WorkoutPlanExerciseInput {
+  exerciseId: string;
+  sequence: number;
+  targetSets: number | null;
+  targetReps: number | null;
+  targetWeightKg: number | null;
+  targetDurationSeconds: number | null;
+  targetDistanceKm: number | null;
+  restSeconds: number | null;
+  notes: string;
+  setTargets: WorkoutPlanExerciseSetTargetInput[];
+}
+
+export interface WorkoutPlanExerciseSetTargetInput {
+  setNumber: number;
+  targetReps: number | null;
+  targetWeightKg: number | null;
+  targetDurationSeconds: number | null;
+  targetDistanceKm: number | null;
+  restSeconds: number | null;
+}
+
+export interface WorkoutPlanRequest {
+  name: string;
+  description: string;
+  goalFocus: string;
+  workoutType: string;
+  difficulty: string;
+  estimatedDurationMinutes: number | null;
+  exercises: WorkoutPlanExerciseInput[];
 }
 
 export interface FoodSearchResult {
@@ -148,6 +216,15 @@ export interface FoodCategory {
   slug: string;
   sortOrder: number;
   children: FoodCategory[];
+}
+
+/** A saved meal template for one-tap meal logging. */
+export interface MealTemplate {
+  templateId: string;
+  name: string;
+  mealType: string;
+  note: string;
+  totalCalories: number;
 }
 
 /** A previously logged food surfaced for one-tap re-logging (recent / frequent). */

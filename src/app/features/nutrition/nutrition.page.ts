@@ -3,7 +3,7 @@ import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angu
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodCategory, FoodSearchResult, LoggedFood, Meal } from '../../core/fitsync.models';
+import { FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
@@ -35,6 +35,7 @@ export class NutritionPage implements OnInit {
   readonly favoriteFoods = signal<FoodSearchResult[]>([]);
   readonly favoriteUpdating = signal<Set<string>>(new Set());
   readonly frequentFoods = signal<LoggedFood[]>([]);
+  readonly mealTemplates = signal<MealTemplate[]>([]);
   readonly todayMeals = signal<Meal[]>([]);
   readonly searching = signal(false);
   readonly categoriesLoading = signal(false);
@@ -44,6 +45,13 @@ export class NutritionPage implements OnInit {
   readonly selectedFood = signal<FoodSearchResult | null>(null);
   readonly selectedCategory = signal<FoodCategory | null>(null);
   readonly searchControl = new FormControl('', { nonNullable: true });
+  readonly barcodeControl = new FormControl('', { nonNullable: true });
+  readonly barcodeLooking = signal(false);
+  readonly verifiedOnly = signal(false);
+  readonly hasMoreFoods = signal(false);
+  readonly loadingMore = signal(false);
+  private searchPage = 0;
+  private readonly searchPageSize = 20;
 
   readonly today = new Intl.DateTimeFormat('en-SG', {
     weekday: 'long',
@@ -88,6 +96,8 @@ export class NutritionPage implements OnInit {
 
   readonly mealTimeline = computed(() =>
     this.todayMeals().map((meal) => ({
+      mealId: meal.mealId,
+      mealType: meal.mealType,
       type: this.label(meal.mealType),
       time: this.formatTime(meal.consumedAt),
       title: meal.name,
@@ -135,12 +145,14 @@ export class NutritionPage implements OnInit {
         debounceTime(250),
         distinctUntilChanged(),
         switchMap((query) => {
+          this.searchPage = 0;
           this.searching.set(true);
           return this.searchFoods(query);
         })
       )
       .subscribe((foods) => {
         this.foods.set(foods);
+        this.hasMoreFoods.set(foods.length === this.searchPageSize);
         this.searching.set(false);
       });
   }
@@ -160,11 +172,7 @@ export class NutritionPage implements OnInit {
       }
     });
 
-    this.searching.set(true);
-    this.searchFoods(this.searchControl.value).subscribe((foods) => {
-      this.foods.set(foods);
-      this.searching.set(false);
-    });
+    this.runSearch();
     this.categoriesLoading.set(true);
     this.dataService.getFoodCategories().subscribe((categories) => {
       this.categories.set(categories);
@@ -173,14 +181,85 @@ export class NutritionPage implements OnInit {
     this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
     this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
     this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
+    this.dataService.getMealTemplates().subscribe((templates) => this.mealTemplates.set(templates));
     this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+  }
+
+  useMealTemplate(template: MealTemplate): void {
+    this.dataService.logMealFromTemplate(template.templateId).subscribe({
+      next: () => {
+        this.toast.success(`Logged "${template.name}".`);
+        this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+      },
+      error: () => this.toast.error('Unable to log from template. Please retry.')
+    });
+  }
+
+  copyMeal(mealId: string, mealType: string): void {
+    if (!mealId) {
+      return;
+    }
+    this.dataService.copyMeal(mealId, mealType).subscribe({
+      next: () => {
+        this.toast.success('Meal copied to now.');
+        this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+      },
+      error: () => this.toast.error('Unable to copy meal. Please retry.')
+    });
+  }
+
+  lookupBarcode(): void {
+    const barcode = this.barcodeControl.value.trim();
+    if (!barcode || this.barcodeLooking()) {
+      return;
+    }
+    this.barcodeLooking.set(true);
+    this.dataService.getFoodByBarcode(barcode).subscribe({
+      next: (food) => {
+        this.barcodeLooking.set(false);
+        if (!food) {
+          this.toast.error('No food found for that barcode.');
+          return;
+        }
+        this.applyLoggedFood(food);
+        this.toast.success(`Found "${food.foodName}".`);
+      },
+      error: () => {
+        this.barcodeLooking.set(false);
+        this.toast.error('Barcode lookup failed. Please retry.');
+      }
+    });
   }
 
   selectCategory(category: FoodCategory | null): void {
     this.selectedCategory.set(category);
+    this.runSearch();
+  }
+
+  toggleVerifiedOnly(): void {
+    this.verifiedOnly.update((value) => !value);
+    this.runSearch();
+  }
+
+  loadMoreFoods(): void {
+    if (this.loadingMore() || !this.hasMoreFoods()) {
+      return;
+    }
+    this.searchPage += 1;
+    this.loadingMore.set(true);
+    this.searchFoods(this.searchControl.value).subscribe((foods) => {
+      this.foods.update((current) => [...current, ...foods]);
+      this.hasMoreFoods.set(foods.length === this.searchPageSize);
+      this.loadingMore.set(false);
+    });
+  }
+
+  private runSearch(): void {
+    this.searchPage = 0;
     this.searching.set(true);
     this.searchFoods(this.searchControl.value).subscribe((foods) => {
       this.foods.set(foods);
+      this.hasMoreFoods.set(foods.length === this.searchPageSize);
       this.searching.set(false);
     });
   }
@@ -357,7 +436,10 @@ export class NutritionPage implements OnInit {
     const category = this.selectedCategory();
     return this.dataService.searchFoods(query, {
       categoryId: category?.categoryId ?? null,
-      includeSubcategories: category ? category.children.length > 0 : false
+      includeSubcategories: category ? category.children.length > 0 : false,
+      verified: this.verifiedOnly(),
+      page: this.searchPage,
+      size: this.searchPageSize
     });
   }
 
