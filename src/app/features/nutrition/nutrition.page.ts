@@ -44,6 +44,11 @@ export class NutritionPage implements OnInit {
   readonly selectedFood = signal<FoodSearchResult | null>(null);
   readonly selectedCategory = signal<FoodCategory | null>(null);
   readonly searchControl = new FormControl('', { nonNullable: true });
+  readonly verifiedOnly = signal(false);
+  readonly hasMoreFoods = signal(false);
+  readonly loadingMore = signal(false);
+  private searchPage = 0;
+  private readonly searchPageSize = 20;
 
   readonly today = new Intl.DateTimeFormat('en-SG', {
     weekday: 'long',
@@ -135,12 +140,14 @@ export class NutritionPage implements OnInit {
         debounceTime(250),
         distinctUntilChanged(),
         switchMap((query) => {
+          this.searchPage = 0;
           this.searching.set(true);
           return this.searchFoods(query);
         })
       )
       .subscribe((foods) => {
         this.foods.set(foods);
+        this.hasMoreFoods.set(foods.length === this.searchPageSize);
         this.searching.set(false);
       });
   }
@@ -160,11 +167,7 @@ export class NutritionPage implements OnInit {
       }
     });
 
-    this.searching.set(true);
-    this.searchFoods(this.searchControl.value).subscribe((foods) => {
-      this.foods.set(foods);
-      this.searching.set(false);
-    });
+    this.runSearch();
     this.categoriesLoading.set(true);
     this.dataService.getFoodCategories().subscribe((categories) => {
       this.categories.set(categories);
@@ -178,9 +181,33 @@ export class NutritionPage implements OnInit {
 
   selectCategory(category: FoodCategory | null): void {
     this.selectedCategory.set(category);
+    this.runSearch();
+  }
+
+  toggleVerifiedOnly(): void {
+    this.verifiedOnly.update((value) => !value);
+    this.runSearch();
+  }
+
+  loadMoreFoods(): void {
+    if (this.loadingMore() || !this.hasMoreFoods()) {
+      return;
+    }
+    this.searchPage += 1;
+    this.loadingMore.set(true);
+    this.searchFoods(this.searchControl.value).subscribe((foods) => {
+      this.foods.update((current) => [...current, ...foods]);
+      this.hasMoreFoods.set(foods.length === this.searchPageSize);
+      this.loadingMore.set(false);
+    });
+  }
+
+  private runSearch(): void {
+    this.searchPage = 0;
     this.searching.set(true);
     this.searchFoods(this.searchControl.value).subscribe((foods) => {
       this.foods.set(foods);
+      this.hasMoreFoods.set(foods.length === this.searchPageSize);
       this.searching.set(false);
     });
   }
@@ -357,7 +384,10 @@ export class NutritionPage implements OnInit {
     const category = this.selectedCategory();
     return this.dataService.searchFoods(query, {
       categoryId: category?.categoryId ?? null,
-      includeSubcategories: category ? category.children.length > 0 : false
+      includeSubcategories: category ? category.children.length > 0 : false,
+      verified: this.verifiedOnly(),
+      page: this.searchPage,
+      size: this.searchPageSize
     });
   }
 

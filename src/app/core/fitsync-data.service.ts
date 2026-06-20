@@ -50,6 +50,14 @@ export interface ProgressData {
   goals: Goal[];
 }
 
+export interface FoodSearchOptions {
+  categoryId?: string | null;
+  includeSubcategories?: boolean;
+  verified?: boolean;
+  page?: number;
+  size?: number;
+}
+
 interface PageResponse<T> {
   content: T[];
 }
@@ -342,22 +350,29 @@ export class FitSyncDataService {
       );
   }
 
-  searchFoods(
-    query: string,
-    options: { categoryId?: string | null; includeSubcategories?: boolean } = {}
-  ): Observable<FoodSearchResult[]> {
+  searchFoods(query: string, options: FoodSearchOptions = {}): Observable<FoodSearchResult[]> {
     let params = new HttpParams().set('q', query ?? '');
     if (options.categoryId) {
       params = params
         .set('categoryId', options.categoryId)
         .set('includeSubcategories', String(options.includeSubcategories ?? true));
     }
+    if (options.verified) {
+      params = params.set('verified', 'true');
+    }
+    if (options.page != null) {
+      params = params.set('page', String(options.page));
+    }
+    if (options.size != null) {
+      params = params.set('size', String(options.size));
+    }
 
+    const filtered = Boolean(options.categoryId || options.verified || options.page);
     return this.http
       .get<BackendFoodSearchResult[]>(`${this.apiBaseUrl}/nutrition/foods/search`, { params })
       .pipe(
         map((foods) => foods.map((food) => this.mapFood(food))),
-        catchError(() => (options.categoryId ? of([] as FoodSearchResult[]) : this.getFallbackFoods()))
+        catchError(() => (filtered ? of([] as FoodSearchResult[]) : this.getFallbackFoods()))
       );
   }
 

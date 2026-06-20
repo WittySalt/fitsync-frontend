@@ -293,6 +293,20 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].displayName).toBe('Brown rice');
   });
 
+  it('passes verified filter, page, and size params to the food search', () => {
+    service.searchFoods('oat', { verified: true, page: 2, size: 20 }).subscribe();
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/nutrition/foods/search' &&
+        req.params.get('verified') === 'true' &&
+        req.params.get('page') === '2' &&
+        req.params.get('size') === '20'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+  });
+
   it('maps nutrition category trees for category browsing', () => {
     let result: FoodCategory[] | undefined;
     service.getFoodCategories().subscribe((value) => (result = value));

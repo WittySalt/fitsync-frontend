@@ -68,7 +68,7 @@
     border-radius: 50%;
     background:
       radial-gradient(circle at center, var(--surface) 58%, transparent 59%),
-      conic-gradient(var(--amber-500) var(--value), color-mix(in srgb, var(--text-primary) 8%, transparent) 0);
+      conic-gradient(var(--amber-500) var(--value), var(--surface-sunken) 0);
 
     strong {
       font-size: 22px;
@@ -194,8 +194,8 @@
     }
 
     button.active {
-      border-color: color-mix(in srgb, var(--amber-500) 36%, var(--border));
-      background: color-mix(in srgb, var(--amber-500) 14%, var(--surface));
+      border-color: var(--amber-500);
+      background: var(--surface-sunken);
       color: var(--amber-500);
     }
   }
@@ -248,7 +248,7 @@
   }
 
   .food-row.selected {
-    border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    border-color: var(--border-accent);
     background: var(--accent-subtle);
   }
 
@@ -455,5 +455,16 @@
 .food-cal {
   text-align: right;
   white-space: nowrap;
+}
+
+.search-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.load-more {
+  width: 100%;
+  margin-top: 12px;
 }
 

@@ -153,6 +153,18 @@
           />
         </label>
 
+        <div class="search-filters">
+          <button
+            type="button"
+            class="category-chip"
+            [class.active]="verifiedOnly()"
+            [attr.aria-pressed]="verifiedOnly()"
+            (click)="toggleVerifiedOnly()"
+          >
+            Verified only
+          </button>
+        </div>
+
         <div class="category-browser" aria-label="Food categories">
           <div class="category-heading">
             <div>
@@ -282,6 +294,11 @@
               </div>
             }
           </div>
+          @if (hasMoreFoods()) {
+            <button type="button" class="button secondary load-more" [disabled]="loadingMore()" (click)="loadMoreFoods()">
+              {{ loadingMore() ? 'Loading...' : 'Load more' }}
+            </button>
+          }
         } @else {
           <app-state-panel title="No matches" message="Try another search term, or create a custom food." />
         }
