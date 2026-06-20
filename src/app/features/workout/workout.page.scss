@@ -229,7 +229,8 @@
   }
 
   .plan-grid,
-  .catalog-grid {
+  .catalog-grid,
+  .record-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 16px;
@@ -305,7 +306,8 @@
   }
 
   .plan-card,
-  .exercise-card {
+  .exercise-card,
+  .record-card {
     padding: 18px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -358,6 +360,37 @@
   .exercise-card {
     display: grid;
     gap: 6px;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+
+    span,
+    small {
+      color: var(--text-secondary);
+    }
+
+    &.active {
+      border-color: var(--accent);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.68;
+    }
+  }
+
+  .exercise-detail {
+    display: grid;
+    gap: 16px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .record-card {
+    display: grid;
+    gap: 8px;
 
     span,
     small {

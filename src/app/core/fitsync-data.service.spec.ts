@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
+import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -470,6 +470,81 @@ describe('FitSyncDataService', () => {
 
     expect(result?.[0].name).toBe('Back squat');
     expect(result?.[0].exerciseId).toBe('e1');
+  });
+
+  it('loads exercise records and preserves null personal records', () => {
+    let result: ExerciseRecords | null | undefined;
+    service.getExerciseRecords('exercise-1').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1/records');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      exerciseId: 'exercise-1',
+      exerciseName: 'Back squat',
+      maxWeightKg: { value: '125.5', sessionId: 'session-1', achievedAt: '2026-06-12T11:05:00Z' },
+      maxReps: null,
+      maxSingleSetVolumeKg: null,
+      estimatedOneRepMaxKg: { value: 145.8, sessionId: 'session-1', achievedAt: '2026-06-12T11:05:00Z' },
+      bestSessionVolumeKg: null
+    });
+
+    expect(result?.exerciseName).toBe('Back squat');
+    expect(result?.maxWeightKg?.value).toBe(125.5);
+    expect(result?.maxReps).toBeNull();
+  });
+
+  it('returns null when exercise records fail', () => {
+    let result: unknown = 'pending';
+    service.getExerciseRecords('exercise-1').subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1/records').flush('nope', {
+      status: 500,
+      statusText: 'Server Error'
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('loads exercise history with default pagination and unwraps page content', () => {
+    let result: unknown[] | undefined;
+    service.getExerciseHistory('exercise-1').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/exercises/exercise-1/history' &&
+        req.params.get('page') === '0' &&
+        req.params.get('size') === '20' &&
+        !req.params.has('from') &&
+        !req.params.has('to')
+    );
+    request.flush({
+      content: [
+        {
+          sessionId: 'session-1',
+          exerciseLogId: 'log-1',
+          setLogId: 'set-1',
+          exerciseId: 'exercise-1',
+          exerciseNameSnapshot: 'Back squat',
+          sessionName: 'Lower body',
+          completedAt: '2026-06-12T11:05:00Z',
+          setNumber: 2,
+          reps: 5,
+          weightKg: '100.5',
+          distanceKm: null
+        }
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1
+    });
+
+    expect(result?.[0]).toEqual(
+      jasmine.objectContaining({
+        sessionId: 'session-1',
+        weightKg: 100.5,
+        reps: 5
+      })
+    );
   });
 
   it('lists workout plans with a status filter and maps exercise blueprints', () => {

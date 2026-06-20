@@ -5,6 +5,9 @@ import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rx
 import {
   BodyMetric,
   Exercise,
+  ExerciseHistoryEntry,
+  ExerciseRecords,
+  ExerciseRecordValue,
   FoodCategory,
   FoodSearchResult,
   Goal,
@@ -170,6 +173,42 @@ interface BackendWorkoutPlan {
   createdAt?: string | null;
   updatedAt?: string | null;
   exercises?: BackendWorkoutPlanExercise[] | null;
+}
+
+interface BackendExerciseRecordValue {
+  value?: number | string | null;
+  sessionId?: string | null;
+  achievedAt?: string | null;
+}
+
+interface BackendExerciseRecords {
+  exerciseId?: string | null;
+  exerciseName?: string | null;
+  maxWeightKg?: BackendExerciseRecordValue | null;
+  maxReps?: BackendExerciseRecordValue | null;
+  maxSingleSetVolumeKg?: BackendExerciseRecordValue | null;
+  estimatedOneRepMaxKg?: BackendExerciseRecordValue | null;
+  bestSessionVolumeKg?: BackendExerciseRecordValue | null;
+}
+
+interface BackendExerciseHistoryEntry {
+  sessionId?: string | null;
+  exerciseLogId?: string | null;
+  setLogId?: string | null;
+  exerciseId?: string | null;
+  exerciseNameSnapshot?: string | null;
+  sessionName?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  sequence?: number | null;
+  setNumber?: number | null;
+  reps?: number | null;
+  weightKg?: number | string | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | string | null;
+  restSeconds?: number | null;
+  perceivedExertion?: number | null;
+  notes?: string | null;
 }
 
 interface BackendFoodCategory {
@@ -441,6 +480,48 @@ export class FitSyncDataService {
       .pipe(
         map((response) => (response.content ?? []).map((exercise) => this.mapExercise(exercise))),
         catchError(() => of([] as Exercise[]))
+      );
+  }
+
+  getExerciseRecords(exerciseId: string): Observable<ExerciseRecords | null> {
+    if (!exerciseId) {
+      return of(null);
+    }
+
+    return this.http
+      .get<BackendExerciseRecords>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}/records`)
+      .pipe(
+        map((records) => this.mapExerciseRecords(records)),
+        catchError(() => of(null))
+      );
+  }
+
+  getExerciseHistory(
+    exerciseId: string,
+    opts: { from?: string; to?: string; page?: number; size?: number } = {}
+  ): Observable<ExerciseHistoryEntry[]> {
+    if (!exerciseId) {
+      return of([] as ExerciseHistoryEntry[]);
+    }
+
+    let params = new HttpParams()
+      .set('page', String(opts.page ?? 0))
+      .set('size', String(opts.size ?? 20));
+    if (opts.from) {
+      params = params.set('from', opts.from);
+    }
+    if (opts.to) {
+      params = params.set('to', opts.to);
+    }
+
+    return this.http
+      .get<PageResponse<BackendExerciseHistoryEntry>>(
+        `${this.apiBaseUrl}/workouts/exercises/${exerciseId}/history`,
+        { params }
+      )
+      .pipe(
+        map((response) => (response.content ?? []).map((entry) => this.mapExerciseHistoryEntry(entry))),
+        catchError(() => of([] as ExerciseHistoryEntry[]))
       );
   }
 
@@ -905,6 +986,56 @@ export class FitSyncDataService {
       equipment: exercise.equipment ?? '',
       difficulty: exercise.difficulty ?? '',
       custom: exercise.custom ?? false
+    };
+  }
+
+  private mapExerciseRecords(records?: BackendExerciseRecords | null): ExerciseRecords | null {
+    if (!records) {
+      return null;
+    }
+
+    return {
+      exerciseId: records.exerciseId ?? '',
+      exerciseName: records.exerciseName ?? 'Exercise',
+      maxWeightKg: this.mapExerciseRecordValue(records.maxWeightKg),
+      maxReps: this.mapExerciseRecordValue(records.maxReps),
+      maxSingleSetVolumeKg: this.mapExerciseRecordValue(records.maxSingleSetVolumeKg),
+      estimatedOneRepMaxKg: this.mapExerciseRecordValue(records.estimatedOneRepMaxKg),
+      bestSessionVolumeKg: this.mapExerciseRecordValue(records.bestSessionVolumeKg)
+    };
+  }
+
+  private mapExerciseRecordValue(record?: BackendExerciseRecordValue | null): ExerciseRecordValue | null {
+    if (!record) {
+      return null;
+    }
+
+    return {
+      value: this.numericValue(record.value),
+      sessionId: record.sessionId ?? '',
+      achievedAt: record.achievedAt ?? ''
+    };
+  }
+
+  private mapExerciseHistoryEntry(entry: BackendExerciseHistoryEntry): ExerciseHistoryEntry {
+    return {
+      sessionId: entry.sessionId ?? '',
+      exerciseLogId: entry.exerciseLogId ?? '',
+      setLogId: entry.setLogId ?? '',
+      exerciseId: entry.exerciseId ?? '',
+      exerciseNameSnapshot: entry.exerciseNameSnapshot ?? 'Exercise',
+      sessionName: entry.sessionName ?? '',
+      startedAt: entry.startedAt ?? '',
+      completedAt: entry.completedAt ?? '',
+      sequence: entry.sequence ?? null,
+      setNumber: entry.setNumber ?? null,
+      reps: entry.reps ?? null,
+      weightKg: this.numericValue(entry.weightKg),
+      durationSeconds: entry.durationSeconds ?? null,
+      distanceKm: this.numericValue(entry.distanceKm),
+      restSeconds: entry.restSeconds ?? null,
+      perceivedExertion: entry.perceivedExertion ?? null,
+      notes: entry.notes ?? ''
     };
   }
 
