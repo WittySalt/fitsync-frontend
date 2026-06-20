@@ -1,0 +1,142 @@
+:host {
+  display: block;
+}
+
+.live-logger {
+  display: grid;
+  gap: 18px;
+}
+
+.logger-start,
+.session-summary,
+.add-exercise,
+.exercise-log-header,
+.logger-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.logger-start {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.start-panel,
+.live-session,
+.exercise-log,
+.set-list {
+  display: grid;
+  gap: 14px;
+}
+
+.start-panel,
+.exercise-log {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+h3 {
+  margin: 0;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 9px 11px;
+}
+
+.status-pill,
+.set-state {
+  width: fit-content;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  padding: 4px 9px;
+}
+
+.set-state.logged {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.session-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.session-summary div {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.session-summary span,
+dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.session-summary strong,
+dd {
+  display: block;
+  margin: 4px 0 0;
+}
+
+.add-exercise {
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+}
+
+.exercise-log-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.exercise-log-header dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 130px repeat(4, minmax(76px, 1fr)) minmax(130px, 1.4fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.logger-actions {
+  grid-template-columns: repeat(2, max-content);
+  justify-content: end;
+}
+
+@media (max-width: 760px) {
+  .session-summary,
+  .add-exercise,
+  .exercise-log-header,
+  .set-row {
+    grid-template-columns: 1fr;
+  }
+
+  .logger-actions {
+    grid-template-columns: 1fr;
+  }
+}

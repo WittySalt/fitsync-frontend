@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
-import { Exercise, ExerciseHistoryEntry, ExerciseRecords, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
+import { Exercise, ExerciseHistoryEntry, ExerciseRecords, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
 
 function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   return {
@@ -16,6 +16,18 @@ function session(overrides: Partial<WorkoutSession>): WorkoutSession {
     caloriesBurned: 0,
     completedAt: '',
     exerciseCount: 0,
+    ...overrides
+  };
+}
+
+function sessionDetail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
+  return {
+    ...session({ sessionId: 'session-1', name: 'Session', status: 'IN_PROGRESS' }),
+    perceivedExertion: null,
+    notes: '',
+    exercises: [],
+    createdAt: '',
+    updatedAt: '',
     ...overrides
   };
 }
@@ -101,6 +113,11 @@ describe('WorkoutPage', () => {
       'activateWorkoutPlan',
       'archiveWorkoutPlan',
       'startWorkoutPlan',
+      'startAdHocSession',
+      'addSessionExercise',
+      'upsertSessionSet',
+      'completeSession',
+      'cancelSession',
       'getExerciseRecords',
       'getExerciseHistory'
     ]);
@@ -113,7 +130,12 @@ describe('WorkoutPage', () => {
     dataService.updateWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
     dataService.activateWorkoutPlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
     dataService.archiveWorkoutPlan.and.returnValue(of(void 0));
-    dataService.startWorkoutPlan.and.returnValue(of(session({ sessionId: 'session-1', status: 'IN_PROGRESS' })));
+    dataService.startWorkoutPlan.and.returnValue(of(sessionDetail()));
+    dataService.startAdHocSession.and.returnValue(of(sessionDetail()));
+    dataService.addSessionExercise.and.returnValue(of(sessionDetail()));
+    dataService.upsertSessionSet.and.returnValue(of(sessionDetail()));
+    dataService.completeSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
+    dataService.cancelSession.and.returnValue(of(sessionDetail({ status: 'CANCELLED' })));
     dataService.getExerciseRecords.and.returnValue(of(null));
     dataService.getExerciseHistory.and.returnValue(of([]));
 
@@ -238,7 +260,7 @@ describe('WorkoutPage', () => {
   });
 
   it('starts a plan and moves the user to training history', () => {
-    const started = session({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
+    const started = sessionDetail({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
     dataService.startWorkoutPlan.and.returnValue(of(started));
     dataService.getWorkoutSessions.and.returnValue(of([started]));
 
@@ -246,6 +268,17 @@ describe('WorkoutPage', () => {
 
     expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1');
     expect(component.sessions()[0].sessionId).toBe('session-1');
+    expect(component.selectedTab()).toBe('history');
+  });
+
+  it('refreshes sessions and opens history when live logger completes', () => {
+    const completed = session({ sessionId: 'session-2', name: 'Finished', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([completed]));
+
+    component.handleLiveWorkoutFinished();
+
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(component.sessions()[0].sessionId).toBe('session-2');
     expect(component.selectedTab()).toBe('history');
   });
 

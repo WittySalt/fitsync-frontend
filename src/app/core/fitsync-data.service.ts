@@ -20,10 +20,14 @@ import {
   OnboardingFormValue,
   OnboardingSeed,
   UserProfile,
+  StartAdHocSessionInput,
+  WorkoutExerciseLogInput,
+  WorkoutExerciseSetInput,
   WorkoutPlan,
   WorkoutPlanRequest,
   WorkoutPlanStatus,
-  WorkoutSession
+  WorkoutSession,
+  WorkoutSessionDetail
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -173,6 +177,43 @@ interface BackendWorkoutPlan {
   createdAt?: string | null;
   updatedAt?: string | null;
   exercises?: BackendWorkoutPlanExercise[] | null;
+}
+
+interface BackendWorkoutSessionDetail extends Partial<WorkoutSession> {
+  perceivedExertion?: number | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  exercises?: BackendWorkoutExerciseLog[] | null;
+}
+
+interface BackendWorkoutExerciseLog {
+  exerciseLogId?: string | null;
+  exerciseId?: string | null;
+  exerciseNameSnapshot?: string | null;
+  sequence?: number | null;
+  performedSets?: number | null;
+  performedReps?: number | null;
+  totalVolumeKg?: number | string | null;
+  distanceKm?: number | string | null;
+  durationSeconds?: number | null;
+  averageHeartRate?: number | null;
+  maxHeartRate?: number | null;
+  notes?: string | null;
+  sets?: BackendWorkoutExerciseSetLog[] | null;
+}
+
+interface BackendWorkoutExerciseSetLog {
+  setLogId?: string | null;
+  setNumber?: number | null;
+  reps?: number | null;
+  weightKg?: number | string | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | string | null;
+  restSeconds?: number | null;
+  perceivedExertion?: number | null;
+  logged?: boolean | null;
+  notes?: string | null;
 }
 
 interface BackendExerciseRecordValue {
@@ -445,18 +486,67 @@ export class FitSyncDataService {
     return this.http.delete<void>(`${this.apiBaseUrl}/workouts/plans/${planId}`);
   }
 
-  startWorkoutPlan(planId: string): Observable<WorkoutSession> {
+  startWorkoutPlan(planId: string): Observable<WorkoutSessionDetail> {
     return this.http
-      .post<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/plans/${planId}/start`, {})
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/plans/${planId}/start`, {})
       .pipe(
         map((session) => {
-          const mapped = this.mapWorkoutSession(session);
-          if (!mapped) {
+          const mapped = this.mapWorkoutSessionDetail(session);
+          if (!mapped.sessionId) {
             throw new Error('Workout plan started but the session response was empty.');
           }
           return mapped;
         })
       );
+  }
+
+  startAdHocSession(input: StartAdHocSessionInput): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions`, {
+        name: input.name,
+        workoutType: input.workoutType,
+        status: 'IN_PROGRESS',
+        source: 'MANUAL',
+        startedAt: new Date().toISOString(),
+        notes: input.notes || null,
+        exercises: []
+      })
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  addSessionExercise(sessionId: string, input: WorkoutExerciseLogInput): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}/exercises`, input)
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  upsertSessionSet(
+    sessionId: string,
+    exerciseLogId: string,
+    setNumber: number,
+    input: WorkoutExerciseSetInput
+  ): Observable<WorkoutSessionDetail> {
+    return this.http
+      .put<BackendWorkoutSessionDetail>(
+        `${this.apiBaseUrl}/workouts/sessions/${sessionId}/exercises/${exerciseLogId}/sets/${setNumber}`,
+        input
+      )
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  completeSession(sessionId: string, completedAt?: string): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(
+        `${this.apiBaseUrl}/workouts/sessions/${sessionId}/complete`,
+        completedAt ? { completedAt } : {}
+      )
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  cancelSession(sessionId: string): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}/cancel`, {})
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
   }
 
   getWorkoutSessions(limit = 20): Observable<WorkoutSession[]> {
@@ -974,6 +1064,66 @@ export class FitSyncDataService {
       caloriesBurned: session.caloriesBurned ?? 0,
       completedAt: session.completedAt ?? '',
       exerciseCount: session.exerciseCount ?? 0
+    };
+  }
+
+  private mapWorkoutSessionDetail(session: BackendWorkoutSessionDetail): WorkoutSessionDetail {
+    const base = this.mapWorkoutSession(session) ?? {
+      sessionId: session.sessionId ?? null,
+      planId: session.planId ?? null,
+      name: session.name ?? 'Workout session',
+      workoutType: session.workoutType ?? 'CUSTOM',
+      status: session.status ?? 'IN_PROGRESS',
+      source: session.source ?? null,
+      startedAt: session.startedAt ?? '',
+      durationMinutes: session.durationMinutes ?? 0,
+      caloriesBurned: session.caloriesBurned ?? 0,
+      completedAt: session.completedAt ?? '',
+      exerciseCount: session.exerciseCount ?? session.exercises?.length ?? 0
+    };
+
+    const exercises = (session.exercises ?? []).map((exercise) => this.mapWorkoutExerciseLog(exercise));
+    return {
+      ...base,
+      exerciseCount: session.exerciseCount ?? exercises.length,
+      perceivedExertion: session.perceivedExertion ?? null,
+      notes: session.notes ?? '',
+      exercises,
+      createdAt: session.createdAt ?? '',
+      updatedAt: session.updatedAt ?? ''
+    };
+  }
+
+  private mapWorkoutExerciseLog(exercise: BackendWorkoutExerciseLog) {
+    return {
+      exerciseLogId: exercise.exerciseLogId ?? '',
+      exerciseId: exercise.exerciseId ?? '',
+      exerciseNameSnapshot: exercise.exerciseNameSnapshot ?? 'Exercise',
+      sequence: exercise.sequence ?? 1,
+      performedSets: exercise.performedSets ?? null,
+      performedReps: exercise.performedReps ?? null,
+      totalVolumeKg: this.numericValue(exercise.totalVolumeKg),
+      distanceKm: this.numericValue(exercise.distanceKm),
+      durationSeconds: exercise.durationSeconds ?? null,
+      averageHeartRate: exercise.averageHeartRate ?? null,
+      maxHeartRate: exercise.maxHeartRate ?? null,
+      notes: exercise.notes ?? '',
+      sets: (exercise.sets ?? []).map((set) => this.mapWorkoutExerciseSetLog(set))
+    };
+  }
+
+  private mapWorkoutExerciseSetLog(set: BackendWorkoutExerciseSetLog) {
+    return {
+      setLogId: set.setLogId ?? '',
+      setNumber: set.setNumber ?? 1,
+      reps: set.reps ?? null,
+      weightKg: this.numericValue(set.weightKg),
+      durationSeconds: set.durationSeconds ?? null,
+      distanceKm: this.numericValue(set.distanceKm),
+      restSeconds: set.restSeconds ?? null,
+      perceivedExertion: set.perceivedExertion ?? null,
+      logged: set.logged ?? false,
+      notes: set.notes ?? ''
     };
   }
 

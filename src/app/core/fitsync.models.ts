@@ -88,6 +88,73 @@ export interface WorkoutSessionFormValue {
   notes: string;
 }
 
+export interface StartAdHocSessionInput {
+  name: string;
+  workoutType: string;
+  notes?: string | null;
+}
+
+export interface WorkoutSessionDetail extends WorkoutSession {
+  perceivedExertion: number | null;
+  notes: string;
+  exercises: WorkoutExerciseLog[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkoutExerciseLog {
+  exerciseLogId: string;
+  exerciseId: string;
+  exerciseNameSnapshot: string;
+  sequence: number;
+  performedSets: number | null;
+  performedReps: number | null;
+  totalVolumeKg: number | null;
+  distanceKm: number | null;
+  durationSeconds: number | null;
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+  notes: string;
+  sets: WorkoutExerciseSetLog[];
+}
+
+export interface WorkoutExerciseSetLog {
+  setLogId: string;
+  setNumber: number;
+  reps: number | null;
+  weightKg: number | null;
+  durationSeconds: number | null;
+  distanceKm: number | null;
+  restSeconds: number | null;
+  perceivedExertion: number | null;
+  logged: boolean;
+  notes: string;
+}
+
+export interface WorkoutExerciseLogInput {
+  exerciseId: string;
+  sequence: number;
+  performedSets: number | null;
+  performedReps: number | null;
+  totalVolumeKg: number | null;
+  distanceKm: number | null;
+  durationSeconds: number | null;
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+  notes: string | null;
+  sets: WorkoutExerciseSetInput[];
+}
+
+export interface WorkoutExerciseSetInput {
+  reps: number | null;
+  weightKg: number | null;
+  durationSeconds: number | null;
+  distanceKm: number | null;
+  restSeconds: number | null;
+  perceivedExertion: number | null;
+  notes: string | null;
+}
+
 export interface Exercise {
   exerciseId: string | null;
   name: string;
