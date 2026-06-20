@@ -12,7 +12,9 @@ import {
   ExerciseRecordValue,
   ExerciseSearchOptions,
   FoodCategory,
+  FoodDetail,
   FoodSearchResult,
+  FoodServing,
   Goal,
   GOAL_STATUSES,
   GOAL_TYPES,
@@ -21,8 +23,11 @@ import {
   ImportResult,
   ImportSessionRow,
   LoggedFood,
+  MealDraft,
+  MealItemDraft,
   MealTemplate,
   MealFormValue,
+  QuickAddMealValue,
   WorkoutSessionFormValue,
   Meal,
   NutritionSummary,
@@ -158,10 +163,12 @@ interface BackendFoodSearchResult {
   displayName?: string | null;
   brandName?: string | null;
   categoryCode?: string | null;
+  scope?: string | null;
   calories?: number | null;
   proteinGrams?: number | null;
   basisLabel?: string | null;
   basisUnit?: string | null;
+  primaryBarcode?: string | null;
   verified?: boolean | null;
 }
 
@@ -323,23 +330,52 @@ interface BackendFoodDetail {
   foodId?: string | null;
   displayName?: string | null;
   brandName?: string | null;
+  scope?: string | null;
+  densityGramsPerMl?: number | string | null;
   calories?: number | null;
   proteinGrams?: number | string | null;
   carbsGrams?: number | string | null;
   fatGrams?: number | string | null;
+  fiberGrams?: number | string | null;
+  sugarGrams?: number | string | null;
+  sodiumMg?: number | string | null;
+  basisQuantity?: number | string | null;
   basisUnit?: string | null;
+  primaryBarcode?: string | null;
+  servings?: BackendFoodServing[] | null;
+}
+
+interface BackendFoodServing {
+  servingId?: string | null;
+  label?: string | null;
+  quantity?: number | string | null;
+  unit?: string | null;
+  gramsEquivalent?: number | string | null;
+  millilitersEquivalent?: number | string | null;
+  sortOrder?: number | null;
+  defaultServing?: boolean | null;
 }
 
 interface BackendLoggedFood {
+  foodId?: string | null;
+  customFoodId?: string | null;
+  foodCatalogItemId?: string | null;
+  foodServingId?: string | null;
+  scope?: string | null;
   foodName?: string | null;
   brandName?: string | null;
   snapshotServingLabel?: string | null;
+  quantity?: number | string | null;
+  unit?: string | null;
   servingSize?: number | string | null;
   servingUnit?: string | null;
   calories?: number | null;
   proteinGrams?: number | string | null;
   carbsGrams?: number | string | null;
   fatGrams?: number | string | null;
+  fiberGrams?: number | string | null;
+  sugarGrams?: number | string | null;
+  sodiumMg?: number | string | null;
   timesLogged?: number | string | null;
 }
 
@@ -823,6 +859,19 @@ export class FitSyncDataService {
       );
   }
 
+  getFoodDetail(foodId: string): Observable<FoodDetail | null> {
+    if (!foodId) {
+      return of(null);
+    }
+
+    return this.http
+      .get<BackendFoodDetail>(`${this.apiBaseUrl}/nutrition/foods/${foodId}`)
+      .pipe(
+        map((food) => this.mapFoodDetail(food)),
+        catchError(() => of(null))
+      );
+  }
+
   getFoodCategories(): Observable<FoodCategory[]> {
     return this.http.get<BackendFoodCategory[]>(`${this.apiBaseUrl}/nutrition/categories`).pipe(
       map((categories) => categories.map((category) => this.mapFoodCategory(category))),
@@ -881,9 +930,42 @@ export class FitSyncDataService {
 
   getFallbackFoods(): Observable<FoodSearchResult[]> {
     return of<FoodSearchResult[]>([
-      { foodId: null, displayName: 'Greek yogurt', brandName: 'Generic', calories: 96, proteinGrams: 10, basisUnit: '100 g', verified: true },
-      { foodId: null, displayName: 'Grilled chicken breast', brandName: 'Generic', calories: 165, proteinGrams: 31, basisUnit: '100 g', verified: true },
-      { foodId: null, displayName: 'Brown rice', brandName: 'Generic', calories: 112, proteinGrams: 2.6, basisUnit: '100 g', verified: true }
+      {
+        foodId: null,
+        displayName: 'Greek yogurt',
+        brandName: 'Generic',
+        scope: 'CATALOG',
+        calories: 96,
+        proteinGrams: 10,
+        basisUnit: '100 g',
+        basisLabel: '100 g',
+        primaryBarcode: '',
+        verified: true
+      },
+      {
+        foodId: null,
+        displayName: 'Grilled chicken breast',
+        brandName: 'Generic',
+        scope: 'CATALOG',
+        calories: 165,
+        proteinGrams: 31,
+        basisUnit: '100 g',
+        basisLabel: '100 g',
+        primaryBarcode: '',
+        verified: true
+      },
+      {
+        foodId: null,
+        displayName: 'Brown rice',
+        brandName: 'Generic',
+        scope: 'CATALOG',
+        calories: 112,
+        proteinGrams: 2.6,
+        basisUnit: '100 g',
+        basisLabel: '100 g',
+        primaryBarcode: '',
+        verified: true
+      }
     ]).pipe(delay(180));
   }
 
@@ -1000,13 +1082,24 @@ export class FitSyncDataService {
         map((food) =>
           food && food.displayName
             ? {
+                foodId: food.foodId ?? null,
+                customFoodId: null,
+                foodServingId: null,
+                scope: food.scope ?? 'CATALOG',
                 foodName: food.displayName,
                 brandName: food.brandName ?? '',
                 servingLabel: food.basisUnit ?? '',
+                quantity: 1,
+                unit: 'serving',
+                servingSize: this.numericValue(food.basisQuantity),
+                servingUnit: food.basisUnit ?? null,
                 calories: food.calories ?? 0,
                 proteinGrams: Number(food.proteinGrams ?? 0),
                 carbsGrams: Number(food.carbsGrams ?? 0),
                 fatGrams: Number(food.fatGrams ?? 0),
+                fiberGrams: this.numericValue(food.fiberGrams),
+                sugarGrams: this.numericValue(food.sugarGrams),
+                sodiumMg: this.numericValue(food.sodiumMg),
                 timesLogged: 0
               }
             : null
@@ -1025,33 +1118,69 @@ export class FitSyncDataService {
     };
   }
 
-  saveMeal(value: MealFormValue): Observable<{ ok: true }> {
+  createMeal(draft: MealDraft): Observable<Meal> {
     this.lastSavedMessage.set(null);
 
-    return this.http.post(`${this.apiBaseUrl}/nutrition/meals`, {
+    return this.http
+      .post<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals`, {
+        mealType: draft.mealType,
+        name: draft.name || null,
+        source: 'MANUAL',
+        consumedAt: draft.consumedAt ?? new Date().toISOString(),
+        timezone: draft.timezone ?? this.getLocalTimezone(),
+        note: draft.note || null,
+        items: draft.items.map((item) => this.toMealItemInput(item))
+      })
+      .pipe(
+        map((meal) => {
+          this.lastSavedMessage.set('Meal saved to FitSync backend.');
+          const mapped = this.mapMeal(meal);
+          if (!mapped) {
+            throw new Error('Meal saved, but the response was empty.');
+          }
+          return mapped;
+        })
+      );
+  }
+
+  quickAddMeal(value: QuickAddMealValue): Observable<Meal> {
+    this.lastSavedMessage.set(null);
+
+    return this.http
+      .post<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/quick-add`, {
+        mealType: value.mealType,
+        name: value.name,
+        consumedAt: value.consumedAt ?? new Date().toISOString(),
+        timezone: value.timezone ?? this.getLocalTimezone(),
+        calories: value.calories,
+        proteinGrams: value.proteinGrams,
+        carbsGrams: value.carbsGrams,
+        fatGrams: value.fatGrams,
+        fiberGrams: value.fiberGrams ?? null,
+        sugarGrams: value.sugarGrams ?? null,
+        sodiumMg: value.sodiumMg ?? null
+      })
+      .pipe(
+        map((meal) => {
+          this.lastSavedMessage.set('Meal saved to FitSync backend.');
+          const mapped = this.mapMeal(meal);
+          if (!mapped) {
+            throw new Error('Meal saved, but the response was empty.');
+          }
+          return mapped;
+        })
+      );
+  }
+
+  saveMeal(value: MealFormValue): Observable<{ ok: true }> {
+    return this.quickAddMeal({
       mealType: value.mealType,
       name: value.foodName,
-      source: 'MANUAL',
-      consumedAt: new Date().toISOString(),
-      timezone: 'Asia/Singapore',
-      note: value.note || null,
-      items: [
-        {
-          foodName: value.foodName,
-          quantity: 1,
-          unit: 'serving',
-          calories: value.calories,
-          proteinGrams: value.proteinGrams,
-          carbsGrams: value.carbsGrams,
-          fatGrams: value.fatGrams
-        }
-      ]
-    }).pipe(
-      map(() => {
-        this.lastSavedMessage.set('Meal saved to FitSync backend.');
-        return { ok: true as const };
-      })
-    );
+      calories: value.calories,
+      proteinGrams: value.proteinGrams,
+      carbsGrams: value.carbsGrams,
+      fatGrams: value.fatGrams
+    }).pipe(map(() => ({ ok: true as const })));
   }
 
   simulateLoadError(): Observable<never> {
@@ -1637,31 +1766,130 @@ export class FitSyncDataService {
     };
   }
 
+  private toMealItemInput(item: MealItemDraft): Record<string, unknown> {
+    return {
+      foodCatalogItemId: item.foodCatalogItemId ?? null,
+      customFoodId: item.customFoodId ?? null,
+      foodServingId: item.foodServingId ?? null,
+      foodName: item.foodName,
+      brandName: item.brandName || null,
+      quantity: item.quantity,
+      unit: item.unit,
+      servingSize: item.servingSize,
+      servingUnit: item.servingUnit,
+      snapshotServingLabel: item.snapshotServingLabel,
+      calories: item.calories,
+      proteinGrams: item.proteinGrams,
+      carbsGrams: item.carbsGrams,
+      fatGrams: item.fatGrams,
+      fiberGrams: item.fiberGrams,
+      sugarGrams: item.sugarGrams,
+      sodiumMg: item.sodiumMg
+    };
+  }
+
   private mapFood(food: BackendFoodSearchResult): FoodSearchResult {
     return {
       foodId: food.foodId ?? null,
       displayName: food.displayName ?? 'Food',
       brandName: food.brandName ?? '',
+      scope: food.scope ?? 'CATALOG',
       calories: food.calories ?? 0,
       // Search results carry calories + basis only; macros require the food detail
       // endpoint, so leave protein at 0 until the user picks a detailed/recent food.
       proteinGrams: food.proteinGrams ?? 0,
       basisUnit: food.basisLabel ?? food.basisUnit ?? 'serving',
+      basisLabel: food.basisLabel ?? food.basisUnit ?? 'serving',
+      primaryBarcode: food.primaryBarcode ?? '',
       verified: food.verified ?? false
+    };
+  }
+
+  private mapFoodDetail(food: BackendFoodDetail): FoodDetail {
+    const basisQuantity = this.numericValue(food.basisQuantity) ?? 100;
+    const basisUnit = food.basisUnit ?? 'g';
+    const servings = (food.servings ?? [])
+      .map((serving) => this.mapFoodServing(serving))
+      .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
+
+    return {
+      foodId: food.foodId ?? null,
+      displayName: food.displayName ?? 'Food',
+      brandName: food.brandName ?? '',
+      scope: food.scope ?? 'CATALOG',
+      calories: food.calories ?? 0,
+      proteinGrams: this.numericValue(food.proteinGrams) ?? 0,
+      carbsGrams: this.numericValue(food.carbsGrams) ?? 0,
+      fatGrams: this.numericValue(food.fatGrams) ?? 0,
+      fiberGrams: this.numericValue(food.fiberGrams),
+      sugarGrams: this.numericValue(food.sugarGrams),
+      sodiumMg: this.numericValue(food.sodiumMg),
+      basisQuantity,
+      basisUnit,
+      densityGramsPerMl: this.numericValue(food.densityGramsPerMl),
+      primaryBarcode: food.primaryBarcode ?? '',
+      servings: servings.length
+        ? servings
+        : [
+            {
+              servingId: null,
+              label: `${basisQuantity} ${basisUnit}`.trim(),
+              quantity: basisQuantity,
+              unit: basisUnit,
+              gramsEquivalent: this.isGramUnit(basisUnit) ? basisQuantity : null,
+              millilitersEquivalent: this.isMilliliterUnit(basisUnit) ? basisQuantity : null,
+              sortOrder: 0,
+              defaultServing: true
+            }
+          ]
+    };
+  }
+
+  private mapFoodServing(serving: BackendFoodServing): FoodServing {
+    return {
+      servingId: serving.servingId ?? null,
+      label: serving.label ?? 'Serving',
+      quantity: this.numericValue(serving.quantity),
+      unit: serving.unit ?? null,
+      gramsEquivalent: this.numericValue(serving.gramsEquivalent),
+      millilitersEquivalent: this.numericValue(serving.millilitersEquivalent),
+      sortOrder: serving.sortOrder ?? null,
+      defaultServing: serving.defaultServing ?? false
     };
   }
 
   private mapLoggedFood(food: BackendLoggedFood): LoggedFood {
     return {
+      foodId: food.foodCatalogItemId ?? food.foodId ?? null,
+      customFoodId: food.customFoodId ?? null,
+      foodServingId: food.foodServingId ?? null,
+      scope: food.scope ?? (food.customFoodId ? 'USER' : 'CATALOG'),
       foodName: food.foodName ?? 'Food',
       brandName: food.brandName ?? '',
       servingLabel: food.snapshotServingLabel ?? (food.servingSize ? `${food.servingSize} ${food.servingUnit ?? ''}`.trim() : ''),
+      quantity: this.numericValue(food.quantity) ?? 1,
+      unit: food.unit ?? 'serving',
+      servingSize: this.numericValue(food.servingSize),
+      servingUnit: food.servingUnit ?? null,
       calories: food.calories ?? 0,
       proteinGrams: Number(food.proteinGrams ?? 0),
       carbsGrams: Number(food.carbsGrams ?? 0),
       fatGrams: Number(food.fatGrams ?? 0),
+      fiberGrams: this.numericValue(food.fiberGrams),
+      sugarGrams: this.numericValue(food.sugarGrams),
+      sodiumMg: this.numericValue(food.sodiumMg),
       timesLogged: Number(food.timesLogged ?? 0)
     };
+  }
+
+  private isGramUnit(unit: string): boolean {
+    const normalized = unit.trim().toLowerCase();
+    return normalized === 'g' || normalized === 'gram' || normalized === 'grams';
+  }
+
+  private isMilliliterUnit(unit: string): boolean {
+    const normalized = unit.trim().toLowerCase();
+    return normalized === 'ml' || normalized === 'milliliter' || normalized === 'milliliters';
   }
 
   private mapFoodCategory(category: BackendFoodCategory): FoodCategory {

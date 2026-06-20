@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -495,6 +495,162 @@ describe('FitSyncDataService', () => {
     httpTesting.expectOne('/api/v1/nutrition/barcodes/000').flush('not found', { status: 404, statusText: 'Not Found' });
 
     expect(food).toBeNull();
+  });
+
+  it('loads food detail with servings and full nutrition', () => {
+    let detail: FoodDetail | null | undefined;
+    service.getFoodDetail('food-1').subscribe((value) => (detail = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/foods/food-1');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      foodId: 'food-1',
+      displayName: 'Greek yogurt',
+      brandName: 'Generic',
+      scope: 'CATALOG',
+      calories: 96,
+      proteinGrams: '10.2',
+      carbsGrams: '3.8',
+      fatGrams: '0.4',
+      fiberGrams: '0',
+      sugarGrams: '3.6',
+      sodiumMg: '36',
+      basisQuantity: '100',
+      basisUnit: 'g',
+      servings: [
+        {
+          servingId: 'serving-1',
+          label: '1 cup',
+          quantity: '170',
+          unit: 'g',
+          gramsEquivalent: '170',
+          sortOrder: 1,
+          defaultServing: true
+        }
+      ]
+    });
+
+    expect(detail?.displayName).toBe('Greek yogurt');
+    expect(detail?.proteinGrams).toBe(10.2);
+    expect(detail?.servings[0].gramsEquivalent).toBe(170);
+  });
+
+  it('creates a meal with multiple item snapshots', () => {
+    let meal: Meal | undefined;
+    service
+      .createMeal({
+        mealType: 'LUNCH',
+        name: 'Chicken lunch',
+        note: 'Post workout',
+        consumedAt: '2026-06-20T04:00:00.000Z',
+        timezone: 'Asia/Singapore',
+        items: [
+          {
+            foodCatalogItemId: 'food-catalog',
+            customFoodId: null,
+            foodServingId: 'serving-1',
+            foodName: 'Chicken rice',
+            brandName: 'Hawker',
+            quantity: 1.5,
+            unit: 'serving',
+            servingSize: 150,
+            servingUnit: 'g',
+            snapshotServingLabel: '1 bowl',
+            calories: 450,
+            proteinGrams: 38,
+            carbsGrams: 55,
+            fatGrams: 12,
+            fiberGrams: 3,
+            sugarGrams: 4,
+            sodiumMg: 650
+          },
+          {
+            foodCatalogItemId: null,
+            customFoodId: 'custom-food',
+            foodServingId: 'serving-2',
+            foodName: 'Home sauce',
+            brandName: null,
+            quantity: 1,
+            unit: 'serving',
+            servingSize: 20,
+            servingUnit: 'g',
+            snapshotServingLabel: '1 tbsp',
+            calories: 40,
+            proteinGrams: 1,
+            carbsGrams: 5,
+            fatGrams: 2,
+            fiberGrams: null,
+            sugarGrams: null,
+            sodiumMg: null
+          }
+        ]
+      })
+      .subscribe((value) => (meal = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.mealType).toBe('LUNCH');
+    expect(request.request.body.source).toBe('MANUAL');
+    expect(request.request.body.items.length).toBe(2);
+    expect(request.request.body.items[0]).toEqual(
+      jasmine.objectContaining({
+        foodCatalogItemId: 'food-catalog',
+        foodServingId: 'serving-1',
+        quantity: 1.5,
+        calories: 450,
+        proteinGrams: 38
+      })
+    );
+    expect(request.request.body.items[1].customFoodId).toBe('custom-food');
+    request.flush({
+      mealId: 'meal-1',
+      mealType: 'LUNCH',
+      name: 'Chicken lunch',
+      totalCalories: 490,
+      totalProteinGrams: '39',
+      consumedAt: '2026-06-20T04:00:00.000Z',
+      itemCount: 2
+    });
+
+    expect(meal?.itemCount).toBe(2);
+    expect(meal?.totalCalories).toBe(490);
+  });
+
+  it('quick-adds a manual meal through the quick-add endpoint', () => {
+    service
+      .quickAddMeal({
+        mealType: 'SNACK',
+        name: 'Manual shake',
+        consumedAt: '2026-06-20T04:00:00.000Z',
+        timezone: 'Asia/Singapore',
+        calories: 220,
+        proteinGrams: 30,
+        carbsGrams: 12,
+        fatGrams: 4
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals/quick-add');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(
+      jasmine.objectContaining({
+        mealType: 'SNACK',
+        name: 'Manual shake',
+        calories: 220,
+        proteinGrams: 30,
+        carbsGrams: 12,
+        fatGrams: 4
+      })
+    );
+    request.flush({
+      mealId: 'meal-quick',
+      mealType: 'SNACK',
+      name: 'Manual shake',
+      totalCalories: 220,
+      totalProteinGrams: '30',
+      consumedAt: '2026-06-20T04:00:00.000Z',
+      itemCount: 0
+    });
   });
 
   it('maps nutrition category trees for category browsing', () => {
