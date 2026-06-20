@@ -21,6 +21,22 @@ const baseOnboarding: OnboardingFormValue = {
   weeklyPaceKg: 0.5,
   activityLevel: 'MODERATELY_ACTIVE',
   weeklyWorkoutDays: 4,
+  fitnessLevel: 'INTERMEDIATE',
+  trainingLocation: 'GYM',
+  preferredDurationMinutes: 50,
+  preferredWorkoutTime: '18:30',
+  intensityPreference: 'HIGH',
+  equipmentInventory: ['DUMBBELLS', 'BANDS'],
+  focusAreas: ['FULL_BODY', 'CORE'],
+  parqHeartCondition: false,
+  parqChestPainActivity: false,
+  parqDizziness: false,
+  parqBoneJointIssue: false,
+  parqBpOrHeartMeds: false,
+  parqOtherReason: false,
+  injuryAreas: [],
+  parqAcknowledged: false,
+  parqAcknowledgedAt: null,
   dietaryPattern: 'NONE',
   calorieTrackingMode: 'FLEXIBLE',
   targetCalories: 2417,
@@ -174,7 +190,56 @@ describe('FitSyncDataService', () => {
     expect(request.request.body.targetCalories).toBe(2417);
     expect(request.request.body.targetProteinGrams).toBe(153);
     expect(request.request.body.targetDate).toBe('2026-09-12');
+    expect(request.request.body.fitnessLevel).toBe('INTERMEDIATE');
+    expect(request.request.body.trainingLocation).toBe('GYM');
+    expect(request.request.body.preferredDurationMinutes).toBe(50);
+    expect(request.request.body.preferredWorkoutTime).toBe('18:30:00');
+    expect(request.request.body.intensityPreference).toBe('HIGH');
+    expect(request.request.body.equipmentInventory).toEqual(['DUMBBELLS', 'BANDS']);
+    expect(request.request.body.focusAreas).toEqual(['FULL_BODY', 'CORE']);
+    expect(request.request.body.healthReadiness).toBeUndefined();
     expect(typeof request.request.body.timezone).toBe('string');
+    request.flush({});
+  });
+
+  it('sends health readiness only after the PAR-Q disclaimer is acknowledged', () => {
+    service
+      .saveOnboarding({
+        ...baseOnboarding,
+        parqHeartCondition: true,
+        injuryAreas: ['LOWER_BACK'],
+        parqAcknowledged: true,
+        parqAcknowledgedAt: '2026-06-20T10:00:00.000Z'
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/users/me/onboarding');
+    expect(request.request.body.healthReadiness).toEqual({
+      heartCondition: true,
+      chestPainActivity: false,
+      dizziness: false,
+      boneJointIssue: false,
+      bpOrHeartMeds: false,
+      otherReason: false,
+      injuryAreas: ['LOWER_BACK'],
+      acknowledgedDisclaimerAt: '2026-06-20T10:00:00.000Z'
+    });
+    request.flush({});
+  });
+
+  it('omits health readiness when the PAR-Q disclaimer is not acknowledged', () => {
+    service
+      .saveOnboarding({
+        ...baseOnboarding,
+        parqHeartCondition: true,
+        injuryAreas: ['LOWER_BACK'],
+        parqAcknowledged: false,
+        parqAcknowledgedAt: null
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/users/me/onboarding');
+    expect(request.request.body.healthReadiness).toBeUndefined();
     request.flush({});
   });
 
@@ -217,7 +282,16 @@ describe('FitSyncDataService', () => {
       preferences: {
         app: { preferredUnits: '100002' },
         nutrition: { dietaryPattern: '300004', calorieTrackingMode: '310003' },
-        training: { weeklyWorkoutDays: 5 },
+        training: {
+          weeklyWorkoutDays: 5,
+          fitnessLevel: '200002',
+          trainingLocation: '210001',
+          preferredDurationMinutes: 55,
+          preferredWorkoutTime: '06:30:00',
+          intensityPreference: '220003',
+          equipmentInventory: ['230002', '230004'],
+          focusAreas: ['240001', '240005']
+        },
         notifications: { workoutReminderEnabled: false }
       },
       activeGoals: [
@@ -236,6 +310,14 @@ describe('FitSyncDataService', () => {
     expect(seed?.value.targetCalories).toBe(2200);
     expect(seed?.value.targetProteinGrams).toBe(150);
     expect(seed?.value.workoutReminderEnabled).toBeFalse();
+    expect(seed?.value.weeklyWorkoutDays).toBe(5);
+    expect(seed?.value.fitnessLevel).toBe('INTERMEDIATE');
+    expect(seed?.value.trainingLocation).toBe('HOME');
+    expect(seed?.value.preferredDurationMinutes).toBe(55);
+    expect(seed?.value.preferredWorkoutTime).toBe('06:30');
+    expect(seed?.value.intensityPreference).toBe('HIGH');
+    expect(seed?.value.equipmentInventory).toEqual(['DUMBBELLS', 'BANDS']);
+    expect(seed?.value.focusAreas).toEqual(['FULL_BODY', 'MOBILITY']);
     expect(seed?.hasExistingBodyBaseline).toBeTrue();
     expect(seed?.hasExistingNutritionBaseline).toBeTrue();
   });

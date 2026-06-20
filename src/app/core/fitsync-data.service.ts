@@ -105,6 +105,8 @@ interface BackendUserPreferences {
     preferredDurationMinutes?: number | null;
     preferredWorkoutTime?: string | null;
     intensityPreference?: string | null;
+    equipmentInventory?: string[] | null;
+    focusAreas?: string[] | null;
   } | null;
   nutrition?: {
     dietaryPattern?: string | null;
@@ -883,6 +885,19 @@ export class FitSyncDataService {
     const currentWeightKg = this.getOnboardingCurrentWeightKg(value);
     const targetWeightKg = this.getOnboardingTargetWeightKg(value);
 
+    const healthReadiness = value.parqAcknowledged
+      ? {
+          heartCondition: value.parqHeartCondition,
+          chestPainActivity: value.parqChestPainActivity,
+          dizziness: value.parqDizziness,
+          boneJointIssue: value.parqBoneJointIssue,
+          bpOrHeartMeds: value.parqBpOrHeartMeds,
+          otherReason: value.parqOtherReason,
+          injuryAreas: value.injuryAreas.filter((area) => /^[A-Z_]{2,40}$/.test(area)),
+          acknowledgedDisclaimerAt: value.parqAcknowledgedAt ?? new Date().toISOString()
+        }
+      : undefined;
+
     return this.http.post(`${this.apiBaseUrl}/users/me/onboarding`, {
       primaryGoal: value.primaryGoal,
       displayName: value.displayName,
@@ -901,14 +916,14 @@ export class FitSyncDataService {
       targetProteinGrams: value.targetProteinGrams,
       targetCarbsGrams: value.targetCarbsGrams,
       targetFatGrams: value.targetFatGrams,
-      // Streamlined goal-driven onboarding no longer collects these; FE-19 guided
-      // training flow will replace the defaults with real inputs.
-      fitnessLevel: 'BEGINNER',
-      trainingLocation: 'MIXED',
+      fitnessLevel: value.fitnessLevel,
+      trainingLocation: value.trainingLocation,
       weeklyWorkoutDays: value.weeklyWorkoutDays,
-      preferredDurationMinutes: 45,
-      preferredWorkoutTime: '19:00:00',
-      intensityPreference: 'MODERATE',
+      preferredDurationMinutes: value.preferredDurationMinutes,
+      preferredWorkoutTime: this.toBackendLocalTime(value.preferredWorkoutTime),
+      intensityPreference: value.intensityPreference,
+      equipmentInventory: value.equipmentInventory,
+      focusAreas: value.focusAreas,
       dietaryPattern: value.dietaryPattern,
       mealFrequency: 4,
       calorieTrackingMode: value.calorieTrackingMode,
@@ -916,7 +931,8 @@ export class FitSyncDataService {
       waterGoalMl: 2500,
       workoutReminderEnabled: value.workoutReminderEnabled,
       mealReminderEnabled: value.mealReminderEnabled,
-      weighInReminderEnabled: true
+      weighInReminderEnabled: true,
+      ...(healthReadiness ? { healthReadiness } : {})
     }).pipe(map(() => ({ ok: true as const })));
   }
 
@@ -1096,6 +1112,10 @@ export class FitSyncDataService {
     return Math.round((value / 2.20462) * 10) / 10;
   }
 
+  private toBackendLocalTime(value: string | null | undefined): string | null {
+    return value ? `${value.slice(0, 5)}:00` : null;
+  }
+
   private getLocalTimezone(): string {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
@@ -1173,6 +1193,61 @@ export class FitSyncDataService {
     if (training?.weeklyWorkoutDays != null) {
       value.weeklyWorkoutDays = training.weeklyWorkoutDays;
     }
+    const fitnessLevel = this.normalizeEnum(training?.fitnessLevel, {
+      '200001': 'BEGINNER',
+      '200002': 'INTERMEDIATE',
+      '200003': 'ADVANCED'
+    });
+    if (fitnessLevel) {
+      value.fitnessLevel = fitnessLevel;
+    }
+    const trainingLocation = this.normalizeEnum(training?.trainingLocation, {
+      '210001': 'HOME',
+      '210002': 'GYM',
+      '210003': 'OUTDOOR',
+      '210004': 'MIXED'
+    });
+    if (trainingLocation) {
+      value.trainingLocation = trainingLocation;
+    }
+    if (training?.preferredDurationMinutes != null) {
+      value.preferredDurationMinutes = training.preferredDurationMinutes;
+    }
+    if (training?.preferredWorkoutTime) {
+      value.preferredWorkoutTime = training.preferredWorkoutTime.slice(0, 5);
+    }
+    const intensityPreference = this.normalizeEnum(training?.intensityPreference, {
+      '220001': 'LOW',
+      '220002': 'MODERATE',
+      '220003': 'HIGH'
+    });
+    if (intensityPreference) {
+      value.intensityPreference = intensityPreference;
+    }
+    const equipmentInventory = this.normalizeEnumList(training?.equipmentInventory, {
+      '230001': 'NONE',
+      '230002': 'DUMBBELLS',
+      '230003': 'BARBELL',
+      '230004': 'BANDS',
+      '230005': 'PULL_UP_BAR',
+      '230006': 'KETTLEBELL',
+      '230007': 'MACHINES',
+      '230008': 'FULL_GYM'
+    });
+    if (equipmentInventory.length) {
+      value.equipmentInventory = equipmentInventory;
+    }
+    const focusAreas = this.normalizeEnumList(training?.focusAreas, {
+      '240001': 'FULL_BODY',
+      '240002': 'UPPER',
+      '240003': 'CORE',
+      '240004': 'LOWER',
+      '240005': 'MOBILITY',
+      '240006': 'CARDIO'
+    });
+    if (focusAreas.length) {
+      value.focusAreas = focusAreas;
+    }
     if (caloriesGoal?.targetValue != null) {
       value.targetCalories = caloriesGoal.targetValue;
     }
@@ -1190,7 +1265,18 @@ export class FitSyncDataService {
       value,
       hasExistingBodyBaseline:
         hasCompletedOnboarding || Boolean(latestBodyMetric?.weightKg || weightGoal?.targetValue),
-      hasExistingTrainingBaseline: hasCompletedOnboarding || Boolean(training?.weeklyWorkoutDays),
+      hasExistingTrainingBaseline:
+        hasCompletedOnboarding ||
+        Boolean(
+          training?.weeklyWorkoutDays ||
+          training?.fitnessLevel ||
+          training?.trainingLocation ||
+          training?.preferredDurationMinutes ||
+          training?.preferredWorkoutTime ||
+          training?.intensityPreference ||
+          training?.equipmentInventory?.length ||
+          training?.focusAreas?.length
+        ),
       hasExistingNutritionBaseline:
         hasCompletedOnboarding || Boolean(caloriesGoal?.targetValue || proteinGoal?.targetValue)
     };
@@ -1201,6 +1287,12 @@ export class FitSyncDataService {
       return undefined;
     }
     return codeMap[value] ?? value.toUpperCase();
+  }
+
+  private normalizeEnumList(values: string[] | null | undefined, codeMap: Record<string, string>): string[] {
+    return (values ?? [])
+      .map((value) => this.normalizeEnum(value, codeMap))
+      .filter((value): value is string => Boolean(value));
   }
 
   private mapWorkoutSession(session?: Partial<WorkoutSession> | null): WorkoutSession | null {

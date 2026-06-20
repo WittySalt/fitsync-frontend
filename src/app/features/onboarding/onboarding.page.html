@@ -27,6 +27,13 @@
         <p class="eyebrow">{{ steps[currentStep()].label }}</p>
         <h2>{{ steps[currentStep()].title }}</h2>
         <p class="coach-copy">{{ goalCopy() }}</p>
+        @if (planChips().length) {
+          <div class="plan-strip" aria-label="Your plan so far">
+            @for (chip of planChips(); track chip) {
+              <span>{{ chip }}</span>
+            }
+          </div>
+        }
 
         @switch (currentStep()) {
           @case (0) {
@@ -240,6 +247,24 @@
           }
 
           @case (3) {
+            <div class="choice-section">
+              <h3>Where do you train most often?</h3>
+              <div class="goal-grid" role="radiogroup" aria-label="Training location">
+                @for (option of trainingLocationOptions; track option.value) {
+                  <button
+                    type="button"
+                    class="goal-card"
+                    [class.selected]="isChoiceSelected('trainingLocation', option.value)"
+                    [attr.aria-pressed]="isChoiceSelected('trainingLocation', option.value)"
+                    (click)="selectChoice('trainingLocation', option.value)"
+                  >
+                    <strong>{{ option.label }}</strong>
+                    <span>{{ option.description }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+
             <div class="form-grid three">
               <label>
                 Activity level
@@ -260,6 +285,166 @@
                 }
               </label>
 
+              <label>
+                Session duration (min)
+                <input type="number" formControlName="preferredDurationMinutes" min="5" max="240" />
+                @if (isInvalid('preferredDurationMinutes')) {
+                  <span class="field-error">Choose 5 to 240 minutes.</span>
+                }
+              </label>
+
+              <label>
+                Preferred workout time
+                <input type="time" formControlName="preferredWorkoutTime" />
+              </label>
+            </div>
+
+            <div class="choice-section">
+              <h3>How experienced are you?</h3>
+              <div class="option-row" role="radiogroup" aria-label="Fitness level">
+                @for (option of fitnessLevelOptions; track option.value) {
+                  <button
+                    type="button"
+                    class="choice-pill"
+                    [class.selected]="isChoiceSelected('fitnessLevel', option.value)"
+                    [attr.aria-pressed]="isChoiceSelected('fitnessLevel', option.value)"
+                    (click)="selectChoice('fitnessLevel', option.value)"
+                  >
+                    <strong>{{ option.label }}</strong>
+                    <span>{{ option.description }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="choice-section">
+              <h3>How hard should we start?</h3>
+              <div class="option-row" role="radiogroup" aria-label="Training intensity">
+                @for (option of intensityOptions; track option.value) {
+                  <button
+                    type="button"
+                    class="choice-pill"
+                    [class.selected]="isChoiceSelected('intensityPreference', option.value)"
+                    [attr.aria-pressed]="isChoiceSelected('intensityPreference', option.value)"
+                    (click)="selectChoice('intensityPreference', option.value)"
+                  >
+                    <strong>{{ option.label }}</strong>
+                    <span>{{ option.description }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="choice-section">
+              <h3>Equipment you can use</h3>
+              <div class="chip-grid" aria-label="Equipment inventory">
+                @for (option of equipmentOptions; track option.value) {
+                  <button
+                    type="button"
+                    class="select-chip"
+                    [class.selected]="isMultiSelected('equipmentInventory', option.value)"
+                    [attr.aria-pressed]="isMultiSelected('equipmentInventory', option.value)"
+                    (click)="toggleMultiSelect('equipmentInventory', option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+              @if (isInvalid('equipmentInventory')) {
+                <span class="field-error">Choose up to 8 equipment options.</span>
+              }
+            </div>
+
+            <div class="choice-section">
+              <h3>Focus areas</h3>
+              <div class="chip-grid" aria-label="Training focus areas">
+                @for (option of focusOptions; track option.value) {
+                  <button
+                    type="button"
+                    class="select-chip"
+                    [class.selected]="isMultiSelected('focusAreas', option.value)"
+                    [attr.aria-pressed]="isMultiSelected('focusAreas', option.value)"
+                    (click)="toggleMultiSelect('focusAreas', option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+              @if (isInvalid('focusAreas')) {
+                <span class="field-error">Choose up to 6 focus areas.</span>
+              }
+            </div>
+          }
+
+          @case (4) {
+            <div class="parq-list" role="group" aria-label="Health readiness questions">
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="parqHeartCondition" />
+                <span>Has a doctor ever said you have a heart condition?</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="parqChestPainActivity" />
+                <span>Do you feel chest pain during physical activity?</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="parqDizziness" />
+                <span>Do you lose balance from dizziness or ever lose consciousness?</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="parqBoneJointIssue" />
+                <span>Do you have a bone or joint issue that could worsen with activity?</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="parqBpOrHeartMeds" />
+                <span>Do you take blood pressure or heart medication?</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" formControlName="parqOtherReason" />
+                <span>Is there another reason you should avoid unsupervised exercise?</span>
+              </label>
+            </div>
+
+            <div class="choice-section">
+              <h3>Any areas we should be careful with?</h3>
+              <div class="chip-grid" aria-label="Injury areas">
+                @for (option of injuryOptions; track option.value) {
+                  <button
+                    type="button"
+                    class="select-chip"
+                    [class.selected]="isMultiSelected('injuryAreas', option.value)"
+                    [attr.aria-pressed]="isMultiSelected('injuryAreas', option.value)"
+                    (click)="toggleMultiSelect('injuryAreas', option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+              @if (isInvalid('injuryAreas')) {
+                <span class="field-error">Choose up to 8 valid injury areas.</span>
+              }
+            </div>
+
+            @if (hasParqRisk()) {
+              <div class="warning-list" role="status">
+                <p>We recommend checking with a doctor first; FitSync will keep intensity conservative.</p>
+              </div>
+            }
+
+            <label class="toggle-row disclaimer-row">
+              <input
+                type="checkbox"
+                formControlName="parqAcknowledged"
+                (change)="setParqAcknowledged($any($event.target).checked)"
+              />
+              <span>I understand FitSync is not medical advice and I should consult a qualified professional when needed.</span>
+            </label>
+            @if (hasParqRisk() && !form.controls.parqAcknowledged.value) {
+              <span class="field-error">Confirm the disclaimer to save these health readiness answers.</span>
+            }
+          }
+
+          @case (5) {
+            <div class="form-grid three">
               <label>
                 Dietary pattern
                 <select formControlName="dietaryPattern">
@@ -293,7 +478,7 @@
             </div>
           }
 
-          @case (4) {
+          @case (6) {
             <div class="review-grid">
               <div class="summary-card">
                 <p class="card-label">Plan summary</p>
@@ -303,6 +488,7 @@
                 } @else {
                   <p>Activity-focused plan with maintenance calories and {{ form.controls.weeklyWorkoutDays.value }} workout days per week.</p>
                 }
+                <p>{{ form.controls.trainingLocation.value }} / {{ form.controls.fitnessLevel.value }} / {{ form.controls.intensityPreference.value }}</p>
               </div>
 
               <div class="summary-card editable-plan">

@@ -30,6 +30,21 @@ type ControlName =
   | 'weeklyPaceKg'
   | 'activityLevel'
   | 'weeklyWorkoutDays'
+  | 'fitnessLevel'
+  | 'trainingLocation'
+  | 'preferredDurationMinutes'
+  | 'preferredWorkoutTime'
+  | 'intensityPreference'
+  | 'equipmentInventory'
+  | 'focusAreas'
+  | 'parqHeartCondition'
+  | 'parqChestPainActivity'
+  | 'parqDizziness'
+  | 'parqBoneJointIssue'
+  | 'parqBpOrHeartMeds'
+  | 'parqOtherReason'
+  | 'injuryAreas'
+  | 'parqAcknowledged'
   | 'dietaryPattern'
   | 'calorieTrackingMode'
   | 'targetCalories'
@@ -42,6 +57,12 @@ type ControlName =
 interface OnboardingStep {
   label: string;
   title: string;
+}
+
+interface ChoiceOption {
+  value: string;
+  label: string;
+  description: string;
 }
 
 @Component({
@@ -80,8 +101,55 @@ export class OnboardingPage implements OnInit {
     { label: 'Goal', title: 'Choose your main goal' },
     { label: 'Profile', title: 'Tell us the basics' },
     { label: 'Projection', title: 'Set your plan' },
-    { label: 'Habits', title: 'Training and nutrition' },
+    { label: 'Training', title: 'Shape your training style' },
+    { label: 'Health', title: 'Check your readiness' },
+    { label: 'Habits', title: 'Set nutrition habits' },
     { label: 'Review', title: 'Review your targets' }
+  ];
+
+  readonly trainingLocationOptions: ChoiceOption[] = [
+    { value: 'HOME', label: 'Home', description: 'Compact sessions around bodyweight and small equipment.' },
+    { value: 'GYM', label: 'Gym', description: 'Use machines, barbells, and structured strength work.' },
+    { value: 'OUTDOOR', label: 'Outdoor', description: 'Prioritize cardio, mobility, and outdoor-friendly sessions.' },
+    { value: 'MIXED', label: 'Mixed', description: 'Blend gym, home, and outdoor training across the week.' }
+  ];
+  readonly fitnessLevelOptions: ChoiceOption[] = [
+    { value: 'BEGINNER', label: 'Beginner', description: 'New or returning after a long break.' },
+    { value: 'INTERMEDIATE', label: 'Intermediate', description: 'Consistent training with familiar exercises.' },
+    { value: 'ADVANCED', label: 'Advanced', description: 'Experienced, structured, and comfortable with progression.' }
+  ];
+  readonly intensityOptions: ChoiceOption[] = [
+    { value: 'LOW', label: 'Low', description: 'Easy starts, more recovery, gentle progression.' },
+    { value: 'MODERATE', label: 'Moderate', description: 'Balanced effort with sustainable weekly work.' },
+    { value: 'HIGH', label: 'High', description: 'Challenging sessions when recovery is reliable.' }
+  ];
+  readonly equipmentOptions: ChoiceOption[] = [
+    { value: 'NONE', label: 'None', description: 'Bodyweight only' },
+    { value: 'DUMBBELLS', label: 'Dumbbells', description: 'Pairs or adjustable weights' },
+    { value: 'BARBELL', label: 'Barbell', description: 'Rack, plates, or platform' },
+    { value: 'BANDS', label: 'Bands', description: 'Resistance or mobility bands' },
+    { value: 'PULL_UP_BAR', label: 'Pull-up bar', description: 'Doorway or fixed bar' },
+    { value: 'KETTLEBELL', label: 'Kettlebell', description: 'Swings, carries, complexes' },
+    { value: 'MACHINES', label: 'Machines', description: 'Selectorized or cable machines' },
+    { value: 'FULL_GYM', label: 'Full gym', description: 'Commercial gym access' }
+  ];
+  readonly focusOptions: ChoiceOption[] = [
+    { value: 'FULL_BODY', label: 'Full body', description: 'Balanced training' },
+    { value: 'UPPER', label: 'Upper', description: 'Chest, back, shoulders, arms' },
+    { value: 'CORE', label: 'Core', description: 'Trunk strength and stability' },
+    { value: 'LOWER', label: 'Lower', description: 'Glutes, quads, hamstrings' },
+    { value: 'MOBILITY', label: 'Mobility', description: 'Range and movement quality' },
+    { value: 'CARDIO', label: 'Cardio', description: 'Heart and conditioning' }
+  ];
+  readonly injuryOptions: ChoiceOption[] = [
+    { value: 'LOWER_BACK', label: 'Lower back', description: 'Back sensitivity or pain' },
+    { value: 'KNEE', label: 'Knee', description: 'Knee limitation' },
+    { value: 'SHOULDER', label: 'Shoulder', description: 'Shoulder limitation' },
+    { value: 'HIP', label: 'Hip', description: 'Hip limitation' },
+    { value: 'ANKLE', label: 'Ankle', description: 'Ankle limitation' },
+    { value: 'NECK', label: 'Neck', description: 'Neck limitation' },
+    { value: 'WRIST', label: 'Wrist', description: 'Wrist limitation' },
+    { value: 'OTHER', label: 'Other', description: 'Something else' }
   ];
 
   readonly form = this.fb.group({
@@ -100,6 +168,21 @@ export class OnboardingPage implements OnInit {
     weeklyPaceKg: [0.5 as number | null],
     activityLevel: ['MODERATELY_ACTIVE', Validators.required],
     weeklyWorkoutDays: [4, [Validators.required, Validators.min(1), Validators.max(7)]],
+    fitnessLevel: ['BEGINNER', Validators.required],
+    trainingLocation: ['MIXED', Validators.required],
+    preferredDurationMinutes: [45 as number | null, [Validators.required, Validators.min(5), Validators.max(240)]],
+    preferredWorkoutTime: ['19:00'],
+    intensityPreference: ['MODERATE', Validators.required],
+    equipmentInventory: [[] as string[], [maxSelected(8)]],
+    focusAreas: [['FULL_BODY'] as string[], [maxSelected(6)]],
+    parqHeartCondition: [false],
+    parqChestPainActivity: [false],
+    parqDizziness: [false],
+    parqBoneJointIssue: [false],
+    parqBpOrHeartMeds: [false],
+    parqOtherReason: [false],
+    injuryAreas: [[] as string[], [maxSelected(8), validInjuryAreas()]],
+    parqAcknowledged: [false],
     dietaryPattern: ['NONE', Validators.required],
     calorieTrackingMode: ['FLEXIBLE', Validators.required],
     targetCalories: [null as number | null, [Validators.required, Validators.min(1000), Validators.max(6000)]],
@@ -111,6 +194,7 @@ export class OnboardingPage implements OnInit {
   });
 
   private planEdited = false;
+  private parqAcknowledgedAt: string | null = null;
 
   constructor() {
     this.syncConditionalValidators();
@@ -260,12 +344,99 @@ export class OnboardingPage implements OnInit {
     return this.form.controls.primaryGoal.value === goal;
   }
 
+  selectChoice(controlName: 'trainingLocation' | 'fitnessLevel' | 'intensityPreference', value: string): void {
+    this.form.controls[controlName].setValue(value);
+    this.error.set(null);
+  }
+
+  isChoiceSelected(controlName: 'trainingLocation' | 'fitnessLevel' | 'intensityPreference', value: string): boolean {
+    return this.form.controls[controlName].value === value;
+  }
+
+  toggleMultiSelect(controlName: 'equipmentInventory' | 'focusAreas' | 'injuryAreas', value: string): void {
+    const control = this.form.controls[controlName];
+    const current = control.value ?? [];
+    let next = current.includes(value)
+      ? current.filter((entry) => entry !== value)
+      : [...current, value];
+
+    if (controlName === 'equipmentInventory') {
+      if (value === 'NONE' && !current.includes('NONE')) {
+        next = ['NONE'];
+      } else if (value !== 'NONE') {
+        next = next.filter((entry) => entry !== 'NONE');
+      }
+    }
+
+    control.setValue(next);
+    control.markAsDirty();
+    control.updateValueAndValidity();
+  }
+
+  isMultiSelected(controlName: 'equipmentInventory' | 'focusAreas' | 'injuryAreas', value: string): boolean {
+    return this.form.controls[controlName].value?.includes(value) ?? false;
+  }
+
   isInvalid(controlName: ControlName): boolean {
     const control = this.form.controls[controlName];
     return control.invalid && (control.touched || control.dirty);
   }
 
+  setParqAcknowledged(checked: boolean): void {
+    this.form.controls.parqAcknowledged.setValue(checked);
+    this.parqAcknowledgedAt = checked ? new Date().toISOString() : null;
+  }
+
+  hasParqRisk(): boolean {
+    return (
+      this.form.controls.parqHeartCondition.value ||
+      this.form.controls.parqChestPainActivity.value ||
+      this.form.controls.parqDizziness.value ||
+      this.form.controls.parqBoneJointIssue.value ||
+      this.form.controls.parqBpOrHeartMeds.value ||
+      this.form.controls.parqOtherReason.value ||
+      Boolean(this.form.controls.injuryAreas.value?.length)
+    );
+  }
+
+  planChips(): string[] {
+    const chips: string[] = [];
+    const location = this.optionLabel(this.trainingLocationOptions, this.form.controls.trainingLocation.value);
+    const level = this.optionLabel(this.fitnessLevelOptions, this.form.controls.fitnessLevel.value);
+    const intensity = this.optionLabel(this.intensityOptions, this.form.controls.intensityPreference.value);
+    chips.push(location, level, `${this.form.controls.weeklyWorkoutDays.value ?? 0} days/week`, `${this.form.controls.preferredDurationMinutes.value ?? 0} min`, intensity);
+
+    const equipment = this.form.controls.equipmentInventory.value ?? [];
+    if (equipment.length) {
+      chips.push(`${equipment.length} equipment`);
+    }
+    const focus = this.form.controls.focusAreas.value ?? [];
+    if (focus.length) {
+      chips.push(`${focus.length} focus area${focus.length === 1 ? '' : 's'}`);
+    }
+    if (this.hasParqRisk()) {
+      chips.push('Health notes');
+    }
+    return chips.filter(Boolean);
+  }
+
   goalCopy(): string {
+    if (this.currentStep() === 3) {
+      switch (this.form.controls.trainingLocation.value) {
+        case 'HOME':
+          return 'We will make the plan work around your space and the equipment you actually have.';
+        case 'GYM':
+          return 'We will use your gym access for structured progression and clear training days.';
+        case 'OUTDOOR':
+          return 'We will bias toward outdoor-friendly conditioning, mobility, and simple strength work.';
+        default:
+          return 'We will keep your training flexible across home, gym, and outdoor sessions.';
+      }
+    }
+    if (this.currentStep() === 4) {
+      return 'FitSync is not medical advice. If anything here is a yes, we will keep the plan conservative and suggest checking with a doctor first.';
+    }
+
     switch (this.form.controls.primaryGoal.value) {
       case 'LOSE_FAT':
         return 'We will pair a sustainable deficit with enough protein to protect training performance.';
@@ -278,6 +449,10 @@ export class OnboardingPage implements OnInit {
       default:
         return 'Pick the outcome that matters most right now. You can change it later.';
     }
+  }
+
+  private optionLabel(options: ChoiceOption[], value: string | null | undefined): string {
+    return options.find((option) => option.value === value)?.label ?? '';
   }
 
   private applyGoalDefaults(goal: PrimaryGoal): void {
@@ -403,6 +578,25 @@ export class OnboardingPage implements OnInit {
       return (
         this.form.controls.activityLevel.valid &&
         this.form.controls.weeklyWorkoutDays.valid &&
+        this.form.controls.fitnessLevel.valid &&
+        this.form.controls.trainingLocation.valid &&
+        this.form.controls.preferredDurationMinutes.valid &&
+        this.form.controls.preferredWorkoutTime.valid &&
+        this.form.controls.intensityPreference.valid &&
+        this.form.controls.equipmentInventory.valid &&
+        this.form.controls.focusAreas.valid
+      );
+    }
+
+    if (step === 4) {
+      return (
+        this.form.controls.injuryAreas.valid &&
+        (!this.hasParqRisk() || this.form.controls.parqAcknowledged.value === true)
+      );
+    }
+
+    if (step === 5) {
+      return (
         this.form.controls.dietaryPattern.valid &&
         this.form.controls.calorieTrackingMode.valid
       );
@@ -421,7 +615,28 @@ export class OnboardingPage implements OnInit {
       ['primaryGoal'],
       ['displayName', 'gender', 'birthDate', 'preferredUnits', 'heightCm', 'heightFt', 'heightIn'],
       ['currentWeightKg', 'currentWeightLb', 'targetWeightKg', 'targetWeightLb', 'weeklyPaceKg'],
-      ['activityLevel', 'weeklyWorkoutDays', 'dietaryPattern', 'calorieTrackingMode'],
+      [
+        'activityLevel',
+        'weeklyWorkoutDays',
+        'fitnessLevel',
+        'trainingLocation',
+        'preferredDurationMinutes',
+        'preferredWorkoutTime',
+        'intensityPreference',
+        'equipmentInventory',
+        'focusAreas'
+      ],
+      [
+        'parqHeartCondition',
+        'parqChestPainActivity',
+        'parqDizziness',
+        'parqBoneJointIssue',
+        'parqBpOrHeartMeds',
+        'parqOtherReason',
+        'injuryAreas',
+        'parqAcknowledged'
+      ],
+      ['dietaryPattern', 'calorieTrackingMode'],
       ['targetCalories', 'targetProteinGrams', 'targetCarbsGrams', 'targetFatGrams']
     ];
 
@@ -449,6 +664,22 @@ export class OnboardingPage implements OnInit {
       weeklyPaceKg: raw.weeklyPaceKg,
       activityLevel: raw.activityLevel ?? 'MODERATELY_ACTIVE',
       weeklyWorkoutDays: raw.weeklyWorkoutDays ?? 0,
+      fitnessLevel: raw.fitnessLevel ?? 'BEGINNER',
+      trainingLocation: raw.trainingLocation ?? 'MIXED',
+      preferredDurationMinutes: raw.preferredDurationMinutes,
+      preferredWorkoutTime: raw.preferredWorkoutTime ?? '',
+      intensityPreference: raw.intensityPreference ?? 'MODERATE',
+      equipmentInventory: raw.equipmentInventory ?? [],
+      focusAreas: raw.focusAreas ?? [],
+      parqHeartCondition: raw.parqHeartCondition ?? false,
+      parqChestPainActivity: raw.parqChestPainActivity ?? false,
+      parqDizziness: raw.parqDizziness ?? false,
+      parqBoneJointIssue: raw.parqBoneJointIssue ?? false,
+      parqBpOrHeartMeds: raw.parqBpOrHeartMeds ?? false,
+      parqOtherReason: raw.parqOtherReason ?? false,
+      injuryAreas: raw.injuryAreas ?? [],
+      parqAcknowledged: raw.parqAcknowledged ?? false,
+      parqAcknowledgedAt: this.parqAcknowledgedAt,
       dietaryPattern: raw.dietaryPattern ?? 'NONE',
       calorieTrackingMode: raw.calorieTrackingMode ?? 'FLEXIBLE',
       targetCalories: raw.targetCalories,
@@ -503,4 +734,23 @@ export class OnboardingPage implements OnInit {
   private lbToKg(value: number | null): number | null {
     return value === null ? null : Math.round((value / 2.20462) * 10) / 10;
   }
+}
+
+function maxSelected(max: number): ValidatorFn {
+  return (control: AbstractControl) => {
+    const value = control.value as unknown;
+    return Array.isArray(value) && value.length > max ? { maxSelected: true } : null;
+  };
+}
+
+function validInjuryAreas(): ValidatorFn {
+  return (control: AbstractControl) => {
+    const value = control.value as unknown;
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    return value.every((entry) => typeof entry === 'string' && /^[A-Z_]{2,40}$/.test(entry))
+      ? null
+      : { invalidInjuryArea: true };
+  };
 }
