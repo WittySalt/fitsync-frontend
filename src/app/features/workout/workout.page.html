@@ -319,6 +319,7 @@
           {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
         </button>
       </div>
+      <app-workout-data-io (imported)="handleWorkoutImportFinished()" />
       @if (sessions().length) {
         <div class="history-list">
           @for (session of sessions(); track session.name + session.startedAt) {

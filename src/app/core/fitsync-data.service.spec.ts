@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertWorkoutSessionRequest, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertWorkoutSessionRequest, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -732,6 +732,63 @@ describe('FitSyncDataService', () => {
     const repeatLatestRequest = httpTesting.expectOne('/api/v1/workouts/sessions/repeat-latest');
     expect(repeatLatestRequest.request.method).toBe('POST');
     repeatLatestRequest.flush({ sessionId: 'session-3', name: 'Latest repeat', workoutType: 'STRENGTH', status: 'IN_PROGRESS' });
+  });
+
+  it('exports workout data from the workout export endpoint', () => {
+    let result: WorkoutExport | undefined;
+    service.exportWorkoutData().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/export');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      schemaVersion: 1,
+      exportedAt: '2026-06-20T10:00:00Z',
+      exercises: [],
+      plans: [],
+      sessions: []
+    });
+
+    expect(result?.schemaVersion).toBe(1);
+    expect(result?.sessions).toEqual([]);
+  });
+
+  it('imports workout sessions through the batch import endpoint', () => {
+    const response: ImportResult = {
+      imported: 1,
+      skippedDuplicate: 1,
+      rejected: 1,
+      results: [
+        { rowIndex: 0, externalId: 'ext-1', source: 'IMPORTED', status: 'IMPORTED', sessionId: 'session-1', reason: null },
+        { rowIndex: 1, externalId: 'ext-2', source: 'IMPORTED', status: 'SKIPPED_DUPLICATE', sessionId: null, reason: 'Duplicate' },
+        { rowIndex: 2, externalId: 'ext-3', source: 'IMPORTED', status: 'REJECTED', sessionId: null, reason: 'Invalid row' }
+      ]
+    };
+    const row = {
+      externalId: 'ext-1',
+      source: 'IMPORTED',
+      planId: null,
+      name: 'Morning run',
+      workoutType: 'CARDIO',
+      status: 'COMPLETED',
+      startedAt: '2026-06-20T10:00:00Z',
+      completedAt: '2026-06-20T10:32:00Z',
+      durationMinutes: 32,
+      caloriesBurned: 300,
+      perceivedExertion: 6,
+      notes: 'Imported',
+      exercises: []
+    };
+
+    let result: ImportResult | undefined;
+    service.importSessions([row]).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions/import');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ sessions: [row] });
+    request.flush(response);
+
+    expect(result?.imported).toBe(1);
+    expect(result?.results[1].status).toBe('SKIPPED_DUPLICATE');
   });
 
   it('lists workout plans with a status filter and maps exercise blueprints', () => {

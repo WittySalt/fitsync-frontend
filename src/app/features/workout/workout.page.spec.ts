@@ -93,7 +93,9 @@ describe('WorkoutPage', () => {
       'updateSession',
       'deleteSession',
       'repeatSession',
-      'repeatLatestSession'
+      'repeatLatestSession',
+      'exportWorkoutData',
+      'importSessions'
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessions.and.returnValue(of([]));
@@ -128,6 +130,16 @@ describe('WorkoutPage', () => {
     dataService.deleteSession.and.returnValue(of(void 0));
     dataService.repeatSession.and.returnValue(of(sessionDetail({ sessionId: 'session-repeat', status: 'IN_PROGRESS' })));
     dataService.repeatLatestSession.and.returnValue(of(sessionDetail({ sessionId: 'session-latest', status: 'IN_PROGRESS' })));
+    dataService.exportWorkoutData.and.returnValue(
+      of({
+        schemaVersion: 1,
+        exportedAt: '2026-06-20T10:00:00Z',
+        exercises: [],
+        plans: [],
+        sessions: []
+      })
+    );
+    dataService.importSessions.and.returnValue(of({ imported: 0, skippedDuplicate: 0, rejected: 0, results: [] }));
 
     await TestBed.configureTestingModule({
       imports: [WorkoutPage],
@@ -299,6 +311,16 @@ describe('WorkoutPage', () => {
     expect(dataService.repeatLatestSession).toHaveBeenCalled();
     expect(dataService.getWorkoutSessions).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-latest');
+  });
+
+  it('refreshes history after workout data import finishes', () => {
+    const imported = session({ sessionId: 'session-imported', name: 'Imported', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([imported]));
+
+    component.handleWorkoutImportFinished();
+
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(component.sessions()[0].sessionId).toBe('session-imported');
   });
 
   it('keeps the workout exercise cache in sync with the library component', () => {

@@ -1,0 +1,144 @@
+:host {
+  display: block;
+}
+
+.workout-data-io {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.io-panel,
+.import-results {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+
+.io-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.io-panel h3,
+.io-panel p {
+  margin: 0;
+}
+
+.io-panel h3 {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+}
+
+.io-panel p {
+  color: var(--text-secondary);
+}
+
+.import-panel {
+  display: grid;
+}
+
+.import-header,
+.result-row,
+.result-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+label,
+.file-picker {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.file-picker {
+  cursor: pointer;
+}
+
+.file-picker input {
+  max-width: 15rem;
+}
+
+textarea {
+  width: 100%;
+  min-height: 10rem;
+  resize: vertical;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: var(--font-size-xs);
+}
+
+.result-summary {
+  align-items: stretch;
+  margin-bottom: var(--space-4);
+}
+
+.result-summary div {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.result-summary span,
+.result-row small {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.result-summary strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+}
+
+.result-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.result-row {
+  border-left: 0.25rem solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  padding: var(--space-3);
+}
+
+.result-row strong,
+.result-row span {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.result-row.imported {
+  border-left-color: var(--success);
+}
+
+.result-row.skipped-duplicate {
+  border-left-color: var(--warning);
+}
+
+.result-row.rejected {
+  border-left-color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .io-panel,
+  .import-header,
+  .result-row,
+  .result-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
