@@ -1,11 +1,10 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate } from '../../core/fitsync.models';
+import { Meal } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { MealBuilderComponent } from './meal-builder.component';
 
 interface NutritionCheck {
   label: string;
@@ -19,39 +18,18 @@ interface NutritionCheck {
 
 @Component({
   selector: 'app-nutrition-page',
-  imports: [ReactiveFormsModule, StatePanelComponent],
+  imports: [StatePanelComponent, MealBuilderComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })
 export class NutritionPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
-  private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
 
   readonly data = signal<DashboardData | null>(null);
-  readonly foods = signal<FoodSearchResult[]>([]);
-  readonly categories = signal<FoodCategory[]>([]);
-  readonly recentFoods = signal<LoggedFood[]>([]);
-  readonly favoriteFoods = signal<FoodSearchResult[]>([]);
-  readonly favoriteUpdating = signal<Set<string>>(new Set());
-  readonly frequentFoods = signal<LoggedFood[]>([]);
-  readonly mealTemplates = signal<MealTemplate[]>([]);
   readonly todayMeals = signal<Meal[]>([]);
-  readonly searching = signal(false);
-  readonly categoriesLoading = signal(false);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  readonly submitting = signal(false);
-  readonly selectedFood = signal<FoodSearchResult | null>(null);
-  readonly selectedCategory = signal<FoodCategory | null>(null);
-  readonly searchControl = new FormControl('', { nonNullable: true });
-  readonly barcodeControl = new FormControl('', { nonNullable: true });
-  readonly barcodeLooking = signal(false);
-  readonly verifiedOnly = signal(false);
-  readonly hasMoreFoods = signal(false);
-  readonly loadingMore = signal(false);
-  private searchPage = 0;
-  private readonly searchPageSize = 20;
 
   readonly today = new Intl.DateTimeFormat('en-SG', {
     weekday: 'long',
@@ -106,10 +84,6 @@ export class NutritionPage implements OnInit {
     }))
   );
 
-  readonly favoriteIds = computed(
-    () => new Set(this.favoriteFoods().map((food) => food.foodId).filter((foodId): foodId is string => Boolean(foodId)))
-  );
-
   readonly nutritionChecks = computed(() => {
     const nutrition = this.nutrition();
     if (!nutrition) {
@@ -123,38 +97,8 @@ export class NutritionPage implements OnInit {
     ].filter((check): check is NutritionCheck => check !== null);
   });
 
-  readonly categoryOptions = computed(() => this.flattenCategories(this.categories()));
-
-  readonly categoryLabel = computed(() => this.selectedCategory()?.displayName ?? 'All foods');
-
-  readonly mealForm = this.fb.nonNullable.group({
-    mealType: ['LUNCH', Validators.required],
-    foodName: ['', [Validators.required, Validators.maxLength(120)]],
-    calories: [420, [Validators.required, Validators.min(0)]],
-    proteinGrams: [32, [Validators.required, Validators.min(0)]],
-    carbsGrams: [45, [Validators.required, Validators.min(0)]],
-    fatGrams: [14, [Validators.required, Validators.min(0)]],
-    note: ['', Validators.maxLength(300)]
-  });
-
   ngOnInit(): void {
     this.load();
-
-    this.searchControl.valueChanges
-      .pipe(
-        debounceTime(250),
-        distinctUntilChanged(),
-        switchMap((query) => {
-          this.searchPage = 0;
-          this.searching.set(true);
-          return this.searchFoods(query);
-        })
-      )
-      .subscribe((foods) => {
-        this.foods.set(foods);
-        this.hasMoreFoods.set(foods.length === this.searchPageSize);
-        this.searching.set(false);
-      });
   }
 
   load(): void {
@@ -172,27 +116,12 @@ export class NutritionPage implements OnInit {
       }
     });
 
-    this.runSearch();
-    this.categoriesLoading.set(true);
-    this.dataService.getFoodCategories().subscribe((categories) => {
-      this.categories.set(categories);
-      this.categoriesLoading.set(false);
-    });
-    this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
-    this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
-    this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
-    this.dataService.getMealTemplates().subscribe((templates) => this.mealTemplates.set(templates));
-    this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+    this.refreshMeals();
   }
 
-  useMealTemplate(template: MealTemplate): void {
-    this.dataService.logMealFromTemplate(template.templateId).subscribe({
-      next: () => {
-        this.toast.success(`Logged "${template.name}".`);
-        this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
-      },
-      error: () => this.toast.error('Unable to log from template. Please retry.')
-    });
+  refreshAfterMealSave(): void {
+    this.refreshDashboard();
+    this.refreshMeals();
   }
 
   copyMeal(mealId: string, mealType: string): void {
@@ -202,113 +131,9 @@ export class NutritionPage implements OnInit {
     this.dataService.copyMeal(mealId, mealType).subscribe({
       next: () => {
         this.toast.success('Meal copied to now.');
-        this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+        this.refreshAfterMealSave();
       },
       error: () => this.toast.error('Unable to copy meal. Please retry.')
-    });
-  }
-
-  lookupBarcode(): void {
-    const barcode = this.barcodeControl.value.trim();
-    if (!barcode || this.barcodeLooking()) {
-      return;
-    }
-    this.barcodeLooking.set(true);
-    this.dataService.getFoodByBarcode(barcode).subscribe({
-      next: (food) => {
-        this.barcodeLooking.set(false);
-        if (!food) {
-          this.toast.error('No food found for that barcode.');
-          return;
-        }
-        this.applyLoggedFood(food);
-        this.toast.success(`Found "${food.foodName}".`);
-      },
-      error: () => {
-        this.barcodeLooking.set(false);
-        this.toast.error('Barcode lookup failed. Please retry.');
-      }
-    });
-  }
-
-  selectCategory(category: FoodCategory | null): void {
-    this.selectedCategory.set(category);
-    this.runSearch();
-  }
-
-  toggleVerifiedOnly(): void {
-    this.verifiedOnly.update((value) => !value);
-    this.runSearch();
-  }
-
-  loadMoreFoods(): void {
-    if (this.loadingMore() || !this.hasMoreFoods()) {
-      return;
-    }
-    this.searchPage += 1;
-    this.loadingMore.set(true);
-    this.searchFoods(this.searchControl.value).subscribe((foods) => {
-      this.foods.update((current) => [...current, ...foods]);
-      this.hasMoreFoods.set(foods.length === this.searchPageSize);
-      this.loadingMore.set(false);
-    });
-  }
-
-  private runSearch(): void {
-    this.searchPage = 0;
-    this.searching.set(true);
-    this.searchFoods(this.searchControl.value).subscribe((foods) => {
-      this.foods.set(foods);
-      this.hasMoreFoods.set(foods.length === this.searchPageSize);
-      this.searching.set(false);
-    });
-  }
-
-  applyFood(food: FoodSearchResult): void {
-    this.selectedFood.set(food);
-    // Search results carry calories + basis only; the user confirms macros.
-    this.mealForm.patchValue({
-      foodName: food.displayName,
-      calories: food.calories,
-      proteinGrams: Math.round(food.proteinGrams),
-      carbsGrams: 0,
-      fatGrams: 0
-    });
-  }
-
-  applyFavoriteFood(food: FoodSearchResult): void {
-    this.applyFood(food);
-  }
-
-  applyLoggedFood(food: LoggedFood): void {
-    this.selectedFood.set(null);
-    this.mealForm.patchValue({
-      foodName: food.foodName,
-      calories: food.calories,
-      proteinGrams: Math.round(food.proteinGrams),
-      carbsGrams: Math.round(food.carbsGrams),
-      fatGrams: Math.round(food.fatGrams)
-    });
-  }
-
-  saveMeal(): void {
-    this.mealForm.markAllAsTouched();
-
-    if (this.mealForm.invalid) {
-      return;
-    }
-
-    this.submitting.set(true);
-    this.dataService.saveMeal(this.mealForm.getRawValue()).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.toast.success('Meal saved to your day.');
-        this.load();
-      },
-      error: () => {
-        this.submitting.set(false);
-        this.toast.error('Unable to save meal. Check your connection and try again.');
-      }
     });
   }
 
@@ -351,37 +176,15 @@ export class NutritionPage implements OnInit {
     return `${rounded}${unit}`;
   }
 
-  isFavorite(food: FoodSearchResult): boolean {
-    return Boolean(food.foodId && this.favoriteIds().has(food.foodId));
-  }
-
-  isFavoriteUpdating(food: FoodSearchResult): boolean {
-    return Boolean(food.foodId && this.favoriteUpdating().has(food.foodId));
-  }
-
-  toggleFavorite(food: FoodSearchResult): void {
-    const foodId = food.foodId;
-    if (!foodId || this.isFavoriteUpdating(food)) {
-      return;
-    }
-
-    const wasFavorite = this.isFavorite(food);
-    const previous = this.favoriteFoods();
-    this.setFavoriteUpdating(foodId, true);
-    this.favoriteFoods.set(
-      wasFavorite ? previous.filter((favorite) => favorite.foodId !== foodId) : [food, ...previous.filter((favorite) => favorite.foodId !== foodId)]
-    );
-
-    const request = wasFavorite ? this.dataService.removeFavoriteFood(foodId) : this.dataService.addFavoriteFood(foodId);
-    request.subscribe({
-      next: () => this.toast.success(wasFavorite ? 'Removed from favorites.' : 'Added to favorites.'),
-      error: () => {
-        this.favoriteFoods.set(previous);
-        this.setFavoriteUpdating(foodId, false);
-        this.toast.error('Unable to update favorites. Please retry.');
-      },
-      complete: () => this.setFavoriteUpdating(foodId, false)
+  private refreshDashboard(): void {
+    this.dataService.getDashboard().subscribe({
+      next: (data) => this.data.set(data),
+      error: () => this.toast.error('Meal saved, but today summary could not refresh.')
     });
+  }
+
+  private refreshMeals(): void {
+    this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
   }
 
   private nutritionCheck(
@@ -420,30 +223,5 @@ export class NutritionPage implements OnInit {
     }
 
     return { label, value, target, unit, status: state, statusLabel, detail };
-  }
-
-  private setFavoriteUpdating(foodId: string, updating: boolean): void {
-    const next = new Set(this.favoriteUpdating());
-    if (updating) {
-      next.add(foodId);
-    } else {
-      next.delete(foodId);
-    }
-    this.favoriteUpdating.set(next);
-  }
-
-  private searchFoods(query: string) {
-    const category = this.selectedCategory();
-    return this.dataService.searchFoods(query, {
-      categoryId: category?.categoryId ?? null,
-      includeSubcategories: category ? category.children.length > 0 : false,
-      verified: this.verifiedOnly(),
-      page: this.searchPage,
-      size: this.searchPageSize
-    });
-  }
-
-  private flattenCategories(categories: FoodCategory[]): FoodCategory[] {
-    return categories.flatMap((category) => [category, ...this.flattenCategories(category.children)]);
   }
 }

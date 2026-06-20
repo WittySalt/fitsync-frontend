@@ -444,10 +444,43 @@ export interface FoodSearchResult {
   foodId: string | null;
   displayName: string;
   brandName: string;
+  scope: string;
   calories: number;
   proteinGrams: number;
   basisUnit: string;
+  basisLabel: string;
+  primaryBarcode: string;
   verified: boolean;
+}
+
+export interface FoodServing {
+  servingId: string | null;
+  label: string;
+  quantity: number | null;
+  unit: string | null;
+  gramsEquivalent: number | null;
+  millilitersEquivalent: number | null;
+  sortOrder: number | null;
+  defaultServing: boolean;
+}
+
+export interface FoodDetail {
+  foodId: string | null;
+  displayName: string;
+  brandName: string;
+  scope: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  fiberGrams: number | null;
+  sugarGrams: number | null;
+  sodiumMg: number | null;
+  basisQuantity: number;
+  basisUnit: string;
+  densityGramsPerMl: number | null;
+  primaryBarcode: string;
+  servings: FoodServing[];
 }
 
 export interface FoodCategory {
@@ -471,13 +504,24 @@ export interface MealTemplate {
 
 /** A previously logged food surfaced for one-tap re-logging (recent / frequent). */
 export interface LoggedFood {
+  foodId: string | null;
+  customFoodId: string | null;
+  foodServingId: string | null;
+  scope: string;
   foodName: string;
   brandName: string;
   servingLabel: string;
+  quantity: number;
+  unit: string;
+  servingSize: number | null;
+  servingUnit: string | null;
   calories: number;
   proteinGrams: number;
   carbsGrams: number;
   fatGrams: number;
+  fiberGrams: number | null;
+  sugarGrams: number | null;
+  sodiumMg: number | null;
   timesLogged: number;
 }
 
@@ -489,4 +533,47 @@ export interface MealFormValue {
   carbsGrams: number;
   fatGrams: number;
   note: string;
+}
+
+export interface MealItemDraft {
+  foodCatalogItemId?: string | null;
+  customFoodId?: string | null;
+  foodServingId?: string | null;
+  foodName: string;
+  brandName: string | null;
+  quantity: number;
+  unit: string;
+  servingSize: number | null;
+  servingUnit: string | null;
+  snapshotServingLabel: string | null;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  fiberGrams: number | null;
+  sugarGrams: number | null;
+  sodiumMg: number | null;
+}
+
+export interface MealDraft {
+  mealType: string;
+  name: string;
+  note: string;
+  consumedAt?: string;
+  timezone?: string;
+  items: MealItemDraft[];
+}
+
+export interface QuickAddMealValue {
+  mealType: string;
+  name: string;
+  consumedAt?: string;
+  timezone?: string;
+  calories: number;
+  proteinGrams: number | null;
+  carbsGrams: number | null;
+  fatGrams: number | null;
+  fiberGrams?: number | null;
+  sugarGrams?: number | null;
+  sodiumMg?: number | null;
 }
