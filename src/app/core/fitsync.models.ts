@@ -87,6 +87,7 @@ export interface Exercise {
 }
 
 export interface Meal {
+  mealId: string;
   mealType: string;
   name: string;
   totalCalories: number;
@@ -139,6 +140,15 @@ export interface FoodCategory {
   slug: string;
   sortOrder: number;
   children: FoodCategory[];
+}
+
+/** A saved meal template for one-tap meal logging. */
+export interface MealTemplate {
+  templateId: string;
+  name: string;
+  mealType: string;
+  note: string;
+  totalCalories: number;
 }
 
 /** A previously logged food surfaced for one-tap re-logging (recent / frequent). */

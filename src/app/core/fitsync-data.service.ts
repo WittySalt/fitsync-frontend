@@ -9,6 +9,7 @@ import {
   FoodSearchResult,
   Goal,
   LoggedFood,
+  MealTemplate,
   MealFormValue,
   Meal,
   NutritionSummary,
@@ -48,6 +49,14 @@ export interface ProgressData {
   bodyMetrics: ProgressBodyMetric[];
   trendPoints: ProgressBodyMetric[];
   goals: Goal[];
+}
+
+export interface FoodSearchOptions {
+  categoryId?: string | null;
+  includeSubcategories?: boolean;
+  verified?: boolean;
+  page?: number;
+  size?: number;
 }
 
 interface PageResponse<T> {
@@ -128,6 +137,17 @@ interface BackendFoodCategory {
   slug?: string | null;
   sortOrder?: number | null;
   children?: BackendFoodCategory[] | null;
+}
+
+interface BackendFoodDetail {
+  foodId?: string | null;
+  displayName?: string | null;
+  brandName?: string | null;
+  calories?: number | null;
+  proteinGrams?: number | string | null;
+  carbsGrams?: number | string | null;
+  fatGrams?: number | string | null;
+  basisUnit?: string | null;
 }
 
 interface BackendLoggedFood {
@@ -215,6 +235,7 @@ export class FitSyncDataService {
         exerciseCount: 6
       },
       latestMeal: {
+        mealId: 'demo-meal',
         mealType: 'LUNCH',
         name: 'Chicken rice bowl',
         totalCalories: 620,
@@ -342,22 +363,29 @@ export class FitSyncDataService {
       );
   }
 
-  searchFoods(
-    query: string,
-    options: { categoryId?: string | null; includeSubcategories?: boolean } = {}
-  ): Observable<FoodSearchResult[]> {
+  searchFoods(query: string, options: FoodSearchOptions = {}): Observable<FoodSearchResult[]> {
     let params = new HttpParams().set('q', query ?? '');
     if (options.categoryId) {
       params = params
         .set('categoryId', options.categoryId)
         .set('includeSubcategories', String(options.includeSubcategories ?? true));
     }
+    if (options.verified) {
+      params = params.set('verified', 'true');
+    }
+    if (options.page != null) {
+      params = params.set('page', String(options.page));
+    }
+    if (options.size != null) {
+      params = params.set('size', String(options.size));
+    }
 
+    const filtered = Boolean(options.categoryId || options.verified || options.page);
     return this.http
       .get<BackendFoodSearchResult[]>(`${this.apiBaseUrl}/nutrition/foods/search`, { params })
       .pipe(
         map((foods) => foods.map((food) => this.mapFood(food))),
-        catchError(() => (options.categoryId ? of([] as FoodSearchResult[]) : this.getFallbackFoods()))
+        catchError(() => (filtered ? of([] as FoodSearchResult[]) : this.getFallbackFoods()))
       );
   }
 
@@ -473,6 +501,59 @@ export class FitSyncDataService {
       mealReminderEnabled: value.mealReminderEnabled,
       weighInReminderEnabled: true
     }).pipe(map(() => ({ ok: true as const })));
+  }
+
+  getMealTemplates(): Observable<MealTemplate[]> {
+    return this.http
+      .get<Partial<MealTemplate>[]>(`${this.apiBaseUrl}/nutrition/meal-templates`)
+      .pipe(
+        map((templates) => templates.map((template) => this.mapMealTemplate(template))),
+        catchError(() => of([] as MealTemplate[]))
+      );
+  }
+
+  logMealFromTemplate(templateId: string): Observable<{ ok: true }> {
+    return this.http
+      .post(`${this.apiBaseUrl}/nutrition/meals/from-template/${templateId}`, {})
+      .pipe(map(() => ({ ok: true as const })));
+  }
+
+  copyMeal(mealId: string, mealType: string): Observable<{ ok: true }> {
+    return this.http
+      .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, { mealType })
+      .pipe(map(() => ({ ok: true as const })));
+  }
+
+  getFoodByBarcode(barcode: string): Observable<LoggedFood | null> {
+    return this.http
+      .get<BackendFoodDetail>(`${this.apiBaseUrl}/nutrition/barcodes/${encodeURIComponent(barcode)}`)
+      .pipe(
+        map((food) =>
+          food && food.displayName
+            ? {
+                foodName: food.displayName,
+                brandName: food.brandName ?? '',
+                servingLabel: food.basisUnit ?? '',
+                calories: food.calories ?? 0,
+                proteinGrams: Number(food.proteinGrams ?? 0),
+                carbsGrams: Number(food.carbsGrams ?? 0),
+                fatGrams: Number(food.fatGrams ?? 0),
+                timesLogged: 0
+              }
+            : null
+        ),
+        catchError(() => of(null))
+      );
+  }
+
+  private mapMealTemplate(template: Partial<MealTemplate>): MealTemplate {
+    return {
+      templateId: template.templateId ?? '',
+      name: template.name ?? 'Saved meal',
+      mealType: template.mealType ?? 'MEAL',
+      note: template.note ?? '',
+      totalCalories: template.totalCalories ?? 0
+    };
   }
 
   saveMeal(value: MealFormValue): Observable<{ ok: true }> {
@@ -719,6 +800,7 @@ export class FitSyncDataService {
     }
 
     return {
+      mealId: meal.mealId ?? '',
       mealType: meal.mealType ?? 'MEAL',
       name: meal.name ?? meal.mealType ?? 'Meal',
       totalCalories: meal.totalCalories ?? 0,
