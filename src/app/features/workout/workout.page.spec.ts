@@ -6,6 +6,7 @@ import { of } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
 import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
+import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 
 function session(overrides: Partial<WorkoutSession>): WorkoutSession {
@@ -209,7 +210,7 @@ describe('WorkoutPage', () => {
     expect(dataService.saveWorkoutSession).toHaveBeenCalled();
   });
 
-  it('keeps the past workout form collapsed behind the live logger by default', () => {
+  it('keeps the past workout form collapsed behind guided today by default', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
 
@@ -218,12 +219,25 @@ describe('WorkoutPage', () => {
     const firstContent = overviewPanel?.firstElementChild;
     const toggle = compiled.querySelector<HTMLButtonElement>('.log-workout-card .button.secondary');
 
-    expect(firstContent?.tagName.toLowerCase()).toBe('app-live-logger');
+    expect(firstContent?.tagName.toLowerCase()).toBe('app-today-overview');
     expect(fixture.componentInstance.logFormOpen()).toBeFalse();
     expect(toggle?.textContent?.trim()).toBe('Log a past workout');
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(toggle?.getAttribute('aria-controls')).toBe('past-workout-form');
     expect(compiled.querySelector('#past-workout-form')).toBeNull();
+  });
+
+  it('starts today from the guided overview through the live logger path', () => {
+    const active = plan({ planId: 'plan-today', name: 'Today plan', status: 'ACTIVE' });
+    dataService.getActivePlan.and.returnValue(of(active));
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
+    today.startPlan.emit(active);
+
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
   });
 
   it('expands the past workout form and still submits through the data service', () => {

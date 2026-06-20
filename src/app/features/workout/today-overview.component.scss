@@ -1,0 +1,114 @@
+.today-overview {
+  display: grid;
+  gap: 16px;
+
+  .today-hero,
+  .guided-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .today-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    padding: 20px;
+
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h2 {
+      margin-top: 4px;
+      font-size: var(--text-4xl);
+      line-height: 1;
+    }
+
+    p {
+      margin-top: 8px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    &.empty {
+      background: var(--surface-tint);
+    }
+  }
+
+  .guided-card {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+
+    &.compact {
+      gap: 6px;
+
+      h3,
+      p {
+        margin: 0;
+      }
+
+      p {
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  .exercise-map {
+    display: grid;
+    gap: 10px;
+  }
+
+  .exercise-step {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    min-height: 74px;
+    padding: 12px;
+    text-align: left;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    cursor: pointer;
+
+    > span {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: var(--text-on-accent);
+      background: var(--accent);
+      font-weight: var(--fw-semibold);
+    }
+
+    strong,
+    small,
+    em {
+      display: block;
+    }
+
+    small,
+    em {
+      margin-top: 4px;
+      color: var(--text-secondary);
+    }
+  }
+
+  .empty-copy {
+    margin: 0;
+    color: var(--text-secondary);
+  }
+}
+
+@media (max-width: 700px) {
+  .today-overview .today-hero {
+    display: grid;
+  }
+}

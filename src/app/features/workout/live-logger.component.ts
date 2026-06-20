@@ -66,6 +66,10 @@ export class LiveLoggerComponent {
 
   startSelectedPlan(): void {
     const planId = this.planForm.controls.planId.value || this.activePlan?.planId;
+    this.startPlan(planId);
+  }
+
+  startPlan(planId: string | null | undefined): void {
     if (!planId || this.busy()) {
       return;
     }
