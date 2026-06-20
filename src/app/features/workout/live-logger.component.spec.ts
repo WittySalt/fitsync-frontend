@@ -31,11 +31,14 @@ function detail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDe
 function exercise(overrides: Partial<Exercise> = {}): Exercise {
   return {
     exerciseId: 'exercise-1',
+    code: 'BACK_SQUAT',
     name: 'Back squat',
+    description: '',
     exerciseType: 'STRENGTH',
     primaryMuscleGroup: 'QUADS',
     equipment: 'BARBELL',
     difficulty: 'INTERMEDIATE',
+    status: 'ACTIVE',
     custom: false,
     ...overrides
   };

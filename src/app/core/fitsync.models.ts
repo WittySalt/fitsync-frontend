@@ -157,13 +157,47 @@ export interface WorkoutExerciseSetInput {
 
 export interface Exercise {
   exerciseId: string | null;
+  code: string;
   name: string;
+  description: string;
   exerciseType: string;
   primaryMuscleGroup: string;
   equipment: string;
   difficulty: string;
+  status: string;
   custom: boolean;
 }
+
+export interface ExerciseMetadata {
+  exerciseTypes: string[];
+  muscleGroups: string[];
+  equipment: string[];
+  difficulties: string[];
+  workoutTypes: string[];
+  goalFocuses: string[];
+}
+
+export interface ExerciseSearchOptions {
+  q?: string;
+  exerciseType?: string;
+  primaryMuscleGroup?: string;
+  equipment?: string;
+  difficulty?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface CreateExerciseRequest {
+  code: string;
+  name: string;
+  description: string;
+  exerciseType: string;
+  primaryMuscleGroup: string;
+  equipment: string;
+  difficulty: string;
+}
+
+export type UpdateExerciseRequest = Omit<CreateExerciseRequest, 'code'>;
 
 export interface ExerciseRecordValue {
   value: number | null;

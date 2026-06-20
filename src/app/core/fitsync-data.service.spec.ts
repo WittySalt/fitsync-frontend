@@ -472,6 +472,96 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].exerciseId).toBe('e1');
   });
 
+  it('filters exercises with metadata-driven query params', () => {
+    service
+      .getExercises({
+        q: 'press',
+        exerciseType: 'STRENGTH',
+        primaryMuscleGroup: 'CHEST',
+        equipment: 'BARBELL',
+        difficulty: 'INTERMEDIATE',
+        page: 1,
+        size: 50
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/exercises' &&
+        req.params.get('q') === 'press' &&
+        req.params.get('exerciseType') === 'STRENGTH' &&
+        req.params.get('primaryMuscleGroup') === 'CHEST' &&
+        req.params.get('equipment') === 'BARBELL' &&
+        req.params.get('difficulty') === 'INTERMEDIATE' &&
+        req.params.get('page') === '1' &&
+        req.params.get('size') === '50'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({ content: [] });
+  });
+
+  it('loads exercise metadata for filters and forms', () => {
+    let result: unknown;
+    service.getExerciseMetadata().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/exercises/metadata');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      exerciseTypes: ['STRENGTH'],
+      muscleGroups: ['QUADS'],
+      equipment: ['BARBELL'],
+      difficulties: ['INTERMEDIATE'],
+      workoutTypes: ['STRENGTH'],
+      goalFocuses: ['STRENGTH']
+    });
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        exerciseTypes: ['STRENGTH'],
+        muscleGroups: ['QUADS'],
+        equipment: ['BARBELL'],
+        difficulties: ['INTERMEDIATE']
+      })
+    );
+  });
+
+  it('creates, updates, and archives custom exercises through workout exercise endpoints', () => {
+    const createPayload = {
+      code: 'CUSTOM_BACK_SQUAT',
+      name: 'Back Squat',
+      description: 'Barbell back squat',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'INTERMEDIATE'
+    };
+    const updatePayload = {
+      name: 'Back Squat',
+      description: 'Updated',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'ADVANCED'
+    };
+
+    service.createExercise(createPayload).subscribe();
+    const createRequest = httpTesting.expectOne('/api/v1/workouts/exercises');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body).toEqual(createPayload);
+    createRequest.flush({ exerciseId: 'exercise-1', ...createPayload, status: 'ACTIVE', custom: true });
+
+    service.updateExercise('exercise-1', updatePayload).subscribe();
+    const updateRequest = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1');
+    expect(updateRequest.request.method).toBe('PUT');
+    expect(updateRequest.request.body).toEqual(updatePayload);
+    updateRequest.flush({ exerciseId: 'exercise-1', code: 'CUSTOM_BACK_SQUAT', ...updatePayload, status: 'ACTIVE', custom: true });
+
+    service.archiveExercise('exercise-1').subscribe();
+    const archiveRequest = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1');
+    expect(archiveRequest.request.method).toBe('DELETE');
+    archiveRequest.flush(null);
+  });
+
   it('loads exercise records and preserves null personal records', () => {
     let result: ExerciseRecords | null | undefined;
     service.getExerciseRecords('exercise-1').subscribe((value) => (result = value));

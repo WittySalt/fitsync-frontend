@@ -334,73 +334,8 @@
       }
     </section>
   } @else {
-    <section id="workout-panel-library" class="summary-card" role="tabpanel" aria-labelledby="workout-tab-library">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Exercise catalog</span>
-          <h2>Find the right movement</h2>
-        </div>
-      </div>
-      @if (exercises().length) {
-        <div class="catalog-grid">
-          @for (exercise of exercises(); track exercise.exerciseId ?? exercise.name) {
-            <button
-              class="exercise-card"
-              type="button"
-              [class.active]="selectedExercise()?.exerciseId === exercise.exerciseId"
-              [disabled]="!isExerciseSelectable(exercise)"
-              [attr.aria-label]="isExerciseSelectable(exercise) ? 'View progress for ' + exercise.name : 'Exercise details unavailable for ' + exercise.name"
-              (click)="selectExercise(exercise)"
-            >
-              <strong>{{ exercise.name }}@if (exercise.custom) { <span class="verified-tag">Custom</span> }</strong>
-              <span>{{ formatLabel(exercise.primaryMuscleGroup) || 'General' }}</span>
-              <small>{{ formatLabel(exercise.equipment) || 'No equipment' }} - {{ formatLabel(exercise.difficulty) }}</small>
-            </button>
-          }
-        </div>
-      } @else {
-        <app-state-panel title="No exercises" message="The exercise library is empty or unavailable right now." />
-      }
-
-      @if (selectedExercise(); as exercise) {
-        <section class="exercise-detail" aria-label="Exercise progress detail">
-          <div class="section-title">
-            <div>
-              <span class="card-label">Personal records</span>
-              <h3>{{ exercise.name }}</h3>
-            </div>
-            <button class="text-link" type="button" (click)="clearSelectedExercise()">Close</button>
-          </div>
-
-          @if (exerciseDetailLoading()) {
-            <app-state-panel title="Loading records" message="Fetching your completed sets for this exercise." />
-          } @else {
-            <div class="record-grid">
-              @for (record of recordCards(); track record.label) {
-                <article class="record-card">
-                  <span>{{ record.label }}</span>
-                  <strong>{{ record.value }}</strong>
-                  <small>{{ record.detail }}</small>
-                </article>
-              }
-            </div>
-
-            @if (historyTrend().labels.length) {
-              <div class="chart-shell">
-                <fs-chart
-                  [type]="'line'"
-                  [labels]="historyTrend().labels"
-                  [series]="historyTrend().series"
-                  ariaLabel="Per-exercise max weight trend"
-                  yAxisLabel="Max weight (kg)"
-                />
-              </div>
-            } @else {
-              <app-state-panel title="No history yet" message="Completed sets for this exercise will appear here." />
-            }
-          }
-        </section>
-      }
+    <section id="workout-panel-library" role="tabpanel" aria-labelledby="workout-tab-library">
+      <app-exercise-library (exercisesChanged)="handleExerciseLibraryChanged($event)" />
     </section>
   }
 </div>
