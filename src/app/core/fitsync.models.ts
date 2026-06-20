@@ -132,6 +132,9 @@ export interface WorkoutExerciseLog {
   maxHeartRate: number | null;
   notes: string;
   sets: WorkoutExerciseSetLog[];
+  videoUrl?: string | null;
+  animationUrl?: string | null;
+  images?: string[];
 }
 
 export interface WorkoutExerciseSetLog {
@@ -238,6 +241,9 @@ export interface Exercise {
   difficulty: string;
   status: string;
   custom: boolean;
+  videoUrl?: string | null;
+  animationUrl?: string | null;
+  images?: string[];
 }
 
 export interface ExerciseMetadata {
@@ -385,6 +391,9 @@ export interface WorkoutPlanExercise {
   restSeconds: number | null;
   notes: string;
   setTargets: WorkoutPlanExerciseSetTarget[];
+  videoUrl?: string | null;
+  animationUrl?: string | null;
+  images?: string[];
 }
 
 export interface WorkoutPlanExerciseSetTarget {

@@ -18,6 +18,17 @@
 
   @if (currentLog(); as log) {
     <article class="focus-card" [class.resting]="restRemainingSeconds() > 0">
+      <div class="movement-media" aria-label="Exercise movement media">
+        @if (currentMediaUrl(); as mediaUrl) {
+          <img [src]="mediaUrl" [alt]="mediaAlt(log)" (error)="onMediaError()" />
+        } @else {
+          <div class="media-placeholder" aria-hidden="true">
+            <span>{{ mediaInitial(log) }}</span>
+            <small>{{ targetSummary(currentPlanExercise()) }}</small>
+          </div>
+        }
+      </div>
+
       <div class="focus-copy">
         <span class="card-label">Exercise {{ currentExerciseIndex() + 1 }} of {{ orderedLogs().length }}</span>
         <h3>{{ log.exerciseNameSnapshot }}</h3>

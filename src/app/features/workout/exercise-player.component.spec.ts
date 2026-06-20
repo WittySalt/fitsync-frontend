@@ -215,6 +215,54 @@ describe('ExercisePlayerComponent', () => {
     expect(focused.nativeElement.textContent).toContain('Push-Up');
   });
 
+  it('renders a clean placeholder when the current exercise has no media', () => {
+    expect(fixture.nativeElement.querySelector('.media-placeholder')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.media-placeholder')?.textContent).toContain('G');
+    expect(fixture.nativeElement.querySelector('.movement-media img')).toBeNull();
+  });
+
+  it('renders the exercise image when media is available', () => {
+    const withMedia = TestBed.createComponent(ExercisePlayerComponent);
+    withMedia.componentRef.setInput('session', detail());
+    withMedia.componentRef.setInput('activePlan', plan({
+      exercises: [
+        {
+          ...plan().exercises[0],
+          images: ['https://cdn.example.test/goblet-squat.png']
+        },
+        plan().exercises[1]
+      ]
+    }));
+    withMedia.detectChanges();
+
+    const image = (withMedia.nativeElement as HTMLElement).querySelector<HTMLImageElement>('.movement-media img');
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute('src')).toBe('https://cdn.example.test/goblet-squat.png');
+    expect(image?.getAttribute('alt')).toBe('Goblet Squat movement reference');
+  });
+
+  it('falls back to the placeholder when exercise media fails to load', () => {
+    const withMedia = TestBed.createComponent(ExercisePlayerComponent);
+    withMedia.componentRef.setInput('session', detail());
+    withMedia.componentRef.setInput('activePlan', plan({
+      exercises: [
+        {
+          ...plan().exercises[0],
+          animationUrl: 'https://cdn.example.test/goblet-squat.gif'
+        },
+        plan().exercises[1]
+      ]
+    }));
+    withMedia.detectChanges();
+
+    (withMedia.nativeElement as HTMLElement).querySelector<HTMLImageElement>('.movement-media img')
+      ?.dispatchEvent(new Event('error'));
+    withMedia.detectChanges();
+
+    expect(withMedia.nativeElement.querySelector('.movement-media img')).toBeNull();
+    expect(withMedia.nativeElement.querySelector('.media-placeholder')).not.toBeNull();
+  });
+
   it('surfaces set write failures through toast', () => {
     dataService.upsertSessionSet.and.returnValue(throwError(() => new Error('boom')));
 

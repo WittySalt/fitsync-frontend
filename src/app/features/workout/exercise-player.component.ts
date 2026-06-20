@@ -31,6 +31,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly savingSet = signal(false);
   readonly ending = signal(false);
   readonly allTargetsComplete = signal(false);
+  readonly failedMediaKeys = signal<Set<string>>(new Set());
 
   private restTimerId: ReturnType<typeof setInterval> | null = null;
 
@@ -53,6 +54,19 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       return 0;
     }
     return Math.min(100, Math.round((this.completedSetCount() / total) * 100));
+  });
+  readonly currentMediaUrl = computed(() => {
+    const key = this.currentMediaKey();
+    if (!key || this.failedMediaKeys().has(key)) {
+      return null;
+    }
+    const log = this.currentLog();
+    const target = this.currentPlanExercise();
+    return target?.images?.[0]
+      ?? target?.animationUrl
+      ?? log?.images?.[0]
+      ?? log?.animationUrl
+      ?? null;
   });
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -169,6 +183,22 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return parts.join(' / ');
   }
 
+  mediaAlt(log: WorkoutExerciseLog): string {
+    return `${log.exerciseNameSnapshot} movement reference`;
+  }
+
+  mediaInitial(log: WorkoutExerciseLog | null): string {
+    return (log?.exerciseNameSnapshot ?? 'Exercise').trim().charAt(0).toUpperCase() || 'E';
+  }
+
+  onMediaError(): void {
+    const key = this.currentMediaKey();
+    if (!key) {
+      return;
+    }
+    this.failedMediaKeys.update((failed) => new Set(failed).add(key));
+  }
+
   formatClock(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainder = seconds % 60;
@@ -239,6 +269,14 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     }
     const index = this.orderedLogs().findIndex((log) => log.exerciseId === this.initialExerciseId);
     return index >= 0 ? index : 0;
+  }
+
+  private currentMediaKey(): string | null {
+    const log = this.currentLog();
+    if (!log) {
+      return null;
+    }
+    return log.exerciseId || log.exerciseLogId || log.exerciseNameSnapshot;
   }
 
   private clearRestTimer(reset = true): void {

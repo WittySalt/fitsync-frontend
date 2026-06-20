@@ -178,6 +178,9 @@ interface BackendWorkoutPlanExercise {
   restSeconds?: number | null;
   notes?: string | null;
   setTargets?: BackendWorkoutPlanExerciseSetTarget[] | null;
+  videoUrl?: string | null;
+  animationUrl?: string | null;
+  images?: BackendExerciseImage[] | string[] | null;
 }
 
 interface BackendWorkoutPlanExerciseSetTarget {
@@ -227,6 +230,9 @@ interface BackendWorkoutExerciseLog {
   maxHeartRate?: number | null;
   notes?: string | null;
   sets?: BackendWorkoutExerciseSetLog[] | null;
+  videoUrl?: string | null;
+  animationUrl?: string | null;
+  images?: BackendExerciseImage[] | string[] | null;
 }
 
 interface BackendWorkoutExerciseSetLog {
@@ -292,6 +298,15 @@ interface BackendExerciseView {
   custom?: boolean | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  videoUrl?: string | null;
+  animationUrl?: string | null;
+  images?: BackendExerciseImage[] | string[] | null;
+}
+
+interface BackendExerciseImage {
+  url?: string | null;
+  imageUrl?: string | null;
+  mediaUrl?: string | null;
 }
 
 interface BackendFoodCategory {
@@ -1356,7 +1371,10 @@ export class FitSyncDataService {
       averageHeartRate: exercise.averageHeartRate ?? null,
       maxHeartRate: exercise.maxHeartRate ?? null,
       notes: exercise.notes ?? '',
-      sets: (exercise.sets ?? []).map((set) => this.mapWorkoutExerciseSetLog(set))
+      sets: (exercise.sets ?? []).map((set) => this.mapWorkoutExerciseSetLog(set)),
+      videoUrl: exercise.videoUrl ?? null,
+      animationUrl: exercise.animationUrl ?? null,
+      images: this.mapExerciseImages(exercise.images)
     };
   }
 
@@ -1386,7 +1404,10 @@ export class FitSyncDataService {
       equipment: exercise.equipment ?? '',
       difficulty: exercise.difficulty ?? '',
       status: exercise.status ?? 'ACTIVE',
-      custom: exercise.custom ?? false
+      custom: exercise.custom ?? false,
+      videoUrl: exercise.videoUrl ?? null,
+      animationUrl: exercise.animationUrl ?? null,
+      images: this.mapExerciseImages(exercise.images)
     };
   }
 
@@ -1559,6 +1580,17 @@ export class FitSyncDataService {
     return typeof value === 'string' && value.trim() ? value : null;
   }
 
+  private mapExerciseImages(images: BackendExerciseImage[] | string[] | null | undefined): string[] {
+    return (images ?? [])
+      .map((image) => {
+        if (typeof image === 'string') {
+          return image;
+        }
+        return image.url ?? image.imageUrl ?? image.mediaUrl ?? '';
+      })
+      .filter((url) => typeof url === 'string' && url.trim().length > 0);
+  }
+
   private mapWorkoutPlan(plan: BackendWorkoutPlan): WorkoutPlan {
     const exercises = (plan.exercises ?? []).map((exercise) => this.mapWorkoutPlanExercise(exercise));
     return {
@@ -1590,6 +1622,9 @@ export class FitSyncDataService {
       targetDistanceKm: this.numericValue(exercise.targetDistanceKm),
       restSeconds: exercise.restSeconds ?? null,
       notes: exercise.notes ?? '',
+      videoUrl: exercise.videoUrl ?? null,
+      animationUrl: exercise.animationUrl ?? null,
+      images: this.mapExerciseImages(exercise.images),
       setTargets: (exercise.setTargets ?? []).map((target) => ({
         setTargetId: target.setTargetId ?? null,
         setNumber: target.setNumber ?? 1,
