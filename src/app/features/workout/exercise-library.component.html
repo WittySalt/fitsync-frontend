@@ -1,0 +1,237 @@
+<article class="exercise-library summary-card" aria-label="Exercise library management">
+  <div class="section-title">
+    <div>
+      <span class="card-label">Exercise catalog</span>
+      <h2>Manage movement library</h2>
+    </div>
+  </div>
+
+  @if (metadata(); as meta) {
+    <form class="filter-panel" [formGroup]="filterForm">
+      <label>
+        Search
+        <input formControlName="q" type="search" placeholder="Search exercises" autocomplete="off" />
+      </label>
+      <label>
+        Type
+        <select formControlName="exerciseType">
+          <option value="">All types</option>
+          @for (option of meta.exerciseTypes; track option) {
+            <option [value]="option">{{ formatLabel(option) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Muscle
+        <select formControlName="primaryMuscleGroup">
+          <option value="">All muscles</option>
+          @for (option of meta.muscleGroups; track option) {
+            <option [value]="option">{{ formatLabel(option) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Equipment
+        <select formControlName="equipment">
+          <option value="">All equipment</option>
+          @for (option of meta.equipment; track option) {
+            <option [value]="option">{{ formatLabel(option) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Difficulty
+        <select formControlName="difficulty">
+          <option value="">Any difficulty</option>
+          @for (option of meta.difficulties; track option) {
+            <option [value]="option">{{ formatLabel(option) }}</option>
+          }
+        </select>
+      </label>
+    </form>
+
+    <section class="editor-panel" aria-label="Create custom exercise">
+      <div>
+        <span class="card-label">Custom exercise</span>
+        <h3>Create exercise</h3>
+      </div>
+      <form class="exercise-form" [formGroup]="createForm" (ngSubmit)="createExercise()">
+        <label>
+          Code
+          <input formControlName="code" maxlength="100" autocomplete="off" />
+        </label>
+        <label>
+          Name
+          <input formControlName="name" maxlength="120" autocomplete="off" />
+        </label>
+        <label class="wide">
+          Description
+          <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
+        </label>
+        <label>
+          Type
+          <select formControlName="exerciseType">
+            @for (option of meta.exerciseTypes; track option) {
+              <option [value]="option">{{ formatLabel(option) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Muscle
+          <select formControlName="primaryMuscleGroup">
+            @for (option of meta.muscleGroups; track option) {
+              <option [value]="option">{{ formatLabel(option) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Equipment
+          <select formControlName="equipment">
+            @for (option of meta.equipment; track option) {
+              <option [value]="option">{{ formatLabel(option) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Difficulty
+          <select formControlName="difficulty">
+            @for (option of meta.difficulties; track option) {
+              <option [value]="option">{{ formatLabel(option) }}</option>
+            }
+          </select>
+        </label>
+        <button class="button primary" type="submit" [disabled]="saving()">Create</button>
+      </form>
+    </section>
+
+    @if (editingExercise(); as exercise) {
+      <section class="editor-panel" aria-label="Edit custom exercise">
+        <div class="editor-header">
+          <div>
+            <span class="card-label">Edit</span>
+            <h3>{{ exercise.name }}</h3>
+          </div>
+          <button class="text-link" type="button" (click)="cancelEdit()">Cancel</button>
+        </div>
+        <form class="exercise-form" [formGroup]="editForm" (ngSubmit)="updateExercise()">
+          <label>
+            Name
+            <input formControlName="name" maxlength="120" autocomplete="off" />
+          </label>
+          <label class="wide">
+            Description
+            <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
+          </label>
+          <label>
+            Type
+            <select formControlName="exerciseType">
+              @for (option of meta.exerciseTypes; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Muscle
+            <select formControlName="primaryMuscleGroup">
+              @for (option of meta.muscleGroups; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Equipment
+            <select formControlName="equipment">
+              @for (option of meta.equipment; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select formControlName="difficulty">
+              @for (option of meta.difficulties; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <button class="button primary" type="submit" [disabled]="saving()">Save changes</button>
+        </form>
+      </section>
+    }
+
+    @if (loading()) {
+      <div class="skeleton tall"></div>
+    } @else if (exercises().length) {
+      <div class="exercise-list">
+        @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
+          <article class="exercise-item">
+            <div>
+              <strong>{{ exercise.name }}</strong>
+              @if (exercise.custom) {
+                <span class="custom-tag">Custom</span>
+              }
+              <p>{{ exercise.description || 'No description yet.' }}</p>
+              <small>
+                {{ formatLabel(exercise.exerciseType) }} -
+                {{ formatLabel(exercise.primaryMuscleGroup) }} -
+                {{ formatLabel(exercise.equipment) }} -
+                {{ formatLabel(exercise.difficulty) }}
+              </small>
+            </div>
+            <div class="item-actions">
+              <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">Records</button>
+              @if (exercise.custom) {
+                <button class="button secondary" type="button" (click)="startEdit(exercise)">Edit</button>
+                <button class="button secondary" type="button" (click)="archiveExercise(exercise)">Archive</button>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    } @else {
+      <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
+    }
+
+    @if (selectedExercise(); as exercise) {
+      <section class="exercise-detail" aria-label="Exercise progress detail">
+        <div class="editor-header">
+          <div>
+            <span class="card-label">Personal records</span>
+            <h3>{{ exercise.name }}</h3>
+          </div>
+          <button class="text-link" type="button" (click)="clearSelectedExercise()">Close</button>
+        </div>
+
+        @if (exerciseDetailLoading()) {
+          <app-state-panel title="Loading records" message="Fetching your completed sets for this exercise." />
+        } @else {
+          <div class="record-grid">
+            @for (record of recordCards(); track record.label) {
+              <article class="record-card">
+                <span>{{ record.label }}</span>
+                <strong>{{ record.value }}</strong>
+                <small>{{ record.detail }}</small>
+              </article>
+            }
+          </div>
+
+          @if (historyTrend().labels.length) {
+            <div class="chart-shell">
+              <fs-chart
+                [type]="'line'"
+                [labels]="historyTrend().labels"
+                [series]="historyTrend().series"
+                ariaLabel="Per-exercise max weight trend"
+                yAxisLabel="Max weight (kg)"
+              />
+            </div>
+          } @else {
+            <app-state-panel title="No history yet" message="Completed sets for this exercise will appear here." />
+          }
+        }
+      </section>
+    }
+  } @else {
+    <app-state-panel title="Exercise metadata unavailable" message="Filters and custom exercise forms need metadata from the workout API." />
+  }
+</article>

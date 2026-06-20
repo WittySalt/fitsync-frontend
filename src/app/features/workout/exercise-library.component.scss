@@ -1,0 +1,170 @@
+:host {
+  display: block;
+}
+
+.exercise-library,
+.editor-panel,
+.exercise-list {
+  display: grid;
+  gap: 16px;
+}
+
+.filter-panel,
+.exercise-form {
+  display: grid;
+  gap: 12px;
+}
+
+.filter-panel {
+  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(140px, 1fr));
+}
+
+.exercise-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.editor-panel {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.exercise-detail {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.editor-header,
+.exercise-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 9px 11px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+h3,
+p {
+  margin: 0;
+}
+
+p,
+small {
+  color: var(--text-secondary);
+}
+
+.exercise-item {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.custom-tag {
+  display: inline-flex;
+  margin-left: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  padding: 3px 8px;
+}
+
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.record-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.record-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.record-card span,
+.record-card small {
+  color: var(--text-secondary);
+}
+
+.record-card strong {
+  color: var(--text-primary);
+}
+
+.chart-shell {
+  min-height: 260px;
+}
+
+@media (max-width: 980px) {
+  .filter-panel,
+  .exercise-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .record-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .filter-panel,
+  .exercise-form {
+    grid-template-columns: 1fr;
+  }
+
+  .wide {
+    grid-column: auto;
+  }
+
+  .exercise-item {
+    display: grid;
+  }
+
+  .record-grid {
+    grid-template-columns: 1fr;
+  }
+}

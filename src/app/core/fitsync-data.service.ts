@@ -4,10 +4,13 @@ import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rx
 
 import {
   BodyMetric,
+  CreateExerciseRequest,
   Exercise,
   ExerciseHistoryEntry,
+  ExerciseMetadata,
   ExerciseRecords,
   ExerciseRecordValue,
+  ExerciseSearchOptions,
   FoodCategory,
   FoodSearchResult,
   Goal,
@@ -27,7 +30,8 @@ import {
   WorkoutPlanRequest,
   WorkoutPlanStatus,
   WorkoutSession,
-  WorkoutSessionDetail
+  WorkoutSessionDetail,
+  UpdateExerciseRequest
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -250,6 +254,22 @@ interface BackendExerciseHistoryEntry {
   restSeconds?: number | null;
   perceivedExertion?: number | null;
   notes?: string | null;
+}
+
+interface BackendExerciseView {
+  exerciseId?: string | null;
+  ownerUserId?: string | null;
+  code?: string | null;
+  name?: string | null;
+  description?: string | null;
+  exerciseType?: string | null;
+  primaryMuscleGroup?: string | null;
+  equipment?: string | null;
+  difficulty?: string | null;
+  status?: string | null;
+  custom?: boolean | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 interface BackendFoodCategory {
@@ -563,14 +583,62 @@ export class FitSyncDataService {
       );
   }
 
-  getExercises(query = ''): Observable<Exercise[]> {
-    const params = new HttpParams().set('q', query ?? '').set('size', '30');
+  getExercises(queryOrOptions: string | ExerciseSearchOptions = ''): Observable<Exercise[]> {
+    const options: ExerciseSearchOptions =
+      typeof queryOrOptions === 'string' ? { q: queryOrOptions, size: 30 } : queryOrOptions;
+    let params = new HttpParams()
+      .set('q', options.q ?? '')
+      .set('page', String(options.page ?? 0))
+      .set('size', String(options.size ?? 30));
+    if (options.exerciseType) {
+      params = params.set('exerciseType', options.exerciseType);
+    }
+    if (options.primaryMuscleGroup) {
+      params = params.set('primaryMuscleGroup', options.primaryMuscleGroup);
+    }
+    if (options.equipment) {
+      params = params.set('equipment', options.equipment);
+    }
+    if (options.difficulty) {
+      params = params.set('difficulty', options.difficulty);
+    }
+
     return this.http
-      .get<PageResponse<Partial<Exercise>>>(`${this.apiBaseUrl}/workouts/exercises`, { params })
+      .get<PageResponse<BackendExerciseView>>(`${this.apiBaseUrl}/workouts/exercises`, { params })
       .pipe(
         map((response) => (response.content ?? []).map((exercise) => this.mapExercise(exercise))),
         catchError(() => of([] as Exercise[]))
       );
+  }
+
+  getExerciseMetadata(): Observable<ExerciseMetadata | null> {
+    return this.http.get<ExerciseMetadata>(`${this.apiBaseUrl}/workouts/exercises/metadata`).pipe(
+      map((metadata) => ({
+        exerciseTypes: metadata.exerciseTypes ?? [],
+        muscleGroups: metadata.muscleGroups ?? [],
+        equipment: metadata.equipment ?? [],
+        difficulties: metadata.difficulties ?? [],
+        workoutTypes: metadata.workoutTypes ?? [],
+        goalFocuses: metadata.goalFocuses ?? []
+      })),
+      catchError(() => of(null))
+    );
+  }
+
+  createExercise(request: CreateExerciseRequest): Observable<Exercise> {
+    return this.http
+      .post<BackendExerciseView>(`${this.apiBaseUrl}/workouts/exercises`, request)
+      .pipe(map((exercise) => this.mapExercise(exercise)));
+  }
+
+  updateExercise(exerciseId: string, request: UpdateExerciseRequest): Observable<Exercise> {
+    return this.http
+      .put<BackendExerciseView>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}`, request)
+      .pipe(map((exercise) => this.mapExercise(exercise)));
+  }
+
+  archiveExercise(exerciseId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}`);
   }
 
   getExerciseRecords(exerciseId: string): Observable<ExerciseRecords | null> {
@@ -1127,14 +1195,17 @@ export class FitSyncDataService {
     };
   }
 
-  private mapExercise(exercise: Partial<Exercise>): Exercise {
+  private mapExercise(exercise: BackendExerciseView): Exercise {
     return {
       exerciseId: exercise.exerciseId ?? null,
+      code: exercise.code ?? '',
       name: exercise.name ?? 'Exercise',
+      description: exercise.description ?? '',
       exerciseType: exercise.exerciseType ?? '',
       primaryMuscleGroup: exercise.primaryMuscleGroup ?? '',
       equipment: exercise.equipment ?? '',
       difficulty: exercise.difficulty ?? '',
+      status: exercise.status ?? 'ACTIVE',
       custom: exercise.custom ?? false
     };
   }
