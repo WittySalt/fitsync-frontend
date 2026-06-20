@@ -317,6 +317,30 @@ export interface Goal {
   progressRatio: number;
 }
 
+export const GOAL_TYPES = ['WEIGHT', 'CALORIES', 'PROTEIN', 'WORKOUT_FREQUENCY'] as const;
+export type GoalType = (typeof GOAL_TYPES)[number];
+
+export const GOAL_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;
+export type GoalStatus = (typeof GOAL_STATUSES)[number];
+
+export interface UserGoal {
+  goalId: string | null;
+  goalType: GoalType;
+  targetValue: number | null;
+  targetUnit: string | null;
+  targetDate: string | null;
+  status: GoalStatus;
+  notes: string | null;
+}
+
+export interface UpsertGoalRequest {
+  targetValue: number | null;
+  targetUnit: string | null;
+  targetDate: string | null;
+  status: GoalStatus;
+  notes: string | null;
+}
+
 export interface WorkoutPlan {
   planId: string | null;
   name: string;

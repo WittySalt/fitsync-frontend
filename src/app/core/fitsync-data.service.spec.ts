@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertWorkoutSessionRequest, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseRecords, FoodCategory, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -101,6 +101,65 @@ describe('FitSyncDataService', () => {
     expect(result?.latestBodyMetric?.weightKg).toBe(71.8);
     expect(result?.trendPoints[0].measuredAt).toBe('2026-06-01');
     expect(result?.goals[0].progressRatio).toBe(0.55);
+  });
+
+  it('loads user goals and ignores goal types outside the frontend lifecycle scope', () => {
+    let result: UserGoal[] | undefined;
+    service.getGoals().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/users/me/goals');
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      {
+        goalId: 'goal-1',
+        goalType: 'WEIGHT',
+        targetValue: '75.5',
+        targetUnit: 'kg',
+        targetDate: '2026-12-31',
+        status: 'ACTIVE',
+        notes: 'Cut slowly'
+      },
+      {
+        goalId: 'goal-2',
+        goalType: 'STEPS',
+        targetValue: 10000,
+        targetUnit: 'steps',
+        targetDate: null,
+        status: 'ACTIVE',
+        notes: null
+      }
+    ]);
+
+    expect(result?.length).toBe(1);
+    expect(result?.[0]).toEqual(
+      jasmine.objectContaining({
+        goalType: 'WEIGHT',
+        targetValue: 75.5,
+        targetUnit: 'kg'
+      })
+    );
+  });
+
+  it('upserts a user goal by goal type with the backend request body', () => {
+    const goalType: GoalType = 'CALORIES';
+    const payload: UpsertGoalRequest = {
+      targetValue: 2200,
+      targetUnit: 'kcal',
+      targetDate: '2026-12-31',
+      status: 'PAUSED',
+      notes: 'Maintenance break'
+    };
+
+    let result: UserGoal | undefined;
+    service.upsertGoal(goalType, payload).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/users/me/goals/CALORIES');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(payload);
+    request.flush({ goalId: 'goal-calories', goalType, ...payload });
+
+    expect(result?.goalType).toBe('CALORIES');
+    expect(result?.status).toBe('PAUSED');
   });
 
   it('saves goal-driven onboarding to the single onboarding endpoint with a local timezone', () => {

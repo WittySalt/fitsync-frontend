@@ -1,0 +1,143 @@
+:host {
+  display: block;
+}
+
+.goal-lifecycle {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.goal-management-card {
+  display: grid;
+  gap: var(--space-4);
+  min-height: 14rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+
+.goal-card-header,
+.goal-actions,
+.status-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.goal-card-header {
+  justify-content: space-between;
+}
+
+.goal-card-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+}
+
+.status-badge {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.status-active {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.status-paused {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.status-completed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.goal-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.goal-details div,
+.form-grid {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.goal-details .wide {
+  grid-column: 1 / -1;
+}
+
+dt,
+label {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.goal-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+label {
+  display: grid;
+}
+
+.status-control {
+  flex-wrap: wrap;
+}
+
+.status-control button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+}
+
+.status-control button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+textarea {
+  resize: vertical;
+}
+
+.skeleton {
+  min-height: 14rem;
+}
+
+@media (max-width: 760px) {
+  .goal-grid,
+  .form-grid,
+  .goal-details {
+    grid-template-columns: 1fr;
+  }
+}

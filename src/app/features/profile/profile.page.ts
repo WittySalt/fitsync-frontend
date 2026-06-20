@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { GoalLifecycleComponent } from './goal-lifecycle.component';
 
 interface ActivityItem {
   icon: string;
@@ -13,7 +14,7 @@ interface ActivityItem {
 
 @Component({
   selector: 'app-profile-page',
-  imports: [RouterLink, StatePanelComponent],
+  imports: [RouterLink, StatePanelComponent, GoalLifecycleComponent],
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.scss'
 })

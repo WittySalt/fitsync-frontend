@@ -14,6 +14,10 @@ import {
   FoodCategory,
   FoodSearchResult,
   Goal,
+  GOAL_STATUSES,
+  GOAL_TYPES,
+  GoalStatus,
+  GoalType,
   ImportResult,
   ImportSessionRow,
   LoggedFood,
@@ -24,7 +28,9 @@ import {
   NutritionSummary,
   OnboardingFormValue,
   OnboardingSeed,
+  UpsertGoalRequest,
   UserProfile,
+  UserGoal,
   StartAdHocSessionInput,
   UpsertWorkoutSessionRequest,
   WorkoutExport,
@@ -133,6 +139,16 @@ interface BackendNutritionSummary {
   fiberTargetMet?: boolean | null;
   sugarWithinLimit?: boolean | null;
   sodiumWithinLimit?: boolean | null;
+}
+
+interface BackendUserGoal {
+  goalId?: string | null;
+  goalType?: string | null;
+  targetValue?: number | string | null;
+  targetUnit?: string | null;
+  targetDate?: string | null;
+  status?: string | null;
+  notes?: string | null;
 }
 
 interface BackendFoodSearchResult {
@@ -584,6 +600,31 @@ export class FitSyncDataService {
             .filter((session): session is WorkoutSession => session !== null)
         ),
         catchError(() => of([] as WorkoutSession[]))
+      );
+  }
+
+  getGoals(): Observable<UserGoal[]> {
+    return this.http.get<BackendUserGoal[]>(`${this.apiBaseUrl}/users/me/goals`).pipe(
+      map((goals) =>
+        (goals ?? [])
+          .map((goal) => this.mapUserGoal(goal))
+          .filter((goal): goal is UserGoal => goal !== null)
+      ),
+      catchError(() => of([] as UserGoal[]))
+    );
+  }
+
+  upsertGoal(goalType: GoalType, request: UpsertGoalRequest): Observable<UserGoal> {
+    return this.http
+      .put<BackendUserGoal>(`${this.apiBaseUrl}/users/me/goals/${goalType}`, request)
+      .pipe(
+        map((goal) => {
+          const mapped = this.mapUserGoal(goal);
+          if (!mapped) {
+            throw new Error('Goal response was empty or unsupported.');
+          }
+          return mapped;
+        })
       );
   }
 
@@ -1357,6 +1398,30 @@ export class FitSyncDataService {
       status: goal.status ?? 'ACTIVE',
       progressRatio: goal.progressRatio ?? 0
     };
+  }
+
+  private mapUserGoal(goal: BackendUserGoal): UserGoal | null {
+    if (!this.isGoalType(goal.goalType) || !this.isGoalStatus(goal.status)) {
+      return null;
+    }
+
+    return {
+      goalId: goal.goalId ?? null,
+      goalType: goal.goalType,
+      targetValue: this.numericValue(goal.targetValue),
+      targetUnit: goal.targetUnit ?? null,
+      targetDate: goal.targetDate ?? null,
+      status: goal.status,
+      notes: goal.notes ?? null
+    };
+  }
+
+  private isGoalType(value: string | null | undefined): value is GoalType {
+    return GOAL_TYPES.includes(value as GoalType);
+  }
+
+  private isGoalStatus(value: string | null | undefined): value is GoalStatus {
+    return GOAL_STATUSES.includes(value as GoalStatus);
   }
 
   private dateRangeParams(range: ProgressDateRange): HttpParams {
