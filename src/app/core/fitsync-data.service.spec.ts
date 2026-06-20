@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, FoodCategory, FoodSearchResult, LoggedFood, Meal, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
+import { Exercise, FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, WorkoutPlan, WorkoutSession } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -305,6 +305,23 @@ describe('FitSyncDataService', () => {
     );
     expect(request.request.method).toBe('GET');
     request.flush([]);
+  });
+
+  it('lists meal templates and logs a meal from a template', () => {
+    let templates: MealTemplate[] | undefined;
+    service.getMealTemplates().subscribe((value) => (templates = value));
+    httpTesting.expectOne('/api/v1/nutrition/meal-templates').flush([
+      { templateId: 't1', name: 'Protein breakfast', mealType: 'BREAKFAST', note: '', totalCalories: 520 }
+    ]);
+    expect(templates?.[0].name).toBe('Protein breakfast');
+    expect(templates?.[0].totalCalories).toBe(520);
+
+    let ok = false;
+    service.logMealFromTemplate('t1').subscribe(() => (ok = true));
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals/from-template/t1');
+    expect(request.request.method).toBe('POST');
+    request.flush({});
+    expect(ok).toBeTrue();
   });
 
   it('maps nutrition category trees for category browsing', () => {

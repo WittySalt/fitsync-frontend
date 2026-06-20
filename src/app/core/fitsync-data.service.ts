@@ -9,6 +9,7 @@ import {
   FoodSearchResult,
   Goal,
   LoggedFood,
+  MealTemplate,
   MealFormValue,
   Meal,
   NutritionSummary,
@@ -488,6 +489,31 @@ export class FitSyncDataService {
       mealReminderEnabled: value.mealReminderEnabled,
       weighInReminderEnabled: true
     }).pipe(map(() => ({ ok: true as const })));
+  }
+
+  getMealTemplates(): Observable<MealTemplate[]> {
+    return this.http
+      .get<Partial<MealTemplate>[]>(`${this.apiBaseUrl}/nutrition/meal-templates`)
+      .pipe(
+        map((templates) => templates.map((template) => this.mapMealTemplate(template))),
+        catchError(() => of([] as MealTemplate[]))
+      );
+  }
+
+  logMealFromTemplate(templateId: string): Observable<{ ok: true }> {
+    return this.http
+      .post(`${this.apiBaseUrl}/nutrition/meals/from-template/${templateId}`, {})
+      .pipe(map(() => ({ ok: true as const })));
+  }
+
+  private mapMealTemplate(template: Partial<MealTemplate>): MealTemplate {
+    return {
+      templateId: template.templateId ?? '',
+      name: template.name ?? 'Saved meal',
+      mealType: template.mealType ?? 'MEAL',
+      note: template.note ?? '',
+      totalCalories: template.totalCalories ?? 0
+    };
   }
 
   saveMeal(value: MealFormValue): Observable<{ ok: true }> {

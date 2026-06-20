@@ -257,6 +257,19 @@
           }
         </div>
 
+        @if (mealTemplates().length) {
+          <div class="recent-foods" aria-label="Saved meals">
+            <span class="card-label">Saved meals</span>
+            <div class="recent-chips">
+              @for (template of mealTemplates(); track template.templateId) {
+                <button type="button" class="quick-food-chip" (click)="useMealTemplate(template)">
+                  {{ template.name }} - {{ template.totalCalories }} kcal
+                </button>
+              }
+            </div>
+          </div>
+        }
+
         @if (searching()) {
           <div class="summary-card skeleton"></div>
         } @else if (foods().length) {

@@ -3,7 +3,7 @@ import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angu
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodCategory, FoodSearchResult, LoggedFood, Meal } from '../../core/fitsync.models';
+import { FoodCategory, FoodSearchResult, LoggedFood, Meal, MealTemplate } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
@@ -35,6 +35,7 @@ export class NutritionPage implements OnInit {
   readonly favoriteFoods = signal<FoodSearchResult[]>([]);
   readonly favoriteUpdating = signal<Set<string>>(new Set());
   readonly frequentFoods = signal<LoggedFood[]>([]);
+  readonly mealTemplates = signal<MealTemplate[]>([]);
   readonly todayMeals = signal<Meal[]>([]);
   readonly searching = signal(false);
   readonly categoriesLoading = signal(false);
@@ -176,7 +177,18 @@ export class NutritionPage implements OnInit {
     this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
     this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
     this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
+    this.dataService.getMealTemplates().subscribe((templates) => this.mealTemplates.set(templates));
     this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+  }
+
+  useMealTemplate(template: MealTemplate): void {
+    this.dataService.logMealFromTemplate(template.templateId).subscribe({
+      next: () => {
+        this.toast.success(`Logged "${template.name}".`);
+        this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
+      },
+      error: () => this.toast.error('Unable to log from template. Please retry.')
+    });
   }
 
   selectCategory(category: FoodCategory | null): void {

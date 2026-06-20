@@ -141,6 +141,15 @@ export interface FoodCategory {
   children: FoodCategory[];
 }
 
+/** A saved meal template for one-tap meal logging. */
+export interface MealTemplate {
+  templateId: string;
+  name: string;
+  mealType: string;
+  note: string;
+  totalCalories: number;
+}
+
 /** A previously logged food surfaced for one-tap re-logging (recent / frequent). */
 export interface LoggedFood {
   foodName: string;
