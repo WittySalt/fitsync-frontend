@@ -58,6 +58,7 @@ export class WorkoutPage implements OnInit {
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
   readonly selectedSessionId = signal<string | null>(null);
   readonly repeatingLatest = signal(false);
+  readonly dataToolsOpen = signal(false);
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
@@ -330,6 +331,10 @@ export class WorkoutPage implements OnInit {
 
   handleWorkoutImportFinished(): void {
     this.loadSessions();
+  }
+
+  toggleDataTools(): void {
+    this.dataToolsOpen.update((open) => !open);
   }
 
   repeatLatestSession(): void {

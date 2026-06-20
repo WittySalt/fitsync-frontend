@@ -1,10 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
 import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
+import { WorkoutDataIoComponent } from './workout-data-io.component';
 
 function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   return {
@@ -207,6 +209,49 @@ describe('WorkoutPage', () => {
     expect(dataService.saveWorkoutSession).toHaveBeenCalled();
   });
 
+  it('keeps the past workout form collapsed behind the live logger by default', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const overviewPanel = compiled.querySelector<HTMLElement>('#workout-panel-overview');
+    const firstContent = overviewPanel?.firstElementChild;
+    const toggle = compiled.querySelector<HTMLButtonElement>('.log-workout-card .button.secondary');
+
+    expect(firstContent?.tagName.toLowerCase()).toBe('app-live-logger');
+    expect(fixture.componentInstance.logFormOpen()).toBeFalse();
+    expect(toggle?.textContent?.trim()).toBe('Log a past workout');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-controls')).toBe('past-workout-form');
+    expect(compiled.querySelector('#past-workout-form')).toBeNull();
+  });
+
+  it('expands the past workout form and still submits through the data service', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const toggle = compiled.querySelector<HTMLButtonElement>('.log-workout-card .button.secondary');
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.logFormOpen()).toBeTrue();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+
+    fixture.componentInstance.logForm.setValue({
+      name: 'Evening run',
+      workoutType: 'CARDIO',
+      durationMinutes: 35,
+      caloriesBurned: 300,
+      perceivedExertion: 6,
+      notes: 'Backfilled after the run.'
+    });
+    fixture.detectChanges();
+    compiled.querySelector<HTMLButtonElement>('#past-workout-form button[type="submit"]')?.click();
+
+    expect(dataService.saveWorkoutSession).toHaveBeenCalled();
+  });
+
   it('does not log when the workout name is missing', () => {
     component.logForm.setValue({
       name: '',
@@ -321,6 +366,52 @@ describe('WorkoutPage', () => {
 
     expect(dataService.getWorkoutSessions).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-imported');
+  });
+
+  it('keeps workout data tools collapsed by default in history', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const toggle = compiled.querySelector<HTMLButtonElement>('.data-tools-toggle');
+
+    expect(fixture.componentInstance.dataToolsOpen()).toBeFalse();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-controls')).toBe('workout-data-tools');
+    expect(compiled.querySelector('app-workout-data-io')).toBeNull();
+  });
+
+  it('expands workout data tools from the history disclosure', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const toggle = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.data-tools-toggle');
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.dataToolsOpen()).toBeTrue();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect((fixture.nativeElement as HTMLElement).querySelector('#workout-data-tools app-workout-data-io')).not.toBeNull();
+  });
+
+  it('refreshes history when the expanded data tools emit imported', () => {
+    const imported = session({ sessionId: 'session-imported', name: 'Imported', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([imported]));
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.componentInstance.dataToolsOpen.set(true);
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.directive(WorkoutDataIoComponent)).componentInstance.imported.emit();
+
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(fixture.componentInstance.sessions()[0].sessionId).toBe('session-imported');
   });
 
   it('keeps the workout exercise cache in sync with the library component', () => {

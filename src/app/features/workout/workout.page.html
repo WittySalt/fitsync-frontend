@@ -31,19 +31,33 @@
 
   @if (selectedTab() === 'overview') {
     <div id="workout-panel-overview" role="tabpanel" aria-labelledby="workout-tab-overview" class="overview-panel">
+      <app-live-logger
+        [plans]="plans()"
+        [activePlan]="activePlan()"
+        [exercises]="exercises()"
+        (completed)="handleLiveWorkoutFinished()"
+        (cancelled)="handleLiveWorkoutCancelled()"
+      />
+
       <article class="summary-card log-workout-card">
         <div class="section-title">
           <div>
-            <span class="card-label">Log</span>
-            <h2>Record a workout</h2>
+            <span class="card-label">Backfill</span>
+            <h2>Log a past workout</h2>
           </div>
-          <button class="button workout" type="button" [attr.aria-expanded]="logFormOpen()" (click)="toggleLogForm()">
-            {{ logFormOpen() ? 'Cancel' : 'Log workout' }}
+          <button
+            class="button secondary"
+            type="button"
+            aria-controls="past-workout-form"
+            [attr.aria-expanded]="logFormOpen()"
+            (click)="toggleLogForm()"
+          >
+            {{ logFormOpen() ? 'Hide past workout form' : 'Log a past workout' }}
           </button>
         </div>
 
         @if (logFormOpen()) {
-          <form class="log-workout-form" [formGroup]="logForm" (ngSubmit)="logWorkout()">
+          <form id="past-workout-form" class="log-workout-form" [formGroup]="logForm" (ngSubmit)="logWorkout()">
             <label>
               Workout name
               <input formControlName="name" placeholder="Upper body strength" />
@@ -82,17 +96,9 @@
             </button>
           </form>
         } @else {
-          <p>Log a completed session to build your training history and metrics.</p>
+          <p>Add a completed session you did without live tracking, such as a run.</p>
         }
       </article>
-
-      <app-live-logger
-        [plans]="plans()"
-        [activePlan]="activePlan()"
-        [exercises]="exercises()"
-        (completed)="handleLiveWorkoutFinished()"
-        (cancelled)="handleLiveWorkoutCancelled()"
-      />
 
       <div class="workout-layout">
       <article class="summary-card">
@@ -319,7 +325,6 @@
           {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
         </button>
       </div>
-      <app-workout-data-io (imported)="handleWorkoutImportFinished()" />
       @if (sessions().length) {
         <div class="history-list">
           @for (session of sessions(); track session.name + session.startedAt) {
@@ -350,6 +355,22 @@
           (repeated)="handleSessionRepeated($event)"
         />
       }
+      <div class="data-tools-disclosure">
+        <button
+          class="button secondary data-tools-toggle"
+          type="button"
+          aria-controls="workout-data-tools"
+          [attr.aria-expanded]="dataToolsOpen()"
+          (click)="toggleDataTools()"
+        >
+          {{ dataToolsOpen() ? 'Hide' : 'Show' }} import / export data
+        </button>
+        @if (dataToolsOpen()) {
+          <div id="workout-data-tools" class="data-tools-panel">
+            <app-workout-data-io (imported)="handleWorkoutImportFinished()" />
+          </div>
+        }
+      </div>
     </section>
   } @else {
     <section id="workout-panel-library" role="tabpanel" aria-labelledby="workout-tab-library">
