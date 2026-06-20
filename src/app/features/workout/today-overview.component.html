@@ -27,14 +27,14 @@
             <button
               class="exercise-step"
               type="button"
-              [attr.aria-expanded]="expandedExerciseId() === exerciseKey(exercise)"
-              (click)="toggleExercise(exercise)"
+              [attr.aria-label]="'Start guided player at ' + exercise.exerciseNameSnapshot"
+              (click)="startFromExercise(exercise)"
             >
               <span>{{ exercise.sequence }}</span>
               <div>
                 <strong>{{ exercise.exerciseNameSnapshot }}</strong>
                 <small>{{ exerciseTarget(exercise) }}</small>
-                @if (expandedExerciseId() === exerciseKey(exercise) && exercise.notes) {
+                @if (exercise.notes) {
                   <em>{{ exercise.notes }}</em>
                 }
               </div>
