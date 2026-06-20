@@ -2,8 +2,6 @@ include:
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
   - local: .gitlab-cd.yml
-    rules:
-      - if: '$RUN_FRONTEND_CD == "true"'
 
 workflow:
   rules:
@@ -38,8 +36,6 @@ typecheck:
     - npm ci
     - npx tsc --noEmit
   rules:
-    - if: '$RUN_FRONTEND_CD == "true"'
-      when: never
     - exists:
         - package.json
 
@@ -59,8 +55,6 @@ unit_test:
     paths:
       - coverage/
   rules:
-    - if: '$RUN_FRONTEND_CD == "true"'
-      when: never
     - exists:
         - package.json
 
@@ -76,15 +70,11 @@ build:
     paths:
       - dist/fitsync-frontend/
   rules:
-    - if: '$RUN_FRONTEND_CD == "true"'
-      when: never
     - exists:
         - package.json
 
 secret_detection:
   stage: secret-detection
   rules:
-    - if: '$RUN_FRONTEND_CD == "true"'
-      when: never
     - exists:
         - package.json
