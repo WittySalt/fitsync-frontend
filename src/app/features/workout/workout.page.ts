@@ -16,6 +16,7 @@ import { StatePanelComponent } from '../../shared/state-panel.component';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveLoggerComponent } from './live-logger.component';
 import { SessionDetailComponent } from './session-detail.component';
+import { WorkoutDataIoComponent } from './workout-data-io.component';
 
 interface TrainingMetric {
   label: string;
@@ -31,7 +32,8 @@ interface TrainingMetric {
     StatePanelComponent,
     LiveLoggerComponent,
     ExerciseLibraryComponent,
-    SessionDetailComponent
+    SessionDetailComponent,
+    WorkoutDataIoComponent
   ],
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
@@ -323,6 +325,10 @@ export class WorkoutPage implements OnInit {
 
   handleSessionRepeated(session: WorkoutSessionDetail): void {
     this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
+    this.loadSessions();
+  }
+
+  handleWorkoutImportFinished(): void {
     this.loadSessions();
   }
 

@@ -14,6 +14,8 @@ import {
   FoodCategory,
   FoodSearchResult,
   Goal,
+  ImportResult,
+  ImportSessionRow,
   LoggedFood,
   MealTemplate,
   MealFormValue,
@@ -25,6 +27,7 @@ import {
   UserProfile,
   StartAdHocSessionInput,
   UpsertWorkoutSessionRequest,
+  WorkoutExport,
   WorkoutExerciseLogInput,
   WorkoutExerciseSetInput,
   WorkoutPlan,
@@ -617,6 +620,14 @@ export class FitSyncDataService {
     return this.http
       .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/repeat-latest`, {})
       .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  exportWorkoutData(): Observable<WorkoutExport> {
+    return this.http.get<WorkoutExport>(`${this.apiBaseUrl}/workouts/export`);
+  }
+
+  importSessions(rows: ImportSessionRow[]): Observable<ImportResult> {
+    return this.http.post<ImportResult>(`${this.apiBaseUrl}/workouts/sessions/import`, { sessions: rows });
   }
 
   getExercises(queryOrOptions: string | ExerciseSearchOptions = ''): Observable<Exercise[]> {

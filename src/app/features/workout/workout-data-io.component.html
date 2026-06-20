@@ -1,0 +1,73 @@
+<article class="workout-data-io" aria-label="Workout data import and export">
+  <section class="io-panel">
+    <div>
+      <span class="card-label">Workout data</span>
+      <h3>Export training data</h3>
+      <p>Download your workout catalog, plans, and sessions as a JSON file.</p>
+    </div>
+    <button class="button secondary" type="button" [disabled]="exporting()" (click)="exportData()">
+      {{ exporting() ? 'Exporting...' : 'Export JSON' }}
+    </button>
+  </section>
+
+  <form class="io-panel import-panel" [formGroup]="importForm" (ngSubmit)="importData()">
+    <div class="import-header">
+      <div>
+        <span class="card-label">Session import</span>
+        <h3>Import external sessions</h3>
+      </div>
+      <label class="file-picker">
+        JSON file
+        <input type="file" accept="application/json,.json" (change)="handleFileSelected($event)" />
+      </label>
+    </div>
+
+    <label class="wide">
+      Sessions JSON
+      <textarea
+        formControlName="importText"
+        rows="7"
+        placeholder='{"sessions":[{"externalId":"ext-1","source":"IMPORTED","name":"Morning run","workoutType":"CARDIO","status":"COMPLETED","startedAt":"2026-06-20T10:00:00Z","completedAt":"2026-06-20T10:32:00Z","durationMinutes":32,"caloriesBurned":300,"perceivedExertion":6,"notes":"","exercises":[]}]}'
+      ></textarea>
+      @if (importForm.controls.importText.touched && importForm.controls.importText.invalid) {
+        <span class="field-error">Paste a sessions JSON payload before importing.</span>
+      }
+    </label>
+
+    <button class="button primary" type="submit" [disabled]="importing()">
+      {{ importing() ? 'Importing...' : 'Import sessions' }}
+    </button>
+  </form>
+
+  @if (result(); as summary) {
+    <section class="import-results" aria-label="Workout import results">
+      <div class="result-summary">
+        <div>
+          <span>Imported</span>
+          <strong>{{ summary.imported }}</strong>
+        </div>
+        <div>
+          <span>Skipped</span>
+          <strong>{{ summary.skippedDuplicate }}</strong>
+        </div>
+        <div>
+          <span>Rejected</span>
+          <strong>{{ summary.rejected }}</strong>
+        </div>
+      </div>
+
+      <div class="result-list">
+        @for (row of summary.results; track row.rowIndex + row.externalId) {
+          <article class="result-row" [class]="statusClass(row.status)">
+            <div>
+              <strong>{{ row.externalId }}</strong>
+              <small>Row {{ row.rowIndex + 1 }} - {{ row.source }}</small>
+            </div>
+            <span>{{ formatStatus(row.status) }}</span>
+            <small>{{ row.reason || row.sessionId || 'Imported' }}</small>
+          </article>
+        }
+      </div>
+    </section>
+  }
+</article>

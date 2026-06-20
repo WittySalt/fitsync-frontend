@@ -171,6 +171,46 @@ export interface UpsertWorkoutSessionRequest {
   exercises: WorkoutExerciseLogInput[];
 }
 
+export interface WorkoutExport {
+  schemaVersion: number;
+  exportedAt: string;
+  exercises: Exercise[];
+  plans: WorkoutPlan[];
+  sessions: WorkoutSessionDetail[];
+}
+
+export interface ImportSessionRow {
+  externalId: string;
+  source: string;
+  planId: string | null;
+  name: string;
+  workoutType: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+  durationMinutes: number;
+  caloriesBurned: number;
+  perceivedExertion: number | null;
+  notes: string | null;
+  exercises: WorkoutExerciseLogInput[];
+}
+
+export interface ImportSessionRowResult {
+  rowIndex: number;
+  externalId: string;
+  source: string;
+  status: 'IMPORTED' | 'SKIPPED_DUPLICATE' | 'REJECTED';
+  sessionId: string | null;
+  reason: string | null;
+}
+
+export interface ImportResult {
+  imported: number;
+  skippedDuplicate: number;
+  rejected: number;
+  results: ImportSessionRowResult[];
+}
+
 export interface Exercise {
   exerciseId: string | null;
   code: string;
