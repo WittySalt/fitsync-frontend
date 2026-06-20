@@ -1,0 +1,57 @@
+<section class="live-tracker" aria-label="Live workout tracker">
+  <header class="tracker-topbar">
+    <div>
+      <span class="card-label">Live tracker</span>
+      <h2>{{ live.session()?.name || 'Workout in progress' }}</h2>
+      <p>{{ formatLabel(live.session()?.workoutType) }} · free-form tracking</p>
+    </div>
+    <button class="button secondary" type="button" (click)="pauseOrResume()">
+      {{ live.paused() ? 'Resume' : 'Pause' }}
+    </button>
+  </header>
+
+  <div class="timer-panel" aria-live="polite">
+    <span>Elapsed</span>
+    <strong>{{ formatElapsed(live.elapsedSeconds()) }}</strong>
+    <small>{{ live.paused() ? 'Paused' : 'Running' }}</small>
+  </div>
+
+  @if (goal) {
+    <section class="goal-panel" aria-label="Workout goal progress">
+      <div class="goal-copy">
+        <span>{{ goal.type === 'MINUTES' ? 'Time goal' : 'Calorie goal' }}</span>
+        <strong>{{ goalCurrentValue() }} / {{ goalTargetValue() }}</strong>
+      </div>
+      <div class="goal-track" aria-hidden="true">
+        <span [style.width.%]="goalProgressPercent()"></span>
+      </div>
+      <p>{{ goalProgressPercent() >= 100 ? 'Goal reached. Cool down when ready.' : goalProgressPercent() + '% complete' }}</p>
+    </section>
+  } @else {
+    <section class="goal-panel quiet" aria-label="Free workout mode">
+      <span>Free mode</span>
+      <strong>Open timer</strong>
+      <p>No target set. Train until you are ready to finish.</p>
+    </section>
+  }
+
+  <section class="signal-grid" aria-label="Estimated live signals">
+    <div>
+      <span>Calories</span>
+      <strong>{{ live.estimatedCalories() }}</strong>
+      <small>estimated</small>
+    </div>
+    <div>
+      <span>Heart rate</span>
+      <strong>{{ live.heartRate() || '--' }}</strong>
+      <small>mock bpm</small>
+    </div>
+  </section>
+
+  <footer class="tracker-actions">
+    <p>Terminate saves workouts of at least 60 seconds. Shorter sessions are cancelled and excluded from metrics.</p>
+    <button class="button primary" type="button" [disabled]="ending()" (click)="terminate()">
+      {{ ending() ? 'Finishing...' : 'Terminate workout' }}
+    </button>
+  </footer>
+</section>

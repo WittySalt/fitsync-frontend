@@ -1,0 +1,144 @@
+:host {
+  display: block;
+}
+
+.live-tracker {
+  display: grid;
+  gap: 18px;
+  min-height: 70vh;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.tracker-topbar,
+.tracker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tracker-topbar h2,
+.tracker-topbar p,
+.goal-panel p,
+.tracker-actions p {
+  margin: 0;
+}
+
+.tracker-topbar h2 {
+  margin-top: 4px;
+  font-size: var(--text-3xl);
+  line-height: 1.1;
+}
+
+.tracker-topbar p,
+.goal-panel p,
+.tracker-actions p,
+.signal-grid small {
+  color: var(--text-secondary);
+}
+
+.timer-panel {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 220px;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-tint);
+  text-align: center;
+}
+
+.timer-panel span,
+.goal-copy span,
+.signal-grid span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+}
+
+.timer-panel strong {
+  font-size: var(--text-5xl);
+  line-height: 1;
+}
+
+.goal-panel,
+.signal-grid div {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+}
+
+.goal-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.goal-panel.quiet {
+  background: var(--surface);
+}
+
+.goal-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.goal-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.goal-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.signal-grid div {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.signal-grid strong {
+  font-size: var(--text-3xl);
+  line-height: 1;
+}
+
+.tracker-actions {
+  align-items: end;
+}
+
+.tracker-actions p {
+  max-width: 58ch;
+}
+
+@media (max-width: 760px) {
+  .tracker-topbar,
+  .tracker-actions,
+  .goal-copy {
+    display: grid;
+  }
+
+  .signal-grid {
+    grid-template-columns: 1fr;
+  }
+}

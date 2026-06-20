@@ -1,0 +1,133 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { of, throwError } from 'rxjs';
+
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { WorkoutSessionDetail } from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
+import { LiveStartCardComponent } from './live-start-card.component';
+import { WorkoutLiveService } from './workout-live.service';
+
+function detail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
+  return {
+    sessionId: 'session-live',
+    planId: null,
+    name: 'Free workout',
+    workoutType: 'CARDIO',
+    status: 'IN_PROGRESS',
+    source: 'MANUAL',
+    startedAt: '2026-06-20T02:00:00Z',
+    completedAt: '',
+    durationMinutes: 0,
+    caloriesBurned: 0,
+    exerciseCount: 0,
+    perceivedExertion: null,
+    notes: '',
+    exercises: [],
+    createdAt: '',
+    updatedAt: '',
+    ...overrides
+  };
+}
+
+describe('LiveStartCardComponent', () => {
+  let fixture: ComponentFixture<LiveStartCardComponent>;
+  let component: LiveStartCardComponent;
+  let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let toast: jasmine.SpyObj<ToastService>;
+  let live: WorkoutLiveService;
+
+  beforeEach(async () => {
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
+      'startAdHocSession',
+      'saveWorkoutSession'
+    ]);
+    toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
+
+    dataService.startAdHocSession.and.returnValue(of(detail()));
+    dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
+
+    await TestBed.configureTestingModule({
+      imports: [LiveStartCardComponent],
+      providers: [
+        WorkoutLiveService,
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: ToastService, useValue: toast }
+      ]
+    }).compileComponents();
+
+    live = TestBed.inject(WorkoutLiveService);
+    fixture = TestBed.createComponent(LiveStartCardComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    live.reset();
+  });
+
+  it('starts goal mode through the ad hoc session endpoint and emits the target', () => {
+    const started = jasmine.createSpy('started');
+    component.started.subscribe(started);
+    component.selectMode('GOAL');
+    component.startForm.setValue({
+      name: 'Goal run',
+      workoutType: 'CARDIO',
+      goalType: 'CALORIES',
+      targetMinutes: 30,
+      targetCalories: 320
+    });
+
+    component.startWorkout();
+
+    expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Goal run', workoutType: 'CARDIO' });
+    expect(started).toHaveBeenCalledWith({
+      session: jasmine.objectContaining({ sessionId: 'session-live' }),
+      goal: { type: 'CALORIES', target: 320 }
+    });
+  });
+
+  it('keeps the past workout form nested and collapsed until expanded', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('#past-workout-form')).toBeNull();
+
+    compiled.querySelector<HTMLButtonElement>('.past-workout-disclosure .button')?.click();
+    fixture.detectChanges();
+
+    expect(component.pastWorkoutOpen()).toBeTrue();
+    expect(compiled.querySelector('#past-workout-form')).not.toBeNull();
+  });
+
+  it('submits the nested past workout form through saveWorkoutSession', () => {
+    const backfilled = jasmine.createSpy('backfilled');
+    component.backfilled.subscribe(backfilled);
+    component.pastWorkoutOpen.set(true);
+    component.pastWorkoutForm.setValue({
+      name: 'Evening run',
+      workoutType: 'CARDIO',
+      durationMinutes: 35,
+      caloriesBurned: 300,
+      perceivedExertion: 6,
+      notes: 'Backfilled after the run.'
+    });
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('#past-workout-form')).triggerEventHandler('ngSubmit');
+
+    expect(dataService.saveWorkoutSession).toHaveBeenCalledWith(
+      jasmine.objectContaining({ name: 'Evening run', workoutType: 'CARDIO', durationMinutes: 35 })
+    );
+    expect(toast.success).toHaveBeenCalledWith('Workout logged.');
+    expect(backfilled).toHaveBeenCalled();
+  });
+
+  it('surfaces start failures through toast', () => {
+    dataService.startAdHocSession.and.returnValue(throwError(() => new Error('boom')));
+    component.startForm.patchValue({ name: 'Broken start', workoutType: 'HIIT' });
+
+    component.startWorkout();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to start a workout. Please retry.');
+  });
+});

@@ -1,0 +1,120 @@
+<article class="live-start-card summary-card" aria-label="Start a workout">
+  <div class="section-title">
+    <div>
+      <span class="card-label">Start training</span>
+      <h2>Choose how you want to train now</h2>
+    </div>
+  </div>
+
+  <div class="mode-switch segmented" role="group" aria-label="Live workout mode">
+    <button type="button" [class.active]="startMode() === 'FREE'" [attr.aria-pressed]="startMode() === 'FREE'" (click)="selectMode('FREE')">
+      Free
+    </button>
+    <button type="button" [class.active]="startMode() === 'GOAL'" [attr.aria-pressed]="startMode() === 'GOAL'" (click)="selectMode('GOAL')">
+      Goal
+    </button>
+  </div>
+
+  <form class="start-form" [formGroup]="startForm" (ngSubmit)="startWorkout()">
+    <div class="form-grid">
+      <label>
+        Workout name
+        <input formControlName="name" maxlength="120" placeholder="Evening strength" autocomplete="off" />
+        @if (startForm.controls.name.touched && startForm.controls.name.invalid) {
+          <span class="field-error">A name is required.</span>
+        }
+      </label>
+      <label>
+        Type
+        <select formControlName="workoutType">
+          @for (type of workoutTypes; track type) {
+            <option [value]="type">{{ formatLabel(type) }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    @if (startMode() === 'GOAL') {
+      <div class="goal-fields">
+        <label>
+          Goal type
+          <select formControlName="goalType">
+            <option value="MINUTES">Target minutes</option>
+            <option value="CALORIES">Target calories</option>
+          </select>
+        </label>
+        @if (startForm.controls.goalType.value === 'MINUTES') {
+          <label>
+            Target minutes
+            <input type="number" formControlName="targetMinutes" min="1" max="600" inputmode="numeric" />
+          </label>
+        } @else {
+          <label>
+            Target calories
+            <input type="number" formControlName="targetCalories" min="1" max="5000" inputmode="numeric" />
+          </label>
+        }
+      </div>
+    } @else {
+      <p class="helper-copy">Open timer, estimated calories, and mock heart-rate guidance without a fixed target.</p>
+    }
+
+    <button class="button workout" type="submit" [disabled]="starting()">
+      {{ starting() ? 'Starting...' : startMode() === 'GOAL' ? 'Start goal workout' : 'Start free workout' }}
+    </button>
+  </form>
+
+  <div class="past-workout-disclosure">
+    <button
+      class="button secondary"
+      type="button"
+      aria-controls="past-workout-form"
+      [attr.aria-expanded]="pastWorkoutOpen()"
+      (click)="togglePastWorkout()"
+    >
+      {{ pastWorkoutOpen() ? 'Hide past workout form' : 'Log a past workout' }}
+    </button>
+    <p>Add a completed session you did without live tracking, such as a run.</p>
+  </div>
+
+  @if (pastWorkoutOpen()) {
+    <form id="past-workout-form" class="past-workout-form" [formGroup]="pastWorkoutForm" (ngSubmit)="savePastWorkout()">
+      <label>
+        Workout name
+        <input formControlName="name" placeholder="Upper body strength" />
+        @if (pastWorkoutForm.controls.name.touched && pastWorkoutForm.controls.name.invalid) {
+          <span class="field-error">A name is required.</span>
+        }
+      </label>
+      <div class="form-grid">
+        <label>
+          Type
+          <select formControlName="workoutType">
+            @for (type of workoutTypes; track type) {
+              <option [value]="type">{{ formatLabel(type) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Duration (min)
+          <input type="number" formControlName="durationMinutes" min="1" max="600" />
+        </label>
+        <label>
+          Calories
+          <input type="number" formControlName="caloriesBurned" min="0" max="5000" />
+        </label>
+        <label>
+          Effort (RPE)
+          <input type="number" formControlName="perceivedExertion" min="1" max="10" />
+        </label>
+      </div>
+      <label>
+        Notes
+        <input formControlName="notes" placeholder="How did the session go?" />
+      </label>
+      <button class="button secondary" type="submit" [disabled]="savingPastWorkout()">
+        {{ savingPastWorkout() ? 'Saving...' : 'Save past workout' }}
+      </button>
+    </form>
+  }
+</article>
