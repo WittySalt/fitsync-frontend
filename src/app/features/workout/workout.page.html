@@ -31,82 +31,94 @@
 
   @if (selectedTab() === 'overview') {
     <div id="workout-panel-overview" role="tabpanel" aria-labelledby="workout-tab-overview" class="overview-panel">
-      <app-today-overview
-        [activePlan]="activePlan()"
-        [sessions]="sessions()"
-        (startPlan)="handleTodayStart($event)"
-        (browsePlans)="browsePlans()"
-        (templateActivated)="handleTemplateActivated($event)"
-      />
+      @if (guidedPlayerSession(); as playerSession) {
+        <app-exercise-player
+          [session]="playerSession"
+          [activePlan]="activePlan()"
+          [initialExerciseId]="guidedInitialExerciseId()"
+          (completed)="handleGuidedPlayerFinished()"
+          (cancelled)="handleGuidedPlayerCancelled()"
+        />
+      } @else {
+        <app-today-overview
+          [activePlan]="activePlan()"
+          [sessions]="sessions()"
+          [starting]="todayStarting()"
+          (startPlan)="handleTodayStart($event)"
+          (startExercise)="handleTodayExerciseStart($event)"
+          (browsePlans)="browsePlans()"
+          (templateActivated)="handleTemplateActivated($event)"
+        />
 
-      <app-live-logger
-        [plans]="plans()"
-        [activePlan]="activePlan()"
-        [exercises]="exercises()"
-        (completed)="handleLiveWorkoutFinished()"
-        (cancelled)="handleLiveWorkoutCancelled()"
-      />
+        <app-live-logger
+          [plans]="plans()"
+          [activePlan]="activePlan()"
+          [exercises]="exercises()"
+          (completed)="handleLiveWorkoutFinished()"
+          (cancelled)="handleLiveWorkoutCancelled()"
+        />
 
-      <article class="summary-card log-workout-card">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Backfill</span>
-            <h2>Log a past workout</h2>
-          </div>
-          <button
-            class="button secondary"
-            type="button"
-            aria-controls="past-workout-form"
-            [attr.aria-expanded]="logFormOpen()"
-            (click)="toggleLogForm()"
-          >
-            {{ logFormOpen() ? 'Hide past workout form' : 'Log a past workout' }}
-          </button>
-        </div>
-
-        @if (logFormOpen()) {
-          <form id="past-workout-form" class="log-workout-form" [formGroup]="logForm" (ngSubmit)="logWorkout()">
-            <label>
-              Workout name
-              <input formControlName="name" placeholder="Upper body strength" />
-              @if (logForm.controls.name.touched && logForm.controls.name.invalid) {
-                <span class="field-error">A name is required.</span>
-              }
-            </label>
-            <div class="log-grid">
-              <label>
-                Type
-                <select formControlName="workoutType">
-                  @for (type of workoutTypes; track type) {
-                    <option [value]="type">{{ formatLabel(type) }}</option>
-                  }
-                </select>
-              </label>
-              <label>
-                Duration (min)
-                <input type="number" formControlName="durationMinutes" min="1" max="600" />
-              </label>
-              <label>
-                Calories
-                <input type="number" formControlName="caloriesBurned" min="0" max="5000" />
-              </label>
-              <label>
-                Effort (RPE)
-                <input type="number" formControlName="perceivedExertion" min="1" max="10" />
-              </label>
+        <article class="summary-card log-workout-card">
+          <div class="section-title">
+            <div>
+              <span class="card-label">Backfill</span>
+              <h2>Log a past workout</h2>
             </div>
-            <label>
-              Notes
-              <input formControlName="notes" placeholder="How did the session go?" />
-            </label>
-            <button class="button workout" type="submit" [disabled]="submitting()">
-              {{ submitting() ? 'Saving...' : 'Save workout' }}
+            <button
+              class="button secondary"
+              type="button"
+              aria-controls="past-workout-form"
+              [attr.aria-expanded]="logFormOpen()"
+              (click)="toggleLogForm()"
+            >
+              {{ logFormOpen() ? 'Hide past workout form' : 'Log a past workout' }}
             </button>
-          </form>
-        } @else {
-          <p>Add a completed session you did without live tracking, such as a run.</p>
-        }
-      </article>
+          </div>
+
+          @if (logFormOpen()) {
+            <form id="past-workout-form" class="log-workout-form" [formGroup]="logForm" (ngSubmit)="logWorkout()">
+              <label>
+                Workout name
+                <input formControlName="name" placeholder="Upper body strength" />
+                @if (logForm.controls.name.touched && logForm.controls.name.invalid) {
+                  <span class="field-error">A name is required.</span>
+                }
+              </label>
+              <div class="log-grid">
+                <label>
+                  Type
+                  <select formControlName="workoutType">
+                    @for (type of workoutTypes; track type) {
+                      <option [value]="type">{{ formatLabel(type) }}</option>
+                    }
+                  </select>
+                </label>
+                <label>
+                  Duration (min)
+                  <input type="number" formControlName="durationMinutes" min="1" max="600" />
+                </label>
+                <label>
+                  Calories
+                  <input type="number" formControlName="caloriesBurned" min="0" max="5000" />
+                </label>
+                <label>
+                  Effort (RPE)
+                  <input type="number" formControlName="perceivedExertion" min="1" max="10" />
+                </label>
+              </div>
+              <label>
+                Notes
+                <input formControlName="notes" placeholder="How did the session go?" />
+              </label>
+              <button class="button workout" type="submit" [disabled]="submitting()">
+                {{ submitting() ? 'Saving...' : 'Save workout' }}
+              </button>
+            </form>
+          } @else {
+            <p>Add a completed session you did without live tracking, such as a run.</p>
+          }
+        </article>
+      }
     </div>
   } @else if (selectedTab() === 'plans') {
     <section id="workout-panel-plans" class="plans-panel" role="tabpanel" aria-labelledby="workout-tab-plans">

@@ -1,10 +1,11 @@
-import { Component, computed, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
   Exercise,
   WorkoutPlan,
+  WorkoutPlanExercise,
   WorkoutPlanExerciseInput,
   WorkoutPlanRequest,
   WorkoutPlanStatus,
@@ -13,10 +14,12 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { ExercisePlayerComponent } from './exercise-player.component';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveLoggerComponent } from './live-logger.component';
 import { SessionDetailComponent } from './session-detail.component';
 import { TodayOverviewComponent } from './today-overview.component';
+import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 
 interface TrainingMetric {
@@ -31,6 +34,7 @@ interface TrainingMetric {
   imports: [
     ReactiveFormsModule,
     StatePanelComponent,
+    ExercisePlayerComponent,
     LiveLoggerComponent,
     TodayOverviewComponent,
     ExerciseLibraryComponent,
@@ -44,8 +48,7 @@ export class WorkoutPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
-
-  @ViewChild(LiveLoggerComponent) private liveLogger?: LiveLoggerComponent;
+  private readonly workoutLive = inject(WorkoutLiveService);
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
@@ -61,12 +64,18 @@ export class WorkoutPage implements OnInit {
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
   readonly selectedSessionId = signal<string | null>(null);
+  readonly guidedPlayerSession = signal<WorkoutSessionDetail | null>(null);
+  readonly guidedInitialExerciseId = signal<string | null>(null);
   readonly repeatingLatest = signal(false);
   readonly dataToolsOpen = signal(false);
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+  readonly todayStarting = computed(() => {
+    const planId = this.activePlan()?.planId;
+    return Boolean(planId && this.planMutations().has(planId));
+  });
 
   readonly planForm = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -304,7 +313,52 @@ export class WorkoutPage implements OnInit {
   }
 
   handleTodayStart(plan: WorkoutPlan): void {
-    this.liveLogger?.startPlan(plan.planId);
+    this.startGuidedPlan(plan, null);
+  }
+
+  handleTodayExerciseStart(exercise: WorkoutPlanExercise): void {
+    const plan = this.activePlan();
+    if (!plan) {
+      return;
+    }
+    this.startGuidedPlan(plan, exercise.exerciseId);
+  }
+
+  private startGuidedPlan(plan: WorkoutPlan, initialExerciseId: string | null): void {
+    if (!plan.planId || this.isPlanMutating(plan)) {
+      return;
+    }
+
+    this.setPlanMutating(plan.planId, true);
+    this.guidedInitialExerciseId.set(initialExerciseId);
+    this.workoutLive.startFromPlan(plan.planId).subscribe({
+      next: (session) => {
+        this.toast.success('Workout session started.');
+        this.guidedPlayerSession.set(session);
+        this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
+      },
+      error: () => {
+        this.guidedInitialExerciseId.set(null);
+        this.toast.error('Unable to start this plan. Please retry.');
+        this.setPlanMutating(plan.planId!, false);
+      },
+      complete: () => this.setPlanMutating(plan.planId!, false)
+    });
+  }
+
+  handleGuidedPlayerFinished(): void {
+    this.guidedPlayerSession.set(null);
+    this.guidedInitialExerciseId.set(null);
+    this.workoutLive.reset();
+    this.loadSessions();
+    this.loadActivePlan();
+  }
+
+  handleGuidedPlayerCancelled(): void {
+    this.guidedPlayerSession.set(null);
+    this.guidedInitialExerciseId.set(null);
+    this.workoutLive.reset();
+    this.loadSessions();
   }
 
   handleTemplateActivated(plan: WorkoutPlan): void {

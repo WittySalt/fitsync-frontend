@@ -1,0 +1,207 @@
+:host {
+  display: block;
+}
+
+.exercise-player {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.player-topbar,
+.focus-card,
+.player-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.player-topbar h2,
+.focus-copy h3,
+.movement-queue h3,
+.focus-card.empty h3,
+.progress-copy,
+.completion-note {
+  margin: 0;
+}
+
+.player-topbar h2 {
+  margin-top: 4px;
+  font-size: var(--text-3xl);
+  line-height: 1.1;
+}
+
+.live-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.live-metrics span,
+.progress-copy,
+.completion-note,
+.queue-item small,
+.focus-copy p,
+.focus-card.empty p {
+  color: var(--text-secondary);
+}
+
+.live-metrics span {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}
+
+.progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.progress-copy {
+  font-size: 13px;
+}
+
+.focus-card {
+  min-height: 260px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-tint);
+}
+
+.focus-card.resting {
+  background: var(--surface-sunken);
+}
+
+.focus-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.focus-copy h3 {
+  font-size: var(--text-5xl);
+  line-height: 1;
+}
+
+.focus-copy p {
+  max-width: 52ch;
+  line-height: 1.55;
+}
+
+.set-panel,
+.rest-panel {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  min-width: 190px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.set-panel span,
+.rest-panel span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+}
+
+.set-panel strong,
+.rest-panel strong {
+  font-size: var(--text-5xl);
+  line-height: 1;
+}
+
+.complete-set {
+  min-width: 150px;
+}
+
+.rest-actions,
+.player-actions {
+  flex-wrap: wrap;
+}
+
+.rest-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.movement-queue {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.queue-item.active {
+  border-color: var(--accent);
+  background: var(--surface-tint);
+}
+
+.queue-item > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+
+.queue-item strong,
+.queue-item small {
+  display: block;
+}
+
+.completion-note {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+@media (max-width: 760px) {
+  .player-topbar,
+  .focus-card,
+  .player-actions {
+    display: grid;
+  }
+
+  .live-metrics {
+    justify-content: start;
+  }
+
+  .focus-copy h3 {
+    font-size: var(--text-4xl);
+  }
+}

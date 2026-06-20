@@ -227,17 +227,74 @@ describe('WorkoutPage', () => {
     expect(compiled.querySelector('#past-workout-form')).toBeNull();
   });
 
-  it('starts today from the guided overview through the live logger path', () => {
-    const active = plan({ planId: 'plan-today', name: 'Today plan', status: 'ACTIVE' });
+  it('starts today from the guided overview and opens the exercise player', () => {
+    const active = plan({
+      planId: 'plan-today',
+      name: 'Today plan',
+      status: 'ACTIVE',
+      exercises: [{
+        exerciseId: 'exercise-1',
+        exerciseNameSnapshot: 'Goblet Squat',
+        sequence: 1,
+        targetSets: 1,
+        targetReps: 10,
+        targetWeightKg: null,
+        targetDurationSeconds: null,
+        targetDistanceKm: null,
+        restSeconds: 60,
+        notes: '',
+        setTargets: []
+      }]
+    });
+    const started = sessionDetail({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' });
     dataService.getActivePlan.and.returnValue(of(active));
+    dataService.startWorkoutPlan.and.returnValue(of(started));
 
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
 
     const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
     today.startPlan.emit(active);
+    fixture.detectChanges();
 
     expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
+    expect(fixture.componentInstance.guidedPlayerSession()?.sessionId).toBe('session-today');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
+  });
+
+  it('opens the exercise player at the selected movement from Today', () => {
+    const active = plan({
+      planId: 'plan-today',
+      name: 'Today plan',
+      status: 'ACTIVE',
+      exercises: [{
+        exerciseId: 'exercise-2',
+        exerciseNameSnapshot: 'Push-Up',
+        sequence: 1,
+        targetSets: 1,
+        targetReps: 8,
+        targetWeightKg: null,
+        targetDurationSeconds: null,
+        targetDistanceKm: null,
+        restSeconds: 45,
+        notes: '',
+        setTargets: []
+      }]
+    });
+    const started = sessionDetail({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' });
+    dataService.getActivePlan.and.returnValue(of(active));
+    dataService.startWorkoutPlan.and.returnValue(of(started));
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
+    today.startExercise.emit(active.exercises[0]);
+    fixture.detectChanges();
+
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
+    expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-2');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
 
   it('expands the past workout form and still submits through the data service', () => {

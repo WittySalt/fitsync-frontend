@@ -126,6 +126,20 @@ describe('TodayOverviewComponent', () => {
     expect(component.startPlan.emit).toHaveBeenCalledWith(plan());
   });
 
+  it('emits the selected exercise when a movement card is opened', () => {
+    const fixture = TestBed.createComponent(TodayOverviewComponent);
+    const component = fixture.componentInstance;
+    const activePlan = plan();
+    spyOn(component.startExercise, 'emit');
+    fixture.componentRef.setInput('activePlan', activePlan);
+    fixture.componentRef.setInput('sessions', []);
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.exercise-step')?.click();
+
+    expect(component.startExercise.emit).toHaveBeenCalledWith(activePlan.exercises[1]);
+  });
+
   it('shows the template gallery and browse plans action when no active plan exists', () => {
     const fixture = TestBed.createComponent(TodayOverviewComponent);
     const component = fixture.componentInstance;

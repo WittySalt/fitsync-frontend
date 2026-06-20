@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 import { WorkoutPlan, WorkoutPlanExercise, WorkoutSession } from '../../core/fitsync.models';
 import { PlanTemplatesComponent } from './plan-templates.component';
@@ -15,10 +15,9 @@ export class TodayOverviewComponent {
   @Input() starting = false;
 
   @Output() startPlan = new EventEmitter<WorkoutPlan>();
+  @Output() startExercise = new EventEmitter<WorkoutPlanExercise>();
   @Output() browsePlans = new EventEmitter<void>();
   @Output() templateActivated = new EventEmitter<WorkoutPlan>();
-
-  readonly expandedExerciseId = signal<string | null>(null);
 
   latestSession(): WorkoutSession | null {
     const sorted = [...this.sessions].sort((a, b) => this.timeOf(b) - this.timeOf(a));
@@ -35,9 +34,10 @@ export class TodayOverviewComponent {
     }
   }
 
-  toggleExercise(exercise: WorkoutPlanExercise): void {
-    const key = this.exerciseKey(exercise);
-    this.expandedExerciseId.update((current) => (current === key ? null : key));
+  startFromExercise(exercise: WorkoutPlanExercise): void {
+    if (this.activePlan?.planId) {
+      this.startExercise.emit(exercise);
+    }
   }
 
   exerciseKey(exercise: WorkoutPlanExercise): string {

@@ -1,0 +1,82 @@
+<section class="exercise-player" aria-label="Guided exercise player">
+  <header class="player-topbar">
+    <div>
+      <span class="card-label">Guided session</span>
+      <h2>{{ live.session()?.name || 'Workout in progress' }}</h2>
+    </div>
+    <div class="live-metrics" aria-label="Live workout metrics">
+      <span>{{ formatElapsed(live.elapsedSeconds()) }}</span>
+      <span>{{ live.heartRate() || '--' }} bpm mock</span>
+      <span>{{ live.estimatedCalories() }} kcal estimated</span>
+    </div>
+  </header>
+
+  <div class="progress-track" aria-label="Workout set progress">
+    <span [style.width.%]="progressPercent()"></span>
+  </div>
+  <p class="progress-copy">{{ completedSetCount() }} of {{ totalTargetSets() }} planned sets complete</p>
+
+  @if (currentLog(); as log) {
+    <article class="focus-card" [class.resting]="restRemainingSeconds() > 0">
+      <div class="focus-copy">
+        <span class="card-label">Exercise {{ currentExerciseIndex() + 1 }} of {{ orderedLogs().length }}</span>
+        <h3>{{ log.exerciseNameSnapshot }}</h3>
+        <p>{{ targetSummary(currentPlanExercise()) }}</p>
+      </div>
+
+      @if (restRemainingSeconds() > 0) {
+        <div class="rest-panel" aria-live="polite">
+          <span>Rest</span>
+          <strong>{{ formatClock(restRemainingSeconds()) }}</strong>
+          <div class="rest-actions">
+            <button class="button secondary" type="button" (click)="skipRest()">Skip</button>
+            <button class="button secondary" type="button" (click)="addRestSeconds()">+15 sec</button>
+          </div>
+        </div>
+      } @else {
+        <div class="set-panel">
+          <span>Current set</span>
+          <strong>{{ currentSetNumber() }} / {{ targetSets() }}</strong>
+          <button
+            class="button workout complete-set"
+            type="button"
+            [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+            (click)="completeCurrentSet()"
+          >
+            {{ savingSet() ? 'Saving...' : 'Complete set' }}
+          </button>
+        </div>
+      }
+    </article>
+
+    @if (allTargetsComplete()) {
+      <p class="completion-note" role="status">All planned sets are done. Finish when your cooldown is complete.</p>
+    }
+
+    <section class="movement-queue" aria-labelledby="movement-queue-title">
+      <h3 id="movement-queue-title">Movement queue</h3>
+      @for (item of orderedLogs(); track item.exerciseLogId) {
+        <div class="queue-item" [class.active]="item.exerciseLogId === log.exerciseLogId">
+          <span>{{ item.sequence }}</span>
+          <div>
+            <strong>{{ item.exerciseNameSnapshot }}</strong>
+            <small>{{ item.sets.length }} sets recorded</small>
+          </div>
+        </div>
+      }
+    </section>
+  } @else {
+    <article class="focus-card empty">
+      <h3>No exercises ready</h3>
+      <p>This session does not have plan exercises to guide yet.</p>
+    </article>
+  }
+
+  <footer class="player-actions">
+    <button class="button secondary" type="button" (click)="pauseOrResume()">
+      {{ live.paused() ? 'Resume' : 'Pause' }}
+    </button>
+    <button class="button primary" type="button" [disabled]="ending()" (click)="finish()">Finish</button>
+    <button class="button secondary" type="button" [disabled]="ending()" (click)="abort()">Abort</button>
+  </footer>
+</section>
