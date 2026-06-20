@@ -1,10 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
 import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
+import { WorkoutDataIoComponent } from './workout-data-io.component';
 
 function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   return {
@@ -321,6 +323,52 @@ describe('WorkoutPage', () => {
 
     expect(dataService.getWorkoutSessions).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-imported');
+  });
+
+  it('keeps workout data tools collapsed by default in history', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const toggle = compiled.querySelector<HTMLButtonElement>('.data-tools-toggle');
+
+    expect(fixture.componentInstance.dataToolsOpen()).toBeFalse();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-controls')).toBe('workout-data-tools');
+    expect(compiled.querySelector('app-workout-data-io')).toBeNull();
+  });
+
+  it('expands workout data tools from the history disclosure', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const toggle = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.data-tools-toggle');
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.dataToolsOpen()).toBeTrue();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect((fixture.nativeElement as HTMLElement).querySelector('#workout-data-tools app-workout-data-io')).not.toBeNull();
+  });
+
+  it('refreshes history when the expanded data tools emit imported', () => {
+    const imported = session({ sessionId: 'session-imported', name: 'Imported', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([imported]));
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.componentInstance.dataToolsOpen.set(true);
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.directive(WorkoutDataIoComponent)).componentInstance.imported.emit();
+
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(fixture.componentInstance.sessions()[0].sessionId).toBe('session-imported');
   });
 
   it('keeps the workout exercise cache in sync with the library component', () => {

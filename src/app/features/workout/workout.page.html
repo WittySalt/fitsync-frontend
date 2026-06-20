@@ -319,7 +319,6 @@
           {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
         </button>
       </div>
-      <app-workout-data-io (imported)="handleWorkoutImportFinished()" />
       @if (sessions().length) {
         <div class="history-list">
           @for (session of sessions(); track session.name + session.startedAt) {
@@ -350,6 +349,22 @@
           (repeated)="handleSessionRepeated($event)"
         />
       }
+      <div class="data-tools-disclosure">
+        <button
+          class="button secondary data-tools-toggle"
+          type="button"
+          aria-controls="workout-data-tools"
+          [attr.aria-expanded]="dataToolsOpen()"
+          (click)="toggleDataTools()"
+        >
+          {{ dataToolsOpen() ? 'Hide' : 'Show' }} import / export data
+        </button>
+        @if (dataToolsOpen()) {
+          <div id="workout-data-tools" class="data-tools-panel">
+            <app-workout-data-io (imported)="handleWorkoutImportFinished()" />
+          </div>
+        }
+      </div>
     </section>
   } @else {
     <section id="workout-panel-library" role="tabpanel" aria-labelledby="workout-tab-library">
