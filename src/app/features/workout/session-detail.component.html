@@ -1,0 +1,142 @@
+<article class="session-detail summary-card" aria-label="Workout session detail">
+  <div class="section-title">
+    <div>
+      <span class="card-label">Session detail</span>
+      <h2>{{ session()?.name || 'Workout session' }}</h2>
+    </div>
+    <button class="text-link" type="button" (click)="closed.emit()">Close</button>
+  </div>
+
+  @if (loading()) {
+    <div class="skeleton tall" aria-label="Loading session detail"></div>
+  } @else if (session(); as detail) {
+    <div class="detail-actions">
+      <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit</button>
+      <button class="button secondary" type="button" (click)="repeatThis()" [disabled]="saving()">Repeat this</button>
+      <button class="button secondary" type="button" (click)="deleteSession()" [disabled]="saving()">Delete</button>
+    </div>
+
+    @if (editing()) {
+      <form class="session-form" [formGroup]="editForm" (ngSubmit)="saveEdit()">
+        <label>
+          Name
+          <input formControlName="name" maxlength="120" autocomplete="off" />
+        </label>
+        <label>
+          Type
+          <select formControlName="workoutType">
+            @if (metadata()?.workoutTypes?.length) {
+              @for (option of metadata()?.workoutTypes; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            } @else {
+              <option [value]="detail.workoutType">{{ formatLabel(detail.workoutType) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Duration
+          <input formControlName="durationMinutes" type="number" min="0" inputmode="numeric" />
+        </label>
+        <label>
+          Calories
+          <input formControlName="caloriesBurned" type="number" min="0" inputmode="numeric" />
+        </label>
+        <label>
+          Effort
+          <input formControlName="perceivedExertion" type="number" min="1" max="10" inputmode="numeric" />
+        </label>
+        <label class="wide">
+          Notes
+          <textarea formControlName="notes" maxlength="1000" rows="2"></textarea>
+        </label>
+        <div class="form-actions">
+          <button class="button primary" type="submit" [disabled]="saving()">Save changes</button>
+          <button class="button secondary" type="button" (click)="cancelEdit()" [disabled]="saving()">Cancel</button>
+        </div>
+      </form>
+    }
+
+    <dl class="detail-grid">
+      <div>
+        <dt>Type</dt>
+        <dd>{{ formatLabel(detail.workoutType) }}</dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>{{ formatLabel(detail.status) }}</dd>
+      </div>
+      <div>
+        <dt>Started</dt>
+        <dd>{{ formatDate(detail.startedAt) }}</dd>
+      </div>
+      <div>
+        <dt>Completed</dt>
+        <dd>{{ formatDate(detail.completedAt) }}</dd>
+      </div>
+      <div>
+        <dt>Duration</dt>
+        <dd>{{ detail.durationMinutes }} min</dd>
+      </div>
+      <div>
+        <dt>Calories</dt>
+        <dd>{{ detail.caloriesBurned }}</dd>
+      </div>
+      <div>
+        <dt>Effort</dt>
+        <dd>{{ formatNumber(detail.perceivedExertion) }}</dd>
+      </div>
+    </dl>
+
+    @if (detail.notes) {
+      <p class="session-notes">{{ detail.notes }}</p>
+    }
+
+    @if (detail.exercises.length) {
+      <div class="exercise-list">
+        @for (exercise of detail.exercises; track exercise.exerciseLogId || exercise.sequence) {
+          <section class="exercise-block">
+            <div class="exercise-heading">
+              <div>
+                <h3>{{ exercise.exerciseNameSnapshot }}</h3>
+                <small>
+                  {{ formatNumber(exercise.performedSets) }} sets -
+                  {{ formatNumber(exercise.performedReps) }} reps -
+                  {{ formatNumber(exercise.totalVolumeKg, ' kg') }}
+                </small>
+              </div>
+              <span>{{ exercise.sequence }}</span>
+            </div>
+
+            @if (exercise.sets.length) {
+              <div class="set-table" role="table" [attr.aria-label]="exercise.exerciseNameSnapshot + ' sets'">
+                <div class="set-row header" role="row">
+                  <span role="columnheader">Set</span>
+                  <span role="columnheader">Reps</span>
+                  <span role="columnheader">Weight</span>
+                  <span role="columnheader">Rest</span>
+                  <span role="columnheader">RPE</span>
+                </div>
+                @for (set of exercise.sets; track set.setLogId || set.setNumber) {
+                  <div class="set-row" role="row">
+                    <span role="cell">{{ set.setNumber }}</span>
+                    <span role="cell">{{ formatNumber(set.reps) }}</span>
+                    <span role="cell">{{ formatNumber(set.weightKg, ' kg') }}</span>
+                    <span role="cell">{{ formatNumber(set.restSeconds, ' sec') }}</span>
+                    <span role="cell">{{ formatNumber(set.perceivedExertion) }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <app-state-panel title="No sets recorded" message="This exercise has no set detail yet." />
+            }
+          </section>
+        }
+      </div>
+    } @else {
+      <app-state-panel title="No exercise detail" message="This session does not have recorded exercises." />
+    }
+  } @else {
+    <app-state-panel title="Session unavailable" message="Open another history row or retry later." />
+  }
+</article>

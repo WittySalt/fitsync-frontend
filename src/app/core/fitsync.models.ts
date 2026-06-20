@@ -146,6 +146,7 @@ export interface WorkoutExerciseLogInput {
 }
 
 export interface WorkoutExerciseSetInput {
+  setNumber?: number;
   reps: number | null;
   weightKg: number | null;
   durationSeconds: number | null;
@@ -153,6 +154,21 @@ export interface WorkoutExerciseSetInput {
   restSeconds: number | null;
   perceivedExertion: number | null;
   notes: string | null;
+}
+
+export interface UpsertWorkoutSessionRequest {
+  planId: string | null;
+  name: string;
+  workoutType: string;
+  status: string;
+  source: string;
+  startedAt: string;
+  completedAt?: string;
+  durationMinutes: number;
+  caloriesBurned: number;
+  perceivedExertion: number | null;
+  notes: string | null;
+  exercises: WorkoutExerciseLogInput[];
 }
 
 export interface Exercise {

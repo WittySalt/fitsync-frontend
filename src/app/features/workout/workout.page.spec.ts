@@ -88,7 +88,12 @@ describe('WorkoutPage', () => {
       'getExerciseMetadata',
       'createExercise',
       'updateExercise',
-      'archiveExercise'
+      'archiveExercise',
+      'getSession',
+      'updateSession',
+      'deleteSession',
+      'repeatSession',
+      'repeatLatestSession'
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessions.and.returnValue(of([]));
@@ -118,6 +123,11 @@ describe('WorkoutPage', () => {
     dataService.createExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.updateExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.archiveExercise.and.returnValue(of(void 0));
+    dataService.getSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
+    dataService.updateSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
+    dataService.deleteSession.and.returnValue(of(void 0));
+    dataService.repeatSession.and.returnValue(of(sessionDetail({ sessionId: 'session-repeat', status: 'IN_PROGRESS' })));
+    dataService.repeatLatestSession.and.returnValue(of(sessionDetail({ sessionId: 'session-latest', status: 'IN_PROGRESS' })));
 
     await TestBed.configureTestingModule({
       imports: [WorkoutPage],
@@ -260,6 +270,35 @@ describe('WorkoutPage', () => {
     expect(dataService.getWorkoutSessions).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-2');
     expect(component.selectedTab()).toBe('history');
+  });
+
+  it('opens session detail from a history row', () => {
+    const completed = session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([completed]));
+    dataService.getSession.and.returnValue(of(sessionDetail({ sessionId: 'session-1', name: 'Push day' })));
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.history-row')?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.selectedSessionId()).toBe('session-1');
+    expect(dataService.getSession).toHaveBeenCalledWith('session-1');
+  });
+
+  it('repeats the latest session and refreshes history', () => {
+    const repeated = sessionDetail({ sessionId: 'session-latest', name: 'Repeated', status: 'IN_PROGRESS' });
+    dataService.repeatLatestSession.and.returnValue(of(repeated));
+    dataService.getWorkoutSessions.and.returnValue(of([repeated]));
+
+    component.repeatLatestSession();
+
+    expect(dataService.repeatLatestSession).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(component.sessions()[0].sessionId).toBe('session-latest');
   });
 
   it('keeps the workout exercise cache in sync with the library component', () => {

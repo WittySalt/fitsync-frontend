@@ -315,22 +315,39 @@
           <span class="card-label">Recent sessions</span>
           <h2>Training history</h2>
         </div>
+        <button class="button secondary" type="button" [disabled]="repeatingLatest()" (click)="repeatLatestSession()">
+          {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
+        </button>
       </div>
       @if (sessions().length) {
         <div class="history-list">
           @for (session of sessions(); track session.name + session.startedAt) {
-            <article class="history-row">
+            <button
+              class="history-row"
+              type="button"
+              [attr.aria-expanded]="selectedSessionId() === session.sessionId"
+              (click)="openSessionDetail(session)"
+            >
               <div>
                 <strong>{{ session.name }}</strong>
                 <small>{{ formatLabel(session.workoutType) }} - {{ formatDate(session.completedAt || session.startedAt) }}</small>
               </div>
               <span>{{ session.durationMinutes }} min</span>
               <span>{{ formatLabel(session.status) }}</span>
-            </article>
+            </button>
           }
         </div>
       } @else {
         <app-state-panel title="No sessions logged" message="Your completed workouts will appear here." />
+      }
+      @if (selectedSessionId(); as sessionId) {
+        <app-session-detail
+          [sessionId]="sessionId"
+          (closed)="closeSessionDetail()"
+          (updated)="handleSessionUpdated($event)"
+          (deleted)="handleSessionDeleted()"
+          (repeated)="handleSessionRepeated($event)"
+        />
       }
     </section>
   } @else {
