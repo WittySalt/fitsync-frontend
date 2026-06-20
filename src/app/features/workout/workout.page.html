@@ -31,6 +31,14 @@
 
   @if (selectedTab() === 'overview') {
     <div id="workout-panel-overview" role="tabpanel" aria-labelledby="workout-tab-overview" class="overview-panel">
+      <app-today-overview
+        [activePlan]="activePlan()"
+        [sessions]="sessions()"
+        (startPlan)="handleTodayStart($event)"
+        (browsePlans)="browsePlans()"
+        (templateActivated)="handleTemplateActivated($event)"
+      />
+
       <app-live-logger
         [plans]="plans()"
         [activePlan]="activePlan()"
@@ -99,62 +107,6 @@
           <p>Add a completed session you did without live tracking, such as a run.</p>
         }
       </article>
-
-      <div class="workout-layout">
-      <article class="summary-card">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Active plan</span>
-            <h2>Current programme</h2>
-          </div>
-        </div>
-        @if (activePlan(); as plan) {
-          <h3>{{ plan.name }}</h3>
-          <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>
-          <dl class="inline-stats">
-            <div>
-              <dt>Duration</dt>
-              <dd>{{ plan.estimatedDurationMinutes }} min</dd>
-            </div>
-            <div>
-              <dt>Exercises</dt>
-              <dd>{{ plan.exerciseCount }}</dd>
-            </div>
-          </dl>
-        } @else {
-          <app-state-panel title="No active plan" message="Activate a plan to see your current programme here." />
-        }
-      </article>
-
-      <article class="summary-card">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Latest session</span>
-            <h2>Most recent training</h2>
-          </div>
-        </div>
-        @if (latestSession(); as session) {
-          <h3>{{ session.name }}</h3>
-          <p>{{ formatLabel(session.workoutType) }} - {{ formatDate(session.completedAt || session.startedAt) }}</p>
-          <dl class="inline-stats">
-            <div>
-              <dt>Duration</dt>
-              <dd>{{ session.durationMinutes }} min</dd>
-            </div>
-            <div>
-              <dt>Calories</dt>
-              <dd>{{ session.caloriesBurned }}</dd>
-            </div>
-            <div>
-              <dt>Exercises</dt>
-              <dd>{{ session.exerciseCount }}</dd>
-            </div>
-          </dl>
-        } @else {
-          <app-state-panel title="No sessions yet" message="Start a workout to build your training history." />
-        }
-      </article>
-      </div>
     </div>
   } @else if (selectedTab() === 'plans') {
     <section id="workout-panel-plans" class="plans-panel" role="tabpanel" aria-labelledby="workout-tab-plans">

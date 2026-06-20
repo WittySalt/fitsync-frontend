@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -16,6 +16,7 @@ import { StatePanelComponent } from '../../shared/state-panel.component';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveLoggerComponent } from './live-logger.component';
 import { SessionDetailComponent } from './session-detail.component';
+import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 
 interface TrainingMetric {
@@ -31,6 +32,7 @@ interface TrainingMetric {
     ReactiveFormsModule,
     StatePanelComponent,
     LiveLoggerComponent,
+    TodayOverviewComponent,
     ExerciseLibraryComponent,
     SessionDetailComponent,
     WorkoutDataIoComponent
@@ -42,6 +44,8 @@ export class WorkoutPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
+
+  @ViewChild(LiveLoggerComponent) private liveLogger?: LiveLoggerComponent;
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
@@ -297,6 +301,21 @@ export class WorkoutPage implements OnInit {
 
   handleLiveWorkoutCancelled(): void {
     this.loadSessions();
+  }
+
+  handleTodayStart(plan: WorkoutPlan): void {
+    this.liveLogger?.startPlan(plan.planId);
+  }
+
+  handleTemplateActivated(plan: WorkoutPlan): void {
+    this.activePlan.set(plan);
+    this.planStatus.set('ACTIVE');
+    this.loadPlans();
+    this.loadActivePlan();
+  }
+
+  browsePlans(): void {
+    this.selectedTab.set('plans');
   }
 
   handleExerciseLibraryChanged(exercises: Exercise[]): void {

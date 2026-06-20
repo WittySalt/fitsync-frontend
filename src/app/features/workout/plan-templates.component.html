@@ -1,0 +1,62 @@
+<section class="plan-templates" aria-labelledby="plan-templates-title">
+  <div class="templates-header">
+    <div>
+      <span class="card-label">Coach picks</span>
+      <h2 id="plan-templates-title">Choose a starter plan</h2>
+    </div>
+    <p>Pick a template and FitSync will turn matching catalog exercises into a real active plan.</p>
+  </div>
+
+  <div class="template-grid">
+    @for (template of templates; track template.id) {
+      <button
+        class="template-card"
+        type="button"
+        [class.selected]="selectedTemplate()?.id === template.id"
+        [attr.aria-pressed]="selectedTemplate()?.id === template.id"
+        (click)="selectTemplate(template)"
+      >
+        <span>{{ formatLabel(template.difficulty) }}</span>
+        <strong>{{ template.name }}</strong>
+        <small>{{ template.exercises.length }} moves · {{ template.estimatedDurationMinutes }} min</small>
+      </button>
+    }
+  </div>
+
+  @if (selectedTemplate(); as template) {
+    <article class="template-preview" aria-label="Selected template preview">
+      <div>
+        <span class="card-label">{{ formatLabel(template.goalFocus) }}</span>
+        <h3>{{ template.name }}</h3>
+        <p>{{ template.description }}</p>
+      </div>
+      <ul>
+        @for (exercise of template.exercises; track exercise.code ?? exercise.name) {
+          <li>
+            <strong>{{ exercise.name }}</strong>
+            <span>
+              {{ exercise.targetSets }} sets
+              @if (exercise.targetReps) {
+                · {{ exercise.targetReps }} reps
+              }
+              @if (exercise.targetDurationSeconds) {
+                · {{ exercise.targetDurationSeconds }} sec
+              }
+              @if (exercise.restSeconds) {
+                · {{ exercise.restSeconds }} sec rest
+              }
+            </span>
+          </li>
+        }
+      </ul>
+      <button
+        class="button workout"
+        type="button"
+        [disabled]="applyingTemplateId() === template.id"
+        (click)="useTemplate(template)"
+      >
+        {{ applyingTemplateId() === template.id ? 'Activating...' : 'Use this template' }}
+      </button>
+    </article>
+  }
+</section>
