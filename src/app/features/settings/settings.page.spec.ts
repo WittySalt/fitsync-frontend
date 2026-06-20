@@ -178,7 +178,12 @@ describe('SettingsPage', () => {
     document.documentElement.removeAttribute('data-theme');
     spyOn(window, 'matchMedia').and.returnValue({ matches: false } as MediaQueryList);
 
-    authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout']);
+    authService = jasmine.createSpyObj<AuthService>('AuthService', [
+      'logout',
+      'changePassword',
+      'signOutEverywhere',
+      'deleteAccount'
+    ]);
     accountDataService = jasmine.createSpyObj<AccountDataService>(
       'AccountDataService',
       [
@@ -205,6 +210,9 @@ describe('SettingsPage', () => {
     accountDataService.requestDataExport.and.returnValue(of(accountData.latestDataExport!));
     accountDataService.downloadDataExport.and.returnValue(of({} as AccountDataExportPayload));
     accountDataService.requestAccountDeletion.and.returnValue(of(accountData.accountDeletion));
+    authService.changePassword.and.returnValue(of(undefined));
+    authService.signOutEverywhere.and.returnValue(of(undefined));
+    authService.deleteAccount.and.returnValue(of(undefined));
 
     await TestBed.configureTestingModule({
       imports: [SettingsPage],

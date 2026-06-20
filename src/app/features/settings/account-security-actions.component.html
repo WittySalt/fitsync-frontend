@@ -1,0 +1,59 @@
+<article class="sub-card account-security-actions">
+  <div class="sub-card-header">
+    <div>
+      <h3>Account security actions</h3>
+      <p>These actions use your active Cognito session.</p>
+    </div>
+  </div>
+
+  <form class="security-form" [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+    <h4>Change password</h4>
+    <label>
+      Current password
+      <input type="password" autocomplete="current-password" formControlName="currentPassword" />
+      @if (currentPasswordInvalid()) {
+        <span class="field-error">Current password is required.</span>
+      }
+    </label>
+    <label>
+      New password
+      <input type="password" autocomplete="new-password" formControlName="newPassword" />
+      @if (newPasswordInvalid()) {
+        <span class="field-error">Use at least 8 characters with letters and numbers.</span>
+      }
+    </label>
+    <label>
+      Confirm new password
+      <input type="password" autocomplete="new-password" formControlName="confirmPassword" />
+      @if (confirmPasswordInvalid()) {
+        <span class="field-error">Passwords must match.</span>
+      }
+    </label>
+    <div class="action-row">
+      <button class="button primary" type="submit" [disabled]="changingPassword()">
+        {{ changingPassword() ? 'Changing...' : 'Change password' }}
+      </button>
+    </div>
+  </form>
+
+  <div class="security-action-list">
+    <div>
+      <strong>Sign out everywhere</strong>
+      <p>Invalidate this Cognito session across all devices and return to sign-in.</p>
+    </div>
+    <button class="button secondary" type="button" [disabled]="signingOut()" (click)="signOutEverywhere()">
+      {{ signingOut() ? 'Signing out...' : 'Sign out of all devices' }}
+    </button>
+  </div>
+
+  <div class="security-action-list danger-panel">
+    <div>
+      <strong>Delete login credential</strong>
+      <p>Deletes only the Cognito user. Backend workout, nutrition, body-metric, and profile data are not automatically cleaned.</p>
+      <p class="danger-note">Export workout data and account data before deleting this credential.</p>
+    </div>
+    <button class="button danger" type="button" [disabled]="deletingAccount()" (click)="deleteAccount()">
+      {{ deletingAccount() ? 'Deleting...' : 'Delete Cognito account' }}
+    </button>
+  </div>
+</article>
