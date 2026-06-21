@@ -107,7 +107,7 @@ describe('ProgressPage', () => {
     const fixture = TestBed.createComponent(ProgressPage);
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('记录第一条体重');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Record your first weight');
   });
 
   it('shows an error state when progress data cannot be loaded', () => {

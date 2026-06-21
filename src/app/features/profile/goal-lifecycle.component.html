@@ -19,7 +19,7 @@
         <article class="goal-management-card">
           <div class="goal-card-header">
             <div>
-              <span class="card-label">{{ goal ? label(goal.status) : '未设置' }}</span>
+              <span class="card-label">{{ goal ? label(goal.status) : 'Not set' }}</span>
               <h3>{{ label(type) }}</h3>
             </div>
             @if (goal) {
@@ -84,7 +84,7 @@
               </div>
               <div>
                 <dt>Date</dt>
-                <dd>{{ goal.targetDate || '未设置' }}</dd>
+                <dd>{{ goal.targetDate || 'Not set' }}</dd>
               </div>
               <div class="wide">
                 <dt>Notes</dt>
@@ -93,7 +93,7 @@
             </dl>
             <button class="button secondary" type="button" (click)="startEdit(type)">Edit</button>
           } @else {
-            <app-state-panel title="未设置" message="Add this goal when you are ready to track it." />
+            <app-state-panel title="Not set" message="Add this goal when you are ready to track it." />
             <button class="button secondary" type="button" (click)="startEdit(type)">Add</button>
           }
         </article>

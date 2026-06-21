@@ -89,7 +89,7 @@ describe('AccountSecurityActionsComponent', () => {
 
     component.deleteAccount();
 
-    expect(prompt.calls.mostRecent().args[0]).toContain('后端数据不自动清理');
+    expect(prompt.calls.mostRecent().args[0]).toContain('Backend data is not automatically deleted');
     expect(authService.deleteAccount).not.toHaveBeenCalled();
 
     prompt.and.returnValue('DELETE');

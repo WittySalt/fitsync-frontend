@@ -38,8 +38,8 @@
             </div>
           } @else {
             <div class="target-empty" role="status">
-              <strong>未设置每日卡路里目标</strong>
-              <a class="text-link" routerLink="/me">去设置每日目标</a>
+              <strong>Daily calorie target not set</strong>
+              <a class="text-link" routerLink="/me">Set daily target</a>
             </div>
           }
         </div>
@@ -78,7 +78,7 @@
                 @if (macro.targetSet) {
                   <span>{{ macro.value }}{{ macro.unit }} / {{ macro.target }}{{ macro.unit }}</span>
                 } @else {
-                  <span>{{ macro.value }}{{ macro.unit }} · 目标未设置</span>
+                  <span>{{ macro.value }}{{ macro.unit }} · target not set</span>
                 }
               </div>
               <div>
@@ -88,8 +88,8 @@
                     <i [style.width.%]="progress(macro.value, macro.target)"></i>
                   </div>
                 } @else {
-                  <span class="macro-empty">目标未设置</span>
-                  <a class="text-link target-link" routerLink="/me">设置目标</a>
+                  <span class="macro-empty">Target not set</span>
+                  <a class="text-link target-link" routerLink="/me">Set target</a>
                 }
               </div>
             </div>

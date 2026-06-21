@@ -60,7 +60,7 @@ describe('GoalLifecycleComponent', () => {
     expect(text).toContain('Calories');
     expect(text).toContain('Protein');
     expect(text).toContain('Workout Frequency');
-    expect(text).toContain('未设置');
+    expect(text).toContain('Not set');
     expect(text).toContain('75 kg');
     expect(text).not.toContain('0 kcal');
     expect(text).not.toContain('0 g');
