@@ -116,7 +116,8 @@ export class ExerciseVideoComponent {
     if (!embedUrl || !this.activated()) {
       return null;
     }
-    return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+    // embedUrl is reconstructed from validated YouTube/Vimeo IDs and fixed allowlisted hosts.
+    return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl); // NOSONAR
   });
 
   activate(): void {
