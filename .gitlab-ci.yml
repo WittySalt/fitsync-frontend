@@ -83,12 +83,11 @@ sonarqube:
   script:
     # Publishes code smells / coverage / duplication / hotspots and blocks on the
     # Quality Gate. Stays off until SONAR_TOKEN is configured (pipeline green by default).
+    # projectKey/organization come from sonar-project.properties; only the token is secret.
     - >
       sonar-scanner
       -Dsonar.host.url="${SONAR_HOST_URL:-https://sonarcloud.io}"
       -Dsonar.token="$SONAR_TOKEN"
-      -Dsonar.projectKey="$SONAR_PROJECT_KEY"
-      -Dsonar.organization="$SONAR_ORGANIZATION"
       -Dsonar.qualitygate.wait="${SONAR_QUALITYGATE_WAIT:-true}"
   rules:
     - if: '$SONAR_TOKEN && ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main")'
