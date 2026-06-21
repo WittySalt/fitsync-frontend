@@ -1,0 +1,32 @@
+<section class="celebration-shell" [class.reduced-motion]="reducedMotion" role="dialog" aria-modal="true" aria-labelledby="workout-celebration-title">
+  <div class="confetti-burst" aria-hidden="true">
+    @for (piece of confettiPieces; track piece) {
+      <span></span>
+    }
+  </div>
+
+  <article class="celebration-card" aria-live="polite">
+    <div class="success-mark" aria-hidden="true">✓</div>
+    <p class="card-label">Workout complete</p>
+    <h2 id="workout-celebration-title">Great work!</h2>
+
+    @if (summary; as data) {
+      <div class="celebration-stats" aria-label="Workout summary">
+        <div>
+          <span>Sets</span>
+          <strong>{{ displaySets() }} / {{ data.totalSets }}</strong>
+        </div>
+        <div>
+          <span>Time</span>
+          <strong>{{ formatElapsed(displaySeconds()) }}</strong>
+        </div>
+        <div>
+          <span>Estimated kcal</span>
+          <strong>{{ displayCalories() }}</strong>
+        </div>
+      </div>
+    }
+
+    <button class="button primary" type="button" (click)="continue.emit()">Continue</button>
+  </article>
+</section>

@@ -10,9 +10,14 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { WorkoutLiveService } from './workout-live.service';
+import {
+  WorkoutCelebrationComponent,
+  WorkoutCelebrationSummary
+} from './workout-celebration.component';
 
 @Component({
   selector: 'app-exercise-player',
+  imports: [WorkoutCelebrationComponent],
   templateUrl: './exercise-player.component.html',
   styleUrl: './exercise-player.component.scss'
 })
@@ -44,16 +49,22 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly workGuideElapsedSeconds = signal(0);
   readonly workGuideRemainingSeconds = signal(0);
   readonly guidedRepCount = signal(0);
+  readonly setCompleteCue = signal(false);
   readonly restCompleteCue = signal(false);
+  readonly showCelebration = signal(false);
+  readonly celebrationSummary = signal<WorkoutCelebrationSummary | null>(null);
+  readonly liveAnnouncement = signal('');
   readonly activeTempoSecondsPerRep = signal(this.defaultTempoSecondsPerRep);
+  readonly prefersReducedMotion = this.readReducedMotionPreference();
 
   private restTimerId: ReturnType<typeof setInterval> | null = null;
   private workTimerId: ReturnType<typeof setInterval> | null = null;
   private mediaTimerId: ReturnType<typeof setInterval> | null = null;
+  private setCueTimerId: ReturnType<typeof setTimeout> | null = null;
+  private restCueTimerId: ReturnType<typeof setTimeout> | null = null;
   private readonly activePlanRevision = signal(0);
   private readonly detailCache = new Map<string, ExerciseDetail | null>();
   private currentMediaExerciseId = '';
-  private readonly prefersReducedMotion = this.readReducedMotionPreference();
 
   readonly orderedLogs = computed(() =>
     [...(this.live.session()?.exercises ?? [])].sort((a, b) => a.sequence - b.sequence)
@@ -170,6 +181,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.clearRestTimer();
     this.clearWorkTimer();
     this.clearMediaTimer();
+    this.clearCueTimers();
   }
 
   completeCurrentSet(): void {
@@ -193,7 +205,10 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       perceivedExertion: null,
       notes: null
     }).subscribe({
-      next: () => this.beginRestOrAdvance(target?.restSeconds ?? 0),
+      next: () => {
+        this.triggerSetCompleteCue();
+        this.beginRestOrAdvance(target?.restSeconds ?? 0);
+      },
       error: () => {
         this.toast.error('Unable to save this set. Please retry.');
         this.savingSet.set(false);
@@ -257,6 +272,12 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     if (this.ending()) {
       return;
     }
+    const finishSummary = {
+      completedSets: this.completedSetCount(),
+      totalSets: this.totalTargetSets(),
+      elapsedSeconds: this.live.elapsedSeconds(),
+      estimatedCalories: this.live.estimatedCalories()
+    };
     this.ending.set(true);
     this.live.finish().subscribe({
       next: (session) => {
@@ -266,7 +287,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
           return;
         }
         this.toast.success('Workout completed.');
-        this.completed.emit(session);
+        this.showWorkoutCelebration(session, finishSummary);
       },
       error: () => this.toast.error('Unable to finish workout. Please retry.'),
       complete: () => this.ending.set(false)
@@ -374,7 +395,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       this.restRemainingSeconds.update((value) => Math.max(0, value - 1));
       if (this.restRemainingSeconds() === 0) {
         this.clearRestTimer(false);
-        this.restCompleteCue.set(true);
+        this.triggerRestCompleteCue();
         this.advanceTarget();
       }
     }, 1000);
@@ -505,7 +526,10 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       perceivedExertion: null,
       notes: null
     }).subscribe({
-      next: () => this.beginRestOrAdvance(target.restSeconds ?? 0),
+      next: () => {
+        this.triggerSetCompleteCue();
+        this.beginRestOrAdvance(target.restSeconds ?? 0);
+      },
       error: () => {
         this.toast.error('Unable to save this set. Please retry.');
         this.savingSet.set(false);
@@ -648,6 +672,61 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     if (this.mediaTimerId) {
       clearInterval(this.mediaTimerId);
       this.mediaTimerId = null;
+    }
+  }
+
+  private triggerSetCompleteCue(): void {
+    this.setCompleteCue.set(true);
+    this.liveAnnouncement.set('Set complete');
+    if (this.setCueTimerId) {
+      clearTimeout(this.setCueTimerId);
+    }
+    this.setCueTimerId = setTimeout(() => {
+      this.setCompleteCue.set(false);
+      this.setCueTimerId = null;
+    }, 1000);
+  }
+
+  private triggerRestCompleteCue(): void {
+    this.restCompleteCue.set(true);
+    this.liveAnnouncement.set('Rest over - next set');
+    if (this.restCueTimerId) {
+      clearTimeout(this.restCueTimerId);
+    }
+    this.restCueTimerId = setTimeout(() => {
+      this.restCompleteCue.set(false);
+      this.restCueTimerId = null;
+    }, 800);
+  }
+
+  private showWorkoutCelebration(
+    session: WorkoutSessionDetail,
+    summary: Omit<WorkoutCelebrationSummary, 'session'>
+  ): void {
+    this.liveAnnouncement.set('Workout complete, great work!');
+    this.celebrationSummary.set({
+      ...summary,
+      session
+    });
+    this.showCelebration.set(true);
+  }
+
+  continueAfterCelebration(): void {
+    const session = this.celebrationSummary()?.session;
+    this.showCelebration.set(false);
+    if (session) {
+      this.completed.emit(session);
+    }
+  }
+
+  private clearCueTimers(): void {
+    if (this.setCueTimerId) {
+      clearTimeout(this.setCueTimerId);
+      this.setCueTimerId = null;
+    }
+    if (this.restCueTimerId) {
+      clearTimeout(this.restCueTimerId);
+      this.restCueTimerId = null;
     }
   }
 
