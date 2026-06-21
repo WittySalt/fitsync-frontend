@@ -20,7 +20,22 @@ module.exports = function (config) {
     coverageReporter: {
       dir: path.join(__dirname, './coverage/fitsync-frontend'),
       subdir: '.',
-      reporters: [{ type: 'html' }, { type: 'text-summary' }]
+      reporters: [
+        { type: 'html' },
+        { type: 'text-summary' },
+        { type: 'lcovonly' } // lcov.info -> consumed by SonarQube
+      ],
+      // Coverage gate: build fails if coverage drops below these floors.
+      // Set just under the current baseline (stmts ~73%, branches ~58%) so honest
+      // regressions are caught while leaving a little headroom.
+      check: {
+        global: {
+          statements: 70,
+          lines: 70,
+          functions: 68,
+          branches: 50
+        }
+      }
     },
     reporters: ['progress', 'kjhtml'],
     customLaunchers: {
