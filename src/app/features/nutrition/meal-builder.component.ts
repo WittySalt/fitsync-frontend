@@ -141,6 +141,13 @@ export class MealBuilderComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly saved = output<void>();
+  readonly mealTypeOptions = [
+    { value: 'BREAKFAST', label: 'Breakfast' },
+    { value: 'LUNCH', label: 'Lunch' },
+    { value: 'DINNER', label: 'Dinner' },
+    { value: 'SNACK', label: 'Snack' },
+    { value: 'OTHER', label: 'Other' }
+  ] as const;
 
   readonly searchControl = new FormControl('', { nonNullable: true });
   readonly barcodeControl = new FormControl('', { nonNullable: true });
@@ -213,6 +220,7 @@ export class MealBuilderComponent implements OnInit {
   ngOnInit(): void {
     this.loadReferenceData();
     this.runSearch();
+    this.updateMealNameValidator(this.mealForm.controls.mealType.value);
 
     this.searchControl.valueChanges
       .pipe(
@@ -225,6 +233,12 @@ export class MealBuilderComponent implements OnInit {
         })
       )
       .subscribe((result) => this.applySearchResult(result));
+
+    this.mealForm.controls.mealType.valueChanges.subscribe((mealType) => this.updateMealNameValidator(mealType));
+  }
+
+  setMealType(mealType: string): void {
+    this.mealForm.controls.mealType.setValue(mealType);
   }
 
   selectCategory(category: FoodCategory | null): void {
@@ -333,13 +347,18 @@ export class MealBuilderComponent implements OnInit {
       this.toast.error('Add at least one food before saving the meal.');
       return;
     }
+    this.mealForm.markAllAsTouched();
+    if (this.mealForm.invalid) {
+      this.toast.error('Name your meal before saving.');
+      return;
+    }
 
     this.saving.set(true);
     const raw = this.mealForm.getRawValue();
     this.dataService
       .createMeal({
         mealType: raw.mealType,
-        name: raw.name,
+        name: this.resolveMealName(raw.mealType, raw.name),
         note: raw.note,
         items: this.items().map(({ id, detail, serving, ...item }) => item)
       })
@@ -555,5 +574,21 @@ export class MealBuilderComponent implements OnInit {
 
   private flattenCategories(categories: FoodCategory[]): FoodCategory[] {
     return categories.flatMap((category) => [category, ...this.flattenCategories(category.children)]);
+  }
+
+  private updateMealNameValidator(mealType: string): void {
+    const validators = mealType === 'OTHER'
+      ? [Validators.required, Validators.maxLength(120)]
+      : [Validators.maxLength(120)];
+    this.mealForm.controls.name.setValidators(validators);
+    this.mealForm.controls.name.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private resolveMealName(mealType: string, rawName: string): string {
+    const trimmed = rawName.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+    return this.mealTypeOptions.find((option) => option.value === mealType)?.label ?? 'Meal';
   }
 }

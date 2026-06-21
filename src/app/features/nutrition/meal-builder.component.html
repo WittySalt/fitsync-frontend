@@ -18,21 +18,24 @@
 
   <form class="meal-meta" [formGroup]="mealForm">
     <div class="meal-type-grid segmented" role="group" aria-label="Meal type">
-      @for (type of ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']; track type) {
+      @for (type of mealTypeOptions; track type.value) {
         <button
           type="button"
-          [class.active]="mealForm.controls.mealType.value === type"
-          [attr.aria-pressed]="mealForm.controls.mealType.value === type"
-          (click)="mealForm.controls.mealType.setValue(type)"
+          [class.active]="mealForm.controls.mealType.value === type.value"
+          [attr.aria-pressed]="mealForm.controls.mealType.value === type.value"
+          (click)="setMealType(type.value)"
         >
-          {{ type }}
+          {{ type.label }}
         </button>
       }
     </div>
     <div class="meal-text-grid">
       <label>
         Meal name
-        <input formControlName="name" placeholder="Post-workout lunch" />
+        <input formControlName="name" [placeholder]="mealForm.controls.mealType.value === 'OTHER' ? 'Name your meal' : 'Post-workout lunch'" />
+        @if (mealForm.controls.name.hasError('required') && mealForm.controls.name.touched) {
+          <span class="field-error">Name your meal</span>
+        }
       </label>
       <label>
         Note
@@ -187,25 +190,27 @@
             </article>
           }
         </div>
-        @if (totalPages() > 1) {
-          <nav class="pagination-bar" aria-label="Food search pages">
+        <nav class="pagination-bar" aria-label="Food search settings">
+          <label class="page-size">
+            Per page
+            <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
+              @for (size of pageSizeOptions; track size) {
+                <option [value]="size">{{ size }}</option>
+              }
+            </select>
+          </label>
+          @if (totalPages() > 1) {
+            <div class="page-controls" aria-label="Food search pages">
             <button class="button secondary" type="button" (click)="prevPage()" [disabled]="searching() || page() <= 0">
               Previous
             </button>
             <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} foods)</span>
-            <label class="page-size">
-              Per page
-              <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
-                @for (size of pageSizeOptions; track size) {
-                  <option [value]="size">{{ size }}</option>
-                }
-              </select>
-            </label>
             <button class="button secondary" type="button" (click)="nextPage()" [disabled]="searching() || page() + 1 >= totalPages()">
               Next
             </button>
-          </nav>
-        }
+            </div>
+          }
+        </nav>
       } @else {
         <app-state-panel title="No matches" message="Try another search term or a broader category." />
       }
@@ -309,8 +314,8 @@
               <label>
                 Meal type
                 <select formControlName="mealType">
-                  @for (type of ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']; track type) {
-                    <option [value]="type">{{ type }}</option>
+                  @for (type of mealTypeOptions; track type.value) {
+                    <option [value]="type.value">{{ type.label }}</option>
                   }
                 </select>
               </label>
