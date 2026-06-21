@@ -212,6 +212,16 @@ describe('ExercisePlayerComponent', () => {
     live.reset();
   });
 
+  function renderPlayer(activePlan: WorkoutPlan): ComponentFixture<ExercisePlayerComponent> {
+    live.reset();
+    dataService.upsertSessionSet.calls.reset();
+    const player = TestBed.createComponent(ExercisePlayerComponent);
+    player.componentRef.setInput('session', detail());
+    player.componentRef.setInput('activePlan', activePlan);
+    player.detectChanges();
+    return player;
+  }
+
   it('saves the current set with session, exercise log, set number, and target values', () => {
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
 
@@ -230,6 +240,92 @@ describe('ExercisePlayerComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Rest');
     expect(fixture.nativeElement.textContent).toContain('0:01');
   });
+
+  it('does not record a set automatically before the guide is started', fakeAsync(() => {
+    tick(10_000);
+
+    expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+  }));
+
+  it('auto-completes a timed set at zero and enters rest', fakeAsync(() => {
+    const timed = renderPlayer(plan({
+      exercises: [
+        {
+          ...plan().exercises[0],
+          targetReps: null,
+          targetDurationSeconds: 2,
+          restSeconds: 1
+        },
+        plan().exercises[1]
+      ]
+    }));
+
+    timed.componentInstance.startGuidedSet();
+    tick(2_000);
+    timed.detectChanges();
+
+    expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+      'session-live',
+      'log-1',
+      1,
+      jasmine.objectContaining({ reps: null, durationSeconds: 2, restSeconds: 1 })
+    );
+    expect(timed.nativeElement.textContent).toContain('Rest');
+
+    tick(1_000);
+  }));
+
+  it('counts reps during tempo guidance and records the target reps when it completes', fakeAsync(() => {
+    const tempo = renderPlayer(plan({
+      exercises: [
+        {
+          ...plan().exercises[0],
+          targetReps: 2,
+          restSeconds: 0
+        },
+        plan().exercises[1]
+      ]
+    }));
+
+    tempo.componentInstance.startGuidedSet();
+    tick(3_000);
+    tempo.detectChanges();
+
+    expect(tempo.componentInstance.guidedRepCount()).toBe(1);
+
+    tick(3_000);
+
+    expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+      'session-live',
+      'log-1',
+      1,
+      jasmine.objectContaining({ reps: 2, durationSeconds: 6 })
+    );
+  }));
+
+  it('stops tempo guidance and records only the reached reps', fakeAsync(() => {
+    const tempo = renderPlayer(plan({
+      exercises: [
+        {
+          ...plan().exercises[0],
+          targetReps: 3,
+          restSeconds: 0
+        },
+        plan().exercises[1]
+      ]
+    }));
+
+    tempo.componentInstance.startGuidedSet();
+    tick(3_000);
+    tempo.componentInstance.stopGuidedSet();
+
+    expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+      'session-live',
+      'log-1',
+      1,
+      jasmine.objectContaining({ reps: 1, durationSeconds: 3 })
+    );
+  }));
 
   it('advances to the next exercise after rest finishes', fakeAsync(() => {
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
