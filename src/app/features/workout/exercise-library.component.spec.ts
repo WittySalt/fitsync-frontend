@@ -49,7 +49,7 @@ function pagedExercises(
   return {
     items,
     page: 0,
-    size: 24,
+    size: 20,
     totalPages: 1,
     totalElements: items.length,
     ...overrides
@@ -105,14 +105,14 @@ describe('ExerciseLibraryComponent', () => {
     expect(optionText).toContain('Intermediate');
   });
 
-  it('loads the first exercise page with a page size of 24', () => {
+  it('loads the first exercise page with the default page size', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
 
     expect(dataService.searchExercisesPage).toHaveBeenCalledWith(
       jasmine.objectContaining({
         page: 0,
-        size: 24
+        size: 20
       })
     );
   });
@@ -140,7 +140,7 @@ describe('ExerciseLibraryComponent', () => {
     expect(dataService.searchExercisesPage).toHaveBeenCalledWith(
       jasmine.objectContaining({
         page: 1,
-        size: 24
+        size: 20
       })
     );
   });
@@ -162,10 +162,39 @@ describe('ExerciseLibraryComponent', () => {
       jasmine.objectContaining({
         q: 'press',
         page: 0,
-        size: 24
+        size: 20
       })
     );
   }));
+
+  it('resets to the first page when the exercise page size changes', () => {
+    dataService.searchExercisesPage.and.callFake((options) => {
+      const request = options ?? {};
+      return of(
+        pagedExercises([exercise()], {
+          page: request.page ?? 0,
+          size: request.size ?? 20,
+          totalPages: 5,
+          totalElements: 90
+        })
+      );
+    });
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.nextPage();
+    fixture.detectChanges();
+    fixture.componentInstance.setPageSize(10);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.page()).toBe(0);
+    expect(dataService.searchExercisesPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        page: 0,
+        size: 10
+      })
+    );
+  });
 
   it('renders total pages and total elements in the pagination bar', () => {
     dataService.searchExercisesPage.and.returnValue(
@@ -175,6 +204,7 @@ describe('ExerciseLibraryComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Page 1 / 3 (49 exercises)');
+    expect(fixture.nativeElement.textContent).toContain('Per page');
   });
 
   it('hides the pagination bar when there is only one page', () => {
@@ -272,6 +302,40 @@ describe('ExerciseLibraryComponent', () => {
     expect(text).toContain('No records yet');
     expect(text).not.toContain('0 kg');
     expect(text).not.toContain('0 reps');
+  });
+
+  it('shows the focused detail view and restores the same library page when returning', () => {
+    dataService.searchExercisesPage.and.callFake((options) => {
+      const request = options ?? {};
+      return of(
+        pagedExercises([exercise({ exerciseId: `exercise-${request.page ?? 0}` })], {
+          page: request.page ?? 0,
+          totalPages: 3,
+          totalElements: 60
+        })
+      );
+    });
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.nextPage();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.page()).toBe(1);
+
+    fixture.componentInstance.selectExercise(exercise());
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.exercise-detail')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.exercise-list')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Back to library');
+
+    fixture.componentInstance.clearSelectedExercise();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.page()).toBe(1);
+    expect(fixture.nativeElement.querySelector('.exercise-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.pagination-bar')).not.toBeNull();
   });
 
   it('renders exercise media, instructions, metadata, records, and history details', () => {

@@ -255,7 +255,7 @@ export class MealBuilderComponent implements OnInit {
   }
 
   setPageSize(size: number): void {
-    if (!this.pageSizeOptions.includes(size as (typeof this.pageSizeOptions)[number])) {
+    if (!this.pageSizeOptions.includes(size as (typeof this.pageSizeOptions)[number]) || size === this.pageSize()) {
       return;
     }
     this.pageSize.set(size);

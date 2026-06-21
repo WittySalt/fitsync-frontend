@@ -7,7 +7,8 @@
   </div>
 
   @if (metadata(); as meta) {
-    <form class="filter-panel" [formGroup]="filterForm">
+    @if (!displayExercise()) {
+      <form class="filter-panel" [formGroup]="filterForm">
       <label>
         Search
         <input formControlName="q" type="search" placeholder="Search exercises" autocomplete="off" />
@@ -48,9 +49,9 @@
           }
         </select>
       </label>
-    </form>
+      </form>
 
-    <section class="editor-panel" aria-label="Create custom exercise">
+      <section class="editor-panel" aria-label="Create custom exercise">
       <div>
         <span class="card-label">Custom exercise</span>
         <h3>Create exercise</h3>
@@ -102,10 +103,10 @@
         </label>
         <button class="button primary" type="submit" [disabled]="saving()">Create</button>
       </form>
-    </section>
+      </section>
 
-    @if (editingExercise(); as exercise) {
-      <section class="editor-panel" aria-label="Edit custom exercise">
+      @if (editingExercise(); as exercise) {
+        <section class="editor-panel" aria-label="Edit custom exercise">
         <div class="editor-header">
           <div>
             <span class="card-label">Edit</span>
@@ -156,13 +157,13 @@
           </label>
           <button class="button primary" type="submit" [disabled]="saving()">Save changes</button>
         </form>
-      </section>
-    }
+        </section>
+      }
 
-    @if (loading()) {
-      <div class="skeleton tall"></div>
-    } @else if (exercises().length) {
-      <div class="exercise-list">
+      @if (loading()) {
+        <div class="skeleton tall"></div>
+      } @else if (exercises().length) {
+        <div class="exercise-list">
         @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
           <article class="exercise-item">
             <button class="exercise-select" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
@@ -187,20 +188,29 @@
             </div>
           </article>
         }
-      </div>
-      @if (totalPages() > 1) {
-        <nav class="pagination-bar" aria-label="Exercise catalog pages">
+        </div>
+        @if (totalPages() > 1) {
+          <nav class="pagination-bar" aria-label="Exercise catalog pages">
           <button class="button secondary" type="button" (click)="prevPage()" [disabled]="loading() || page() <= 0">
             Previous
           </button>
+          <label class="page-size">
+            Per page
+            <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
+              <option [value]="10">10</option>
+              <option [value]="20">20</option>
+              <option [value]="50">50</option>
+            </select>
+          </label>
           <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} exercises)</span>
           <button class="button secondary" type="button" (click)="nextPage()" [disabled]="loading() || page() + 1 >= totalPages()">
             Next
           </button>
-        </nav>
+          </nav>
+        }
+      } @else {
+        <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
       }
-    } @else {
-      <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
     }
 
     @if (displayExercise(); as exercise) {
@@ -210,7 +220,7 @@
             <span class="card-label">Exercise detail</span>
             <h3>{{ exercise.name }}</h3>
           </div>
-          <button class="text-link" type="button" (click)="clearSelectedExercise()">Close</button>
+          <button class="button secondary" type="button" (click)="clearSelectedExercise()">&larr; Back to library</button>
         </div>
 
         @if (exerciseDetailLoading()) {
