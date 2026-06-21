@@ -136,6 +136,8 @@ export class GoalLifecycleComponent implements OnInit {
       WEIGHT: 'kg',
       CALORIES: 'kcal',
       PROTEIN: 'g',
+      CARBS: 'g',
+      FAT: 'g',
       WORKOUT_FREQUENCY: 'sessions/week'
     };
     return units[goalType];

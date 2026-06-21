@@ -367,7 +367,7 @@ export interface Goal {
   progressRatio: number;
 }
 
-export const GOAL_TYPES = ['WEIGHT', 'CALORIES', 'PROTEIN', 'WORKOUT_FREQUENCY'] as const;
+export const GOAL_TYPES = ['WEIGHT', 'CALORIES', 'PROTEIN', 'CARBS', 'FAT', 'WORKOUT_FREQUENCY'] as const;
 export type GoalType = (typeof GOAL_TYPES)[number];
 
 export const GOAL_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED'] as const;

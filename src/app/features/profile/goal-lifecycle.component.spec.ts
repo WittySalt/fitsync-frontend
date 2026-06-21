@@ -51,7 +51,7 @@ describe('GoalLifecycleComponent', () => {
     }).compileComponents();
   });
 
-  it('renders all four goal types and an honest unset state', () => {
+  it('renders all six goal types and an honest unset state', () => {
     const fixture = TestBed.createComponent(GoalLifecycleComponent);
     fixture.detectChanges();
 
@@ -59,11 +59,24 @@ describe('GoalLifecycleComponent', () => {
     expect(text).toContain('Weight');
     expect(text).toContain('Calories');
     expect(text).toContain('Protein');
+    expect(text).toContain('Carbs');
+    expect(text).toContain('Fat');
     expect(text).toContain('Workout Frequency');
     expect(text).toContain('未设置');
     expect(text).toContain('75 kg');
     expect(text).not.toContain('0 kcal');
     expect(text).not.toContain('0 g');
+  });
+
+  it('defaults carbohydrate and fat goals to grams', () => {
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit('CARBS');
+    expect(fixture.componentInstance.form.controls.targetUnit.value).toBe('g');
+
+    fixture.componentInstance.startEdit('FAT');
+    expect(fixture.componentInstance.form.controls.targetUnit.value).toBe('g');
   });
 
   it('upserts a goal with the selected goal type and form body', () => {

@@ -365,6 +365,20 @@ describe('SettingsPage', () => {
     }));
   });
 
+  it('offers carbohydrate and fat goals with grams as their default unit', () => {
+    const component = fixture.componentInstance;
+    const labels = component.goalTypeOptions.map((option) => option.label);
+
+    expect(labels).toContain('Carbs');
+    expect(labels).toContain('Fat');
+
+    component.startGoalEdit('CARBS');
+    expect(component.goalForm.controls.targetUnit.value).toBe('g');
+
+    component.startGoalEdit('FAT');
+    expect(component.goalForm.controls.targetUnit.value).toBe('g');
+  });
+
   it('requests account data export from the privacy section', () => {
     fixture.componentInstance.requestDataExport();
 
