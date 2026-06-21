@@ -23,6 +23,7 @@
 
 .player-topbar h2,
 .focus-copy h3,
+.guidance-toggle,
 .movement-queue h3,
 .focus-card.empty h3,
 .progress-copy,
@@ -46,6 +47,8 @@
 .live-metrics span,
 .progress-copy,
 .completion-note,
+.guidance-content p,
+.guidance-empty,
 .queue-item small,
 .focus-copy p,
 .focus-card.empty p {
@@ -191,6 +194,67 @@
 .rest-actions {
   display: flex;
   gap: 8px;
+}
+
+.guidance-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+}
+
+.guidance-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+.guidance-toggle span:last-child {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.guidance-content {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.guidance-content p,
+.instruction-list {
+  margin: 0;
+}
+
+.instruction-list {
+  display: grid;
+  gap: 8px;
+  padding-left: 22px;
+}
+
+.guidance-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guidance-chips span,
+.guidance-loading {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
 }
 
 .movement-queue {

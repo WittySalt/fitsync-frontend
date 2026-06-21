@@ -1,6 +1,8 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, computed, effect, inject, signal } from '@angular/core';
 
+import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
+  ExerciseDetail,
   WorkoutExerciseLog,
   WorkoutPlan,
   WorkoutPlanExercise,
@@ -15,6 +17,7 @@ import { WorkoutLiveService } from './workout-live.service';
   styleUrl: './exercise-player.component.scss'
 })
 export class ExercisePlayerComponent implements OnChanges, OnDestroy {
+  private readonly dataService = inject(FitSyncDataService);
   private readonly toast = inject(ToastService);
   readonly live = inject(WorkoutLiveService);
 
@@ -32,8 +35,12 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly ending = signal(false);
   readonly allTargetsComplete = signal(false);
   readonly failedMediaKeys = signal<Set<string>>(new Set());
+  readonly guidanceOpen = signal(true);
+  readonly currentDetail = signal<ExerciseDetail | null>(null);
+  readonly detailLoading = signal(false);
 
   private restTimerId: ReturnType<typeof setInterval> | null = null;
+  private readonly detailCache = new Map<string, ExerciseDetail | null>();
 
   readonly orderedLogs = computed(() =>
     [...(this.live.session()?.exercises ?? [])].sort((a, b) => a.sequence - b.sequence)
@@ -41,6 +48,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   readonly currentLog = computed(() => this.orderedLogs()[this.currentExerciseIndex()] ?? null);
   readonly currentPlanExercise = computed(() => this.findPlanExercise(this.currentLog()));
+  readonly currentExerciseId = computed(() => this.currentLog()?.exerciseId || this.currentPlanExercise()?.exerciseId || '');
   readonly targetSets = computed(() => Math.max(1, this.currentPlanExercise()?.targetSets ?? 1));
   readonly totalTargetSets = computed(() =>
     (this.activePlan?.exercises ?? []).reduce((sum, exercise) => sum + Math.max(1, exercise.targetSets ?? 1), 0)
@@ -67,6 +75,32 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       ?? log?.images?.[0]
       ?? log?.animationUrl
       ?? null;
+  });
+  readonly sortedInstructions = computed(() =>
+    [...(this.currentDetail()?.instructions ?? [])].sort((a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER))
+  );
+  readonly guidanceChips = computed(() => {
+    const detail = this.currentDetail();
+    if (!detail) {
+      return [];
+    }
+    return [
+      detail.primaryMuscleGroup,
+      ...(detail.secondaryMuscleGroups ?? []),
+      detail.equipment,
+      detail.difficulty
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => this.formatLabel(value));
+  });
+  readonly hasGuidance = computed(() => {
+    const detail = this.currentDetail();
+    return Boolean(detail?.description?.trim()) || this.sortedInstructions().length > 0;
+  });
+
+  private readonly detailEffect = effect(() => {
+    const exerciseId = this.currentExerciseId();
+    this.loadExerciseDetail(exerciseId);
   });
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -199,6 +233,17 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.failedMediaKeys.update((failed) => new Set(failed).add(key));
   }
 
+  toggleGuidance(): void {
+    this.guidanceOpen.update((open) => !open);
+  }
+
+  formatLabel(value: string | null | undefined): string {
+    return (value ?? '')
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   formatClock(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainder = seconds % 60;
@@ -226,6 +271,42 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
         this.advanceTarget();
       }
     }, 1000);
+  }
+
+  private loadExerciseDetail(exerciseId: string | null): void {
+    if (!exerciseId) {
+      this.detailLoading.set(false);
+      this.currentDetail.set(null);
+      return;
+    }
+
+    if (this.detailCache.has(exerciseId)) {
+      this.detailLoading.set(false);
+      this.currentDetail.set(this.detailCache.get(exerciseId) ?? null);
+      return;
+    }
+
+    this.detailLoading.set(true);
+    this.currentDetail.set(null);
+    this.dataService.getExercise(exerciseId).subscribe({
+      next: (detail) => {
+        this.detailCache.set(exerciseId, detail);
+        if (this.currentExerciseId() === exerciseId) {
+          this.currentDetail.set(detail);
+        }
+      },
+      error: () => {
+        this.detailCache.set(exerciseId, null);
+        if (this.currentExerciseId() === exerciseId) {
+          this.currentDetail.set(null);
+        }
+      },
+      complete: () => {
+        if (this.currentExerciseId() === exerciseId) {
+          this.detailLoading.set(false);
+        }
+      }
+    });
   }
 
   private advanceTarget(): void {

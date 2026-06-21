@@ -4,6 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
+  ExerciseDetail,
   WorkoutPlan,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
@@ -107,6 +108,31 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
   };
 }
 
+function exerciseDetail(overrides: Partial<ExerciseDetail> = {}): ExerciseDetail {
+  return {
+    exerciseId: 'exercise-1',
+    code: 'GOBLET_SQUAT',
+    name: 'Goblet Squat',
+    description: 'Hold the weight close and keep your chest tall.',
+    exerciseType: 'STRENGTH',
+    primaryMuscleGroup: 'QUADS',
+    equipment: 'DUMBBELLS',
+    difficulty: 'BEGINNER',
+    status: 'ACTIVE',
+    custom: false,
+    videoUrl: null,
+    animationUrl: null,
+    images: [],
+    imageUrls: [],
+    instructions: [
+      { stepNumber: 2, text: 'Drive through your feet to stand tall.' },
+      { stepNumber: 1, text: 'Brace your core before you descend.' }
+    ],
+    secondaryMuscleGroups: ['GLUTES'],
+    ...overrides
+  };
+}
+
 describe('ExercisePlayerComponent', () => {
   let fixture: ComponentFixture<ExercisePlayerComponent>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -117,6 +143,7 @@ describe('ExercisePlayerComponent', () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startWorkoutPlan',
       'startAdHocSession',
+      'getExercise',
       'upsertSessionSet',
       'completeSession',
       'cancelSession'
@@ -147,6 +174,23 @@ describe('ExercisePlayerComponent', () => {
     })));
     dataService.completeSession.and.returnValue(of(detail({ status: 'COMPLETED' })));
     dataService.cancelSession.and.returnValue(of(detail({ status: 'CANCELLED' })));
+    dataService.getExercise.and.callFake((exerciseId) =>
+      of(
+        exerciseId === 'exercise-2'
+          ? exerciseDetail({
+              exerciseId: 'exercise-2',
+              code: 'PUSH_UP',
+              name: 'Push-Up',
+              description: 'Keep a straight line from shoulders to heels.',
+              primaryMuscleGroup: 'CHEST',
+              equipment: 'BODYWEIGHT',
+              difficulty: 'INTERMEDIATE',
+              instructions: [{ stepNumber: 1, text: 'Lower under control, then press away from the floor.' }],
+              secondaryMuscleGroups: ['TRICEPS']
+            })
+          : exerciseDetail()
+      )
+    );
 
     await TestBed.configureTestingModule({
       imports: [ExercisePlayerComponent],
@@ -219,6 +263,58 @@ describe('ExercisePlayerComponent', () => {
     expect(fixture.nativeElement.querySelector('.media-placeholder')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.media-placeholder')?.textContent).toContain('G');
     expect(fixture.nativeElement.querySelector('.movement-media img')).toBeNull();
+  });
+
+  it('renders current exercise guidance with description, sorted steps, and metadata', () => {
+    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+
+    expect(text).toContain('How to perform');
+    expect(text).toContain('Hold the weight close and keep your chest tall.');
+    expect(text.indexOf('Brace your core before you descend.')).toBeLessThan(text.indexOf('Drive through your feet to stand tall.'));
+    expect(text).toContain('Quads');
+    expect(text).toContain('Glutes');
+    expect(text).toContain('Dumbbells');
+    expect(text).toContain('Beginner');
+  });
+
+  it('updates guidance when the current exercise changes and reuses cached details', fakeAsync(() => {
+    expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
+
+    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    tick(1_000);
+    fixture.detectChanges();
+
+    let text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain('Keep a straight line from shoulders to heels.');
+    expect(text).toContain('Lower under control, then press away from the floor.');
+    expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-2').length).toBe(1);
+
+    fixture.componentInstance.currentExerciseIndex.set(0);
+    fixture.detectChanges();
+
+    text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain('Hold the weight close and keep your chest tall.');
+    expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
+  }));
+
+  it('shows an honest guidance empty state when the current exercise has no catalog id', () => {
+    const withoutCatalogId = TestBed.createComponent(ExercisePlayerComponent);
+    withoutCatalogId.componentRef.setInput(
+      'session',
+      detail({
+        exercises: [
+          {
+            ...detail().exercises[0],
+            exerciseId: ''
+          }
+        ]
+      })
+    );
+    withoutCatalogId.componentRef.setInput('activePlan', plan({ exercises: [] }));
+    withoutCatalogId.detectChanges();
+
+    expect(dataService.getExercise).not.toHaveBeenCalledWith('');
+    expect(withoutCatalogId.nativeElement.textContent).toContain('No guidance available for this movement.');
   });
 
   it('renders the exercise image when media is available', () => {
