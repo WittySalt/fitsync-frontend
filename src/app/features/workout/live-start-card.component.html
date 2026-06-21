@@ -19,9 +19,18 @@
     <div class="form-grid">
       <label>
         Workout name
-        <input formControlName="name" maxlength="120" placeholder="Evening strength" autocomplete="off" />
-        @if (startForm.controls.name.touched && startForm.controls.name.invalid) {
-          <span class="field-error">A name is required.</span>
+        <select formControlName="name">
+          @for (preset of namePresets; track preset) {
+            <option [value]="preset">{{ preset }}</option>
+          }
+        </select>
+        @if (isCustomNameSelected(startForm.controls.name.value)) {
+          <input formControlName="customName" maxlength="120" placeholder="Name this workout" autocomplete="off" />
+          @if (customNameInvalid(startForm)) {
+            <span class="field-error">Enter a custom workout name.</span>
+          } @else if (customNameTooLong(startForm)) {
+            <span class="field-error">Keep the custom name under 120 characters.</span>
+          }
         }
       </label>
       <label>
@@ -81,9 +90,18 @@
     <form id="past-workout-form" class="past-workout-form" [formGroup]="pastWorkoutForm" (ngSubmit)="savePastWorkout()">
       <label>
         Workout name
-        <input formControlName="name" placeholder="Upper body strength" />
-        @if (pastWorkoutForm.controls.name.touched && pastWorkoutForm.controls.name.invalid) {
-          <span class="field-error">A name is required.</span>
+        <select formControlName="name">
+          @for (preset of namePresets; track preset) {
+            <option [value]="preset">{{ preset }}</option>
+          }
+        </select>
+        @if (isCustomNameSelected(pastWorkoutForm.controls.name.value)) {
+          <input formControlName="customName" maxlength="120" placeholder="Name this past workout" autocomplete="off" />
+          @if (customNameInvalid(pastWorkoutForm)) {
+            <span class="field-error">Enter a custom workout name.</span>
+          } @else if (customNameTooLong(pastWorkoutForm)) {
+            <span class="field-error">Keep the custom name under 120 characters.</span>
+          }
         }
       </label>
       <div class="form-grid">

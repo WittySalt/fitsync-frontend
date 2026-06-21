@@ -70,8 +70,8 @@ describe('LiveStartCardComponent', () => {
     const started = jasmine.createSpy('started');
     component.started.subscribe(started);
     component.selectMode('GOAL');
-    component.startForm.setValue({
-      name: 'Goal run',
+    component.startForm.patchValue({
+      name: 'Quick Cardio',
       workoutType: 'CARDIO',
       goalType: 'CALORIES',
       targetMinutes: 30,
@@ -80,11 +80,31 @@ describe('LiveStartCardComponent', () => {
 
     component.startWorkout();
 
-    expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Goal run', workoutType: 'CARDIO' });
+    expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Quick Cardio', workoutType: 'CARDIO' });
     expect(started).toHaveBeenCalledWith({
       session: jasmine.objectContaining({ sessionId: 'session-live' }),
       goal: { type: 'CALORIES', target: 320 }
     });
+  });
+
+  it('uses the default name preset without showing a required-name error', () => {
+    component.startWorkout();
+    fixture.detectChanges();
+
+    expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Morning Strength', workoutType: 'STRENGTH' });
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('A name is required.');
+  });
+
+  it('reveals a custom name input and submits its typed value', () => {
+    component.startForm.patchValue({ name: 'Custom…', customName: 'Track intervals', workoutType: 'CARDIO' });
+    fixture.detectChanges();
+
+    const customInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[formcontrolname="customName"]');
+    expect(customInput).not.toBeNull();
+
+    component.startWorkout();
+
+    expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Track intervals', workoutType: 'CARDIO' });
   });
 
   it('keeps the past workout form nested and collapsed until expanded', () => {
@@ -103,8 +123,8 @@ describe('LiveStartCardComponent', () => {
     const backfilled = jasmine.createSpy('backfilled');
     component.backfilled.subscribe(backfilled);
     component.pastWorkoutOpen.set(true);
-    component.pastWorkoutForm.setValue({
-      name: 'Evening run',
+    component.pastWorkoutForm.patchValue({
+      name: 'Evening Strength',
       workoutType: 'CARDIO',
       durationMinutes: 35,
       caloriesBurned: 300,
@@ -116,15 +136,31 @@ describe('LiveStartCardComponent', () => {
     fixture.debugElement.query(By.css('#past-workout-form')).triggerEventHandler('ngSubmit');
 
     expect(dataService.saveWorkoutSession).toHaveBeenCalledWith(
-      jasmine.objectContaining({ name: 'Evening run', workoutType: 'CARDIO', durationMinutes: 35 })
+      jasmine.objectContaining({ name: 'Evening Strength', workoutType: 'CARDIO', durationMinutes: 35 })
     );
     expect(toast.success).toHaveBeenCalledWith('Workout logged.');
     expect(backfilled).toHaveBeenCalled();
   });
 
+  it('submits a custom past workout name as a plain string', () => {
+    component.pastWorkoutOpen.set(true);
+    component.pastWorkoutForm.patchValue({
+      name: 'Custom…',
+      customName: 'Trail run',
+      workoutType: 'CARDIO'
+    });
+    fixture.detectChanges();
+
+    fixture.debugElement.query(By.css('#past-workout-form')).triggerEventHandler('ngSubmit');
+
+    expect(dataService.saveWorkoutSession).toHaveBeenCalledWith(
+      jasmine.objectContaining({ name: 'Trail run', workoutType: 'CARDIO' })
+    );
+  });
+
   it('surfaces start failures through toast', () => {
     dataService.startAdHocSession.and.returnValue(throwError(() => new Error('boom')));
-    component.startForm.patchValue({ name: 'Broken start', workoutType: 'HIIT' });
+    component.startForm.patchValue({ name: 'HIIT Session', workoutType: 'HIIT' });
 
     component.startWorkout();
 

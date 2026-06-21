@@ -102,10 +102,12 @@ dd {
 
 .form-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
 }
 
 label {
   display: grid;
+  align-content: start;
 }
 
 .status-control {

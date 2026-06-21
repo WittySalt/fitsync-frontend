@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -9,6 +9,9 @@ import { WorkoutLiveService } from './workout-live.service';
 
 type StartMode = 'FREE' | 'GOAL';
 type GoalType = 'MINUTES' | 'CALORIES';
+
+const CUSTOM_NAME = 'Custom…';
+type SessionNameValue = { name: string; customName: string };
 
 @Component({
   selector: 'app-live-start-card',
@@ -31,23 +34,42 @@ export class LiveStartCardComponent {
   readonly savingPastWorkout = signal(false);
 
   readonly workoutTypes = ['STRENGTH', 'CARDIO', 'HIIT', 'MOBILITY', 'CUSTOM'];
+  readonly namePresets = [
+    'Morning Strength',
+    'Evening Strength',
+    'Quick Cardio',
+    'HIIT Session',
+    'Mobility Flow',
+    'Full Body',
+    'Upper Body',
+    'Lower Body',
+    CUSTOM_NAME
+  ] as const;
 
-  readonly startForm = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.maxLength(120)]],
-    workoutType: ['STRENGTH', Validators.required],
-    goalType: ['MINUTES' as GoalType, Validators.required],
-    targetMinutes: [30, [Validators.min(1), Validators.max(600)]],
-    targetCalories: [300, [Validators.min(1), Validators.max(5000)]]
-  });
+  readonly startForm = this.fb.nonNullable.group(
+    {
+      name: [this.namePresets[0] as string, [Validators.required, Validators.maxLength(120)]],
+      customName: ['', [Validators.maxLength(120)]],
+      workoutType: ['STRENGTH', Validators.required],
+      goalType: ['MINUTES' as GoalType, Validators.required],
+      targetMinutes: [30, [Validators.min(1), Validators.max(600)]],
+      targetCalories: [300, [Validators.min(1), Validators.max(5000)]]
+    },
+    { validators: customNameRequiredValidator }
+  );
 
-  readonly pastWorkoutForm = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.maxLength(120)]],
-    workoutType: ['STRENGTH', Validators.required],
-    durationMinutes: [45, [Validators.required, Validators.min(1), Validators.max(600)]],
-    caloriesBurned: [350, [Validators.required, Validators.min(0), Validators.max(5000)]],
-    perceivedExertion: [7, [Validators.min(1), Validators.max(10)]],
-    notes: ['', Validators.maxLength(300)]
-  });
+  readonly pastWorkoutForm = this.fb.nonNullable.group(
+    {
+      name: [this.namePresets[0] as string, [Validators.required, Validators.maxLength(120)]],
+      customName: ['', [Validators.maxLength(120)]],
+      workoutType: ['STRENGTH', Validators.required],
+      durationMinutes: [45, [Validators.required, Validators.min(1), Validators.max(600)]],
+      caloriesBurned: [350, [Validators.required, Validators.min(0), Validators.max(5000)]],
+      perceivedExertion: [7, [Validators.min(1), Validators.max(10)]],
+      notes: ['', Validators.maxLength(300)]
+    },
+    { validators: customNameRequiredValidator }
+  );
 
   selectMode(mode: StartMode): void {
     this.startMode.set(mode);
@@ -66,7 +88,7 @@ export class LiveStartCardComponent {
     this.starting.set(true);
     const raw = this.startForm.getRawValue();
     this.workoutLive.startAdHoc({
-      name: raw.name,
+      name: this.resolveSessionName(raw),
       workoutType: raw.workoutType
     })
       .pipe(finalize(() => this.starting.set(false)))
@@ -86,13 +108,22 @@ export class LiveStartCardComponent {
     }
 
     this.savingPastWorkout.set(true);
-    this.dataService.saveWorkoutSession(this.pastWorkoutForm.getRawValue())
+    const raw = this.pastWorkoutForm.getRawValue();
+    this.dataService.saveWorkoutSession({
+      name: this.resolveSessionName(raw),
+      workoutType: raw.workoutType,
+      durationMinutes: raw.durationMinutes,
+      caloriesBurned: raw.caloriesBurned,
+      perceivedExertion: raw.perceivedExertion,
+      notes: raw.notes
+    })
       .pipe(finalize(() => this.savingPastWorkout.set(false)))
       .subscribe({
         next: () => {
           this.pastWorkoutOpen.set(false);
           this.pastWorkoutForm.reset({
-            name: '',
+            name: this.namePresets[0],
+            customName: '',
             workoutType: 'STRENGTH',
             durationMinutes: 45,
             caloriesBurned: 350,
@@ -113,6 +144,18 @@ export class LiveStartCardComponent {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  isCustomNameSelected(name: string): boolean {
+    return name === CUSTOM_NAME;
+  }
+
+  customNameInvalid(form: typeof this.startForm | typeof this.pastWorkoutForm): boolean {
+    return form.controls.customName.touched && form.hasError('customNameRequired');
+  }
+
+  customNameTooLong(form: typeof this.startForm | typeof this.pastWorkoutForm): boolean {
+    return form.controls.customName.touched && form.controls.customName.hasError('maxlength');
+  }
+
   private buildGoal(): LiveTrackerGoal | null {
     if (this.startMode() !== 'GOAL') {
       return null;
@@ -123,4 +166,14 @@ export class LiveStartCardComponent {
     }
     return { type: 'MINUTES', target: raw.targetMinutes };
   }
+
+  private resolveSessionName(value: SessionNameValue): string {
+    return value.name === CUSTOM_NAME ? value.customName.trim() : value.name;
+  }
+}
+
+function customNameRequiredValidator(control: AbstractControl): ValidationErrors | null {
+  const name = control.get('name')?.value;
+  const customName = String(control.get('customName')?.value ?? '').trim();
+  return name === CUSTOM_NAME && !customName ? { customNameRequired: true } : null;
 }
