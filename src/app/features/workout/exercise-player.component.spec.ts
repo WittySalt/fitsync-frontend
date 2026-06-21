@@ -468,6 +468,17 @@ describe('ExercisePlayerComponent', () => {
     expect(text).toContain('Beginner');
   });
 
+  it('renders an optional video guide inside the guidance panel', () => {
+    dataService.getExercise.and.returnValue(of(exerciseDetail({
+      videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
+    })));
+    const withVideo = renderPlayer(plan());
+    withVideo.detectChanges();
+
+    expect(withVideo.nativeElement.textContent).toContain('Watch video');
+    expect(withVideo.nativeElement.querySelector('.guidance-panel app-exercise-video .video-preview')).not.toBeNull();
+  });
+
   it('updates guidance when the current exercise changes and reuses cached details', fakeAsync(() => {
     expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
 

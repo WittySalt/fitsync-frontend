@@ -101,6 +101,39 @@
             }
           </select>
         </label>
+        <fieldset class="video-fields wide">
+          <legend>Video (optional)</legend>
+          <div class="video-mode">
+            <label>
+              <input type="radio" formControlName="videoMode" value="url" />
+              Paste YouTube/Vimeo link
+            </label>
+            <label>
+              <input type="radio" formControlName="videoMode" value="upload" />
+              Upload short clip
+            </label>
+          </div>
+          @if (createForm.controls.videoMode.value === 'url') {
+            <label>
+              Video URL
+              <input formControlName="videoUrl" maxlength="500" placeholder="https://youtube.com/watch?v=..." />
+            </label>
+          } @else {
+            <label>
+              Video file
+              <input type="file" accept="video/mp4,video/webm" (change)="selectCreateVideoFile($event)" />
+            </label>
+            @if (createVideoFile(); as file) {
+              <small>{{ file.name }} selected. It will upload after the exercise is created.</small>
+            }
+            @if (createUploadProgress() !== null) {
+              <progress max="100" [value]="createUploadProgress() ?? 0"></progress>
+            }
+          }
+          @if (createVideoError()) {
+            <p class="field-error">{{ createVideoError() }}</p>
+          }
+        </fieldset>
         <button class="button primary" type="submit" [disabled]="saving()">Create</button>
       </form>
       </section>
@@ -155,6 +188,45 @@
               }
             </select>
           </label>
+          <fieldset class="video-fields wide">
+            <legend>Video (optional)</legend>
+            @if (exercise.videoUrl) {
+              <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
+            }
+            <div class="video-mode">
+              <label>
+                <input type="radio" formControlName="videoMode" value="url" />
+                Paste YouTube/Vimeo link
+              </label>
+              <label>
+                <input type="radio" formControlName="videoMode" value="upload" />
+                Upload short clip
+              </label>
+            </div>
+            @if (editForm.controls.videoMode.value === 'url') {
+              <label>
+                Video URL
+                <input formControlName="videoUrl" maxlength="500" placeholder="https://vimeo.com/..." />
+              </label>
+            } @else {
+              <label>
+                Video file
+                <input type="file" accept="video/mp4,video/webm" (change)="selectEditVideoFile($event)" />
+              </label>
+              @if (editVideoFile(); as file) {
+                <small>{{ file.name }} selected.</small>
+                <button class="button secondary" type="button" [disabled]="saving()" (click)="uploadEditingVideo()">
+                  Upload video
+                </button>
+              }
+              @if (editUploadProgress() !== null) {
+                <progress max="100" [value]="editUploadProgress() ?? 0"></progress>
+              }
+            }
+            @if (editVideoError()) {
+              <p class="field-error">{{ editVideoError() }}</p>
+            }
+          </fieldset>
           <button class="button primary" type="submit" [disabled]="saving()">Save changes</button>
         </form>
         </section>
@@ -238,7 +310,7 @@
               }
               @if (exercise.videoUrl) {
                 <figcaption>
-                  <a class="text-link" [href]="exercise.videoUrl" target="_blank" rel="noreferrer">Open video guide</a>
+                  <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
                 </figcaption>
               }
             </figure>

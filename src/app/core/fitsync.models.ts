@@ -301,6 +301,7 @@ export interface CreateExerciseRequest {
   primaryMuscleGroup: string;
   equipment: string;
   difficulty: string;
+  videoUrl?: string | null;
 }
 
 export type UpdateExerciseRequest = Omit<CreateExerciseRequest, 'code'>;

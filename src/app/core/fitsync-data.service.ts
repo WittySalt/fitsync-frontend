@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
 
@@ -830,6 +830,24 @@ export class FitSyncDataService {
     return this.http
       .put<BackendExerciseView>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}`, request)
       .pipe(map((exercise) => this.mapExercise(exercise)));
+  }
+
+  uploadExerciseVideo(exerciseId: string, file: Blob): Observable<HttpEvent<Exercise>> {
+    const form = new FormData();
+    form.append('file', file, 'exercise-video');
+    return this.http
+      .post<BackendExerciseView>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}/video`, form, {
+        reportProgress: true,
+        observe: 'events'
+      })
+      .pipe(
+        map((event) => {
+          if (event.type !== HttpEventType.Response) {
+            return event;
+          }
+          return event.clone({ body: this.mapExercise(event.body ?? {}) });
+        })
+      );
   }
 
   archiveExercise(exerciseId: string): Observable<void> {

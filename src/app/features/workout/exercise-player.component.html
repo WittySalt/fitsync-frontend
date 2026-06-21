@@ -154,6 +154,12 @@
                 }
               </div>
             }
+            @if (detail.videoUrl) {
+              <details>
+                <summary>Watch video</summary>
+                <app-exercise-video [videoUrl]="detail.videoUrl" [title]="detail.name + ' video guide'" />
+              </details>
+            }
           } @else {
             <p class="guidance-empty">No guidance available for this movement.</p>
           }

@@ -1,4 +1,5 @@
-import { Component, EventEmitter, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { HttpEventType } from '@angular/common/http';
+import { Component, EventEmitter, OnInit, Output, WritableSignal, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 
@@ -17,6 +18,7 @@ import {
 import { ToastService } from '../../core/toast/toast.service';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { ExerciseVideoComponent, isAllowedEmbedVideoUrl } from './exercise-video.component';
 
 interface RecordCard {
   label: string;
@@ -31,7 +33,7 @@ interface HistoryTrend {
 
 @Component({
   selector: 'app-exercise-library',
-  imports: [ReactiveFormsModule, FsChartComponent, StatePanelComponent],
+  imports: [ReactiveFormsModule, FsChartComponent, StatePanelComponent, ExerciseVideoComponent],
   templateUrl: './exercise-library.component.html',
   styleUrl: './exercise-library.component.scss'
 })
@@ -57,6 +59,15 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly exerciseHistory = signal<ExerciseHistoryEntry[]>([]);
   readonly exerciseDetailLoading = signal(false);
   readonly mediaFailed = signal(false);
+  readonly createVideoFile = signal<File | null>(null);
+  readonly editVideoFile = signal<File | null>(null);
+  readonly createUploadProgress = signal<number | null>(null);
+  readonly editUploadProgress = signal<number | null>(null);
+  readonly createVideoError = signal('');
+  readonly editVideoError = signal('');
+
+  private readonly allowedVideoTypes = new Set(['video/mp4', 'video/webm']);
+  private readonly maxVideoBytes = 30 * 1024 * 1024;
 
   readonly filterForm = this.fb.nonNullable.group({
     q: [''],
@@ -73,7 +84,9 @@ export class ExerciseLibraryComponent implements OnInit {
     exerciseType: ['', Validators.required],
     primaryMuscleGroup: ['', Validators.required],
     equipment: ['', Validators.required],
-    difficulty: ['', Validators.required]
+    difficulty: ['', Validators.required],
+    videoMode: ['url'],
+    videoUrl: ['', Validators.maxLength(500)]
   });
 
   readonly editForm = this.fb.nonNullable.group({
@@ -82,7 +95,9 @@ export class ExerciseLibraryComponent implements OnInit {
     exerciseType: ['', Validators.required],
     primaryMuscleGroup: ['', Validators.required],
     equipment: ['', Validators.required],
-    difficulty: ['', Validators.required]
+    difficulty: ['', Validators.required],
+    videoMode: ['url'],
+    videoUrl: ['', Validators.maxLength(500)]
   });
 
   readonly recordCards = computed<RecordCard[]>(() => {
@@ -213,8 +228,13 @@ export class ExerciseLibraryComponent implements OnInit {
       exerciseType: exercise.exerciseType,
       primaryMuscleGroup: exercise.primaryMuscleGroup,
       equipment: exercise.equipment,
-      difficulty: exercise.difficulty
+      difficulty: exercise.difficulty,
+      videoMode: 'url',
+      videoUrl: exercise.videoUrl && isAllowedEmbedVideoUrl(exercise.videoUrl) ? exercise.videoUrl : ''
     });
+    this.editVideoFile.set(null);
+    this.editUploadProgress.set(null);
+    this.editVideoError.set('');
   }
 
   cancelEdit(): void {
@@ -225,43 +245,42 @@ export class ExerciseLibraryComponent implements OnInit {
       exerciseType: '',
       primaryMuscleGroup: '',
       equipment: '',
-      difficulty: ''
+      difficulty: '',
+      videoMode: 'url',
+      videoUrl: ''
     });
+    this.editVideoFile.set(null);
+    this.editUploadProgress.set(null);
+    this.editVideoError.set('');
   }
 
   createExercise(): void {
     this.createForm.markAllAsTouched();
-    if (this.createForm.invalid || this.saving()) {
+    if (this.createForm.invalid || this.saving() || !this.validateVideoUrl(this.createForm.getRawValue(), this.createVideoError)) {
       return;
     }
 
+    const videoFile = this.createVideoFile();
     this.saving.set(true);
     this.dataService.createExercise(this.normalizeCreate(this.createForm.getRawValue())).subscribe({
-      next: () => {
-        this.toast.success('Exercise created.');
-        this.createForm.reset({
-          code: '',
-          name: '',
-          description: '',
-          exerciseType: '',
-          primaryMuscleGroup: '',
-          equipment: '',
-          difficulty: ''
-        });
-        this.loadExercises();
+      next: (exercise) => {
+        if (videoFile && exercise.exerciseId) {
+          this.uploadVideoForExercise(exercise.exerciseId, videoFile, 'create', () => this.finishCreateSuccess());
+          return;
+        }
+        this.finishCreateSuccess();
       },
       error: () => {
         this.toast.error('Unable to create exercise. Check the code and retry.');
         this.saving.set(false);
-      },
-      complete: () => this.saving.set(false)
+      }
     });
   }
 
   updateExercise(): void {
     const exercise = this.editingExercise();
     this.editForm.markAllAsTouched();
-    if (!exercise?.exerciseId || this.editForm.invalid || this.saving()) {
+    if (!exercise?.exerciseId || this.editForm.invalid || this.saving() || !this.validateVideoUrl(this.editForm.getRawValue(), this.editVideoError)) {
       return;
     }
 
@@ -277,6 +296,32 @@ export class ExerciseLibraryComponent implements OnInit {
         this.saving.set(false);
       },
       complete: () => this.saving.set(false)
+    });
+  }
+
+  uploadEditingVideo(): void {
+    const exercise = this.editingExercise();
+    const file = this.editVideoFile();
+    if (!exercise?.exerciseId || !file || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.uploadVideoForExercise(exercise.exerciseId, file, 'edit', (updatedExercise) => {
+      this.toast.success('Exercise video uploaded.');
+      this.editingExercise.set(updatedExercise);
+      if (this.selectedExercise()?.exerciseId === updatedExercise.exerciseId) {
+        this.selectedExercise.set(updatedExercise);
+      }
+      if (this.selectedExerciseDetail()?.exerciseId === updatedExercise.exerciseId) {
+        this.selectedExerciseDetail.set({
+          ...this.selectedExerciseDetail()!,
+          videoUrl: updatedExercise.videoUrl ?? null
+        });
+      }
+      this.editVideoFile.set(null);
+      this.loadExercises();
+      this.saving.set(false);
     });
   }
 
@@ -349,6 +394,14 @@ export class ExerciseLibraryComponent implements OnInit {
 
   markMediaFailed(): void {
     this.mediaFailed.set(true);
+  }
+
+  selectCreateVideoFile(event: Event): void {
+    this.selectVideoFile(event, this.createVideoFile, this.createVideoError, this.createUploadProgress);
+  }
+
+  selectEditVideoFile(event: Event): void {
+    this.selectVideoFile(event, this.editVideoFile, this.editVideoError, this.editUploadProgress);
   }
 
   goToPage(nextPage: number): void {
@@ -429,21 +482,33 @@ export class ExerciseLibraryComponent implements OnInit {
     }
   }
 
-  private normalizeCreate(value: CreateExerciseRequest): CreateExerciseRequest {
-    return {
-      ...value,
+  private normalizeCreate(value: CreateExerciseRequest & { videoMode?: string; videoUrl?: string }): CreateExerciseRequest {
+    const { videoMode, videoUrl, ...exercise } = value;
+    const normalized: CreateExerciseRequest = {
+      ...exercise,
       code: value.code.trim().toUpperCase(),
       name: value.name.trim(),
       description: value.description.trim()
     };
+    const embedUrl = videoUrl?.trim();
+    if (videoMode === 'url' && embedUrl) {
+      normalized.videoUrl = embedUrl;
+    }
+    return normalized;
   }
 
-  private normalizeUpdate(value: UpdateExerciseRequest): UpdateExerciseRequest {
-    return {
-      ...value,
+  private normalizeUpdate(value: UpdateExerciseRequest & { videoMode?: string; videoUrl?: string }): UpdateExerciseRequest {
+    const { videoMode, videoUrl, ...exercise } = value;
+    const normalized: UpdateExerciseRequest = {
+      ...exercise,
       name: value.name.trim(),
       description: value.description.trim()
     };
+    const embedUrl = videoUrl?.trim();
+    if (videoMode === 'url' && embedUrl) {
+      normalized.videoUrl = embedUrl;
+    }
+    return normalized;
   }
 
   private formatDateOnly(value: string | null | undefined): string {
@@ -496,5 +561,100 @@ export class ExerciseLibraryComponent implements OnInit {
       .replace(/^_+|_+$/g, '')
       .toUpperCase();
     this.createForm.controls.code.setValue(slug ? `CUSTOM_${slug}` : '', { emitEvent: false });
+  }
+
+  private finishCreateSuccess(): void {
+    this.toast.success('Exercise created.');
+    this.createForm.reset({
+      code: '',
+      name: '',
+      description: '',
+      exerciseType: this.metadata()?.exerciseTypes[0] || '',
+      primaryMuscleGroup: this.metadata()?.muscleGroups[0] || '',
+      equipment: this.metadata()?.equipment[0] || '',
+      difficulty: this.metadata()?.difficulties[0] || '',
+      videoMode: 'url',
+      videoUrl: ''
+    });
+    this.createVideoFile.set(null);
+    this.createUploadProgress.set(null);
+    this.createVideoError.set('');
+    this.loadExercises();
+    this.saving.set(false);
+  }
+
+  private validateVideoUrl(value: { videoMode?: string; videoUrl?: string }, errorSignal: WritableSignal<string>): boolean {
+    const videoUrl = value.videoUrl?.trim();
+    if (value.videoMode !== 'url' || !videoUrl) {
+      errorSignal.set('');
+      return true;
+    }
+    if (isAllowedEmbedVideoUrl(videoUrl)) {
+      errorSignal.set('');
+      return true;
+    }
+    errorSignal.set('Use a YouTube or Vimeo URL.');
+    return false;
+  }
+
+  private selectVideoFile(
+    event: Event,
+    fileSignal: WritableSignal<File | null>,
+    errorSignal: WritableSignal<string>,
+    progressSignal: WritableSignal<number | null>
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    progressSignal.set(null);
+    if (!file) {
+      fileSignal.set(null);
+      errorSignal.set('');
+      return;
+    }
+    if (!this.allowedVideoTypes.has(file.type)) {
+      fileSignal.set(null);
+      errorSignal.set('Use an MP4 or WebM file.');
+      input.value = '';
+      return;
+    }
+    if (file.size > this.maxVideoBytes) {
+      fileSignal.set(null);
+      errorSignal.set('Video must be 30 MB or smaller.');
+      input.value = '';
+      return;
+    }
+    fileSignal.set(file);
+    errorSignal.set('');
+  }
+
+  private uploadVideoForExercise(
+    exerciseId: string,
+    file: File,
+    target: 'create' | 'edit',
+    onSuccess: (exercise: Exercise) => void
+  ): void {
+    const progressSignal = target === 'create' ? this.createUploadProgress : this.editUploadProgress;
+    const errorSignal = target === 'create' ? this.createVideoError : this.editVideoError;
+    progressSignal.set(0);
+    this.dataService.uploadExerciseVideo(exerciseId, file).subscribe({
+      next: (event) => {
+        if (event.type === HttpEventType.UploadProgress) {
+          const total = event.total ?? file.size;
+          progressSignal.set(total > 0 ? Math.round((event.loaded / total) * 100) : 0);
+          return;
+        }
+        if (event.type === HttpEventType.Response) {
+          progressSignal.set(100);
+          if (event.body) {
+            onSuccess(event.body);
+          }
+        }
+      },
+      error: () => {
+        errorSignal.set('Unable to upload video. Please retry.');
+        this.toast.error('Unable to upload exercise video. Please retry.');
+        this.saving.set(false);
+      }
+    });
   }
 }

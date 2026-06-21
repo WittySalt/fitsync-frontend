@@ -74,6 +74,44 @@ label {
   font-weight: var(--fw-semibold);
 }
 
+.video-fields {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.video-fields legend {
+  padding: 0 4px;
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.video-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.video-mode label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
 .wide {
   grid-column: span 2;
 }
