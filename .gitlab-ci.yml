@@ -76,16 +76,16 @@ sonarqube:
   variables:
     SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
     GIT_DEPTH: "0"
+  # NOTE: the analysis logs a harmless "Failed to initialize bash parser /
+  # ExceptionInInitializerError" from the IaC Shell sensor because the scanner
+  # image's user.home (/home/scanner-cli) is absent in the container. The scan
+  # succeeds and the quality gate is unaffected. It can't be silenced via HOME or
+  # -Duser.home (the analysis JVM reads user.home from the OS account); ignore it.
   cache:
     key: "sonar-$CI_COMMIT_REF_SLUG"
     paths:
       - .sonar/cache
   script:
-    # Give the scanner a writable HOME so the IaC Shell sensor's bash parser can
-    # initialise instead of logging an ExceptionInInitializerError (cosmetic; the
-    # scan succeeds either way). Set here, not in job variables, so it does not
-    # affect the runner's get_sources phase. Distinct from SONAR_USER_HOME (cache).
-    - export HOME="${CI_PROJECT_DIR}"
     # Publishes code smells / coverage / duplication / hotspots and blocks on the
     # Quality Gate. Stays off until SONAR_TOKEN is configured (pipeline green by default).
     - >
