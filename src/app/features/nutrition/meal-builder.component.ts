@@ -166,6 +166,7 @@ export class MealBuilderComponent implements OnInit {
   readonly pageSize = signal(20);
   readonly totalPages = signal(0);
   readonly totalElements = signal(0);
+  readonly pageSizeOptions = [10, 20, 50] as const;
 
   readonly mealForm = this.fb.nonNullable.group({
     mealType: ['LUNCH', Validators.required],
@@ -254,7 +255,7 @@ export class MealBuilderComponent implements OnInit {
   }
 
   setPageSize(size: number): void {
-    if (![10, 20, 50].includes(size) || size === this.pageSize()) {
+    if (!this.pageSizeOptions.includes(size as (typeof this.pageSizeOptions)[number]) || size === this.pageSize()) {
       return;
     }
     this.pageSize.set(size);

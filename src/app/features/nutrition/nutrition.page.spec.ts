@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { MealBuilderComponent } from './meal-builder.component';
 import { NutritionPage } from './nutrition.page';
 
 function dashboard(overrides: Partial<DashboardData['nutrition']> = {}): DashboardData {
@@ -94,10 +96,59 @@ describe('NutritionPage', () => {
     expect(text).toContain('kcal logged');
     expect(text).toContain('Daily calorie target not set');
     expect(text).toContain('Set daily target');
-    expect(text).toContain('2.8g · target not set');
+    expect(text).toContain('2.8g');
+    expect(text).toContain('target not set');
     expect(text).not.toContain('of 0 kcal');
     expect(text).not.toContain('0%');
     expect(text).not.toContain('0g left');
+  });
+
+  it('shows the Today tab by default without rendering the meal builder', () => {
+    dataService.getDashboard.and.returnValue(of(dashboard()));
+    const fixture = TestBed.createComponent(NutritionPage);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain('Daily Budget');
+    expect(text).toContain('Logged meals');
+    expect(text).toContain('Nutrition checks');
+    expect(fixture.nativeElement.querySelector('app-meal-builder')).toBeNull();
+  });
+
+  it('shows the meal builder only after switching to the Log meal tab', () => {
+    dataService.getDashboard.and.returnValue(of(dashboard()));
+    const fixture = TestBed.createComponent(NutritionPage);
+    fixture.detectChanges();
+
+    const logTab = fixture.nativeElement.querySelector('#nutrition-tab-log') as HTMLButtonElement;
+    logTab.click();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(logTab.getAttribute('aria-selected')).toBe('true');
+    expect(text).toContain('Build a meal from foods');
+    expect(text).not.toContain('Logged meals');
+    expect(fixture.nativeElement.querySelector('app-meal-builder')).not.toBeNull();
+  });
+
+  it('returns to Today and refreshes data after a meal is saved', () => {
+    dataService.getDashboard.and.returnValue(of(dashboard()));
+    const fixture = TestBed.createComponent(NutritionPage);
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('#nutrition-tab-log') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    dataService.getDashboard.calls.reset();
+    dataService.getTodayMeals.calls.reset();
+    const builder = fixture.debugElement.query(By.directive(MealBuilderComponent));
+    builder.componentInstance.saved.emit();
+    fixture.detectChanges();
+
+    expect(dataService.getDashboard).toHaveBeenCalledTimes(1);
+    expect(dataService.getTodayMeals).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.selectedTab()).toBe('today');
+    expect(fixture.nativeElement.querySelector('app-meal-builder')).toBeNull();
   });
 
   it('keeps progress and remaining copy when daily targets are available', () => {

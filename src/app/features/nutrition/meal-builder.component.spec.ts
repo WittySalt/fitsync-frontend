@@ -155,22 +155,23 @@ describe('MealBuilderComponent', () => {
     );
   });
 
-  it('resets to the first food page when the page size changes', () => {
+  it('resets to the first page and reloads with a new page size', () => {
     dataService.searchFoodsPage.and.callFake((query, options) =>
       of(
         pagedFoods([searchFood], {
           page: options?.page ?? 0,
           size: options?.size ?? 20,
-          totalPages: 5,
-          totalElements: 90
+          totalPages: 3,
+          totalElements: 51
         })
       )
     );
 
     component.nextPage();
-    fixture.detectChanges();
+    expect(component.page()).toBe(1);
+
+    dataService.searchFoodsPage.calls.reset();
     component.setPageSize(50);
-    fixture.detectChanges();
 
     expect(component.page()).toBe(0);
     expect(dataService.searchFoodsPage).toHaveBeenCalledWith(
