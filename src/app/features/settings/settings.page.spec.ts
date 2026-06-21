@@ -231,6 +231,7 @@ describe('SettingsPage', () => {
 
   it('renders the account center from the real account model groups', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    const summaryText = (fixture.nativeElement as HTMLElement).querySelector('.account-summary')?.textContent ?? '';
 
     expect(text).toContain('Alice Tan');
     expect(text).toContain('Identity');
@@ -239,6 +240,10 @@ describe('SettingsPage', () => {
     expect(text).toContain('Training defaults');
     expect(text).toContain('Download archive');
     expect(text).toContain('Cognito protected');
+    expect(summaryText).toContain('Region');
+    expect(summaryText).toContain('Activity');
+    expect(summaryText).not.toContain('Security');
+    expect(summaryText).not.toContain('Cognito protected');
   });
 
   it('marks Cognito and derived fields as read-only instead of editable settings', () => {
@@ -350,6 +355,55 @@ describe('SettingsPage', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Manual URL');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Avatar URL');
     expect(links.some((href) => href.endsWith('/settings/avatar'))).toBeTrue();
+  });
+
+  it('scrolls section links on the settings page instead of navigating through the base href', () => {
+    const preventDefault = jasmine.createSpy('preventDefault');
+    const section = document.createElement('section');
+    const scrollIntoView = jasmine.createSpy('scrollIntoView');
+    section.id = 'test-settings-section';
+    section.scrollIntoView = scrollIntoView;
+    document.body.appendChild(section);
+
+    try {
+      fixture.componentInstance.scrollToSection('test-settings-section', { preventDefault } as unknown as Event);
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    } finally {
+      section.remove();
+    }
+  });
+
+  it('wires section nav and account menu links through scrollToSection', () => {
+    const component = fixture.componentInstance;
+    const scrollSpy = spyOn(component, 'scrollToSection').and.callThrough();
+    const preventDefault = jasmine.createSpy('preventDefault');
+    const personalSection = document.createElement('section');
+    personalSection.id = 'personal';
+    personalSection.scrollIntoView = jasmine.createSpy('scrollIntoView');
+    document.body.appendChild(personalSection);
+
+    try {
+      const personalNavLink = fixture.debugElement.query(By.css('.section-nav a'));
+      personalNavLink.triggerEventHandler('click', { preventDefault });
+      fixture.detectChanges();
+
+      expect(scrollSpy).toHaveBeenCalledWith('personal', jasmine.any(Object));
+      expect(preventDefault).toHaveBeenCalled();
+
+      component.toggleAccountMenu();
+      fixture.detectChanges();
+      const popoverLink = fixture.debugElement.query(By.css('.settings-account-popover a'));
+      const popoverPreventDefault = jasmine.createSpy('popoverPreventDefault');
+      popoverLink.triggerEventHandler('click', { preventDefault: popoverPreventDefault });
+
+      expect(scrollSpy).toHaveBeenCalledWith('personal', jasmine.any(Object));
+      expect(popoverPreventDefault).toHaveBeenCalled();
+      expect(component.accountMenuOpen()).toBeFalse();
+    } finally {
+      personalSection.remove();
+    }
   });
 
   it('preserves the current avatar when saving identity fields', () => {

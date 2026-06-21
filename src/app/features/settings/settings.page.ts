@@ -725,6 +725,11 @@ export class SettingsPage implements OnInit {
     this.accountMenuOpen.set(false);
   }
 
+  scrollToSection(id: string, event: Event): void {
+    event.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   logout(): void {
     this.authService.logout();
   }
