@@ -39,6 +39,15 @@ typecheck:
     - exists:
         - package.json
 
+eslint:
+  stage: lint
+  script:
+    - npm ci
+    - npm run lint
+  rules:
+    - exists:
+        - package.json
+
 unit_test:
   stage: test
   needs: ["typecheck"]
@@ -57,6 +66,33 @@ unit_test:
   rules:
     - exists:
         - package.json
+
+sonarqube:
+  stage: test
+  needs: ["unit_test"]
+  image:
+    name: sonarsource/sonar-scanner-cli:11
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: "sonar-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .sonar/cache
+  script:
+    # Publishes code smells / coverage / duplication / hotspots and blocks on the
+    # Quality Gate. Stays off until SONAR_TOKEN is configured (pipeline green by default).
+    - >
+      sonar-scanner
+      -Dsonar.host.url="${SONAR_HOST_URL:-https://sonarcloud.io}"
+      -Dsonar.token="$SONAR_TOKEN"
+      -Dsonar.projectKey="$SONAR_PROJECT_KEY"
+      -Dsonar.organization="$SONAR_ORGANIZATION"
+      -Dsonar.qualitygate.wait="${SONAR_QUALITYGATE_WAIT:-true}"
+  rules:
+    - if: '$SONAR_TOKEN && ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main")'
+    - when: never
 
 build:
   stage: build
