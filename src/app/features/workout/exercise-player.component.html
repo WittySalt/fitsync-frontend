@@ -1,4 +1,5 @@
 <section class="exercise-player" aria-label="Guided exercise player">
+  <p class="status-announcer" aria-live="polite">{{ liveAnnouncement() }}</p>
   <header class="player-topbar">
     <div>
       <span class="card-label">Guided session</span>
@@ -17,7 +18,22 @@
   <p class="progress-copy">{{ completedSetCount() }} of {{ totalTargetSets() }} planned sets complete</p>
 
   @if (currentLog(); as log) {
-    <article class="focus-card" [class.resting]="restRemainingSeconds() > 0">
+    <article
+      class="focus-card"
+      [class.resting]="restRemainingSeconds() > 0"
+      [class.set-complete-cue]="setCompleteCue()"
+      [class.rest-complete-cue]="restCompleteCue()"
+      [class.reduced-motion]="prefersReducedMotion"
+    >
+      @if (setCompleteCue()) {
+        <div class="set-complete-badge" role="status">
+          <span aria-hidden="true">✓</span>
+          <strong>Done</strong>
+        </div>
+      }
+      @if (restCompleteCue()) {
+        <div class="next-set-cue" role="status">Next set →</div>
+      }
       <div class="movement-media" aria-label="Exercise movement media">
         @if (currentMediaUrl(); as mediaUrl) {
           <img [src]="mediaUrl" [alt]="mediaAlt(log)" (error)="onMediaError()" />
@@ -175,4 +191,14 @@
     <button class="button primary" type="button" [disabled]="ending()" (click)="finish()">Finish</button>
     <button class="button secondary" type="button" [disabled]="ending()" (click)="abort()">Abort</button>
   </footer>
+
+  @if (showCelebration()) {
+    @if (celebrationSummary(); as summary) {
+      <app-workout-celebration
+        [summary]="summary"
+        [reducedMotion]="prefersReducedMotion"
+        (continue)="continueAfterCelebration()"
+      />
+    }
+  }
 </section>

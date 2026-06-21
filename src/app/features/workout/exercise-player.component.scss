@@ -3,6 +3,7 @@
 }
 
 .exercise-player {
+  position: relative;
   display: grid;
   gap: 16px;
   padding: 18px;
@@ -10,6 +11,15 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+}
+
+.status-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .player-topbar,
@@ -83,6 +93,7 @@
 }
 
 .focus-card {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) auto;
   min-height: 260px;
@@ -94,6 +105,51 @@
 
 .focus-card.resting {
   background: var(--surface-sunken);
+}
+
+.focus-card.set-complete-cue {
+  border-color: var(--success);
+  animation: cuePulse 1000ms ease-out;
+}
+
+.focus-card.rest-complete-cue:not(.reduced-motion) {
+  animation: nextSetIn 800ms ease-out;
+}
+
+.set-complete-badge,
+.next-set-cue {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--success);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--success);
+  padding: 8px 12px;
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.set-complete-badge span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  color: var(--text-on-accent);
+  background: var(--success);
+}
+
+.focus-card:not(.reduced-motion) .set-complete-badge {
+  animation: badgePop 1000ms ease-out;
+}
+
+.focus-card:not(.reduced-motion) .next-set-cue {
+  animation: nextSetIn 800ms ease-out;
 }
 
 .focus-copy {
@@ -353,5 +409,52 @@
 
   .focus-copy h3 {
     font-size: var(--text-4xl);
+  }
+}
+
+@keyframes cuePulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 28%, transparent);
+  }
+  65% {
+    box-shadow: 0 0 0 16px transparent;
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+@keyframes badgePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes nextSetIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-card.set-complete-cue,
+  .focus-card.rest-complete-cue,
+  .set-complete-badge,
+  .next-set-cue {
+    animation: none;
   }
 }

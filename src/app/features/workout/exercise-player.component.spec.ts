@@ -11,6 +11,7 @@ import {
 import { ToastService } from '../../core/toast/toast.service';
 import { ExercisePlayerComponent } from './exercise-player.component';
 import { WorkoutLiveService } from './workout-live.service';
+import { WorkoutCelebrationComponent } from './workout-celebration.component';
 
 function detail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
   return {
@@ -233,6 +234,22 @@ describe('ExercisePlayerComponent', () => {
     );
   });
 
+  it('shows a short Done cue when a set is saved', fakeAsync(() => {
+    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.setCompleteCue()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Done');
+    expect(fixture.nativeElement.textContent).toContain('Set complete');
+
+    tick(1_000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.setCompleteCue()).toBeFalse();
+
+    tick(800);
+  }));
+
   it('shows the rest countdown after completing a set', () => {
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
     fixture.detectChanges();
@@ -273,6 +290,7 @@ describe('ExercisePlayerComponent', () => {
     expect(timed.nativeElement.textContent).toContain('Rest');
 
     tick(1_000);
+    tick(800);
   }));
 
   it('counts reps during tempo guidance and records the target reps when it completes', fakeAsync(() => {
@@ -334,6 +352,13 @@ describe('ExercisePlayerComponent', () => {
 
     expect(fixture.componentInstance.currentLog()?.exerciseLogId).toBe('log-2');
     expect(fixture.nativeElement.textContent).toContain('Push-Up');
+    expect(fixture.componentInstance.restCompleteCue()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Next set');
+
+    tick(800);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.restCompleteCue()).toBeFalse();
   }));
 
   it('labels heart rate as mock and calories as estimated', () => {
@@ -448,6 +473,7 @@ describe('ExercisePlayerComponent', () => {
 
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
     tick(1_000);
+    tick(800);
     fixture.detectChanges();
 
     let text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
@@ -548,5 +574,64 @@ describe('ExercisePlayerComponent', () => {
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to save this set. Please retry.');
+  });
+
+  it('shows the workout celebration after a completed finish and emits only after Continue', () => {
+    spyOn(live, 'finish').and.returnValue(of(detail({ status: 'COMPLETED' })));
+    const completedSpy = jasmine.createSpy('completed');
+    fixture.componentInstance.completed.subscribe(completedSpy);
+
+    fixture.componentInstance.finish();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.showCelebration()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Great work!');
+    expect(fixture.nativeElement.textContent).toContain('Workout complete');
+    expect(completedSpy).not.toHaveBeenCalled();
+
+    fixture.debugElement.query(By.css('app-workout-celebration button')).nativeElement.click();
+    fixture.detectChanges();
+
+    expect(completedSpy).toHaveBeenCalledWith(jasmine.objectContaining({ status: 'COMPLETED' }));
+    expect(fixture.componentInstance.showCelebration()).toBeFalse();
+  });
+
+  it('does not show the workout celebration for cancelled short finishes', () => {
+    spyOn(live, 'finish').and.returnValue(of(detail({ status: 'CANCELLED' })));
+    const cancelledSpy = jasmine.createSpy('cancelled');
+    fixture.componentInstance.cancelled.subscribe(cancelledSpy);
+
+    fixture.componentInstance.finish();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.showCelebration()).toBeFalse();
+    expect(fixture.nativeElement.querySelector('app-workout-celebration')).toBeNull();
+    expect(cancelledSpy).toHaveBeenCalledWith(jasmine.objectContaining({ status: 'CANCELLED' }));
+  });
+
+  it('passes reduced motion into the workout celebration', () => {
+    spyOn(window, 'matchMedia').and.returnValue({
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false
+    } as MediaQueryList);
+    const reduced = TestBed.createComponent(ExercisePlayerComponent);
+    reduced.componentRef.setInput('session', detail());
+    reduced.componentRef.setInput('activePlan', plan());
+    reduced.detectChanges();
+    const reducedLive = TestBed.inject(WorkoutLiveService);
+    spyOn(reducedLive, 'finish').and.returnValue(of(detail({ status: 'COMPLETED' })));
+
+    reduced.componentInstance.finish();
+    reduced.detectChanges();
+
+    const celebration = reduced.debugElement.query(By.directive(WorkoutCelebrationComponent));
+    expect(reduced.componentInstance.prefersReducedMotion).toBeTrue();
+    expect(celebration.componentInstance.reducedMotion).toBeTrue();
   });
 });
