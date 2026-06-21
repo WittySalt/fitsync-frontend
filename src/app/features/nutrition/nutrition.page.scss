@@ -68,6 +68,24 @@
     }
   }
 
+  .target-empty {
+    max-width: 190px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    text-align: right;
+
+    strong,
+    a {
+      display: block;
+    }
+
+    a {
+      margin-top: 8px;
+    }
+  }
+
   .budget-strip {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -154,6 +172,15 @@
 
   .macro-bar.carbs i {
     background: var(--amber-500);
+  }
+
+  .macro-empty {
+    font-weight: var(--fw-semibold);
+  }
+
+  .target-link {
+    display: inline-block;
+    margin-top: 8px;
   }
 
   .timeline-row {
@@ -260,6 +287,11 @@
     .calorie-row {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    .target-empty {
+      max-width: none;
+      text-align: left;
     }
 
     .budget-strip,

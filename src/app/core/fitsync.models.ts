@@ -62,13 +62,13 @@ export interface OnboardingSeed {
 
 export interface NutritionSummary {
   totalCalories: number;
-  targetCalories: number;
+  targetCalories: number | null;
   totalProteinGrams: number;
-  targetProteinGrams: number;
+  targetProteinGrams: number | null;
   totalCarbsGrams: number;
-  targetCarbsGrams: number;
+  targetCarbsGrams: number | null;
   totalFatGrams: number;
-  targetFatGrams: number;
+  targetFatGrams: number | null;
   mealCount: number;
   totalFiberGrams: number | null;
   totalSugarGrams: number | null;
