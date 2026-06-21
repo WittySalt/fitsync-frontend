@@ -45,7 +45,6 @@
     <section class="account-summary" aria-label="Account summary">
       <article><span>Region</span><strong>{{ region() }}</strong></article>
       <article><span>Activity</span><strong>{{ labelFor(account.user.profile.activityLevel) }}</strong></article>
-      <article><span>Security</span><strong>{{ account.security.securityLabel || 'Cognito protected' }}</strong></article>
     </section>
 
     @if (saveMessage()) {
@@ -335,7 +334,7 @@
           <article class="sub-card">
             <h3>Password</h3>
             <div class="field-row readonly"><span>Password</span><strong>{{ account.security.passwordManagedExternally ? 'Managed by Cognito' : 'Managed by FitSync' }}</strong><em>Cognito protected</em></div>
-            <div class="field-row readonly"><span>Two-step verification</span><strong>{{ account.security.twoFactorEnabled ? 'On' : (account.security.twoFactorConfigurable ? 'Ready to configure' : 'Coming soon') }}</strong><em>{{ account.security.twoFactorEnabled ? 'On' : 'Off' }}</em></div>
+            <div class="field-row readonly"><span>Two-step verification</span><strong>{{ account.security.twoFactorEnabled ? 'On' : 'Coming soon' }}</strong><em>{{ account.security.twoFactorEnabled ? 'On' : 'Coming soon' }}</em></div>
           </article>
           <app-account-security-actions />
           <article class="sub-card">
@@ -349,22 +348,27 @@
               </form>
             } @else {
               <div class="field-row" [class.readonly]="!account.security.recoveryEmailUpdatable" (click)="account.security.recoveryEmailUpdatable ? startEdit('recovery') : null"><span>Recovery email</span><strong>{{ account.security.recoveryEmail || account.auth.email || 'Not set' }}</strong><em>{{ account.security.recoveryEmailUpdatable ? 'Edit' : 'Read only' }}</em></div>
+              @if (!account.security.recoveryEmailUpdatable && account.security.authProvider === 'COGNITO') {
+                <p class="settings-help">Managed by your Cognito sign-in.</p>
+              }
             }
           </article>
           <article class="sub-card">
             <h3>Active sessions</h3>
             <div class="field-list">
               @for (session of account.sessions; track session.sessionId) {
-                <div class="field-row readonly"><span>{{ session.deviceLabel || 'Current device' }}</span><strong>{{ session.ipAddress || 'IP unavailable' }} - expires {{ displayDateTime(session.expiresAt) }}</strong><em>{{ session.revocable ? 'Revocable' : 'Read only' }}</em></div>
+                <div class="field-row readonly"><span>{{ session.deviceLabel || 'Current device' }}</span><strong>{{ session.ipAddress || 'IP unavailable' }} - expires {{ displayDateTime(session.expiresAt) }}</strong><em>This session</em></div>
               } @empty {
                 <div class="field-row readonly"><span>Sessions</span><strong>{{ account.security.sessionTrackingAvailable ? account.security.sessionCount + ' session(s)' : 'Session tracking unavailable' }}</strong><em>Read only</em></div>
               }
             </div>
+            <p class="settings-help">Full session history and remote sign-out are coming soon.</p>
           </article>
         </section>
 
         <section class="settings-section" id="notifications">
           <div class="section-heading"><p class="eyebrow">Notifications</p><h2>Notifications</h2><p>{{ sections[4].description }}</p></div>
+          <p class="settings-help">Your preferences are saved, but notification delivery is coming soon.</p>
           <article class="sub-card">
             <div class="sub-card-header"><h3>Channels & reminders</h3><button class="button secondary compact" type="button" (click)="startEdit('notifications')">Edit</button></div>
             @if (sectionErrors().notifications; as message) { <p class="section-error">{{ message }}</p> }

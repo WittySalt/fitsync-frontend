@@ -115,7 +115,7 @@ describe('SettingsPage', () => {
       authProvider: 'COGNITO',
       passwordManagedExternally: true,
       twoFactorEnabled: false,
-      twoFactorConfigurable: false,
+      twoFactorConfigurable: true,
       recoveryEmail: 'alice@example.com',
       recoveryEmailUpdatable: false,
       sessionCount: 1,
@@ -247,6 +247,20 @@ describe('SettingsPage', () => {
     expect(text).toContain('Managed by Cognito');
     expect(text).toContain('BMI');
     expect(text).toContain('Derived');
+  });
+
+  it('renders honest security placeholders for Cognito-backed unavailable features', () => {
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    const summaryTiles = fixture.nativeElement.querySelectorAll('.account-summary article');
+
+    expect(summaryTiles.length).toBe(2);
+    expect(text).not.toContain('Ready to configure');
+    expect(text).toContain('Coming soon');
+    expect(text).toContain('Managed by your Cognito sign-in.');
+    expect(text).toContain('This session');
+    expect(text).not.toContain('Revocable');
+    expect(text).toContain('Full session history and remote sign-out are coming soon.');
+    expect(text).toContain('Your preferences are saved, but notification delivery is coming soon.');
   });
 
   it('renders body metric history from the body-metrics list endpoint', () => {
