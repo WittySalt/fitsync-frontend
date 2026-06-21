@@ -34,8 +34,8 @@
         @if (accountMenuOpen()) {
           <div class="settings-account-popover" role="menu">
             <strong>{{ account.auth.email || account.user.email || 'Cognito account' }}</strong>
-            <a role="menuitem" href="#personal" (click)="scrollToSection('personal', $event); closeAccountMenu()">Personal settings</a>
-            <a role="menuitem" href="#security" (click)="scrollToSection('security', $event); closeAccountMenu()">Security settings</a>
+            <button role="menuitem" type="button" (click)="selectSection('personal'); closeAccountMenu()">Personal settings</button>
+            <button role="menuitem" type="button" (click)="selectSection('security'); closeAccountMenu()">Security settings</button>
             <button role="menuitem" type="button" class="logout-row" (click)="logout()">Sign out</button>
           </div>
         }
@@ -55,14 +55,25 @@
     }
 
     <div class="account-layout">
-      <nav class="section-nav" aria-label="Account sections">
+      <nav class="section-nav" role="tablist" aria-label="Account sections">
         @for (section of sections; track section.id) {
-          <a [href]="'#' + section.id" (click)="scrollToSection(section.id, $event)">{{ section.label }}</a>
+          <button
+            type="button"
+            role="tab"
+            [id]="'settings-tab-' + section.id"
+            [class.active]="selectedSection() === section.id"
+            [attr.aria-selected]="selectedSection() === section.id"
+            [attr.aria-controls]="section.id"
+            (click)="selectSection(section.id)"
+          >
+            {{ section.label }}
+          </button>
         }
       </nav>
 
       <main class="settings-stack">
-        <section class="settings-section" id="personal">
+        @if (selectedSection() === 'personal') {
+        <section class="settings-section" id="personal" role="tabpanel" aria-labelledby="settings-tab-personal">
           <div class="section-heading">
             <p class="eyebrow">Personal</p>
             <h2>Personal settings</h2>
@@ -234,8 +245,10 @@
             }
           </article>
         </section>
+        }
 
-        <section class="settings-section" id="appearance">
+        @if (selectedSection() === 'appearance') {
+        <section class="settings-section" id="appearance" role="tabpanel" aria-labelledby="settings-tab-appearance">
           <div class="section-heading"><p class="eyebrow">Appearance</p><h2>Appearance</h2><p>{{ sections[1].description }}</p></div>
 
           <article class="sub-card">
@@ -262,8 +275,10 @@
             <p class="settings-help">System follows your device appearance preference.</p>
           </article>
         </section>
+        }
 
-        <section class="settings-section" id="preferences">
+        @if (selectedSection() === 'preferences') {
+        <section class="settings-section" id="preferences" role="tabpanel" aria-labelledby="settings-tab-preferences">
           <div class="section-heading"><p class="eyebrow">Preferences</p><h2>App preferences</h2><p>{{ sections[2].description }}</p></div>
 
           <article class="sub-card">
@@ -328,8 +343,10 @@
             }
           </article>
         </section>
+        }
 
-        <section class="settings-section" id="security">
+        @if (selectedSection() === 'security') {
+        <section class="settings-section" id="security" role="tabpanel" aria-labelledby="settings-tab-security">
           <div class="section-heading"><p class="eyebrow">Security</p><h2>Security settings</h2><p>{{ sections[3].description }}</p></div>
           <article class="sub-card">
             <h3>Password</h3>
@@ -361,8 +378,10 @@
             </div>
           </article>
         </section>
+        }
 
-        <section class="settings-section" id="notifications">
+        @if (selectedSection() === 'notifications') {
+        <section class="settings-section" id="notifications" role="tabpanel" aria-labelledby="settings-tab-notifications">
           <div class="section-heading"><p class="eyebrow">Notifications</p><h2>Notifications</h2><p>{{ sections[4].description }}</p></div>
           <article class="sub-card">
             <div class="sub-card-header"><h3>Channels & reminders</h3><button class="button secondary compact" type="button" (click)="startEdit('notifications')">Edit</button></div>
@@ -397,8 +416,10 @@
             }
           </article>
         </section>
+        }
 
-        <section class="settings-section" id="privacy-data">
+        @if (selectedSection() === 'privacy-data') {
+        <section class="settings-section" id="privacy-data" role="tabpanel" aria-labelledby="settings-tab-privacy-data">
           <div class="section-heading"><p class="eyebrow">Privacy & Data</p><h2>Privacy and data</h2><p>{{ sections[5].description }}</p></div>
           <article class="sub-card">
             <div class="sub-card-header"><h3>Visibility & sharing</h3><button class="button secondary compact" type="button" (click)="startEdit('privacy')">Edit</button></div>
@@ -431,6 +452,7 @@
             }
           </article>
         </section>
+        }
       </main>
     </div>
   }

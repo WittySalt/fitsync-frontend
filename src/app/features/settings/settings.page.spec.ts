@@ -237,9 +237,9 @@ describe('SettingsPage', () => {
     expect(text).toContain('Identity');
     expect(text).toContain('Gender');
     expect(text).toContain('Goals / targets');
-    expect(text).toContain('Training defaults');
-    expect(text).toContain('Download archive');
-    expect(text).toContain('Cognito protected');
+    expect(text).not.toContain('Training defaults');
+    expect(text).not.toContain('Download archive');
+    expect(text).not.toContain('Cognito protected');
     expect(summaryText).toContain('Region');
     expect(summaryText).toContain('Activity');
     expect(summaryText).not.toContain('Security');
@@ -247,9 +247,16 @@ describe('SettingsPage', () => {
   });
 
   it('marks Cognito and derived fields as read-only instead of editable settings', () => {
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    fixture.componentInstance.selectSection('security');
+    fixture.detectChanges();
+    let text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
     expect(text).toContain('Managed by Cognito');
+
+    fixture.componentInstance.selectSection('personal');
+    fixture.detectChanges();
+    text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
     expect(text).toContain('BMI');
     expect(text).toContain('Derived');
   });
@@ -296,6 +303,10 @@ describe('SettingsPage', () => {
 
   it('renders appearance controls and stores the selected theme preference', () => {
     const service = TestBed.inject(ThemeService);
+
+    fixture.componentInstance.selectSection('appearance');
+    fixture.detectChanges();
+
     const buttons = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.appearance-toggle button')
     );
@@ -357,53 +368,50 @@ describe('SettingsPage', () => {
     expect(links.some((href) => href.endsWith('/settings/avatar'))).toBeTrue();
   });
 
-  it('scrolls section links on the settings page instead of navigating through the base href', () => {
-    const preventDefault = jasmine.createSpy('preventDefault');
-    const section = document.createElement('section');
-    const scrollIntoView = jasmine.createSpy('scrollIntoView');
-    section.id = 'test-settings-section';
-    section.scrollIntoView = scrollIntoView;
-    document.body.appendChild(section);
+  it('renders Personal as the default settings tab', () => {
+    const component = fixture.componentInstance;
 
-    try {
-      fixture.componentInstance.scrollToSection('test-settings-section', { preventDefault } as unknown as Event);
+    expect(component.selectedSection()).toBe('personal');
+    expect(fixture.nativeElement.querySelector('#personal')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#security')).toBeFalsy();
 
-      expect(preventDefault).toHaveBeenCalled();
-      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
-    } finally {
-      section.remove();
-    }
+    const personalTab = fixture.debugElement.query(By.css('.section-nav button[role="tab"]'));
+    expect(personalTab.nativeElement.textContent.trim()).toBe('Personal');
+    expect(personalTab.nativeElement.getAttribute('aria-selected')).toBe('true');
   });
 
-  it('wires section nav and account menu links through scrollToSection', () => {
+  it('switches settings sections through the left tab navigation', () => {
+    const securityTab = fixture.debugElement
+      .queryAll(By.css('.section-nav button[role="tab"]'))
+      .find((button) => button.nativeElement.textContent.trim() === 'Security');
+
+    securityTab?.triggerEventHandler('click');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.selectedSection()).toBe('security');
+    expect(fixture.nativeElement.querySelector('#security')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#personal')).toBeFalsy();
+    expect(securityTab?.nativeElement.getAttribute('aria-selected')).toBe('true');
+    expect(securityTab?.nativeElement.classList.contains('active')).toBeTrue();
+  });
+
+  it('switches sections from the account menu and closes the popover', () => {
     const component = fixture.componentInstance;
-    const scrollSpy = spyOn(component, 'scrollToSection').and.callThrough();
-    const preventDefault = jasmine.createSpy('preventDefault');
-    const personalSection = document.createElement('section');
-    personalSection.id = 'personal';
-    personalSection.scrollIntoView = jasmine.createSpy('scrollIntoView');
-    document.body.appendChild(personalSection);
 
-    try {
-      const personalNavLink = fixture.debugElement.query(By.css('.section-nav a'));
-      personalNavLink.triggerEventHandler('click', { preventDefault });
-      fixture.detectChanges();
+    component.toggleAccountMenu();
+    fixture.detectChanges();
 
-      expect(scrollSpy).toHaveBeenCalledWith('personal', jasmine.any(Object));
-      expect(preventDefault).toHaveBeenCalled();
+    const securityMenuItem = fixture.debugElement
+      .queryAll(By.css('.settings-account-popover button[role="menuitem"]'))
+      .find((button) => button.nativeElement.textContent.trim() === 'Security settings');
 
-      component.toggleAccountMenu();
-      fixture.detectChanges();
-      const popoverLink = fixture.debugElement.query(By.css('.settings-account-popover a'));
-      const popoverPreventDefault = jasmine.createSpy('popoverPreventDefault');
-      popoverLink.triggerEventHandler('click', { preventDefault: popoverPreventDefault });
+    securityMenuItem?.triggerEventHandler('click');
+    fixture.detectChanges();
 
-      expect(scrollSpy).toHaveBeenCalledWith('personal', jasmine.any(Object));
-      expect(popoverPreventDefault).toHaveBeenCalled();
-      expect(component.accountMenuOpen()).toBeFalse();
-    } finally {
-      personalSection.remove();
-    }
+    expect(component.selectedSection()).toBe('security');
+    expect(component.accountMenuOpen()).toBeFalse();
+    expect(fixture.nativeElement.querySelector('#security')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.settings-account-popover')).toBeFalsy();
   });
 
   it('preserves the current avatar when saving identity fields', () => {
