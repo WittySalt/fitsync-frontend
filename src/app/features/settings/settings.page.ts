@@ -165,6 +165,8 @@ export class SettingsPage implements OnInit {
     ['WEIGHT', 'Weight'],
     ['CALORIES', 'Calories'],
     ['PROTEIN', 'Protein'],
+    ['CARBS', 'Carbs'],
+    ['FAT', 'Fat'],
     ['WORKOUT_FREQUENCY', 'Workout frequency'],
     ['STEPS', 'Steps']
   ]);
@@ -1031,6 +1033,8 @@ export class SettingsPage implements OnInit {
       WEIGHT: this.data()?.user.preferences.app.preferredUnits === '100002' ? 'lb' : 'kg',
       CALORIES: 'kcal',
       PROTEIN: 'g',
+      CARBS: 'g',
+      FAT: 'g',
       WORKOUT_FREQUENCY: 'sessions/week',
       STEPS: 'steps'
     };

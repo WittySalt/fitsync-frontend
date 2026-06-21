@@ -5,7 +5,7 @@ import { Observable, forkJoin, map } from 'rxjs';
 export type ActivityLevel = 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'ATHLETE';
 export type Gender = 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY';
 export type MetricSource = 'MANUAL' | 'DEVICE' | 'IMPORTED';
-export type GoalType = 'WEIGHT' | 'CALORIES' | 'PROTEIN' | 'WORKOUT_FREQUENCY' | 'STEPS';
+export type GoalType = 'WEIGHT' | 'CALORIES' | 'PROTEIN' | 'CARBS' | 'FAT' | 'WORKOUT_FREQUENCY' | 'STEPS';
 export type GoalStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
 
 export interface AccountProfile {
