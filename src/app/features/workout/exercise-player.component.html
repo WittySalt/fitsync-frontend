@@ -60,6 +60,52 @@
       }
     </article>
 
+    <section class="guidance-panel" aria-labelledby="exercise-guidance-title">
+      <button
+        class="guidance-toggle"
+        type="button"
+        [attr.aria-expanded]="guidanceOpen()"
+        aria-controls="exercise-guidance-content"
+        (click)="toggleGuidance()"
+      >
+        <span id="exercise-guidance-title">How to perform</span>
+        <span aria-hidden="true">{{ guidanceOpen() ? 'Hide' : 'Show' }}</span>
+      </button>
+
+      @if (guidanceOpen()) {
+        <div id="exercise-guidance-content" class="guidance-content">
+          @if (detailLoading()) {
+            <div class="guidance-loading" role="status">Loading guidance...</div>
+          } @else if (currentDetail(); as detail) {
+            @if (hasGuidance()) {
+              @if (detail.description) {
+                <p>{{ detail.description }}</p>
+              }
+              @if (sortedInstructions().length) {
+                <ol class="instruction-list">
+                  @for (step of sortedInstructions(); track step.stepNumber ?? step.text) {
+                    <li>{{ step.text }}</li>
+                  }
+                </ol>
+              }
+            } @else {
+              <p class="guidance-empty">No guidance available for this movement.</p>
+            }
+
+            @if (guidanceChips().length) {
+              <div class="guidance-chips" aria-label="Exercise metadata">
+                @for (chip of guidanceChips(); track $index) {
+                  <span>{{ chip }}</span>
+                }
+              </div>
+            }
+          } @else {
+            <p class="guidance-empty">No guidance available for this movement.</p>
+          }
+        </div>
+      }
+    </section>
+
     @if (allTargetsComplete()) {
       <p class="completion-note" role="status">All planned sets are done. Finish when your cooldown is complete.</p>
     }
