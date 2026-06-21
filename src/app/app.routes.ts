@@ -47,6 +47,12 @@ export const routes: Routes = [
     title: 'FitSync Profile'
   },
   {
+    path: 'settings/avatar',
+    loadComponent: () => import('./features/settings/avatar-upload.page').then((module) => module.AvatarUploadPage),
+    canActivate: [authGuard],
+    title: 'FitSync Profile Photo'
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./features/settings/settings.page').then((module) => module.SettingsPage),
     canActivate: [authGuard],

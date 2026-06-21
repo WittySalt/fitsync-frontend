@@ -1,0 +1,45 @@
+<main class="avatar-upload-page">
+  <header class="avatar-upload-hero">
+    <div>
+      <p class="eyebrow">Account center</p>
+      <h1>Profile photo</h1>
+      <p>Pick a local image, crop it into a circular avatar, and upload it to your FitSync media storage.</p>
+    </div>
+    <button class="button secondary" type="button" (click)="backToSettings()">Back to settings</button>
+  </header>
+
+  @if (loading()) {
+    <section class="avatar-upload-skeleton" aria-busy="true" aria-label="Loading profile photo">
+      <span class="avatar-preview-skeleton"></span>
+      <span class="copy-skeleton"></span>
+      <span class="copy-skeleton short"></span>
+    </section>
+  } @else if (error() && !summary()) {
+    <app-state-panel
+      title="Profile photo unavailable"
+      [message]="error() ?? 'Unable to load profile photo.'"
+      actionLabel="Retry"
+      [error]="true"
+      (action)="loadSummary()"
+    />
+  } @else if (summary(); as account) {
+    <section class="current-avatar-card" aria-label="Current profile photo">
+      @if (account.avatarUrl) {
+        <img class="current-avatar" [src]="account.avatarUrl" [alt]="account.displayName + ' profile photo'" />
+      } @else {
+        <span class="current-avatar initials" aria-hidden="true">{{ account.initials }}</span>
+      }
+      <div>
+        <strong>{{ account.displayName }}</strong>
+        <p>{{ account.email }}</p>
+      </div>
+    </section>
+
+    <app-avatar-uploader
+      [currentAvatarUrl]="account.avatarUrl"
+      [initials]="account.initials"
+      (uploaded)="handleUploaded($event)"
+      (cancel)="backToSettings()"
+    />
+  }
+</main>
