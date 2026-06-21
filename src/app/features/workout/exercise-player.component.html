@@ -48,6 +48,45 @@
         <div class="set-panel">
           <span>Current set</span>
           <strong>{{ currentSetNumber() }} / {{ targetSets() }}</strong>
+          @if (targetWorkSeconds() > 0) {
+            <div class="work-guide" aria-live="polite">
+              <small>{{ workGuideLabel() }}</small>
+              <b>{{ workGuidePrimaryMetric() }}</b>
+              @if (!isTimedTarget()) {
+                <small>{{ tempoSummary() }}</small>
+              }
+              <div class="guide-track" aria-label="Guided set progress">
+                <span [style.width.%]="workGuideProgressPercent()"></span>
+              </div>
+            </div>
+            <div class="guided-actions">
+              @if (workGuideActive()) {
+                <button class="button secondary" type="button" (click)="pauseOrResume()">
+                  {{ live.paused() ? 'Resume guide' : 'Pause guide' }}
+                </button>
+                <button
+                  class="button secondary"
+                  type="button"
+                  [disabled]="savingSet() || workGuideElapsedSeconds() <= 0"
+                  (click)="stopGuidedSet()"
+                >
+                  Stop & save
+                </button>
+              } @else {
+                <button
+                  class="button secondary"
+                  type="button"
+                  [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                  (click)="startGuidedSet()"
+                >
+                  Start {{ isTimedTarget() ? 'timer' : 'tempo' }}
+                </button>
+              }
+            </div>
+          }
+          @if (restCompleteCue()) {
+            <small class="rest-cue" role="status">Rest complete. Next set is ready.</small>
+          }
           <button
             class="button workout complete-set"
             type="button"
