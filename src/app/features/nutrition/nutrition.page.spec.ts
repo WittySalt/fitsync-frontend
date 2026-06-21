@@ -92,9 +92,9 @@ describe('NutritionPage', () => {
     const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
     expect(text).toContain('142');
     expect(text).toContain('kcal logged');
-    expect(text).toContain('未设置每日卡路里目标');
-    expect(text).toContain('去设置每日目标');
-    expect(text).toContain('2.8g · 目标未设置');
+    expect(text).toContain('Daily calorie target not set');
+    expect(text).toContain('Set daily target');
+    expect(text).toContain('2.8g · target not set');
     expect(text).not.toContain('of 0 kcal');
     expect(text).not.toContain('0%');
     expect(text).not.toContain('0g left');

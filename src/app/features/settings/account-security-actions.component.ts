@@ -5,7 +5,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../core/toast/toast.service';
 
 const DELETE_CONFIRMATION = 'DELETE';
-const BACKEND_DATA_WARNING = '后端数据不自动清理';
+const BACKEND_DATA_WARNING = 'Backend data is not automatically deleted';
 
 @Component({
   selector: 'app-account-security-actions',

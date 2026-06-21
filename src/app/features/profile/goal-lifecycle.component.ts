@@ -115,7 +115,7 @@ export class GoalLifecycleComponent implements OnInit {
 
   formatValue(goal: UserGoal): string {
     if (goal.targetValue == null) {
-      return '未设置';
+      return 'Not set';
     }
     return `${goal.targetValue} ${goal.targetUnit ?? ''}`.trim();
   }
