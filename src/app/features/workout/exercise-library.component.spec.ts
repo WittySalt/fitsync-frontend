@@ -2,7 +2,7 @@ import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, ExerciseMetadata } from '../../core/fitsync.models';
+import { Exercise, ExerciseDetail, ExerciseMetadata } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 
@@ -31,6 +31,17 @@ function exercise(overrides: Partial<Exercise> = {}): Exercise {
   };
 }
 
+function exerciseDetail(overrides: Partial<ExerciseDetail> = {}): ExerciseDetail {
+  return {
+    ...exercise(),
+    images: [],
+    imageUrls: [],
+    instructions: [],
+    secondaryMuscleGroups: [],
+    ...overrides
+  };
+}
+
 describe('ExerciseLibraryComponent', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let toast: jasmine.SpyObj<ToastService>;
@@ -42,6 +53,7 @@ describe('ExerciseLibraryComponent', () => {
       'createExercise',
       'updateExercise',
       'archiveExercise',
+      'getExercise',
       'getExerciseRecords',
       'getExerciseHistory'
     ]);
@@ -52,6 +64,7 @@ describe('ExerciseLibraryComponent', () => {
     dataService.createExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.updateExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.archiveExercise.and.returnValue(of(void 0));
+    dataService.getExercise.and.returnValue(of(exerciseDetail()));
     dataService.getExerciseRecords.and.returnValue(of(null));
     dataService.getExerciseHistory.and.returnValue(of([]));
 
@@ -159,11 +172,92 @@ describe('ExerciseLibraryComponent', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent as string;
+    expect(dataService.getExercise).toHaveBeenCalledWith('exercise-1');
     expect(dataService.getExerciseRecords).toHaveBeenCalledWith('exercise-1');
     expect(dataService.getExerciseHistory).toHaveBeenCalledWith('exercise-1');
-    expect(text).toContain('No data yet');
+    expect(text).toContain('No records yet');
     expect(text).not.toContain('0 kg');
     expect(text).not.toContain('0 reps');
+  });
+
+  it('renders exercise media, instructions, metadata, records, and history details', () => {
+    dataService.getExercise.and.returnValue(
+      of(
+        exerciseDetail({
+          images: [{ position: 0, url: 'https://cdn.example.test/squat.jpg' }],
+          imageUrls: ['https://cdn.example.test/squat.jpg'],
+          instructions: [{ stepNumber: 1, text: 'Brace your core before descending.' }],
+          secondaryMuscleGroups: ['GLUTES']
+        })
+      )
+    );
+    dataService.getExerciseRecords.and.returnValue(
+      of({
+        exerciseId: 'exercise-1',
+        exerciseName: 'Back squat',
+        maxWeightKg: { value: 125, sessionId: 'session-1', achievedAt: '2026-06-12T11:05:00Z' },
+        maxReps: null,
+        maxSingleSetVolumeKg: null,
+        estimatedOneRepMaxKg: null,
+        bestSessionVolumeKg: null
+      })
+    );
+    dataService.getExerciseHistory.and.returnValue(
+      of([
+        {
+          sessionId: 'session-1',
+          exerciseLogId: 'log-1',
+          setLogId: 'set-1',
+          exerciseId: 'exercise-1',
+          exerciseNameSnapshot: 'Back squat',
+          sessionName: 'Lower body',
+          startedAt: '2026-06-12T10:00:00Z',
+          completedAt: '2026-06-12T11:05:00Z',
+          sequence: 1,
+          setNumber: 2,
+          reps: 5,
+          weightKg: 100,
+          durationSeconds: null,
+          distanceKm: null,
+          restSeconds: 180,
+          perceivedExertion: 8,
+          notes: ''
+        }
+      ])
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectExercise(exercise());
+    fixture.detectChanges();
+
+    const image = fixture.nativeElement.querySelector('.media-panel img') as HTMLImageElement;
+    const text = fixture.nativeElement.textContent as string;
+    expect(image.src).toBe('https://cdn.example.test/squat.jpg');
+    expect(image.alt).toBe('Back squat demonstration');
+    expect(text).toContain('Brace your core before descending.');
+    expect(text).toContain('Glutes');
+    expect(text).toContain('125.0 kg');
+    expect(text).toContain('Lower body');
+    expect(text).toContain('Set 2');
+  });
+
+  it('uses honest empty states when exercise media, instructions, records, and history are missing', () => {
+    dataService.getExercise.and.returnValue(of(exerciseDetail()));
+    dataService.getExerciseRecords.and.returnValue(of(null));
+    dataService.getExerciseHistory.and.returnValue(of([]));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectExercise(exercise());
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(fixture.nativeElement.querySelector('.media-placeholder')).not.toBeNull();
+    expect(text).toContain('No demo media yet');
+    expect(text).toContain('No steps yet');
+    expect(text).toContain('No records yet');
+    expect(text).toContain('No history yet');
   });
 
   it('suggests an editable custom code from the exercise name', fakeAsync(() => {

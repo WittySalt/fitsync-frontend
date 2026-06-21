@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -795,6 +795,45 @@ describe('FitSyncDataService', () => {
     );
     expect(request.request.method).toBe('GET');
     request.flush({ content: [] });
+  });
+
+  it('loads one exercise detail with media, instructions, and secondary muscles', () => {
+    let result: ExerciseDetail | null | undefined;
+    service.getExercise('exercise-1').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      exerciseId: 'exercise-1',
+      code: 'BACK_SQUAT',
+      name: 'Back squat',
+      description: 'Lower body compound lift',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'INTERMEDIATE',
+      status: 'ACTIVE',
+      custom: false,
+      videoUrl: 'https://example.test/squat.mp4',
+      animationUrl: 'https://example.test/squat.gif',
+      images: [
+        { position: 2, url: 'https://example.test/squat-2.jpg' },
+        { position: 1, url: 'https://example.test/squat-1.jpg' }
+      ],
+      instructions: [
+        { stepNumber: 2, text: 'Stand tall.' },
+        { stepNumber: 1, text: 'Brace your core.' }
+      ],
+      secondaryMuscleGroups: ['GLUTES', 'HAMSTRINGS']
+    });
+
+    expect(result?.images.map((image) => image.url)).toEqual([
+      'https://example.test/squat-1.jpg',
+      'https://example.test/squat-2.jpg'
+    ]);
+    expect(result?.imageUrls).toEqual(['https://example.test/squat-1.jpg', 'https://example.test/squat-2.jpg']);
+    expect(result?.instructions.map((step) => step.text)).toEqual(['Brace your core.', 'Stand tall.']);
+    expect(result?.secondaryMuscleGroups).toEqual(['GLUTES', 'HAMSTRINGS']);
   });
 
   it('loads exercise metadata for filters and forms', () => {

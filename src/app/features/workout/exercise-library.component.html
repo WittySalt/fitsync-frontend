@@ -165,7 +165,7 @@
       <div class="exercise-list">
         @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
           <article class="exercise-item">
-            <div>
+            <button class="exercise-select" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
               <strong>{{ exercise.name }}</strong>
               @if (exercise.custom) {
                 <span class="custom-tag">Custom</span>
@@ -177,9 +177,9 @@
                 {{ formatLabel(exercise.equipment) }} -
                 {{ formatLabel(exercise.difficulty) }}
               </small>
-            </div>
+            </button>
             <div class="item-actions">
-              <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">Records</button>
+              <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">Details</button>
               @if (exercise.custom) {
                 <button class="button secondary" type="button" (click)="startEdit(exercise)">Edit</button>
                 <button class="button secondary" type="button" (click)="archiveExercise(exercise)">Archive</button>
@@ -192,29 +192,101 @@
       <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
     }
 
-    @if (selectedExercise(); as exercise) {
-      <section class="exercise-detail" aria-label="Exercise progress detail">
+    @if (displayExercise(); as exercise) {
+      <section class="exercise-detail" aria-label="Exercise detail">
         <div class="editor-header">
           <div>
-            <span class="card-label">Personal records</span>
+            <span class="card-label">Exercise detail</span>
             <h3>{{ exercise.name }}</h3>
           </div>
           <button class="text-link" type="button" (click)="clearSelectedExercise()">Close</button>
         </div>
 
         @if (exerciseDetailLoading()) {
-          <app-state-panel title="Loading records" message="Fetching your completed sets for this exercise." />
+          <app-state-panel title="Loading exercise" message="Fetching movement details, personal records, and history." />
         } @else {
-          <div class="record-grid">
-            @for (record of recordCards(); track record.label) {
-              <article class="record-card">
-                <span>{{ record.label }}</span>
-                <strong>{{ record.value }}</strong>
-                <small>{{ record.detail }}</small>
-              </article>
-            }
+          <div class="detail-layout">
+            <figure class="media-panel">
+              @if (mediaUrl(); as url) {
+                <img [src]="url" [alt]="exercise.name + ' demonstration'" (error)="markMediaFailed()" />
+              } @else {
+                <div class="media-placeholder" aria-label="No demonstration media available">
+                  <strong>{{ exercise.name.slice(0, 1) }}</strong>
+                  <span>No demo media yet</span>
+                </div>
+              }
+              @if (exercise.videoUrl) {
+                <figcaption>
+                  <a class="text-link" [href]="exercise.videoUrl" target="_blank" rel="noreferrer">Open video guide</a>
+                </figcaption>
+              }
+            </figure>
+
+            <div class="detail-copy">
+              <p>{{ exercise.description || 'No description available yet.' }}</p>
+              <dl class="meta-grid">
+                <div>
+                  <dt>Primary muscle</dt>
+                  <dd>{{ formatLabel(exercise.primaryMuscleGroup) || 'Not specified' }}</dd>
+                </div>
+                <div>
+                  <dt>Secondary muscles</dt>
+                  <dd>
+                    @if (exercise.secondaryMuscleGroups?.length) {
+                      {{ formatLabels(exercise.secondaryMuscleGroups) }}
+                    } @else {
+                      Not specified
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Equipment</dt>
+                  <dd>{{ formatLabel(exercise.equipment) || 'Not specified' }}</dd>
+                </div>
+                <div>
+                  <dt>Type</dt>
+                  <dd>{{ formatLabel(exercise.exerciseType) || 'Not specified' }}</dd>
+                </div>
+                <div>
+                  <dt>Difficulty</dt>
+                  <dd>{{ formatLabel(exercise.difficulty) || 'Not specified' }}</dd>
+                </div>
+              </dl>
+            </div>
           </div>
 
+          <section class="detail-section" aria-labelledby="exercise-steps-title">
+            <h4 id="exercise-steps-title">Steps</h4>
+            @if (exercise.instructions?.length) {
+              <ol class="step-list">
+                @for (step of exercise.instructions; track step.stepNumber ?? step.text) {
+                  <li>{{ step.text }}</li>
+                }
+              </ol>
+            } @else {
+              <app-state-panel title="No steps yet" message="Step-by-step coaching notes will appear here when the catalog provides them." />
+            }
+          </section>
+
+          <section class="detail-section" aria-labelledby="exercise-records-title">
+            <h4 id="exercise-records-title">Personal records</h4>
+            @if (recordsEmpty()) {
+              <app-state-panel title="No records yet" message="Complete and log sets for this exercise to start building personal records." />
+            } @else {
+              <div class="record-grid">
+                @for (record of recordCards(); track record.label) {
+                  <article class="record-card">
+                    <span>{{ record.label }}</span>
+                    <strong>{{ record.value }}</strong>
+                    <small>{{ record.detail }}</small>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="detail-section" aria-labelledby="exercise-history-title">
+            <h4 id="exercise-history-title">History trend</h4>
           @if (historyTrend().labels.length) {
             <div class="chart-shell">
               <fs-chart
@@ -225,9 +297,25 @@
                 yAxisLabel="Max weight (kg)"
               />
             </div>
+            <ul class="history-list" aria-label="Exercise history details">
+              @for (entry of sortedHistory(); track entry.setLogId || entry.sessionId + entry.setNumber) {
+                <li>
+                  <div>
+                    <strong>{{ entry.sessionName || 'Workout session' }}</strong>
+                    <small>{{ formatDateTime(entry.completedAt || entry.startedAt) }}</small>
+                  </div>
+                  <span>
+                    Set {{ entry.setNumber || '-' }}:
+                    {{ entry.reps ?? '-' }} reps,
+                    {{ formatMetric(entry.weightKg, 'kg', 1) }}
+                  </span>
+                </li>
+              }
+            </ul>
           } @else {
             <app-state-panel title="No history yet" message="Completed sets for this exercise will appear here." />
           }
+          </section>
         }
       </section>
     }

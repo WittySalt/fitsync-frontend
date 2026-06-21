@@ -6,6 +6,8 @@ import {
   BodyMetric,
   CreateExerciseRequest,
   Exercise,
+  ExerciseDetail,
+  ExerciseImage,
   ExerciseHistoryEntry,
   ExerciseMetadata,
   ExerciseRecords,
@@ -308,12 +310,20 @@ interface BackendExerciseView {
   videoUrl?: string | null;
   animationUrl?: string | null;
   images?: BackendExerciseImage[] | string[] | null;
+  instructions?: BackendExerciseInstruction[] | null;
+  secondaryMuscleGroups?: string[] | null;
 }
 
 interface BackendExerciseImage {
+  position?: number | null;
   url?: string | null;
   imageUrl?: string | null;
   mediaUrl?: string | null;
+}
+
+interface BackendExerciseInstruction {
+  stepNumber?: number | null;
+  text?: string | null;
 }
 
 interface BackendFoodCategory {
@@ -749,6 +759,19 @@ export class FitSyncDataService {
       .pipe(
         map((response) => (response.content ?? []).map((exercise) => this.mapExercise(exercise))),
         catchError(() => of([] as Exercise[]))
+      );
+  }
+
+  getExercise(exerciseId: string): Observable<ExerciseDetail | null> {
+    if (!exerciseId) {
+      return of(null);
+    }
+
+    return this.http
+      .get<BackendExerciseView>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}`)
+      .pipe(
+        map((exercise) => this.mapExerciseDetail(exercise)),
+        catchError(() => of(null))
       );
   }
 
@@ -1536,7 +1559,21 @@ export class FitSyncDataService {
       custom: exercise.custom ?? false,
       videoUrl: exercise.videoUrl ?? null,
       animationUrl: exercise.animationUrl ?? null,
-      images: this.mapExerciseImages(exercise.images)
+      images: this.mapExerciseImageDetails(exercise.images),
+      imageUrls: this.mapExerciseImages(exercise.images),
+      instructions: this.mapExerciseInstructions(exercise.instructions),
+      secondaryMuscleGroups: exercise.secondaryMuscleGroups ?? []
+    };
+  }
+
+  private mapExerciseDetail(exercise: BackendExerciseView): ExerciseDetail {
+    const mapped = this.mapExercise(exercise);
+    return {
+      ...mapped,
+      images: mapped.images ?? [],
+      imageUrls: mapped.imageUrls ?? [],
+      instructions: mapped.instructions ?? [],
+      secondaryMuscleGroups: mapped.secondaryMuscleGroups ?? []
     };
   }
 
@@ -1710,14 +1747,32 @@ export class FitSyncDataService {
   }
 
   private mapExerciseImages(images: BackendExerciseImage[] | string[] | null | undefined): string[] {
+    return this.mapExerciseImageDetails(images).map((image) => image.url);
+  }
+
+  private mapExerciseImageDetails(images: BackendExerciseImage[] | string[] | null | undefined): ExerciseImage[] {
     return (images ?? [])
-      .map((image) => {
+      .map((image, index) => {
         if (typeof image === 'string') {
-          return image;
+          return { position: index, url: image };
         }
-        return image.url ?? image.imageUrl ?? image.mediaUrl ?? '';
+        return {
+          position: image.position ?? index,
+          url: image.url ?? image.imageUrl ?? image.mediaUrl ?? ''
+        };
       })
-      .filter((url) => typeof url === 'string' && url.trim().length > 0);
+      .filter((image) => image.url.trim().length > 0)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }
+
+  private mapExerciseInstructions(instructions: BackendExerciseInstruction[] | null | undefined) {
+    return (instructions ?? [])
+      .map((instruction, index) => ({
+        stepNumber: instruction.stepNumber ?? index + 1,
+        text: instruction.text?.trim() ?? ''
+      }))
+      .filter((instruction) => instruction.text.length > 0)
+      .sort((a, b) => (a.stepNumber ?? 0) - (b.stepNumber ?? 0));
   }
 
   private mapWorkoutPlan(plan: BackendWorkoutPlan): WorkoutPlan {

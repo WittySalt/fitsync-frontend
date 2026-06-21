@@ -243,7 +243,27 @@ export interface Exercise {
   custom: boolean;
   videoUrl?: string | null;
   animationUrl?: string | null;
-  images?: string[];
+  images?: ExerciseImage[];
+  imageUrls?: string[];
+  instructions?: ExerciseInstruction[];
+  secondaryMuscleGroups?: string[];
+}
+
+export interface ExerciseImage {
+  position: number | null;
+  url: string;
+}
+
+export interface ExerciseInstruction {
+  stepNumber: number | null;
+  text: string;
+}
+
+export interface ExerciseDetail extends Exercise {
+  images: ExerciseImage[];
+  imageUrls: string[];
+  instructions: ExerciseInstruction[];
+  secondaryMuscleGroups: string[];
 }
 
 export interface ExerciseMetadata {
