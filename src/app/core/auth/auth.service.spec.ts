@@ -211,6 +211,223 @@ describe('AuthService', () => {
     request.flush({});
   });
 
+  it('uses an existing valid local session without bootstrapping', (done) => {
+    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, 'local-fitsync-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(Date.now() + 60_000));
+
+    service.ensureSession().subscribe({
+      next: (authenticated) => {
+        expect(authenticated).toBeTrue();
+        httpMock.expectNone('/api/v1/auth/bootstrap');
+        done();
+      },
+      error: done.fail
+    });
+  });
+
+  it('clears expired local tokens when no Cognito session exists', (done) => {
+    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, 'expired-local-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.idToken, 'expired-id-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, 'expired-refresh-token');
+    localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(Date.now() - 60_000));
+
+    service.ensureSession().subscribe({
+      next: (authenticated) => {
+        expect(authenticated).toBeFalse();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.idToken)).toBeNull();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken)).toBeNull();
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt)).toBeNull();
+        done();
+      },
+      error: done.fail
+    });
+  });
+
+  it('stores optional Cognito refresh tokens and falls back for opaque local tokens', (done) => {
+    service.signIn(' sam@example.com ', 'supersecret').subscribe({
+      next: () => {
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.cognitoRefreshToken)).toBe('cognito-refresh-token');
+        expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBe('opaque-local-token');
+        expect(Number(localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt))).toBeGreaterThan(Date.now());
+        done();
+      },
+      error: done.fail
+    });
+
+    const cognitoRequest = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(cognitoRequest.request.body.AuthParameters.USERNAME).toBe('sam@example.com');
+    cognitoRequest.flush({
+      AuthenticationResult: {
+        AccessToken: 'cognito-access-token',
+        IdToken: 'cognito-id-token',
+        RefreshToken: 'cognito-refresh-token',
+        ExpiresIn: 300
+      }
+    });
+
+    httpMock.expectOne('/api/v1/auth/bootstrap').flush({
+      accessToken: 'opaque-local-token',
+      tokenType: 'Bearer'
+    });
+  });
+
+  it('omits the display name attribute when sign-up receives only whitespace', (done) => {
+    service.signUp(' new@example.com ', 'supersecret', '   ').subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.body).toEqual({
+      ClientId: COGNITO_AUTH_CONFIG.clientId,
+      Username: 'new@example.com',
+      Password: 'supersecret',
+      UserAttributes: [{ Name: 'email', Value: 'new@example.com' }]
+    });
+    request.flush({});
+  });
+
+  it('resends the confirmation code through Cognito', (done) => {
+    service.resendConfirmationCode(' new@example.com ').subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.headers.get('X-Amz-Target')).toBe('AWSCognitoIdentityProviderService.ResendConfirmationCode');
+    expect(request.request.body).toEqual({
+      ClientId: COGNITO_AUTH_CONFIG.clientId,
+      Username: 'new@example.com'
+    });
+    request.flush({});
+  });
+
+  it('rejects unsupported Cognito challenges and missing token responses', (done) => {
+    service.signIn('sam@example.com', 'supersecret').subscribe({
+      next: () => done.fail('expected challenge rejection'),
+      error: (error: Error) => {
+        expect(error.message).toContain('Cognito challenge is not implemented yet');
+
+        service.signIn('sam@example.com', 'supersecret').subscribe({
+          next: () => done.fail('expected token rejection'),
+          error: (missingTokenError: Error) => {
+            expect(missingTokenError.message).toBe('Cognito did not return the required tokens.');
+            done();
+          }
+        });
+
+        httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush({ AuthenticationResult: { AccessToken: 'token', ExpiresIn: 300 } });
+      }
+    });
+
+    httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush({ ChallengeName: 'NEW_PASSWORD_REQUIRED' });
+  });
+
+  it('rejects password, global sign-out, and account deletion without a Cognito access token', (done) => {
+    service.changePassword('old', 'new').subscribe({
+      next: () => done.fail('expected missing-token rejection'),
+      error: (changeError: Error) => {
+        expect(changeError.message).toBe('Cognito session has expired. Please sign in again.');
+
+        service.signOutEverywhere().subscribe({
+          next: () => done.fail('expected missing-token rejection'),
+          error: (signOutError: Error) => {
+            expect(signOutError.message).toBe('Cognito session has expired. Please sign in again.');
+
+            service.deleteAccount().subscribe({
+              next: () => done.fail('expected missing-token rejection'),
+              error: (deleteError: Error) => {
+                expect(deleteError.message).toBe('Cognito session has expired. Please sign in again.');
+                done();
+              }
+            });
+          }
+        });
+      }
+    });
+  });
+
+  it('surfaces the hosted UI callback deprecation error', (done) => {
+    service.completeCallback('code', 'state').subscribe({
+      next: () => done.fail('expected callback rejection'),
+      error: (error: Error) => {
+        expect(error.message).toContain('Hosted UI callback is no longer used');
+        done();
+      }
+    });
+  });
+
+  it('maps common Cognito and network errors to user-facing messages', (done) => {
+    service.signIn('sam@example.com', 'supersecret').subscribe({
+      next: () => done.fail('expected network rejection'),
+      error: (networkError: Error) => {
+        expect(networkError.message).toContain('Unable to reach Cognito');
+
+        service.signIn('sam@example.com', 'supersecret').subscribe({
+          next: () => done.fail('expected unconfirmed rejection'),
+          error: (unconfirmedError: Error) => {
+            expect(unconfirmedError.message).toBe('Please confirm your email before signing in.');
+
+            service.signIn('sam@example.com', 'supersecret').subscribe({
+              next: () => done.fail('expected invalid auth-flow rejection'),
+              error: (invalidParameterError: Error) => {
+                expect(invalidParameterError.message).toContain('USER_PASSWORD_AUTH');
+                done();
+              }
+            });
+
+            httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush(
+              { __type: 'InvalidParameterException', message: 'USER_PASSWORD_AUTH is not enabled' },
+              { status: 400, statusText: 'Bad Request' }
+            );
+          }
+        });
+
+        httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush(
+          { __type: 'UserNotConfirmedException', message: 'not confirmed' },
+          { status: 400, statusText: 'Bad Request' }
+        );
+      }
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    request.error(new ProgressEvent('network error'), { status: 0, statusText: 'Unknown Error' });
+  });
+
+  it('passes through string and default HTTP error messages', (done) => {
+    service.confirmSignUp('new@example.com', '123456').subscribe({
+      next: () => done.fail('expected string error rejection'),
+      error: (stringError: Error) => {
+        expect(stringError.message).toBe('plain Cognito error');
+
+        service.signIn('sam@example.com', 'supersecret').subscribe({
+          next: () => done.fail('expected not-authorized rejection'),
+          error: (notAuthorizedError: Error) => {
+            expect(notAuthorizedError.message).toBe('Invalid email or password.');
+
+            service.signUp('new@example.com', 'supersecret', 'New User').subscribe({
+              next: () => done.fail('expected fallback rejection'),
+              error: (fallbackError: Error) => {
+                expect(fallbackError.message).toContain('500 Server Error');
+                done();
+              }
+            });
+
+            httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush({}, { status: 500, statusText: 'Server Error' });
+          }
+        });
+
+        httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush(
+          { __type: 'NotAuthorizedException', message: 'bad credentials' },
+          { status: 400, statusText: 'Bad Request' }
+        );
+      }
+    });
+
+    httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush('plain Cognito error', { status: 400, statusText: 'Bad Request' });
+  });
+
   function jwtWithExpiry(exp: number): string {
     return ['header', base64Url(JSON.stringify({ exp })), 'signature'].join('.');
   }

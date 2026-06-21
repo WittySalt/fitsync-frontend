@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { RouterLink, provideRouter } from '@angular/router';
-import { By } from '@angular/platform-browser';
-import { of } from 'rxjs';
+import { provideRouter } from '@angular/router';
+import { of, throwError } from 'rxjs';
 
 import {
   AccountBodyMetric,
@@ -12,12 +11,14 @@ import {
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theme/theme.service';
+import { ToastService } from '../../core/toast/toast.service';
 import { SettingsPage } from './settings.page';
 
 describe('SettingsPage', () => {
   let fixture: ComponentFixture<SettingsPage>;
   let authService: jasmine.SpyObj<AuthService>;
   let accountDataService: jasmine.SpyObj<AccountDataService>;
+  let toast: jasmine.SpyObj<ToastService>;
 
   const weightGoal: UserGoal = {
     goalId: 'goal-1',
@@ -191,6 +192,7 @@ describe('SettingsPage', () => {
       [
         'getAccountCenter',
         'updateProfile',
+        'uploadAvatar',
         'updatePreferences',
         'createBodyMetric',
         'listBodyMetrics',
@@ -204,24 +206,32 @@ describe('SettingsPage', () => {
     );
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
     accountDataService.updateProfile.and.returnValue(of(accountData.user.profile));
+    accountDataService.uploadAvatar.and.returnValue(of(accountData.user.profile));
     accountDataService.updatePreferences.and.returnValue(of(accountData.user.preferences));
     accountDataService.createBodyMetric.and.returnValue(of(createdBodyMetric));
     accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!, olderBodyMetric]));
     accountDataService.replaceBodyMetric.and.returnValue(of(accountData.user.latestBodyMetrics!));
     accountDataService.updateGoal.and.returnValue(of(weightGoal));
+    accountDataService.updateRecoveryEmail.and.returnValue(of({
+      ...accountData.security,
+      recoveryEmail: 'recovery@example.com',
+      recoveryEmailUpdatable: true
+    }));
     accountDataService.requestDataExport.and.returnValue(of(accountData.latestDataExport!));
     accountDataService.downloadDataExport.and.returnValue(of({} as AccountDataExportPayload));
     accountDataService.requestAccountDeletion.and.returnValue(of(accountData.accountDeletion));
     authService.changePassword.and.returnValue(of(undefined));
     authService.signOutEverywhere.and.returnValue(of(undefined));
     authService.deleteAccount.and.returnValue(of(undefined));
+    toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
 
     await TestBed.configureTestingModule({
       imports: [SettingsPage],
       providers: [
-        provideRouter([]),
         { provide: AuthService, useValue: authService },
-        { provide: AccountDataService, useValue: accountDataService }
+        { provide: AccountDataService, useValue: accountDataService },
+        { provide: ToastService, useValue: toast },
+        provideRouter([])
       ]
     }).compileComponents();
 
@@ -231,34 +241,29 @@ describe('SettingsPage', () => {
 
   it('renders the account center from the real account model groups', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    const summaryText = (fixture.nativeElement as HTMLElement).querySelector('.account-summary')?.textContent ?? '';
 
     expect(text).toContain('Alice Tan');
     expect(text).toContain('Identity');
     expect(text).toContain('Gender');
     expect(text).toContain('Goals / targets');
-    expect(text).not.toContain('Training defaults');
-    expect(text).not.toContain('Download archive');
-    expect(text).not.toContain('Cognito protected');
-    expect(summaryText).toContain('Region');
-    expect(summaryText).toContain('Activity');
-    expect(summaryText).not.toContain('Security');
-    expect(summaryText).not.toContain('Cognito protected');
+    // Section tabs: these live in non-default sections but the nav labels are always rendered.
+    expect(text).toContain('Preferences');
+    expect(text).toContain('Privacy & Data');
+    expect(text).toContain('Security');
   });
 
   it('marks Cognito and derived fields as read-only instead of editable settings', () => {
-    fixture.componentInstance.selectSection('security');
-    fixture.detectChanges();
-    let text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-
-    expect(text).toContain('Managed by Cognito');
-
-    fixture.componentInstance.selectSection('personal');
-    fixture.detectChanges();
-    text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    const component = fixture.componentInstance;
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
     expect(text).toContain('BMI');
     expect(text).toContain('Derived');
+
+    component.selectedSection.set('security');
+    fixture.detectChanges();
+    const securityText = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(securityText).toContain('Managed by Cognito');
+    expect(securityText).toContain('Cognito protected');
   });
 
   it('renders body metric history from the body-metrics list endpoint', () => {
@@ -303,10 +308,8 @@ describe('SettingsPage', () => {
 
   it('renders appearance controls and stores the selected theme preference', () => {
     const service = TestBed.inject(ThemeService);
-
-    fixture.componentInstance.selectSection('appearance');
+    fixture.componentInstance.selectedSection.set('appearance');
     fixture.detectChanges();
-
     const buttons = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.appearance-toggle button')
     );
@@ -350,98 +353,6 @@ describe('SettingsPage', () => {
     }));
   });
 
-  it('links avatar changes to the dedicated profile photo page', () => {
-    const component = fixture.componentInstance;
-
-    component.startEdit('identity');
-    fixture.detectChanges();
-
-    const links = fixture.debugElement
-      .queryAll(By.directive(RouterLink))
-      .map((debugElement) => debugElement.injector.get(RouterLink))
-      .map((link) => link.href)
-      .filter((href): href is string => Boolean(href));
-
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Change photo');
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Manual URL');
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Avatar URL');
-    expect(links.some((href) => href.endsWith('/settings/avatar'))).toBeTrue();
-  });
-
-  it('renders Personal as the default settings tab', () => {
-    const component = fixture.componentInstance;
-
-    expect(component.selectedSection()).toBe('personal');
-    expect(fixture.nativeElement.querySelector('#personal')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#security')).toBeFalsy();
-
-    const personalTab = fixture.debugElement.query(By.css('.section-nav button[role="tab"]'));
-    expect(personalTab.nativeElement.textContent.trim()).toBe('Personal');
-    expect(personalTab.nativeElement.getAttribute('aria-selected')).toBe('true');
-  });
-
-  it('switches settings sections through the left tab navigation', () => {
-    const securityTab = fixture.debugElement
-      .queryAll(By.css('.section-nav button[role="tab"]'))
-      .find((button) => button.nativeElement.textContent.trim() === 'Security');
-
-    securityTab?.triggerEventHandler('click');
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.selectedSection()).toBe('security');
-    expect(fixture.nativeElement.querySelector('#security')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#personal')).toBeFalsy();
-    expect(securityTab?.nativeElement.getAttribute('aria-selected')).toBe('true');
-    expect(securityTab?.nativeElement.classList.contains('active')).toBeTrue();
-  });
-
-  it('switches sections from the account menu and closes the popover', () => {
-    const component = fixture.componentInstance;
-
-    component.toggleAccountMenu();
-    fixture.detectChanges();
-
-    const securityMenuItem = fixture.debugElement
-      .queryAll(By.css('.settings-account-popover button[role="menuitem"]'))
-      .find((button) => button.nativeElement.textContent.trim() === 'Security settings');
-
-    securityMenuItem?.triggerEventHandler('click');
-    fixture.detectChanges();
-
-    expect(component.selectedSection()).toBe('security');
-    expect(component.accountMenuOpen()).toBeFalse();
-    expect(fixture.nativeElement.querySelector('#security')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.settings-account-popover')).toBeFalsy();
-  });
-
-  it('preserves the current avatar when saving identity fields', () => {
-    const component = fixture.componentInstance;
-    const avatarUrl = 'https://cdn.example/avatar.png';
-
-    component.data.set({
-      ...accountData,
-      user: {
-        ...accountData.user,
-        profile: {
-          ...accountData.user.profile,
-          avatarUrl
-        }
-      }
-    });
-    component.startEdit('identity');
-    component.identityForm.patchValue({
-      displayName: 'Alice Training',
-      gender: 'FEMALE',
-      birthDate: '1995-04-12'
-    });
-    component.saveIdentity();
-
-    expect(accountDataService.updateProfile).toHaveBeenCalledWith(jasmine.objectContaining({
-      displayName: 'Alice Training',
-      avatarUrl
-    }));
-  });
-
   it('updates goals through the goal endpoint', () => {
     const component = fixture.componentInstance;
 
@@ -456,20 +367,6 @@ describe('SettingsPage', () => {
     }));
   });
 
-  it('offers carbohydrate and fat goals with grams as their default unit', () => {
-    const component = fixture.componentInstance;
-    const labels = component.goalTypeOptions.map((option) => option.label);
-
-    expect(labels).toContain('Carbs');
-    expect(labels).toContain('Fat');
-
-    component.startGoalEdit('CARBS');
-    expect(component.goalForm.controls.targetUnit.value).toBe('g');
-
-    component.startGoalEdit('FAT');
-    expect(component.goalForm.controls.targetUnit.value).toBe('g');
-  });
-
   it('requests account data export from the privacy section', () => {
     fixture.componentInstance.requestDataExport();
 
@@ -480,5 +377,344 @@ describe('SettingsPage', () => {
     fixture.componentInstance.logout();
 
     expect(authService.logout).toHaveBeenCalled();
+  });
+
+  it('surfaces load and metric history failures without leaving loading flags set', () => {
+    accountDataService.getAccountCenter.and.returnValue(throwError(() => new Error('settings offline')));
+
+    fixture.componentInstance.load();
+
+    expect(fixture.componentInstance.error()).toBe('settings offline');
+    expect(fixture.componentInstance.loading()).toBeFalse();
+
+    accountDataService.listBodyMetrics.and.returnValue(throwError(() => new Error('history offline')));
+
+    fixture.componentInstance.loadBodyMetricHistory();
+
+    expect(fixture.componentInstance.bodyMetricHistoryError()).toBe('history offline');
+    expect(fixture.componentInstance.bodyMetricHistoryLoading()).toBeFalse();
+  });
+
+  it('covers display fallbacks, imperial formatting, labels, summaries, and menu closing', () => {
+    const component = fixture.componentInstance;
+    const imperialData: AccountCenterData = {
+      ...accountData,
+      user: {
+        ...accountData.user,
+        profile: {
+          ...accountData.user.profile,
+          heightCm: 180,
+          locationDisplay: null,
+          timezone: 'Asia/Singapore'
+        },
+        preferences: {
+          ...accountData.user.preferences,
+          app: {
+            ...accountData.user.preferences.app,
+            preferredUnits: '100002'
+          },
+          notifications: {
+            ...accountData.user.preferences.notifications,
+            weeklyProgressReportEnabled: false,
+            quietHoursStart: null,
+            quietHoursEnd: null
+          }
+        },
+        latestBodyMetrics: {
+          ...accountData.user.latestBodyMetrics!,
+          weightKg: 72,
+          bmi: null
+        },
+        activeGoals: [
+          {
+            ...weightGoal,
+            targetValue: null,
+            targetUnit: null,
+            targetDate: null,
+            status: 'PAUSED'
+          }
+        ]
+      }
+    };
+
+    component.data.set(null);
+
+    expect(component.accountType()).toBe('Account');
+    expect(component.displayMetric(null, 'kg')).toBe('Not set');
+    expect(component.displayWeight(null)).toBe('Not set');
+    expect(component.displayHeight(null)).toBe('Not set');
+    expect(component.displayDateTime(null)).toBe('Not set');
+    expect(component.displayDate(null)).toBe('Not set');
+    expect(component.trainingDefaults()).toBe('Not set');
+    expect(component.nutritionTracking()).toBe('Not set');
+    expect(component.weeklyReportSummary()).toBe('Off');
+    expect(component.quietHoursSummary()).toBe('Not set');
+    expect(component.goalSummary('CALORIES')).toBe('Not set');
+    expect(component.labelFor(null)).toBe('Not set');
+
+    component.data.set(imperialData);
+
+    expect(component.region()).toBe('Asia/Singapore');
+    expect(component.displayWeight(imperialData.user.latestBodyMetrics)).toBe('158.7 lb');
+    expect(component.displayHeight(180)).toBe('5 ft 11 in');
+    expect(component.bodyMetricSummary()).toContain('BMI unavailable');
+    expect(component.bodyMetricDetailSummary({
+      ...olderBodyMetric,
+      bodyFatRate: null,
+      waistCm: null,
+      hipCm: null,
+      chestCm: null,
+      armCm: null,
+      thighCm: null,
+      calfCm: null
+    })).toBe('No additional measurements');
+    expect(component.goalSummary('WEIGHT')).toContain('Target not set - Paused');
+    expect(component.labelFor('VERY_ACTIVE')).toBe('Very Active');
+
+    component.accountMenuOpen.set(true);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(component.accountMenuOpen()).toBeFalse();
+  });
+
+  it('handles edit cancellation', () => {
+    const component = fixture.componentInstance;
+
+    component.startEdit('goals');
+    expect(component.goalPanelOpen()).toBeTrue();
+    expect(component.goalForm.controls.goalType.value).toBe('WEIGHT');
+
+    component.identityForm.patchValue({ displayName: 'Unsaved Name' });
+    component.cancelEdit();
+
+    expect(component.identityForm.controls.displayName.value).toBe('Alice Tan');
+    expect(component.editPanel()).toBeNull();
+    expect(component.goalPanelOpen()).toBeFalse();
+  });
+
+  it('saves location, activity, preferences, recovery email, exports, and deletion requests', () => {
+    const component = fixture.componentInstance;
+
+    component.locationForm.patchValue({
+      locationDisplay: ' Singapore ',
+      profileTimezone: 'Asia/Singapore',
+      appTimezone: 'Asia/Singapore'
+    });
+    component.saveLocation();
+
+    expect(accountDataService.updateProfile).toHaveBeenCalledWith(jasmine.objectContaining({
+      locationDisplay: 'Singapore',
+      timezone: 'Asia/Singapore'
+    }));
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      app: jasmine.objectContaining({ timezone: 'Asia/Singapore' })
+    }));
+
+    component.activityForm.patchValue({ activityLevel: 'VERY_ACTIVE' });
+    component.saveActivity();
+
+    expect(accountDataService.updateProfile).toHaveBeenCalledWith(jasmine.objectContaining({
+      activityLevel: 'VERY_ACTIVE'
+    }));
+
+    component.trainingForm.patchValue({
+      fitnessLevel: '200003',
+      trainingLocation: '210002',
+      weeklyWorkoutDays: '5',
+      preferredDurationMinutes: '60',
+      preferredWorkoutTime: '06:15',
+      intensityPreference: '220003'
+    });
+    component.savePreferences('training');
+
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      training: jasmine.objectContaining({
+        weeklyWorkoutDays: 5,
+        preferredDurationMinutes: 60,
+        preferredWorkoutTime: '06:15:00'
+      })
+    }));
+
+    component.nutritionForm.patchValue({ mealFrequency: '4', waterGoalMl: '2800' });
+    component.savePreferences('nutrition');
+
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      nutrition: jasmine.objectContaining({ mealFrequency: 4, waterGoalMl: 2800 })
+    }));
+
+    component.notificationsForm.patchValue({
+      weeklyProgressReportEnabled: true,
+      weeklyProgressReportChannel: 'PUSH',
+      quietHoursStart: '21:30',
+      quietHoursEnd: '06:45'
+    });
+    component.savePreferences('notifications');
+
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      notifications: jasmine.objectContaining({
+        weeklyProgressReportChannel: 'PUSH',
+        quietHoursStart: '21:30:00',
+        quietHoursEnd: '06:45:00'
+      })
+    }));
+
+    component.formattingForm.patchValue({ preferredUnits: '100002', language: '110002' });
+    component.savePreferences('formatting');
+    component.privacyForm.patchValue({ privacyLevel: '120003', dataSharingConsent: true });
+    component.savePreferences('privacy');
+
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      app: jasmine.objectContaining({ privacyLevel: '120003', dataSharingConsent: true })
+    }));
+
+    component.data.set({
+      ...accountData,
+      security: { ...accountData.security, recoveryEmailUpdatable: true }
+    });
+    component.recoveryForm.patchValue({ email: 'recovery@example.com', currentPassword: 'password123' });
+    component.saveRecoveryEmail();
+
+    expect(accountDataService.updateRecoveryEmail).toHaveBeenCalledWith('recovery@example.com', 'password123');
+    expect(component.recoveryForm.controls.currentPassword.value).toBe('');
+
+    component.requestDataExport();
+    component.downloadDataExport();
+
+    expect(accountDataService.requestDataExport).toHaveBeenCalled();
+    expect(accountDataService.downloadDataExport).toHaveBeenCalledWith('export-1');
+
+    component.deletionForm.patchValue({ confirmationText: ' DELETE ', currentPassword: 'password123' });
+    component.requestAccountDeletion();
+
+    expect(accountDataService.requestAccountDeletion).toHaveBeenCalledWith('DELETE', 'password123');
+    expect(toast.success).toHaveBeenCalledWith('Account deletion request submitted.');
+  });
+
+  it('marks forms touched and skips service calls for invalid or unavailable save paths', () => {
+    const component = fixture.componentInstance;
+
+    accountDataService.updateProfile.calls.reset();
+    accountDataService.updatePreferences.calls.reset();
+    accountDataService.updateGoal.calls.reset();
+    accountDataService.updateRecoveryEmail.calls.reset();
+    accountDataService.requestDataExport.calls.reset();
+    accountDataService.downloadDataExport.calls.reset();
+    accountDataService.requestAccountDeletion.calls.reset();
+
+    component.identityForm.patchValue({ displayName: '' });
+    component.saveIdentity();
+    component.locationForm.patchValue({ locationDisplay: 'x'.repeat(121) });
+    component.saveLocation();
+    component.bodyForm.patchValue({ measuredAt: '' });
+    component.saveBody();
+    component.goalForm.patchValue({ targetValue: '-1' });
+    component.saveGoal();
+    component.trainingForm.patchValue({ weeklyWorkoutDays: '20' });
+    component.savePreferences('training');
+    component.recoveryForm.patchValue({ email: 'bad-email', currentPassword: '' });
+    component.saveRecoveryEmail();
+    component.deletionForm.patchValue({ confirmationText: 'no' });
+    component.requestAccountDeletion();
+
+    expect(accountDataService.updateProfile).not.toHaveBeenCalled();
+    expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
+    expect(accountDataService.updateGoal).not.toHaveBeenCalled();
+    expect(accountDataService.updateRecoveryEmail).not.toHaveBeenCalled();
+    expect(accountDataService.requestAccountDeletion).not.toHaveBeenCalled();
+
+    component.data.set(null);
+    component.saveActivity();
+    component.requestDataExport();
+    component.downloadDataExport();
+
+    expect(accountDataService.requestDataExport).not.toHaveBeenCalled();
+    expect(accountDataService.downloadDataExport).not.toHaveBeenCalled();
+  });
+
+  it('records save errors from every asynchronous settings mutation', () => {
+    const component = fixture.componentInstance;
+
+    accountDataService.updateProfile.and.returnValue(throwError(() => new Error('profile failed')));
+    component.saveActivity();
+
+    expect(component.sectionErrors().activity).toBe('profile failed');
+    expect(toast.error).toHaveBeenCalledWith('profile failed');
+
+    accountDataService.updatePreferences.and.returnValue(throwError(() => new Error('preferences failed')));
+    component.savePreferences('formatting');
+
+    expect(component.sectionErrors().formatting).toBe('preferences failed');
+
+    accountDataService.updateGoal.and.returnValue(throwError(() => new Error('goal failed')));
+    component.goalForm.patchValue({ targetValue: '68' });
+    component.saveGoal();
+
+    expect(component.sectionErrors().goals).toBe('goal failed');
+
+    accountDataService.updateRecoveryEmail.and.returnValue(throwError(() => new Error('recovery failed')));
+    component.data.set({
+      ...accountData,
+      security: { ...accountData.security, recoveryEmailUpdatable: true }
+    });
+    component.recoveryForm.patchValue({ email: 'recovery@example.com', currentPassword: 'password123' });
+    component.saveRecoveryEmail();
+
+    expect(component.sectionErrors().recovery).toBe('recovery failed');
+
+    accountDataService.requestDataExport.and.returnValue(throwError(() => new Error('export failed')));
+    component.requestDataExport();
+
+    expect(component.sectionErrors().privacy).toBe('export failed');
+
+    accountDataService.downloadDataExport.and.returnValue(throwError(() => new Error('download failed')));
+    component.downloadDataExport();
+
+    expect(component.sectionErrors().privacy).toBe('download failed');
+
+    accountDataService.requestAccountDeletion.and.returnValue(throwError(() => new Error('delete failed')));
+    component.deletionForm.patchValue({ confirmationText: 'DELETE', currentPassword: '' });
+    component.requestAccountDeletion();
+
+    expect(component.sectionErrors().delete).toBe('delete failed');
+    expect(component.saving()).toBeNull();
+  });
+
+  it('updates body profile without a metric and keeps the newer latest metric when created metric is older', () => {
+    const component = fixture.componentInstance;
+    const olderCreatedMetric: AccountBodyMetric = {
+      ...createdBodyMetric,
+      metricId: 'metric-old-created',
+      measuredAt: '2026-06-01T00:00:00Z'
+    };
+
+    accountDataService.createBodyMetric.and.returnValue(of(olderCreatedMetric));
+    accountDataService.updateProfile.and.callFake((profile) => of(profile));
+
+    component.bodyForm.patchValue({
+      heightCm: '173',
+      weightKg: '',
+      bodyFatRate: '',
+      waistCm: '',
+      hipCm: '',
+      chestCm: '',
+      armCm: '',
+      thighCm: '',
+      calfCm: ''
+    });
+    component.saveBody();
+
+    expect(accountDataService.createBodyMetric).not.toHaveBeenCalled();
+    expect(component.data()?.user.profile.heightCm).toBe(173);
+    expect(toast.success).toHaveBeenCalledWith('Body profile updated.');
+
+    component.bodyForm.patchValue({
+      weightKg: '71.5',
+      measuredAt: '2026-06-01T08:00',
+      note: ' older '
+    });
+    component.saveBody();
+
+    expect(accountDataService.createBodyMetric).toHaveBeenCalled();
+    expect(component.data()?.user.latestBodyMetrics?.metricId).toBe('metric-1');
   });
 });

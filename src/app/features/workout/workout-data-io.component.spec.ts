@@ -167,4 +167,171 @@ describe('WorkoutDataIoComponent', () => {
     expect(toast.error).toHaveBeenCalledWith('Unable to import workout sessions. Please check the file and retry.');
     expect(fixture.componentInstance.importing()).toBeFalse();
   });
+
+  it('guards duplicate exports and reports export errors', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+    fixture.componentInstance.exporting.set(true);
+
+    fixture.componentInstance.exportData();
+    expect(dataService.exportWorkoutData).not.toHaveBeenCalled();
+
+    fixture.componentInstance.exporting.set(false);
+    dataService.exportWorkoutData.and.returnValue(throwError(() => new Error('export failed')));
+    fixture.componentInstance.exportData();
+
+    expect(dataService.exportWorkoutData).toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('Unable to export workout data. Please retry.');
+    expect(fixture.componentInstance.exporting()).toBeFalse();
+  });
+
+  it('uses today in the export filename when exportedAt is missing', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+    const originalCreateElement = document.createElement.bind(document);
+    let anchor: HTMLAnchorElement | null = null;
+    dataService.exportWorkoutData.and.returnValue(
+      of({ schemaVersion: 1, exportedAt: '', exercises: [], plans: [], sessions: [] } satisfies WorkoutExport)
+    );
+    spyOn(document, 'createElement').and.callFake((tagName: string, options?: ElementCreationOptions) => {
+      const element = originalCreateElement(tagName, options);
+      if (tagName.toLowerCase() === 'a') {
+        anchor = element as HTMLAnchorElement;
+        spyOn(anchor, 'click').and.stub();
+      }
+      return element;
+    });
+
+    fixture.componentInstance.exportData();
+
+    expect((anchor as unknown as HTMLAnchorElement).download).toMatch(/^fitsync-workout-export-\d{4}-\d{2}-\d{2}\.json$/);
+  });
+
+  it('guards empty, duplicate, and malformed imports before posting', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+
+    fixture.componentInstance.importData();
+    expect(dataService.importSessions).not.toHaveBeenCalled();
+
+    fixture.componentInstance.importing.set(true);
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify([importRow()]));
+    fixture.componentInstance.importData();
+    expect(dataService.importSessions).not.toHaveBeenCalled();
+
+    fixture.componentInstance.importing.set(false);
+    fixture.componentInstance.importForm.controls.importText.setValue('{bad json');
+    fixture.componentInstance.importData();
+    expect(toast.error).toHaveBeenCalledWith('Import JSON is not valid.');
+
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify({ rows: [] }));
+    fixture.componentInstance.importData();
+    expect(toast.error).toHaveBeenCalledWith('Import JSON must be an array or an object with a sessions array.');
+  });
+
+  it('rejects oversized imports, non-object rows, and missing required fields', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify(new Array(101).fill(importRow())));
+    fixture.componentInstance.importData();
+    expect(toast.error).toHaveBeenCalledWith('Import is limited to 100 sessions at a time.');
+
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify(['not a row']));
+    fixture.componentInstance.importData();
+    expect(toast.error).toHaveBeenCalledWith('Row 1 must be an object.');
+
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify([{ ...importRow(), name: '   ' }]));
+    fixture.componentInstance.importData();
+    expect(toast.error).toHaveBeenCalledWith('Row 1 is missing name.');
+
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify([{ ...importRow(), completedAt: undefined }]));
+    fixture.componentInstance.importData();
+    expect(toast.error).toHaveBeenCalledWith('Row 1 must include completedAt when status is COMPLETED.');
+  });
+
+  it('normalizes optional import fields with defaults and fallback numbers', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+    const row = {
+      externalId: ' ext-optional ',
+      source: ' IMPORTED ',
+      planId: ' plan-1 ',
+      name: ' Optional row ',
+      workoutType: ' STRENGTH ',
+      status: 'PLANNED',
+      startedAt: ' 2026-06-20T10:00:00Z ',
+      durationMinutes: 'not-a-number',
+      caloriesBurned: undefined,
+      perceivedExertion: 'not-a-number',
+      notes: '   ',
+      exercises: 'not an array'
+    };
+
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify([row]));
+    fixture.componentInstance.importData();
+
+    expect(dataService.importSessions).toHaveBeenCalledWith([
+      jasmine.objectContaining({
+        externalId: 'ext-optional',
+        source: 'IMPORTED',
+        planId: ' plan-1 ',
+        name: 'Optional row',
+        workoutType: 'STRENGTH',
+        durationMinutes: 0,
+        caloriesBurned: 0,
+        perceivedExertion: null,
+        notes: null,
+        exercises: []
+      })
+    ]);
+  });
+
+  it('uses the generic parse message for non-Error parser failures', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+    fixture.componentInstance.importForm.controls.importText.setValue(JSON.stringify([importRow()]));
+    spyOn(fixture.componentInstance as unknown as { parseRows(text: string): ImportSessionRow[] }, 'parseRows').and.callFake(() => {
+      throw 'parser exploded';
+    });
+
+    fixture.componentInstance.importData();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to parse workout import JSON.');
+    expect(dataService.importSessions).not.toHaveBeenCalled();
+  });
+
+  it('loads selected file text and reports file read errors', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+    const originalFileReader = window.FileReader;
+    let mode: 'load' | 'error' = 'load';
+
+    class FakeFileReader {
+      result: string | ArrayBuffer | null = JSON.stringify([importRow()]);
+      onload: ((event: ProgressEvent<FileReader>) => void) | null = null;
+      onerror: ((event: ProgressEvent<FileReader>) => void) | null = null;
+      readAsText(): void {
+        if (mode === 'load') {
+          this.onload?.(new ProgressEvent('load') as ProgressEvent<FileReader>);
+        } else {
+          this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>);
+        }
+      }
+    }
+
+    Object.defineProperty(window, 'FileReader', { configurable: true, value: FakeFileReader });
+
+    fixture.componentInstance.handleFileSelected({ target: { files: [] } } as unknown as Event);
+    expect(fixture.componentInstance.importForm.controls.importText.value).toBe('');
+
+    fixture.componentInstance.handleFileSelected({ target: { files: [new File(['[]'], 'sessions.json')] } } as unknown as Event);
+    expect(fixture.componentInstance.importForm.controls.importText.value).toContain('ext-1');
+
+    mode = 'error';
+    fixture.componentInstance.handleFileSelected({ target: { files: [new File(['[]'], 'sessions.json')] } } as unknown as Event);
+    expect(toast.error).toHaveBeenCalledWith('Unable to read the selected file.');
+
+    Object.defineProperty(window, 'FileReader', { configurable: true, value: originalFileReader });
+  });
+
+  it('formats import result statuses for display and CSS classes', () => {
+    const fixture = TestBed.createComponent(WorkoutDataIoComponent);
+
+    expect(fixture.componentInstance.formatStatus('SKIPPED_DUPLICATE')).toBe('Skipped Duplicate');
+    expect(fixture.componentInstance.statusClass('SKIPPED_DUPLICATE')).toBe('skipped-duplicate');
+  });
 });

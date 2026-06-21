@@ -1,9 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
 
 import { ProfilePage } from './profile.page';
-import { DashboardData } from '../../core/fitsync-data.service';
+import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 
 const mockDashboard: DashboardData = {
   profile: {
@@ -56,9 +57,18 @@ const mockDashboard: DashboardData = {
 
 describe('ProfilePage', () => {
   let component: ProfilePage;
+  let dataService: jasmine.SpyObj<FitSyncDataService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideRouter([])] });
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard']);
+    dataService.getDashboard.and.returnValue(of(mockDashboard));
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideRouter([]),
+        { provide: FitSyncDataService, useValue: dataService }
+      ]
+    });
     component = TestBed.createComponent(ProfilePage).componentInstance;
     component.data.set(mockDashboard);
   });
@@ -81,5 +91,103 @@ describe('ProfilePage', () => {
     expect(activity.length).toBe(2);
     expect(activity[0].title).toBe('Upper body strength');
     expect(activity[1].icon).toBe('scale');
+  });
+
+  it('uses initials fallbacks for missing, blank, and single-word names', () => {
+    component.data.set(null);
+    expect(component.initials()).toBe('FS');
+
+    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: '   ' } });
+    expect(component.initials()).toBe('FS');
+
+    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Madonna' } });
+    expect(component.initials()).toBe('M');
+
+    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Alice Bee Tan' } });
+    expect(component.initials()).toBe('AT');
+  });
+
+  it('returns null age for missing or invalid birth dates', () => {
+    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, birthDate: undefined } });
+    expect(component.age()).toBeNull();
+
+    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, birthDate: 'not-a-date' } });
+    expect(component.age()).toBeNull();
+  });
+
+  it('falls back to the first goal and clamps goal progress', () => {
+    component.data.set({
+      ...mockDashboard,
+      goals: [
+        { goalType: 'CALORIES', targetValue: 2200, targetUnit: 'kcal', targetDate: '2026-09-12', status: 'PAUSED', progressRatio: 2 },
+        { goalType: 'PROTEIN', targetValue: 120, targetUnit: 'g', targetDate: '2026-09-12', status: 'COMPLETED', progressRatio: -1 }
+      ]
+    });
+
+    expect(component.activeGoal()?.goalType).toBe('CALORIES');
+    expect(component.goalProgress()).toBe(100);
+
+    component.data.set({
+      ...mockDashboard,
+      goals: [{ goalType: 'PROTEIN', targetValue: 120, targetUnit: 'g', targetDate: '2026-09-12', status: 'ACTIVE', progressRatio: -1 }]
+    });
+    expect(component.goalProgress()).toBe(0);
+
+    component.data.set({ ...mockDashboard, goals: [] });
+    expect(component.activeGoal()).toBeNull();
+    expect(component.goalProgress()).toBe(0);
+  });
+
+  it('builds recent activity from meals and handles missing dashboard data', () => {
+    component.data.set(null);
+    expect(component.recentActivity()).toEqual([]);
+
+    component.data.set({
+      ...mockDashboard,
+      latestWorkout: null,
+      latestMeal: {
+        mealId: 'meal-1',
+        name: 'Recovery breakfast',
+        mealType: 'POST_WORKOUT',
+        consumedAt: '2026-06-21T01:00:00Z',
+        totalCalories: 480,
+        totalProteinGrams: 35,
+        itemCount: 3
+      },
+      latestBodyMetric: null
+    });
+
+    expect(component.recentActivity()).toEqual([
+      jasmine.objectContaining({
+        icon: 'utensils',
+        title: 'Recovery breakfast',
+        detail: jasmine.stringMatching(/Post Workout/)
+      })
+    ]);
+  });
+
+  it('loads dashboard data and stores load errors', () => {
+    const fresh = TestBed.createComponent(ProfilePage).componentInstance;
+    dataService.getDashboard.and.returnValue(of({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Loaded User' } }));
+
+    fresh.load();
+
+    expect(fresh.loading()).toBeFalse();
+    expect(fresh.error()).toBeNull();
+    expect(fresh.data()?.profile.displayName).toBe('Loaded User');
+
+    dataService.getDashboard.and.returnValue(throwError(() => new Error('Profile unavailable')));
+    fresh.load();
+
+    expect(fresh.loading()).toBeFalse();
+    expect(fresh.error()).toBe('Profile unavailable');
+  });
+
+  it('formats labels and date guard values', () => {
+    expect(component.label(null)).toBe('');
+    expect(component.label('BODY_WEIGHT')).toBe('Body Weight');
+    expect(component.formatDate(null)).toBe('');
+    expect(component.formatDate('not-a-date')).toBe('not-a-date');
+    expect(component.formatDate('2026-06-21T08:00:00Z')).toMatch(/\d{1,2} [A-Z][a-z]{2}/);
   });
 });

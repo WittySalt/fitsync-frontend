@@ -1,22 +1,78 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
+import { of, throwError } from 'rxjs';
 
 import { OnboardingSeed } from '../../core/fitsync.models';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { ToastService } from '../../core/toast/toast.service';
 import { OnboardingPage } from './onboarding.page';
+
+function emptySeed(): OnboardingSeed {
+  return {
+    value: {},
+    hasExistingBodyBaseline: false,
+    hasExistingTrainingBaseline: false,
+    hasExistingNutritionBaseline: false
+  };
+}
+
+function fillValidOnboarding(component: OnboardingPage): void {
+  component.selectPrimaryGoal('LOSE_FAT');
+  component.form.patchValue({
+    displayName: 'Alice Tan',
+    gender: 'FEMALE',
+    birthDate: '1992-03-14',
+    preferredUnits: 'METRIC',
+    heightCm: 168,
+    currentWeightKg: 72,
+    targetWeightKg: 65,
+    weeklyPaceKg: 0.5,
+    activityLevel: 'MODERATELY_ACTIVE',
+    weeklyWorkoutDays: 4,
+    fitnessLevel: 'INTERMEDIATE',
+    trainingLocation: 'GYM',
+    preferredDurationMinutes: 45,
+    preferredWorkoutTime: '07:30',
+    intensityPreference: 'MODERATE',
+    equipmentInventory: ['DUMBBELLS'],
+    focusAreas: ['FULL_BODY'],
+    injuryAreas: [],
+    dietaryPattern: 'NONE',
+    calorieTrackingMode: 'STRICT',
+    targetCalories: 2100,
+    targetProteinGrams: 140,
+    targetCarbsGrams: 210,
+    targetFatGrams: 70,
+    workoutReminderEnabled: true,
+    mealReminderEnabled: false
+  });
+}
 
 describe('OnboardingPage', () => {
   let fixture: ComponentFixture<OnboardingPage>;
   let component: OnboardingPage;
+  let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let toast: jasmine.SpyObj<ToastService>;
+  let router: Router;
 
   beforeEach(async () => {
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getOnboardingSeed', 'saveOnboarding']);
+    toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
+    dataService.getOnboardingSeed.and.returnValue(of(emptySeed()));
+    dataService.saveOnboarding.and.returnValue(of({ ok: true }));
+
     await TestBed.configureTestingModule({
       imports: [OnboardingPage],
-      providers: [provideHttpClient(), provideRouter([])]
+      providers: [
+        provideRouter([]),
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: ToastService, useValue: toast }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(OnboardingPage);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
     fixture.detectChanges();
   });
 
@@ -158,5 +214,211 @@ describe('OnboardingPage', () => {
     expect(component.form.controls.equipmentInventory.value).toEqual(['NONE']);
     expect(component.form.controls.focusAreas.value).toEqual(['CARDIO', 'MOBILITY']);
     expect(component.hasExistingTrainingBaseline()).toBeTrue();
+  });
+
+  it('loads seed baselines and ignores prefill when the form is dirty', () => {
+    component.form.controls.displayName.setValue('Manual name');
+    component.form.markAsDirty();
+
+    (component as unknown as { applyOnboardingSeed(seed: OnboardingSeed): void }).applyOnboardingSeed({
+      value: {
+        displayName: 'Seed name',
+        heightCm: 180
+      },
+      hasExistingBodyBaseline: true,
+      hasExistingTrainingBaseline: false,
+      hasExistingNutritionBaseline: true
+    });
+
+    expect(component.form.controls.displayName.value).toBe('Manual name');
+    expect(component.form.controls.heightCm.value).toBeNull();
+    expect(component.hasExistingBodyBaseline()).toBeTrue();
+    expect(component.hasExistingNutritionBaseline()).toBeTrue();
+  });
+
+  it('handles seed failures without blocking the flow', () => {
+    dataService.getOnboardingSeed.calls.reset();
+    dataService.getOnboardingSeed.and.returnValue(throwError(() => new Error('seed failed')));
+
+    component.ngOnInit();
+
+    expect(dataService.getOnboardingSeed).toHaveBeenCalled();
+    expect(component.error()).toBeNull();
+  });
+
+  it('applies seeded imperial values and refreshes recommended plan targets', () => {
+    (component as unknown as { applyOnboardingSeed(seed: OnboardingSeed): void }).applyOnboardingSeed({
+      value: {
+        preferredUnits: 'IMPERIAL',
+        heightCm: 183,
+        currentWeightKg: 90,
+        targetWeightKg: 82,
+        targetCalories: 2400,
+        targetProteinGrams: 180
+      },
+      hasExistingBodyBaseline: true,
+      hasExistingTrainingBaseline: false,
+      hasExistingNutritionBaseline: true
+    });
+
+    expect(component.preferredUnits()).toBe('IMPERIAL');
+    expect(component.form.controls.heightFt.value).toBe(6);
+    expect(component.form.controls.heightIn.value).toBe(0);
+    expect(component.form.controls.currentWeightLb.value).toBe(198.4);
+    expect(component.form.controls.targetWeightLb.value).toBe(180.8);
+    expect(component.form.controls.targetCalories.value).toBeGreaterThan(2400);
+    expect(component.form.pristine).toBeTrue();
+  });
+
+  it('applies goal defaults and goal copy for each primary goal', () => {
+    component.selectPrimaryGoal('LOSE_FAT');
+    expect(component.form.controls.weeklyPaceKg.value).toBe(0.5);
+    expect(component.form.controls.calorieTrackingMode.value).toBe('STRICT');
+    expect(component.goalCopy()).toContain('sustainable deficit');
+
+    component.selectPrimaryGoal('BUILD_MUSCLE');
+    expect(component.form.controls.weeklyPaceKg.value).toBe(0.25);
+    expect(component.goalCopy()).toContain('measured surplus');
+
+    component.selectPrimaryGoal('MAINTAIN');
+    expect(component.form.controls.weeklyWorkoutDays.value).toBe(3);
+    expect(component.form.controls.weeklyPaceKg.value).toBeNull();
+    expect(component.goalCopy()).toContain('maintenance');
+
+    component.selectPrimaryGoal('IMPROVE_FITNESS');
+    expect(component.form.controls.weeklyWorkoutDays.value).toBe(5);
+    expect(component.showsTargetAndPace()).toBeFalse();
+    expect(component.goalCopy()).toContain('activity consistency');
+
+    component.form.controls.primaryGoal.setValue(null);
+    expect(component.goalCopy()).toContain('Pick the outcome');
+  });
+
+  it('covers training and health goal copy branches', () => {
+    component.currentStep.set(3);
+
+    component.selectChoice('trainingLocation', 'HOME');
+    expect(component.goalCopy()).toContain('your space');
+    expect(component.isChoiceSelected('trainingLocation', 'HOME')).toBeTrue();
+
+    component.selectChoice('trainingLocation', 'GYM');
+    expect(component.goalCopy()).toContain('gym access');
+
+    component.selectChoice('trainingLocation', 'OUTDOOR');
+    expect(component.goalCopy()).toContain('outdoor-friendly');
+
+    component.selectChoice('trainingLocation', 'MIXED');
+    expect(component.goalCopy()).toContain('flexible');
+
+    component.currentStep.set(4);
+    expect(component.goalCopy()).toContain('not medical advice');
+  });
+
+  it('advances and retreats within step bounds after valid input', () => {
+    component.nextStep();
+    expect(component.currentStep()).toBe(0);
+    expect(component.error()).toContain('Please complete');
+    expect(component.isInvalid('primaryGoal')).toBeTrue();
+
+    component.selectPrimaryGoal('LOSE_FAT');
+    component.nextStep();
+    expect(component.currentStep()).toBe(1);
+
+    component.previousStep();
+    component.previousStep();
+    expect(component.currentStep()).toBe(0);
+    expect(component.error()).toBeNull();
+  });
+
+  it('handles multi-select removal, NONE replacement, and selected checks', () => {
+    component.toggleMultiSelect('equipmentInventory', 'DUMBBELLS');
+    expect(component.isMultiSelected('equipmentInventory', 'DUMBBELLS')).toBeTrue();
+
+    component.toggleMultiSelect('equipmentInventory', 'DUMBBELLS');
+    expect(component.form.controls.equipmentInventory.value).toEqual([]);
+
+    component.toggleMultiSelect('equipmentInventory', 'NONE');
+    expect(component.form.controls.equipmentInventory.value).toEqual(['NONE']);
+
+    component.toggleMultiSelect('equipmentInventory', 'BARBELL');
+    expect(component.form.controls.equipmentInventory.value).toEqual(['BARBELL']);
+
+    component.toggleMultiSelect('focusAreas', 'CORE');
+    expect(component.isMultiSelected('focusAreas', 'CORE')).toBeTrue();
+    component.toggleMultiSelect('injuryAreas', 'KNEE');
+    expect(component.hasParqRisk()).toBeTrue();
+  });
+
+  it('requires valid injury areas and clears PAR-Q acknowledgement timestamps', () => {
+    component.currentStep.set(4);
+    component.form.controls.injuryAreas.setValue(['bad-value']);
+
+    component.nextStep();
+
+    expect(component.currentStep()).toBe(4);
+    expect(component.form.controls.injuryAreas.invalid).toBeTrue();
+
+    component.form.controls.injuryAreas.setValue(['KNEE']);
+    component.setParqAcknowledged(true);
+    component.setParqAcknowledged(false);
+
+    expect(component.form.controls.parqAcknowledged.value).toBeFalse();
+    const value = (component as unknown as { toOnboardingValue(): { parqAcknowledgedAt: string | null } }).toOnboardingValue();
+    expect(value.parqAcknowledgedAt).toBeNull();
+  });
+
+  it('summarizes plan chips with optional equipment, focus, and health notes', () => {
+    component.form.patchValue({
+      trainingLocation: 'GYM',
+      fitnessLevel: 'ADVANCED',
+      intensityPreference: 'HIGH',
+      weeklyWorkoutDays: 5,
+      preferredDurationMinutes: 60,
+      equipmentInventory: ['DUMBBELLS', 'BARBELL'],
+      focusAreas: ['UPPER', 'LOWER'],
+      parqOtherReason: true
+    });
+
+    expect(component.planChips()).toEqual([
+      'Gym',
+      'Advanced',
+      '5 days/week',
+      '60 min',
+      'High',
+      '2 equipment',
+      '2 focus areas',
+      'Health notes'
+    ]);
+
+    component.form.patchValue({
+      equipmentInventory: [],
+      focusAreas: ['CORE'],
+      parqOtherReason: false
+    });
+
+    expect(component.planChips()).toContain('1 focus area');
+    expect(component.planChips()).not.toContain('Health notes');
+  });
+
+  it('submits a valid onboarding payload and navigates to the dashboard', () => {
+    const navigateByUrl = spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    fillValidOnboarding(component);
+
+    component.submit();
+
+    expect(dataService.saveOnboarding).toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith('Your plan is ready. Welcome to FitSync!');
+    expect(navigateByUrl).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('reports save errors and leaves the form ready for retry', () => {
+    dataService.saveOnboarding.and.returnValue(throwError(() => new Error('Save failed')));
+    fillValidOnboarding(component);
+
+    component.submit();
+
+    expect(component.error()).toBe('Save failed');
+    expect(toast.error).toHaveBeenCalledWith('Save failed');
+    expect(component.submitting()).toBeFalse();
   });
 });
