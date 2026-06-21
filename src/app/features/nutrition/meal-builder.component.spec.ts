@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodDetail, FoodSearchResult, FoodServing } from '../../core/fitsync.models';
+import { FoodDetail, FoodSearchResult, FoodServing, PagedFoods } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { MealBuilderComponent, calculateMealItem } from './meal-builder.component';
 
@@ -55,9 +55,20 @@ describe('MealBuilderComponent', () => {
     verified: true
   };
 
+  function pagedFoods(items: FoodSearchResult[], overrides: Partial<Omit<PagedFoods, 'items'>> = {}): PagedFoods {
+    return {
+      items,
+      page: 0,
+      size: 20,
+      totalPages: 2,
+      totalElements: 21,
+      ...overrides
+    };
+  }
+
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
-      'searchFoods',
+      'searchFoodsPage',
       'getFoodCategories',
       'getRecentFoods',
       'getFavoriteFoods',
@@ -71,7 +82,7 @@ describe('MealBuilderComponent', () => {
       'addFavoriteFood',
       'removeFavoriteFood'
     ]);
-    dataService.searchFoods.and.returnValue(of([searchFood]));
+    dataService.searchFoodsPage.and.returnValue(of(pagedFoods([searchFood])));
     dataService.getFoodCategories.and.returnValue(of([]));
     dataService.getRecentFoods.and.returnValue(of([]));
     dataService.getFavoriteFoods.and.returnValue(of([]));
@@ -109,6 +120,50 @@ describe('MealBuilderComponent', () => {
     expect(item?.fatGrams).toBe(9);
     expect(item?.fiberGrams).toBe(3);
     expect(item?.foodCatalogItemId).toBe('food-chicken');
+  });
+
+  it('loads the first food page with the default page size', () => {
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith(
+      '',
+      jasmine.objectContaining({
+        page: 0,
+        size: 20
+      })
+    );
+  });
+
+  it('loads the next food page when the next button is clicked', () => {
+    dataService.searchFoodsPage.and.callFake((query, options) =>
+      of(
+        pagedFoods([searchFood], {
+          page: options?.page ?? 0,
+          totalPages: 2,
+          totalElements: 21
+        })
+      )
+    );
+
+    component.nextPage();
+    fixture.detectChanges();
+
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith(
+      '',
+      jasmine.objectContaining({
+        page: 1,
+        size: 20
+      })
+    );
+  });
+
+  it('renders food search page totals in the pagination bar', () => {
+    expect(fixture.nativeElement.textContent).toContain('Page 1 / 2 (21 foods)');
+  });
+
+  it('hides the pagination bar when there is only one food page', () => {
+    component.totalPages.set(1);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
   });
 
   it('adds multiple foods and totals their nutrition', () => {

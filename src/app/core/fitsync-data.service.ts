@@ -35,6 +35,7 @@ import {
   NutritionSummary,
   OnboardingFormValue,
   OnboardingSeed,
+  PagedFoods,
   PagedExercises,
   UpsertGoalRequest,
   UserProfile,
@@ -887,6 +888,12 @@ export class FitSyncDataService {
   }
 
   searchFoods(query: string, options: FoodSearchOptions = {}): Observable<FoodSearchResult[]> {
+    return this.searchFoodsPage(query, options).pipe(map((page) => page.items));
+  }
+
+  searchFoodsPage(query: string, options: FoodSearchOptions = {}): Observable<PagedFoods> {
+    const page = options.page ?? 0;
+    const size = options.size ?? 20;
     let params = new HttpParams().set('q', query ?? '');
     if (options.categoryId) {
       params = params
@@ -896,19 +903,35 @@ export class FitSyncDataService {
     if (options.verified) {
       params = params.set('verified', 'true');
     }
-    if (options.page != null) {
-      params = params.set('page', String(options.page));
-    }
-    if (options.size != null) {
-      params = params.set('size', String(options.size));
-    }
+    params = params.set('page', String(page)).set('size', String(size));
 
-    const filtered = Boolean(options.categoryId || options.verified || options.page);
+    const shouldUseFallback = !query?.trim() && !options.categoryId && !options.verified && !options.page;
     return this.http
-      .get<BackendFoodSearchResult[]>(`${this.apiBaseUrl}/nutrition/foods/search`, { params })
+      .get<PageResponse<BackendFoodSearchResult>>(`${this.apiBaseUrl}/nutrition/foods/search`, { params })
       .pipe(
-        map((foods) => foods.map((food) => this.mapFood(food))),
-        catchError(() => (filtered ? of([] as FoodSearchResult[]) : this.getFallbackFoods()))
+        map((response) => {
+          const items = (response.content ?? []).map((food) => this.mapFood(food));
+          return {
+            items,
+            page: response.number ?? page,
+            size: response.size ?? size,
+            totalPages: response.totalPages ?? 0,
+            totalElements: response.totalElements ?? items.length
+          };
+        }),
+        catchError(() =>
+          shouldUseFallback
+            ? this.getFallbackFoods().pipe(
+                map((items) => ({
+                  items,
+                  page: 0,
+                  size,
+                  totalPages: items.length ? 1 : 0,
+                  totalElements: items.length
+                }))
+              )
+            : of({ items: [], page: 0, size, totalPages: 0, totalElements: 0 })
+        )
       );
   }
 

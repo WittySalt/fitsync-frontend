@@ -58,7 +58,7 @@ describe('NutritionPage', () => {
       'getFavoriteFoods',
       'getFrequentFoods',
       'getMealTemplates',
-      'searchFoods',
+      'searchFoodsPage',
       'getFoodDetail',
       'createMeal',
       'quickAddMeal',
@@ -72,7 +72,7 @@ describe('NutritionPage', () => {
     dataService.getFavoriteFoods.and.returnValue(of([]));
     dataService.getFrequentFoods.and.returnValue(of([]));
     dataService.getMealTemplates.and.returnValue(of([]));
-    dataService.searchFoods.and.returnValue(of([]));
+    dataService.searchFoodsPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
 
     await TestBed.configureTestingModule({
       imports: [NutritionPage],

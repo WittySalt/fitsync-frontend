@@ -10,7 +10,8 @@ import {
   FoodServing,
   LoggedFood,
   MealItemDraft,
-  MealTemplate
+  MealTemplate,
+  PagedFoods
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
@@ -156,14 +157,14 @@ export class MealBuilderComponent implements OnInit {
   readonly selectedQuantity = signal(1);
   readonly items = signal<BuilderMealItem[]>([]);
   readonly searching = signal(false);
-  readonly loadingMore = signal(false);
   readonly saving = signal(false);
   readonly quickAddOpen = signal(false);
   readonly quickSaving = signal(false);
   readonly barcodeLooking = signal(false);
   readonly verifiedOnly = signal(false);
-  readonly hasMoreFoods = signal(false);
-  private searchPage = 0;
+  readonly page = signal(0);
+  readonly totalPages = signal(0);
+  readonly totalElements = signal(0);
   private readonly searchPageSize = 20;
 
   readonly mealForm = this.fb.nonNullable.group({
@@ -217,16 +218,12 @@ export class MealBuilderComponent implements OnInit {
         debounceTime(250),
         distinctUntilChanged(),
         switchMap((query) => {
-          this.searchPage = 0;
+          this.page.set(0);
           this.searching.set(true);
-          return this.searchFoods(query);
+          return this.searchFoodsPage(query);
         })
       )
-      .subscribe((foods) => {
-        this.foods.set(foods);
-        this.hasMoreFoods.set(foods.length === this.searchPageSize);
-        this.searching.set(false);
-      });
+      .subscribe((result) => this.applySearchResult(result));
   }
 
   selectCategory(category: FoodCategory | null): void {
@@ -239,17 +236,21 @@ export class MealBuilderComponent implements OnInit {
     this.runSearch();
   }
 
-  loadMoreFoods(): void {
-    if (this.loadingMore() || !this.hasMoreFoods()) {
+  goToPage(nextPage: number): void {
+    const boundedPage = Math.max(0, Math.min(nextPage, Math.max(this.totalPages() - 1, 0)));
+    if (boundedPage === this.page() || this.searching()) {
       return;
     }
-    this.searchPage += 1;
-    this.loadingMore.set(true);
-    this.searchFoods(this.searchControl.value).subscribe((foods) => {
-      this.foods.update((current) => [...current, ...foods]);
-      this.hasMoreFoods.set(foods.length === this.searchPageSize);
-      this.loadingMore.set(false);
-    });
+    this.page.set(boundedPage);
+    this.loadFoods();
+  }
+
+  prevPage(): void {
+    this.goToPage(this.page() - 1);
+  }
+
+  nextPage(): void {
+    this.goToPage(this.page() + 1);
   }
 
   selectFood(food: FoodSearchResult): void {
@@ -470,24 +471,32 @@ export class MealBuilderComponent implements OnInit {
   }
 
   private runSearch(): void {
-    this.searchPage = 0;
-    this.searching.set(true);
-    this.searchFoods(this.searchControl.value).subscribe((foods) => {
-      this.foods.set(foods);
-      this.hasMoreFoods.set(foods.length === this.searchPageSize);
-      this.searching.set(false);
-    });
+    this.page.set(0);
+    this.loadFoods();
   }
 
-  private searchFoods(query: string) {
+  private loadFoods(): void {
+    this.searching.set(true);
+    this.searchFoodsPage(this.searchControl.value).subscribe((result) => this.applySearchResult(result));
+  }
+
+  private searchFoodsPage(query: string) {
     const category = this.selectedCategory();
-    return this.dataService.searchFoods(query, {
+    return this.dataService.searchFoodsPage(query, {
       categoryId: category?.categoryId ?? null,
       includeSubcategories: category ? category.children.length > 0 : false,
       verified: this.verifiedOnly(),
-      page: this.searchPage,
+      page: this.page(),
       size: this.searchPageSize
     });
+  }
+
+  private applySearchResult(result: PagedFoods): void {
+    this.foods.set(result.items);
+    this.page.set(result.totalPages > 0 ? result.page : 0);
+    this.totalPages.set(result.totalPages);
+    this.totalElements.set(result.totalElements);
+    this.searching.set(false);
   }
 
   private setSelectedDetail(detail: FoodDetail): void {
