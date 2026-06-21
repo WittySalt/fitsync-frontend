@@ -369,6 +369,45 @@ describe('FitSyncDataService', () => {
     expect(result).toBe(27.5);
   });
 
+  it('preserves null daily nutrition targets instead of mapping them to zero', () => {
+    let result: unknown;
+    service.getDashboard().subscribe((value) => {
+      result = value.nutrition;
+    });
+
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
+    httpTesting
+      .expectOne(
+        (req) =>
+          req.urlWithParams.startsWith('/api/v1/nutrition/summary/daily?') &&
+          req.urlWithParams.includes('timezone=Asia/Singapore')
+      )
+      .flush({
+        totalCalories: 142,
+        targetCalories: null,
+        totalProteinGrams: '2.8',
+        targetProteinGrams: null,
+        totalCarbsGrams: 20,
+        targetCarbsGrams: null,
+        totalFatGrams: 5,
+        targetFatGrams: null,
+        mealCount: 1
+      });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        totalCalories: 142,
+        targetCalories: null,
+        totalProteinGrams: 2.8,
+        targetProteinGrams: null,
+        targetCarbsGrams: null,
+        targetFatGrams: null
+      })
+    );
+  });
+
   it('searches foods by query and maps calories + basis (no macros in search results)', () => {
     let result: FoodSearchResult[] | undefined;
     service.searchFoods('chicken').subscribe((value) => (result = value));

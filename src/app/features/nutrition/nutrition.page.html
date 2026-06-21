@@ -26,16 +26,31 @@
         <div class="calorie-row">
           <div>
             <h2>{{ nutrition()?.totalCalories ?? 0 }}</h2>
-            <p>of {{ nutrition()?.targetCalories ?? 0 }} kcal logged</p>
+            @if (hasCalorieTarget()) {
+              <p>of {{ nutrition()?.targetCalories }} kcal logged</p>
+            } @else {
+              <p>kcal logged</p>
+            }
           </div>
-          <div class="calorie-ring" [style.--value]="calorieProgress() + '%'" aria-hidden="true">
-            <strong>{{ calorieProgress() }}%</strong>
-          </div>
+          @if (hasCalorieTarget()) {
+            <div class="calorie-ring" [style.--value]="calorieProgress() + '%'" aria-hidden="true">
+              <strong>{{ calorieProgress() }}%</strong>
+            </div>
+          } @else {
+            <div class="target-empty" role="status">
+              <strong>未设置每日卡路里目标</strong>
+              <a class="text-link" routerLink="/me">去设置每日目标</a>
+            </div>
+          }
         </div>
         <div class="budget-strip">
           <div>
             <span>Remaining</span>
-            <strong>{{ caloriesRemaining() }} kcal</strong>
+            @if (caloriesRemaining() !== null) {
+              <strong>{{ caloriesRemaining() }} kcal</strong>
+            } @else {
+              <strong>Target not set</strong>
+            }
           </div>
           <div>
             <span>Meals</span>
@@ -60,13 +75,22 @@
             <div class="macro-row">
               <div>
                 <strong>{{ macro.label }}</strong>
-                <span>{{ macro.value }}{{ macro.unit }} / {{ macro.target }}{{ macro.unit }}</span>
+                @if (macro.targetSet) {
+                  <span>{{ macro.value }}{{ macro.unit }} / {{ macro.target }}{{ macro.unit }}</span>
+                } @else {
+                  <span>{{ macro.value }}{{ macro.unit }} · 目标未设置</span>
+                }
               </div>
               <div>
-                <span>{{ remaining(macro.value, macro.target) }}{{ macro.unit }} left</span>
-                <div [class]="'macro-bar ' + macro.tone" aria-hidden="true">
-                  <i [style.width.%]="progress(macro.value, macro.target)"></i>
-                </div>
+                @if (macro.targetSet) {
+                  <span>{{ remaining(macro.value, macro.target) }}{{ macro.unit }} left</span>
+                  <div [class]="'macro-bar ' + macro.tone" aria-hidden="true">
+                    <i [style.width.%]="progress(macro.value, macro.target)"></i>
+                  </div>
+                } @else {
+                  <span class="macro-empty">目标未设置</span>
+                  <a class="text-link target-link" routerLink="/me">设置目标</a>
+                }
               </div>
             </div>
           }

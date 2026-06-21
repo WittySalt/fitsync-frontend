@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { Meal } from '../../core/fitsync.models';
@@ -18,7 +19,7 @@ interface NutritionCheck {
 
 @Component({
   selector: 'app-nutrition-page',
-  imports: [StatePanelComponent, MealBuilderComponent],
+  imports: [RouterLink, StatePanelComponent, MealBuilderComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })
@@ -39,9 +40,11 @@ export class NutritionPage implements OnInit {
 
   readonly nutrition = computed(() => this.data()?.nutrition ?? null);
 
+  readonly hasCalorieTarget = computed(() => this.nutrition()?.targetCalories != null);
+
   readonly caloriesRemaining = computed(() => {
     const nutrition = this.nutrition();
-    return nutrition ? Math.max(nutrition.targetCalories - nutrition.totalCalories, 0) : 0;
+    return nutrition?.targetCalories != null ? Math.max(nutrition.targetCalories - nutrition.totalCalories, 0) : null;
   });
 
   readonly macroCards = computed(() => {
@@ -51,21 +54,24 @@ export class NutritionPage implements OnInit {
       {
         label: 'Protein',
         value: nutrition?.totalProteinGrams ?? 0,
-        target: nutrition?.targetProteinGrams ?? 0,
+        target: nutrition?.targetProteinGrams ?? null,
+        targetSet: nutrition?.targetProteinGrams != null,
         unit: 'g',
         tone: 'protein'
       },
       {
         label: 'Carbs',
         value: nutrition?.totalCarbsGrams ?? 0,
-        target: nutrition?.targetCarbsGrams ?? 0,
+        target: nutrition?.targetCarbsGrams ?? null,
+        targetSet: nutrition?.targetCarbsGrams != null,
         unit: 'g',
         tone: 'carbs'
       },
       {
         label: 'Fat',
         value: nutrition?.totalFatGrams ?? 0,
-        target: nutrition?.targetFatGrams ?? 0,
+        target: nutrition?.targetFatGrams ?? null,
+        targetSet: nutrition?.targetFatGrams != null,
         unit: 'g',
         tone: 'fat'
       }
@@ -139,15 +145,15 @@ export class NutritionPage implements OnInit {
 
   calorieProgress(): number {
     const nutrition = this.nutrition();
-    return this.progress(nutrition?.totalCalories ?? 0, nutrition?.targetCalories ?? 0);
+    return this.progress(nutrition?.totalCalories ?? 0, nutrition?.targetCalories ?? null) ?? 0;
   }
 
-  progress(value: number, target: number): number {
-    return target > 0 ? Math.min(Math.round((value / target) * 100), 100) : 0;
+  progress(value: number, target: number | null): number | null {
+    return target != null && target > 0 ? Math.min(Math.round((value / target) * 100), 100) : null;
   }
 
-  remaining(value: number, target: number): number {
-    return Math.max(Math.round(target - value), 0);
+  remaining(value: number, target: number | null): number | null {
+    return target != null ? Math.max(Math.round(target - value), 0) : null;
   }
 
   label(value: string | null | undefined): string {

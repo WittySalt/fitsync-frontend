@@ -1227,13 +1227,13 @@ export class FitSyncDataService {
   private mapNutrition(summary: BackendNutritionSummary): NutritionSummary {
     return {
       totalCalories: summary.totalCalories ?? 0,
-      targetCalories: summary.targetCalories ?? 0,
+      targetCalories: summary.targetCalories ?? null,
       totalProteinGrams: this.numericValue(summary.totalProteinGrams) ?? 0,
-      targetProteinGrams: this.numericValue(summary.targetProteinGrams) ?? 0,
+      targetProteinGrams: this.numericValue(summary.targetProteinGrams),
       totalCarbsGrams: this.numericValue(summary.totalCarbsGrams) ?? 0,
-      targetCarbsGrams: this.numericValue(summary.targetCarbsGrams) ?? 0,
+      targetCarbsGrams: this.numericValue(summary.targetCarbsGrams),
       totalFatGrams: this.numericValue(summary.totalFatGrams) ?? 0,
-      targetFatGrams: this.numericValue(summary.targetFatGrams) ?? 0,
+      targetFatGrams: this.numericValue(summary.targetFatGrams),
       mealCount: summary.mealCount ?? 0,
       totalFiberGrams: this.numericValue(summary.totalFiberGrams),
       totalSugarGrams: this.numericValue(summary.totalSugarGrams),
