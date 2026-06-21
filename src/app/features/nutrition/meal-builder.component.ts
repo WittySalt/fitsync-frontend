@@ -163,9 +163,10 @@ export class MealBuilderComponent implements OnInit {
   readonly barcodeLooking = signal(false);
   readonly verifiedOnly = signal(false);
   readonly page = signal(0);
+  readonly pageSize = signal(20);
   readonly totalPages = signal(0);
   readonly totalElements = signal(0);
-  private readonly searchPageSize = 20;
+  readonly pageSizeOptions = [10, 20, 50] as const;
 
   readonly mealForm = this.fb.nonNullable.group({
     mealType: ['LUNCH', Validators.required],
@@ -251,6 +252,14 @@ export class MealBuilderComponent implements OnInit {
 
   nextPage(): void {
     this.goToPage(this.page() + 1);
+  }
+
+  setPageSize(size: number): void {
+    if (!this.pageSizeOptions.includes(size as (typeof this.pageSizeOptions)[number])) {
+      return;
+    }
+    this.pageSize.set(size);
+    this.runSearch();
   }
 
   selectFood(food: FoodSearchResult): void {
@@ -487,7 +496,7 @@ export class MealBuilderComponent implements OnInit {
       includeSubcategories: category ? category.children.length > 0 : false,
       verified: this.verifiedOnly(),
       page: this.page(),
-      size: this.searchPageSize
+      size: this.pageSize()
     });
   }
 

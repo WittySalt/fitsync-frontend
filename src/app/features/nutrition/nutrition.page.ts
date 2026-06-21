@@ -31,6 +31,7 @@ export class NutritionPage implements OnInit {
   readonly todayMeals = signal<Meal[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly selectedTab = signal<'today' | 'log'>('today');
 
   readonly today = new Intl.DateTimeFormat('en-SG', {
     weekday: 'long',
@@ -128,6 +129,7 @@ export class NutritionPage implements OnInit {
   refreshAfterMealSave(): void {
     this.refreshDashboard();
     this.refreshMeals();
+    this.selectedTab.set('today');
   }
 
   copyMeal(mealId: string, mealType: string): void {
