@@ -75,17 +75,19 @@ sonarqube:
     entrypoint: [""]
   variables:
     SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    # Point the scanner JVM's user.home at a writable dir so the IaC Shell
+    # sensor's bash parser initialises instead of logging an
+    # ExceptionInInitializerError (cosmetic; the scan succeeds either way).
+    # Java derives user.home from the OS account, not $HOME, so it must be set
+    # as a JVM property. Only the scanner reads SONAR_SCANNER_OPTS, so this is
+    # safe for the runner's get_sources phase. Distinct from SONAR_USER_HOME.
+    SONAR_SCANNER_OPTS: "-Duser.home=${CI_PROJECT_DIR}"
     GIT_DEPTH: "0"
   cache:
     key: "sonar-$CI_COMMIT_REF_SLUG"
     paths:
       - .sonar/cache
   script:
-    # Give the scanner a writable HOME so the IaC Shell sensor's bash parser can
-    # initialise instead of logging an ExceptionInInitializerError (cosmetic; the
-    # scan succeeds either way). Set here, not in job variables, so it does not
-    # affect the runner's get_sources phase. Distinct from SONAR_USER_HOME (cache).
-    - export HOME="${CI_PROJECT_DIR}"
     # Publishes code smells / coverage / duplication / hotspots and blocks on the
     # Quality Gate. Stays off until SONAR_TOKEN is configured (pipeline green by default).
     - >
