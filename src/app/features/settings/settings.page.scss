@@ -155,19 +155,24 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
 
-  a {
+  button {
     min-height: 38px;
     display: flex;
     align-items: center;
+    width: 100%;
     padding: 0 10px;
+    border: 0;
     border-radius: var(--radius-md);
+    background: transparent;
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: var(--fw-bold);
-    text-decoration: none;
+    text-align: left;
+    cursor: pointer;
   }
 
-  a:hover {
+  button:hover,
+  button.active {
     color: var(--accent);
     background: var(--accent-subtle);
   }

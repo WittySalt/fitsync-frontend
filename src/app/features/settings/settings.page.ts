@@ -69,6 +69,7 @@ export class SettingsPage implements OnInit {
   readonly saving = signal<EditablePanel | null>(null);
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
+  readonly selectedSection = signal('personal');
   readonly goalPanelOpen = signal(false);
   readonly bodyMetricHistory = signal<AccountBodyMetric[]>([]);
   readonly bodyMetricHistoryLoading = signal(false);
@@ -725,9 +726,10 @@ export class SettingsPage implements OnInit {
     this.accountMenuOpen.set(false);
   }
 
-  scrollToSection(id: string, event: Event): void {
-    event.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  selectSection(id: string): void {
+    if (this.sections.some((section) => section.id === id)) {
+      this.selectedSection.set(id);
+    }
   }
 
   logout(): void {
