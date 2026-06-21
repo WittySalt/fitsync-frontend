@@ -836,6 +836,44 @@ describe('FitSyncDataService', () => {
     expect(result?.secondaryMuscleGroups).toEqual(['GLUTES', 'HAMSTRINGS']);
   });
 
+  it('loads a paged exercise search with Spring Page metadata', () => {
+    let result: unknown;
+    service
+      .searchExercisesPage({
+        q: 'press',
+        page: 2,
+        size: 24
+      })
+      .subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/exercises' &&
+        req.params.get('q') === 'press' &&
+        req.params.get('page') === '2' &&
+        req.params.get('size') === '24'
+    );
+    request.flush({
+      content: [{ exerciseId: 'e1', name: 'Bench press', primaryMuscleGroup: 'CHEST', equipment: 'BARBELL' }],
+      number: 2,
+      size: 24,
+      totalPages: 4,
+      totalElements: 85,
+      first: false,
+      last: false
+    });
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        page: 2,
+        size: 24,
+        totalPages: 4,
+        totalElements: 85,
+        items: [jasmine.objectContaining({ exerciseId: 'e1', name: 'Bench press' })]
+      })
+    );
+  });
+
   it('loads exercise metadata for filters and forms', () => {
     let result: unknown;
     service.getExerciseMetadata().subscribe((value) => (result = value));

@@ -35,6 +35,7 @@ import {
   NutritionSummary,
   OnboardingFormValue,
   OnboardingSeed,
+  PagedExercises,
   UpsertGoalRequest,
   UserProfile,
   UserGoal,
@@ -92,6 +93,12 @@ export interface FoodSearchOptions {
 
 interface PageResponse<T> {
   content: T[];
+  totalPages?: number;
+  totalElements?: number;
+  number?: number;
+  size?: number;
+  first?: boolean;
+  last?: boolean;
 }
 
 interface BackendCurrentUser {
@@ -737,10 +744,16 @@ export class FitSyncDataService {
   getExercises(queryOrOptions: string | ExerciseSearchOptions = ''): Observable<Exercise[]> {
     const options: ExerciseSearchOptions =
       typeof queryOrOptions === 'string' ? { q: queryOrOptions, size: 30 } : queryOrOptions;
+    return this.searchExercisesPage(options).pipe(map((page) => page.items));
+  }
+
+  searchExercisesPage(options: ExerciseSearchOptions = {}): Observable<PagedExercises> {
+    const page = options.page ?? 0;
+    const size = options.size ?? 30;
     let params = new HttpParams()
       .set('q', options.q ?? '')
-      .set('page', String(options.page ?? 0))
-      .set('size', String(options.size ?? 30));
+      .set('page', String(page))
+      .set('size', String(size));
     if (options.exerciseType) {
       params = params.set('exerciseType', options.exerciseType);
     }
@@ -757,8 +770,25 @@ export class FitSyncDataService {
     return this.http
       .get<PageResponse<BackendExerciseView>>(`${this.apiBaseUrl}/workouts/exercises`, { params })
       .pipe(
-        map((response) => (response.content ?? []).map((exercise) => this.mapExercise(exercise))),
-        catchError(() => of([] as Exercise[]))
+        map((response) => {
+          const items = (response.content ?? []).map((exercise) => this.mapExercise(exercise));
+          return {
+            items,
+            page: response.number ?? page,
+            size: response.size ?? size,
+            totalPages: response.totalPages ?? 0,
+            totalElements: response.totalElements ?? items.length
+          };
+        }),
+        catchError(() =>
+          of({
+            items: [],
+            page: 0,
+            size,
+            totalPages: 0,
+            totalElements: 0
+          })
+        )
       );
   }
 
