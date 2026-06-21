@@ -361,6 +361,76 @@ describe('ExercisePlayerComponent', () => {
     expect(fixture.nativeElement.querySelector('.movement-media img')).toBeNull();
   });
 
+  it('uses catalog detail images as sorted animation frames and advances them on a loop', fakeAsync(() => {
+    dataService.getExercise.and.returnValue(of(exerciseDetail({
+      images: [
+        { position: 2, url: 'https://cdn.example.test/goblet-squat/1.jpg' },
+        { position: 1, url: 'https://cdn.example.test/goblet-squat/0.jpg' }
+      ]
+    })));
+
+    const withFrames = renderPlayer(plan());
+
+    expect(withFrames.componentInstance.mediaFrames()).toEqual([
+      'https://cdn.example.test/goblet-squat/0.jpg',
+      'https://cdn.example.test/goblet-squat/1.jpg'
+    ]);
+    expect(withFrames.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/0.jpg');
+
+    tick(900);
+    withFrames.detectChanges();
+
+    expect(withFrames.componentInstance.mediaFrameIndex()).toBe(1);
+    expect(withFrames.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/1.jpg');
+    expect((withFrames.nativeElement as HTMLElement).querySelector<HTMLImageElement>('.movement-media img')?.getAttribute('src'))
+      .toBe('https://cdn.example.test/goblet-squat/1.jpg');
+
+    withFrames.destroy();
+  }));
+
+  it('keeps single catalog images static', fakeAsync(() => {
+    dataService.getExercise.and.returnValue(of(exerciseDetail({
+      images: [{ position: 1, url: 'https://cdn.example.test/goblet-squat/0.jpg' }]
+    })));
+
+    const withOneFrame = renderPlayer(plan());
+
+    tick(1_800);
+    withOneFrame.detectChanges();
+
+    expect(withOneFrame.componentInstance.mediaFrames()).toEqual(['https://cdn.example.test/goblet-squat/0.jpg']);
+    expect(withOneFrame.componentInstance.mediaFrameIndex()).toBe(0);
+    expect(withOneFrame.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/0.jpg');
+  }));
+
+  it('does not advance animation frames when reduced motion is enabled', fakeAsync(() => {
+    spyOn(window, 'matchMedia').and.returnValue({
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false
+    } as MediaQueryList);
+    dataService.getExercise.and.returnValue(of(exerciseDetail({
+      images: [
+        { position: 1, url: 'https://cdn.example.test/goblet-squat/0.jpg' },
+        { position: 2, url: 'https://cdn.example.test/goblet-squat/1.jpg' }
+      ]
+    })));
+
+    const reducedMotion = renderPlayer(plan());
+
+    tick(1_800);
+    reducedMotion.detectChanges();
+
+    expect(reducedMotion.componentInstance.mediaFrames().length).toBe(2);
+    expect(reducedMotion.componentInstance.mediaFrameIndex()).toBe(0);
+    expect(reducedMotion.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/0.jpg');
+  }));
+
   it('renders current exercise guidance with description, sorted steps, and metadata', () => {
     const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
 
@@ -453,6 +523,23 @@ describe('ExercisePlayerComponent', () => {
 
     expect(withMedia.nativeElement.querySelector('.movement-media img')).toBeNull();
     expect(withMedia.nativeElement.querySelector('.media-placeholder')).not.toBeNull();
+  });
+
+  it('skips only the failed animation frame and keeps other frames available', () => {
+    dataService.getExercise.and.returnValue(of(exerciseDetail({
+      images: [
+        { position: 1, url: 'https://cdn.example.test/goblet-squat/0.jpg' },
+        { position: 2, url: 'https://cdn.example.test/goblet-squat/1.jpg' }
+      ]
+    })));
+
+    const withFrames = renderPlayer(plan());
+    (withFrames.nativeElement as HTMLElement).querySelector<HTMLImageElement>('.movement-media img')
+      ?.dispatchEvent(new Event('error'));
+    withFrames.detectChanges();
+
+    expect(withFrames.componentInstance.mediaFrames()).toEqual(['https://cdn.example.test/goblet-squat/1.jpg']);
+    expect(withFrames.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/1.jpg');
   });
 
   it('surfaces set write failures through toast', () => {
