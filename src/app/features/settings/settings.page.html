@@ -34,8 +34,8 @@
         @if (accountMenuOpen()) {
           <div class="settings-account-popover" role="menu">
             <strong>{{ account.auth.email || account.user.email || 'Cognito account' }}</strong>
-            <a role="menuitem" href="#personal" (click)="closeAccountMenu()">Personal settings</a>
-            <a role="menuitem" href="#security" (click)="closeAccountMenu()">Security settings</a>
+            <a role="menuitem" href="#personal" (click)="scrollToSection('personal', $event); closeAccountMenu()">Personal settings</a>
+            <a role="menuitem" href="#security" (click)="scrollToSection('security', $event); closeAccountMenu()">Security settings</a>
             <button role="menuitem" type="button" class="logout-row" (click)="logout()">Sign out</button>
           </div>
         }
@@ -45,7 +45,6 @@
     <section class="account-summary" aria-label="Account summary">
       <article><span>Region</span><strong>{{ region() }}</strong></article>
       <article><span>Activity</span><strong>{{ labelFor(account.user.profile.activityLevel) }}</strong></article>
-      <article><span>Security</span><strong>{{ account.security.securityLabel || 'Cognito protected' }}</strong></article>
     </section>
 
     @if (saveMessage()) {
@@ -58,7 +57,7 @@
     <div class="account-layout">
       <nav class="section-nav" aria-label="Account sections">
         @for (section of sections; track section.id) {
-          <a [href]="'#' + section.id">{{ section.label }}</a>
+          <a [href]="'#' + section.id" (click)="scrollToSection(section.id, $event)">{{ section.label }}</a>
         }
       </nav>
 
