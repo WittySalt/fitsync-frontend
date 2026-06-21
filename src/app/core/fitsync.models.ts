@@ -481,6 +481,14 @@ export interface FoodSearchResult {
   verified: boolean;
 }
 
+export interface PagedFoods {
+  items: FoodSearchResult[];
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+}
+
 export interface FoodServing {
   servingId: string | null;
   label: string;

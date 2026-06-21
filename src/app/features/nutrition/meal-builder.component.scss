@@ -301,8 +301,17 @@ select:focus {
 }
 
 .save-button,
-.load-more {
+.pagination-bar {
   width: 100%;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 .quick-toggle {

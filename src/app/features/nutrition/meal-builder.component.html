@@ -187,10 +187,16 @@
             </article>
           }
         </div>
-        @if (hasMoreFoods()) {
-          <button type="button" class="button secondary load-more" [disabled]="loadingMore()" (click)="loadMoreFoods()">
-            {{ loadingMore() ? 'Loading...' : 'Load more' }}
-          </button>
+        @if (totalPages() > 1) {
+          <nav class="pagination-bar" aria-label="Food search pages">
+            <button class="button secondary" type="button" (click)="prevPage()" [disabled]="searching() || page() <= 0">
+              Previous
+            </button>
+            <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} foods)</span>
+            <button class="button secondary" type="button" (click)="nextPage()" [disabled]="searching() || page() + 1 >= totalPages()">
+              Next
+            </button>
+          </nav>
         }
       } @else {
         <app-state-panel title="No matches" message="Try another search term or a broader category." />

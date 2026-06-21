@@ -408,7 +408,7 @@ describe('FitSyncDataService', () => {
     );
   });
 
-  it('searches foods by query and maps calories + basis (no macros in search results)', () => {
+  it('searches foods by query and maps Spring Page content calories + basis', () => {
     let result: FoodSearchResult[] | undefined;
     service.searchFoods('chicken').subscribe((value) => (result = value));
 
@@ -416,9 +416,15 @@ describe('FitSyncDataService', () => {
       (req) => req.url === '/api/v1/nutrition/foods/search' && req.params.get('q') === 'chicken'
     );
     expect(request.request.method).toBe('GET');
-    request.flush([
-      { foodId: 'f1', displayName: 'Grilled chicken breast', brandName: 'Generic', calories: 165, basisLabel: '100 g', verified: true }
-    ]);
+    request.flush({
+      content: [
+        { foodId: 'f1', displayName: 'Grilled chicken breast', brandName: 'Generic', calories: 165, basisLabel: '100 g', verified: true }
+      ],
+      number: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 1
+    });
 
     expect(result?.length).toBe(1);
     expect(result?.[0].foodId).toBe('f1');
@@ -426,6 +432,37 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].basisUnit).toBe('100 g');
     expect(result?.[0].verified).toBeTrue();
     expect(result?.[0].proteinGrams).toBe(0);
+  });
+
+  it('loads a paged food search with Spring Page metadata', () => {
+    let result: unknown;
+    service.searchFoodsPage('rice', { page: 2, size: 20 }).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/nutrition/foods/search' &&
+        req.params.get('q') === 'rice' &&
+        req.params.get('page') === '2' &&
+        req.params.get('size') === '20'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      content: [{ foodId: 'f2', displayName: 'Brown rice', brandName: 'Generic', calories: 112, basisLabel: '100 g' }],
+      number: 2,
+      size: 20,
+      totalPages: 5,
+      totalElements: 94
+    });
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        page: 2,
+        size: 20,
+        totalPages: 5,
+        totalElements: 94,
+        items: [jasmine.objectContaining({ foodId: 'f2', displayName: 'Brown rice' })]
+      })
+    );
   });
 
   it('lists favorite foods from the favorites endpoint', () => {
@@ -468,7 +505,13 @@ describe('FitSyncDataService', () => {
         req.params.get('includeSubcategories') === 'true'
     );
     expect(request.request.method).toBe('GET');
-    request.flush([{ foodId: 'f2', displayName: 'Brown rice', brandName: 'Generic', calories: 112, basisLabel: '100 g' }]);
+    request.flush({
+      content: [{ foodId: 'f2', displayName: 'Brown rice', brandName: 'Generic', calories: 112, basisLabel: '100 g' }],
+      number: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 1
+    });
 
     expect(result?.[0].displayName).toBe('Brown rice');
   });
@@ -484,7 +527,7 @@ describe('FitSyncDataService', () => {
         req.params.get('size') === '20'
     );
     expect(request.request.method).toBe('GET');
-    request.flush([]);
+    request.flush({ content: [], number: 2, size: 20, totalPages: 0, totalElements: 0 });
   });
 
   it('lists meal templates and logs a meal from a template', () => {
