@@ -188,11 +188,24 @@ describe('MealBuilderComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Per page');
   });
 
-  it('hides the pagination bar when there is only one food page', () => {
+  it('keeps the page-size selector visible when there is only one food page', () => {
     component.totalPages.set(1);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.pagination-bar')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.page-size')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.page-controls')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Per page');
+  });
+
+  it('renders Other in both meal type controls', () => {
+    component.quickAddOpen.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Other');
+    const quickOptions = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLSelectElement>('#quick-add-panel select option'))
+      .map((option) => option.value);
+    expect(quickOptions).toContain('OTHER');
   });
 
   it('adds multiple foods and totals their nutrition', () => {
@@ -233,6 +246,47 @@ describe('MealBuilderComponent', () => {
       })
     );
     expect(component.items().length).toBe(0);
+  });
+
+  it('requires a meal name when the meal type is Other', () => {
+    component.selectFood(searchFood);
+    component.addSelectedFood();
+    component.setMealType('OTHER');
+    component.mealForm.controls.name.setValue('');
+    dataService.createMeal.calls.reset();
+
+    component.saveMeal();
+    fixture.detectChanges();
+
+    expect(dataService.createMeal).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('Name your meal before saving.');
+    expect(component.mealForm.controls.name.hasError('required')).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Name your meal');
+  });
+
+  it('submits Other meals with the user-provided name', () => {
+    component.selectFood(searchFood);
+    component.addSelectedFood();
+    component.setMealType('OTHER');
+    component.mealForm.controls.name.setValue('Late movie plate');
+
+    component.saveMeal();
+
+    const draft = dataService.createMeal.calls.mostRecent().args[0];
+    expect(draft.mealType).toBe('OTHER');
+    expect(draft.name).toBe('Late movie plate');
+  });
+
+  it('defaults standard meal names to the meal type label when blank', () => {
+    component.selectFood(searchFood);
+    component.addSelectedFood();
+    component.mealForm.patchValue({ mealType: 'BREAKFAST', name: '' });
+
+    component.saveMeal();
+
+    const draft = dataService.createMeal.calls.mostRecent().args[0];
+    expect(draft.mealType).toBe('BREAKFAST');
+    expect(draft.name).toBe('Breakfast');
   });
 
   it('maps USER scoped foods to customFoodId', () => {

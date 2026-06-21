@@ -94,7 +94,7 @@
 
 .meal-type-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   width: 100%;
 }
@@ -150,6 +150,10 @@ select:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.field-error {
+  color: var(--danger);
 }
 
 .search-field,
@@ -312,6 +316,12 @@ select:focus {
   gap: 8px;
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+.page-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .page-size {
