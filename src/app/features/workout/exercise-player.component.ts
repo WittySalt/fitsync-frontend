@@ -35,7 +35,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly savingSet = signal(false);
   readonly ending = signal(false);
   readonly allTargetsComplete = signal(false);
-  readonly failedMediaKeys = signal<Set<string>>(new Set());
+  readonly mediaFrameIndex = signal(0);
+  readonly failedFrameUrls = signal<Set<string>>(new Set());
   readonly guidanceOpen = signal(true);
   readonly currentDetail = signal<ExerciseDetail | null>(null);
   readonly detailLoading = signal(false);
@@ -48,8 +49,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private restTimerId: ReturnType<typeof setInterval> | null = null;
   private workTimerId: ReturnType<typeof setInterval> | null = null;
+  private mediaTimerId: ReturnType<typeof setInterval> | null = null;
   private readonly activePlanRevision = signal(0);
   private readonly detailCache = new Map<string, ExerciseDetail | null>();
+  private currentMediaExerciseId = '';
+  private readonly prefersReducedMotion = this.readReducedMotionPreference();
 
   readonly orderedLogs = computed(() =>
     [...(this.live.session()?.exercises ?? [])].sort((a, b) => a.sequence - b.sequence)
@@ -58,6 +62,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly currentLog = computed(() => this.orderedLogs()[this.currentExerciseIndex()] ?? null);
   readonly currentPlanExercise = computed(() => this.findPlanExercise(this.currentLog()));
   readonly currentExerciseId = computed(() => this.currentLog()?.exerciseId || this.currentPlanExercise()?.exerciseId || '');
+  readonly currentMediaIdentity = computed(() =>
+    this.currentExerciseId() || this.currentLog()?.exerciseLogId || this.currentLog()?.exerciseNameSnapshot || ''
+  );
   readonly targetSets = computed(() => Math.max(1, this.currentPlanExercise()?.targetSets ?? 1));
   readonly isTimedTarget = computed(() => (this.currentPlanExercise()?.targetDurationSeconds ?? 0) > 0);
   readonly currentTempoSecondsPerRep = computed(() => this.tempoForExerciseType(this.currentDetail()?.exerciseType));
@@ -94,18 +101,16 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     }
     return Math.min(100, Math.round((this.completedSetCount() / total) * 100));
   });
+  readonly mediaFrames = computed(() => {
+    const detailFrames = this.detailMediaFrames();
+    const fallbackFrame = this.fallbackMediaFrame();
+    const selectedFrames = detailFrames.length ? detailFrames : fallbackFrame ? [fallbackFrame] : [];
+    const failed = this.failedFrameUrls();
+    return selectedFrames.filter((url) => url && !failed.has(url));
+  });
   readonly currentMediaUrl = computed(() => {
-    const key = this.currentMediaKey();
-    if (!key || this.failedMediaKeys().has(key)) {
-      return null;
-    }
-    const log = this.currentLog();
-    const target = this.currentPlanExercise();
-    return target?.images?.[0]
-      ?? target?.animationUrl
-      ?? log?.images?.[0]
-      ?? log?.animationUrl
-      ?? null;
+    const frames = this.mediaFrames();
+    return frames.length ? frames[this.mediaFrameIndex() % frames.length] : null;
   });
   readonly sortedInstructions = computed(() =>
     [...(this.currentDetail()?.instructions ?? [])].sort((a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER))
@@ -131,7 +136,18 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private readonly detailEffect = effect(() => {
     const exerciseId = this.currentExerciseId();
+    this.resetMediaForExercise(this.currentMediaIdentity());
     this.loadExerciseDetail(exerciseId);
+  });
+
+  private readonly mediaLoopEffect = effect(() => {
+    const frames = this.mediaFrames();
+    const paused = this.live.paused();
+    if (frames.length <= 1 || paused || this.prefersReducedMotion) {
+      this.clearMediaTimer();
+      return;
+    }
+    this.startMediaTimer();
   });
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -153,6 +169,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.clearRestTimer();
     this.clearWorkTimer();
+    this.clearMediaTimer();
   }
 
   completeCurrentSet(): void {
@@ -297,11 +314,12 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   onMediaError(): void {
-    const key = this.currentMediaKey();
-    if (!key) {
+    const url = this.currentMediaUrl();
+    if (!url) {
       return;
     }
-    this.failedMediaKeys.update((failed) => new Set(failed).add(key));
+    this.failedFrameUrls.update((failed) => new Set(failed).add(url));
+    this.mediaFrameIndex.set(0);
   }
 
   toggleGuidance(): void {
@@ -371,7 +389,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
     if (this.detailCache.has(exerciseId)) {
       this.detailLoading.set(false);
-      this.currentDetail.set(this.detailCache.get(exerciseId) ?? null);
+      const cached = this.detailCache.get(exerciseId) ?? null;
+      this.currentDetail.set(cached);
+      this.preloadMediaFrames(cached);
       return;
     }
 
@@ -382,6 +402,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
         this.detailCache.set(exerciseId, detail);
         if (this.currentExerciseId() === exerciseId) {
           this.currentDetail.set(detail);
+          this.preloadMediaFrames(detail);
         }
       },
       error: () => {
@@ -543,14 +564,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return index >= 0 ? index : 0;
   }
 
-  private currentMediaKey(): string | null {
-    const log = this.currentLog();
-    if (!log) {
-      return null;
-    }
-    return log.exerciseId || log.exerciseLogId || log.exerciseNameSnapshot;
-  }
-
   private clearRestTimer(reset = true): void {
     if (this.restTimerId) {
       clearInterval(this.restTimerId);
@@ -573,5 +586,75 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       this.workGuideRemainingSeconds.set(0);
       this.guidedRepCount.set(0);
     }
+  }
+
+  private detailMediaFrames(): string[] {
+    return [...(this.currentDetail()?.images ?? [])]
+      .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER))
+      .map((image) => image.url)
+      .filter((url): url is string => Boolean(url));
+  }
+
+  private fallbackMediaFrame(): string | null {
+    const target = this.currentPlanExercise();
+    const log = this.currentLog();
+    return target?.images?.[0]
+      ?? target?.animationUrl
+      ?? log?.images?.[0]
+      ?? log?.animationUrl
+      ?? null;
+  }
+
+  private resetMediaForExercise(exerciseId: string | null): void {
+    const key = exerciseId ?? '';
+    if (this.currentMediaExerciseId === key) {
+      return;
+    }
+    this.currentMediaExerciseId = key;
+    this.mediaFrameIndex.set(0);
+    this.failedFrameUrls.set(new Set());
+    this.clearMediaTimer();
+  }
+
+  private preloadMediaFrames(detail: ExerciseDetail | null): void {
+    if (!detail || typeof Image === 'undefined') {
+      return;
+    }
+    [...(detail.images ?? [])]
+      .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER))
+      .forEach((frame) => {
+        if (!frame.url) {
+          return;
+        }
+        const image = new Image();
+        image.src = frame.url;
+      });
+  }
+
+  private startMediaTimer(): void {
+    if (this.mediaTimerId) {
+      return;
+    }
+    this.mediaTimerId = setInterval(() => {
+      if (this.live.paused() || this.mediaFrames().length <= 1) {
+        this.clearMediaTimer();
+        return;
+      }
+      this.mediaFrameIndex.update((index) => index + 1);
+    }, 900);
+  }
+
+  private clearMediaTimer(): void {
+    if (this.mediaTimerId) {
+      clearInterval(this.mediaTimerId);
+      this.mediaTimerId = null;
+    }
+  }
+
+  private readReducedMotionPreference(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 }
