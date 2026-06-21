@@ -7,6 +7,31 @@
     </div>
   </header>
 
+  <div class="segmented nutrition-tabs" role="tablist" aria-label="Nutrition sections">
+    <button
+      id="nutrition-tab-today"
+      [class.active]="selectedTab() === 'today'"
+      type="button"
+      role="tab"
+      [attr.aria-selected]="selectedTab() === 'today'"
+      aria-controls="nutrition-panel-today"
+      (click)="selectedTab.set('today')"
+    >
+      Today
+    </button>
+    <button
+      id="nutrition-tab-log"
+      [class.active]="selectedTab() === 'log'"
+      type="button"
+      role="tab"
+      [attr.aria-selected]="selectedTab() === 'log'"
+      aria-controls="nutrition-panel-log"
+      (click)="selectedTab.set('log')"
+    >
+      Log meal
+    </button>
+  </div>
+
   @if (loading()) {
     <div class="summary-card skeleton tall"></div>
     <div class="summary-card skeleton"></div>
@@ -20,144 +45,158 @@
       (action)="load()"
     />
   } @else {
-    <section class="nutrition-hero">
-      <div class="calorie-panel">
-        <span class="card-label">Daily Budget</span>
-        <div class="calorie-row">
-          <div>
-            <h2>{{ nutrition()?.totalCalories ?? 0 }}</h2>
-            @if (hasCalorieTarget()) {
-              <p>of {{ nutrition()?.targetCalories }} kcal logged</p>
-            } @else {
-              <p>kcal logged</p>
-            }
-          </div>
-          @if (hasCalorieTarget()) {
-            <div class="calorie-ring" [style.--value]="calorieProgress() + '%'" aria-hidden="true">
-              <strong>{{ calorieProgress() }}%</strong>
-            </div>
-          } @else {
-            <div class="target-empty" role="status">
-              <strong>Daily calorie target not set</strong>
-              <a class="text-link" routerLink="/me">Set daily target</a>
-            </div>
-          }
-        </div>
-        <div class="budget-strip">
-          <div>
-            <span>Remaining</span>
-            @if (caloriesRemaining() !== null) {
-              <strong>{{ caloriesRemaining() }} kcal</strong>
-            } @else {
-              <strong>Target not set</strong>
-            }
-          </div>
-          <div>
-            <span>Meals</span>
-            <strong>{{ nutrition()?.mealCount ?? 0 }}</strong>
-          </div>
-          <div>
-            <span>Timezone</span>
-            <strong>{{ data()?.profile?.timezone ?? 'Asia/Singapore' }}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="macro-panel">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Macros</span>
-            <h2>Daily balance</h2>
-          </div>
-        </div>
-        <div class="macro-list">
-          @for (macro of macroCards(); track macro.label) {
-            <div class="macro-row">
+    @if (selectedTab() === 'today') {
+      <section id="nutrition-panel-today" role="tabpanel" aria-labelledby="nutrition-tab-today">
+        <section class="nutrition-hero">
+          <div class="calorie-panel">
+            <span class="card-label">Daily Budget</span>
+            <div class="calorie-row">
               <div>
-                <strong>{{ macro.label }}</strong>
-                @if (macro.targetSet) {
-                  <span>{{ macro.value }}{{ macro.unit }} / {{ macro.target }}{{ macro.unit }}</span>
+                <h2>{{ nutrition()?.totalCalories ?? 0 }}</h2>
+                @if (hasCalorieTarget()) {
+                  <p>of {{ nutrition()?.targetCalories }} kcal logged</p>
                 } @else {
-                  <span>{{ macro.value }}{{ macro.unit }} · target not set</span>
+                  <p>kcal logged</p>
+                }
+              </div>
+              @if (hasCalorieTarget()) {
+                <div class="calorie-ring" [style.--value]="calorieProgress() + '%'" aria-hidden="true">
+                  <strong>{{ calorieProgress() }}%</strong>
+                </div>
+              } @else {
+                <div class="target-empty" role="status">
+                  <strong>Daily calorie target not set</strong>
+                  <a class="text-link" routerLink="/me">Set daily target</a>
+                </div>
+              }
+            </div>
+            <div class="budget-strip">
+              <div>
+                <span>Remaining</span>
+                @if (caloriesRemaining() !== null) {
+                  <strong>{{ caloriesRemaining() }} kcal</strong>
+                } @else {
+                  <strong>Target not set</strong>
                 }
               </div>
               <div>
-                @if (macro.targetSet) {
-                  <span>{{ remaining(macro.value, macro.target) }}{{ macro.unit }} left</span>
-                  <div [class]="'macro-bar ' + macro.tone" aria-hidden="true">
-                    <i [style.width.%]="progress(macro.value, macro.target)"></i>
+                <span>Meals</span>
+                <strong>{{ nutrition()?.mealCount ?? 0 }}</strong>
+              </div>
+              <div>
+                <span>Timezone</span>
+                <strong>{{ data()?.profile?.timezone ?? 'Asia/Singapore' }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="macro-panel">
+            <div class="section-title">
+              <div>
+                <span class="card-label">Macros</span>
+                <h2>Daily balance</h2>
+              </div>
+            </div>
+            <div class="macro-list">
+              @for (macro of macroCards(); track macro.label) {
+                <div class="macro-row">
+                  <div>
+                    <strong>{{ macro.label }}</strong>
+                    @if (macro.targetSet) {
+                      <span>{{ macro.value }}{{ macro.unit }} / {{ macro.target }}{{ macro.unit }}</span>
+                    } @else {
+                      <span>{{ macro.value }}{{ macro.unit }} &middot; target not set</span>
+                    }
                   </div>
-                } @else {
-                  <span class="macro-empty">Target not set</span>
-                  <a class="text-link target-link" routerLink="/me">Set target</a>
-                }
+                  <div>
+                    @if (macro.targetSet) {
+                      <span>{{ remaining(macro.value, macro.target) }}{{ macro.unit }} left</span>
+                      <div [class]="'macro-bar ' + macro.tone" aria-hidden="true">
+                        <i [style.width.%]="progress(macro.value, macro.target)"></i>
+                      </div>
+                    } @else {
+                      <span class="macro-empty">Target not set</span>
+                      <a class="text-link target-link" routerLink="/me">Set target</a>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+
+        <section class="planning-grid">
+          <section class="timeline-panel">
+            <div class="section-title">
+              <div>
+                <span class="card-label">Today</span>
+                <h2>Logged meals</h2>
               </div>
             </div>
-          }
-        </div>
-      </div>
-    </section>
-
-    <section class="nutrition-workspace">
-      <app-meal-builder (saved)="refreshAfterMealSave()" />
-    </section>
-
-    <section class="planning-grid">
-      <section class="timeline-panel">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Today</span>
-            <h2>Logged meals</h2>
-          </div>
-        </div>
-        @if (mealTimeline().length) {
-          <div class="timeline-list">
-            @for (meal of mealTimeline(); track meal.title + meal.time) {
-              <article class="timeline-row">
-                <div class="time-badge">{{ meal.time }}</div>
-                <div>
-                  <strong>{{ meal.type }}</strong>
-                  <span>{{ meal.title }}</span>
-                </div>
-                <div>
-                  <strong>{{ meal.calories }} kcal</strong>
-                  <span>{{ meal.protein }}g protein</span>
-                  @if (meal.mealId) {
-                    <button type="button" class="quick-food-chip" [attr.aria-label]="'Copy ' + meal.title + ' to now'" (click)="copyMeal(meal.mealId, meal.mealType)">Copy</button>
-                  }
-                </div>
-              </article>
-            }
-          </div>
-        } @else {
-          <app-state-panel title="No meals logged today" message="Log your first meal to build today's timeline." />
-        }
-      </section>
-
-      <section class="guidance-panel">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Quality</span>
-            <h2>Nutrition checks</h2>
-          </div>
-        </div>
-        @if (nutritionChecks().length) {
-          <div class="note-list">
-            @for (check of nutritionChecks(); track check.label) {
-              <article [class.success]="check.status === 'success'" [class.warning]="check.status === 'warning'">
-                <span>{{ check.label }}</span>
-                <strong>{{ formatAmount(check.value, check.unit) }}</strong>
-                <p>{{ check.statusLabel }} - {{ check.detail }}</p>
-                @if (check.target != null) {
-                  <small>Reference: {{ formatAmount(check.target, check.unit) }}</small>
+            @if (mealTimeline().length) {
+              <div class="timeline-list">
+                @for (meal of mealTimeline(); track meal.title + meal.time) {
+                  <article class="timeline-row">
+                    <div class="time-badge">{{ meal.time }}</div>
+                    <div>
+                      <strong>{{ meal.type }}</strong>
+                      <span>{{ meal.title }}</span>
+                    </div>
+                    <div>
+                      <strong>{{ meal.calories }} kcal</strong>
+                      <span>{{ meal.protein }}g protein</span>
+                      @if (meal.mealId) {
+                        <button
+                          type="button"
+                          class="quick-food-chip"
+                          [attr.aria-label]="'Copy ' + meal.title + ' to now'"
+                          (click)="copyMeal(meal.mealId, meal.mealType)"
+                        >
+                          Copy
+                        </button>
+                      }
+                    </div>
+                  </article>
                 }
-              </article>
+              </div>
+            } @else {
+              <app-state-panel title="No meals logged today" message="Log your first meal to build today's timeline." />
             }
-          </div>
-        } @else {
-          <app-state-panel title="Micronutrient summary unavailable" message="Fiber, sugar, and sodium checks will appear once today's summary includes those values." />
-        }
+          </section>
+
+          <section class="guidance-panel">
+            <div class="section-title">
+              <div>
+                <span class="card-label">Quality</span>
+                <h2>Nutrition checks</h2>
+              </div>
+            </div>
+            @if (nutritionChecks().length) {
+              <div class="note-list">
+                @for (check of nutritionChecks(); track check.label) {
+                  <article [class.success]="check.status === 'success'" [class.warning]="check.status === 'warning'">
+                    <span>{{ check.label }}</span>
+                    <strong>{{ formatAmount(check.value, check.unit) }}</strong>
+                    <p>{{ check.statusLabel }} - {{ check.detail }}</p>
+                    @if (check.target != null) {
+                      <small>Reference: {{ formatAmount(check.target, check.unit) }}</small>
+                    }
+                  </article>
+                }
+              </div>
+            } @else {
+              <app-state-panel
+                title="Micronutrient summary unavailable"
+                message="Fiber, sugar, and sodium checks will appear once today's summary includes those values."
+              />
+            }
+          </section>
+        </section>
       </section>
-    </section>
+    } @else {
+      <section id="nutrition-panel-log" class="nutrition-workspace" role="tabpanel" aria-labelledby="nutrition-tab-log">
+        <app-meal-builder (saved)="refreshAfterMealSave()" />
+      </section>
+    }
   }
 </div>
