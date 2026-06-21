@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
@@ -463,5 +463,261 @@ describe('WorkoutPage', () => {
     component.handleExerciseLibraryChanged([exercise({ name: 'Bench press' })]);
 
     expect(component.exercises()[0].name).toBe('Bench press');
+  });
+
+  it('loads plan errors and refilters plans by status', () => {
+    dataService.getWorkoutPlans.and.returnValue(throwError(() => new Error('offline')));
+
+    component.load();
+
+    expect(component.loading()).toBeFalse();
+    expect(component.planError()).toBe('Unable to load workout plans. Please retry.');
+    expect(component.plans()).toEqual([]);
+
+    dataService.getWorkoutPlans.and.returnValue(of([plan({ status: 'ARCHIVED' })]));
+    component.selectPlanStatus('ARCHIVED');
+
+    expect(dataService.getWorkoutPlans).toHaveBeenCalledWith('ARCHIVED');
+    expect(component.planError()).toBeNull();
+    expect(component.plans()[0].status).toBe('ARCHIVED');
+  });
+
+  it('resets the only plan exercise row and removes additional rows', () => {
+    component.planExercises.at(0).patchValue({
+      exerciseId: 'exercise-1',
+      targetSets: 5,
+      targetReps: 3,
+      targetWeightKg: 100,
+      restSeconds: 180,
+      notes: 'Heavy'
+    });
+
+    component.removePlanExercise(0);
+
+    expect(component.planExercises.length).toBe(1);
+    expect(component.planExercises.at(0).value).toEqual(
+      jasmine.objectContaining({
+        exerciseId: '',
+        targetSets: 3,
+        targetReps: 8,
+        targetWeightKg: null,
+        restSeconds: 90,
+        notes: ''
+      })
+    );
+
+    component.addPlanExercise();
+    component.planExercises.at(1).patchValue({ exerciseId: 'exercise-2' });
+    component.removePlanExercise(1);
+
+    expect(component.planExercises.length).toBe(1);
+  });
+
+  it('edits concrete plans, skips sample plans, and cancels edit mode', () => {
+    component.editPlan(plan({ planId: null as unknown as string }));
+
+    expect(component.editingPlanId()).toBeNull();
+
+    component.editPlan(
+      plan({
+        planId: 'plan-edit',
+        name: 'Loaded plan',
+        description: 'Existing notes',
+        estimatedDurationMinutes: 35,
+        exercises: [
+          {
+            exerciseId: 'exercise-1',
+            exerciseNameSnapshot: 'Back squat',
+            sequence: 1,
+            targetSets: 4,
+            targetReps: 6,
+            targetWeightKg: 80,
+            targetDurationSeconds: null,
+            targetDistanceKm: null,
+            restSeconds: 150,
+            notes: 'Strong',
+            setTargets: []
+          }
+        ]
+      })
+    );
+
+    expect(component.editingPlanId()).toBe('plan-edit');
+    expect(component.planForm.value.name).toBe('Loaded plan');
+    expect(component.planExercises.at(0).value).toEqual(
+      jasmine.objectContaining({
+        exerciseId: 'exercise-1',
+        targetSets: 4,
+        targetReps: 6,
+        targetWeightKg: 80,
+        restSeconds: 150,
+        notes: 'Strong'
+      })
+    );
+
+    component.cancelEdit();
+
+    expect(component.editingPlanId()).toBeNull();
+    expect(component.planForm.value.name).toBe('');
+    expect(component.planExercises.length).toBe(1);
+  });
+
+  it('handles plan create and update error callbacks', () => {
+    component.planForm.patchValue({
+      name: 'Strength base',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'INTERMEDIATE',
+      estimatedDurationMinutes: 50
+    });
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1' });
+    dataService.createWorkoutPlan.and.returnValue(throwError(() => new Error('create failed')));
+
+    component.savePlan();
+
+    expect(component.savingPlan()).toBeFalse();
+    expect(dataService.createWorkoutPlan).toHaveBeenCalled();
+
+    component.editPlan(plan({ planId: 'plan-edit', exercises: [] }));
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1' });
+    dataService.updateWorkoutPlan.and.returnValue(throwError(() => new Error('update failed')));
+
+    component.savePlan();
+
+    expect(component.savingPlan()).toBeFalse();
+    expect(dataService.updateWorkoutPlan).toHaveBeenCalledWith('plan-edit', jasmine.any(Object));
+  });
+
+  it('guards and recovers plan activation, archiving, and starting mutations', () => {
+    const noId = plan({ planId: null as unknown as string });
+    const activePlan = plan({ planId: 'plan-active', status: 'ACTIVE' });
+
+    component.activatePlan(noId);
+    component.archivePlan(noId);
+    component.startPlan(plan({ ...noId, status: 'ACTIVE' }));
+    component.startPlan(plan({ status: 'ARCHIVED' }));
+
+    expect(dataService.activateWorkoutPlan).not.toHaveBeenCalled();
+    expect(dataService.archiveWorkoutPlan).not.toHaveBeenCalled();
+    expect(dataService.startWorkoutPlan).not.toHaveBeenCalled();
+
+    component.planMutations.set(new Set(['plan-active']));
+    component.activatePlan(activePlan);
+    component.archivePlan(activePlan);
+    component.startPlan(activePlan);
+
+    expect(dataService.activateWorkoutPlan).not.toHaveBeenCalled();
+    expect(dataService.archiveWorkoutPlan).not.toHaveBeenCalled();
+    expect(dataService.startWorkoutPlan).not.toHaveBeenCalled();
+
+    component.planMutations.set(new Set());
+    dataService.activateWorkoutPlan.and.returnValue(throwError(() => new Error('activate failed')));
+    component.activatePlan(activePlan);
+    expect(component.isPlanMutating(activePlan)).toBeFalse();
+
+    dataService.archiveWorkoutPlan.and.returnValue(throwError(() => new Error('archive failed')));
+    component.archivePlan(activePlan);
+    expect(component.isPlanMutating(activePlan)).toBeFalse();
+
+    dataService.startWorkoutPlan.and.returnValue(throwError(() => new Error('start failed')));
+    component.startPlan(activePlan);
+    expect(component.isPlanMutating(activePlan)).toBeFalse();
+  });
+
+  it('handles guided workout guards, errors, and cancellation paths', () => {
+    const exerciseTarget = {
+      exerciseId: 'exercise-2',
+      exerciseNameSnapshot: 'Push-Up',
+      sequence: 1,
+      targetSets: 1,
+      targetReps: 8,
+      targetWeightKg: null,
+      targetDurationSeconds: null,
+      targetDistanceKm: null,
+      restSeconds: 45,
+      notes: '',
+      setTargets: []
+    };
+    const active = plan({ planId: 'plan-guided', status: 'ACTIVE', exercises: [exerciseTarget] });
+
+    component.handleTodayExerciseStart(exerciseTarget);
+
+    expect(dataService.startWorkoutPlan).not.toHaveBeenCalled();
+
+    component.activePlan.set(active);
+    component.planMutations.set(new Set(['plan-guided']));
+    component.handleTodayStart(active);
+
+    expect(dataService.startWorkoutPlan).not.toHaveBeenCalled();
+
+    component.planMutations.set(new Set());
+    dataService.startWorkoutPlan.and.returnValue(throwError(() => new Error('guided failed')));
+    component.handleTodayExerciseStart(exerciseTarget);
+
+    expect(component.guidedInitialExerciseId()).toBeNull();
+    expect(component.isPlanMutating(active)).toBeFalse();
+
+    component.guidedPlayerSession.set(sessionDetail({ sessionId: 'guided-open' }));
+    component.guidedInitialExerciseId.set('exercise-2');
+    component.handleGuidedPlayerCancelled();
+
+    expect(component.guidedPlayerSession()).toBeNull();
+    expect(component.guidedInitialExerciseId()).toBeNull();
+    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+  });
+
+  it('updates session detail state and handles empty history selections', () => {
+    const first = session({ sessionId: 'session-1', name: 'First', status: 'COMPLETED' });
+    const second = session({ sessionId: 'session-2', name: 'Second', status: 'COMPLETED' });
+    component.sessions.set([first, second]);
+
+    component.openSessionDetail(session({ status: 'COMPLETED' }));
+
+    expect(component.selectedSessionId()).toBeNull();
+
+    component.openSessionDetail(first);
+    expect(component.selectedSessionId()).toBe('session-1');
+
+    const updated = sessionDetail({ sessionId: 'session-1', name: 'Updated', status: 'COMPLETED' });
+    dataService.getWorkoutSessions.and.returnValue(of([updated, second]));
+
+    component.handleSessionUpdated(updated);
+    expect(component.sessions()[0].name).toBe('Updated');
+
+    component.handleSessionDeleted();
+    expect(component.selectedSessionId()).toBeNull();
+
+    const repeated = sessionDetail({ sessionId: 'session-2', name: 'Repeated' });
+    dataService.getWorkoutSessions.and.returnValue(of([repeated, first]));
+
+    component.handleSessionRepeated(repeated);
+    expect(component.sessions()[0].name).toBe('Repeated');
+
+    component.closeSessionDetail();
+    expect(component.selectedSessionId()).toBeNull();
+  });
+
+  it('guards latest-session repeat and handles repeat errors', () => {
+    component.repeatingLatest.set(true);
+    component.repeatLatestSession();
+    expect(dataService.repeatLatestSession).not.toHaveBeenCalled();
+
+    component.repeatingLatest.set(false);
+    dataService.repeatLatestSession.and.returnValue(throwError(() => new Error('repeat failed')));
+
+    component.repeatLatestSession();
+
+    expect(dataService.repeatLatestSession).toHaveBeenCalled();
+    expect(component.repeatingLatest()).toBeFalse();
+  });
+
+  it('formats missing labels and invalid dates for summary cards', () => {
+    component.sessions.set([session({ completedAt: 'not-a-date', startedAt: '' })]);
+
+    expect(component.formatLabel(null)).toBe('');
+    expect(component.formatLabel('MUSCLE_GAIN')).toBe('Muscle Gain');
+    expect(component.formatDate(null)).toBe('\u2014');
+    expect(component.formatDate('not-a-date')).toBe('\u2014');
+    expect(component.metrics()[2].detail).toBe('Strength');
   });
 });

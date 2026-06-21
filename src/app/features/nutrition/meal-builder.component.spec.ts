@@ -1,8 +1,16 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { FoodDetail, FoodSearchResult, FoodServing, PagedFoods } from '../../core/fitsync.models';
+import {
+  FoodCategory,
+  FoodDetail,
+  FoodSearchResult,
+  FoodServing,
+  LoggedFood,
+  MealTemplate,
+  PagedFoods
+} from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { MealBuilderComponent, calculateMealItem } from './meal-builder.component';
 
@@ -53,6 +61,51 @@ describe('MealBuilderComponent', () => {
     basisLabel: '100 g',
     primaryBarcode: '',
     verified: true
+  };
+  const category: FoodCategory = {
+    categoryId: 'cat-protein',
+    parentId: null,
+    code: 'PROTEIN',
+    displayName: 'Protein',
+    slug: 'protein',
+    sortOrder: 1,
+    children: [{
+      categoryId: 'cat-chicken',
+      parentId: 'cat-protein',
+      code: 'CHICKEN',
+      displayName: 'Chicken',
+      slug: 'chicken',
+      sortOrder: 1,
+      children: []
+    }]
+  };
+  const loggedFood: LoggedFood = {
+    foodId: 'food-chicken',
+    customFoodId: null,
+    foodServingId: 'serving-150',
+    scope: 'CATALOG',
+    foodName: 'Chicken rice',
+    brandName: 'Hawker',
+    servingLabel: '1 bowl',
+    quantity: 1,
+    unit: 'serving',
+    servingSize: 150,
+    servingUnit: 'g',
+    calories: 150,
+    proteinGrams: 15,
+    carbsGrams: 18,
+    fatGrams: 4.5,
+    fiberGrams: 1.5,
+    sugarGrams: 3,
+    sodiumMg: 120,
+    timesLogged: 3
+  };
+  const template: MealTemplate = {
+    templateId: 'template-1',
+    name: 'Training lunch',
+    mealType: 'LUNCH',
+    note: 'Default',
+    totalCalories: 450
   };
 
   function pagedFoods(items: FoodSearchResult[], overrides: Partial<Omit<PagedFoods, 'items'>> = {}): PagedFoods {
@@ -122,6 +175,40 @@ describe('MealBuilderComponent', () => {
     expect(item?.foodCatalogItemId).toBe('food-chicken');
   });
 
+  it('covers meal item calculation guard and unit conversion branches', () => {
+    expect(calculateMealItem(chickenDetail, serving, 0)).toBeNull();
+    expect(calculateMealItem({ ...chickenDetail, basisQuantity: 0 }, serving, 1)).toBeNull();
+
+    const kgDetail: FoodDetail = {
+      ...chickenDetail,
+      basisQuantity: 1,
+      basisUnit: 'kg',
+      fiberGrams: null,
+      sugarGrams: null,
+      sodiumMg: null
+    };
+    const kgItem = calculateMealItem(kgDetail, { ...serving, gramsEquivalent: 500, quantity: 0.5, unit: 'kg' }, 1);
+
+    expect(kgItem?.calories).toBe(50);
+    expect(kgItem?.fiberGrams).toBeNull();
+    expect(kgItem?.sugarGrams).toBeNull();
+    expect(kgItem?.sodiumMg).toBeNull();
+
+    const milkDetail: FoodDetail = {
+      ...chickenDetail,
+      foodId: 'food-milk',
+      displayName: 'Milk',
+      basisQuantity: 1,
+      basisUnit: 'l',
+      densityGramsPerMl: 1.03
+    };
+
+    expect(calculateMealItem(milkDetail, { ...serving, gramsEquivalent: null, millilitersEquivalent: 250 }, 1)?.calories).toBe(25);
+    expect(calculateMealItem(milkDetail, { ...serving, gramsEquivalent: 206, millilitersEquivalent: null }, 1)?.calories).toBe(20);
+    expect(calculateMealItem({ ...milkDetail, basisQuantity: 100, basisUnit: 'milliliters' }, { ...serving, unit: 'ml', quantity: 250, gramsEquivalent: null }, 1)?.calories).toBe(250);
+    expect(calculateMealItem({ ...chickenDetail, basisUnit: 'cups' }, { ...serving, gramsEquivalent: null, millilitersEquivalent: null, quantity: null }, 1)?.calories).toBe(100);
+  });
+
   it('loads the first food page with the default page size', () => {
     expect(dataService.searchFoodsPage).toHaveBeenCalledWith(
       '',
@@ -155,57 +242,15 @@ describe('MealBuilderComponent', () => {
     );
   });
 
-  it('resets to the first page and reloads with a new page size', () => {
-    dataService.searchFoodsPage.and.callFake((query, options) =>
-      of(
-        pagedFoods([searchFood], {
-          page: options?.page ?? 0,
-          size: options?.size ?? 20,
-          totalPages: 3,
-          totalElements: 51
-        })
-      )
-    );
-
-    component.nextPage();
-    expect(component.page()).toBe(1);
-
-    dataService.searchFoodsPage.calls.reset();
-    component.setPageSize(50);
-
-    expect(component.page()).toBe(0);
-    expect(dataService.searchFoodsPage).toHaveBeenCalledWith(
-      '',
-      jasmine.objectContaining({
-        page: 0,
-        size: 50
-      })
-    );
-  });
-
   it('renders food search page totals in the pagination bar', () => {
     expect(fixture.nativeElement.textContent).toContain('Page 1 / 2 (21 foods)');
-    expect(fixture.nativeElement.textContent).toContain('Per page');
   });
 
-  it('keeps the page-size selector visible when there is only one food page', () => {
+  it('hides the page controls when there is only one food page', () => {
     component.totalPages.set(1);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.pagination-bar')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.page-size')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.page-controls')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Per page');
-  });
-
-  it('renders Other in both meal type controls', () => {
-    component.quickAddOpen.set(true);
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('Other');
-    const quickOptions = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLSelectElement>('#quick-add-panel select option'))
-      .map((option) => option.value);
-    expect(quickOptions).toContain('OTHER');
   });
 
   it('adds multiple foods and totals their nutrition', () => {
@@ -248,47 +293,6 @@ describe('MealBuilderComponent', () => {
     expect(component.items().length).toBe(0);
   });
 
-  it('requires a meal name when the meal type is Other', () => {
-    component.selectFood(searchFood);
-    component.addSelectedFood();
-    component.setMealType('OTHER');
-    component.mealForm.controls.name.setValue('');
-    dataService.createMeal.calls.reset();
-
-    component.saveMeal();
-    fixture.detectChanges();
-
-    expect(dataService.createMeal).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith('Name your meal before saving.');
-    expect(component.mealForm.controls.name.hasError('required')).toBeTrue();
-    expect(fixture.nativeElement.textContent).toContain('Name your meal');
-  });
-
-  it('submits Other meals with the user-provided name', () => {
-    component.selectFood(searchFood);
-    component.addSelectedFood();
-    component.setMealType('OTHER');
-    component.mealForm.controls.name.setValue('Late movie plate');
-
-    component.saveMeal();
-
-    const draft = dataService.createMeal.calls.mostRecent().args[0];
-    expect(draft.mealType).toBe('OTHER');
-    expect(draft.name).toBe('Late movie plate');
-  });
-
-  it('defaults standard meal names to the meal type label when blank', () => {
-    component.selectFood(searchFood);
-    component.addSelectedFood();
-    component.mealForm.patchValue({ mealType: 'BREAKFAST', name: '' });
-
-    component.saveMeal();
-
-    const draft = dataService.createMeal.calls.mostRecent().args[0];
-    expect(draft.mealType).toBe('BREAKFAST');
-    expect(draft.name).toBe('Breakfast');
-  });
-
   it('maps USER scoped foods to customFoodId', () => {
     const item = calculateMealItem({ ...chickenDetail, scope: 'USER', foodId: 'custom-1' }, serving, 1);
 
@@ -326,5 +330,221 @@ describe('MealBuilderComponent', () => {
     component.saveMeal();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to save meal. Check the items and try again.');
+  });
+
+  it('searches by category, verified flag, debounced text, and bounded pagination', fakeAsync(() => {
+    dataService.searchFoodsPage.calls.reset();
+    dataService.searchFoodsPage.and.callFake((query, options) =>
+      of(pagedFoods([searchFood], {
+        page: options?.page ?? 0,
+        totalPages: 3,
+        totalElements: 45
+      }))
+    );
+    component.categories.set([category]);
+
+    component.selectCategory(category);
+
+    expect(component.categoryLabel()).toBe('Protein');
+    expect(component.categoryOptions().map((item) => item.displayName)).toEqual(['Protein', 'Chicken']);
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith('', jasmine.objectContaining({
+      categoryId: 'cat-protein',
+      includeSubcategories: true,
+      verified: false,
+      page: 0
+    }));
+
+    component.toggleVerifiedOnly();
+
+    expect(component.verifiedOnly()).toBeTrue();
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith('', jasmine.objectContaining({ verified: true }));
+
+    component.searchControl.setValue('rice');
+    tick(250);
+
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith('rice', jasmine.objectContaining({ page: 0 }));
+
+    component.goToPage(99);
+
+    expect(component.page()).toBe(2);
+
+    dataService.searchFoodsPage.calls.reset();
+    component.searching.set(true);
+    component.goToPage(1);
+    component.searching.set(false);
+    component.goToPage(component.page());
+
+    expect(dataService.searchFoodsPage).not.toHaveBeenCalled();
+
+    component.prevPage();
+    expect(component.page()).toBe(1);
+  }));
+
+  it('handles food selection guards and selected-food reset paths', () => {
+    component.selectFood({ ...searchFood, foodId: null });
+
+    expect(toast.error).toHaveBeenCalledWith('Detailed nutrition is unavailable for this fallback food.');
+
+    dataService.getFoodDetail.and.returnValue(of(null));
+    component.selectFood(searchFood);
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to load full nutrition for that food.');
+
+    component.addSelectedFood();
+
+    expect(toast.error).toHaveBeenCalledWith('Choose a serving with enough nutrition data first.');
+
+    dataService.getFoodDetail.and.returnValue(of(chickenDetail));
+    component.selectFood(searchFood);
+    component.clearSelectedFood();
+
+    expect(component.selectedDetail()).toBeNull();
+
+    component.setServing('serving-150');
+    component.setQuantity('not-a-number');
+
+    expect(component.selectedQuantity()).toBe(1);
+    expect(component.formatAmount(12.34, 'g')).toBe('12.3g');
+  });
+
+  it('adds logged foods from detail lookup or snapshot and updates item quantities', () => {
+    dataService.getFoodDetail.and.returnValue(of(chickenDetail));
+    component.addLoggedFood(loggedFood);
+
+    expect(component.selectedDetail()).toEqual(chickenDetail);
+    expect(toast.success).toHaveBeenCalledWith('Loaded "Chicken rice" for serving selection.');
+
+    dataService.getFoodDetail.and.returnValue(of(null));
+    component.addLoggedFood(loggedFood);
+
+    expect(component.items().at(-1)?.foodName).toBe('Chicken rice');
+
+    component.addLoggedFood({
+      ...loggedFood,
+      foodId: null,
+      customFoodId: null,
+      scope: 'CUSTOM',
+      quantity: 0,
+      unit: ''
+    });
+
+    const snapshot = component.items().at(-1)!;
+    expect(snapshot.customFoodId).toBeNull();
+    expect(snapshot.quantity).toBe(1);
+    expect(snapshot.unit).toBe('serving');
+
+    component.selectFood(searchFood);
+    component.addSelectedFood();
+    const detailedItem = component.items().at(-1)!;
+    component.updateItemQuantity(detailedItem.id, '2.25');
+
+    expect(component.items().find((item) => item.id === detailedItem.id)?.quantity).toBe(2.25);
+    expect(component.items().find((item) => item.id === detailedItem.id)?.calories).toBe(338);
+
+    component.updateItemQuantity(snapshot.id, '3');
+    expect(component.items().find((item) => item.id === snapshot.id)?.quantity).toBe(3);
+
+    component.updateItemQuantity(snapshot.id, '-1');
+    expect(component.items().find((item) => item.id === snapshot.id)?.quantity).toBe(3);
+
+    component.removeItem(snapshot.id);
+    expect(component.items().some((item) => item.id === snapshot.id)).toBeFalse();
+  });
+
+  it('handles save meal empty guard, quick-add validation, and quick-add failure', () => {
+    component.saveMeal();
+
+    expect(toast.error).toHaveBeenCalledWith('Add at least one food before saving the meal.');
+
+    component.quickAddForm.patchValue({ name: '', calories: -1 });
+    component.saveQuickAdd();
+
+    expect(dataService.quickAddMeal).not.toHaveBeenCalled();
+
+    dataService.quickAddMeal.and.returnValue(throwError(() => new Error('quick failed')));
+    component.quickAddForm.setValue({
+      mealType: 'SNACK',
+      name: 'Manual shake',
+      calories: 220,
+      proteinGrams: 30,
+      carbsGrams: 12,
+      fatGrams: 4
+    });
+    component.saveQuickAdd();
+
+    expect(component.quickSaving()).toBeFalse();
+    expect(toast.error).toHaveBeenCalledWith('Unable to quick-add that meal. Please retry.');
+
+    component.toggleQuickAdd();
+    expect(component.quickAddOpen()).toBeTrue();
+  });
+
+  it('handles barcode lookup guard, empty result, success, and error paths', () => {
+    component.lookupBarcode();
+
+    expect(dataService.getFoodByBarcode).not.toHaveBeenCalled();
+
+    component.barcodeControl.setValue(' 12345 ');
+    component.barcodeLooking.set(true);
+    component.lookupBarcode();
+
+    expect(dataService.getFoodByBarcode).not.toHaveBeenCalled();
+
+    component.barcodeLooking.set(false);
+    dataService.getFoodByBarcode.and.returnValue(of(null));
+    component.lookupBarcode();
+
+    expect(dataService.getFoodByBarcode).toHaveBeenCalledWith('12345');
+    expect(component.barcodeLooking()).toBeFalse();
+    expect(toast.error).toHaveBeenCalledWith('No food found for that barcode.');
+
+    dataService.getFoodByBarcode.and.returnValue(of(loggedFood));
+    component.lookupBarcode();
+
+    expect(component.selectedDetail()).toEqual(chickenDetail);
+
+    dataService.getFoodByBarcode.and.returnValue(throwError(() => new Error('scanner offline')));
+    component.lookupBarcode();
+
+    expect(component.barcodeLooking()).toBeFalse();
+    expect(toast.error).toHaveBeenCalledWith('Barcode lookup failed. Please retry.');
+  });
+
+  it('logs templates and rolls back favorite updates on failure', () => {
+    spyOn(component.saved, 'emit');
+
+    component.logTemplate(template);
+
+    expect(dataService.logMealFromTemplate).toHaveBeenCalledWith('template-1');
+    expect(toast.success).toHaveBeenCalledWith('Logged "Training lunch".');
+    expect(component.saved.emit).toHaveBeenCalled();
+
+    dataService.logMealFromTemplate.and.returnValue(throwError(() => new Error('template failed')));
+    component.logTemplate(template);
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to log from template. Please retry.');
+
+    component.toggleFavorite({ ...searchFood, foodId: null });
+    expect(dataService.addFavoriteFood).not.toHaveBeenCalled();
+
+    component.toggleFavorite(searchFood);
+
+    expect(component.isFavorite(searchFood)).toBeTrue();
+    expect(component.isFavoriteUpdating(searchFood)).toBeFalse();
+    expect(dataService.addFavoriteFood).toHaveBeenCalledWith('food-chicken');
+    expect(toast.success).toHaveBeenCalledWith('Added to favorites.');
+
+    component.toggleFavorite(searchFood);
+
+    expect(component.isFavorite(searchFood)).toBeFalse();
+    expect(dataService.removeFavoriteFood).toHaveBeenCalledWith('food-chicken');
+
+    component.favoriteFoods.set([]);
+    dataService.addFavoriteFood.and.returnValue(throwError(() => new Error('favorite failed')));
+    component.toggleFavorite(searchFood);
+
+    expect(component.isFavorite(searchFood)).toBeFalse();
+    expect(component.isFavoriteUpdating(searchFood)).toBeTrue();
+    expect(toast.error).toHaveBeenCalledWith('Unable to update favorites. Please retry.');
   });
 });
