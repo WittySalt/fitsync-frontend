@@ -228,6 +228,12 @@ export class AccountDataService {
     return this.http.put<AccountProfile>(`${this.apiBaseUrl}/users/me/profile`, profile);
   }
 
+  uploadAvatar(file: Blob): Observable<AccountProfile> {
+    const form = new FormData();
+    form.append('file', file, 'avatar.png');
+    return this.http.post<AccountProfile>(`${this.apiBaseUrl}/users/me/profile/avatar`, form);
+  }
+
   updatePreferences(preferences: AccountPreferences): Observable<AccountPreferences> {
     return this.http.put<AccountPreferences>(`${this.apiBaseUrl}/users/me/preferences`, preferences);
   }

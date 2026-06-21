@@ -1,0 +1,93 @@
+.avatar-uploader {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.avatar-uploader-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  h4 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+}
+
+.avatar-preview {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-preview.initials {
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-weight: var(--fw-bold);
+}
+
+.file-pick {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+
+  span {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+  }
+
+  input {
+    width: 100%;
+  }
+}
+
+.cropper-frame {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+image-cropper {
+  width: 100%;
+  max-height: 420px;
+}
+
+.avatar-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.avatar-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}

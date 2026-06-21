@@ -239,6 +239,41 @@
   font-size: 13px;
 }
 
+.avatar-settings {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.avatar-settings-preview {
+  width: 62px;
+  height: 62px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-weight: var(--fw-bold);
+}
+
+.avatar-settings-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+}
+
 .metric-history {
   display: grid;
   gap: 12px;

@@ -1,0 +1,44 @@
+<section class="avatar-uploader" aria-label="Change profile photo">
+  <div class="avatar-uploader-header">
+    @if (currentAvatarUrl()) {
+      <img class="avatar-preview" [src]="currentAvatarUrl()" alt="Current profile photo" />
+    } @else {
+      <span class="avatar-preview initials" aria-hidden="true">{{ initials() }}</span>
+    }
+    <div>
+      <h4>Change photo</h4>
+      <p>Pick a PNG, JPEG, or WebP image up to 2 MB, then crop it into a circular avatar.</p>
+    </div>
+  </div>
+
+  <label class="file-pick">
+    <span>{{ selectedFileName() || 'Choose image' }}</span>
+    <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event)" />
+  </label>
+
+  @if (error()) {
+    <p class="avatar-error" role="alert">{{ error() }}</p>
+  }
+
+  @if (imageChangedEvent()) {
+    <div class="cropper-frame">
+      <image-cropper
+        [imageChangedEvent]="imageChangedEvent()"
+        [aspectRatio]="1"
+        [roundCropper]="true"
+        [resizeToWidth]="512"
+        format="png"
+        [output]="'blob'"
+        cropperFrameAriaLabel="Crop profile photo"
+        (imageCropped)="onCropped($event)"
+      />
+    </div>
+  }
+
+  <div class="avatar-actions">
+    <button class="button primary" type="button" [disabled]="uploading() || !croppedBlob()" (click)="upload()">
+      {{ uploading() ? 'Uploading...' : 'Upload photo' }}
+    </button>
+    <button class="button secondary" type="button" [disabled]="uploading()" (click)="cancelUpload()">Cancel</button>
+  </div>
+</section>
