@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterLink, provideRouter } from '@angular/router';
+import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 
 import {
@@ -189,7 +191,6 @@ describe('SettingsPage', () => {
       [
         'getAccountCenter',
         'updateProfile',
-        'uploadAvatar',
         'updatePreferences',
         'createBodyMetric',
         'listBodyMetrics',
@@ -203,7 +204,6 @@ describe('SettingsPage', () => {
     );
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
     accountDataService.updateProfile.and.returnValue(of(accountData.user.profile));
-    accountDataService.uploadAvatar.and.returnValue(of(accountData.user.profile));
     accountDataService.updatePreferences.and.returnValue(of(accountData.user.preferences));
     accountDataService.createBodyMetric.and.returnValue(of(createdBodyMetric));
     accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!, olderBodyMetric]));
@@ -219,6 +219,7 @@ describe('SettingsPage', () => {
     await TestBed.configureTestingModule({
       imports: [SettingsPage],
       providers: [
+        provideRouter([]),
         { provide: AuthService, useValue: authService },
         { provide: AccountDataService, useValue: accountDataService }
       ]
@@ -333,22 +334,50 @@ describe('SettingsPage', () => {
     }));
   });
 
-  it('applies an uploaded avatar to the current settings data', () => {
+  it('links avatar changes to the dedicated profile photo page', () => {
     const component = fixture.componentInstance;
-    const updatedProfile = {
-      ...accountData.user.profile,
-      avatarUrl: 'https://cdn.example/avatar.png'
-    };
 
     component.startEdit('identity');
-    component.openAvatarUploader();
-    component.handleAvatarUploaded(updatedProfile);
     fixture.detectChanges();
 
-    expect(component.data()?.user.profile.avatarUrl).toBe('https://cdn.example/avatar.png');
-    expect(component.avatarUploaderOpen()).toBeFalse();
-    expect(component.identityForm.controls.avatarUrl.value).toBe('https://cdn.example/avatar.png');
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Avatar updated.');
+    const links = fixture.debugElement
+      .queryAll(By.directive(RouterLink))
+      .map((debugElement) => debugElement.injector.get(RouterLink))
+      .map((link) => link.href)
+      .filter((href): href is string => Boolean(href));
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Change photo');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Manual URL');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Avatar URL');
+    expect(links.some((href) => href.endsWith('/settings/avatar'))).toBeTrue();
+  });
+
+  it('preserves the current avatar when saving identity fields', () => {
+    const component = fixture.componentInstance;
+    const avatarUrl = 'https://cdn.example/avatar.png';
+
+    component.data.set({
+      ...accountData,
+      user: {
+        ...accountData.user,
+        profile: {
+          ...accountData.user.profile,
+          avatarUrl
+        }
+      }
+    });
+    component.startEdit('identity');
+    component.identityForm.patchValue({
+      displayName: 'Alice Training',
+      gender: 'FEMALE',
+      birthDate: '1995-04-12'
+    });
+    component.saveIdentity();
+
+    expect(accountDataService.updateProfile).toHaveBeenCalledWith(jasmine.objectContaining({
+      displayName: 'Alice Training',
+      avatarUrl
+    }));
   });
 
   it('updates goals through the goal endpoint', () => {

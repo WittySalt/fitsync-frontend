@@ -1,5 +1,6 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 
 import { ToastService } from '../../core/toast/toast.service';
@@ -21,7 +22,6 @@ import {
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
-import { AvatarUploaderComponent } from './avatar-uploader.component';
 
 type EditablePanel =
   | 'identity'
@@ -50,7 +50,7 @@ interface SectionNavItem {
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, AccountSecurityActionsComponent, AvatarUploaderComponent],
+  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss'
 })
@@ -70,8 +70,6 @@ export class SettingsPage implements OnInit {
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
   readonly goalPanelOpen = signal(false);
-  readonly avatarUploaderOpen = signal(false);
-  readonly manualAvatarOpen = signal(false);
   readonly bodyMetricHistory = signal<AccountBodyMetric[]>([]);
   readonly bodyMetricHistoryLoading = signal(false);
   readonly bodyMetricHistoryError = signal<string | null>(null);
@@ -181,7 +179,6 @@ export class SettingsPage implements OnInit {
     displayName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     firstName: ['', [Validators.maxLength(80)]],
     lastName: ['', [Validators.maxLength(80)]],
-    avatarUrl: ['', [Validators.maxLength(255)]],
     birthDate: [''],
     gender: [''],
     bio: ['', [Validators.maxLength(300)]],
@@ -484,31 +481,6 @@ export class SettingsPage implements OnInit {
     }
     this.editPanel.set(null);
     this.goalPanelOpen.set(false);
-    this.avatarUploaderOpen.set(false);
-    this.manualAvatarOpen.set(false);
-  }
-
-  openAvatarUploader(): void {
-    this.avatarUploaderOpen.set(true);
-  }
-
-  closeAvatarUploader(): void {
-    this.avatarUploaderOpen.set(false);
-  }
-
-  toggleManualAvatar(): void {
-    this.manualAvatarOpen.update((open) => !open);
-  }
-
-  handleAvatarUploaded(profile: AccountProfile): void {
-    const data = this.data();
-    if (!data) {
-      return;
-    }
-    this.setData({ ...data, user: { ...data.user, profile } });
-    this.avatarUploaderOpen.set(false);
-    this.manualAvatarOpen.set(false);
-    this.saveMessage.set('Avatar updated.');
   }
 
   startGoalEdit(goalType: string): void {
@@ -539,7 +511,6 @@ export class SettingsPage implements OnInit {
       displayName: value.displayName.trim(),
       firstName: nullableText(value.firstName),
       lastName: nullableText(value.lastName),
-      avatarUrl: nullableText(value.avatarUrl),
       birthDate: nullableText(value.birthDate),
       gender: nullableText(value.gender) as AccountProfile['gender'],
       bio: nullableText(value.bio),
@@ -798,7 +769,6 @@ export class SettingsPage implements OnInit {
       displayName: profile.displayName,
       firstName: profile.firstName ?? '',
       lastName: profile.lastName ?? '',
-      avatarUrl: profile.avatarUrl ?? '',
       birthDate: profile.birthDate ?? '',
       gender: profile.gender ?? '',
       bio: profile.bio ?? '',
