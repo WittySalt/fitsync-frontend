@@ -314,6 +314,18 @@ select:focus {
   font-size: 13px;
 }
 
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  select {
+    width: auto;
+    min-height: 34px;
+    padding: 5px 8px;
+  }
+}
+
 .quick-toggle {
   justify-self: start;
 }

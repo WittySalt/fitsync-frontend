@@ -155,8 +155,36 @@ describe('MealBuilderComponent', () => {
     );
   });
 
+  it('resets to the first food page when the page size changes', () => {
+    dataService.searchFoodsPage.and.callFake((query, options) =>
+      of(
+        pagedFoods([searchFood], {
+          page: options?.page ?? 0,
+          size: options?.size ?? 20,
+          totalPages: 5,
+          totalElements: 90
+        })
+      )
+    );
+
+    component.nextPage();
+    fixture.detectChanges();
+    component.setPageSize(50);
+    fixture.detectChanges();
+
+    expect(component.page()).toBe(0);
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith(
+      '',
+      jasmine.objectContaining({
+        page: 0,
+        size: 50
+      })
+    );
+  });
+
   it('renders food search page totals in the pagination bar', () => {
     expect(fixture.nativeElement.textContent).toContain('Page 1 / 2 (21 foods)');
+    expect(fixture.nativeElement.textContent).toContain('Per page');
   });
 
   it('hides the pagination bar when there is only one food page', () => {

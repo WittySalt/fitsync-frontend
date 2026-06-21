@@ -47,6 +47,7 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly page = signal(0);
+  readonly pageSize = signal(20);
   readonly totalPages = signal(0);
   readonly totalElements = signal(0);
   readonly editingExercise = signal<Exercise | null>(null);
@@ -307,6 +308,7 @@ export class ExerciseLibraryComponent implements OnInit {
     }
 
     this.selectedExercise.set(exercise);
+    this.scrollToTop();
     this.selectedExerciseDetail.set(null);
     this.exerciseRecords.set(null);
     this.exerciseHistory.set([]);
@@ -342,6 +344,7 @@ export class ExerciseLibraryComponent implements OnInit {
     this.exerciseRecords.set(null);
     this.exerciseHistory.set([]);
     this.mediaFailed.set(false);
+    this.scrollToTop();
   }
 
   markMediaFailed(): void {
@@ -363,6 +366,15 @@ export class ExerciseLibraryComponent implements OnInit {
 
   nextPage(): void {
     this.goToPage(this.page() + 1);
+  }
+
+  setPageSize(size: number): void {
+    if (![10, 20, 50].includes(size) || size === this.pageSize()) {
+      return;
+    }
+    this.pageSize.set(size);
+    this.page.set(0);
+    this.loadExercises();
   }
 
   private loadMetadata(): void {
@@ -407,8 +419,14 @@ export class ExerciseLibraryComponent implements OnInit {
       equipment: raw.equipment || undefined,
       difficulty: raw.difficulty || undefined,
       page: this.page(),
-      size: 24
+      size: this.pageSize()
     };
+  }
+
+  private scrollToTop(): void {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   private normalizeCreate(value: CreateExerciseRequest): CreateExerciseRequest {

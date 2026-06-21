@@ -192,6 +192,14 @@
             <button class="button secondary" type="button" (click)="prevPage()" [disabled]="searching() || page() <= 0">
               Previous
             </button>
+            <label class="page-size">
+              Per page
+              <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
+                <option [value]="10">10</option>
+                <option [value]="20">20</option>
+                <option [value]="50">50</option>
+              </select>
+            </label>
             <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} foods)</span>
             <button class="button secondary" type="button" (click)="nextPage()" [disabled]="searching() || page() + 1 >= totalPages()">
               Next
