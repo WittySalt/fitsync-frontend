@@ -1,4 +1,5 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { HttpEventType, HttpResponse, HttpUploadProgressEvent } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -69,7 +70,8 @@ describe('ExerciseLibraryComponent', () => {
       'archiveExercise',
       'getExercise',
       'getExerciseRecords',
-      'getExerciseHistory'
+      'getExerciseHistory',
+      'uploadExerciseVideo'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
 
@@ -81,6 +83,9 @@ describe('ExerciseLibraryComponent', () => {
     dataService.getExercise.and.returnValue(of(exerciseDetail()));
     dataService.getExerciseRecords.and.returnValue(of(null));
     dataService.getExerciseHistory.and.returnValue(of([]));
+    dataService.uploadExerciseVideo.and.returnValue(
+      of(new HttpResponse({ body: exercise({ custom: true, videoUrl: 'https://media.example.test/exercise.mp4' }) }))
+    );
 
     await TestBed.configureTestingModule({
       imports: [ExerciseLibraryComponent],
@@ -226,7 +231,9 @@ describe('ExerciseLibraryComponent', () => {
       exerciseType: 'STRENGTH',
       primaryMuscleGroup: 'QUADS',
       equipment: 'DUMBBELL',
-      difficulty: 'BEGINNER'
+      difficulty: 'BEGINNER',
+      videoMode: 'url',
+      videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
     });
     fixture.componentInstance.createExercise();
 
@@ -237,7 +244,8 @@ describe('ExerciseLibraryComponent', () => {
       exerciseType: 'STRENGTH',
       primaryMuscleGroup: 'QUADS',
       equipment: 'DUMBBELL',
-      difficulty: 'BEGINNER'
+      difficulty: 'BEGINNER',
+      videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
     });
     expect(toast.success).toHaveBeenCalledWith('Exercise created.');
   });
@@ -281,11 +289,73 @@ describe('ExerciseLibraryComponent', () => {
       exerciseType: 'STRENGTH',
       primaryMuscleGroup: 'QUADS',
       equipment: 'BARBELL',
-      difficulty: 'INTERMEDIATE'
+      difficulty: 'INTERMEDIATE',
+      videoMode: 'url',
+      videoUrl: ''
     });
     fixture.componentInstance.createExercise();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to create exercise. Check the code and retry.');
+  });
+
+  it('rejects non-allowlisted pasted video URLs before writing', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.setValue({
+      code: 'CUSTOM_BACK_SQUAT',
+      name: 'Back squat',
+      description: '',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'INTERMEDIATE',
+      videoMode: 'url',
+      videoUrl: 'https://example.test/video.mp4'
+    });
+    fixture.componentInstance.createExercise();
+
+    expect(dataService.createExercise).not.toHaveBeenCalledWith(jasmine.objectContaining({ code: 'CUSTOM_BACK_SQUAT' }));
+    expect(fixture.componentInstance.createVideoError()).toBe('Use a YouTube or Vimeo URL.');
+  });
+
+  it('uploads a selected edit video file with progress and toast feedback', () => {
+    const customExercise = exercise({ custom: true });
+    const file = new File(['video'], 'demo.mp4', { type: 'video/mp4' });
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([customExercise])));
+    dataService.uploadExerciseVideo.and.returnValue(
+      of(
+        { type: HttpEventType.UploadProgress, loaded: 15, total: 30 } as HttpUploadProgressEvent,
+        new HttpResponse({ body: exercise({ custom: true, videoUrl: 'https://media.example.test/demo.mp4' }) })
+      )
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit(customExercise);
+    fixture.componentInstance.editVideoFile.set(file);
+    fixture.componentInstance.uploadEditingVideo();
+
+    expect(dataService.uploadExerciseVideo).toHaveBeenCalledWith('exercise-1', file);
+    expect(fixture.componentInstance.editUploadProgress()).toBe(100);
+    expect(fixture.componentInstance.editingExercise()?.videoUrl).toBe('https://media.example.test/demo.mp4');
+    expect(toast.success).toHaveBeenCalledWith('Exercise video uploaded.');
+  });
+
+  it('rejects non-video and oversized upload selections before calling the API', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectCreateVideoFile({
+      target: { files: [{ name: 'demo.mov', type: 'video/quicktime', size: 1000 }], value: 'demo.mov' }
+    } as unknown as Event);
+    expect(fixture.componentInstance.createVideoError()).toBe('Use an MP4 or WebM file.');
+
+    fixture.componentInstance.selectCreateVideoFile({
+      target: { files: [{ name: 'large.mp4', type: 'video/mp4', size: 31 * 1024 * 1024 }], value: 'large.mp4' }
+    } as unknown as Event);
+    expect(fixture.componentInstance.createVideoError()).toBe('Video must be 30 MB or smaller.');
+    expect(dataService.uploadExerciseVideo).not.toHaveBeenCalled();
   });
 
   it('opens real exercise records without rendering null records as zero', () => {
@@ -344,6 +414,7 @@ describe('ExerciseLibraryComponent', () => {
         exerciseDetail({
           images: [{ position: 0, url: 'https://cdn.example.test/squat.jpg' }],
           imageUrls: ['https://cdn.example.test/squat.jpg'],
+          videoUrl: 'https://media.example.test/squat.mp4',
           instructions: [{ stepNumber: 1, text: 'Brace your core before descending.' }],
           secondaryMuscleGroups: ['GLUTES']
         })
@@ -393,6 +464,7 @@ describe('ExerciseLibraryComponent', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(image.src).toBe('https://cdn.example.test/squat.jpg');
     expect(image.alt).toBe('Back squat demonstration');
+    expect(fixture.nativeElement.querySelector('app-exercise-video video')).not.toBeNull();
     expect(text).toContain('Brace your core before descending.');
     expect(text).toContain('Glutes');
     expect(text).toContain('125.0 kg');

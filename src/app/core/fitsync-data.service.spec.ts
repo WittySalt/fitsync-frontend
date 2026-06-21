@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { HttpEventType } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
@@ -989,7 +990,8 @@ describe('FitSyncDataService', () => {
       exerciseType: 'STRENGTH',
       primaryMuscleGroup: 'QUADS',
       equipment: 'BARBELL',
-      difficulty: 'INTERMEDIATE'
+      difficulty: 'INTERMEDIATE',
+      videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
     };
     const updatePayload = {
       name: 'Back Squat',
@@ -997,7 +999,8 @@ describe('FitSyncDataService', () => {
       exerciseType: 'STRENGTH',
       primaryMuscleGroup: 'QUADS',
       equipment: 'BARBELL',
-      difficulty: 'ADVANCED'
+      difficulty: 'ADVANCED',
+      videoUrl: 'https://vimeo.com/123456789'
     };
 
     service.createExercise(createPayload).subscribe();
@@ -1016,6 +1019,49 @@ describe('FitSyncDataService', () => {
     const archiveRequest = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1');
     expect(archiveRequest.request.method).toBe('DELETE');
     archiveRequest.flush(null);
+  });
+
+  it('uploads an exercise video as multipart form data and preserves progress events', () => {
+    const file = new Blob(['video'], { type: 'video/mp4' });
+    const events: unknown[] = [];
+
+    service.uploadExerciseVideo('exercise-1', file).subscribe((event) => events.push(event));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1/video');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.reportProgress).toBeTrue();
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    expect(request.request.body instanceof FormData).toBeTrue();
+    const uploaded = (request.request.body as FormData).get('file') as File;
+    expect(uploaded.type).toBe('video/mp4');
+    expect(uploaded.size).toBe(file.size);
+
+    request.event({ type: HttpEventType.UploadProgress, loaded: 15, total: 30 });
+    request.flush({
+      exerciseId: 'exercise-1',
+      code: 'CUSTOM_BACK_SQUAT',
+      name: 'Back Squat',
+      description: 'Barbell back squat',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'INTERMEDIATE',
+      status: 'ACTIVE',
+      custom: true,
+      videoUrl: 'https://media.example.test/exercise.mp4'
+    });
+
+    expect(events).toContain(jasmine.objectContaining({ type: HttpEventType.Sent }));
+    expect(events).toContain(jasmine.objectContaining({ type: HttpEventType.UploadProgress, loaded: 15, total: 30 }));
+    expect(events).toContain(
+      jasmine.objectContaining({
+        type: HttpEventType.Response,
+        body: jasmine.objectContaining({
+          exerciseId: 'exercise-1',
+          videoUrl: 'https://media.example.test/exercise.mp4'
+        })
+      })
+    );
   });
 
   it('loads exercise records and preserves null personal records', () => {

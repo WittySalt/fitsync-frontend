@@ -1,0 +1,24 @@
+@if (source(); as video) {
+  <div class="exercise-video" [class.embedded]="video.kind !== 'file'">
+    @if (video.kind === 'file') {
+      <video controls preload="metadata" [src]="video.sourceUrl" [attr.aria-label]="title"></video>
+    } @else if (safeEmbedUrl(); as safeUrl) {
+      <iframe
+        [title]="title"
+        [src]="safeUrl"
+        loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+      ></iframe>
+    } @else {
+      <button class="video-preview" type="button" (click)="activate()" [attr.aria-label]="'Play ' + title">
+        @if (video.thumbUrl) {
+          <img [src]="video.thumbUrl" [alt]="title + ' thumbnail'" loading="lazy" />
+        } @else {
+          <span class="video-placeholder" aria-hidden="true">{{ video.kind === 'youtube' ? 'YT' : 'V' }}</span>
+        }
+        <span class="play-button" aria-hidden="true">Play</span>
+      </button>
+    }
+  </div>
+}

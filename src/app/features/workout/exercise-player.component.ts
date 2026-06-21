@@ -14,10 +14,11 @@ import {
   WorkoutCelebrationComponent,
   WorkoutCelebrationSummary
 } from './workout-celebration.component';
+import { ExerciseVideoComponent } from './exercise-video.component';
 
 @Component({
   selector: 'app-exercise-player',
-  imports: [WorkoutCelebrationComponent],
+  imports: [WorkoutCelebrationComponent, ExerciseVideoComponent],
   templateUrl: './exercise-player.component.html',
   styleUrl: './exercise-player.component.scss'
 })
