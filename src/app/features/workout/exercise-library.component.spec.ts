@@ -1,9 +1,9 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { HttpEventType, HttpResponse, HttpUploadProgressEvent } from '@angular/common/http';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, ExerciseDetail, ExerciseMetadata, PagedExercises } from '../../core/fitsync.models';
+import { Exercise, ExerciseDetail, ExerciseHistoryEntry, ExerciseMetadata, PagedExercises } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 
@@ -55,6 +55,38 @@ function pagedExercises(
     totalElements: items.length,
     ...overrides
   };
+}
+
+function historyEntry(overrides: Partial<ExerciseHistoryEntry> = {}) {
+  return {
+    sessionId: 'session-1',
+    exerciseLogId: 'log-1',
+    setLogId: 'set-1',
+    exerciseId: 'exercise-1',
+    exerciseNameSnapshot: 'Back squat',
+    sessionName: 'Lower body',
+    startedAt: '2026-06-12T10:00:00Z',
+    completedAt: '2026-06-12T11:05:00Z',
+    sequence: 1,
+    setNumber: 1,
+    reps: 5,
+    weightKg: 100,
+    durationSeconds: null,
+    distanceKm: null,
+    restSeconds: 120,
+    perceivedExertion: 7,
+    notes: '',
+    ...overrides
+  };
+}
+
+function fileEvent(file: Partial<File> | null): Event {
+  return {
+    target: {
+      files: file ? [file] : [],
+      value: file?.name ?? ''
+    }
+  } as unknown as Event;
 }
 
 describe('ExerciseLibraryComponent', () => {
@@ -250,6 +282,62 @@ describe('ExerciseLibraryComponent', () => {
     expect(toast.success).toHaveBeenCalledWith('Exercise created.');
   });
 
+  it('creates an exercise then uploads the selected video before finishing', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const file = new File(['video'], 'demo.webm', { type: 'video/webm' });
+    dataService.createExercise.and.returnValue(of(exercise({ exerciseId: 'created-1', custom: true })));
+    dataService.uploadExerciseVideo.and.returnValue(
+      of(
+        { type: HttpEventType.UploadProgress, loaded: 5, total: 10 } as HttpUploadProgressEvent,
+        new HttpResponse({ body: exercise({ exerciseId: 'created-1', custom: true, videoUrl: 'https://media.example.test/demo.webm' }) })
+      )
+    );
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.setValue({
+      code: 'CUSTOM_ROW',
+      name: 'Row',
+      description: '',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'CHEST',
+      equipment: 'DUMBBELL',
+      difficulty: 'BEGINNER',
+      videoMode: 'upload',
+      videoUrl: ''
+    });
+    fixture.componentInstance.createVideoFile.set(file);
+    fixture.componentInstance.createExercise();
+
+    expect(dataService.createExercise).toHaveBeenCalled();
+    expect(dataService.uploadExerciseVideo).toHaveBeenCalledWith('created-1', file);
+    expect(fixture.componentInstance.createUploadProgress()).toBeNull();
+    expect(fixture.componentInstance.createVideoFile()).toBeNull();
+    expect(fixture.componentInstance.saving()).toBeFalse();
+    expect(toast.success).toHaveBeenCalledWith('Exercise created.');
+  });
+
+  it('reports create failures and clears the saving state', () => {
+    dataService.createExercise.and.returnValue(throwError(() => new Error('duplicate code')));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.setValue({
+      code: 'CUSTOM_BACK_SQUAT',
+      name: 'Back squat',
+      description: '',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'INTERMEDIATE',
+      videoMode: 'upload',
+      videoUrl: ''
+    });
+    fixture.componentInstance.createExercise();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to create exercise. Check the code and retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
+  });
+
   it('does not show edit or archive actions for global exercises', () => {
     dataService.searchExercisesPage.and.returnValue(of(pagedExercises([exercise({ custom: false })])));
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
@@ -261,6 +349,88 @@ describe('ExerciseLibraryComponent', () => {
 
     expect(buttonText).not.toContain('Edit');
     expect(buttonText).not.toContain('Archive');
+  });
+
+  it('does not start editing global exercises and resets edit state on cancel', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit(exercise({ custom: false }));
+    expect(fixture.componentInstance.editingExercise()).toBeNull();
+
+    fixture.componentInstance.startEdit(exercise({ custom: true, videoUrl: 'https://media.example.test/exercise.mp4' }));
+    fixture.componentInstance.editVideoFile.set(new File(['video'], 'demo.mp4', { type: 'video/mp4' }));
+    fixture.componentInstance.editUploadProgress.set(75);
+    fixture.componentInstance.editVideoError.set('bad file');
+    fixture.componentInstance.cancelEdit();
+
+    expect(fixture.componentInstance.editingExercise()).toBeNull();
+    expect(fixture.componentInstance.editForm.getRawValue()).toEqual({
+      name: '',
+      description: '',
+      exerciseType: '',
+      primaryMuscleGroup: '',
+      equipment: '',
+      difficulty: '',
+      videoMode: 'url',
+      videoUrl: ''
+    });
+    expect(fixture.componentInstance.editVideoFile()).toBeNull();
+    expect(fixture.componentInstance.editUploadProgress()).toBeNull();
+    expect(fixture.componentInstance.editVideoError()).toBe('');
+  });
+
+  it('updates a custom exercise and reloads the catalog on success', () => {
+    const customExercise = exercise({ custom: true });
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit(customExercise);
+    fixture.componentInstance.editForm.patchValue({
+      name: ' Front squat ',
+      description: ' Upright squat ',
+      videoMode: 'url',
+      videoUrl: 'https://vimeo.com/12345678'
+    });
+    fixture.componentInstance.updateExercise();
+
+    expect(dataService.updateExercise).toHaveBeenCalledWith(
+      'exercise-1',
+      jasmine.objectContaining({
+        name: 'Front squat',
+        description: 'Upright squat',
+        videoUrl: 'https://vimeo.com/12345678'
+      })
+    );
+    expect(toast.success).toHaveBeenCalledWith('Exercise updated.');
+    expect(fixture.componentInstance.editingExercise()).toBeNull();
+    expect(fixture.componentInstance.saving()).toBeFalse();
+    expect(dataService.searchExercisesPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not update when edit guards fail and reports update errors', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.updateExercise();
+    expect(dataService.updateExercise).not.toHaveBeenCalled();
+
+    fixture.componentInstance.startEdit(exercise({ custom: true }));
+    fixture.componentInstance.editForm.controls.name.setValue('');
+    fixture.componentInstance.updateExercise();
+    expect(dataService.updateExercise).not.toHaveBeenCalled();
+
+    fixture.componentInstance.editForm.controls.name.setValue('Back squat');
+    fixture.componentInstance.saving.set(true);
+    fixture.componentInstance.updateExercise();
+    expect(dataService.updateExercise).not.toHaveBeenCalled();
+
+    fixture.componentInstance.saving.set(false);
+    dataService.updateExercise.and.returnValue(throwError(() => new Error('update failed')));
+    fixture.componentInstance.updateExercise();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to update exercise. Please retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
   });
 
   it('archives a custom exercise after confirmation', () => {
@@ -275,6 +445,35 @@ describe('ExerciseLibraryComponent', () => {
     expect(window.confirm).toHaveBeenCalledWith('Archive Back squat?');
     expect(dataService.archiveExercise).toHaveBeenCalledWith('exercise-1');
     expect(toast.success).toHaveBeenCalledWith('Exercise archived.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
+  });
+
+  it('does not archive when guards fail or confirmation is declined', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    const confirm = spyOn(window, 'confirm').and.returnValue(false);
+
+    fixture.componentInstance.archiveExercise(exercise({ custom: false }));
+    fixture.componentInstance.archiveExercise(exercise({ custom: true, exerciseId: null }));
+    fixture.componentInstance.saving.set(true);
+    fixture.componentInstance.archiveExercise(exercise({ custom: true }));
+    fixture.componentInstance.saving.set(false);
+    fixture.componentInstance.archiveExercise(exercise({ custom: true }));
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(dataService.archiveExercise).not.toHaveBeenCalled();
+  });
+
+  it('reports archive failures and clears saving', () => {
+    dataService.archiveExercise.and.returnValue(throwError(() => new Error('archive failed')));
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.archiveExercise(exercise({ custom: true }));
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to archive exercise. Please retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
   });
 
   it('surfaces write failures through toast errors', () => {
@@ -358,6 +557,98 @@ describe('ExerciseLibraryComponent', () => {
     expect(dataService.uploadExerciseVideo).not.toHaveBeenCalled();
   });
 
+  it('clears video selection when no file is selected and accepts valid create/edit files', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    const createFile = new File(['video'], 'demo.mp4', { type: 'video/mp4' });
+    const editFile = new File(['video'], 'demo.webm', { type: 'video/webm' });
+
+    fixture.componentInstance.createVideoFile.set(createFile);
+    fixture.componentInstance.createVideoError.set('previous');
+    fixture.componentInstance.selectCreateVideoFile(fileEvent(null));
+    expect(fixture.componentInstance.createVideoFile()).toBeNull();
+    expect(fixture.componentInstance.createVideoError()).toBe('');
+
+    fixture.componentInstance.selectCreateVideoFile(fileEvent(createFile));
+    fixture.componentInstance.selectEditVideoFile(fileEvent(editFile));
+
+    expect(fixture.componentInstance.createVideoFile()).toBe(createFile);
+    expect(fixture.componentInstance.editVideoFile()).toBe(editFile);
+    expect(fixture.componentInstance.createVideoError()).toBe('');
+    expect(fixture.componentInstance.editVideoError()).toBe('');
+  });
+
+  it('reports upload failures for create and edit targets', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const file = new File(['video'], 'demo.mp4', { type: 'video/mp4' });
+    dataService.createExercise.and.returnValue(of(exercise({ exerciseId: 'created-1', custom: true })));
+    dataService.uploadExerciseVideo.and.returnValue(throwError(() => new Error('upload failed')));
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.setValue({
+      code: 'CUSTOM_ROW',
+      name: 'Row',
+      description: '',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'CHEST',
+      equipment: 'DUMBBELL',
+      difficulty: 'BEGINNER',
+      videoMode: 'upload',
+      videoUrl: ''
+    });
+    fixture.componentInstance.createVideoFile.set(file);
+    fixture.componentInstance.createExercise();
+
+    expect(fixture.componentInstance.createVideoError()).toBe('Unable to upload video. Please retry.');
+    expect(toast.error).toHaveBeenCalledWith('Unable to upload exercise video. Please retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
+
+    fixture.componentInstance.startEdit(exercise({ custom: true }));
+    fixture.componentInstance.editVideoFile.set(file);
+    fixture.componentInstance.uploadEditingVideo();
+
+    expect(fixture.componentInstance.editVideoError()).toBe('Unable to upload video. Please retry.');
+  });
+
+  it('does not upload an editing video when required state is missing', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const file = new File(['video'], 'demo.mp4', { type: 'video/mp4' });
+    fixture.detectChanges();
+
+    fixture.componentInstance.uploadEditingVideo();
+    fixture.componentInstance.startEdit(exercise({ custom: true, exerciseId: null }));
+    fixture.componentInstance.editVideoFile.set(file);
+    fixture.componentInstance.uploadEditingVideo();
+    fixture.componentInstance.startEdit(exercise({ custom: true }));
+    fixture.componentInstance.editVideoFile.set(null);
+    fixture.componentInstance.uploadEditingVideo();
+    fixture.componentInstance.editVideoFile.set(file);
+    fixture.componentInstance.saving.set(true);
+    fixture.componentInstance.uploadEditingVideo();
+
+    expect(dataService.uploadExerciseVideo).not.toHaveBeenCalled();
+  });
+
+  it('syncs uploaded edit video with selected exercise and detail', () => {
+    const customExercise = exercise({ custom: true });
+    const file = new File(['video'], 'demo.mp4', { type: 'video/mp4' });
+    dataService.uploadExerciseVideo.and.returnValue(
+      of(new HttpResponse({ body: exercise({ custom: true, videoUrl: 'https://media.example.test/demo.mp4' }) }))
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit(customExercise);
+    fixture.componentInstance.selectedExercise.set(customExercise);
+    fixture.componentInstance.selectedExerciseDetail.set(exerciseDetail(customExercise));
+    fixture.componentInstance.editVideoFile.set(file);
+    fixture.componentInstance.uploadEditingVideo();
+
+    expect(fixture.componentInstance.selectedExercise()?.videoUrl).toBe('https://media.example.test/demo.mp4');
+    expect(fixture.componentInstance.selectedExerciseDetail()?.videoUrl).toBe('https://media.example.test/demo.mp4');
+    expect(fixture.componentInstance.editVideoFile()).toBeNull();
+  });
+
   it('opens real exercise records without rendering null records as zero', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
@@ -372,6 +663,64 @@ describe('ExerciseLibraryComponent', () => {
     expect(text).toContain('No records yet');
     expect(text).not.toContain('0 kg');
     expect(text).not.toContain('0 reps');
+  });
+
+  it('does not select sample exercises without an id', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectExercise(exercise({ exerciseId: null }));
+
+    expect(fixture.componentInstance.selectedExercise()).toBeNull();
+    expect(dataService.getExercise).not.toHaveBeenCalled();
+  });
+
+  it('ignores stale detail responses when another exercise is selected', () => {
+    const detail$ = new Subject<ExerciseDetail | null>();
+    const records$ = new Subject<null>();
+    const history$ = new Subject<[]>();
+    dataService.getExercise.and.returnValue(detail$);
+    dataService.getExerciseRecords.and.returnValue(records$);
+    dataService.getExerciseHistory.and.returnValue(history$);
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectExercise(exercise({ exerciseId: 'exercise-1' }));
+    fixture.componentInstance.selectedExercise.set(exercise({ exerciseId: 'exercise-2' }));
+    detail$.next(exerciseDetail({ exerciseId: 'exercise-1', name: 'Stale exercise' }));
+    records$.next(null);
+    history$.next([]);
+    detail$.complete();
+    records$.complete();
+    history$.complete();
+
+    expect(fixture.componentInstance.selectedExerciseDetail()).toBeNull();
+    expect(fixture.componentInstance.exerciseRecords()).toBeNull();
+    expect(fixture.componentInstance.exerciseHistory()).toEqual([]);
+  });
+
+  it('resets exercise detail signals when detail loading fails', () => {
+    dataService.getExercise.and.returnValue(throwError(() => new Error('detail failed')));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectedExerciseDetail.set(exerciseDetail());
+    fixture.componentInstance.exerciseRecords.set({
+      exerciseId: 'exercise-1',
+      exerciseName: 'Back squat',
+      maxWeightKg: null,
+      maxReps: null,
+      maxSingleSetVolumeKg: null,
+      estimatedOneRepMaxKg: null,
+      bestSessionVolumeKg: null
+    });
+    fixture.componentInstance.exerciseHistory.set([historyEntry()]);
+    fixture.componentInstance.selectExercise(exercise());
+
+    expect(fixture.componentInstance.selectedExerciseDetail()).toBeNull();
+    expect(fixture.componentInstance.exerciseRecords()).toBeNull();
+    expect(fixture.componentInstance.exerciseHistory()).toEqual([]);
+    expect(fixture.componentInstance.exerciseDetailLoading()).toBeFalse();
   });
 
   it('shows the focused detail view and restores the same library page when returning', () => {
@@ -472,6 +821,42 @@ describe('ExerciseLibraryComponent', () => {
     expect(text).toContain('Set 2');
   });
 
+  it('marks failed media unavailable and skips invalid history trend points', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectedExercise.set(
+      exercise({
+        images: [{ position: 0, url: 'https://cdn.example.test/squat.jpg' }],
+        animationUrl: 'https://cdn.example.test/squat.gif'
+      })
+    );
+    expect(fixture.componentInstance.mediaUrl()).toBe('https://cdn.example.test/squat.jpg');
+
+    fixture.componentInstance.markMediaFailed();
+    expect(fixture.componentInstance.mediaUrl()).toBeNull();
+
+    fixture.componentInstance.exerciseHistory.set([
+      historyEntry({ sessionId: 'old', completedAt: '2026-06-10T10:00:00Z', weightKg: 90 }),
+      historyEntry({ sessionId: 'old', completedAt: '2026-06-10T10:05:00Z', weightKg: 95 }),
+      historyEntry({ sessionId: 'missing-weight', completedAt: '2026-06-11T10:00:00Z', weightKg: null }),
+      historyEntry({ sessionId: 'bad-date', completedAt: 'not-a-date', startedAt: '', weightKg: 110 }),
+      historyEntry({ sessionId: '', sessionName: 'Fallback key', completedAt: '2026-06-12T10:00:00Z', weightKg: 100 })
+    ]);
+
+    expect(fixture.componentInstance.historyTrend().labels.length).toBe(2);
+    expect(fixture.componentInstance.historyTrend().series[0].values).toEqual([95, 100]);
+    expect(fixture.componentInstance.sortedHistory()[0].sessionId).toBe('');
+  });
+
+  it('formats invalid dates as dash', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.formatDateTime('not-a-date')).toBe('-');
+    expect((fixture.componentInstance as unknown as { formatDateOnly: (value: string) => string }).formatDateOnly('not-a-date')).toBe('-');
+  });
+
   it('uses honest empty states when exercise media, instructions, records, and history are missing', () => {
     dataService.getExercise.and.returnValue(of(exerciseDetail()));
     dataService.getExerciseRecords.and.returnValue(of(null));
@@ -499,4 +884,89 @@ describe('ExerciseLibraryComponent', () => {
 
     expect(fixture.componentInstance.createForm.controls.code.value).toBe('CUSTOM_SINGLE_ARM_ROW');
   }));
+
+  it('does not overwrite dirty custom codes or empty names', fakeAsync(() => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.controls.code.setValue('MY_CODE');
+    fixture.componentInstance.createForm.controls.code.markAsDirty();
+    fixture.componentInstance.createForm.controls.name.setValue('A new name');
+    tick(120);
+
+    expect(fixture.componentInstance.createForm.controls.code.value).toBe('MY_CODE');
+
+    fixture.componentInstance.createForm.controls.code.markAsPristine();
+    fixture.componentInstance.createForm.controls.code.setValue('');
+    fixture.componentInstance.createForm.controls.name.setValue('   ');
+    tick(120);
+
+    expect(fixture.componentInstance.createForm.controls.code.value).toBe('');
+  }));
+
+  it('keeps create enum fields empty when metadata is unavailable', () => {
+    dataService.getExerciseMetadata.and.returnValue(of(null));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.metadata()).toBeNull();
+    expect(fixture.componentInstance.createForm.getRawValue()).toEqual(
+      jasmine.objectContaining({
+        exerciseType: '',
+        primaryMuscleGroup: '',
+        equipment: '',
+        difficulty: ''
+      })
+    );
+  });
+
+  it('handles page overflow and exercise loading failures', () => {
+    dataService.searchExercisesPage.and.returnValues(
+      of(pagedExercises([], { page: 3, totalPages: 2, totalElements: 30 })),
+      of(pagedExercises([exercise({ exerciseId: 'exercise-page-1' })], { page: 1, totalPages: 2, totalElements: 30 }))
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.page()).toBe(1);
+    expect(fixture.componentInstance.exercises()[0].exerciseId).toBe('exercise-page-1');
+    expect(dataService.searchExercisesPage).toHaveBeenCalledTimes(2);
+
+    dataService.searchExercisesPage.and.returnValue(throwError(() => new Error('load failed')));
+    (fixture.componentInstance as unknown as { loadExercises: () => void }).loadExercises();
+
+    expect(fixture.componentInstance.exercises()).toEqual([]);
+    expect(fixture.componentInstance.page()).toBe(0);
+    expect(fixture.componentInstance.totalPages()).toBe(0);
+    expect(fixture.componentInstance.totalElements()).toBe(0);
+    expect(fixture.componentInstance.loading()).toBeFalse();
+  });
+
+  it('clamps pagination changes and ignores invalid page-size changes', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    dataService.searchExercisesPage.and.callFake((options) =>
+      of(pagedExercises([exercise()], { page: options?.page ?? 0, size: options?.size ?? 20, totalPages: 3, totalElements: 60 }))
+    );
+    dataService.searchExercisesPage.calls.reset();
+
+    fixture.componentInstance.totalPages.set(3);
+    fixture.componentInstance.loading.set(false);
+
+    fixture.componentInstance.goToPage(-2);
+    fixture.componentInstance.goToPage(0);
+    fixture.componentInstance.loading.set(true);
+    fixture.componentInstance.goToPage(1);
+    fixture.componentInstance.loading.set(false);
+    fixture.componentInstance.goToPage(99);
+    fixture.componentInstance.prevPage();
+    fixture.componentInstance.nextPage();
+    fixture.componentInstance.setPageSize(13);
+    fixture.componentInstance.setPageSize(20);
+    fixture.componentInstance.setPageSize(50);
+
+    expect(fixture.componentInstance.pageSize()).toBe(50);
+    expect(dataService.searchExercisesPage.calls.allArgs().map((args) => args[0]?.page)).toEqual([2, 1, 2, 0]);
+    expect(dataService.searchExercisesPage.calls.mostRecent().args[0]).toEqual(jasmine.objectContaining({ page: 0, size: 50 }));
+  });
 });
