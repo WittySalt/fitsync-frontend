@@ -46,6 +46,9 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly exercises = signal<Exercise[]>([]);
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly page = signal(0);
+  readonly totalPages = signal(0);
+  readonly totalElements = signal(0);
   readonly editingExercise = signal<Exercise | null>(null);
   readonly selectedExercise = signal<Exercise | null>(null);
   readonly selectedExerciseDetail = signal<ExerciseDetail | null>(null);
@@ -156,7 +159,10 @@ export class ExerciseLibraryComponent implements OnInit {
   ngOnInit(): void {
     this.loadMetadata();
     this.loadExercises();
-    this.filterForm.valueChanges.pipe(debounceTime(250), distinctUntilChanged()).subscribe(() => this.loadExercises());
+    this.filterForm.valueChanges.pipe(debounceTime(250), distinctUntilChanged()).subscribe(() => {
+      this.page.set(0);
+      this.loadExercises();
+    });
     this.createForm.controls.name.valueChanges.pipe(debounceTime(120)).subscribe((name) => this.suggestCode(name));
   }
 
@@ -342,6 +348,23 @@ export class ExerciseLibraryComponent implements OnInit {
     this.mediaFailed.set(true);
   }
 
+  goToPage(nextPage: number): void {
+    const boundedPage = Math.max(0, Math.min(nextPage, Math.max(this.totalPages() - 1, 0)));
+    if (boundedPage === this.page() || this.loading()) {
+      return;
+    }
+    this.page.set(boundedPage);
+    this.loadExercises();
+  }
+
+  prevPage(): void {
+    this.goToPage(this.page() - 1);
+  }
+
+  nextPage(): void {
+    this.goToPage(this.page() + 1);
+  }
+
   private loadMetadata(): void {
     this.dataService.getExerciseMetadata().subscribe((metadata) => {
       this.metadata.set(metadata);
@@ -351,14 +374,25 @@ export class ExerciseLibraryComponent implements OnInit {
 
   private loadExercises(): void {
     this.loading.set(true);
-    this.dataService.getExercises(this.searchOptions()).subscribe({
-      next: (exercises) => {
-        this.exercises.set(exercises);
-        this.exercisesChanged.emit(exercises);
+    this.dataService.searchExercisesPage(this.searchOptions()).subscribe({
+      next: (result) => {
+        if (result.totalPages > 0 && result.page >= result.totalPages) {
+          this.page.set(result.totalPages - 1);
+          this.loadExercises();
+          return;
+        }
+        this.page.set(result.totalPages > 0 ? result.page : 0);
+        this.totalPages.set(result.totalPages);
+        this.totalElements.set(result.totalElements);
+        this.exercises.set(result.items);
+        this.exercisesChanged.emit(result.items);
         this.loading.set(false);
       },
       error: () => {
         this.exercises.set([]);
+        this.page.set(0);
+        this.totalPages.set(0);
+        this.totalElements.set(0);
         this.loading.set(false);
       }
     });
@@ -372,8 +406,8 @@ export class ExerciseLibraryComponent implements OnInit {
       primaryMuscleGroup: raw.primaryMuscleGroup || undefined,
       equipment: raw.equipment || undefined,
       difficulty: raw.difficulty || undefined,
-      page: 0,
-      size: 50
+      page: this.page(),
+      size: 24
     };
   }
 

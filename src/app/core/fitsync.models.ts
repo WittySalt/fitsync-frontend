@@ -285,6 +285,14 @@ export interface ExerciseSearchOptions {
   size?: number;
 }
 
+export interface PagedExercises {
+  items: Exercise[];
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+}
+
 export interface CreateExerciseRequest {
   code: string;
   name: string;

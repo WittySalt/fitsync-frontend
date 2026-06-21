@@ -2,7 +2,7 @@ import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, ExerciseDetail, ExerciseMetadata } from '../../core/fitsync.models';
+import { Exercise, ExerciseDetail, ExerciseMetadata, PagedExercises } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 
@@ -42,6 +42,20 @@ function exerciseDetail(overrides: Partial<ExerciseDetail> = {}): ExerciseDetail
   };
 }
 
+function pagedExercises(
+  items: Exercise[],
+  overrides: Partial<Omit<PagedExercises, 'items'>> = {}
+): PagedExercises {
+  return {
+    items,
+    page: 0,
+    size: 24,
+    totalPages: 1,
+    totalElements: items.length,
+    ...overrides
+  };
+}
+
 describe('ExerciseLibraryComponent', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let toast: jasmine.SpyObj<ToastService>;
@@ -49,7 +63,7 @@ describe('ExerciseLibraryComponent', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'getExerciseMetadata',
-      'getExercises',
+      'searchExercisesPage',
       'createExercise',
       'updateExercise',
       'archiveExercise',
@@ -60,7 +74,7 @@ describe('ExerciseLibraryComponent', () => {
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
 
     dataService.getExerciseMetadata.and.returnValue(of(metadata));
-    dataService.getExercises.and.returnValue(of([exercise()]));
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([exercise()])));
     dataService.createExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.updateExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.archiveExercise.and.returnValue(of(void 0));
@@ -91,6 +105,86 @@ describe('ExerciseLibraryComponent', () => {
     expect(optionText).toContain('Intermediate');
   });
 
+  it('loads the first exercise page with a page size of 24', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    expect(dataService.searchExercisesPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        page: 0,
+        size: 24
+      })
+    );
+  });
+
+  it('loads the next exercise page when the next button is clicked', () => {
+    dataService.searchExercisesPage.and.callFake((options) => {
+      const request = options ?? {};
+      return of(
+        pagedExercises([exercise({ exerciseId: `exercise-${request.page ?? 0}` })], {
+          page: request.page ?? 0,
+          totalPages: 2,
+          totalElements: 25
+        })
+      );
+    });
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    const next = Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Next')
+    );
+    next?.click();
+    fixture.detectChanges();
+
+    expect(dataService.searchExercisesPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        page: 1,
+        size: 24
+      })
+    );
+  });
+
+  it('resets to the first page when filters change', fakeAsync(() => {
+    dataService.searchExercisesPage.and.callFake((options) => {
+      const request = options ?? {};
+      return of(pagedExercises([exercise()], { page: request.page ?? 0, totalPages: 3, totalElements: 49 }));
+    });
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.nextPage();
+    fixture.detectChanges();
+    fixture.componentInstance.filterForm.controls.q.setValue('press');
+    tick(250);
+
+    expect(dataService.searchExercisesPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        q: 'press',
+        page: 0,
+        size: 24
+      })
+    );
+  }));
+
+  it('renders total pages and total elements in the pagination bar', () => {
+    dataService.searchExercisesPage.and.returnValue(
+      of(pagedExercises([exercise()], { page: 0, totalPages: 3, totalElements: 49 }))
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Page 1 / 3 (49 exercises)');
+  });
+
+  it('hides the pagination bar when there is only one page', () => {
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([exercise()], { totalPages: 1 })));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
+  });
+
   it('creates a custom exercise with the normalized backend body', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
@@ -119,7 +213,7 @@ describe('ExerciseLibraryComponent', () => {
   });
 
   it('does not show edit or archive actions for global exercises', () => {
-    dataService.getExercises.and.returnValue(of([exercise({ custom: false })]));
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([exercise({ custom: false })])));
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
 
@@ -133,7 +227,7 @@ describe('ExerciseLibraryComponent', () => {
 
   it('archives a custom exercise after confirmation', () => {
     const customExercise = exercise({ custom: true });
-    dataService.getExercises.and.returnValue(of([customExercise]));
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([customExercise])));
     spyOn(window, 'confirm').and.returnValue(true);
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
