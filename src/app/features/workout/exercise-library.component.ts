@@ -6,6 +6,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
   CreateExerciseRequest,
   Exercise,
+  ExerciseDetail,
   ExerciseHistoryEntry,
   ExerciseMetadata,
   ExerciseRecordValue,
@@ -47,9 +48,11 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly saving = signal(false);
   readonly editingExercise = signal<Exercise | null>(null);
   readonly selectedExercise = signal<Exercise | null>(null);
+  readonly selectedExerciseDetail = signal<ExerciseDetail | null>(null);
   readonly exerciseRecords = signal<ExerciseRecords | null>(null);
   readonly exerciseHistory = signal<ExerciseHistoryEntry[]>([]);
   readonly exerciseDetailLoading = signal(false);
+  readonly mediaFailed = signal(false);
 
   readonly filterForm = this.fb.nonNullable.group({
     q: [''],
@@ -88,6 +91,28 @@ export class ExerciseLibraryComponent implements OnInit {
       this.recordCard('Best session volume', records?.bestSessionVolumeKg ?? null, 'kg', 1)
     ];
   });
+
+  readonly displayExercise = computed<Exercise | ExerciseDetail | null>(
+    () => this.selectedExerciseDetail() ?? this.selectedExercise()
+  );
+
+  readonly recordsEmpty = computed(() => this.recordCards().every((record) => record.detail === 'No data yet'));
+
+  readonly mediaUrl = computed(() => {
+    const exercise = this.displayExercise();
+    if (!exercise || this.mediaFailed()) {
+      return null;
+    }
+    return exercise.images?.[0]?.url ?? exercise.animationUrl ?? null;
+  });
+
+  readonly sortedHistory = computed(() =>
+    [...this.exerciseHistory()].sort((a, b) => {
+      const left = new Date(a.completedAt || a.startedAt).getTime();
+      const right = new Date(b.completedAt || b.startedAt).getTime();
+      return (Number.isNaN(right) ? 0 : right) - (Number.isNaN(left) ? 0 : left);
+    })
+  );
 
   readonly historyTrend = computed<HistoryTrend>(() => {
     const points = new Map<string, { label: string; time: number; value: number }>();
@@ -140,6 +165,34 @@ export class ExerciseLibraryComponent implements OnInit {
       .replaceAll('_', ' ')
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  formatLabels(values: string[] | null | undefined): string {
+    return (values ?? []).map((value) => this.formatLabel(value)).filter(Boolean).join(', ');
+  }
+
+  formatDateTime(value: string | null | undefined): string {
+    if (!value) {
+      return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '-';
+    }
+    return new Intl.DateTimeFormat('en-SG', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(date);
+  }
+
+  formatMetric(value: number | null | undefined, unit: string, digits = 0): string {
+    if (value == null) {
+      return '-';
+    }
+    return `${value.toFixed(digits)} ${unit}`;
   }
 
   startEdit(exercise: Exercise): void {
@@ -248,23 +301,28 @@ export class ExerciseLibraryComponent implements OnInit {
     }
 
     this.selectedExercise.set(exercise);
+    this.selectedExerciseDetail.set(null);
     this.exerciseRecords.set(null);
     this.exerciseHistory.set([]);
     this.exerciseDetailLoading.set(true);
+    this.mediaFailed.set(false);
 
     forkJoin({
+      detail: this.dataService.getExercise(exercise.exerciseId),
       records: this.dataService.getExerciseRecords(exercise.exerciseId),
       history: this.dataService.getExerciseHistory(exercise.exerciseId)
     }).subscribe({
-      next: ({ records, history }) => {
+      next: ({ detail, records, history }) => {
         if (this.selectedExercise()?.exerciseId !== exercise.exerciseId) {
           return;
         }
+        this.selectedExerciseDetail.set(detail);
         this.exerciseRecords.set(records);
         this.exerciseHistory.set(history);
         this.exerciseDetailLoading.set(false);
       },
       error: () => {
+        this.selectedExerciseDetail.set(null);
         this.exerciseRecords.set(null);
         this.exerciseHistory.set([]);
         this.exerciseDetailLoading.set(false);
@@ -274,8 +332,14 @@ export class ExerciseLibraryComponent implements OnInit {
 
   clearSelectedExercise(): void {
     this.selectedExercise.set(null);
+    this.selectedExerciseDetail.set(null);
     this.exerciseRecords.set(null);
     this.exerciseHistory.set([]);
+    this.mediaFailed.set(false);
+  }
+
+  markMediaFailed(): void {
+    this.mediaFailed.set(true);
   }
 
   private loadMetadata(): void {
