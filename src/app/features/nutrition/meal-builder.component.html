@@ -17,7 +17,7 @@
   </div>
 
   <form class="meal-meta" [formGroup]="mealForm">
-    <div class="meal-type-grid" role="group" aria-label="Meal type">
+    <div class="meal-type-grid segmented" role="group" aria-label="Meal type">
       @for (type of ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']; track type) {
         <button
           type="button"
@@ -29,14 +29,16 @@
         </button>
       }
     </div>
-    <label>
-      Meal name
-      <input formControlName="name" placeholder="Post-workout lunch" />
-    </label>
-    <label>
-      Note
-      <input formControlName="note" placeholder="Optional context" />
-    </label>
+    <div class="meal-text-grid">
+      <label>
+        Meal name
+        <input formControlName="name" placeholder="Post-workout lunch" />
+      </label>
+      <label>
+        Note
+        <input formControlName="note" placeholder="Optional context" />
+      </label>
+    </div>
   </form>
 
   <div class="builder-grid">
