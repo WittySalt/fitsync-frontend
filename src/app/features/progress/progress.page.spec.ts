@@ -2,11 +2,28 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsNutritionSeriesResponse, AnalyticsWorkoutSeriesResponse } from '../../core/analytics.models';
 import { FitSyncDataService, ProgressData } from '../../core/fitsync-data.service';
 import { ProgressPage } from './progress.page';
 
 describe('ProgressPage', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
+
+  const emptyWorkoutSeries: AnalyticsWorkoutSeriesResponse = {
+    from: '2026-06-01',
+    to: '2026-06-22',
+    bucket: 'WEEK',
+    points: []
+  };
+
+  const emptyNutritionSeries: AnalyticsNutritionSeriesResponse = {
+    from: '2026-06-01',
+    to: '2026-06-22',
+    bucket: 'WEEK',
+    points: []
+  };
 
   const progressData: ProgressData = {
     latestBodyMetric: {
@@ -58,10 +75,17 @@ describe('ProgressPage', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getProgressData']);
     dataService.getProgressData.and.returnValue(of(progressData));
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getWorkoutSeries', 'getNutritionSeries']);
+    analyticsApi.getWorkoutSeries.and.returnValue(of(emptyWorkoutSeries));
+    analyticsApi.getNutritionSeries.and.returnValue(of(emptyNutritionSeries));
 
     await TestBed.configureTestingModule({
       imports: [ProgressPage],
-      providers: [provideRouter([]), { provide: FitSyncDataService, useValue: dataService }]
+      providers: [
+        provideRouter([]),
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: AnalyticsApiService, useValue: analyticsApi }
+      ]
     }).compileComponents();
   });
 
@@ -88,7 +112,8 @@ describe('ProgressPage', () => {
     const fixture = TestBed.createComponent(ProgressPage);
     fixture.detectChanges();
 
-    const bucketButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.bucket-toggle button'));
+    const bodyTrendBucketToggle = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.filters-card .bucket-toggle');
+    const bucketButtons = Array.from(bodyTrendBucketToggle?.querySelectorAll<HTMLButtonElement>('button') ?? []);
     expect(bucketButtons.map((button) => button.textContent?.trim())).toEqual(['Day', 'Week', 'Month']);
 
     bucketButtons[1].click();
