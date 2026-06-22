@@ -5,8 +5,7 @@ import { of, throwError } from 'rxjs';
 import {
   AccountCenterData,
   AccountDataService,
-  AccountDataExportPayload,
-  UserGoal
+  AccountDataExportPayload
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -18,16 +17,6 @@ describe('SettingsPage', () => {
   let authService: jasmine.SpyObj<AuthService>;
   let accountDataService: jasmine.SpyObj<AccountDataService>;
   let toast: jasmine.SpyObj<ToastService>;
-
-  const weightGoal: UserGoal = {
-    goalId: 'goal-1',
-    goalType: 'WEIGHT',
-    targetValue: 68,
-    targetUnit: 'kg',
-    targetDate: '2026-09-30',
-    status: 'ACTIVE',
-    notes: 'Cut slowly while maintaining strength.'
-  };
 
   const accountData: AccountCenterData = {
     user: {
@@ -87,7 +76,15 @@ describe('SettingsPage', () => {
           quietHoursEnd: '07:00:00'
         }
       },
-      activeGoals: [weightGoal],
+      activeGoals: [{
+        goalId: 'goal-1',
+        goalType: 'WEIGHT',
+        targetValue: 68,
+        targetUnit: 'kg',
+        targetDate: '2026-09-30',
+        status: 'ACTIVE',
+        notes: 'Cut slowly while maintaining strength.'
+      }],
       latestBodyMetrics: {
         metricId: 'metric-1',
         weightKg: 72.4,
@@ -165,7 +162,6 @@ describe('SettingsPage', () => {
         'createBodyMetric',
         'listBodyMetrics',
         'replaceBodyMetric',
-        'updateGoal',
         'updateRecoveryEmail',
         'requestDataExport',
         'downloadDataExport',
@@ -178,7 +174,6 @@ describe('SettingsPage', () => {
     accountDataService.updatePreferences.and.returnValue(of(accountData.user.preferences));
     accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!]));
     accountDataService.replaceBodyMetric.and.returnValue(of(accountData.user.latestBodyMetrics!));
-    accountDataService.updateGoal.and.returnValue(of(weightGoal));
     accountDataService.updateRecoveryEmail.and.returnValue(of({
       ...accountData.security,
       recoveryEmail: 'recovery@example.com',
@@ -212,7 +207,10 @@ describe('SettingsPage', () => {
     expect(text).toContain('Alice Tan');
     expect(text).toContain('Identity');
     expect(text).toContain('Gender');
-    expect(text).toContain('Goals / targets');
+    expect(text).toContain('Activity level');
+    expect(text).toContain('Manage goals');
+    expect(text).not.toContain('Goals / targets');
+    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/progress"]')).not.toBeNull();
     // Section tabs: these live in non-default sections but the nav labels are always rendered.
     expect(text).toContain('Preferences');
     expect(text).toContain('Privacy & Data');
@@ -276,20 +274,6 @@ describe('SettingsPage', () => {
     }));
   });
 
-  it('updates goals through the goal endpoint', () => {
-    const component = fixture.componentInstance;
-
-    component.startGoalEdit('WEIGHT');
-    component.goalForm.patchValue({ targetValue: '67.5', targetUnit: 'kg', status: 'ACTIVE' });
-    component.saveGoal();
-
-    expect(accountDataService.updateGoal).toHaveBeenCalledWith('WEIGHT', jasmine.objectContaining({
-      targetValue: 67.5,
-      targetUnit: 'kg',
-      status: 'ACTIVE'
-    }));
-  });
-
   it('requests account data export from the privacy section', () => {
     fixture.componentInstance.requestDataExport();
 
@@ -342,15 +326,7 @@ describe('SettingsPage', () => {
           weightKg: 72,
           bmi: null
         },
-        activeGoals: [
-          {
-            ...weightGoal,
-            targetValue: null,
-            targetUnit: null,
-            targetDate: null,
-            status: 'PAUSED'
-          }
-        ]
+        activeGoals: []
       }
     };
 
@@ -364,14 +340,12 @@ describe('SettingsPage', () => {
     expect(component.nutritionTracking()).toBe('Not set');
     expect(component.weeklyReportSummary()).toBe('Off');
     expect(component.quietHoursSummary()).toBe('Not set');
-    expect(component.goalSummary('CALORIES')).toBe('Not set');
     expect(component.labelFor(null)).toBe('Not set');
 
     component.data.set(imperialData);
 
     expect(component.region()).toBe('Asia/Singapore');
     expect(component.displayHeight(180)).toBe('5 ft 11 in');
-    expect(component.goalSummary('WEIGHT')).toContain('Target not set - Paused');
     expect(component.labelFor('VERY_ACTIVE')).toBe('Very Active');
 
     component.accountMenuOpen.set(true);
@@ -383,16 +357,11 @@ describe('SettingsPage', () => {
   it('handles edit cancellation', () => {
     const component = fixture.componentInstance;
 
-    component.startEdit('goals');
-    expect(component.goalPanelOpen()).toBeTrue();
-    expect(component.goalForm.controls.goalType.value).toBe('WEIGHT');
-
     component.identityForm.patchValue({ displayName: 'Unsaved Name' });
     component.cancelEdit();
 
     expect(component.identityForm.controls.displayName.value).toBe('Alice Tan');
     expect(component.editPanel()).toBeNull();
-    expect(component.goalPanelOpen()).toBeFalse();
   });
 
   it('saves location, activity, preferences, recovery email, exports, and deletion requests', () => {
@@ -498,7 +467,6 @@ describe('SettingsPage', () => {
 
     accountDataService.updateProfile.calls.reset();
     accountDataService.updatePreferences.calls.reset();
-    accountDataService.updateGoal.calls.reset();
     accountDataService.updateRecoveryEmail.calls.reset();
     accountDataService.requestDataExport.calls.reset();
     accountDataService.downloadDataExport.calls.reset();
@@ -508,8 +476,6 @@ describe('SettingsPage', () => {
     component.saveIdentity();
     component.locationForm.patchValue({ locationDisplay: 'x'.repeat(121) });
     component.saveLocation();
-    component.goalForm.patchValue({ targetValue: '-1' });
-    component.saveGoal();
     component.trainingForm.patchValue({ weeklyWorkoutDays: '20' });
     component.savePreferences('training');
     component.recoveryForm.patchValue({ email: 'bad-email', currentPassword: '' });
@@ -519,7 +485,6 @@ describe('SettingsPage', () => {
 
     expect(accountDataService.updateProfile).not.toHaveBeenCalled();
     expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
-    expect(accountDataService.updateGoal).not.toHaveBeenCalled();
     expect(accountDataService.updateRecoveryEmail).not.toHaveBeenCalled();
     expect(accountDataService.requestAccountDeletion).not.toHaveBeenCalled();
 
@@ -545,12 +510,6 @@ describe('SettingsPage', () => {
     component.savePreferences('formatting');
 
     expect(component.sectionErrors().formatting).toBe('preferences failed');
-
-    accountDataService.updateGoal.and.returnValue(throwError(() => new Error('goal failed')));
-    component.goalForm.patchValue({ targetValue: '68' });
-    component.saveGoal();
-
-    expect(component.sectionErrors().goals).toBe('goal failed');
 
     accountDataService.updateRecoveryEmail.and.returnValue(throwError(() => new Error('recovery failed')));
     component.data.set({

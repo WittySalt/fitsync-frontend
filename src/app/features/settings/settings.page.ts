@@ -10,10 +10,6 @@ import {
   AccountDataService,
   AccountPreferences,
   AccountProfile,
-  GoalStatus,
-  GoalType,
-  UpsertUserGoalRequest,
-  UserGoal,
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -24,7 +20,6 @@ type EditablePanel =
   | 'identity'
   | 'location'
   | 'activity'
-  | 'goals'
   | 'formatting'
   | 'training'
   | 'nutrition'
@@ -66,7 +61,6 @@ export class SettingsPage implements OnInit {
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
   readonly selectedSection = signal('personal');
-  readonly goalPanelOpen = signal(false);
 
   readonly sections: SectionNavItem[] = [
     { id: 'personal', label: 'Personal', description: 'Identity, location, activity, and targets.' },
@@ -148,22 +142,6 @@ export class SettingsPage implements OnInit {
     ['EMAIL', 'Email'],
     ['PUSH', 'Push']
   ]);
-  readonly goalTypeOptions = this.options([
-    ['WEIGHT', 'Weight'],
-    ['CALORIES', 'Calories'],
-    ['PROTEIN', 'Protein'],
-    ['CARBS', 'Carbs'],
-    ['FAT', 'Fat'],
-    ['WORKOUT_FREQUENCY', 'Workout frequency'],
-    ['STEPS', 'Steps']
-  ]);
-  readonly goalStatusOptions = this.options([
-    ['ACTIVE', 'Active'],
-    ['PAUSED', 'Paused'],
-    ['COMPLETED', 'Completed'],
-    ['CANCELLED', 'Cancelled']
-  ]);
-
   readonly identityForm = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     firstName: ['', [Validators.maxLength(80)]],
@@ -182,15 +160,6 @@ export class SettingsPage implements OnInit {
 
   readonly activityForm = this.fb.group({
     activityLevel: ['']
-  });
-
-  readonly goalForm = this.fb.group({
-    goalType: ['WEIGHT'],
-    targetValue: ['', [Validators.min(0)]],
-    targetUnit: ['', [Validators.maxLength(20)]],
-    targetDate: [''],
-    status: ['ACTIVE'],
-    notes: ['', [Validators.maxLength(300)]]
   });
 
   readonly formattingForm = this.fb.group({
@@ -345,24 +314,6 @@ export class SettingsPage implements OnInit {
     return `${this.displayTime(notifications.quietHoursStart)} / ${this.displayTime(notifications.quietHoursEnd)}`;
   }
 
-  activeGoal(goalType: string): UserGoal | undefined {
-    return this.data()?.user.activeGoals.find((goal) => goal.goalType === goalType);
-  }
-
-  goalSummary(goalType: string): string {
-    const goal = this.activeGoal(goalType);
-    if (!goal) {
-      return 'Not set';
-    }
-    let target = 'Target not set';
-    if (goal.targetValue !== null && goal.targetValue !== undefined) {
-      const unit = goal.targetUnit ? ` ${goal.targetUnit}` : '';
-      target = `${goal.targetValue}${unit}`;
-    }
-    const dueDate = goal.targetDate ? ` by ${this.displayDate(goal.targetDate)}` : '';
-    return `${target} - ${this.labelFor(goal.status)}${dueDate}`;
-  }
-
   labelFor(value: string | null | undefined): string {
     if (!value) {
       return 'Not set';
@@ -410,9 +361,6 @@ export class SettingsPage implements OnInit {
     this.editPanel.set(panel);
     this.saveMessage.set(null);
     this.clearSectionError(panel);
-    if (panel === 'goals' && !this.goalPanelOpen()) {
-      this.startGoalEdit('WEIGHT');
-    }
   }
 
   cancelEdit(): void {
@@ -421,22 +369,6 @@ export class SettingsPage implements OnInit {
       this.patchForms(data);
     }
     this.editPanel.set(null);
-    this.goalPanelOpen.set(false);
-  }
-
-  startGoalEdit(goalType: string): void {
-    const typedGoalType = goalType as GoalType;
-    const goal = this.activeGoal(typedGoalType);
-    this.goalForm.patchValue({
-      goalType: typedGoalType,
-      targetValue: toFormNumber(goal?.targetValue),
-      targetUnit: goal?.targetUnit ?? this.defaultGoalUnit(typedGoalType),
-      targetDate: goal?.targetDate ?? '',
-      status: goal?.status ?? 'ACTIVE',
-      notes: goal?.notes ?? ''
-    });
-    this.goalPanelOpen.set(true);
-    this.startEdit('goals');
   }
 
   saveIdentity(): void {
@@ -501,36 +433,6 @@ export class SettingsPage implements OnInit {
     this.saveProfilePanel('activity', data, {
       ...data.user.profile,
       activityLevel: nullableText(this.activityForm.controls.activityLevel.value) as AccountProfile['activityLevel']
-    });
-  }
-
-  saveGoal(): void {
-    const data = this.data();
-    if (!data || this.goalForm.invalid) {
-      this.goalForm.markAllAsTouched();
-      return;
-    }
-
-    const value = this.goalForm.getRawValue();
-    const request: UpsertUserGoalRequest = {
-      targetValue: toNullableNumber(value.targetValue),
-      targetUnit: nullableText(value.targetUnit),
-      targetDate: nullableText(value.targetDate),
-      status: value.status as GoalStatus,
-      notes: nullableText(value.notes)
-    };
-    const goalType = value.goalType as GoalType;
-
-    this.saving.set('goals');
-    this.accountDataService.updateGoal(goalType, request).subscribe({
-      next: (goal) => {
-        const goals = [...data.user.activeGoals.filter((current) => current.goalType !== goal.goalType), goal]
-          .sort((left, right) => left.goalType.localeCompare(right.goalType));
-        this.setData({ ...data, user: { ...data.user, activeGoals: goals } });
-        this.finishSave('goals', 'Goal updated.');
-        this.goalPanelOpen.set(false);
-      },
-      error: (error: Error) => this.handleSaveError('goals', error)
     });
   }
 
@@ -825,19 +727,6 @@ export class SettingsPage implements OnInit {
 
   private toBackendTime(value: string): string | null {
     return value ? `${value}:00` : null;
-  }
-
-  private defaultGoalUnit(goalType: GoalType): string {
-    const units: Record<GoalType, string> = {
-      WEIGHT: this.data()?.user.preferences.app.preferredUnits === '100002' ? 'lb' : 'kg',
-      CALORIES: 'kcal',
-      PROTEIN: 'g',
-      CARBS: 'g',
-      FAT: 'g',
-      WORKOUT_FREQUENCY: 'sessions/week',
-      STEPS: 'steps'
-    };
-    return units[goalType];
   }
 
   private options(entries: string[][]): Option[] {
