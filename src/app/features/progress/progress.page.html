@@ -9,7 +9,7 @@
 
   <app-analytics-trend-charts />
   <app-analytics-comparison-card />
-  <app-activity-heatmap />
+  <app-activity-heatmap [timezone]="accountData()?.user?.profile?.timezone ?? 'Asia/Singapore'" />
 
   <section class="summary-card goals-card">
     <div class="section-title">

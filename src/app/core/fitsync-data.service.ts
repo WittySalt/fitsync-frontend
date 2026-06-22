@@ -671,6 +671,31 @@ export class FitSyncDataService {
       );
   }
 
+  getWorkoutSessionsInRange(fromInstant: string, toInstant: string): Observable<WorkoutSession[]> {
+    const params = new HttpParams()
+      .set('from', fromInstant)
+      .set('to', toInstant)
+      .set('size', '200');
+
+    return this.http
+      .get<PageResponse<Partial<WorkoutSession>>>(`${this.apiBaseUrl}/workouts/sessions`, { params })
+      .pipe(
+        map((response) =>
+          (response.content ?? [])
+            .map((session) =>
+              this.mapWorkoutSession({
+                name: session.name ?? this.defaultSessionName(session),
+                caloriesBurned: 0,
+                exerciseCount: 0,
+                ...session
+              })
+            )
+            .filter((session): session is WorkoutSession => session !== null)
+        ),
+        catchError(() => of([] as WorkoutSession[]))
+      );
+  }
+
   getGoals(): Observable<UserGoal[]> {
     return this.http.get<BackendUserGoal[]>(`${this.apiBaseUrl}/users/me/goals`).pipe(
       map((goals) =>
@@ -1563,6 +1588,14 @@ export class FitSyncDataService {
       completedAt: session.completedAt ?? '',
       exerciseCount: session.exerciseCount ?? 0
     };
+  }
+
+  private defaultSessionName(session?: Partial<WorkoutSession> | null): string {
+    const type = session?.workoutType?.replaceAll('_', ' ').toLowerCase() ?? '';
+    if (!type) {
+      return 'Workout session';
+    }
+    return type.replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   private mapWorkoutSessionDetail(session: BackendWorkoutSessionDetail): WorkoutSessionDetail {

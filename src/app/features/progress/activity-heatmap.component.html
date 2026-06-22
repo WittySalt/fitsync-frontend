@@ -10,7 +10,14 @@
   <div class="filter-row">
     <div class="range-presets" aria-label="Activity range presets">
       @for (preset of rangePresets; track preset.label) {
-        <button class="button secondary" type="button" (click)="setPreset(preset.days)">{{ preset.label }}</button>
+        <button
+          class="button secondary"
+          [class.active]="selectedPreset() === preset.key"
+          type="button"
+          (click)="setPreset(preset.key)"
+        >
+          {{ preset.label }}
+        </button>
       }
     </div>
 
@@ -40,29 +47,220 @@
       [error]="true"
       (action)="load()"
     />
-  } @else if (!hasDays()) {
+  } @else if (!isEventCalendar() && !hasDays()) {
     <app-state-panel
       title="No activity window"
       message="Choose a date range to see workout consistency over time."
     />
   } @else {
-    <div class="heatmap" role="list" aria-label="Daily workout activity">
-      @for (day of days(); track day.date) {
-        <span
-          role="listitem"
-          class="heatmap-cell intensity-{{ intensity(day) }}"
-          [attr.title]="tooltip(day)"
-          [attr.aria-label]="tooltip(day)"
-        ></span>
+    @if (selectedPreset() === 'week') {
+      <div class="calendar-toolbar" aria-label="Week calendar navigation">
+        <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous week</button>
+        <strong>{{ startDate() }} to {{ endDate() }}</strong>
+        <button class="button secondary compact" type="button" (click)="nextPeriod()">Next week</button>
+      </div>
+
+      @if (!hasSessions()) {
+        <app-state-panel title="No sessions this week" message="Logged workouts for this week will appear here." />
       }
-    </div>
+
+      <div class="week-calendar" aria-label="Workout week calendar">
+        <div class="all-day-row" aria-label="Untimed sessions">
+          <span class="time-gutter">All day</span>
+          @for (date of weekDates(); track date) {
+            <div class="all-day-cell">
+              @for (session of allDaySessionsForDate(date); track trackSession(session)) {
+                <button class="session-chip" type="button" (click)="openSession(session)">
+                  {{ session.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="week-header">
+          <span class="time-gutter"></span>
+          @for (date of weekDates(); track date) {
+            <strong>{{ weekColumnLabel(date) }}</strong>
+          }
+        </div>
+
+        <div class="week-body" [style.--calendar-rows]="weekTimeSlots().length - 1">
+          <div class="time-axis">
+            @for (slot of weekTimeSlots(); track slot) {
+              <span>{{ formatMinuteLabel(slot) }}</span>
+            }
+          </div>
+          <div class="week-grid">
+            @for (date of weekDates(); track date) {
+              <div class="week-day-column"></div>
+            }
+            @for (block of weekBlocks(); track trackSession(block.session)) {
+              <button
+                class="session-block"
+                type="button"
+                [style.grid-column]="block.dayIndex + 1"
+                [style.top.%]="block.top"
+                [style.height.px]="block.height"
+                [style.left.%]="block.left"
+                [style.width.%]="block.width"
+                (click)="openSession(block.session)"
+              >
+                <strong>{{ block.title }}</strong>
+                <span>{{ block.timeLabel }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    } @else if (selectedPreset() === 'month') {
+      <div class="calendar-toolbar" aria-label="Month calendar navigation">
+        <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous month</button>
+        <strong>{{ selectedDate().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }}</strong>
+        <button class="button secondary compact" type="button" (click)="nextPeriod()">Next month</button>
+      </div>
+
+      @if (!hasSessions()) {
+        <app-state-panel title="No sessions this month" message="Logged workouts for this month will appear here." />
+      }
+
+      <div class="month-calendar-grid" aria-label="Workout month calendar">
+        @for (weekday of weekDays; track weekday) {
+          <span class="month-weekday">{{ weekday }}</span>
+        }
+        @for (day of monthDays(); track day.date) {
+          <article
+            class="month-day"
+            [class.outside-month]="!day.inMonth"
+            [class.no-activity]="!day.chips.length"
+            [class.today]="day.isToday"
+          >
+            <button class="day-open" type="button" (click)="expandMonthDay(day)">
+              <span class="day-number">{{ day.label }}</span>
+            </button>
+            @for (chip of day.visibleChips; track trackSession(chip.session)) {
+              <button class="month-session-chip" type="button" (click)="openSession(chip.session)">
+                <small>{{ chip.timeLabel }}</small>
+                {{ chip.title }}
+              </button>
+            }
+            @if (day.hiddenCount > 0) {
+              <button class="more-chip" type="button" (click)="expandMonthDay(day)">+{{ day.hiddenCount }} more</button>
+            }
+          </article>
+        }
+      </div>
+
+      <div class="month-day-list" aria-label="Workout month list">
+        @for (day of monthDays(); track day.date) {
+          @if (day.inMonth && day.chips.length) {
+            <section>
+              <h3>{{ day.date }}</h3>
+              @for (chip of day.chips; track trackSession(chip.session)) {
+                <button class="session-chip" type="button" (click)="openSession(chip.session)">
+                  <span>{{ chip.timeLabel }}</span>
+                  <strong>{{ chip.title }}</strong>
+                </button>
+              }
+            </section>
+          }
+        }
+      </div>
+
+      @if (expandedMonthDay(); as day) {
+        <div class="expanded-day">
+          <div class="sub-card-header">
+            <h3>{{ day.date }}</h3>
+            <button class="button secondary compact" type="button" (click)="expandedMonthDate.set(null)">Close</button>
+          </div>
+          @if (day.chips.length) {
+            @for (chip of day.chips; track trackSession(chip.session)) {
+              <button class="session-chip" type="button" (click)="openSession(chip.session)">
+                <span>{{ chip.timeLabel }}</span>
+                <strong>{{ chip.title }}</strong>
+              </button>
+            }
+          } @else {
+            <p>No sessions logged for this day.</p>
+          }
+        </div>
+      }
+    } @else if (selectedPreset() === 'quarter') {
+      <div class="quarter-heatmaps" aria-label="Quarter workout activity">
+        @for (month of quarterMonths(); track month.label) {
+          <article class="month-heatmap">
+            <h3>{{ month.label }}</h3>
+            <div class="weekday-row" aria-hidden="true">
+              @for (weekday of weekDays; track weekday) {
+                <span>{{ weekday }}</span>
+              }
+            </div>
+            <ul class="month-grid" [attr.aria-label]="month.label + ' workout activity'">
+              @for (week of month.weeks; track $index) {
+                @for (day of week; track day.date) {
+                  <li
+                    [class]="cellClass(day)"
+                    [attr.title]="tooltip(day)"
+                    [attr.aria-label]="tooltip(day)"
+                  ></li>
+                }
+              }
+            </ul>
+          </article>
+        }
+      </div>
+    } @else if (selectedPreset() === 'year') {
+      <div class="year-heatmap" aria-label="Year workout activity">
+        <div class="year-month-labels" aria-hidden="true">
+          @for (month of yearHeatmap().monthLabels; track month.column + month.label) {
+            <span [style.grid-column]="month.column">{{ month.label }}</span>
+          }
+        </div>
+        <ul class="year-grid" aria-label="Year workout activity weeks">
+          @for (week of yearHeatmap().weeks; track $index) {
+            <li class="year-week">
+              <ul class="year-week-days">
+                @for (day of week; track day.date) {
+                  <li
+                    [class]="cellClass(day)"
+                    [attr.title]="tooltip(day)"
+                    [attr.aria-label]="tooltip(day)"
+                  ></li>
+                }
+              </ul>
+            </li>
+          }
+        </ul>
+      </div>
+    } @else {
+      <div class="heatmap" role="list" aria-label="Daily workout activity">
+        @for (day of days(); track day.date) {
+          <span
+            role="listitem"
+            class="heatmap-cell intensity-{{ intensity(day) }}"
+            [attr.title]="tooltip(day)"
+            [attr.aria-label]="tooltip(day)"
+          ></span>
+        }
+      </div>
+    }
 
     <div class="legend" aria-hidden="true">
       <span>Less</span>
-      @for (level of [0, 1, 2, 3, 4]; track level) {
+      @for (level of legendLevels; track level) {
         <i class="heatmap-cell intensity-{{ level }}"></i>
       }
       <span>More</span>
     </div>
+
+    @if (selectedSessionId(); as sessionId) {
+      <app-session-detail
+        [sessionId]="sessionId"
+        (closed)="closeSessionDetail()"
+        (updated)="handleSessionUpdated($event)"
+        (deleted)="handleSessionDeleted()"
+        (repeated)="handleSessionRepeated($event)"
+      />
+    }
   }
 </section>
