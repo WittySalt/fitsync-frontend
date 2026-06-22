@@ -1,7 +1,9 @@
 @if (source(); as video) {
   <div class="exercise-video" [class.embedded]="video.kind !== 'file'">
     @if (video.kind === 'file') {
-      <video controls preload="metadata" [src]="video.sourceUrl" [attr.aria-label]="title"></video>
+      <video controls preload="metadata" [src]="video.sourceUrl" [attr.aria-label]="title">
+        <track kind="captions" src="captions/exercise-video-placeholder.vtt" srclang="en" label="Captions unavailable" default />
+      </video>
     } @else if (safeEmbedUrl(); as safeUrl) {
       <iframe
         [title]="title"

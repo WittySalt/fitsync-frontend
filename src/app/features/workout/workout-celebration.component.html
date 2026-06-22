@@ -1,4 +1,4 @@
-<section class="celebration-shell" [class.reduced-motion]="reducedMotion" role="dialog" aria-modal="true" aria-labelledby="workout-celebration-title">
+<dialog class="celebration-shell" [class.reduced-motion]="reducedMotion" open aria-modal="true" aria-labelledby="workout-celebration-title">
   <div class="confetti-burst" aria-hidden="true">
     @for (piece of confettiPieces; track piece) {
       <span></span>
@@ -29,4 +29,4 @@
 
     <button class="button primary" type="button" (click)="continue.emit()">Continue</button>
   </article>
-</section>
+</dialog>

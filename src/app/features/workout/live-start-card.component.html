@@ -6,14 +6,14 @@
     </div>
   </div>
 
-  <div class="mode-switch segmented" role="group" aria-label="Live workout mode">
+  <fieldset class="mode-switch segmented" aria-label="Live workout mode">
     <button type="button" [class.active]="startMode() === 'FREE'" [attr.aria-pressed]="startMode() === 'FREE'" (click)="selectMode('FREE')">
       Free
     </button>
     <button type="button" [class.active]="startMode() === 'GOAL'" [attr.aria-pressed]="startMode() === 'GOAL'" (click)="selectMode('GOAL')">
       Goal
     </button>
-  </div>
+  </fieldset>
 
   <form class="start-form" [formGroup]="startForm" (ngSubmit)="startWorkout()">
     <div class="form-grid">

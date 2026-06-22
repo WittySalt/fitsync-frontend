@@ -58,7 +58,10 @@ export class ThemeService {
   }
 
   private resolveTheme(preference: ThemePreference): Theme {
-    return preference === 'system' ? (this.prefersDarkTheme() ? 'dark' : 'light') : preference;
+    if (preference !== 'system') {
+      return preference;
+    }
+    return this.prefersDarkTheme() ? 'dark' : 'light';
   }
 
   private syncTheme(): void {
@@ -93,6 +96,6 @@ export class ThemeService {
   }
 
   private applyTheme(theme: Theme): void {
-    this.document.documentElement.setAttribute('data-theme', theme);
+    this.document.documentElement.dataset['theme'] = theme;
   }
 }

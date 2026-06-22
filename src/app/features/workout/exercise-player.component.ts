@@ -115,8 +115,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   });
   readonly mediaFrames = computed(() => {
     const detailFrames = this.detailMediaFrames();
-    const fallbackFrame = this.fallbackMediaFrame();
-    const selectedFrames = detailFrames.length ? detailFrames : fallbackFrame ? [fallbackFrame] : [];
+    const selectedFrames = detailFrames.length ? detailFrames : this.fallbackMediaFrames();
     const failed = this.failedFrameUrls();
     return selectedFrames.filter((url) => url && !failed.has(url));
   });
@@ -148,7 +147,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private readonly detailEffect = effect(() => {
     const exerciseId = this.currentExerciseId();
-    this.resetMediaForExercise(this.currentMediaIdentity());
+    this.resetMediaForExercise(this.currentMediaIdentity() ?? '');
     this.loadExerciseDetail(exerciseId);
   });
 
@@ -511,11 +510,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
     const elapsedSeconds = this.workGuideElapsedSeconds();
     const recordedDurationSeconds = elapsedSeconds > 0 ? Math.round(elapsedSeconds) : null;
-    const reps = this.isTimedTarget()
-      ? null
-      : fullTarget
-        ? target.targetReps ?? null
-        : this.guidedRepCount();
+    const reps = this.guidedSetReps(fullTarget, target);
     this.restCompleteCue.set(false);
     this.savingSet.set(true);
     this.live.recordSet(session.sessionId, log.exerciseLogId, setNumber, {
@@ -630,12 +625,23 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       ?? null;
   }
 
-  private resetMediaForExercise(exerciseId: string | null): void {
-    const key = exerciseId ?? '';
-    if (this.currentMediaExerciseId === key) {
+  private fallbackMediaFrames(): string[] {
+    const fallbackFrame = this.fallbackMediaFrame();
+    return fallbackFrame ? [fallbackFrame] : [];
+  }
+
+  private guidedSetReps(fullTarget: boolean, target: WorkoutPlanExercise): number | null {
+    if (this.isTimedTarget()) {
+      return null;
+    }
+    return fullTarget ? target.targetReps ?? null : this.guidedRepCount();
+  }
+
+  private resetMediaForExercise(exerciseId = ''): void {
+    if (this.currentMediaExerciseId === exerciseId) {
       return;
     }
-    this.currentMediaExerciseId = key;
+    this.currentMediaExerciseId = exerciseId;
     this.mediaFrameIndex.set(0);
     this.failedFrameUrls.set(new Set());
     this.clearMediaTimer();

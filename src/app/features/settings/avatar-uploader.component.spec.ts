@@ -138,10 +138,10 @@ describe('AvatarUploaderComponent', () => {
     expect(accountData.uploadAvatar).not.toHaveBeenCalled();
   });
 
-  it('clears crop state and emits cancel when upload is cancelled', () => {
-    let cancelled = false;
-    component.cancel.subscribe(() => {
-      cancelled = true;
+  it('clears crop state and emits dismissed when upload is cancelled', () => {
+    let dismissed = false;
+    component.dismissed.subscribe(() => {
+      dismissed = true;
     });
     component.onFileSelected(fileEvent(new File(['avatar'], 'avatar.png', { type: 'image/png' })));
     component.onCropped({
@@ -154,7 +154,7 @@ describe('AvatarUploaderComponent', () => {
 
     component.cancelUpload();
 
-    expect(cancelled).toBeTrue();
+    expect(dismissed).toBeTrue();
     expect(component.imageChangedEvent()).toBeNull();
     expect(component.croppedBlob()).toBeNull();
     expect(component.selectedFileName()).toBeNull();

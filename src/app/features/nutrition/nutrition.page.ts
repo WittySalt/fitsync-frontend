@@ -207,29 +207,50 @@ export class NutritionPage implements OnInit {
       return null;
     }
 
-    const isGood = status === true;
-    const state = status == null ? 'neutral' : isGood ? 'success' : 'warning';
-    const statusLabel =
-      status == null
-        ? 'Waiting for target'
-        : isGood
-          ? mode === 'target'
-            ? 'Target met'
-            : 'Within limit'
-          : mode === 'target'
-            ? 'Below target'
-            : 'Over limit';
-    let detail = 'Waiting for nutrition summary targets.';
+    return {
+      label,
+      value,
+      target,
+      unit,
+      status: this.nutritionStatus(status),
+      statusLabel: this.nutritionStatusLabel(status, mode),
+      detail: this.nutritionDetail(label, value, target, unit, status === true, mode)
+    };
+  }
 
-    if (value != null && target != null) {
-      const delta = Math.abs(target - value);
-      if (mode === 'target') {
-        detail = isGood ? `${label} target met.` : `${this.formatAmount(delta, unit)} left to target.`;
-      } else {
-        detail = isGood ? `${label} is within today's limit.` : `${this.formatAmount(delta, unit)} over today's limit.`;
-      }
+  private nutritionStatus(status: boolean | null): NutritionCheck['status'] {
+    if (status == null) {
+      return 'neutral';
+    }
+    return status ? 'success' : 'warning';
+  }
+
+  private nutritionStatusLabel(status: boolean | null, mode: 'target' | 'limit'): string {
+    if (status == null) {
+      return 'Waiting for target';
+    }
+    if (mode === 'target') {
+      return status ? 'Target met' : 'Below target';
+    }
+    return status ? 'Within limit' : 'Over limit';
+  }
+
+  private nutritionDetail(
+    label: string,
+    value: number | null,
+    target: number | null,
+    unit: 'g' | 'mg',
+    isGood: boolean,
+    mode: 'target' | 'limit'
+  ): string {
+    if (value == null || target == null) {
+      return 'Waiting for nutrition summary targets.';
     }
 
-    return { label, value, target, unit, status: state, statusLabel, detail };
+    const delta = Math.abs(target - value);
+    if (mode === 'target') {
+      return isGood ? `${label} target met.` : `${this.formatAmount(delta, unit)} left to target.`;
+    }
+    return isGood ? `${label} is within today's limit.` : `${this.formatAmount(delta, unit)} over today's limit.`;
   }
 }

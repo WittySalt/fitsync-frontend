@@ -40,12 +40,12 @@ export class AvatarUploadPage implements OnInit {
     });
   }
 
-  handleUploaded(_profile: AccountProfile): void {
+  async handleUploaded(_profile: AccountProfile): Promise<void> {
     this.toast.success('Profile photo updated.');
-    void this.router.navigate(['/settings']);
+    await this.router.navigate(['/settings']);
   }
 
-  backToSettings(): void {
-    void this.router.navigate(['/settings']);
+  async backToSettings(): Promise<void> {
+    await this.router.navigate(['/settings']);
   }
 }

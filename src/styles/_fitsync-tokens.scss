@@ -4,11 +4,6 @@
 //  fitsync-tokens.css (CSS custom properties) so theme
 //  switching works. Use token() when you need a value inside a
 //  SCSS calc/expression; otherwise just use var(--x) directly.
-//
-//  Usage:
-//    @use 'fitsync-tokens' as fs;
-//    .card { padding: fs.token(space, 8); border-radius: fs.token(radius, lg); }
-//    .btn  { @include fs.button-primary; }
 // ============================================================
 
 @use 'sass:map';

@@ -527,7 +527,7 @@ export class ExerciseLibraryComponent implements OnInit {
   }
 
   private recordCard(label: string, record: ExerciseRecordValue | null, unit: string, digits: number): RecordCard {
-    if (!record || record.value == null) {
+    if (record?.value == null) {
       return { label, value: '-', detail: 'No data yet' };
     }
 

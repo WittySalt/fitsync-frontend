@@ -545,63 +545,78 @@ export class OnboardingPage implements OnInit {
   }
 
   private isStepValid(step: number): boolean {
-    if (step === 0) {
-      return this.form.controls.primaryGoal.valid;
+    switch (step) {
+      case 0:
+        return this.form.controls.primaryGoal.valid;
+      case 1:
+        return this.isProfileStepValid();
+      case 2:
+        return this.isGoalPlanStepValid();
+      case 3:
+        return this.isTrainingStepValid();
+      case 4:
+        return this.isHealthStepValid();
+      case 5:
+        return this.isNutritionPreferenceStepValid();
+      default:
+        return this.isNutritionTargetStepValid();
     }
+  }
 
-    if (step === 1) {
-      return (
-        this.form.controls.displayName.valid &&
-        this.form.controls.gender.valid &&
-        this.form.controls.birthDate.valid &&
-        (this.preferredUnits() === 'METRIC'
-          ? this.form.controls.heightCm.valid
-          : this.form.controls.heightFt.valid && this.form.controls.heightIn.valid)
-      );
-    }
+  private isProfileStepValid(): boolean {
+    const heightValid = this.preferredUnits() === 'METRIC'
+      ? this.form.controls.heightCm.valid
+      : this.form.controls.heightFt.valid && this.form.controls.heightIn.valid;
 
-    if (step === 2) {
-      const hasCurrentWeight =
-        this.preferredUnits() === 'METRIC'
-          ? this.form.controls.currentWeightKg.valid
-          : this.form.controls.currentWeightLb.valid;
-      const hasTarget =
-        !this.showsTargetAndPace() ||
-        (this.preferredUnits() === 'METRIC'
-          ? this.form.controls.targetWeightKg.valid
-          : this.form.controls.targetWeightLb.valid);
+    return (
+      this.form.controls.displayName.valid &&
+      this.form.controls.gender.valid &&
+      this.form.controls.birthDate.valid &&
+      heightValid
+    );
+  }
 
-      return hasCurrentWeight && hasTarget && this.form.controls.weeklyPaceKg.valid;
-    }
+  private isGoalPlanStepValid(): boolean {
+    const metricUnits = this.preferredUnits() === 'METRIC';
+    const hasCurrentWeight = metricUnits
+      ? this.form.controls.currentWeightKg.valid
+      : this.form.controls.currentWeightLb.valid;
+    const hasTarget = !this.showsTargetAndPace() || (
+      metricUnits ? this.form.controls.targetWeightKg.valid : this.form.controls.targetWeightLb.valid
+    );
 
-    if (step === 3) {
-      return (
-        this.form.controls.activityLevel.valid &&
-        this.form.controls.weeklyWorkoutDays.valid &&
-        this.form.controls.fitnessLevel.valid &&
-        this.form.controls.trainingLocation.valid &&
-        this.form.controls.preferredDurationMinutes.valid &&
-        this.form.controls.preferredWorkoutTime.valid &&
-        this.form.controls.intensityPreference.valid &&
-        this.form.controls.equipmentInventory.valid &&
-        this.form.controls.focusAreas.valid
-      );
-    }
+    return hasCurrentWeight && hasTarget && this.form.controls.weeklyPaceKg.valid;
+  }
 
-    if (step === 4) {
-      return (
-        this.form.controls.injuryAreas.valid &&
-        (!this.hasParqRisk() || this.form.controls.parqAcknowledged.value === true)
-      );
-    }
+  private isTrainingStepValid(): boolean {
+    return (
+      this.form.controls.activityLevel.valid &&
+      this.form.controls.weeklyWorkoutDays.valid &&
+      this.form.controls.fitnessLevel.valid &&
+      this.form.controls.trainingLocation.valid &&
+      this.form.controls.preferredDurationMinutes.valid &&
+      this.form.controls.preferredWorkoutTime.valid &&
+      this.form.controls.intensityPreference.valid &&
+      this.form.controls.equipmentInventory.valid &&
+      this.form.controls.focusAreas.valid
+    );
+  }
 
-    if (step === 5) {
-      return (
-        this.form.controls.dietaryPattern.valid &&
-        this.form.controls.calorieTrackingMode.valid
-      );
-    }
+  private isHealthStepValid(): boolean {
+    return (
+      this.form.controls.injuryAreas.valid &&
+      (!this.hasParqRisk() || this.form.controls.parqAcknowledged.value === true)
+    );
+  }
 
+  private isNutritionPreferenceStepValid(): boolean {
+    return (
+      this.form.controls.dietaryPattern.valid &&
+      this.form.controls.calorieTrackingMode.valid
+    );
+  }
+
+  private isNutritionTargetStepValid(): boolean {
     return (
       this.form.controls.targetCalories.valid &&
       this.form.controls.targetProteinGrams.valid &&

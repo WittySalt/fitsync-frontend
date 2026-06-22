@@ -18,7 +18,7 @@ class AvatarUploaderStubComponent {
   @Input() currentAvatarUrl: string | null = null;
   @Input() initials = 'FS';
   @Output() uploaded = new EventEmitter<AccountProfile>();
-  @Output() cancel = new EventEmitter<void>();
+  @Output() dismissed = new EventEmitter<void>();
 }
 
 describe('AvatarUploadPage', () => {
@@ -87,7 +87,7 @@ describe('AvatarUploadPage', () => {
     expect(element.textContent).toContain('Profile photo');
     expect(element.textContent).toContain('Alice Tan');
     expect(image?.src).toContain('/avatar.png');
-    expect(image?.alt).toBe('Alice Tan profile photo');
+    expect(image?.alt).toBe('Alice Tan');
     expect(uploader.currentAvatarUrl).toBe(summary.avatarUrl);
     expect(uploader.initials).toBe('AT');
   });
@@ -101,10 +101,10 @@ describe('AvatarUploadPage', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/settings']);
   });
 
-  it('navigates back to settings when upload is canceled', () => {
+  it('navigates back to settings when upload is dismissed', () => {
     const uploader = fixture.debugElement.query(By.directive(AvatarUploaderStubComponent)).componentInstance as AvatarUploaderStubComponent;
 
-    uploader.cancel.emit();
+    uploader.dismissed.emit();
 
     expect(router.navigate).toHaveBeenCalledWith(['/settings']);
   });

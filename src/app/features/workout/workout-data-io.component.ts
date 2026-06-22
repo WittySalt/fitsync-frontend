@@ -105,11 +105,12 @@ export class WorkoutDataIoComponent {
       throw new Error('Import JSON is not valid.');
     }
 
-    const sessions = Array.isArray(parsed)
-      ? parsed
-      : this.isRecord(parsed) && Array.isArray(parsed['sessions'])
-        ? parsed['sessions']
-        : null;
+    let sessions: unknown[] | null = null;
+    if (Array.isArray(parsed)) {
+      sessions = parsed;
+    } else if (this.isRecord(parsed) && Array.isArray(parsed['sessions'])) {
+      sessions = parsed['sessions'];
+    }
 
     if (!sessions) {
       throw new Error('Import JSON must be an array or an object with a sessions array.');

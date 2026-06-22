@@ -11,7 +11,7 @@
       </span>
     </a>
 
-    <nav class="nav-list">
+    <nav class="nav-list" aria-label="Primary navigation links">
       @for (item of navItems; track item.path) {
         <a
           [routerLink]="item.path"

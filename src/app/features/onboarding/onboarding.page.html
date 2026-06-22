@@ -238,7 +238,7 @@
             </div>
 
             @if (projection().warnings.length) {
-              <div class="warning-list" role="status">
+              <div class="warning-list" aria-live="polite">
                 @for (warning of projection().warnings; track warning) {
                   <p>{{ warning }}</p>
                 }
@@ -377,7 +377,7 @@
           }
 
           @case (4) {
-            <div class="parq-list" role="group" aria-label="Health readiness questions">
+            <fieldset class="parq-list" aria-label="Health readiness questions">
               <label class="toggle-row">
                 <input type="checkbox" formControlName="parqHeartCondition" />
                 <span>Has a doctor ever said you have a heart condition?</span>
@@ -402,7 +402,7 @@
                 <input type="checkbox" formControlName="parqOtherReason" />
                 <span>Is there another reason you should avoid unsupervised exercise?</span>
               </label>
-            </div>
+            </fieldset>
 
             <div class="choice-section">
               <h3>Any areas we should be careful with?</h3>
@@ -425,7 +425,7 @@
             </div>
 
             @if (hasParqRisk()) {
-              <div class="warning-list" role="status">
+              <div class="warning-list" aria-live="polite">
                 <p>We recommend checking with a doctor first; FitSync will keep intensity conservative.</p>
               </div>
             }
@@ -535,7 +535,7 @@
       }
 
       @if (success()) {
-        <p class="form-success" role="status">{{ success() }}</p>
+        <output class="form-success">{{ success() }}</output>
       }
 
       <div class="form-actions">

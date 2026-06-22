@@ -51,7 +51,7 @@
                 </label>
               </div>
 
-              <div class="status-control" role="group" aria-label="Goal status">
+              <fieldset class="status-control" aria-label="Goal status">
                 @for (status of statuses; track status) {
                   <button
                     type="button"
@@ -62,7 +62,7 @@
                     {{ status === 'PAUSED' ? 'Pause' : label(status) }}
                   </button>
                 }
-              </div>
+              </fieldset>
 
               <label>
                 Notes

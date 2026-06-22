@@ -26,13 +26,13 @@
       [class.reduced-motion]="prefersReducedMotion"
     >
       @if (setCompleteCue()) {
-        <div class="set-complete-badge" role="status">
+        <output class="set-complete-badge">
           <span aria-hidden="true">✓</span>
           <strong>Done</strong>
-        </div>
+        </output>
       }
       @if (restCompleteCue()) {
-        <div class="next-set-cue" role="status">Next set →</div>
+        <output class="next-set-cue">Next set ready</output>
       }
       <div class="movement-media" aria-label="Exercise movement media">
         @if (currentMediaUrl(); as mediaUrl) {
@@ -101,7 +101,7 @@
             </div>
           }
           @if (restCompleteCue()) {
-            <small class="rest-cue" role="status">Rest complete. Next set is ready.</small>
+            <output class="rest-cue">Rest complete. Next set is ready.</output>
           }
           <button
             class="button workout complete-set"
@@ -130,7 +130,7 @@
       @if (guidanceOpen()) {
         <div id="exercise-guidance-content" class="guidance-content">
           @if (detailLoading()) {
-            <div class="guidance-loading" role="status">Loading guidance...</div>
+            <output class="guidance-loading">Loading guidance...</output>
           } @else if (currentDetail(); as detail) {
             @if (hasGuidance()) {
               @if (detail.description) {
@@ -168,7 +168,7 @@
     </section>
 
     @if (allTargetsComplete()) {
-      <p class="completion-note" role="status">All planned sets are done. Finish when your cooldown is complete.</p>
+      <output class="completion-note">All planned sets are done. Finish when your cooldown is complete.</output>
     }
 
     <section class="movement-queue" aria-labelledby="movement-queue-title">

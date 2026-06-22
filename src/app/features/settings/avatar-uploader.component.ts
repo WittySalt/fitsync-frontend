@@ -22,7 +22,7 @@ export class AvatarUploaderComponent {
   readonly currentAvatarUrl = input<string | null>(null);
   readonly initials = input('FS');
   readonly uploaded = output<AccountProfile>();
-  readonly cancel = output<void>();
+  readonly dismissed = output<void>();
 
   readonly imageChangedEvent = signal<Event | null>(null);
   readonly croppedBlob = signal<Blob | null>(null);
@@ -91,7 +91,7 @@ export class AvatarUploaderComponent {
 
   cancelUpload(): void {
     this.reset();
-    this.cancel.emit();
+    this.dismissed.emit();
   }
 
   private rejectSelection(input: HTMLInputElement, message: string): void {
