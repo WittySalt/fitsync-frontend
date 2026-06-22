@@ -1,8 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Input, OnInit, computed, inject, signal } from '@angular/core';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
 import { AnalyticsActivityCalendarResponse, AnalyticsActivityDay } from '../../core/analytics.models';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { SessionDetailComponent } from '../workout/session-detail.component';
 
 type ActivityPresetKey = 'week' | 'month' | 'quarter' | 'year';
 
@@ -26,14 +29,46 @@ interface YearHeatmap {
   monthLabels: { label: string; column: number }[];
 }
 
+interface WeekSessionBlock {
+  session: WorkoutSession;
+  dayIndex: number;
+  startMinutes: number;
+  endMinutes: number;
+  top: number;
+  height: number;
+  left: number;
+  width: number;
+  timeLabel: string;
+  title: string;
+}
+
+interface MonthSessionChip {
+  session: WorkoutSession;
+  title: string;
+  timeLabel: string;
+}
+
+interface MonthCalendarDay {
+  date: string;
+  label: string;
+  inMonth: boolean;
+  isToday: boolean;
+  chips: MonthSessionChip[];
+  visibleChips: MonthSessionChip[];
+  hiddenCount: number;
+}
+
 @Component({
   selector: 'app-activity-heatmap',
-  imports: [StatePanelComponent],
+  imports: [StatePanelComponent, SessionDetailComponent],
   templateUrl: './activity-heatmap.component.html',
   styleUrl: './activity-heatmap.component.scss'
 })
 export class ActivityHeatmapComponent implements OnInit {
   private readonly analyticsApi = inject(AnalyticsApiService);
+  private readonly dataService = inject(FitSyncDataService);
+
+  @Input() timezone = 'Asia/Singapore';
 
   readonly rangePresets: RangePreset[] = [
     { label: 'Week', key: 'week' },
@@ -45,9 +80,13 @@ export class ActivityHeatmapComponent implements OnInit {
   readonly legendLevels = [0, 1, 2, 3, 4];
 
   readonly data = signal<AnalyticsActivityCalendarResponse | null>(null);
+  readonly sessions = signal<WorkoutSession[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly selectedPreset = signal<ActivityPresetKey>('quarter');
+  readonly selectedDate = signal(new Date());
+  readonly selectedSessionId = signal<string | null>(null);
+  readonly expandedMonthDate = signal<string | null>(null);
   readonly startDate = signal(this.formatIsoDate(this.addMonths(this.startOfMonth(new Date()), -2)));
   readonly endDate = signal(this.formatIsoDate(this.endOfMonth(new Date())));
 
@@ -71,14 +110,41 @@ export class ActivityHeatmapComponent implements OnInit {
     return [0, 1, 2].map((offset) => this.buildMonthHeatmap(this.addMonths(startMonth, offset)));
   });
   readonly yearHeatmap = computed(() => this.buildYearHeatmap());
+  readonly isEventCalendar = computed(() => this.selectedPreset() === 'week' || this.selectedPreset() === 'month');
+  readonly hasSessions = computed(() => this.sessions().length > 0);
+  readonly weekDates = computed(() => this.eachDate(this.startDate(), this.endDate()));
+  readonly weekTimeWindow = computed(() => this.resolveWeekTimeWindow());
+  readonly weekTimeSlots = computed(() => {
+    const window = this.weekTimeWindow();
+    const slots: number[] = [];
+    for (let minutes = window.start; minutes <= window.end; minutes += 120) {
+      slots.push(minutes);
+    }
+    return slots;
+  });
+  readonly weekBlocks = computed(() => this.resolveWeekBlocks());
+  readonly allDaySessions = computed(() => this.resolveAllDaySessions());
+  readonly monthDays = computed(() => this.buildMonthCalendarDays(this.selectedDate()));
+  readonly expandedMonthDay = computed(() => this.monthDays().find((day) => day.date === this.expandedMonthDate()) ?? null);
 
   ngOnInit(): void {
     this.load();
   }
 
   load(): void {
+    if (this.isEventCalendar()) {
+      this.loadSessions();
+      return;
+    }
+
+    this.loadActivityCalendar();
+  }
+
+  loadActivityCalendar(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.sessions.set([]);
+    this.selectedSessionId.set(null);
 
     this.analyticsApi.getActivityCalendar(this.startDate(), this.endDate()).subscribe({
       next: (data) => {
@@ -92,9 +158,28 @@ export class ActivityHeatmapComponent implements OnInit {
     });
   }
 
+  loadSessions(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.data.set(null);
+
+    this.dataService.getWorkoutSessionsInRange(this.startInstant(), this.endInstant()).subscribe({
+      next: (sessions) => {
+        this.sessions.set(sessions);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Unable to load workout sessions. Please retry.');
+        this.loading.set(false);
+      }
+    });
+  }
+
   setPreset(preset: ActivityPresetKey): void {
     const today = new Date();
     this.selectedPreset.set(preset);
+    this.selectedDate.set(today);
+    this.expandedMonthDate.set(null);
 
     if (preset === 'week') {
       const start = this.startOfWeek(today);
@@ -112,6 +197,18 @@ export class ActivityHeatmapComponent implements OnInit {
     }
 
     this.load();
+  }
+
+  previousPeriod(): void {
+    const preset = this.selectedPreset();
+    const nextDate = preset === 'month' ? this.addMonths(this.selectedDate(), -1) : this.addDays(this.selectedDate(), -7);
+    this.moveEventPeriod(nextDate);
+  }
+
+  nextPeriod(): void {
+    const preset = this.selectedPreset();
+    const nextDate = preset === 'month' ? this.addMonths(this.selectedDate(), 1) : this.addDays(this.selectedDate(), 7);
+    this.moveEventPeriod(nextDate);
   }
 
   updateStartDate(event: Event): void {
@@ -156,6 +253,307 @@ export class ActivityHeatmapComponent implements OnInit {
   cellClass(day: CalendarDay): string {
     const muted = day.inRange && day.inMonth !== false ? '' : ' is-muted';
     return `heatmap-cell intensity-${this.intensity(day)}${muted}`;
+  }
+
+  weekColumnLabel(date: string): string {
+    const parsed = this.parseIsoDate(date);
+    return parsed.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  formatMinuteLabel(minutes: number): string {
+    const hours = Math.floor(minutes / 60) % 24;
+    const mins = minutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  }
+
+  openSession(session: WorkoutSession): void {
+    if (!session.sessionId) {
+      return;
+    }
+    this.selectedSessionId.set(session.sessionId);
+  }
+
+  closeSessionDetail(): void {
+    this.selectedSessionId.set(null);
+  }
+
+  handleSessionUpdated(session: WorkoutSessionDetail): void {
+    this.sessions.update((sessions) => sessions.map((item) => (item.sessionId === session.sessionId ? session : item)));
+  }
+
+  handleSessionDeleted(): void {
+    const selected = this.selectedSessionId();
+    this.selectedSessionId.set(null);
+    if (selected) {
+      this.sessions.update((sessions) => sessions.filter((session) => session.sessionId !== selected));
+    }
+  }
+
+  handleSessionRepeated(session: WorkoutSessionDetail): void {
+    this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
+  }
+
+  expandMonthDay(day: MonthCalendarDay): void {
+    this.expandedMonthDate.set(day.date);
+  }
+
+  trackSession(session: WorkoutSession): string {
+    return session.sessionId ?? `${session.name}-${session.startedAt}`;
+  }
+
+  allDaySessionsForDate(date: string): WorkoutSession[] {
+    return this.allDaySessions().filter((session) => {
+      const start = this.validDate(session.startedAt);
+      return start ? this.localDateTimeParts(start).date === date : false;
+    });
+  }
+
+  private moveEventPeriod(date: Date): void {
+    this.selectedDate.set(date);
+    this.expandedMonthDate.set(null);
+
+    if (this.selectedPreset() === 'month') {
+      this.startDate.set(this.formatIsoDate(this.startOfMonth(date)));
+      this.endDate.set(this.formatIsoDate(this.endOfMonth(date)));
+    } else {
+      const start = this.startOfWeek(date);
+      this.startDate.set(this.formatIsoDate(start));
+      this.endDate.set(this.formatIsoDate(this.addDays(start, 6)));
+    }
+
+    this.loadSessions();
+  }
+
+  private resolveWeekTimeWindow(): { start: number; end: number } {
+    const timedBlocks = this.sessionBlocksForWeek();
+    if (!timedBlocks.length) {
+      return { start: 360, end: 1320 };
+    }
+
+    const earliest = Math.min(...timedBlocks.map((block) => block.startMinutes));
+    const latest = Math.max(...timedBlocks.map((block) => block.endMinutes));
+    return {
+      start: Math.min(360, Math.floor(earliest / 60) * 60),
+      end: Math.max(1320, Math.ceil(latest / 60) * 60)
+    };
+  }
+
+  private resolveWeekBlocks(): WeekSessionBlock[] {
+    const window = this.weekTimeWindow();
+    const totalMinutes = Math.max(1, window.end - window.start);
+    const blocks = this.sessionBlocksForWeek().map((block) => ({
+      ...block,
+      top: ((block.startMinutes - window.start) / totalMinutes) * 100,
+      height: Math.max(28, ((block.endMinutes - block.startMinutes) / totalMinutes) * 720),
+      left: 0,
+      width: 100
+    }));
+
+    return this.splitOverlappingBlocks(blocks);
+  }
+
+  private sessionBlocksForWeek(): WeekSessionBlock[] {
+    const weekDates = this.weekDates();
+    return this.sessions()
+      .map((session) => this.toWeekBlock(session, weekDates))
+      .filter((block): block is WeekSessionBlock => block !== null)
+      .sort((a, b) => a.dayIndex - b.dayIndex || a.startMinutes - b.startMinutes);
+  }
+
+  private toWeekBlock(session: WorkoutSession, weekDates: string[]): WeekSessionBlock | null {
+    const start = this.validDate(session.startedAt);
+    if (!start || session.durationMinutes <= 0) {
+      return null;
+    }
+
+    const local = this.localDateTimeParts(start);
+    const dayIndex = weekDates.indexOf(local.date);
+    if (dayIndex < 0) {
+      return null;
+    }
+
+    const startMinutes = local.hour * 60 + local.minute;
+    const end = this.sessionEnd(session, start);
+    const endLocal = this.localDateTimeParts(end);
+    const endMinutes = Math.max(startMinutes + 15, endLocal.hour * 60 + endLocal.minute);
+    return {
+      session,
+      dayIndex,
+      startMinutes,
+      endMinutes,
+      top: 0,
+      height: 0,
+      left: 0,
+      width: 100,
+      timeLabel: this.sessionTimeLabel(session),
+      title: session.name || this.formatWorkoutType(session.workoutType)
+    };
+  }
+
+  private resolveAllDaySessions(): WorkoutSession[] {
+    const dates = new Set(this.weekDates());
+    return this.sessions().filter((session) => {
+      const start = this.validDate(session.startedAt);
+      if (!start) {
+        return false;
+      }
+      return session.durationMinutes <= 0 && dates.has(this.localDateTimeParts(start).date);
+    });
+  }
+
+  private splitOverlappingBlocks(blocks: WeekSessionBlock[]): WeekSessionBlock[] {
+    const result: WeekSessionBlock[] = [];
+    for (const dayIndex of [0, 1, 2, 3, 4, 5, 6]) {
+      const dayBlocks = blocks.filter((block) => block.dayIndex === dayIndex);
+      const clusters: WeekSessionBlock[][] = [];
+
+      for (const block of dayBlocks) {
+        const current = clusters.at(-1);
+        const currentEnd = current ? Math.max(...current.map((item) => item.endMinutes)) : -1;
+        if (!current || block.startMinutes >= currentEnd) {
+          clusters.push([block]);
+        } else {
+          current.push(block);
+        }
+      }
+
+      for (const cluster of clusters) {
+        const lanes: number[] = [];
+        const clusterBlocks = cluster.map((block) => {
+          const lane = lanes.findIndex((end) => end <= block.startMinutes);
+          const laneIndex = lane >= 0 ? lane : lanes.length;
+          lanes[laneIndex] = block.endMinutes;
+          return { ...block, left: 0, width: 100, laneIndex };
+        });
+        const columns = Math.max(1, lanes.length);
+        result.push(
+          ...clusterBlocks.map(({ laneIndex, ...block }) => ({
+            ...block,
+            left: (laneIndex / columns) * 100,
+            width: 100 / columns
+          }))
+        );
+      }
+    }
+
+    return result;
+  }
+
+  private buildMonthCalendarDays(anchor: Date): MonthCalendarDay[] {
+    const first = this.startOfMonth(anchor);
+    const last = this.endOfMonth(anchor);
+    const cursor = this.startOfWeek(first);
+    const end = this.addDays(this.startOfWeek(last), 6);
+    const days: MonthCalendarDay[] = [];
+
+    while (cursor <= end) {
+      const date = this.formatIsoDate(cursor);
+      const chips = this.sessionsForDate(date).map((session) => ({
+        session,
+        title: session.name || this.formatWorkoutType(session.workoutType),
+        timeLabel: this.sessionTimeLabel(session)
+      }));
+      days.push({
+        date,
+        label: String(cursor.getDate()),
+        inMonth: cursor.getMonth() === first.getMonth(),
+        isToday: date === this.isoToday(),
+        chips,
+        visibleChips: chips.slice(0, 2),
+        hiddenCount: Math.max(0, chips.length - 2)
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return days;
+  }
+
+  private sessionsForDate(date: string): WorkoutSession[] {
+    return this.sessions()
+      .filter((session) => {
+        const start = this.validDate(session.startedAt);
+        return start ? this.localDateTimeParts(start).date === date : false;
+      })
+      .sort((a, b) => this.sessionStartMs(a) - this.sessionStartMs(b));
+  }
+
+  private startInstant(): string {
+    return new Date(`${this.startDate()}T00:00:00`).toISOString();
+  }
+
+  private endInstant(): string {
+    return new Date(`${this.endDate()}T23:59:59.999`).toISOString();
+  }
+
+  private sessionStartMs(session: WorkoutSession): number {
+    return this.validDate(session.startedAt)?.getTime() ?? 0;
+  }
+
+  private sessionEnd(session: WorkoutSession, start: Date): Date {
+    const completed = this.validDate(session.completedAt);
+    if (completed && completed > start) {
+      return completed;
+    }
+    return new Date(start.getTime() + Math.max(1, session.durationMinutes) * 60_000);
+  }
+
+  private sessionTimeLabel(session: WorkoutSession): string {
+    const start = this.validDate(session.startedAt);
+    if (!start) {
+      return 'Untimed';
+    }
+    const end = this.sessionEnd(session, start);
+    return `${this.formatTime(start)}-${this.formatTime(end)}`;
+  }
+
+  private formatWorkoutType(value: string): string {
+    return value
+      .replaceAll('_', ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  private validDate(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private formatTime(date: Date): string {
+    return new Intl.DateTimeFormat('en-SG', {
+      timeZone: this.timezone || 'Asia/Singapore',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(date);
+  }
+
+  private localDateTimeParts(date: Date): { date: string; hour: number; minute: number } {
+    const parts = new Intl.DateTimeFormat('en-SG', {
+      timeZone: this.timezone || 'Asia/Singapore',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+      .formatToParts(date)
+      .reduce<Record<string, string>>((acc, part) => {
+        if (part.type !== 'literal') {
+          acc[part.type] = part.value;
+        }
+        return acc;
+      }, {});
+
+    const hour = Number(parts['hour'] ?? 0);
+    return {
+      date: `${parts['year']}-${parts['month']}-${parts['day']}`,
+      hour: hour === 24 ? 0 : hour,
+      minute: Number(parts['minute'] ?? 0)
+    };
   }
 
   private buildMonthHeatmap(month: Date): MonthHeatmap {

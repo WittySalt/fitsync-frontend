@@ -859,6 +859,39 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].durationMinutes).toBe(54);
   });
 
+  it('lists workout sessions in a from/to range with a generous page size', () => {
+    let result: WorkoutSession[] | undefined;
+    service
+      .getWorkoutSessionsInRange('2026-06-01T00:00:00.000Z', '2026-06-30T23:59:59.999Z')
+      .subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/sessions' &&
+        req.params.get('from') === '2026-06-01T00:00:00.000Z' &&
+        req.params.get('to') === '2026-06-30T23:59:59.999Z' &&
+        req.params.get('size') === '200'
+    );
+    request.flush({
+      content: [
+        {
+          sessionId: 'session-1',
+          workoutType: 'CARDIO',
+          status: 'COMPLETED',
+          startedAt: '2026-06-18T10:00:00Z',
+          completedAt: '2026-06-18T11:00:00Z',
+          durationMinutes: 60
+        }
+      ]
+    });
+
+    expect(result?.length).toBe(1);
+    expect(result?.[0].sessionId).toBe('session-1');
+    expect(result?.[0].name).toBe('Cardio');
+    expect(result?.[0].workoutType).toBe('CARDIO');
+    expect(result?.[0].durationMinutes).toBe(60);
+  });
+
   it('lists exercises from the paginated catalog endpoint', () => {
     let result: Exercise[] | undefined;
     service.getExercises('squat').subscribe((value) => (result = value));
