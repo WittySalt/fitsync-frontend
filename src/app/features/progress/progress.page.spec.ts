@@ -3,7 +3,11 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
-import { AnalyticsNutritionSeriesResponse, AnalyticsWorkoutSeriesResponse } from '../../core/analytics.models';
+import {
+  AnalyticsNutritionSeriesResponse,
+  AnalyticsSummaryCompareResponse,
+  AnalyticsWorkoutSeriesResponse
+} from '../../core/analytics.models';
 import { FitSyncDataService, ProgressData } from '../../core/fitsync-data.service';
 import { ProgressPage } from './progress.page';
 
@@ -23,6 +27,24 @@ describe('ProgressPage', () => {
     to: '2026-06-22',
     bucket: 'WEEK',
     points: []
+  };
+
+  const emptyComparison: AnalyticsSummaryCompareResponse = {
+    period: 'WEEK',
+    currentWindow: { from: '2026-06-22', to: '2026-06-22' },
+    previousWindow: { from: '2026-06-15', to: '2026-06-15' },
+    workout: {
+      completedWorkoutCount: { current: 0, previous: 0, delta: 0, deltaPct: 0 },
+      totalWorkoutMinutes: { current: 0, previous: 0, delta: 0, deltaPct: 0 },
+      totalCaloriesBurned: { current: 0, previous: 0, delta: 0, deltaPct: 0 },
+      totalExerciseCount: { current: 0, previous: 0, delta: 0, deltaPct: 0 }
+    },
+    nutrition: {
+      totalCaloriesConsumed: { current: null, previous: null, delta: null, deltaPct: null },
+      totalProteinGrams: { current: null, previous: null, delta: null, deltaPct: null },
+      totalCarbsGrams: { current: null, previous: null, delta: null, deltaPct: null },
+      totalFatGrams: { current: null, previous: null, delta: null, deltaPct: null }
+    }
   };
 
   const progressData: ProgressData = {
@@ -75,9 +97,14 @@ describe('ProgressPage', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getProgressData']);
     dataService.getProgressData.and.returnValue(of(progressData));
-    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getWorkoutSeries', 'getNutritionSeries']);
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', [
+      'getWorkoutSeries',
+      'getNutritionSeries',
+      'getSummaryCompare'
+    ]);
     analyticsApi.getWorkoutSeries.and.returnValue(of(emptyWorkoutSeries));
     analyticsApi.getNutritionSeries.and.returnValue(of(emptyNutritionSeries));
+    analyticsApi.getSummaryCompare.and.returnValue(of(emptyComparison));
 
     await TestBed.configureTestingModule({
       imports: [ProgressPage],
