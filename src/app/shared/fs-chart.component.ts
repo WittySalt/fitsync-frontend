@@ -13,7 +13,7 @@ import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2
 
 export interface FsChartSeries {
   label: string;
-  values: number[];
+  values: Array<number | null>;
   colorToken: string;
   fillToken?: string;
 }
