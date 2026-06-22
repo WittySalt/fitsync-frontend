@@ -206,8 +206,14 @@ export class LoginPage implements OnInit, OnDestroy {
   }
 
   private pickFact(): void {
-    const randomIndex = Math.floor(Math.random() * this.healthFacts.length);
+    const randomIndex = this.pickRandomIndex(this.healthFacts.length);
     this.currentFact.set(this.healthFacts[randomIndex]);
+  }
+
+  private pickRandomIndex(length: number): number {
+    const values = new Uint32Array(1);
+    crypto.getRandomValues(values);
+    return values[0] % length;
   }
 
   private startQuoteRotation(): void {
