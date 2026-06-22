@@ -1,0 +1,67 @@
+<section class="summary-card comparison-card" aria-label="Period comparison">
+  <div class="section-title">
+    <div>
+      <span class="card-label">Analytics</span>
+      <h2>Period comparison</h2>
+    </div>
+
+    <div class="period-toggle" aria-label="Comparison period">
+      @for (option of periodOptions; track option.value) {
+        <button
+          type="button"
+          [class.active]="selectedPeriod() === option.value"
+          [attr.aria-pressed]="selectedPeriod() === option.value"
+          (click)="selectPeriod(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="comparison-skeleton" aria-busy="true" aria-label="Loading period comparison">
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+  } @else if (error()) {
+    <app-state-panel
+      title="Comparison unavailable"
+      [message]="error() ?? ''"
+      actionLabel="Retry"
+      [error]="true"
+      (action)="load()"
+    />
+  } @else if (data(); as comparison) {
+    <div class="window-row">
+      <span>Current: {{ windowLabel(comparison.currentWindow) }}</span>
+      <span>Previous: {{ windowLabel(comparison.previousWindow) }}</span>
+    </div>
+
+    <div class="comparison-grid">
+      @for (group of comparisonGroups(); track group.title) {
+        <article class="comparison-group">
+          <h3>{{ group.title }}</h3>
+          <div class="comparison-table" role="table" [attr.aria-label]="group.title + ' period comparison'">
+            <div class="comparison-header" role="row">
+              <span role="columnheader">Metric</span>
+              <span role="columnheader">Current</span>
+              <span role="columnheader">Previous</span>
+              <span role="columnheader">Delta</span>
+            </div>
+
+            @for (row of group.rows; track row.label) {
+              <div class="comparison-row" role="row">
+                <strong role="cell">{{ row.label }}</strong>
+                <span role="cell">{{ formatValue(row.metric.current, row.unit) }}</span>
+                <span role="cell">{{ formatValue(row.metric.previous, row.unit) }}</span>
+                <span role="cell" class="delta" [class]="deltaClass(row.metric)">{{ deltaPctLabel(row.metric) }}</span>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>

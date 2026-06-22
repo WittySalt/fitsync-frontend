@@ -11,6 +11,7 @@ import { AnalyticsBucket } from '../../core/analytics.models';
 import { Goal } from '../../core/fitsync.models';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { AnalyticsComparisonCardComponent } from './analytics-comparison-card.component';
 import { AnalyticsTrendChartsComponent } from './analytics-trend-charts.component';
 
 interface MetricOption {
@@ -32,7 +33,7 @@ interface BucketOption {
 
 @Component({
   selector: 'app-progress-page',
-  imports: [AnalyticsTrendChartsComponent, FsChartComponent, RouterLink, StatePanelComponent],
+  imports: [AnalyticsComparisonCardComponent, AnalyticsTrendChartsComponent, FsChartComponent, RouterLink, StatePanelComponent],
   templateUrl: './progress.page.html',
   styleUrl: './progress.page.scss'
 })
