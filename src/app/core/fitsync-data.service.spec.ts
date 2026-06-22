@@ -821,12 +821,16 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].timesLogged).toBe(9);
   });
 
-  it('fetches today meals within a from/to day window', () => {
+  it('fetches today meals within a from/to day window and optional timezone', () => {
     let result: Meal[] | undefined;
-    service.getTodayMeals().subscribe((value) => (result = value));
+    service.getTodayMeals('Asia/Singapore').subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/nutrition/meals' && req.params.has('from') && req.params.has('to')
+      (req) =>
+        req.url === '/api/v1/nutrition/meals' &&
+        req.params.has('from') &&
+        req.params.has('to') &&
+        req.params.get('timezone') === 'Asia/Singapore'
     );
     request.flush([
       { mealType: 'LUNCH', name: 'Chicken rice', totalCalories: 640, totalProteinGrams: 48, consumedAt: '2026-06-19T04:30:00Z', itemCount: 1 }

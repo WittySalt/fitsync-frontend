@@ -1001,9 +1001,12 @@ export class FitSyncDataService {
   getTodayMeals(timezone?: string): Observable<Meal[]> {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('from', start.toISOString())
       .set('to', new Date().toISOString());
+    if (timezone) {
+      params = params.set('timezone', timezone);
+    }
     return this.http
       .get<Partial<Meal>[]>(`${this.apiBaseUrl}/nutrition/meals`, { params })
       .pipe(
@@ -1716,19 +1719,6 @@ export class FitSyncDataService {
     };
   }
 
-  private mapBodyMetric(metric?: Partial<BodyMetric> | null): BodyMetric | null {
-    if (!metric?.weightKg && !metric?.bmi) {
-      return null;
-    }
-
-    return {
-      weightKg: metric.weightKg ?? 0,
-      bodyFatRate: metric.bodyFatRate ?? 0,
-      bmi: metric.bmi ?? 0,
-      measuredAt: metric.measuredAt ?? ''
-    };
-  }
-
   private mapAnalyticsBodyMetric(body: AnalyticsDashboardBody, generatedAt: string): BodyMetric | null {
     if (body.latestWeightKg == null && body.bmi == null && body.latestBodyFatRate == null) {
       return null;
@@ -1772,19 +1762,6 @@ export class FitSyncDataService {
       bmi: point.bmi,
       waistCm: point.waistCm,
       measuredAt: point.date
-    };
-  }
-
-  private mapGoal(goal: Partial<Goal>): Goal {
-    return {
-      goalId: goal.goalId ?? null,
-      goalType: goal.goalType ?? 'GOAL',
-      targetValue: goal.targetValue ?? 0,
-      targetUnit: goal.targetUnit ?? '',
-      targetDate: goal.targetDate ?? '',
-      status: goal.status ?? 'ACTIVE',
-      progressRatio: goal.progressRatio ?? 0,
-      onTrack: goal.onTrack ?? null
     };
   }
 
