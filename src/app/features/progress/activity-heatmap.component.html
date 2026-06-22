@@ -1,0 +1,68 @@
+<section class="summary-card activity-card" aria-label="Workout activity heatmap">
+  <div class="section-title">
+    <div>
+      <span class="card-label">Analytics</span>
+      <h2>Workout activity</h2>
+    </div>
+    <span class="date-caption">{{ startDate() }} to {{ endDate() }}</span>
+  </div>
+
+  <div class="filter-row">
+    <div class="range-presets" aria-label="Activity range presets">
+      @for (preset of rangePresets; track preset.label) {
+        <button class="button secondary" type="button" (click)="setPreset(preset.days)">{{ preset.label }}</button>
+      }
+    </div>
+
+    <div class="date-fields">
+      <label>
+        Start
+        <input type="date" [value]="startDate()" (change)="updateStartDate($event)" />
+      </label>
+      <label>
+        End
+        <input type="date" [value]="endDate()" (change)="updateEndDate($event)" />
+      </label>
+      <button class="button secondary" type="button" (click)="load()">Apply</button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="heatmap-skeleton" aria-busy="true" aria-label="Loading workout activity">
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+  } @else if (error()) {
+    <app-state-panel
+      title="Activity unavailable"
+      [message]="error() ?? ''"
+      actionLabel="Retry"
+      [error]="true"
+      (action)="load()"
+    />
+  } @else if (!hasDays()) {
+    <app-state-panel
+      title="No activity window"
+      message="Choose a date range to see workout consistency over time."
+    />
+  } @else {
+    <div class="heatmap" role="list" aria-label="Daily workout activity">
+      @for (day of days(); track day.date) {
+        <span
+          role="listitem"
+          class="heatmap-cell intensity-{{ intensity(day) }}"
+          [attr.title]="tooltip(day)"
+          [attr.aria-label]="tooltip(day)"
+        ></span>
+      }
+    </div>
+
+    <div class="legend" aria-hidden="true">
+      <span>Less</span>
+      @for (level of [0, 1, 2, 3, 4]; track level) {
+        <i class="heatmap-cell intensity-{{ level }}"></i>
+      }
+      <span>More</span>
+    </div>
+  }
+</section>

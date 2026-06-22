@@ -1,0 +1,106 @@
+:host {
+  display: block;
+}
+
+.activity-card {
+  display: grid;
+  gap: 16px;
+}
+
+.filter-row,
+.range-presets,
+.date-fields {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-row {
+  justify-content: space-between;
+}
+
+.date-fields {
+  label {
+    min-width: 150px;
+  }
+}
+
+.date-caption {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 16px);
+  gap: 5px;
+  padding: 4px 0;
+}
+
+.heatmap-cell {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+}
+
+.intensity-0 {
+  background: var(--surface-sunken);
+}
+
+.intensity-1 {
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+}
+
+.intensity-2 {
+  background: color-mix(in srgb, var(--accent) 46%, var(--surface));
+}
+
+.intensity-3 {
+  background: color-mix(in srgb, var(--accent) 68%, var(--surface));
+}
+
+.intensity-4 {
+  background: var(--accent);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+
+  .heatmap-cell {
+    display: inline-block;
+  }
+}
+
+.heatmap-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 680px) {
+  .section-title,
+  .filter-row,
+  .date-fields {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .range-presets .button,
+  .date-fields .button,
+  .date-fields label {
+    width: 100%;
+  }
+
+  .legend {
+    justify-content: flex-start;
+  }
+}
