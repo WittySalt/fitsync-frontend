@@ -17,6 +17,7 @@
         <span class="card-label">Goals</span>
         <h2>Active goal progress</h2>
       </div>
+      <button class="button secondary compact" type="button" data-testid="add-goal" (click)="startGoalCreate()">Add goal</button>
     </div>
 
     @if (loading()) {
@@ -46,11 +47,71 @@
                 <i [style.width.%]="goalProgress(goal)"></i>
               </div>
             </div>
+            <button
+              class="button secondary compact"
+              type="button"
+              [attr.data-testid]="'edit-goal-' + goal.goalType"
+              (click)="startGoalEdit(goal.goalType)"
+            >
+              Edit
+            </button>
           </article>
         }
       </div>
     } @else {
       <app-state-panel title="No active goals" message="Set one measurable target to compare progress over time." />
+    }
+
+    @if (editingGoalType()) {
+      <form class="goal-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
+        <div class="sub-card-header">
+          <div>
+            <span class="card-label">Goal editor</span>
+            <h3>{{ activeGoal(goalForm.controls.goalType.value) ? 'Edit goal' : 'Add goal' }}</h3>
+          </div>
+        </div>
+        @if (goalSaveError(); as message) {
+          <p class="section-error">{{ message }}</p>
+        }
+        <div class="editor-grid">
+          <label>
+            Goal type
+            <select formControlName="goalType" (change)="startGoalEdit(goalForm.controls.goalType.value)">
+              @for (option of goalTypeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Target value
+            <input type="number" formControlName="targetValue" min="0" />
+          </label>
+          <label>
+            Target unit
+            <input formControlName="targetUnit" />
+          </label>
+          <label>
+            Target date
+            <input type="date" formControlName="targetDate" />
+          </label>
+          <label>
+            Status
+            <select formControlName="status">
+              @for (option of goalStatusOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">
+            Notes
+            <textarea rows="2" formControlName="notes"></textarea>
+          </label>
+        </div>
+        <div class="editor-actions">
+          <button class="button primary" type="submit" [disabled]="savingGoal()">{{ savingGoal() ? 'Saving...' : 'Save goal' }}</button>
+          <button class="button secondary" type="button" (click)="cancelGoalEdit()">Cancel</button>
+        </div>
+      </form>
     }
   </section>
 </div>

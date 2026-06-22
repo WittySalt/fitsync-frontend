@@ -15,7 +15,7 @@
 
   .goal-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px);
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px) auto;
     align-items: center;
     gap: 16px;
     padding: 14px;
@@ -60,6 +60,76 @@
       background: var(--accent);
     }
   }
+
+  .goal-editor {
+    display: grid;
+    gap: 16px;
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+  }
+
+  .sub-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+
+    h3 {
+      margin: 4px 0 0;
+    }
+  }
+
+  .editor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: var(--fw-bold);
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 10px;
+      color: var(--text-primary);
+      background: var(--surface);
+      font: inherit;
+      font-weight: var(--fw-regular);
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .section-error {
+    margin: 0;
+    color: var(--danger);
+    font-size: var(--text-sm);
+    font-weight: var(--fw-bold);
+  }
 }
 
 @media (max-width: 680px) {
@@ -76,6 +146,10 @@
 
     .goal-progress > span {
       text-align: left;
+    }
+
+    .editor-grid {
+      grid-template-columns: 1fr;
     }
   }
 }

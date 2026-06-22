@@ -154,24 +154,8 @@
           </article>
 
           <article class="sub-card">
-            <div class="sub-card-header"><h3>Goals / targets</h3><button class="button secondary compact" type="button" (click)="startGoalEdit('WEIGHT')">Edit</button></div>
-            @if (sectionErrors().goals; as message) { <p class="section-error">{{ message }}</p> }
-            <div class="field-list">
-              @for (option of goalTypeOptions; track option.value) {
-                <button class="field-row" type="button" (click)="startGoalEdit(option.value)"><span>{{ option.label }}</span><strong>{{ goalSummary(option.value) }}</strong><em>Edit</em></button>
-              }
-            </div>
-            @if (goalPanelOpen()) {
-              <form class="settings-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
-                <label>Goal type<select formControlName="goalType" (change)="startGoalEdit(goalForm.controls.goalType.value)">@for (option of goalTypeOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label>Target value<input type="number" formControlName="targetValue" min="0" /></label>
-                <label>Target unit<input formControlName="targetUnit" /></label>
-                <label>Target date<input type="date" formControlName="targetDate" /></label>
-                <label>Status<select formControlName="status">@for (option of goalStatusOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label class="wide">Notes<textarea rows="2" formControlName="notes"></textarea></label>
-                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'goals'">{{ saving() === 'goals' ? 'Saving...' : 'Save goal' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
-              </form>
-            }
+            <div class="sub-card-header"><h3>Goal management</h3></div>
+            <a class="field-row single-row" routerLink="/progress"><span>Goal progress</span><strong>View and edit goals on Progress</strong><em>Manage goals -&gt;</em></a>
           </article>
         </section>
         }
