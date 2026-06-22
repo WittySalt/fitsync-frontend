@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal, untracked } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -30,6 +30,8 @@ interface TrainingMetric {
   detail: string;
   tone: 'green' | 'blue' | 'orange';
 }
+
+type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
@@ -71,10 +73,33 @@ export class WorkoutPage implements OnInit {
   readonly liveTrackerGoal = signal<LiveTrackerGoal | null>(null);
   readonly repeatingLatest = signal(false);
   readonly dataToolsOpen = signal(false);
+  readonly historySearch = signal('');
+  readonly filterType = signal('');
+  readonly filterStatus = signal('');
+  readonly filterDuration = signal<HistoryDurationFilter>('');
+  readonly filterDateFrom = signal('');
+  readonly filterDateTo = signal('');
+  readonly page = signal(0);
+  readonly pageSize = signal(8);
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+  private readonly historyLoadLimit = 200;
+  private readonly resetHistoryPageOnFilterChange = effect(() => {
+    this.historySearch();
+    this.filterType();
+    this.filterStatus();
+    this.filterDuration();
+    this.filterDateFrom();
+    this.filterDateTo();
+
+    untracked(() => {
+      if (this.page() !== 0) {
+        this.page.set(0);
+      }
+    });
+  });
   readonly todayStarting = computed(() => {
     const planId = this.activePlan()?.planId;
     return Boolean(planId && this.planMutations().has(planId));
@@ -113,6 +138,39 @@ export class WorkoutPage implements OnInit {
     ];
   });
 
+  readonly historyTypeOptions = computed(() => this.distinctSessionValues('workoutType'));
+
+  readonly historyStatusOptions = computed(() => this.distinctSessionValues('status'));
+
+  readonly filteredSessions = computed(() => {
+    const search = this.historySearch().trim().toLowerCase();
+    const type = this.filterType();
+    const status = this.filterStatus();
+    const duration = this.filterDuration();
+    const from = this.dateStart(this.filterDateFrom());
+    const to = this.dateEnd(this.filterDateTo());
+
+    return [...this.sessions()]
+      .filter((session) => {
+        const sessionTime = this.timeOf(session);
+        return (
+          (!search || session.name.toLowerCase().includes(search)) &&
+          (!type || session.workoutType === type) &&
+          (!status || session.status === status) &&
+          this.matchesDuration(session, duration) &&
+          this.matchesDateRange(sessionTime, from, to)
+        );
+      })
+      .sort((a, b) => this.timeOf(b) - this.timeOf(a));
+  });
+
+  readonly totalHistoryPages = computed(() => Math.max(1, Math.ceil(this.filteredSessions().length / this.pageSize())));
+
+  readonly pagedSessions = computed(() => {
+    const start = this.page() * this.pageSize();
+    return this.filteredSessions().slice(start, start + this.pageSize());
+  });
+
   ngOnInit(): void {
     this.load();
   }
@@ -126,6 +184,49 @@ export class WorkoutPage implements OnInit {
 
   get planExercises(): FormArray {
     return this.planForm.get('exercises') as FormArray;
+  }
+
+  setHistorySearch(value: string): void {
+    this.historySearch.set(value);
+    this.page.set(0);
+  }
+
+  setFilterType(value: string): void {
+    this.filterType.set(value);
+    this.page.set(0);
+  }
+
+  setFilterStatus(value: string): void {
+    this.filterStatus.set(value);
+    this.page.set(0);
+  }
+
+  setFilterDuration(value: string): void {
+    this.filterDuration.set(this.toDurationFilter(value));
+    this.page.set(0);
+  }
+
+  setFilterDateFrom(value: string): void {
+    this.filterDateFrom.set(value);
+    this.page.set(0);
+  }
+
+  setFilterDateTo(value: string): void {
+    this.filterDateTo.set(value);
+    this.page.set(0);
+  }
+
+  prevHistoryPage(): void {
+    this.goToHistoryPage(this.page() - 1);
+  }
+
+  nextHistoryPage(): void {
+    this.goToHistoryPage(this.page() + 1);
+  }
+
+  goToHistoryPage(page: number): void {
+    const maxPage = this.totalHistoryPages() - 1;
+    this.page.set(Math.min(Math.max(page, 0), maxPage));
   }
 
   selectPlanStatus(status: WorkoutPlanStatus | null): void {
@@ -478,7 +579,7 @@ export class WorkoutPage implements OnInit {
   }
 
   private loadSessions(): void {
-    this.dataService.getWorkoutSessions().subscribe((sessions) => this.sessions.set(sessions));
+    this.dataService.getWorkoutSessions(this.historyLoadLimit).subscribe((sessions) => this.sessions.set(sessions));
   }
 
   private loadExercises(): void {
@@ -560,5 +661,52 @@ export class WorkoutPage implements OnInit {
     const value = session.completedAt || session.startedAt;
     const time = value ? new Date(value).getTime() : 0;
     return Number.isNaN(time) ? 0 : time;
+  }
+
+  private distinctSessionValues(key: 'workoutType' | 'status'): string[] {
+    return [...new Set(this.sessions().map((session) => session[key]).filter(Boolean))].sort((a, b) =>
+      this.formatLabel(a).localeCompare(this.formatLabel(b))
+    );
+  }
+
+  private matchesDuration(session: WorkoutSession, filter: HistoryDurationFilter): boolean {
+    if (!filter) {
+      return true;
+    }
+    const minutes = session.durationMinutes ?? 0;
+    if (filter === 'lt30') {
+      return minutes < 30;
+    }
+    if (filter === '30to60') {
+      return minutes >= 30 && minutes <= 60;
+    }
+    return minutes > 60;
+  }
+
+  private dateStart(value: string): number | null {
+    if (!value) {
+      return null;
+    }
+    const time = new Date(`${value}T00:00:00`).getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+
+  private dateEnd(value: string): number | null {
+    if (!value) {
+      return null;
+    }
+    const time = new Date(`${value}T23:59:59.999`).getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+
+  private matchesDateRange(sessionTime: number, from: number | null, to: number | null): boolean {
+    if (from === null && to === null) {
+      return true;
+    }
+    return sessionTime > 0 && (from === null || sessionTime >= from) && (to === null || sessionTime <= to);
+  }
+
+  private toDurationFilter(value: string): HistoryDurationFilter {
+    return value === 'lt30' || value === '30to60' || value === 'gt60' ? value : '';
   }
 }

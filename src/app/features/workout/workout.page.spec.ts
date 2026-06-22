@@ -173,6 +173,125 @@ describe('WorkoutPage', () => {
     expect(metrics[1].value).toBe('1');
   });
 
+  it('loads a larger workout history set for client-side history filtering', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    expect(dataService.getWorkoutSessions).toHaveBeenCalledWith(200);
+  });
+
+  it('filters history by case-insensitive session name search', () => {
+    component.sessions.set([
+      session({ sessionId: 'push', name: 'Push Day', completedAt: '2026-06-14T10:00:00Z' }),
+      session({ sessionId: 'run', name: 'Easy Run', workoutType: 'CARDIO', completedAt: '2026-06-15T10:00:00Z' })
+    ]);
+
+    component.setHistorySearch('push');
+
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['push']);
+  });
+
+  it('derives history type and status options from loaded sessions', () => {
+    component.sessions.set([
+      session({ workoutType: 'STRENGTH', status: 'COMPLETED' }),
+      session({ workoutType: 'CARDIO', status: 'CANCELLED' }),
+      session({ workoutType: 'STRENGTH', status: 'COMPLETED' })
+    ]);
+
+    expect(component.historyTypeOptions()).toEqual(['CARDIO', 'STRENGTH']);
+    expect(component.historyStatusOptions()).toEqual(['CANCELLED', 'COMPLETED']);
+  });
+
+  it('filters history by type, status, duration bucket, and date range', () => {
+    component.sessions.set([
+      session({
+        sessionId: 'match',
+        name: 'Tempo strength',
+        workoutType: 'STRENGTH',
+        status: 'COMPLETED',
+        durationMinutes: 45,
+        completedAt: '2026-06-15T10:00:00Z'
+      }),
+      session({
+        sessionId: 'wrong-type',
+        workoutType: 'CARDIO',
+        status: 'COMPLETED',
+        durationMinutes: 45,
+        completedAt: '2026-06-15T10:00:00Z'
+      }),
+      session({
+        sessionId: 'wrong-status',
+        workoutType: 'STRENGTH',
+        status: 'CANCELLED',
+        durationMinutes: 45,
+        completedAt: '2026-06-15T10:00:00Z'
+      }),
+      session({
+        sessionId: 'too-short',
+        workoutType: 'STRENGTH',
+        status: 'COMPLETED',
+        durationMinutes: 20,
+        completedAt: '2026-06-15T10:00:00Z'
+      }),
+      session({
+        sessionId: 'too-early',
+        workoutType: 'STRENGTH',
+        status: 'COMPLETED',
+        durationMinutes: 45,
+        completedAt: '2026-06-10T10:00:00Z'
+      })
+    ]);
+
+    component.setFilterType('STRENGTH');
+    component.setFilterStatus('COMPLETED');
+    component.setFilterDuration('30to60');
+    component.setFilterDateFrom('2026-06-15');
+    component.setFilterDateTo('2026-06-15');
+
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['match']);
+
+    component.setFilterDuration('lt30');
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['too-short']);
+
+    component.setFilterDuration('gt60');
+    expect(component.filteredSessions()).toEqual([]);
+  });
+
+  it('sorts history newest-first and pages through filtered sessions', () => {
+    component.sessions.set(
+      Array.from({ length: 10 }, (_, index) =>
+        session({
+          sessionId: `session-${index + 1}`,
+          name: `Session ${index + 1}`,
+          completedAt: `2026-06-${String(index + 1).padStart(2, '0')}T10:00:00Z`
+        })
+      )
+    );
+
+    expect(component.totalHistoryPages()).toBe(2);
+    expect(component.pagedSessions().map((item) => item.sessionId)).toEqual([
+      'session-10',
+      'session-9',
+      'session-8',
+      'session-7',
+      'session-6',
+      'session-5',
+      'session-4',
+      'session-3'
+    ]);
+
+    component.nextHistoryPage();
+    expect(component.page()).toBe(1);
+    expect(component.pagedSessions().map((item) => item.sessionId)).toEqual(['session-2', 'session-1']);
+
+    component.nextHistoryPage();
+    expect(component.page()).toBe(1);
+
+    component.setHistorySearch('Session 1');
+    expect(component.page()).toBe(0);
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['session-10', 'session-1']);
+  });
+
   it('wires workout tabs to their active tabpanel', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
@@ -389,6 +508,30 @@ describe('WorkoutPage', () => {
 
     expect(fixture.componentInstance.selectedSessionId()).toBe('session-1');
     expect(dataService.getSession).toHaveBeenCalledWith('session-1');
+  });
+
+  it('renders a filtered history empty state separately from no logged sessions', () => {
+    dataService.getWorkoutSessions.and.returnValue(of([session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' })]));
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    fixture.componentInstance.setHistorySearch('missing');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('No sessions match these filters');
+    expect(compiled.textContent).not.toContain('No sessions logged');
+
+    dataService.getWorkoutSessions.and.returnValue(of([]));
+    const emptyFixture = TestBed.createComponent(WorkoutPage);
+    emptyFixture.detectChanges();
+    emptyFixture.componentInstance.selectedTab.set('history');
+    emptyFixture.detectChanges();
+
+    expect((emptyFixture.nativeElement as HTMLElement).textContent).toContain('No sessions logged');
   });
 
   it('repeats the latest session and refreshes history', () => {
