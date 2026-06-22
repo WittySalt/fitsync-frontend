@@ -4,6 +4,11 @@
 //  fitsync-tokens.css (CSS custom properties) so theme
 //  switching works. Use token() when you need a value inside a
 //  SCSS calc/expression; otherwise just use var(--x) directly.
+//
+//  Keep examples and recipes in documentation so this partial
+//  stays focused on reusable token maps and mixins.
+//  Components should prefer CSS custom properties when no SCSS
+//  expression needs to be evaluated at build time.
 // ============================================================
 
 @use 'sass:map';
