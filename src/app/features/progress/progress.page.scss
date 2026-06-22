@@ -3,108 +3,10 @@
     align-items: center;
   }
 
-  .progress-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 5px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--surface-sunken);
-
-    button {
-      flex: 1 1 auto;
-      min-height: 42px;
-      padding: 0 18px;
-      border: 0;
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-secondary);
-      font-weight: var(--fw-bold);
-      cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease;
-    }
-
-    button:hover {
-      color: var(--text-primary);
-    }
-
-    button.active {
-      color: var(--accent);
-      background: var(--surface);
-      box-shadow: var(--shadow-xs);
-    }
-  }
-
-  .filters-card,
   .progress-skeleton,
   .goal-list {
     display: grid;
     gap: 14px;
-  }
-
-  .filters-card {
-    grid-template-columns: auto minmax(320px, 1fr) auto auto;
-    align-items: end;
-  }
-
-  .range-presets,
-  .date-fields,
-  .bucket-toggle,
-  .metric-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .range-presets,
-  .bucket-toggle,
-  .metric-toggle {
-    flex-wrap: wrap;
-  }
-
-  .date-fields {
-    justify-content: center;
-
-    label {
-      min-width: 150px;
-    }
-  }
-
-  .bucket-toggle,
-  .metric-toggle {
-    min-height: 44px;
-    padding: 4px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--surface-sunken);
-
-    button {
-      min-height: 34px;
-      padding: 0 12px;
-      border: 0;
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-secondary);
-      font-weight: var(--fw-bold);
-      cursor: pointer;
-    }
-
-    button.active {
-      color: var(--accent);
-      background: var(--surface);
-      box-shadow: var(--shadow-xs);
-    }
-  }
-
-  .trend-card {
-    min-height: 420px;
-  }
-
-  .date-caption {
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-    font-weight: var(--fw-semibold);
   }
 
   .goals-card {
@@ -158,38 +60,11 @@
       background: var(--accent);
     }
   }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-    border: 0;
-  }
-}
-
-@media (max-width: 1080px) {
-  .progress-page {
-    .filters-card {
-      grid-template-columns: 1fr;
-      align-items: stretch;
-    }
-
-    .date-fields {
-      justify-content: flex-start;
-      flex-wrap: wrap;
-    }
-  }
 }
 
 @media (max-width: 680px) {
   .progress-page {
     .progress-header,
-    .date-fields,
     .goal-row {
       align-items: stretch;
       grid-template-columns: 1fr;
@@ -197,13 +72,6 @@
 
     .progress-header {
       flex-direction: column;
-    }
-
-    .range-presets .button,
-    .date-fields .button,
-    .date-fields label,
-    .metric-toggle button {
-      flex: 1 1 100%;
     }
 
     .goal-progress > span {

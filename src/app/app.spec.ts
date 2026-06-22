@@ -48,6 +48,7 @@ describe('App', () => {
     expect(compiled.textContent).toContain('FitSync');
     expect(compiled.textContent).toContain('Workout');
     expect(compiled.textContent).toContain('Nutrition');
+    expect(compiled.textContent).toContain('Body');
   });
 
   it('opens the account menu from the avatar control', () => {

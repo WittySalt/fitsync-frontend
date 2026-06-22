@@ -524,6 +524,13 @@ export class FitSyncDataService {
     );
   }
 
+  getProgressGoals(): Observable<Goal[]> {
+    return this.analyticsApi.getGoalsProgress('ACTIVE').pipe(
+      map((goals) => goals.goals.map((goal) => this.mapAnalyticsGoalProgress(goal))),
+      catchError(() => throwError(() => new Error('Unable to load goal progress. Please retry.')))
+    );
+  }
+
   getWorkoutPlans(status: WorkoutPlanStatus | null = 'ACTIVE'): Observable<WorkoutPlan[]> {
     let params = new HttpParams().set('size', '20');
     if (status) {
