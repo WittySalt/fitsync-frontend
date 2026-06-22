@@ -32,6 +32,13 @@ interface BucketOption {
   value: AnalyticsBucket;
 }
 
+type ProgressTab = 'body' | 'activity' | 'goals';
+
+interface ProgressTabOption {
+  key: ProgressTab;
+  label: string;
+}
+
 @Component({
   selector: 'app-progress-page',
   imports: [
@@ -66,6 +73,14 @@ export class ProgressPage implements OnInit {
     { label: 'Week', value: 'WEEK' },
     { label: 'Month', value: 'MONTH' }
   ];
+
+  readonly progressTabs: ProgressTabOption[] = [
+    { key: 'body', label: 'Body' },
+    { key: 'activity', label: 'Activity' },
+    { key: 'goals', label: 'Goals' }
+  ];
+
+  readonly activeTab = signal<ProgressTab>('body');
 
   readonly data = signal<ProgressData | null>(null);
   readonly loading = signal(true);
@@ -136,6 +151,10 @@ export class ProgressPage implements OnInit {
           this.loading.set(false);
         }
       });
+  }
+
+  selectTab(tab: ProgressTab): void {
+    this.activeTab.set(tab);
   }
 
   selectMetric(metric: ProgressMetricKey): void {

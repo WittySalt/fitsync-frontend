@@ -139,12 +139,21 @@ describe('ProgressPage', () => {
       jasmine.objectContaining({ startDate: jasmine.any(String), endDate: jasmine.any(String) }),
       'DAY'
     );
+    // Body tab is active by default.
     expect(compiled.textContent).toContain('71.8 kg');
     expect(compiled.textContent).toContain('24.9');
-    expect(compiled.textContent).toContain('55%');
-    expect(compiled.textContent).toContain('On track - 100 days left');
     expect(compiled.textContent).not.toContain('26.6');
     expect(compiled.textContent).not.toContain('21.5%');
+
+    // Goals live under the Goals tab.
+    const goalsTab = Array.from(compiled.querySelectorAll<HTMLButtonElement>('.progress-tabs button')).find(
+      (button) => button.textContent?.trim() === 'Goals'
+    );
+    goalsTab?.click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('55%');
+    expect(compiled.textContent).toContain('On track - 100 days left');
     expect(compiled.textContent).not.toContain('42%');
   });
 

@@ -3,6 +3,39 @@
     align-items: center;
   }
 
+  .progress-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-sunken);
+
+    button {
+      flex: 1 1 auto;
+      min-height: 42px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-secondary);
+      font-weight: var(--fw-bold);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    button:hover {
+      color: var(--text-primary);
+    }
+
+    button.active {
+      color: var(--accent);
+      background: var(--surface);
+      box-shadow: var(--shadow-xs);
+    }
+  }
+
   .filters-card,
   .progress-skeleton,
   .goal-list {
