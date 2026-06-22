@@ -3,6 +3,7 @@ import { HttpEventType } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { AnalyticsDashboardResponse } from './analytics.models';
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
 import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
@@ -47,6 +48,30 @@ const baseOnboarding: OnboardingFormValue = {
   projectedTargetDate: '2026-09-12',
   workoutReminderEnabled: true,
   mealReminderEnabled: true
+};
+
+const dashboardAnalytics: AnalyticsDashboardResponse = {
+  generatedAt: '2026-06-22T00:00:00Z',
+  timezone: 'UTC',
+  body: {
+    latestWeightKg: 77,
+    latestBodyFatRate: 18,
+    bmi: 24.3,
+    weightChange30d: -2.4
+  },
+  workout: {
+    todayWorkoutCount: 1,
+    weekWorkoutCount: 7,
+    weekWorkoutMinutes: 300,
+    activeStreakDays: 7
+  },
+  nutrition: {
+    todayCaloriesConsumed: 1850,
+    todayCaloriesTarget: 2200,
+    todayProteinGrams: 120,
+    todayProteinTargetGrams: 150
+  },
+  goals: [{ goalId: 'goal-calories', goalType: 'CALORIES', progressRatio: 0.95, onTrack: true }]
 };
 
 describe('FitSyncDataService', () => {
@@ -323,88 +348,71 @@ describe('FitSyncDataService', () => {
     expect(seed?.hasExistingNutritionBaseline).toBeTrue();
   });
 
-  it('maps daily nutrition summary micronutrients from dashboard load', () => {
-    let result: number | null | undefined;
-    service.getDashboard().subscribe((value) => {
-      result = value.nutrition.totalFiberGrams;
-      expect(value.nutrition.totalSugarGrams).toBe(42.5);
-      expect(value.nutrition.totalSodiumMg).toBe(1800);
-      expect(value.nutrition.fiberTargetGrams).toBe(25);
-      expect(value.nutrition.sugarLimitGrams).toBe(50);
-      expect(value.nutrition.sodiumLimitMg).toBe(2300);
-      expect(value.nutrition.fiberTargetMet).toBeTrue();
-      expect(value.nutrition.sugarWithinLimit).toBeTrue();
-      expect(value.nutrition.sodiumWithinLimit).toBeTrue();
-    });
-
-    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
-
-    const summaryRequest = httpTesting.expectOne(
-      (req) =>
-        req.urlWithParams.startsWith('/api/v1/nutrition/summary/daily?') &&
-        req.urlWithParams.includes('timezone=Asia/Singapore')
-    );
-    summaryRequest.flush({
-      totalCalories: 1800,
-      targetCalories: 2200,
-      totalProteinGrams: '140.5',
-      targetProteinGrams: '150',
-      totalCarbsGrams: 210,
-      targetCarbsGrams: 240,
-      totalFatGrams: 55,
-      targetFatGrams: 70,
-      mealCount: 3,
-      totalFiberGrams: '27.5',
-      totalSugarGrams: '42.5',
-      totalSodiumMg: '1800',
-      fiberTargetGrams: '25',
-      sugarLimitGrams: '50',
-      sodiumLimitMg: '2300',
-      fiberTargetMet: true,
-      sugarWithinLimit: true,
-      sodiumWithinLimit: true
-    });
-    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
-    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
-
-    expect(result).toBe(27.5);
-  });
-
-  it('preserves null daily nutrition targets instead of mapping them to zero', () => {
+  it('maps dashboard data from the analytics dashboard endpoint', () => {
     let result: unknown;
     service.getDashboard().subscribe((value) => {
-      result = value.nutrition;
+      result = value;
     });
 
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
     httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
-    httpTesting
-      .expectOne(
-        (req) =>
-          req.urlWithParams.startsWith('/api/v1/nutrition/summary/daily?') &&
-          req.urlWithParams.includes('timezone=Asia/Singapore')
-      )
-      .flush({
-        totalCalories: 142,
-        targetCalories: null,
-        totalProteinGrams: '2.8',
-        targetProteinGrams: null,
-        totalCarbsGrams: 20,
-        targetCarbsGrams: null,
-        totalFatGrams: 5,
-        targetFatGrams: null,
-        mealCount: 1
-      });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+    httpTesting.expectNone((req) => req.url.startsWith('/api/v1/nutrition/summary/daily'));
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        nutrition: jasmine.objectContaining({
+          totalCalories: 1850,
+          targetCalories: 2200,
+          totalProteinGrams: 120,
+          targetProteinGrams: 150
+        }),
+        workout: jasmine.objectContaining({
+          activeStreakDays: 7,
+          weekWorkoutMinutes: 300
+        }),
+        latestBodyMetric: jasmine.objectContaining({
+          weightKg: 77,
+          bodyFatRate: 18,
+          bmi: 24.3
+        }),
+        goals: [jasmine.objectContaining({ goalId: 'goal-calories', goalType: 'CALORIES', onTrack: true })]
+      })
+    );
+  });
+
+  it('maps empty analytics dashboard fields to friendly empty dashboard data', () => {
+    let result: unknown;
+    service.getDashboard().subscribe((value) => {
+      result = value;
+    });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush({
+      ...dashboardAnalytics,
+      body: { latestWeightKg: null, latestBodyFatRate: null, bmi: null, weightChange30d: null },
+      nutrition: {
+        todayCaloriesConsumed: null,
+        todayCaloriesTarget: null,
+        todayProteinGrams: null,
+        todayProteinTargetGrams: null
+      },
+      goals: []
+    });
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
     httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
     httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
 
     expect(result).toEqual(
       jasmine.objectContaining({
-        totalCalories: 142,
-        targetCalories: null,
-        totalProteinGrams: 2.8,
-        targetProteinGrams: null,
-        targetCarbsGrams: null,
-        targetFatGrams: null
+        nutrition: jasmine.objectContaining({
+          totalCalories: 0,
+          targetCalories: null,
+          totalProteinGrams: 0,
+          targetProteinGrams: null
+        }),
+        latestBodyMetric: null,
+        goals: []
       })
     );
   });
