@@ -142,77 +142,6 @@
           </article>
 
           <article class="sub-card">
-            <div class="sub-card-header"><h3>Body metrics</h3><button class="button secondary compact" type="button" (click)="startEdit('body')">Add measurement</button></div>
-            @if (sectionErrors().body; as message) { <p class="section-error">{{ message }}</p> }
-            @if (editPanel() === 'body') {
-              <form class="settings-editor metric-grid" [formGroup]="bodyForm" (ngSubmit)="saveBody()">
-                <label>Height (cm)<input type="number" formControlName="heightCm" min="80" max="300" /></label>
-                <label>Weight (kg)<input type="number" formControlName="weightKg" min="1" max="500" /></label>
-                <label>Body fat %<input type="number" formControlName="bodyFatRate" min="0" max="100" /></label>
-                <label>Waist (cm)<input type="number" formControlName="waistCm" /></label>
-                <label>Hip (cm)<input type="number" formControlName="hipCm" /></label>
-                <label>Chest (cm)<input type="number" formControlName="chestCm" /></label>
-                <label>Arm (cm)<input type="number" formControlName="armCm" /></label>
-                <label>Thigh (cm)<input type="number" formControlName="thighCm" /></label>
-                <label>Calf (cm)<input type="number" formControlName="calfCm" /></label>
-                <label>Measured at<input type="datetime-local" formControlName="measuredAt" /></label>
-                <label>Source<select formControlName="source">@for (option of metricSourceOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label class="wide">Note<textarea rows="2" formControlName="note"></textarea></label>
-                <div class="derived-pill">BMI is derived from height and latest recorded weight: {{ account.user.latestBodyMetrics?.bmi ?? 'Not available' }}</div>
-                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'body'">{{ saving() === 'body' ? 'Saving...' : 'Create measurement' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
-              </form>
-            } @else {
-              <div class="field-list">
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Height</span><strong>{{ displayHeight(account.user.profile.heightCm) }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Weight</span><strong>{{ displayWeight(account.user.latestBodyMetrics) }}</strong><em>Add new</em></button>
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Body fat</span><strong>{{ displayMetric(account.user.latestBodyMetrics?.bodyFatRate, '%') }}</strong><em>Add new</em></button>
-                <div class="field-row readonly"><span>BMI</span><strong>{{ account.user.latestBodyMetrics?.bmi ?? 'Not available' }}</strong><em>Derived</em></div>
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Waist / hip / chest</span><strong>{{ displayMetric(account.user.latestBodyMetrics?.waistCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.hipCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.chestCm, 'cm') }}</strong><em>Add new</em></button>
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Arm / thigh / calf</span><strong>{{ displayMetric(account.user.latestBodyMetrics?.armCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.thighCm, 'cm') }} - {{ displayMetric(account.user.latestBodyMetrics?.calfCm, 'cm') }}</strong><em>Add new</em></button>
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Measured at</span><strong>{{ displayDateTime(account.user.latestBodyMetrics?.measuredAt) }}</strong><em>Add new</em></button>
-                <button class="field-row" type="button" (click)="startEdit('body')"><span>Source and note</span><strong>{{ labelFor(account.user.latestBodyMetrics?.source) }} - {{ account.user.latestBodyMetrics?.note || 'No note' }}</strong><em>Add new</em></button>
-              </div>
-            }
-            <div class="metric-history">
-              <div class="metric-history-header">
-                <div>
-                  <h4>Measurement history</h4>
-                  <p>Newest first, from dated body-metric records.</p>
-                </div>
-                <button class="button secondary compact" type="button" [disabled]="bodyMetricHistoryLoading()" (click)="loadBodyMetricHistory()">Refresh</button>
-              </div>
-              @if (bodyMetricHistoryLoading()) {
-                <div class="metric-history-loading" aria-busy="true" aria-label="Loading measurement history">
-                  <span class="skeleton"></span>
-                  <span class="skeleton"></span>
-                </div>
-              } @else if (bodyMetricHistoryError()) {
-                <div class="inline-empty">
-                  <strong>Measurement history unavailable</strong>
-                  <p>{{ bodyMetricHistoryError() }}</p>
-                </div>
-              } @else if (bodyMetricHistory().length) {
-                <ul class="metric-history-list" aria-label="Measurement history">
-                  @for (metric of bodyMetricHistory(); track metric.metricId || metric.measuredAt) {
-                    <li class="metric-history-row">
-                      <time [attr.datetime]="metric.measuredAt || ''">{{ displayDateTime(metric.measuredAt) }}</time>
-                      <strong>{{ displayWeight(metric) }}</strong>
-                      <span>{{ bodyMetricDetailSummary(metric) }}</span>
-                      <em>BMI {{ metric.bmi ?? 'Not available' }}</em>
-                      @if (metric.note) { <p>{{ metric.note }}</p> }
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <div class="inline-empty">
-                  <strong>No measurement history yet</strong>
-                  <p>Record your first weight or body measurement.</p>
-                </div>
-              }
-            </div>
-          </article>
-
-          <article class="sub-card">
             <div class="sub-card-header"><h3>Activity level</h3><button class="button secondary compact" type="button" (click)="startEdit('activity')">Edit</button></div>
             @if (editPanel() === 'activity') {
               <form class="settings-editor single" [formGroup]="activityForm" (ngSubmit)="saveActivity()">
@@ -225,24 +154,8 @@
           </article>
 
           <article class="sub-card">
-            <div class="sub-card-header"><h3>Goals / targets</h3><button class="button secondary compact" type="button" (click)="startGoalEdit('WEIGHT')">Edit</button></div>
-            @if (sectionErrors().goals; as message) { <p class="section-error">{{ message }}</p> }
-            <div class="field-list">
-              @for (option of goalTypeOptions; track option.value) {
-                <button class="field-row" type="button" (click)="startGoalEdit(option.value)"><span>{{ option.label }}</span><strong>{{ goalSummary(option.value) }}</strong><em>Edit</em></button>
-              }
-            </div>
-            @if (goalPanelOpen()) {
-              <form class="settings-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
-                <label>Goal type<select formControlName="goalType" (change)="startGoalEdit(goalForm.controls.goalType.value)">@for (option of goalTypeOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label>Target value<input type="number" formControlName="targetValue" min="0" /></label>
-                <label>Target unit<input formControlName="targetUnit" /></label>
-                <label>Target date<input type="date" formControlName="targetDate" /></label>
-                <label>Status<select formControlName="status">@for (option of goalStatusOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label class="wide">Notes<textarea rows="2" formControlName="notes"></textarea></label>
-                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'goals'">{{ saving() === 'goals' ? 'Saving...' : 'Save goal' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
-              </form>
-            }
+            <div class="sub-card-header"><h3>Goal management</h3></div>
+            <a class="field-row single-row" routerLink="/progress"><span>Goal progress</span><strong>View and edit goals on Progress</strong><em>Manage goals -&gt;</em></a>
           </article>
         </section>
         }

@@ -3,11 +3,9 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import {
-  AccountBodyMetric,
   AccountCenterData,
   AccountDataService,
-  AccountDataExportPayload,
-  UserGoal
+  AccountDataExportPayload
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -19,16 +17,6 @@ describe('SettingsPage', () => {
   let authService: jasmine.SpyObj<AuthService>;
   let accountDataService: jasmine.SpyObj<AccountDataService>;
   let toast: jasmine.SpyObj<ToastService>;
-
-  const weightGoal: UserGoal = {
-    goalId: 'goal-1',
-    goalType: 'WEIGHT',
-    targetValue: 68,
-    targetUnit: 'kg',
-    targetDate: '2026-09-30',
-    status: 'ACTIVE',
-    notes: 'Cut slowly while maintaining strength.'
-  };
 
   const accountData: AccountCenterData = {
     user: {
@@ -88,7 +76,15 @@ describe('SettingsPage', () => {
           quietHoursEnd: '07:00:00'
         }
       },
-      activeGoals: [weightGoal],
+      activeGoals: [{
+        goalId: 'goal-1',
+        goalType: 'WEIGHT',
+        targetValue: 68,
+        targetUnit: 'kg',
+        targetDate: '2026-09-30',
+        status: 'ACTIVE',
+        notes: 'Cut slowly while maintaining strength.'
+      }],
       latestBodyMetrics: {
         metricId: 'metric-1',
         weightKg: 72.4,
@@ -145,37 +141,6 @@ describe('SettingsPage', () => {
       passwordConfirmationRequired: true
     }
   };
-  const olderBodyMetric: AccountBodyMetric = {
-    metricId: 'metric-0',
-    weightKg: 73.1,
-    bodyFatRate: 18.9,
-    waistCm: 83,
-    hipCm: 97,
-    chestCm: 99,
-    armCm: 32.5,
-    thighCm: 56,
-    calfCm: 37.5,
-    bmi: 24.7,
-    measuredAt: '2026-06-10T07:20:00Z',
-    source: 'MANUAL',
-    note: 'Previous check-in'
-  };
-  const createdBodyMetric: AccountBodyMetric = {
-    metricId: 'metric-2',
-    weightKg: 71.9,
-    bodyFatRate: 17.8,
-    waistCm: 81,
-    hipCm: null,
-    chestCm: null,
-    armCm: null,
-    thighCm: null,
-    calfCm: null,
-    bmi: 24.3,
-    measuredAt: '2026-06-18T00:30:00.000Z',
-    source: 'MANUAL',
-    note: 'New log'
-  };
-
   beforeEach(async () => {
     localStorage.removeItem('fs-theme');
     document.documentElement.removeAttribute('data-theme');
@@ -197,7 +162,6 @@ describe('SettingsPage', () => {
         'createBodyMetric',
         'listBodyMetrics',
         'replaceBodyMetric',
-        'updateGoal',
         'updateRecoveryEmail',
         'requestDataExport',
         'downloadDataExport',
@@ -208,10 +172,8 @@ describe('SettingsPage', () => {
     accountDataService.updateProfile.and.returnValue(of(accountData.user.profile));
     accountDataService.uploadAvatar.and.returnValue(of(accountData.user.profile));
     accountDataService.updatePreferences.and.returnValue(of(accountData.user.preferences));
-    accountDataService.createBodyMetric.and.returnValue(of(createdBodyMetric));
-    accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!, olderBodyMetric]));
+    accountDataService.listBodyMetrics.and.returnValue(of([accountData.user.latestBodyMetrics!]));
     accountDataService.replaceBodyMetric.and.returnValue(of(accountData.user.latestBodyMetrics!));
-    accountDataService.updateGoal.and.returnValue(of(weightGoal));
     accountDataService.updateRecoveryEmail.and.returnValue(of({
       ...accountData.security,
       recoveryEmail: 'recovery@example.com',
@@ -245,65 +207,24 @@ describe('SettingsPage', () => {
     expect(text).toContain('Alice Tan');
     expect(text).toContain('Identity');
     expect(text).toContain('Gender');
-    expect(text).toContain('Goals / targets');
+    expect(text).toContain('Activity level');
+    expect(text).toContain('Manage goals');
+    expect(text).not.toContain('Goals / targets');
+    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/progress"]')).not.toBeNull();
     // Section tabs: these live in non-default sections but the nav labels are always rendered.
     expect(text).toContain('Preferences');
     expect(text).toContain('Privacy & Data');
     expect(text).toContain('Security');
   });
 
-  it('marks Cognito and derived fields as read-only instead of editable settings', () => {
+  it('marks Cognito security fields as read-only instead of editable settings', () => {
     const component = fixture.componentInstance;
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-
-    expect(text).toContain('BMI');
-    expect(text).toContain('Derived');
 
     component.selectedSection.set('security');
     fixture.detectChanges();
     const securityText = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(securityText).toContain('Managed by Cognito');
     expect(securityText).toContain('Cognito protected');
-  });
-
-  it('renders body metric history from the body-metrics list endpoint', () => {
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-
-    expect(accountDataService.listBodyMetrics).toHaveBeenCalledWith({ limit: 50 });
-    expect(text).toContain('Measurement history');
-    expect(text).toContain('Morning weigh-in');
-    expect(text).toContain('Previous check-in');
-    expect(text).toContain('72.4 kg');
-  });
-
-  it('creates a new body metric instead of replacing the latest metric', () => {
-    const component = fixture.componentInstance;
-    const measuredAt = '2026-06-18T08:30';
-
-    component.startEdit('body');
-    component.bodyForm.patchValue({
-      heightCm: '172',
-      weightKg: '71.9',
-      bodyFatRate: '17.8',
-      waistCm: '81',
-      measuredAt,
-      source: 'MANUAL',
-      note: 'New log'
-    });
-    component.saveBody();
-    fixture.detectChanges();
-
-    expect(accountDataService.createBodyMetric).toHaveBeenCalledWith(jasmine.objectContaining({
-      weightKg: 71.9,
-      bodyFatRate: 17.8,
-      waistCm: 81,
-      measuredAt: new Date(measuredAt).toISOString(),
-      source: 'MANUAL',
-      note: 'New log'
-    }));
-    expect(accountDataService.replaceBodyMetric).not.toHaveBeenCalled();
-    expect(accountDataService.listBodyMetrics).toHaveBeenCalledTimes(2);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Measurement recorded.');
   });
 
   it('renders appearance controls and stores the selected theme preference', () => {
@@ -353,20 +274,6 @@ describe('SettingsPage', () => {
     }));
   });
 
-  it('updates goals through the goal endpoint', () => {
-    const component = fixture.componentInstance;
-
-    component.startGoalEdit('WEIGHT');
-    component.goalForm.patchValue({ targetValue: '67.5', targetUnit: 'kg', status: 'ACTIVE' });
-    component.saveGoal();
-
-    expect(accountDataService.updateGoal).toHaveBeenCalledWith('WEIGHT', jasmine.objectContaining({
-      targetValue: 67.5,
-      targetUnit: 'kg',
-      status: 'ACTIVE'
-    }));
-  });
-
   it('requests account data export from the privacy section', () => {
     fixture.componentInstance.requestDataExport();
 
@@ -387,12 +294,6 @@ describe('SettingsPage', () => {
     expect(fixture.componentInstance.error()).toBe('settings offline');
     expect(fixture.componentInstance.loading()).toBeFalse();
 
-    accountDataService.listBodyMetrics.and.returnValue(throwError(() => new Error('history offline')));
-
-    fixture.componentInstance.loadBodyMetricHistory();
-
-    expect(fixture.componentInstance.bodyMetricHistoryError()).toBe('history offline');
-    expect(fixture.componentInstance.bodyMetricHistoryLoading()).toBeFalse();
   });
 
   it('covers display fallbacks, imperial formatting, labels, summaries, and menu closing', () => {
@@ -425,23 +326,13 @@ describe('SettingsPage', () => {
           weightKg: 72,
           bmi: null
         },
-        activeGoals: [
-          {
-            ...weightGoal,
-            targetValue: null,
-            targetUnit: null,
-            targetDate: null,
-            status: 'PAUSED'
-          }
-        ]
+        activeGoals: []
       }
     };
 
     component.data.set(null);
 
     expect(component.accountType()).toBe('Account');
-    expect(component.displayMetric(null, 'kg')).toBe('Not set');
-    expect(component.displayWeight(null)).toBe('Not set');
     expect(component.displayHeight(null)).toBe('Not set');
     expect(component.displayDateTime(null)).toBe('Not set');
     expect(component.displayDate(null)).toBe('Not set');
@@ -449,26 +340,12 @@ describe('SettingsPage', () => {
     expect(component.nutritionTracking()).toBe('Not set');
     expect(component.weeklyReportSummary()).toBe('Off');
     expect(component.quietHoursSummary()).toBe('Not set');
-    expect(component.goalSummary('CALORIES')).toBe('Not set');
     expect(component.labelFor(null)).toBe('Not set');
 
     component.data.set(imperialData);
 
     expect(component.region()).toBe('Asia/Singapore');
-    expect(component.displayWeight(imperialData.user.latestBodyMetrics)).toBe('158.7 lb');
     expect(component.displayHeight(180)).toBe('5 ft 11 in');
-    expect(component.bodyMetricSummary()).toContain('BMI unavailable');
-    expect(component.bodyMetricDetailSummary({
-      ...olderBodyMetric,
-      bodyFatRate: null,
-      waistCm: null,
-      hipCm: null,
-      chestCm: null,
-      armCm: null,
-      thighCm: null,
-      calfCm: null
-    })).toBe('No additional measurements');
-    expect(component.goalSummary('WEIGHT')).toContain('Target not set - Paused');
     expect(component.labelFor('VERY_ACTIVE')).toBe('Very Active');
 
     component.accountMenuOpen.set(true);
@@ -480,16 +357,11 @@ describe('SettingsPage', () => {
   it('handles edit cancellation', () => {
     const component = fixture.componentInstance;
 
-    component.startEdit('goals');
-    expect(component.goalPanelOpen()).toBeTrue();
-    expect(component.goalForm.controls.goalType.value).toBe('WEIGHT');
-
     component.identityForm.patchValue({ displayName: 'Unsaved Name' });
     component.cancelEdit();
 
     expect(component.identityForm.controls.displayName.value).toBe('Alice Tan');
     expect(component.editPanel()).toBeNull();
-    expect(component.goalPanelOpen()).toBeFalse();
   });
 
   it('saves location, activity, preferences, recovery email, exports, and deletion requests', () => {
@@ -595,7 +467,6 @@ describe('SettingsPage', () => {
 
     accountDataService.updateProfile.calls.reset();
     accountDataService.updatePreferences.calls.reset();
-    accountDataService.updateGoal.calls.reset();
     accountDataService.updateRecoveryEmail.calls.reset();
     accountDataService.requestDataExport.calls.reset();
     accountDataService.downloadDataExport.calls.reset();
@@ -605,10 +476,6 @@ describe('SettingsPage', () => {
     component.saveIdentity();
     component.locationForm.patchValue({ locationDisplay: 'x'.repeat(121) });
     component.saveLocation();
-    component.bodyForm.patchValue({ measuredAt: '' });
-    component.saveBody();
-    component.goalForm.patchValue({ targetValue: '-1' });
-    component.saveGoal();
     component.trainingForm.patchValue({ weeklyWorkoutDays: '20' });
     component.savePreferences('training');
     component.recoveryForm.patchValue({ email: 'bad-email', currentPassword: '' });
@@ -618,7 +485,6 @@ describe('SettingsPage', () => {
 
     expect(accountDataService.updateProfile).not.toHaveBeenCalled();
     expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
-    expect(accountDataService.updateGoal).not.toHaveBeenCalled();
     expect(accountDataService.updateRecoveryEmail).not.toHaveBeenCalled();
     expect(accountDataService.requestAccountDeletion).not.toHaveBeenCalled();
 
@@ -644,12 +510,6 @@ describe('SettingsPage', () => {
     component.savePreferences('formatting');
 
     expect(component.sectionErrors().formatting).toBe('preferences failed');
-
-    accountDataService.updateGoal.and.returnValue(throwError(() => new Error('goal failed')));
-    component.goalForm.patchValue({ targetValue: '68' });
-    component.saveGoal();
-
-    expect(component.sectionErrors().goals).toBe('goal failed');
 
     accountDataService.updateRecoveryEmail.and.returnValue(throwError(() => new Error('recovery failed')));
     component.data.set({
@@ -679,42 +539,4 @@ describe('SettingsPage', () => {
     expect(component.saving()).toBeNull();
   });
 
-  it('updates body profile without a metric and keeps the newer latest metric when created metric is older', () => {
-    const component = fixture.componentInstance;
-    const olderCreatedMetric: AccountBodyMetric = {
-      ...createdBodyMetric,
-      metricId: 'metric-old-created',
-      measuredAt: '2026-06-01T00:00:00Z'
-    };
-
-    accountDataService.createBodyMetric.and.returnValue(of(olderCreatedMetric));
-    accountDataService.updateProfile.and.callFake((profile) => of(profile));
-
-    component.bodyForm.patchValue({
-      heightCm: '173',
-      weightKg: '',
-      bodyFatRate: '',
-      waistCm: '',
-      hipCm: '',
-      chestCm: '',
-      armCm: '',
-      thighCm: '',
-      calfCm: ''
-    });
-    component.saveBody();
-
-    expect(accountDataService.createBodyMetric).not.toHaveBeenCalled();
-    expect(component.data()?.user.profile.heightCm).toBe(173);
-    expect(toast.success).toHaveBeenCalledWith('Body profile updated.');
-
-    component.bodyForm.patchValue({
-      weightKg: '71.5',
-      measuredAt: '2026-06-01T08:00',
-      note: ' older '
-    });
-    component.saveBody();
-
-    expect(accountDataService.createBodyMetric).toHaveBeenCalled();
-    expect(component.data()?.user.latestBodyMetrics?.metricId).toBe('metric-1');
-  });
 });

@@ -360,12 +360,16 @@ export interface BodyMetric {
 }
 
 export interface Goal {
+  goalId?: string | null;
   goalType: string;
   targetValue: number;
   targetUnit: string;
   targetDate: string;
   status: string;
   progressRatio: number;
+  onTrack?: boolean | null;
+  currentValue?: number | null;
+  daysRemaining?: number | null;
 }
 
 export const GOAL_TYPES = ['WEIGHT', 'CALORIES', 'PROTEIN', 'CARBS', 'FAT', 'WORKOUT_FREQUENCY'] as const;

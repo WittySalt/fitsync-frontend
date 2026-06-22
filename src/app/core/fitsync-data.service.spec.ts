@@ -3,6 +3,7 @@ import { HttpEventType } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { AnalyticsDashboardResponse } from './analytics.models';
 import { FitSyncDataService, ProgressData } from './fitsync-data.service';
 import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
@@ -49,6 +50,30 @@ const baseOnboarding: OnboardingFormValue = {
   mealReminderEnabled: true
 };
 
+const dashboardAnalytics: AnalyticsDashboardResponse = {
+  generatedAt: '2026-06-22T00:00:00Z',
+  timezone: 'UTC',
+  body: {
+    latestWeightKg: 77,
+    latestBodyFatRate: 18,
+    bmi: 24.3,
+    weightChange30d: -2.4
+  },
+  workout: {
+    todayWorkoutCount: 1,
+    weekWorkoutCount: 7,
+    weekWorkoutMinutes: 300,
+    activeStreakDays: 7
+  },
+  nutrition: {
+    todayCaloriesConsumed: 1850,
+    todayCaloriesTarget: 2200,
+    todayProteinGrams: 120,
+    todayProteinTargetGrams: 150
+  },
+  goals: [{ goalId: 'goal-calories', goalType: 'CALORIES', progressRatio: 0.95, onTrack: true }]
+};
+
 describe('FitSyncDataService', () => {
   let service: FitSyncDataService;
   let httpTesting: HttpTestingController;
@@ -66,58 +91,70 @@ describe('FitSyncDataService', () => {
     httpTesting.verify();
   });
 
-  it('loads progress data from body metrics, trend, and goals endpoints', () => {
+  it('loads progress data from analytics body trends and goal progress endpoints', () => {
     let result: ProgressData | undefined;
-    service.getProgressData({ startDate: '2026-06-01', endDate: '2026-06-18' }).subscribe((data) => {
+    service.getProgressData({ startDate: '2026-06-01', endDate: '2026-06-18' }, 'WEEK').subscribe((data) => {
       result = data;
     });
 
-    const metricsRequest = httpTesting.expectOne(
+    const trendsRequest = httpTesting.expectOne(
       (request) =>
-        request.url === '/api/v1/users/me/body-metrics' &&
-        request.params.get('startDate') === '2026-06-01' &&
-        request.params.get('endDate') === '2026-06-18'
+        request.url === '/api/v1/analytics/body/trends' &&
+        request.params.get('from') === '2026-06-01' &&
+        request.params.get('to') === '2026-06-18' &&
+        request.params.get('bucket') === 'WEEK'
     );
-    metricsRequest.flush({
-      content: [
-        {
-          weightKg: 71.8,
-          bmi: 24.9,
-          bodyFatRate: 20.4,
-          waistCm: 82,
-          measuredAt: '2026-06-17T07:00:00Z'
-        }
-      ]
-    });
-
-    const trendsRequest = httpTesting.expectOne('/api/v1/users/me/body-metrics/trends?startDate=2026-06-01&endDate=2026-06-18');
     trendsRequest.flush({
+      from: '2026-06-01',
+      to: '2026-06-18',
+      bucket: 'WEEK',
       points: [
         {
+          date: '2026-06-01',
           weightKg: 72.6,
           bmi: 25.2,
           bodyFatRate: 21.1,
           waistCm: 83,
-          date: '2026-06-01'
+          weightDeltaFromStart: 0,
+          weightDeltaFromPrevious: 0
+        },
+        {
+          date: '2026-06-17',
+          weightKg: 71.8,
+          bmi: 24.9,
+          bodyFatRate: 20.4,
+          waistCm: 82,
+          weightDeltaFromStart: -0.8,
+          weightDeltaFromPrevious: -0.8
         }
       ]
     });
 
-    const goalsRequest = httpTesting.expectOne('/api/v1/users/me/goals?status=ACTIVE');
-    goalsRequest.flush([
-      {
-        goalType: 'WEIGHT',
-        targetValue: 68,
-        targetUnit: 'kg',
-        targetDate: '2026-09-30',
-        status: 'ACTIVE',
-        progressRatio: 0.55
-      }
-    ]);
+    const goalsRequest = httpTesting.expectOne(
+      (request) => request.url === '/api/v1/analytics/goals/progress' && request.params.get('status') === 'ACTIVE'
+    );
+    goalsRequest.flush({
+      goals: [
+        {
+          goalId: 'goal-weight',
+          goalType: 'WEIGHT',
+          goalStatus: 'ACTIVE',
+          targetValue: 68,
+          targetUnit: 'kg',
+          targetDate: '2026-09-30',
+          currentValue: 71.8,
+          progressRatio: 0.55,
+          daysRemaining: 100,
+          onTrack: true,
+          lastEvaluatedAt: '2026-06-17T07:00:00Z'
+        }
+      ]
+    });
 
     expect(result?.latestBodyMetric?.weightKg).toBe(71.8);
     expect(result?.trendPoints[0].measuredAt).toBe('2026-06-01');
     expect(result?.goals[0].progressRatio).toBe(0.55);
+    expect(result?.goals[0].daysRemaining).toBe(100);
   });
 
   it('loads user goals and ignores goal types outside the frontend lifecycle scope', () => {
@@ -323,88 +360,71 @@ describe('FitSyncDataService', () => {
     expect(seed?.hasExistingNutritionBaseline).toBeTrue();
   });
 
-  it('maps daily nutrition summary micronutrients from dashboard load', () => {
-    let result: number | null | undefined;
-    service.getDashboard().subscribe((value) => {
-      result = value.nutrition.totalFiberGrams;
-      expect(value.nutrition.totalSugarGrams).toBe(42.5);
-      expect(value.nutrition.totalSodiumMg).toBe(1800);
-      expect(value.nutrition.fiberTargetGrams).toBe(25);
-      expect(value.nutrition.sugarLimitGrams).toBe(50);
-      expect(value.nutrition.sodiumLimitMg).toBe(2300);
-      expect(value.nutrition.fiberTargetMet).toBeTrue();
-      expect(value.nutrition.sugarWithinLimit).toBeTrue();
-      expect(value.nutrition.sodiumWithinLimit).toBeTrue();
-    });
-
-    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
-
-    const summaryRequest = httpTesting.expectOne(
-      (req) =>
-        req.urlWithParams.startsWith('/api/v1/nutrition/summary/daily?') &&
-        req.urlWithParams.includes('timezone=Asia/Singapore')
-    );
-    summaryRequest.flush({
-      totalCalories: 1800,
-      targetCalories: 2200,
-      totalProteinGrams: '140.5',
-      targetProteinGrams: '150',
-      totalCarbsGrams: 210,
-      targetCarbsGrams: 240,
-      totalFatGrams: 55,
-      targetFatGrams: 70,
-      mealCount: 3,
-      totalFiberGrams: '27.5',
-      totalSugarGrams: '42.5',
-      totalSodiumMg: '1800',
-      fiberTargetGrams: '25',
-      sugarLimitGrams: '50',
-      sodiumLimitMg: '2300',
-      fiberTargetMet: true,
-      sugarWithinLimit: true,
-      sodiumWithinLimit: true
-    });
-    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
-    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
-
-    expect(result).toBe(27.5);
-  });
-
-  it('preserves null daily nutrition targets instead of mapping them to zero', () => {
+  it('maps dashboard data from the analytics dashboard endpoint', () => {
     let result: unknown;
     service.getDashboard().subscribe((value) => {
-      result = value.nutrition;
+      result = value;
     });
 
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
     httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
-    httpTesting
-      .expectOne(
-        (req) =>
-          req.urlWithParams.startsWith('/api/v1/nutrition/summary/daily?') &&
-          req.urlWithParams.includes('timezone=Asia/Singapore')
-      )
-      .flush({
-        totalCalories: 142,
-        targetCalories: null,
-        totalProteinGrams: '2.8',
-        targetProteinGrams: null,
-        totalCarbsGrams: 20,
-        targetCarbsGrams: null,
-        totalFatGrams: 5,
-        targetFatGrams: null,
-        mealCount: 1
-      });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+    httpTesting.expectNone((req) => req.url.startsWith('/api/v1/nutrition/summary/daily'));
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        nutrition: jasmine.objectContaining({
+          totalCalories: 1850,
+          targetCalories: 2200,
+          totalProteinGrams: 120,
+          targetProteinGrams: 150
+        }),
+        workout: jasmine.objectContaining({
+          activeStreakDays: 7,
+          weekWorkoutMinutes: 300
+        }),
+        latestBodyMetric: jasmine.objectContaining({
+          weightKg: 77,
+          bodyFatRate: 18,
+          bmi: 24.3
+        }),
+        goals: [jasmine.objectContaining({ goalId: 'goal-calories', goalType: 'CALORIES', onTrack: true })]
+      })
+    );
+  });
+
+  it('maps empty analytics dashboard fields to friendly empty dashboard data', () => {
+    let result: unknown;
+    service.getDashboard().subscribe((value) => {
+      result = value;
+    });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush({
+      ...dashboardAnalytics,
+      body: { latestWeightKg: null, latestBodyFatRate: null, bmi: null, weightChange30d: null },
+      nutrition: {
+        todayCaloriesConsumed: null,
+        todayCaloriesTarget: null,
+        todayProteinGrams: null,
+        todayProteinTargetGrams: null
+      },
+      goals: []
+    });
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
     httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
     httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
 
     expect(result).toEqual(
       jasmine.objectContaining({
-        totalCalories: 142,
-        targetCalories: null,
-        totalProteinGrams: 2.8,
-        targetProteinGrams: null,
-        targetCarbsGrams: null,
-        targetFatGrams: null
+        nutrition: jasmine.objectContaining({
+          totalCalories: 0,
+          targetCalories: null,
+          totalProteinGrams: 0,
+          targetProteinGrams: null
+        }),
+        latestBodyMetric: null,
+        goals: []
       })
     );
   });
@@ -801,12 +821,16 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].timesLogged).toBe(9);
   });
 
-  it('fetches today meals within a from/to day window', () => {
+  it('fetches today meals within a from/to day window and optional timezone', () => {
     let result: Meal[] | undefined;
-    service.getTodayMeals().subscribe((value) => (result = value));
+    service.getTodayMeals('Asia/Singapore').subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/nutrition/meals' && req.params.has('from') && req.params.has('to')
+      (req) =>
+        req.url === '/api/v1/nutrition/meals' &&
+        req.params.has('from') &&
+        req.params.has('to') &&
+        req.params.get('timezone') === 'Asia/Singapore'
     );
     request.flush([
       { mealType: 'LUNCH', name: 'Chicken rice', totalCalories: 640, totalProteinGrams: 48, consumedAt: '2026-06-19T04:30:00Z', itemCount: 1 }

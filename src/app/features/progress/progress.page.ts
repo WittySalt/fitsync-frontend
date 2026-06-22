@@ -1,90 +1,75 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import {
-  FitSyncDataService,
-  ProgressBodyMetric,
-  ProgressData,
-  ProgressMetricKey
-} from '../../core/fitsync-data.service';
+  AccountCenterData,
+  AccountDataService,
+  GoalStatus,
+  GoalType,
+  UpsertUserGoalRequest,
+  UserGoal
+} from '../../core/account-data.service';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal } from '../../core/fitsync.models';
-import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
+import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { ActivityHeatmapComponent } from './activity-heatmap.component';
+import { AnalyticsComparisonCardComponent } from './analytics-comparison-card.component';
+import { AnalyticsTrendChartsComponent } from './analytics-trend-charts.component';
 
-interface MetricOption {
-  key: ProgressMetricKey;
+interface GoalOption {
+  value: string;
   label: string;
-  unit: string;
-  colorToken: string;
-}
-
-interface RangePreset {
-  label: string;
-  days: number;
 }
 
 @Component({
   selector: 'app-progress-page',
-  imports: [FsChartComponent, RouterLink, StatePanelComponent],
+  imports: [
+    ActivityHeatmapComponent,
+    AnalyticsComparisonCardComponent,
+    AnalyticsTrendChartsComponent,
+    ReactiveFormsModule,
+    StatePanelComponent
+  ],
   templateUrl: './progress.page.html',
   styleUrl: './progress.page.scss'
 })
 export class ProgressPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly accountDataService = inject(AccountDataService);
+  private readonly fb = inject(NonNullableFormBuilder);
+  private readonly toast = inject(ToastService);
 
-  readonly metricOptions: MetricOption[] = [
-    { key: 'weightKg', label: 'Weight', unit: 'kg', colorToken: '--accent' },
-    { key: 'bmi', label: 'BMI', unit: '', colorToken: '--blue-500' },
-    { key: 'bodyFatRate', label: 'Body fat', unit: '%', colorToken: '--danger' },
-    { key: 'waistCm', label: 'Waist', unit: 'cm', colorToken: '--text-primary' }
-  ];
-
-  readonly rangePresets: RangePreset[] = [
-    { label: '30D', days: 30 },
-    { label: '90D', days: 90 },
-    { label: '1Y', days: 365 }
-  ];
-
-  readonly data = signal<ProgressData | null>(null);
+  readonly accountData = signal<AccountCenterData | null>(null);
+  readonly goals = signal<Goal[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  readonly selectedMetric = signal<ProgressMetricKey>('weightKg');
-  readonly startDate = signal(this.isoDaysAgo(90));
-  readonly endDate = signal(this.isoToday());
-
-  readonly selectedMetricOption = computed(() => this.metricOptions.find((option) => option.key === this.selectedMetric())!);
-
-  readonly trendRows = computed(() =>
-    (this.data()?.trendPoints ?? [])
-      .filter((point) => point.measuredAt && this.metricValue(point, this.selectedMetric()) != null)
-      .sort((a, b) => String(a.measuredAt).localeCompare(String(b.measuredAt)))
-  );
-
-  readonly chartLabels = computed(() => this.trendRows().map((point) => this.shortDate(point.measuredAt)));
-
-  readonly chartSeries = computed<FsChartSeries[]>(() => [
-    {
-      label: this.selectedMetricOption().label,
-      values: this.trendRows().map((point) => this.metricValue(point, this.selectedMetric()) ?? 0),
-      colorToken: this.selectedMetricOption().colorToken
-    }
+  readonly savingGoal = signal(false);
+  readonly goalSaveError = signal<string | null>(null);
+  readonly editingGoalType = signal<GoalType | null>(null);
+  readonly hasGoals = computed(() => this.goals().length > 0);
+  readonly goalTypeOptions = this.options([
+    ['WEIGHT', 'Weight'],
+    ['CALORIES', 'Calories'],
+    ['PROTEIN', 'Protein'],
+    ['CARBS', 'Carbs'],
+    ['FAT', 'Fat'],
+    ['WORKOUT_FREQUENCY', 'Workout frequency'],
+    ['STEPS', 'Steps']
   ]);
-
-  readonly chartTitle = computed(() => `${this.selectedMetricOption().label} trend`);
-
-  readonly hasProgressData = computed(() => Boolean(this.data()?.bodyMetrics.length || this.data()?.trendPoints.length));
-
-  readonly latestMetric = computed(() => this.data()?.latestBodyMetric ?? null);
-
-  readonly weightChange = computed(() => {
-    const rows = this.trendRows();
-    if (rows.length < 2) {
-      return null;
-    }
-
-    const first = this.metricValue(rows[0], this.selectedMetric());
-    const last = this.metricValue(rows[rows.length - 1], this.selectedMetric());
-    return first == null || last == null ? null : last - first;
+  readonly goalStatusOptions = this.options([
+    ['ACTIVE', 'Active'],
+    ['PAUSED', 'Paused'],
+    ['COMPLETED', 'Completed'],
+    ['CANCELLED', 'Cancelled']
+  ]);
+  readonly goalForm = this.fb.group({
+    goalType: ['WEIGHT'],
+    targetValue: ['', [Validators.min(0)]],
+    targetUnit: ['', [Validators.maxLength(20)]],
+    targetDate: [''],
+    status: ['ACTIVE'],
+    notes: ['', [Validators.maxLength(300)]]
   });
 
   ngOnInit(): void {
@@ -94,67 +79,112 @@ export class ProgressPage implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-
-    this.dataService
-      .getProgressData({
-        startDate: this.startDate(),
-        endDate: this.endDate()
-      })
-      .subscribe({
-        next: (data) => {
-          this.data.set(data);
-          this.loading.set(false);
-        },
-        error: (error: Error) => {
-          this.error.set(error.message);
-          this.loading.set(false);
-        }
-      });
+    this.loadAccountData();
+    this.loadProgressGoals();
   }
 
-  selectMetric(metric: ProgressMetricKey): void {
-    this.selectedMetric.set(metric);
+  loadProgressGoals(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.dataService.getProgressGoals().subscribe({
+      next: (goals) => {
+        this.goals.set(goals);
+        this.loading.set(false);
+      },
+      error: (error: Error) => {
+        this.error.set(error.message);
+        this.loading.set(false);
+      }
+    });
   }
 
-  setPreset(days: number): void {
-    this.startDate.set(this.isoDaysAgo(days));
-    this.endDate.set(this.isoToday());
-    this.load();
+  private loadAccountData(): void {
+    this.accountDataService.getAccountCenter().subscribe({
+      next: (accountData) => {
+        this.accountData.set(accountData);
+      },
+      error: (error: Error) => {
+        this.goalSaveError.set(error.message);
+      }
+    });
   }
 
-  updateStartDate(event: Event): void {
-    this.startDate.set((event.target as HTMLInputElement).value);
+  activeGoal(goalType: string): UserGoal | undefined {
+    return this.accountData()?.user.activeGoals.find((goal) => goal.goalType === goalType);
   }
 
-  updateEndDate(event: Event): void {
-    this.endDate.set((event.target as HTMLInputElement).value);
+  startGoalCreate(): void {
+    this.startGoalEdit('WEIGHT');
   }
 
-  formattedMetric(metric: ProgressBodyMetric | null, key: ProgressMetricKey): string {
-    if (!metric) {
-      return 'Not recorded';
+  startGoalEdit(goalType: string): void {
+    const typedGoalType = goalType as GoalType;
+    const goal = this.activeGoal(typedGoalType);
+    this.goalForm.patchValue({
+      goalType: typedGoalType,
+      targetValue: toFormNumber(goal?.targetValue),
+      targetUnit: goal?.targetUnit ?? this.defaultGoalUnit(typedGoalType),
+      targetDate: goal?.targetDate ?? '',
+      status: goal?.status ?? 'ACTIVE',
+      notes: goal?.notes ?? ''
+    });
+    this.goalSaveError.set(null);
+    this.editingGoalType.set(typedGoalType);
+  }
+
+  cancelGoalEdit(): void {
+    this.goalForm.reset({
+      goalType: 'WEIGHT',
+      targetValue: '',
+      targetUnit: this.defaultGoalUnit('WEIGHT'),
+      targetDate: '',
+      status: 'ACTIVE',
+      notes: ''
+    });
+    this.goalSaveError.set(null);
+    this.editingGoalType.set(null);
+  }
+
+  saveGoal(): void {
+    if (this.goalForm.invalid) {
+      this.goalForm.markAllAsTouched();
+      return;
     }
 
-    const value = this.metricValue(metric, key);
-    if (value == null) {
-      return 'Not recorded';
-    }
+    const value = this.goalForm.getRawValue();
+    const goalType = value.goalType as GoalType;
+    const request: UpsertUserGoalRequest = {
+      targetValue: toNullableNumber(value.targetValue),
+      targetUnit: nullableText(value.targetUnit),
+      targetDate: nullableText(value.targetDate),
+      status: value.status as GoalStatus,
+      notes: nullableText(value.notes)
+    };
 
-    const option = this.metricOptions.find((item) => item.key === key)!;
-    const unit = option.unit ? ` ${option.unit}` : '';
-    return `${this.formatNumber(value)}${unit}`;
-  }
-
-  formattedChange(): string {
-    const value = this.weightChange();
-    if (value == null) {
-      return 'Need 2 entries';
-    }
-
-    const option = this.selectedMetricOption();
-    const sign = value > 0 ? '+' : '';
-    const unit = option.unit ? ` ${option.unit}` : '';
-    return `${sign}${this.formatNumber(value)}${unit}`;
+    this.savingGoal.set(true);
+    this.goalSaveError.set(null);
+    this.accountDataService.updateGoal(goalType, request).subscribe({
+      next: (goal) => {
+        this.accountData.update((data) => {
+          if (!data) {
+            return data;
+          }
+          const activeGoals = [...data.user.activeGoals.filter((current) => current.goalType !== goal.goalType), goal]
+            .sort((left, right) => left.goalType.localeCompare(right.goalType));
+          return { ...data, user: { ...data.user, activeGoals } };
+        });
+        this.savingGoal.set(false);
+        this.editingGoalType.set(null);
+        this.toast.success('Goal updated.');
+        this.refreshAfterGoalSave();
+      },
+      error: (error: Error) => {
+        const message = error.message || 'Unable to save goal.';
+        this.savingGoal.set(false);
+        this.goalSaveError.set(message);
+        this.toast.error(message);
+      }
+    });
   }
 
   goalProgress(goal: Goal): number {
@@ -169,19 +199,14 @@ export class ProgressPage implements OnInit {
       .join(' ');
   }
 
-  metricValue(metric: ProgressBodyMetric, key: ProgressMetricKey): number | null {
-    return metric[key];
+  goalStatus(goal: Goal): string {
+    const status = goal.onTrack === false ? 'Needs attention' : 'On track';
+    return goal.daysRemaining == null ? status : `${status} - ${goal.daysRemaining} days left`;
   }
 
-  shortDate(value: string | null): string {
-    if (!value) {
-      return 'Unknown';
-    }
-
-    return new Intl.DateTimeFormat('en-SG', {
-      month: 'short',
-      day: 'numeric'
-    }).format(new Date(value));
+  formatGoalValue(goal: Goal): string {
+    const suffix = goal.targetUnit ? ` ${goal.targetUnit}` : '';
+    return `${this.formatNumber(goal.targetValue)}${suffix}`;
   }
 
   private formatNumber(value: number): string {
@@ -190,13 +215,38 @@ export class ProgressPage implements OnInit {
     }).format(value);
   }
 
-  private isoToday(): string {
-    return new Date().toISOString().slice(0, 10);
+  private refreshAfterGoalSave(): void {
+    this.loadAccountData();
+    this.loadProgressGoals();
   }
 
-  private isoDaysAgo(days: number): string {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return date.toISOString().slice(0, 10);
+  private defaultGoalUnit(goalType: GoalType): string {
+    const units: Record<GoalType, string> = {
+      WEIGHT: this.accountData()?.user.preferences.app.preferredUnits === '100002' ? 'lb' : 'kg',
+      CALORIES: 'kcal',
+      PROTEIN: 'g',
+      CARBS: 'g',
+      FAT: 'g',
+      WORKOUT_FREQUENCY: 'sessions/week',
+      STEPS: 'steps'
+    };
+    return units[goalType];
   }
+
+  private options(entries: string[][]): GoalOption[] {
+    return entries.map(([value, label]) => ({ value, label }));
+  }
+}
+
+function nullableText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function toNullableNumber(value: string): number | null {
+  return value === '' ? null : Number(value);
+}
+
+function toFormNumber(value: number | null | undefined): string {
+  return value === null || value === undefined ? '' : String(value);
 }

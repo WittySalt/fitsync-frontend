@@ -30,7 +30,7 @@
       <div class="quick-actions" aria-label="Quick actions">
         <a routerLink="/nutrition" class="button nutrition">Log Meal</a>
         <a routerLink="/workout" class="button workout">Start Workout</a>
-        <a routerLink="/progress" class="button secondary">Record Weight</a>
+        <a routerLink="/body" class="button secondary">Record Weight</a>
       </div>
     </section>
 
@@ -39,8 +39,13 @@
         <app-progress-ring label="Calories" [value]="caloriePercent()" />
         <div>
           <span>Calories</span>
-          <strong>{{ dashboard.nutrition.totalCalories }} / {{ dashboard.nutrition.targetCalories }}</strong>
-          <small>{{ dashboard.nutrition.mealCount }} meals logged</small>
+          @if (hasCalorieData()) {
+            <strong>{{ dashboard.nutrition.totalCalories }} / {{ dashboard.nutrition.targetCalories ?? 'No target' }}</strong>
+            <small>{{ dashboard.nutrition.totalCalories > 0 ? 'Logged today' : 'No calories logged yet' }}</small>
+          } @else {
+            <strong>No nutrition yet</strong>
+            <small>Log your first meal to start today's summary</small>
+          }
         </div>
       </article>
 
@@ -48,8 +53,22 @@
         <app-progress-ring label="Protein" [value]="proteinPercent()" />
         <div>
           <span>Protein</span>
-          <strong>{{ dashboard.nutrition.totalProteinGrams }}g / {{ dashboard.nutrition.targetProteinGrams }}g</strong>
-          <small>Daily target progress</small>
+          @if (hasProteinData()) {
+            <strong>{{ dashboard.nutrition.totalProteinGrams }}g / {{ dashboard.nutrition.targetProteinGrams !== null ? dashboard.nutrition.targetProteinGrams + 'g' : 'No target' }}</strong>
+            <small>{{ dashboard.nutrition.totalProteinGrams > 0 ? 'Daily target progress' : 'No protein logged yet' }}</small>
+          } @else {
+            <strong>No protein yet</strong>
+            <small>Protein appears after meals are logged</small>
+          }
+        </div>
+      </article>
+
+      <article class="metric-card streak">
+        <span class="metric-icon">ST</span>
+        <div>
+          <span>Active streak</span>
+          <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
+          <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts - {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min this week</small>
         </div>
       </article>
 
@@ -58,7 +77,11 @@
         <div>
           <span>Latest body metric</span>
           @if (dashboard.latestBodyMetric) {
-            <strong>{{ dashboard.latestBodyMetric.weightKg }} kg · BMI {{ dashboard.latestBodyMetric.bmi }}</strong>
+            <strong>
+              {{ dashboard.latestBodyMetric.weightKg ? dashboard.latestBodyMetric.weightKg + ' kg' : 'Weight not recorded' }}
+              -
+              {{ dashboard.latestBodyMetric.bmi ? 'BMI ' + dashboard.latestBodyMetric.bmi : 'BMI not available' }}
+            </strong>
             <small>{{ dashboard.latestBodyMetric.measuredAt }}</small>
           } @else {
             <strong>No metric yet</strong>
@@ -125,10 +148,10 @@
             <div class="goal-row">
               <div>
                 <strong>{{ goal.goalType.replace('_', ' ') }}</strong>
-                <span>{{ goal.targetValue }} {{ goal.targetUnit }} by {{ goal.targetDate }}</span>
+                <span>{{ goal.onTrack === false ? 'Needs attention' : 'On track' }} - {{ goalProgress(goal.progressRatio) }}% complete</span>
               </div>
               <div class="progress-track" aria-hidden="true">
-                <span [style.width.%]="goal.progressRatio * 100"></span>
+                <span [style.width.%]="goalProgress(goal.progressRatio)"></span>
               </div>
             </div>
           }

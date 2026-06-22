@@ -1,22 +1,15 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
 import { ToastService } from '../../core/toast/toast.service';
 
 import {
-  AccountBodyMetric,
   AccountCenterData,
   AccountDataService,
   AccountPreferences,
   AccountProfile,
-  CreateBodyMetricRequest,
-  GoalStatus,
-  GoalType,
-  MetricSource,
-  UpsertUserGoalRequest,
-  UserGoal,
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -26,9 +19,7 @@ import { AccountSecurityActionsComponent } from './account-security-actions.comp
 type EditablePanel =
   | 'identity'
   | 'location'
-  | 'body'
   | 'activity'
-  | 'goals'
   | 'formatting'
   | 'training'
   | 'nutrition'
@@ -70,13 +61,9 @@ export class SettingsPage implements OnInit {
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
   readonly selectedSection = signal('personal');
-  readonly goalPanelOpen = signal(false);
-  readonly bodyMetricHistory = signal<AccountBodyMetric[]>([]);
-  readonly bodyMetricHistoryLoading = signal(false);
-  readonly bodyMetricHistoryError = signal<string | null>(null);
 
   readonly sections: SectionNavItem[] = [
-    { id: 'personal', label: 'Personal', description: 'Identity, location, body metrics, activity, and targets.' },
+    { id: 'personal', label: 'Personal', description: 'Identity, location, activity, and targets.' },
     { id: 'appearance', label: 'Appearance', description: 'Theme mode and display preferences.' },
     { id: 'preferences', label: 'Preferences', description: 'Formatting, training defaults, and nutrition tracking.' },
     { id: 'security', label: 'Security', description: 'Password state, recovery email, and active sessions.' },
@@ -155,27 +142,6 @@ export class SettingsPage implements OnInit {
     ['EMAIL', 'Email'],
     ['PUSH', 'Push']
   ]);
-  readonly metricSourceOptions = this.options([
-    ['MANUAL', 'Manual'],
-    ['DEVICE', 'Device'],
-    ['IMPORTED', 'Imported']
-  ]);
-  readonly goalTypeOptions = this.options([
-    ['WEIGHT', 'Weight'],
-    ['CALORIES', 'Calories'],
-    ['PROTEIN', 'Protein'],
-    ['CARBS', 'Carbs'],
-    ['FAT', 'Fat'],
-    ['WORKOUT_FREQUENCY', 'Workout frequency'],
-    ['STEPS', 'Steps']
-  ]);
-  readonly goalStatusOptions = this.options([
-    ['ACTIVE', 'Active'],
-    ['PAUSED', 'Paused'],
-    ['COMPLETED', 'Completed'],
-    ['CANCELLED', 'Cancelled']
-  ]);
-
   readonly identityForm = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     firstName: ['', [Validators.maxLength(80)]],
@@ -192,32 +158,8 @@ export class SettingsPage implements OnInit {
     appTimezone: ['', [Validators.maxLength(80)]]
   });
 
-  readonly bodyForm = this.fb.group({
-    heightCm: ['', [Validators.min(80), Validators.max(300)]],
-    weightKg: ['', [Validators.min(1), Validators.max(500)]],
-    bodyFatRate: ['', [Validators.min(0), Validators.max(100)]],
-    waistCm: ['', [Validators.min(1), Validators.max(500)]],
-    hipCm: ['', [Validators.min(1), Validators.max(500)]],
-    chestCm: ['', [Validators.min(1), Validators.max(500)]],
-    armCm: ['', [Validators.min(1), Validators.max(500)]],
-    thighCm: ['', [Validators.min(1), Validators.max(500)]],
-    calfCm: ['', [Validators.min(1), Validators.max(500)]],
-    measuredAt: ['', [Validators.required]],
-    source: ['MANUAL'],
-    note: ['', [Validators.maxLength(200)]]
-  });
-
   readonly activityForm = this.fb.group({
     activityLevel: ['']
-  });
-
-  readonly goalForm = this.fb.group({
-    goalType: ['WEIGHT'],
-    targetValue: ['', [Validators.min(0)]],
-    targetUnit: ['', [Validators.maxLength(20)]],
-    targetDate: [''],
-    status: ['ACTIVE'],
-    notes: ['', [Validators.maxLength(300)]]
   });
 
   readonly formattingForm = this.fb.group({
@@ -282,7 +224,6 @@ export class SettingsPage implements OnInit {
       next: (data) => {
         this.setData(data);
         this.loading.set(false);
-        this.loadBodyMetricHistory();
       },
       error: (error: Error) => {
         this.error.set(error.message || 'Unable to load account settings.');
@@ -306,21 +247,6 @@ export class SettingsPage implements OnInit {
   region(): string {
     const profile = this.data()?.user.profile;
     return profile?.locationDisplay || profile?.timezone || 'Not set';
-  }
-
-  displayMetric(value: number | null | undefined, unit: string): string {
-    if (value === null || value === undefined) {
-      return 'Not set';
-    }
-    return `${value} ${unit}`;
-  }
-
-  displayWeight(metric: AccountBodyMetric | null | undefined): string {
-    if (!metric?.weightKg) {
-      return 'Not set';
-    }
-    const imperial = this.data()?.user.preferences.app.preferredUnits === '100002';
-    return imperial ? `${round(metric.weightKg * 2.20462, 1)} lb` : `${metric.weightKg} kg`;
   }
 
   displayHeight(heightCm: number | null | undefined): string {
@@ -356,27 +282,6 @@ export class SettingsPage implements OnInit {
     return this.toTimeInput(value) || 'Not set';
   }
 
-  bodyMetricSummary(): string {
-    const profile = this.data()?.user.profile;
-    const metric = this.data()?.user.latestBodyMetrics;
-    const bmi = metric?.bmi ? `BMI ${metric.bmi}` : 'BMI unavailable';
-    return `${this.displayHeight(profile?.heightCm)} / ${this.displayWeight(metric)} / ${bmi}`;
-  }
-
-  bodyMetricDetailSummary(metric: AccountBodyMetric): string {
-    const measurements = [
-      metric.bodyFatRate === null || metric.bodyFatRate === undefined ? null : `Body fat ${metric.bodyFatRate}%`,
-      metric.waistCm === null || metric.waistCm === undefined ? null : `Waist ${metric.waistCm} cm`,
-      metric.hipCm === null || metric.hipCm === undefined ? null : `Hip ${metric.hipCm} cm`,
-      metric.chestCm === null || metric.chestCm === undefined ? null : `Chest ${metric.chestCm} cm`,
-      metric.armCm === null || metric.armCm === undefined ? null : `Arm ${metric.armCm} cm`,
-      metric.thighCm === null || metric.thighCm === undefined ? null : `Thigh ${metric.thighCm} cm`,
-      metric.calfCm === null || metric.calfCm === undefined ? null : `Calf ${metric.calfCm} cm`
-    ].filter((entry): entry is string => Boolean(entry));
-
-    return measurements.length ? measurements.join(' / ') : 'No additional measurements';
-  }
-
   trainingDefaults(): string {
     const training = this.data()?.user.preferences.training;
     if (!training) {
@@ -407,24 +312,6 @@ export class SettingsPage implements OnInit {
       return 'Not set';
     }
     return `${this.displayTime(notifications.quietHoursStart)} / ${this.displayTime(notifications.quietHoursEnd)}`;
-  }
-
-  activeGoal(goalType: string): UserGoal | undefined {
-    return this.data()?.user.activeGoals.find((goal) => goal.goalType === goalType);
-  }
-
-  goalSummary(goalType: string): string {
-    const goal = this.activeGoal(goalType);
-    if (!goal) {
-      return 'Not set';
-    }
-    let target = 'Target not set';
-    if (goal.targetValue !== null && goal.targetValue !== undefined) {
-      const unit = goal.targetUnit ? ` ${goal.targetUnit}` : '';
-      target = `${goal.targetValue}${unit}`;
-    }
-    const dueDate = goal.targetDate ? ` by ${this.displayDate(goal.targetDate)}` : '';
-    return `${target} - ${this.labelFor(goal.status)}${dueDate}`;
   }
 
   labelFor(value: string | null | undefined): string {
@@ -474,9 +361,6 @@ export class SettingsPage implements OnInit {
     this.editPanel.set(panel);
     this.saveMessage.set(null);
     this.clearSectionError(panel);
-    if (panel === 'goals' && !this.goalPanelOpen()) {
-      this.startGoalEdit('WEIGHT');
-    }
   }
 
   cancelEdit(): void {
@@ -485,22 +369,6 @@ export class SettingsPage implements OnInit {
       this.patchForms(data);
     }
     this.editPanel.set(null);
-    this.goalPanelOpen.set(false);
-  }
-
-  startGoalEdit(goalType: string): void {
-    const typedGoalType = goalType as GoalType;
-    const goal = this.activeGoal(typedGoalType);
-    this.goalForm.patchValue({
-      goalType: typedGoalType,
-      targetValue: toFormNumber(goal?.targetValue),
-      targetUnit: goal?.targetUnit ?? this.defaultGoalUnit(typedGoalType),
-      targetDate: goal?.targetDate ?? '',
-      status: goal?.status ?? 'ACTIVE',
-      notes: goal?.notes ?? ''
-    });
-    this.goalPanelOpen.set(true);
-    this.startEdit('goals');
   }
 
   saveIdentity(): void {
@@ -557,44 +425,6 @@ export class SettingsPage implements OnInit {
     });
   }
 
-  saveBody(): void {
-    const data = this.data();
-    if (!data || this.bodyForm.invalid) {
-      this.bodyForm.markAllAsTouched();
-      return;
-    }
-
-    const profile = {
-      ...data.user.profile,
-      heightCm: toNullableNumber(this.bodyForm.controls.heightCm.value)
-    };
-    const metricRequest = this.bodyMetricRequest();
-    const metric$ = metricRequest ? this.accountDataService.createBodyMetric(metricRequest) : of(null);
-
-    this.saving.set('body');
-    forkJoin({
-      profile: this.accountDataService.updateProfile(profile),
-      metric: metric$
-    }).subscribe({
-      next: ({ profile: updatedProfile, metric }) => {
-        this.setData({
-          ...data,
-          user: {
-            ...data.user,
-            profile: updatedProfile,
-            latestBodyMetrics: this.latestMetricAfterCreate(data.user.latestBodyMetrics, metric)
-          }
-        });
-        if (metric) {
-          this.bodyMetricHistory.set(this.sortedBodyMetrics([metric, ...this.bodyMetricHistory()]));
-          this.loadBodyMetricHistory();
-        }
-        this.finishSave('body', metric ? 'Measurement recorded.' : 'Body profile updated.');
-      },
-      error: (error: Error) => this.handleSaveError('body', error)
-    });
-  }
-
   saveActivity(): void {
     const data = this.data();
     if (!data) {
@@ -603,36 +433,6 @@ export class SettingsPage implements OnInit {
     this.saveProfilePanel('activity', data, {
       ...data.user.profile,
       activityLevel: nullableText(this.activityForm.controls.activityLevel.value) as AccountProfile['activityLevel']
-    });
-  }
-
-  saveGoal(): void {
-    const data = this.data();
-    if (!data || this.goalForm.invalid) {
-      this.goalForm.markAllAsTouched();
-      return;
-    }
-
-    const value = this.goalForm.getRawValue();
-    const request: UpsertUserGoalRequest = {
-      targetValue: toNullableNumber(value.targetValue),
-      targetUnit: nullableText(value.targetUnit),
-      targetDate: nullableText(value.targetDate),
-      status: value.status as GoalStatus,
-      notes: nullableText(value.notes)
-    };
-    const goalType = value.goalType as GoalType;
-
-    this.saving.set('goals');
-    this.accountDataService.updateGoal(goalType, request).subscribe({
-      next: (goal) => {
-        const goals = [...data.user.activeGoals.filter((current) => current.goalType !== goal.goalType), goal]
-          .sort((left, right) => left.goalType.localeCompare(right.goalType));
-        this.setData({ ...data, user: { ...data.user, activeGoals: goals } });
-        this.finishSave('goals', 'Goal updated.');
-        this.goalPanelOpen.set(false);
-      },
-      error: (error: Error) => this.handleSaveError('goals', error)
     });
   }
 
@@ -744,21 +544,6 @@ export class SettingsPage implements OnInit {
     this.themeService.setTheme(preference);
   }
 
-  loadBodyMetricHistory(): void {
-    this.bodyMetricHistoryLoading.set(true);
-    this.bodyMetricHistoryError.set(null);
-    this.accountDataService.listBodyMetrics({ limit: 50 }).subscribe({
-      next: (metrics) => {
-        this.bodyMetricHistory.set(this.sortedBodyMetrics(metrics));
-        this.bodyMetricHistoryLoading.set(false);
-      },
-      error: (error: Error) => {
-        this.bodyMetricHistoryError.set(error.message || 'Unable to load measurement history.');
-        this.bodyMetricHistoryLoading.set(false);
-      }
-    });
-  }
-
   @HostListener('document:click', ['$event'])
   protected closeMenusFromDocument(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
@@ -789,20 +574,6 @@ export class SettingsPage implements OnInit {
       locationDisplay: profile.locationDisplay ?? '',
       profileTimezone: profile.timezone ?? '',
       appTimezone: preferences.app.timezone ?? ''
-    });
-    this.bodyForm.patchValue({
-      heightCm: toFormNumber(profile.heightCm),
-      weightKg: '',
-      bodyFatRate: '',
-      waistCm: '',
-      hipCm: '',
-      chestCm: '',
-      armCm: '',
-      thighCm: '',
-      calfCm: '',
-      measuredAt: toDateTimeInput(null),
-      source: 'MANUAL',
-      note: ''
     });
     this.activityForm.patchValue({ activityLevel: profile.activityLevel ?? '' });
     this.formattingForm.patchValue({
@@ -913,37 +684,6 @@ export class SettingsPage implements OnInit {
     };
   }
 
-  private bodyMetricRequest(): CreateBodyMetricRequest | null {
-    const value = this.bodyForm.getRawValue();
-    const measurementValues = [
-      value.weightKg,
-      value.bodyFatRate,
-      value.waistCm,
-      value.hipCm,
-      value.chestCm,
-      value.armCm,
-      value.thighCm,
-      value.calfCm
-    ];
-    if (!measurementValues.some((entry) => entry !== '')) {
-      return null;
-    }
-
-    return {
-      weightKg: toNullableNumber(value.weightKg),
-      bodyFatRate: toNullableNumber(value.bodyFatRate),
-      waistCm: toNullableNumber(value.waistCm),
-      hipCm: toNullableNumber(value.hipCm),
-      chestCm: toNullableNumber(value.chestCm),
-      armCm: toNullableNumber(value.armCm),
-      thighCm: toNullableNumber(value.thighCm),
-      calfCm: toNullableNumber(value.calfCm),
-      measuredAt: toBackendInstant(value.measuredAt),
-      source: value.source as MetricSource,
-      note: nullableText(value.note)
-    };
-  }
-
   private formForPanel(panel: 'formatting' | 'training' | 'nutrition' | 'notifications' | 'privacy') {
     const forms = {
       formatting: this.formattingForm,
@@ -981,45 +721,12 @@ export class SettingsPage implements OnInit {
     });
   }
 
-  private latestMetricAfterCreate(current: AccountBodyMetric | null, created: AccountBodyMetric | null): AccountBodyMetric | null {
-    if (!created) {
-      return current;
-    }
-    if (!current?.measuredAt || !created.measuredAt) {
-      return created;
-    }
-    return Date.parse(created.measuredAt) >= Date.parse(current.measuredAt) ? created : current;
-  }
-
-  private sortedBodyMetrics(metrics: AccountBodyMetric[]): AccountBodyMetric[] {
-    const unique = new Map<string, AccountBodyMetric>();
-    metrics.forEach((metric, index) => {
-      unique.set(metric.metricId ?? `metric-${index}-${metric.measuredAt ?? ''}`, metric);
-    });
-    return [...unique.values()].sort((left, right) =>
-      Date.parse(right.measuredAt ?? '') - Date.parse(left.measuredAt ?? '')
-    );
-  }
-
   private toTimeInput(value: string | null | undefined): string {
     return value ? value.slice(0, 5) : '';
   }
 
   private toBackendTime(value: string): string | null {
     return value ? `${value}:00` : null;
-  }
-
-  private defaultGoalUnit(goalType: GoalType): string {
-    const units: Record<GoalType, string> = {
-      WEIGHT: this.data()?.user.preferences.app.preferredUnits === '100002' ? 'lb' : 'kg',
-      CALORIES: 'kcal',
-      PROTEIN: 'g',
-      CARBS: 'g',
-      FAT: 'g',
-      WORKOUT_FREQUENCY: 'sessions/week',
-      STEPS: 'steps'
-    };
-    return units[goalType];
   }
 
   private options(entries: string[][]): Option[] {
@@ -1038,26 +745,4 @@ function toNullableNumber(value: string): number | null {
 
 function toFormNumber(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
-}
-
-function toDateTimeInput(value: string | null | undefined): string {
-  if (!value) {
-    return localDateTimeInput(new Date());
-  }
-  const date = new Date(value);
-  return localDateTimeInput(date);
-}
-
-function localDateTimeInput(date: Date): string {
-  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 16);
-}
-
-function toBackendInstant(value: string): string {
-  return new Date(value).toISOString();
-}
-
-function round(value: number, digits: number): number {
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
 }

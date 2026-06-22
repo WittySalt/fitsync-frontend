@@ -33,6 +33,16 @@ export class DashboardPage implements OnInit {
     return nutrition?.targetProteinGrams ? (nutrition.totalProteinGrams / nutrition.targetProteinGrams) * 100 : 0;
   });
 
+  readonly hasCalorieData = computed(() => {
+    const nutrition = this.data()?.nutrition;
+    return Boolean(nutrition && (nutrition.totalCalories > 0 || nutrition.targetCalories != null));
+  });
+
+  readonly hasProteinData = computed(() => {
+    const nutrition = this.data()?.nutrition;
+    return Boolean(nutrition && (nutrition.totalProteinGrams > 0 || nutrition.targetProteinGrams != null));
+  });
+
   ngOnInit(): void {
     this.load();
   }
@@ -51,5 +61,9 @@ export class DashboardPage implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  goalProgress(progressRatio: number): number {
+    return Math.round(Math.min(Math.max(progressRatio, 0), 1) * 100);
   }
 }

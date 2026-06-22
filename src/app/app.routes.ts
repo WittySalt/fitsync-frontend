@@ -41,6 +41,12 @@ export const routes: Routes = [
     title: 'FitSync Progress'
   },
   {
+    path: 'body',
+    loadComponent: () => import('./features/body/body.page').then((module) => module.BodyPage),
+    canActivate: [authGuard],
+    title: 'FitSync Body Metrics'
+  },
+  {
     path: 'me',
     loadComponent: () => import('./features/profile/profile.page').then((module) => module.ProfilePage),
     canActivate: [authGuard],
