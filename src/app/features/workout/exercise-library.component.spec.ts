@@ -879,7 +879,7 @@ describe('ExerciseLibraryComponent', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
 
-    fixture.componentInstance.createForm.controls.name.setValue('Single arm row');
+    fixture.componentInstance.createForm.controls.name.setValue('  Single-arm row!!  ');
     tick(120);
 
     expect(fixture.componentInstance.createForm.controls.code.value).toBe('CUSTOM_SINGLE_ARM_ROW');

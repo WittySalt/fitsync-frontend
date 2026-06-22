@@ -558,7 +558,9 @@ export class ExerciseLibraryComponent implements OnInit {
     const slug = name
       .trim()
       .replace(/[^a-zA-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
+      .split('_')
+      .filter((segment) => segment.length > 0)
+      .join('_')
       .toUpperCase();
     this.createForm.controls.code.setValue(slug ? `CUSTOM_${slug}` : '', { emitEvent: false });
   }

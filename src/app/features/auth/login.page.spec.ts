@@ -53,6 +53,19 @@ describe('LoginPage', () => {
     expect(component.healthFacts).toContain(component.currentFact());
   });
 
+  it('uses Web Crypto to choose the selected fact', () => {
+    const component = fixture.componentInstance;
+    spyOn(crypto, 'getRandomValues').and.callFake((array) => {
+      (array as Uint32Array)[0] = 2;
+      return array;
+    });
+
+    (component as unknown as { pickFact: () => void }).pickFact();
+
+    expect(crypto.getRandomValues).toHaveBeenCalled();
+    expect(component.currentFact()).toBe(component.healthFacts[2]);
+  });
+
   it('switches to the create account mode without losing the auth shell', () => {
     const component = fixture.componentInstance;
 
