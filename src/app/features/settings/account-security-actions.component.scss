@@ -1,3 +1,7 @@
+:host {
+  display: block;
+}
+
 .account-security-actions {
   display: grid;
   gap: var(--space-5);
@@ -18,7 +22,7 @@
   padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  background: var(--surface-sunken);
 }
 
 .security-form h4 {
@@ -66,7 +70,7 @@
   padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  background: var(--surface-sunken);
 }
 
 .security-action-list strong {

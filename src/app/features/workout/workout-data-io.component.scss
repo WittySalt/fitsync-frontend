@@ -30,7 +30,7 @@
 
 .io-panel h3 {
   color: var(--text-primary);
-  font-size: var(--font-size-lg);
+  font-size: var(--text-lg);
 }
 
 .io-panel p {
@@ -57,7 +57,7 @@ label,
   align-content: start;
   gap: var(--space-2);
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -77,7 +77,7 @@ textarea {
 
 .field-error {
   color: var(--danger);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
 }
 
 .result-summary {
@@ -95,13 +95,13 @@ textarea {
 .result-summary span,
 .result-row small {
   color: var(--text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
 }
 
 .result-summary strong {
   display: block;
   color: var(--text-primary);
-  font-size: var(--font-size-xl);
+  font-size: var(--text-xl);
   font-weight: 700;
 }
 
@@ -113,7 +113,7 @@ textarea {
 .result-row {
   border-left: 0.25rem solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface-muted);
+  background: var(--surface-sunken);
   padding: var(--space-3);
 }
 
@@ -124,11 +124,11 @@ textarea {
 }
 
 .result-row.imported {
-  border-left-color: var(--success);
+  border-left-color: var(--accent);
 }
 
 .result-row.skipped-duplicate {
-  border-left-color: var(--warning);
+  border-left-color: var(--amber-500);
 }
 
 .result-row.rejected {
