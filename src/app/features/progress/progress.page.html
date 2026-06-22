@@ -2,203 +2,55 @@
   <header class="page-header progress-header">
     <div>
       <p class="eyebrow">Progress</p>
-      <h1>Body and goal trends</h1>
-      <p>Track real body metrics, compare date ranges, and keep active goals visible without sample data.</p>
+      <h1>Activity analytics</h1>
+      <p>Compare training and nutrition trends, review activity consistency, and keep active goals visible.</p>
     </div>
-    <a class="button primary" routerLink="/me" fragment="body">Record Weight</a>
   </header>
 
-  @if (loading()) {
-    <section class="progress-skeleton" aria-label="Loading progress data" aria-busy="true">
-      <div class="skeleton"></div>
-      <div class="skeleton tall"></div>
-      <div class="record-grid">
-        <div class="skeleton"></div>
-        <div class="skeleton"></div>
+  <app-analytics-trend-charts />
+  <app-analytics-comparison-card />
+  <app-activity-heatmap />
+
+  <section class="summary-card goals-card">
+    <div class="section-title">
+      <div>
+        <span class="card-label">Goals</span>
+        <h2>Active goal progress</h2>
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="progress-skeleton" aria-label="Loading goal progress" aria-busy="true">
         <div class="skeleton"></div>
       </div>
-    </section>
-  } @else if (error()) {
-    <app-state-panel
-      title="Progress unavailable"
-      [message]="error() ?? 'Unable to load progress data.'"
-      actionLabel="Retry"
-      [error]="true"
-      (action)="load()"
-    />
-  } @else if (!hasProgressData()) {
-    <section class="state-panel">
-      <strong>Record your first weight</strong>
-      <p>Add your first body metric to unlock weight, BMI, body fat, waist, and goal trend charts.</p>
-      <a class="button secondary" routerLink="/me" fragment="body">Record Weight</a>
-    </section>
-  } @else {
-    <nav class="progress-tabs" aria-label="Progress sections">
-      @for (tab of progressTabs; track tab.key) {
-        <button
-          type="button"
-          [class.active]="activeTab() === tab.key"
-          [attr.aria-pressed]="activeTab() === tab.key"
-          (click)="selectTab(tab.key)"
-        >
-          {{ tab.label }}
-        </button>
-      }
-    </nav>
-
-    @if (activeTab() === 'body') {
-      <section class="summary-card filters-card" aria-label="Progress filters">
-        <div class="range-presets" aria-label="Date range presets">
-          @for (preset of rangePresets; track preset.label) {
-            <button class="button secondary" type="button" (click)="setPreset(preset.days)">{{ preset.label }}</button>
-          }
-        </div>
-
-        <div class="date-fields">
-          <label>
-            Start
-            <input type="date" [value]="startDate()" (change)="updateStartDate($event)" />
-          </label>
-          <label>
-            End
-            <input type="date" [value]="endDate()" (change)="updateEndDate($event)" />
-          </label>
-          <button class="button secondary" type="button" (click)="load()">Apply</button>
-        </div>
-
-        <div class="bucket-toggle" aria-label="Trend bucket">
-          @for (option of bucketOptions; track option.value) {
-            <button
-              type="button"
-              [class.active]="selectedBucket() === option.value"
-              [attr.aria-pressed]="selectedBucket() === option.value"
-              (click)="selectBucket(option.value)"
-            >
-              {{ option.label }}
-            </button>
-          }
-        </div>
-
-        <div class="metric-toggle" role="tablist" aria-label="Trend metric">
-          @for (option of metricOptions; track option.key) {
-            <button
-              id="progress-metric-tab-{{ option.key }}"
-              type="button"
-              role="tab"
-              aria-controls="progress-trend-panel"
-              [class.active]="selectedMetric() === option.key"
-              [attr.aria-selected]="selectedMetric() === option.key"
-              (click)="selectMetric(option.key)"
-            >
-              {{ option.label }}
-            </button>
-          }
-        </div>
-      </section>
-
-      <section class="record-grid">
-        <article class="summary-card">
-          <span class="card-label">Latest weight</span>
-          <h2>{{ formattedMetric(latestMetric(), 'weightKg') }}</h2>
-          <p>{{ latestMetric()?.measuredAt ? 'Measured ' + shortDate(latestMetric()?.measuredAt ?? null) : 'No timestamp available' }}</p>
-        </article>
-        <article class="summary-card">
-          <span class="card-label">BMI</span>
-          <h2>{{ formattedMetric(latestMetric(), 'bmi') }}</h2>
-          <p>Derived from the latest height and weight facts when available.</p>
-        </article>
-        <article class="summary-card">
-          <span class="card-label">Range change</span>
-          <h2>{{ formattedChange() }}</h2>
-          <p>{{ selectedMetricOption().label }} change across the selected date range.</p>
-        </article>
-      </section>
-
-      <section
-        id="progress-trend-panel"
-        class="summary-card trend-card"
-        role="tabpanel"
-        [attr.aria-labelledby]="'progress-metric-tab-' + selectedMetric()"
-      >
-        <div class="section-title">
-          <div>
-            <span class="card-label">Body Metrics</span>
-            <h2>{{ chartTitle() }}</h2>
-          </div>
-          <span class="date-caption">{{ startDate() }} to {{ endDate() }}</span>
-        </div>
-
-        @if (trendRows().length) {
-          <fs-chart
-            [labels]="chartLabels()"
-            [series]="chartSeries()"
-            [yAxisLabel]="selectedMetricOption().unit"
-            [ariaLabel]="chartTitle() + ' from ' + startDate() + ' to ' + endDate()"
-          />
-
-          <table class="visually-hidden">
-            <caption>{{ chartTitle() }} data summary</caption>
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">{{ selectedMetricOption().label }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of trendRows(); track row.measuredAt) {
-                <tr>
-                  <td>{{ row.measuredAt }}</td>
-                  <td>{{ formattedMetric(row, selectedMetric()) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        } @else {
-          <app-state-panel
-            title="No trend points"
-            message="This metric has no records in the selected date range."
-          />
+    } @else if (error()) {
+      <app-state-panel
+        title="Goal progress unavailable"
+        [message]="error() ?? 'Unable to load goal progress.'"
+        actionLabel="Retry"
+        [error]="true"
+        (action)="load()"
+      />
+    } @else if (hasGoals()) {
+      <div class="goal-list">
+        @for (goal of goals(); track goal.goalType) {
+          <article class="goal-row">
+            <div>
+              <strong>{{ goalLabel(goal) }}</strong>
+              <span>{{ formatGoalValue(goal) }} - {{ goal.targetDate || 'No target date' }}</span>
+              <span>{{ goalStatus(goal) }}</span>
+            </div>
+            <div class="goal-progress">
+              <span>{{ goalProgress(goal) }}%</span>
+              <div class="progress-track" aria-hidden="true">
+                <i [style.width.%]="goalProgress(goal)"></i>
+              </div>
+            </div>
+          </article>
         }
-      </section>
+      </div>
+    } @else {
+      <app-state-panel title="No active goals" message="Set one measurable target to compare progress over time." />
     }
-
-    @if (activeTab() === 'activity') {
-      <app-analytics-trend-charts />
-      <app-analytics-comparison-card />
-      <app-activity-heatmap />
-    }
-
-    @if (activeTab() === 'goals') {
-      <section class="summary-card goals-card">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Goals</span>
-            <h2>Active goal progress</h2>
-          </div>
-        </div>
-
-        @if (data()?.goals?.length) {
-          <div class="goal-list">
-            @for (goal of data()?.goals; track goal.goalType) {
-              <article class="goal-row">
-                <div>
-                  <strong>{{ goalLabel(goal) }}</strong>
-                  <span>{{ goal.targetValue }} {{ goal.targetUnit }} - {{ goal.targetDate || 'No target date' }}</span>
-                  <span>{{ goalStatus(goal) }}</span>
-                </div>
-                <div class="goal-progress">
-                  <span>{{ goalProgress(goal) }}%</span>
-                  <div class="progress-track" aria-hidden="true">
-                    <i [style.width.%]="goalProgress(goal)"></i>
-                  </div>
-                </div>
-              </article>
-            }
-          </div>
-        } @else {
-          <app-state-panel title="No active goals" message="Set one measurable target to compare progress over time." />
-        }
-      </section>
-    }
-  }
+  </section>
 </div>

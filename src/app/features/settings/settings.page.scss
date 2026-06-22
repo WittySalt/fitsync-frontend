@@ -279,85 +279,6 @@
   }
 }
 
-.metric-history {
-  display: grid;
-  gap: 12px;
-  padding-top: 4px;
-}
-
-.metric-history-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  h4 {
-    margin: 0;
-    font-size: 15px;
-  }
-
-  p {
-    margin: 4px 0 0;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-}
-
-.metric-history-list,
-.metric-history-loading {
-  display: grid;
-  gap: 8px;
-}
-
-.metric-history-row,
-.inline-empty {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-}
-
-.metric-history-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) minmax(96px, 0.45fr) minmax(0, 1.4fr) auto;
-  align-items: center;
-  gap: 10px;
-
-  time,
-  span,
-  p {
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-
-  strong {
-    font-size: 14px;
-  }
-
-  em {
-    color: var(--accent);
-    font-size: 12px;
-    font-style: normal;
-    font-weight: var(--fw-bold);
-  }
-
-  p {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
-}
-
-.inline-empty {
-  display: grid;
-  gap: 4px;
-
-  p {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-}
-
 .field-list {
   display: grid;
   border: 1px solid var(--border);
@@ -537,7 +458,6 @@ button.field-row:hover {
 @media (max-width: 680px) {
   .settings-hero,
   .sub-card-header,
-  .metric-history-header,
   .editor-actions,
   .action-row {
     align-items: stretch;
@@ -562,7 +482,4 @@ button.field-row:hover {
     }
   }
 
-  .metric-history-row {
-    grid-template-columns: 1fr;
-  }
 }
