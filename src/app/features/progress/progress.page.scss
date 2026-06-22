@@ -11,12 +11,13 @@
   }
 
   .filters-card {
-    grid-template-columns: auto minmax(320px, 1fr) auto;
+    grid-template-columns: auto minmax(320px, 1fr) auto auto;
     align-items: end;
   }
 
   .range-presets,
   .date-fields,
+  .bucket-toggle,
   .metric-toggle {
     display: flex;
     align-items: center;
@@ -24,6 +25,7 @@
   }
 
   .range-presets,
+  .bucket-toggle,
   .metric-toggle {
     flex-wrap: wrap;
   }
@@ -36,6 +38,7 @@
     }
   }
 
+  .bucket-toggle,
   .metric-toggle {
     min-height: 44px;
     padding: 4px;

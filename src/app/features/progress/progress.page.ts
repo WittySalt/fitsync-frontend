@@ -7,6 +7,7 @@ import {
   ProgressData,
   ProgressMetricKey
 } from '../../core/fitsync-data.service';
+import { AnalyticsBucket } from '../../core/analytics.models';
 import { Goal } from '../../core/fitsync.models';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
@@ -21,6 +22,11 @@ interface MetricOption {
 interface RangePreset {
   label: string;
   days: number;
+}
+
+interface BucketOption {
+  label: string;
+  value: AnalyticsBucket;
 }
 
 @Component({
@@ -45,10 +51,17 @@ export class ProgressPage implements OnInit {
     { label: '1Y', days: 365 }
   ];
 
+  readonly bucketOptions: BucketOption[] = [
+    { label: 'Day', value: 'DAY' },
+    { label: 'Week', value: 'WEEK' },
+    { label: 'Month', value: 'MONTH' }
+  ];
+
   readonly data = signal<ProgressData | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly selectedMetric = signal<ProgressMetricKey>('weightKg');
+  readonly selectedBucket = signal<AnalyticsBucket>('DAY');
   readonly startDate = signal(this.isoDaysAgo(90));
   readonly endDate = signal(this.isoToday());
 
@@ -96,10 +109,13 @@ export class ProgressPage implements OnInit {
     this.error.set(null);
 
     this.dataService
-      .getProgressData({
-        startDate: this.startDate(),
-        endDate: this.endDate()
-      })
+      .getProgressData(
+        {
+          startDate: this.startDate(),
+          endDate: this.endDate()
+        },
+        this.selectedBucket()
+      )
       .subscribe({
         next: (data) => {
           this.data.set(data);
@@ -114,6 +130,14 @@ export class ProgressPage implements OnInit {
 
   selectMetric(metric: ProgressMetricKey): void {
     this.selectedMetric.set(metric);
+  }
+
+  selectBucket(bucket: AnalyticsBucket): void {
+    if (this.selectedBucket() === bucket) {
+      return;
+    }
+    this.selectedBucket.set(bucket);
+    this.load();
   }
 
   setPreset(days: number): void {
@@ -167,6 +191,11 @@ export class ProgressPage implements OnInit {
       .split('_')
       .map((part: string) => part[0].toUpperCase() + part.slice(1))
       .join(' ');
+  }
+
+  goalStatus(goal: Goal): string {
+    const status = goal.onTrack === false ? 'Needs attention' : 'On track';
+    return goal.daysRemaining == null ? status : `${status} - ${goal.daysRemaining} days left`;
   }
 
   metricValue(metric: ProgressBodyMetric, key: ProgressMetricKey): number | null {

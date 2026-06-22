@@ -27,6 +27,19 @@
       <button class="button secondary" type="button" (click)="load()">Apply</button>
     </div>
 
+    <div class="bucket-toggle" aria-label="Trend bucket">
+      @for (option of bucketOptions; track option.value) {
+        <button
+          type="button"
+          [class.active]="selectedBucket() === option.value"
+          [attr.aria-pressed]="selectedBucket() === option.value"
+          (click)="selectBucket(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
     <div class="metric-toggle" role="tablist" aria-label="Trend metric">
       @for (option of metricOptions; track option.key) {
         <button
@@ -148,7 +161,8 @@
             <article class="goal-row">
               <div>
                 <strong>{{ goalLabel(goal) }}</strong>
-                <span>{{ goal.targetValue }} {{ goal.targetUnit }} · {{ goal.targetDate || 'No target date' }}</span>
+                <span>{{ goal.targetValue }} {{ goal.targetUnit }} - {{ goal.targetDate || 'No target date' }}</span>
+                <span>{{ goalStatus(goal) }}</span>
               </div>
               <div class="goal-progress">
                 <span>{{ goalProgress(goal) }}%</span>
