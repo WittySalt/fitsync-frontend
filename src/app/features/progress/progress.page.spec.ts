@@ -4,6 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
 import {
+  AnalyticsActivityCalendarResponse,
   AnalyticsNutritionSeriesResponse,
   AnalyticsSummaryCompareResponse,
   AnalyticsWorkoutSeriesResponse
@@ -45,6 +46,16 @@ describe('ProgressPage', () => {
       totalCarbsGrams: { current: null, previous: null, delta: null, deltaPct: null },
       totalFatGrams: { current: null, previous: null, delta: null, deltaPct: null }
     }
+  };
+
+  const emptyActivityCalendar: AnalyticsActivityCalendarResponse = {
+    from: '2026-06-20',
+    to: '2026-06-22',
+    days: [
+      { date: '2026-06-20', workoutCount: 0, workoutMinutes: 0 },
+      { date: '2026-06-21', workoutCount: 0, workoutMinutes: 0 },
+      { date: '2026-06-22', workoutCount: 0, workoutMinutes: 0 }
+    ]
   };
 
   const progressData: ProgressData = {
@@ -100,11 +111,13 @@ describe('ProgressPage', () => {
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', [
       'getWorkoutSeries',
       'getNutritionSeries',
-      'getSummaryCompare'
+      'getSummaryCompare',
+      'getActivityCalendar'
     ]);
     analyticsApi.getWorkoutSeries.and.returnValue(of(emptyWorkoutSeries));
     analyticsApi.getNutritionSeries.and.returnValue(of(emptyNutritionSeries));
     analyticsApi.getSummaryCompare.and.returnValue(of(emptyComparison));
+    analyticsApi.getActivityCalendar.and.returnValue(of(emptyActivityCalendar));
 
     await TestBed.configureTestingModule({
       imports: [ProgressPage],
