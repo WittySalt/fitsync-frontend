@@ -91,58 +91,70 @@ describe('FitSyncDataService', () => {
     httpTesting.verify();
   });
 
-  it('loads progress data from body metrics, trend, and goals endpoints', () => {
+  it('loads progress data from analytics body trends and goal progress endpoints', () => {
     let result: ProgressData | undefined;
-    service.getProgressData({ startDate: '2026-06-01', endDate: '2026-06-18' }).subscribe((data) => {
+    service.getProgressData({ startDate: '2026-06-01', endDate: '2026-06-18' }, 'WEEK').subscribe((data) => {
       result = data;
     });
 
-    const metricsRequest = httpTesting.expectOne(
+    const trendsRequest = httpTesting.expectOne(
       (request) =>
-        request.url === '/api/v1/users/me/body-metrics' &&
-        request.params.get('startDate') === '2026-06-01' &&
-        request.params.get('endDate') === '2026-06-18'
+        request.url === '/api/v1/analytics/body/trends' &&
+        request.params.get('from') === '2026-06-01' &&
+        request.params.get('to') === '2026-06-18' &&
+        request.params.get('bucket') === 'WEEK'
     );
-    metricsRequest.flush({
-      content: [
-        {
-          weightKg: 71.8,
-          bmi: 24.9,
-          bodyFatRate: 20.4,
-          waistCm: 82,
-          measuredAt: '2026-06-17T07:00:00Z'
-        }
-      ]
-    });
-
-    const trendsRequest = httpTesting.expectOne('/api/v1/users/me/body-metrics/trends?startDate=2026-06-01&endDate=2026-06-18');
     trendsRequest.flush({
+      from: '2026-06-01',
+      to: '2026-06-18',
+      bucket: 'WEEK',
       points: [
         {
+          date: '2026-06-01',
           weightKg: 72.6,
           bmi: 25.2,
           bodyFatRate: 21.1,
           waistCm: 83,
-          date: '2026-06-01'
+          weightDeltaFromStart: 0,
+          weightDeltaFromPrevious: 0
+        },
+        {
+          date: '2026-06-17',
+          weightKg: 71.8,
+          bmi: 24.9,
+          bodyFatRate: 20.4,
+          waistCm: 82,
+          weightDeltaFromStart: -0.8,
+          weightDeltaFromPrevious: -0.8
         }
       ]
     });
 
-    const goalsRequest = httpTesting.expectOne('/api/v1/users/me/goals?status=ACTIVE');
-    goalsRequest.flush([
-      {
-        goalType: 'WEIGHT',
-        targetValue: 68,
-        targetUnit: 'kg',
-        targetDate: '2026-09-30',
-        status: 'ACTIVE',
-        progressRatio: 0.55
-      }
-    ]);
+    const goalsRequest = httpTesting.expectOne(
+      (request) => request.url === '/api/v1/analytics/goals/progress' && request.params.get('status') === 'ACTIVE'
+    );
+    goalsRequest.flush({
+      goals: [
+        {
+          goalId: 'goal-weight',
+          goalType: 'WEIGHT',
+          goalStatus: 'ACTIVE',
+          targetValue: 68,
+          targetUnit: 'kg',
+          targetDate: '2026-09-30',
+          currentValue: 71.8,
+          progressRatio: 0.55,
+          daysRemaining: 100,
+          onTrack: true,
+          lastEvaluatedAt: '2026-06-17T07:00:00Z'
+        }
+      ]
+    });
 
     expect(result?.latestBodyMetric?.weightKg).toBe(71.8);
     expect(result?.trendPoints[0].measuredAt).toBe('2026-06-01');
     expect(result?.goals[0].progressRatio).toBe(0.55);
+    expect(result?.goals[0].daysRemaining).toBe(100);
   });
 
   it('loads user goals and ignores goal types outside the frontend lifecycle scope', () => {

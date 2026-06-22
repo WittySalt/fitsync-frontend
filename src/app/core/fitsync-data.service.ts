@@ -3,7 +3,14 @@ import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from './analytics-api.service';
-import { AnalyticsDashboardBody, AnalyticsDashboardGoal, AnalyticsDashboardNutrition } from './analytics.models';
+import {
+  AnalyticsBodyTrendPoint,
+  AnalyticsBucket,
+  AnalyticsDashboardBody,
+  AnalyticsDashboardGoal,
+  AnalyticsDashboardNutrition,
+  AnalyticsGoalProgress
+} from './analytics.models';
 import {
   BodyMetric,
   CreateExerciseRequest,
@@ -497,29 +504,19 @@ export class FitSyncDataService {
     }).pipe(delay(260));
   }
 
-  getProgressData(range: ProgressDateRange): Observable<ProgressData> {
-    const params = this.dateRangeParams(range);
-
+  getProgressData(range: ProgressDateRange, bucket: AnalyticsBucket = 'DAY'): Observable<ProgressData> {
     return forkJoin({
-      bodyMetrics: this.http.get<unknown>(`${this.apiBaseUrl}/users/me/body-metrics`, { params }),
-      trends: this.http.get<unknown>(`${this.apiBaseUrl}/users/me/body-metrics/trends`, { params }),
-      goals: this.http.get<unknown>(`${this.apiBaseUrl}/users/me/goals`, {
-        params: new HttpParams().set('status', 'ACTIVE')
-      })
+      trends: this.analyticsApi.getBodyTrends(range.startDate, range.endDate, bucket),
+      goals: this.analyticsApi.getGoalsProgress('ACTIVE')
     }).pipe(
-      map(({ bodyMetrics, trends, goals }) => {
-        const metricRows = this.extractList<Partial<ProgressBodyMetric>>(bodyMetrics).map((metric) =>
-          this.mapProgressBodyMetric(metric)
-        );
-        const trendRows = this.extractList<Partial<ProgressBodyMetric>>(trends).map((metric) =>
-          this.mapProgressBodyMetric(metric)
-        );
-        const mappedGoals = this.extractList<Partial<Goal>>(goals).map((goal) => this.mapGoal(goal));
+      map(({ trends, goals }) => {
+        const trendRows = trends.points.map((point) => this.mapAnalyticsBodyTrendPoint(point));
+        const mappedGoals = goals.goals.map((goal) => this.mapAnalyticsGoalProgress(goal));
 
         return {
-          latestBodyMetric: metricRows[0] ?? trendRows.at(-1) ?? null,
-          bodyMetrics: metricRows,
-          trendPoints: trendRows.length ? trendRows : metricRows.slice().reverse(),
+          latestBodyMetric: trendRows.at(-1) ?? null,
+          bodyMetrics: trendRows,
+          trendPoints: trendRows,
           goals: mappedGoals
         };
       }),
@@ -1768,15 +1765,13 @@ export class FitSyncDataService {
     };
   }
 
-  private mapProgressBodyMetric(metric: Partial<ProgressBodyMetric> & Record<string, unknown>): ProgressBodyMetric {
-    const measuredAt = this.stringValue(metric['measuredAt'] ?? metric['date'] ?? metric['metricDate'] ?? metric['recordedAt']);
-
+  private mapAnalyticsBodyTrendPoint(point: AnalyticsBodyTrendPoint): ProgressBodyMetric {
     return {
-      weightKg: this.numberValue(metric['weightKg'] ?? metric['weight']),
-      bodyFatRate: this.numberValue(metric['bodyFatRate'] ?? metric['bodyFatPercentage'] ?? metric['bodyFat']),
-      bmi: this.numberValue(metric['bmi']),
-      waistCm: this.numberValue(metric['waistCm'] ?? metric['waist']),
-      measuredAt
+      weightKg: point.weightKg,
+      bodyFatRate: point.bodyFatRate,
+      bmi: point.bmi,
+      waistCm: point.waistCm,
+      measuredAt: point.date
     };
   }
 
@@ -1806,6 +1801,21 @@ export class FitSyncDataService {
     };
   }
 
+  private mapAnalyticsGoalProgress(goal: AnalyticsGoalProgress): Goal {
+    return {
+      goalId: goal.goalId,
+      goalType: goal.goalType,
+      targetValue: goal.targetValue,
+      targetUnit: goal.targetUnit,
+      targetDate: goal.targetDate,
+      status: goal.goalStatus,
+      progressRatio: goal.progressRatio,
+      onTrack: goal.onTrack,
+      currentValue: goal.currentValue,
+      daysRemaining: goal.daysRemaining
+    };
+  }
+
   private mapUserGoal(goal: BackendUserGoal): UserGoal | null {
     if (!this.isGoalType(goal.goalType) || !this.isGoalStatus(goal.status)) {
       return null;
@@ -1830,34 +1840,6 @@ export class FitSyncDataService {
     return GOAL_STATUSES.includes(value as GoalStatus);
   }
 
-  private dateRangeParams(range: ProgressDateRange): HttpParams {
-    return new HttpParams().set('startDate', range.startDate).set('endDate', range.endDate);
-  }
-
-  private extractList<T>(response: unknown): T[] {
-    if (Array.isArray(response)) {
-      return response as T[];
-    }
-
-    if (!response || typeof response !== 'object') {
-      return [];
-    }
-
-    const record = response as Record<string, unknown>;
-    for (const key of ['content', 'items', 'results', 'data', 'points', 'metrics', 'goals']) {
-      const value = record[key];
-      if (Array.isArray(value)) {
-        return value as T[];
-      }
-    }
-
-    return [];
-  }
-
-  private numberValue(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-  }
-
   private numericValue(value: number | string | null | undefined): number | null {
     if (typeof value === 'number') {
       return Number.isFinite(value) ? value : null;
@@ -1867,10 +1849,6 @@ export class FitSyncDataService {
       return Number.isFinite(parsed) ? parsed : null;
     }
     return null;
-  }
-
-  private stringValue(value: unknown): string | null {
-    return typeof value === 'string' && value.trim() ? value : null;
   }
 
   private mapExerciseImages(images: BackendExerciseImage[] | string[] | null | undefined): string[] {

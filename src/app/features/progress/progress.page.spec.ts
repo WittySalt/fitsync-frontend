@@ -48,7 +48,9 @@ describe('ProgressPage', () => {
         targetUnit: 'kg',
         targetDate: '2026-09-30',
         status: 'ACTIVE',
-        progressRatio: 0.55
+        progressRatio: 0.55,
+        onTrack: true,
+        daysRemaining: 100
       }
     ]
   };
@@ -69,13 +71,30 @@ describe('ProgressPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(dataService.getProgressData).toHaveBeenCalled();
+    expect(dataService.getProgressData).toHaveBeenCalledWith(
+      jasmine.objectContaining({ startDate: jasmine.any(String), endDate: jasmine.any(String) }),
+      'DAY'
+    );
     expect(compiled.textContent).toContain('71.8 kg');
     expect(compiled.textContent).toContain('24.9');
     expect(compiled.textContent).toContain('55%');
+    expect(compiled.textContent).toContain('On track - 100 days left');
     expect(compiled.textContent).not.toContain('26.6');
     expect(compiled.textContent).not.toContain('21.5%');
     expect(compiled.textContent).not.toContain('42%');
+  });
+
+  it('re-queries body trends when the bucket changes', () => {
+    const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+
+    const bucketButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.bucket-toggle button'));
+    expect(bucketButtons.map((button) => button.textContent?.trim())).toEqual(['Day', 'Week', 'Month']);
+
+    bucketButtons[1].click();
+    fixture.detectChanges();
+
+    expect(dataService.getProgressData.calls.mostRecent().args[1]).toBe('WEEK');
   });
 
   it('wires metric tabs to the trend panel', () => {
