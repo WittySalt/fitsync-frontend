@@ -359,7 +359,8 @@ export class SettingsPage implements OnInit {
   bodyMetricSummary(): string {
     const profile = this.data()?.user.profile;
     const metric = this.data()?.user.latestBodyMetrics;
-    return `${this.displayHeight(profile?.heightCm)} / ${this.displayWeight(metric)} / ${metric?.bmi ? `BMI ${metric.bmi}` : 'BMI unavailable'}`;
+    const bmi = metric?.bmi ? `BMI ${metric.bmi}` : 'BMI unavailable';
+    return `${this.displayHeight(profile?.heightCm)} / ${this.displayWeight(metric)} / ${bmi}`;
   }
 
   bodyMetricDetailSummary(metric: AccountBodyMetric): string {
@@ -417,10 +418,13 @@ export class SettingsPage implements OnInit {
     if (!goal) {
       return 'Not set';
     }
-    const target = goal.targetValue === null || goal.targetValue === undefined
-      ? 'Target not set'
-      : `${goal.targetValue}${goal.targetUnit ? ` ${goal.targetUnit}` : ''}`;
-    return `${target} - ${this.labelFor(goal.status)}${goal.targetDate ? ` by ${this.displayDate(goal.targetDate)}` : ''}`;
+    let target = 'Target not set';
+    if (goal.targetValue !== null && goal.targetValue !== undefined) {
+      const unit = goal.targetUnit ? ` ${goal.targetUnit}` : '';
+      target = `${goal.targetValue}${unit}`;
+    }
+    const dueDate = goal.targetDate ? ` by ${this.displayDate(goal.targetDate)}` : '';
+    return `${target} - ${this.labelFor(goal.status)}${dueDate}`;
   }
 
   labelFor(value: string | null | undefined): string {

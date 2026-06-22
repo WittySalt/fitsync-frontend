@@ -109,24 +109,28 @@
             </div>
 
             @if (exercise.sets.length) {
-              <div class="set-table" role="table" [attr.aria-label]="exercise.exerciseNameSnapshot + ' sets'">
-                <div class="set-row header" role="row">
-                  <span role="columnheader">Set</span>
-                  <span role="columnheader">Reps</span>
-                  <span role="columnheader">Weight</span>
-                  <span role="columnheader">Rest</span>
-                  <span role="columnheader">RPE</span>
-                </div>
+              <table class="set-table" [attr.aria-label]="exercise.exerciseNameSnapshot + ' sets'">
+                <thead>
+                  <tr class="set-row header">
+                    <th scope="col">Set</th>
+                    <th scope="col">Reps</th>
+                    <th scope="col">Weight</th>
+                    <th scope="col">Rest</th>
+                    <th scope="col">RPE</th>
+                  </tr>
+                </thead>
+                <tbody>
                 @for (set of exercise.sets; track set.setLogId || set.setNumber) {
-                  <div class="set-row" role="row">
-                    <span role="cell">{{ set.setNumber }}</span>
-                    <span role="cell">{{ formatNumber(set.reps) }}</span>
-                    <span role="cell">{{ formatNumber(set.weightKg, ' kg') }}</span>
-                    <span role="cell">{{ formatNumber(set.restSeconds, ' sec') }}</span>
-                    <span role="cell">{{ formatNumber(set.perceivedExertion) }}</span>
-                  </div>
+                  <tr class="set-row">
+                    <td>{{ set.setNumber }}</td>
+                    <td>{{ formatNumber(set.reps) }}</td>
+                    <td>{{ formatNumber(set.weightKg, ' kg') }}</td>
+                    <td>{{ formatNumber(set.restSeconds, ' sec') }}</td>
+                    <td>{{ formatNumber(set.perceivedExertion) }}</td>
+                  </tr>
                 }
-              </div>
+                </tbody>
+              </table>
             } @else {
               <app-state-panel title="No sets recorded" message="This exercise has no set detail yet." />
             }

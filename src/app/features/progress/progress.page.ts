@@ -141,7 +141,8 @@ export class ProgressPage implements OnInit {
     }
 
     const option = this.metricOptions.find((item) => item.key === key)!;
-    return `${this.formatNumber(value)}${option.unit ? ` ${option.unit}` : ''}`;
+    const unit = option.unit ? ` ${option.unit}` : '';
+    return `${this.formatNumber(value)}${unit}`;
   }
 
   formattedChange(): string {
@@ -152,7 +153,8 @@ export class ProgressPage implements OnInit {
 
     const option = this.selectedMetricOption();
     const sign = value > 0 ? '+' : '';
-    return `${sign}${this.formatNumber(value)}${option.unit ? ` ${option.unit}` : ''}`;
+    const unit = option.unit ? ` ${option.unit}` : '';
+    return `${sign}${this.formatNumber(value)}${unit}`;
   }
 
   goalProgress(goal: Goal): number {

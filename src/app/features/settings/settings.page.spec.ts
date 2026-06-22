@@ -325,14 +325,14 @@ describe('SettingsPage', () => {
 
     expect(service.preference()).toBe('dark');
     expect(localStorage.getItem('fs-theme')).toBe('dark');
-    expect(darkButton?.getAttribute('aria-checked')).toBe('true');
+    expect(darkButton?.getAttribute('aria-pressed')).toBe('true');
 
     systemButton?.click();
     fixture.detectChanges();
 
     expect(service.preference()).toBe('system');
     expect(localStorage.getItem('fs-theme')).toBe('system');
-    expect(systemButton?.getAttribute('aria-checked')).toBe('true');
+    expect(systemButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('saves identity fields through the profile endpoint', () => {

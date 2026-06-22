@@ -9,10 +9,16 @@
   position: relative;
   display: grid;
   place-items: center;
+  width: 100%;
+  max-width: none;
+  max-height: none;
   min-height: 100%;
+  margin: 0;
   padding: 24px;
+  border: 0;
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   backdrop-filter: blur(12px);
+  color: inherit;
 }
 
 .celebration-card {

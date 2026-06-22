@@ -1,7 +1,7 @@
 <section class="avatar-uploader" aria-label="Change profile photo">
   <div class="avatar-uploader-header">
     @if (currentAvatarUrl()) {
-      <img class="avatar-preview" [src]="currentAvatarUrl()" alt="Current profile photo" />
+      <img class="avatar-preview" [src]="currentAvatarUrl()" alt="Current profile" />
     } @else {
       <span class="avatar-preview initials" aria-hidden="true">{{ initials() }}</span>
     }

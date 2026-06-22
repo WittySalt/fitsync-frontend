@@ -79,10 +79,18 @@ export function isAllowedEmbedVideoUrl(rawUrl: string | null | undefined): boole
 function extractYoutubeId(url: URL): string | null {
   const host = url.hostname.toLowerCase();
   const segments = url.pathname.split('/').filter(Boolean);
-  const candidate = host.endsWith('youtu.be')
-    ? segments[0]
-    : url.searchParams.get('v') ?? (['embed', 'shorts'].includes(segments[0] ?? '') ? segments[1] : null);
+  const candidate = youtubeIdCandidate(host, segments, url);
   return candidate && /^[a-zA-Z0-9_-]{6,64}$/.test(candidate) ? candidate : null;
+}
+
+function youtubeIdCandidate(host: string, segments: string[], url: URL): string | null {
+  if (host.endsWith('youtu.be')) {
+    return segments[0] ?? null;
+  }
+  if (['embed', 'shorts'].includes(segments[0] ?? '')) {
+    return segments[1] ?? null;
+  }
+  return url.searchParams.get('v');
 }
 
 function extractVimeoId(url: URL): string | null {

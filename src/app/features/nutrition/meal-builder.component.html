@@ -17,7 +17,7 @@
   </div>
 
   <form class="meal-meta" [formGroup]="mealForm">
-    <div class="meal-type-grid segmented" role="group" aria-label="Meal type">
+    <fieldset class="meal-type-grid segmented" aria-label="Meal type">
       @for (type of mealTypeOptions; track type.value) {
         <button
           type="button"
@@ -28,7 +28,7 @@
           {{ type.label }}
         </button>
       }
-    </div>
+    </fieldset>
     <div class="meal-text-grid">
       <label>
         Meal name

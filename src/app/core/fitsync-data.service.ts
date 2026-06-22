@@ -900,7 +900,7 @@ export class FitSyncDataService {
     return this.http
       .get<BackendWorkoutPlan>(`${this.apiBaseUrl}/workouts/plans/active`)
       .pipe(
-        map((plan) => (plan && plan.name ? this.mapWorkoutPlan(plan) : null)),
+        map((plan) => (plan?.name ? this.mapWorkoutPlan(plan) : null)),
         catchError(() => of(null))
       );
   }
@@ -1174,7 +1174,7 @@ export class FitSyncDataService {
       .get<BackendFoodDetail>(`${this.apiBaseUrl}/nutrition/barcodes/${encodeURIComponent(barcode)}`)
       .pipe(
         map((food) =>
-          food && food.displayName
+          food?.displayName
             ? {
                 foodId: food.foodId ?? null,
                 customFoodId: null,
@@ -1374,8 +1374,31 @@ export class FitSyncDataService {
     const hasCompletedOnboarding = profile?.onboardingCompleted === true;
     const value: Partial<OnboardingFormValue> = {};
 
-    if (profile?.displayName?.trim()) {
-      value.displayName = profile.displayName.trim();
+    this.applyProfileSeed(value, profile, latestBodyMetric, weightGoal);
+    this.applyAppPreferenceSeed(value, preferences?.app);
+    this.applyNutritionSeed(value, preferences?.nutrition, caloriesGoal, proteinGoal);
+    this.applyTrainingSeed(value, preferences?.training);
+    this.applyNotificationSeed(value, preferences?.notifications);
+
+    return {
+      value,
+      hasExistingBodyBaseline:
+        hasCompletedOnboarding || Boolean(latestBodyMetric?.weightKg || weightGoal?.targetValue),
+      hasExistingTrainingBaseline: hasCompletedOnboarding || this.hasTrainingBaseline(preferences?.training),
+      hasExistingNutritionBaseline:
+        hasCompletedOnboarding || Boolean(caloriesGoal?.targetValue || proteinGoal?.targetValue)
+    };
+  }
+
+  private applyProfileSeed(
+    value: Partial<OnboardingFormValue>,
+    profile: Partial<UserProfile> | null | undefined,
+    latestBodyMetric: Partial<BodyMetric> | null | undefined,
+    weightGoal: Partial<Goal> | undefined
+  ): void {
+    const displayName = profile?.displayName?.trim();
+    if (displayName) {
+      value.displayName = displayName;
     }
     if (profile?.gender) {
       value.gender = profile.gender;
@@ -1395,12 +1418,12 @@ export class FitSyncDataService {
     if (weightGoal?.targetValue != null) {
       value.targetWeightKg = weightGoal.targetValue;
     }
+  }
 
-    const app = preferences?.app;
-    const training = preferences?.training;
-    const nutrition = preferences?.nutrition;
-    const notifications = preferences?.notifications;
-
+  private applyAppPreferenceSeed(
+    value: Partial<OnboardingFormValue>,
+    app: BackendUserPreferences['app'] | undefined
+  ): void {
     const preferredUnits = this.normalizeEnum(app?.preferredUnits, {
       '100001': 'METRIC',
       '100002': 'IMPERIAL'
@@ -1408,6 +1431,14 @@ export class FitSyncDataService {
     if (preferredUnits) {
       value.preferredUnits = preferredUnits;
     }
+  }
+
+  private applyNutritionSeed(
+    value: Partial<OnboardingFormValue>,
+    nutrition: BackendUserPreferences['nutrition'] | undefined,
+    caloriesGoal: Partial<Goal> | undefined,
+    proteinGoal: Partial<Goal> | undefined
+  ): void {
     const dietaryPattern = this.normalizeEnum(nutrition?.dietaryPattern, {
       '300001': 'NONE',
       '300002': 'HALAL',
@@ -1427,7 +1458,18 @@ export class FitSyncDataService {
     if (calorieTrackingMode) {
       value.calorieTrackingMode = calorieTrackingMode;
     }
+    if (caloriesGoal?.targetValue != null) {
+      value.targetCalories = caloriesGoal.targetValue;
+    }
+    if (proteinGoal?.targetValue != null) {
+      value.targetProteinGrams = proteinGoal.targetValue;
+    }
+  }
 
+  private applyTrainingSeed(
+    value: Partial<OnboardingFormValue>,
+    training: BackendUserPreferences['training'] | undefined
+  ): void {
     if (training?.weeklyWorkoutDays != null) {
       value.weeklyWorkoutDays = training.weeklyWorkoutDays;
     }
@@ -1486,38 +1528,31 @@ export class FitSyncDataService {
     if (focusAreas.length) {
       value.focusAreas = focusAreas;
     }
-    if (caloriesGoal?.targetValue != null) {
-      value.targetCalories = caloriesGoal.targetValue;
-    }
-    if (proteinGoal?.targetValue != null) {
-      value.targetProteinGrams = proteinGoal.targetValue;
-    }
+  }
+
+  private applyNotificationSeed(
+    value: Partial<OnboardingFormValue>,
+    notifications: BackendUserPreferences['notifications'] | undefined
+  ): void {
     if (notifications?.workoutReminderEnabled != null) {
       value.workoutReminderEnabled = notifications.workoutReminderEnabled;
     }
     if (notifications?.mealReminderEnabled != null) {
       value.mealReminderEnabled = notifications.mealReminderEnabled;
     }
+  }
 
-    return {
-      value,
-      hasExistingBodyBaseline:
-        hasCompletedOnboarding || Boolean(latestBodyMetric?.weightKg || weightGoal?.targetValue),
-      hasExistingTrainingBaseline:
-        hasCompletedOnboarding ||
-        Boolean(
-          training?.weeklyWorkoutDays ||
-          training?.fitnessLevel ||
-          training?.trainingLocation ||
-          training?.preferredDurationMinutes ||
-          training?.preferredWorkoutTime ||
-          training?.intensityPreference ||
-          training?.equipmentInventory?.length ||
-          training?.focusAreas?.length
-        ),
-      hasExistingNutritionBaseline:
-        hasCompletedOnboarding || Boolean(caloriesGoal?.targetValue || proteinGoal?.targetValue)
-    };
+  private hasTrainingBaseline(training: BackendUserPreferences['training'] | undefined): boolean {
+    return Boolean(
+      training?.weeklyWorkoutDays ||
+      training?.fitnessLevel ||
+      training?.trainingLocation ||
+      training?.preferredDurationMinutes ||
+      training?.preferredWorkoutTime ||
+      training?.intensityPreference ||
+      training?.equipmentInventory?.length ||
+      training?.focusAreas?.length
+    );
   }
 
   private normalizeEnum(value: string | null | undefined, codeMap: Record<string, string>): string | undefined {

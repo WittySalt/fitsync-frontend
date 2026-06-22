@@ -167,7 +167,7 @@
       </form>
 
       <div class="plan-toolbar">
-        <div class="segmented" role="group" aria-label="Plan status filter">
+        <fieldset class="segmented" aria-label="Plan status filter">
           @for (status of planStatusOptions; track status ?? 'ALL') {
             <button
               type="button"
@@ -178,7 +178,7 @@
               {{ status ? formatLabel(status) : 'All' }}
             </button>
           }
-        </div>
+        </fieldset>
       </div>
 
       @if (loading()) {

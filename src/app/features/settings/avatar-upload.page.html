@@ -25,7 +25,7 @@
   } @else if (summary(); as account) {
     <section class="current-avatar-card" aria-label="Current profile photo">
       @if (account.avatarUrl) {
-        <img class="current-avatar" [src]="account.avatarUrl" [alt]="account.displayName + ' profile photo'" />
+        <img class="current-avatar" [src]="account.avatarUrl" [alt]="account.displayName" />
       } @else {
         <span class="current-avatar initials" aria-hidden="true">{{ account.initials }}</span>
       }
@@ -39,7 +39,7 @@
       [currentAvatarUrl]="account.avatarUrl"
       [initials]="account.initials"
       (uploaded)="handleUploaded($event)"
-      (cancel)="backToSettings()"
+      (dismissed)="backToSettings()"
     />
   }
 </main>

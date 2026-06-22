@@ -122,8 +122,15 @@ small {
 }
 
 .set-table {
-  display: grid;
+  display: block;
+  width: 100%;
+  border-collapse: collapse;
   overflow-x: auto;
+}
+
+.set-table thead,
+.set-table tbody {
+  display: block;
 }
 
 .set-row {
@@ -140,6 +147,12 @@ small {
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: var(--fw-semibold);
+}
+
+.set-row th,
+.set-row td {
+  text-align: left;
+  font: inherit;
 }
 
 @media (max-width: 980px) {

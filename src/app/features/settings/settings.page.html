@@ -28,7 +28,7 @@
       </div>
 
       <div class="settings-account-menu">
-        <button class="icon-menu" type="button" aria-label="Account menu" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen()" (click)="toggleAccountMenu()">
+        <button class="icon-menu" type="button" [attr.aria-label]="'Account menu ' + initials()" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen()" (click)="toggleAccountMenu()">
           {{ initials() }}
         </button>
         @if (accountMenuOpen()) {
@@ -55,7 +55,7 @@
     }
 
     <div class="account-layout">
-      <nav class="section-nav" role="tablist" aria-label="Account sections">
+      <div class="section-nav" role="tablist" aria-label="Account sections">
         @for (section of sections; track section.id) {
           <button
             type="button"
@@ -69,7 +69,7 @@
             {{ section.label }}
           </button>
         }
-      </nav>
+      </div>
 
       <main class="settings-stack">
         @if (selectedSection() === 'personal') {
@@ -90,7 +90,7 @@
                 <label>Last name<input formControlName="lastName" /></label>
                 <div class="avatar-settings wide">
                   @if (account.user.profile.avatarUrl) {
-                    <img class="avatar-settings-preview" [src]="account.user.profile.avatarUrl" alt="Current profile photo" />
+                    <img class="avatar-settings-preview" [src]="account.user.profile.avatarUrl" alt="Current profile" />
                   } @else {
                     <span class="avatar-settings-preview" aria-hidden="true">{{ initials() }}</span>
                   }
@@ -192,17 +192,17 @@
                   <p>{{ bodyMetricHistoryError() }}</p>
                 </div>
               } @else if (bodyMetricHistory().length) {
-                <div class="metric-history-list" role="list" aria-label="Measurement history">
+                <ul class="metric-history-list" aria-label="Measurement history">
                   @for (metric of bodyMetricHistory(); track metric.metricId || metric.measuredAt) {
-                    <article class="metric-history-row" role="listitem">
+                    <li class="metric-history-row">
                       <time [attr.datetime]="metric.measuredAt || ''">{{ displayDateTime(metric.measuredAt) }}</time>
                       <strong>{{ displayWeight(metric) }}</strong>
                       <span>{{ bodyMetricDetailSummary(metric) }}</span>
                       <em>BMI {{ metric.bmi ?? 'Not available' }}</em>
                       @if (metric.note) { <p>{{ metric.note }}</p> }
-                    </article>
+                    </li>
                   }
-                </div>
+                </ul>
               } @else {
                 <div class="inline-empty">
                   <strong>No measurement history yet</strong>
@@ -258,13 +258,12 @@
                 <strong>Color mode</strong>
                 <p>Current theme: {{ labelFor(themeService.theme()) }}</p>
               </div>
-              <div class="segmented appearance-toggle" role="radiogroup" aria-label="Theme preference">
+              <div class="segmented appearance-toggle" aria-label="Theme preference">
                 @for (option of themeOptions; track option.value) {
                   <button
                     type="button"
-                    role="radio"
                     [class.active]="themeService.preference() === option.value"
-                    [attr.aria-checked]="themeService.preference() === option.value"
+                    [attr.aria-pressed]="themeService.preference() === option.value"
                     (click)="setThemePreference(option.value)"
                   >
                     {{ option.label }}
@@ -364,7 +363,11 @@
                 <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'recovery'">Save recovery email</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
               </form>
             } @else {
-              <div class="field-row" [class.readonly]="!account.security.recoveryEmailUpdatable" (click)="account.security.recoveryEmailUpdatable ? startEdit('recovery') : null"><span>Recovery email</span><strong>{{ account.security.recoveryEmail || account.auth.email || 'Not set' }}</strong><em>{{ account.security.recoveryEmailUpdatable ? 'Edit' : 'Read only' }}</em></div>
+              @if (account.security.recoveryEmailUpdatable) {
+                <button class="field-row" type="button" (click)="startEdit('recovery')"><span>Recovery email</span><strong>{{ account.security.recoveryEmail || account.auth.email || 'Not set' }}</strong><em>Edit</em></button>
+              } @else {
+                <div class="field-row readonly"><span>Recovery email</span><strong>{{ account.security.recoveryEmail || account.auth.email || 'Not set' }}</strong><em>Read only</em></div>
+              }
             }
           </article>
           <article class="sub-card">
