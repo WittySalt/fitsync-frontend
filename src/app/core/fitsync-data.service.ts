@@ -2,6 +2,8 @@ import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/commo
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
 
+import { AnalyticsApiService } from './analytics-api.service';
+import { AnalyticsDashboardBody, AnalyticsDashboardGoal, AnalyticsDashboardNutrition } from './analytics.models';
 import {
   BodyMetric,
   CreateExerciseRequest,
@@ -56,10 +58,18 @@ import {
 export interface DashboardData {
   profile: UserProfile;
   nutrition: NutritionSummary;
+  workout?: DashboardWorkoutSummary;
   latestWorkout: WorkoutSession | null;
   latestMeal: Meal | null;
   latestBodyMetric: BodyMetric | null;
   goals: Goal[];
+}
+
+export interface DashboardWorkoutSummary {
+  todayWorkoutCount: number;
+  weekWorkoutCount: number;
+  weekWorkoutMinutes: number;
+  activeStreakDays: number;
 }
 
 export type ProgressMetricKey = 'weightKg' | 'bmi' | 'bodyFatRate' | 'waistCm';
@@ -135,27 +145,6 @@ interface BackendUserPreferences {
     mealReminderEnabled?: boolean | null;
     weighInReminderEnabled?: boolean | null;
   } | null;
-}
-
-interface BackendNutritionSummary {
-  totalCalories?: number | null;
-  totalProteinGrams?: number | string | null;
-  totalCarbsGrams?: number | string | null;
-  totalFatGrams?: number | string | null;
-  targetCalories?: number | null;
-  targetProteinGrams?: number | string | null;
-  targetCarbsGrams?: number | string | null;
-  targetFatGrams?: number | string | null;
-  mealCount?: number | null;
-  totalFiberGrams?: number | string | null;
-  totalSugarGrams?: number | string | null;
-  totalSodiumMg?: number | string | null;
-  fiberTargetGrams?: number | string | null;
-  sugarLimitGrams?: number | string | null;
-  sodiumLimitMg?: number | string | null;
-  fiberTargetMet?: boolean | null;
-  sugarWithinLimit?: boolean | null;
-  sodiumWithinLimit?: boolean | null;
 }
 
 interface BackendUserGoal {
@@ -400,30 +389,28 @@ interface BackendLoggedFood {
 @Injectable({ providedIn: 'root' })
 export class FitSyncDataService {
   private readonly http = inject(HttpClient);
+  private readonly analyticsApi = inject(AnalyticsApiService);
 
   readonly apiBaseUrl = '/api/v1';
   readonly lastSavedMessage = signal<string | null>(null);
 
   getDashboard(): Observable<DashboardData> {
-    const today = new Date().toISOString().slice(0, 10);
-
     return forkJoin({
+      analytics: this.analyticsApi.getDashboard(),
       user: this.http.get<BackendCurrentUser>(`${this.apiBaseUrl}/users/me`),
-      nutrition: this.http.get<BackendNutritionSummary>(
-        `${this.apiBaseUrl}/nutrition/summary/daily?date=${today}&timezone=Asia/Singapore`
-      ),
       latestWorkout: this.http.get<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/sessions/latest`),
       latestMeal: this.http.get<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/latest`)
     }).pipe(
-      map(({ user, nutrition, latestWorkout, latestMeal }) => ({
+      map(({ analytics, user, latestWorkout, latestMeal }) => ({
         profile: this.mapProfile(user.profile),
-        nutrition: this.mapNutrition(nutrition),
+        nutrition: this.mapAnalyticsNutrition(analytics.nutrition),
+        workout: analytics.workout,
         latestWorkout: this.mapWorkoutSession(latestWorkout),
         latestMeal: this.mapMeal(latestMeal),
-        latestBodyMetric: this.mapBodyMetric(user.latestBodyMetrics),
-        goals: (user.activeGoals ?? []).map((goal) => this.mapGoal(goal))
+        latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
+        goals: (analytics.goals ?? []).map((goal) => this.mapAnalyticsDashboardGoal(goal))
       })),
-      catchError(() => this.getFallbackDashboard())
+      catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
     );
   }
 
@@ -457,6 +444,12 @@ export class FitSyncDataService {
         fiberTargetMet: null,
         sugarWithinLimit: null,
         sodiumWithinLimit: null
+      },
+      workout: {
+        todayWorkoutCount: 1,
+        weekWorkoutCount: 7,
+        weekWorkoutMinutes: 300,
+        activeStreakDays: 7
       },
       latestWorkout: {
         name: 'Upper Body Strength',
@@ -1295,29 +1288,6 @@ export class FitSyncDataService {
     };
   }
 
-  private mapNutrition(summary: BackendNutritionSummary): NutritionSummary {
-    return {
-      totalCalories: summary.totalCalories ?? 0,
-      targetCalories: summary.targetCalories ?? null,
-      totalProteinGrams: this.numericValue(summary.totalProteinGrams) ?? 0,
-      targetProteinGrams: this.numericValue(summary.targetProteinGrams),
-      totalCarbsGrams: this.numericValue(summary.totalCarbsGrams) ?? 0,
-      targetCarbsGrams: this.numericValue(summary.targetCarbsGrams),
-      totalFatGrams: this.numericValue(summary.totalFatGrams) ?? 0,
-      targetFatGrams: this.numericValue(summary.targetFatGrams),
-      mealCount: summary.mealCount ?? 0,
-      totalFiberGrams: this.numericValue(summary.totalFiberGrams),
-      totalSugarGrams: this.numericValue(summary.totalSugarGrams),
-      totalSodiumMg: this.numericValue(summary.totalSodiumMg),
-      fiberTargetGrams: this.numericValue(summary.fiberTargetGrams),
-      sugarLimitGrams: this.numericValue(summary.sugarLimitGrams),
-      sodiumLimitMg: this.numericValue(summary.sodiumLimitMg),
-      fiberTargetMet: summary.fiberTargetMet ?? null,
-      sugarWithinLimit: summary.sugarWithinLimit ?? null,
-      sodiumWithinLimit: summary.sodiumWithinLimit ?? null
-    };
-  }
-
   private defaultTargetDate(): string {
     const targetDate = new Date();
     targetDate.setMonth(targetDate.getMonth() + 3);
@@ -1762,6 +1732,42 @@ export class FitSyncDataService {
     };
   }
 
+  private mapAnalyticsBodyMetric(body: AnalyticsDashboardBody, generatedAt: string): BodyMetric | null {
+    if (body.latestWeightKg == null && body.bmi == null && body.latestBodyFatRate == null) {
+      return null;
+    }
+
+    return {
+      weightKg: body.latestWeightKg ?? 0,
+      bodyFatRate: body.latestBodyFatRate ?? 0,
+      bmi: body.bmi ?? 0,
+      measuredAt: generatedAt
+    };
+  }
+
+  private mapAnalyticsNutrition(nutrition: AnalyticsDashboardNutrition): NutritionSummary {
+    return {
+      totalCalories: nutrition.todayCaloriesConsumed ?? 0,
+      targetCalories: nutrition.todayCaloriesTarget,
+      totalProteinGrams: nutrition.todayProteinGrams ?? 0,
+      targetProteinGrams: nutrition.todayProteinTargetGrams,
+      totalCarbsGrams: 0,
+      targetCarbsGrams: null,
+      totalFatGrams: 0,
+      targetFatGrams: null,
+      mealCount: nutrition.todayCaloriesConsumed == null && nutrition.todayProteinGrams == null ? 0 : 1,
+      totalFiberGrams: null,
+      totalSugarGrams: null,
+      totalSodiumMg: null,
+      fiberTargetGrams: null,
+      sugarLimitGrams: null,
+      sodiumLimitMg: null,
+      fiberTargetMet: null,
+      sugarWithinLimit: null,
+      sodiumWithinLimit: null
+    };
+  }
+
   private mapProgressBodyMetric(metric: Partial<ProgressBodyMetric> & Record<string, unknown>): ProgressBodyMetric {
     const measuredAt = this.stringValue(metric['measuredAt'] ?? metric['date'] ?? metric['metricDate'] ?? metric['recordedAt']);
 
@@ -1776,12 +1782,27 @@ export class FitSyncDataService {
 
   private mapGoal(goal: Partial<Goal>): Goal {
     return {
+      goalId: goal.goalId ?? null,
       goalType: goal.goalType ?? 'GOAL',
       targetValue: goal.targetValue ?? 0,
       targetUnit: goal.targetUnit ?? '',
       targetDate: goal.targetDate ?? '',
       status: goal.status ?? 'ACTIVE',
-      progressRatio: goal.progressRatio ?? 0
+      progressRatio: goal.progressRatio ?? 0,
+      onTrack: goal.onTrack ?? null
+    };
+  }
+
+  private mapAnalyticsDashboardGoal(goal: AnalyticsDashboardGoal): Goal {
+    return {
+      goalId: goal.goalId,
+      goalType: goal.goalType,
+      targetValue: 0,
+      targetUnit: '',
+      targetDate: '',
+      status: 'ACTIVE',
+      progressRatio: goal.progressRatio,
+      onTrack: goal.onTrack
     };
   }
 
