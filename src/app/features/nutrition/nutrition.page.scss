@@ -1,4 +1,9 @@
 .nutrition-page {
+  #nutrition-panel-today {
+    display: grid;
+    gap: 16px;
+  }
+
   .nutrition-hero,
   .nutrition-workspace,
   .planning-grid {

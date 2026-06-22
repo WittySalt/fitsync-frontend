@@ -11,7 +11,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
         <button class="button secondary" type="button" (click)="action.emit()">{{ actionLabel }}</button>
       }
     </section>
-  `
+  `,
+  styles: [':host { display: block; }']
 })
 export class StatePanelComponent {
   @Input({ required: true }) title = '';

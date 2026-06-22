@@ -67,7 +67,7 @@
 
 .live-metrics span {
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   background: var(--surface-sunken);
   padding: 6px 10px;
   font-size: 12px;
@@ -77,7 +77,7 @@
 .progress-track {
   height: 10px;
   overflow: hidden;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   background: var(--surface-sunken);
 }
 
@@ -108,7 +108,7 @@
 }
 
 .focus-card.set-complete-cue {
-  border-color: var(--success);
+  border-color: var(--accent);
   animation: cuePulse 1000ms ease-out;
 }
 
@@ -125,10 +125,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--success);
-  border-radius: var(--radius-pill);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-full);
   background: var(--surface);
-  color: var(--success);
+  color: var(--accent);
   padding: 8px 12px;
   font-weight: var(--fw-semibold);
   box-shadow: var(--shadow-sm);
@@ -139,9 +139,9 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   color: var(--text-on-accent);
-  background: var(--success);
+  background: var(--accent);
 }
 
 .focus-card:not(.reduced-motion) .set-complete-badge {
@@ -190,7 +190,7 @@
   place-items: center;
   width: 58px;
   height: 58px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   color: var(--text-on-accent);
   background: var(--accent);
   font-size: var(--text-3xl);
@@ -245,7 +245,7 @@
   width: 100%;
   height: 8px;
   overflow: hidden;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   background: var(--surface-sunken);
 }
 
@@ -344,7 +344,7 @@
 .guidance-chips span,
 .guidance-loading {
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   background: var(--surface);
   padding: 6px 10px;
   color: var(--text-secondary);
@@ -378,7 +378,7 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   color: var(--text-on-accent);
   background: var(--accent);
   font-weight: var(--fw-semibold);
@@ -414,7 +414,7 @@
 
 @keyframes cuePulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 28%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 28%, transparent);
   }
   65% {
     box-shadow: 0 0 0 16px transparent;
