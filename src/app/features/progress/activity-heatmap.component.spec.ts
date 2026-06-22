@@ -39,17 +39,17 @@ describe('ActivityHeatmapComponent', () => {
     expect(analyticsApi.getActivityCalendar).toHaveBeenCalledWith(jasmine.any(String), jasmine.any(String));
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Workout activity');
     expect(component.days().length).toBe(3);
+    expect(component.selectedPreset()).toBe('quarter');
   });
 
   it('renders inactive days as zero-intensity cells with a tooltip', () => {
     fixture.detectChanges();
 
-    const cells = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.heatmap [role="listitem"]'));
-    expect(cells.length).toBe(3);
-    expect(cells[1].classList).toContain('intensity-0');
-    expect(cells[1].getAttribute('title')).toBe('2026-06-21: No workouts');
-    expect(cells[2].classList).toContain('intensity-3');
-    expect(cells[2].getAttribute('aria-label')).toBe('2026-06-22: 3 workouts, 65 min');
+    const compiled = fixture.nativeElement as HTMLElement;
+    const inactive = compiled.querySelector<HTMLElement>('.heatmap-cell[title="2026-06-21: No workouts"]');
+    const active = compiled.querySelector<HTMLElement>('.heatmap-cell[aria-label="2026-06-22: 3 workouts, 65 min"]');
+    expect(inactive?.classList).toContain('intensity-0');
+    expect(active?.classList).toContain('intensity-3');
   });
 
   it('fills missing response dates as inactive days', () => {
@@ -77,6 +77,29 @@ describe('ActivityHeatmapComponent', () => {
     presetButtons[0].click();
 
     expect(analyticsApi.getActivityCalendar).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders quarter activity as three month heatmaps with one shared legend', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelectorAll('.month-heatmap').length).toBe(3);
+    expect(compiled.querySelectorAll('.legend .heatmap-cell').length).toBe(5);
+    expect(compiled.textContent).toContain('Less');
+    expect(compiled.textContent).toContain('More');
+  });
+
+  it('renders year activity as a week-column heatmap with month labels', () => {
+    fixture.detectChanges();
+
+    const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
+    presetButtons[3].click();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(component.selectedPreset()).toBe('year');
+    expect(compiled.querySelectorAll('.year-week').length).toBeGreaterThan(50);
+    expect(compiled.querySelectorAll('.year-month-labels span').length).toBeGreaterThan(6);
   });
 
   it('renders an error state when activity loading fails', () => {

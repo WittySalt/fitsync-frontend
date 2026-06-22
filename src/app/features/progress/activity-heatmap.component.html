@@ -10,7 +10,14 @@
   <div class="filter-row">
     <div class="range-presets" aria-label="Activity range presets">
       @for (preset of rangePresets; track preset.label) {
-        <button class="button secondary" type="button" (click)="setPreset(preset.days)">{{ preset.label }}</button>
+        <button
+          class="button secondary"
+          [class.active]="selectedPreset() === preset.key"
+          type="button"
+          (click)="setPreset(preset.key)"
+        >
+          {{ preset.label }}
+        </button>
       }
     </div>
 
@@ -46,20 +53,69 @@
       message="Choose a date range to see workout consistency over time."
     />
   } @else {
-    <div class="heatmap" role="list" aria-label="Daily workout activity">
-      @for (day of days(); track day.date) {
-        <span
-          role="listitem"
-          class="heatmap-cell intensity-{{ intensity(day) }}"
-          [attr.title]="tooltip(day)"
-          [attr.aria-label]="tooltip(day)"
-        ></span>
-      }
-    </div>
+    @if (selectedPreset() === 'quarter') {
+      <div class="quarter-heatmaps" aria-label="Quarter workout activity">
+        @for (month of quarterMonths(); track month.label) {
+          <article class="month-heatmap">
+            <h3>{{ month.label }}</h3>
+            <div class="weekday-row" aria-hidden="true">
+              @for (weekday of weekDays; track weekday) {
+                <span>{{ weekday }}</span>
+              }
+            </div>
+            <div class="month-grid" role="list" [attr.aria-label]="month.label + ' workout activity'">
+              @for (week of month.weeks; track $index) {
+                @for (day of week; track day.date) {
+                  <span
+                    role="listitem"
+                    [class]="cellClass(day)"
+                    [attr.title]="tooltip(day)"
+                    [attr.aria-label]="tooltip(day)"
+                  ></span>
+                }
+              }
+            </div>
+          </article>
+        }
+      </div>
+    } @else if (selectedPreset() === 'year') {
+      <div class="year-heatmap" role="list" aria-label="Year workout activity">
+        <div class="year-month-labels" aria-hidden="true">
+          @for (month of yearHeatmap().monthLabels; track month.column + month.label) {
+            <span [style.grid-column]="month.column">{{ month.label }}</span>
+          }
+        </div>
+        <div class="year-grid">
+          @for (week of yearHeatmap().weeks; track $index) {
+            <div class="year-week">
+              @for (day of week; track day.date) {
+                <span
+                  role="listitem"
+                  [class]="cellClass(day)"
+                  [attr.title]="tooltip(day)"
+                  [attr.aria-label]="tooltip(day)"
+                ></span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="heatmap" role="list" aria-label="Daily workout activity">
+        @for (day of days(); track day.date) {
+          <span
+            role="listitem"
+            class="heatmap-cell intensity-{{ intensity(day) }}"
+            [attr.title]="tooltip(day)"
+            [attr.aria-label]="tooltip(day)"
+          ></span>
+        }
+      </div>
+    }
 
     <div class="legend" aria-hidden="true">
       <span>Less</span>
-      @for (level of [0, 1, 2, 3, 4]; track level) {
+      @for (level of legendLevels; track level) {
         <i class="heatmap-cell intensity-{{ level }}"></i>
       }
       <span>More</span>
