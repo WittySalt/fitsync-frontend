@@ -1,4 +1,4 @@
-import { HttpEventType } from '@angular/common/http';
+import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, EventEmitter, OnInit, Output, WritableSignal, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -61,13 +61,18 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly exerciseHistory = signal<ExerciseHistoryEntry[]>([]);
   readonly exerciseDetailLoading = signal(false);
   readonly mediaFailed = signal(false);
+  readonly createMediaTab = signal<'photo' | 'video'>('photo');
   readonly createVideoFile = signal<File | null>(null);
   readonly editVideoFile = signal<File | null>(null);
+  readonly createImageFile = signal<File | null>(null);
   readonly createUploadProgress = signal<number | null>(null);
   readonly editUploadProgress = signal<number | null>(null);
+  readonly createImageUploadProgress = signal<number | null>(null);
   readonly createVideoError = signal('');
   readonly editVideoError = signal('');
+  readonly createImageError = signal('');
 
+  private readonly allowedImageTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
   private readonly allowedVideoTypes = new Set(['video/mp4', 'video/webm']);
   private readonly maxVideoBytes = 30 * 1024 * 1024;
 
@@ -80,7 +85,6 @@ export class ExerciseLibraryComponent implements OnInit {
   });
 
   readonly createForm = this.fb.nonNullable.group({
-    code: ['', [Validators.required, Validators.maxLength(100)]],
     name: ['', [Validators.required, Validators.maxLength(120)]],
     description: ['', Validators.maxLength(1000)],
     exerciseType: ['', Validators.required],
@@ -176,6 +180,7 @@ export class ExerciseLibraryComponent implements OnInit {
 
   readonly activeExerciseForm = computed(() => (this.libraryView() === 'create' ? this.createForm : this.editForm));
   readonly activeVideoMode = computed(() => this.activeExerciseForm().controls.videoMode.value);
+  readonly createPhotoFilled = computed(() => Boolean(this.createImageFile()));
 
   ngOnInit(): void {
     this.loadMetadata();
@@ -184,7 +189,6 @@ export class ExerciseLibraryComponent implements OnInit {
       this.page.set(0);
       this.loadExercises();
     });
-    this.createForm.controls.name.valueChanges.pipe(debounceTime(120)).subscribe((name) => this.suggestCode(name));
   }
 
   formatLabel(value: string | null | undefined): string {
@@ -294,17 +298,18 @@ export class ExerciseLibraryComponent implements OnInit {
     }
 
     const videoFile = this.createVideoFile();
+    const imageFile = this.createImageFile();
     this.saving.set(true);
     this.dataService.createExercise(this.normalizeCreate(this.createForm.getRawValue())).subscribe({
       next: (exercise) => {
-        if (videoFile && exercise.exerciseId) {
-          this.uploadVideoForExercise(exercise.exerciseId, videoFile, 'create', () => this.finishCreateSuccess());
+        if ((imageFile || videoFile) && exercise.exerciseId) {
+          this.uploadCreateMedia(exercise.exerciseId, imageFile, videoFile);
           return;
         }
         this.finishCreateSuccess();
       },
-      error: () => {
-        this.toast.error('Unable to create exercise. Check the code and retry.');
+      error: (error: unknown) => {
+        this.toast.error(this.createExerciseErrorMessage(error));
         this.saving.set(false);
       }
     });
@@ -429,8 +434,16 @@ export class ExerciseLibraryComponent implements OnInit {
     this.mediaFailed.set(true);
   }
 
+  hasCreateVideoMedia(): boolean {
+    return Boolean(this.createVideoFile() || this.createForm.controls.videoUrl.value.trim());
+  }
+
   selectCreateVideoFile(event: Event): void {
     this.selectVideoFile(event, this.createVideoFile, this.createVideoError, this.createUploadProgress);
+  }
+
+  selectCreateImageFile(event: Event): void {
+    this.selectImageFile(event, this.createImageFile, this.createImageError, this.createImageUploadProgress);
   }
 
   selectEditVideoFile(event: Event): void {
@@ -515,11 +528,11 @@ export class ExerciseLibraryComponent implements OnInit {
     }
   }
 
-  private normalizeCreate(value: CreateExerciseRequest & { videoMode?: string; videoUrl?: string }): CreateExerciseRequest {
+  private normalizeCreate(value: Omit<CreateExerciseRequest, 'code'> & { videoMode?: string; videoUrl?: string }): CreateExerciseRequest {
     const { videoMode, videoUrl, ...exercise } = value;
     const normalized: CreateExerciseRequest = {
       ...exercise,
-      code: value.code.trim().toUpperCase(),
+      code: this.buildCode(value.name),
       name: value.name.trim(),
       description: value.description.trim()
     };
@@ -584,10 +597,7 @@ export class ExerciseLibraryComponent implements OnInit {
     });
   }
 
-  private suggestCode(name: string): void {
-    if (this.createForm.controls.code.dirty || !name.trim()) {
-      return;
-    }
+  private buildCode(name: string): string {
     const slug = name
       .trim()
       .replace(/[^a-zA-Z0-9]+/g, '_')
@@ -595,13 +605,13 @@ export class ExerciseLibraryComponent implements OnInit {
       .filter((segment) => segment.length > 0)
       .join('_')
       .toUpperCase();
-    this.createForm.controls.code.setValue(slug ? `CUSTOM_${slug}` : '', { emitEvent: false });
+    const suffix = Date.now().toString(36).slice(-4).toUpperCase();
+    return `CUSTOM_${slug || 'EXERCISE'}_${suffix}`;
   }
 
   private finishCreateSuccess(): void {
     this.toast.success('Exercise created.');
     this.createForm.reset({
-      code: '',
       name: '',
       description: '',
       exerciseType: this.metadata()?.exerciseTypes[0] || '',
@@ -611,6 +621,10 @@ export class ExerciseLibraryComponent implements OnInit {
       videoMode: 'url',
       videoUrl: ''
     });
+    this.createMediaTab.set('photo');
+    this.createImageFile.set(null);
+    this.createImageUploadProgress.set(null);
+    this.createImageError.set('');
     this.createVideoFile.set(null);
     this.createUploadProgress.set(null);
     this.createVideoError.set('');
@@ -663,6 +677,69 @@ export class ExerciseLibraryComponent implements OnInit {
     errorSignal.set('');
   }
 
+  private selectImageFile(
+    event: Event,
+    fileSignal: WritableSignal<File | null>,
+    errorSignal: WritableSignal<string>,
+    progressSignal: WritableSignal<number | null>
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    progressSignal.set(null);
+    if (!file) {
+      fileSignal.set(null);
+      errorSignal.set('');
+      return;
+    }
+    if (!this.allowedImageTypes.has(file.type)) {
+      fileSignal.set(null);
+      errorSignal.set('Use a PNG, JPEG, or WebP image.');
+      input.value = '';
+      return;
+    }
+    fileSignal.set(file);
+    errorSignal.set('');
+  }
+
+  private uploadCreateMedia(exerciseId: string, imageFile: File | null, videoFile: File | null): void {
+    const uploadVideo = () => {
+      if (!videoFile) {
+        this.finishCreateSuccess();
+        return;
+      }
+      this.uploadVideoForExercise(exerciseId, videoFile, 'create', () => this.finishCreateSuccess());
+    };
+
+    if (!imageFile) {
+      uploadVideo();
+      return;
+    }
+
+    this.uploadImageForExercise(exerciseId, imageFile, uploadVideo);
+  }
+
+  private uploadImageForExercise(exerciseId: string, file: File, onSuccess: () => void): void {
+    this.createImageUploadProgress.set(0);
+    this.dataService.uploadExerciseImage(exerciseId, file).subscribe({
+      next: (event) => {
+        if (event.type === HttpEventType.UploadProgress) {
+          const total = event.total ?? file.size;
+          this.createImageUploadProgress.set(total > 0 ? Math.round((event.loaded / total) * 100) : 0);
+          return;
+        }
+        if (event.type === HttpEventType.Response) {
+          this.createImageUploadProgress.set(100);
+          onSuccess();
+        }
+      },
+      error: () => {
+        this.createImageError.set('Unable to upload photo. Please retry.');
+        this.toast.error('Unable to upload exercise photo. Please retry.');
+        this.saving.set(false);
+      }
+    });
+  }
+
   private uploadVideoForExercise(
     exerciseId: string,
     file: File,
@@ -692,5 +769,12 @@ export class ExerciseLibraryComponent implements OnInit {
         this.saving.set(false);
       }
     });
+  }
+
+  private createExerciseErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse && error.status === 409) {
+      return 'An exercise with that name already exists.';
+    }
+    return 'Unable to create exercise. Please retry.';
   }
 }

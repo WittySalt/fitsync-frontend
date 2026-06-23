@@ -889,6 +889,24 @@ export class FitSyncDataService {
       );
   }
 
+  uploadExerciseImage(exerciseId: string, file: Blob): Observable<HttpEvent<Exercise>> {
+    const form = new FormData();
+    form.append('file', file, 'exercise-image');
+    return this.http
+      .post<BackendExerciseView>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}/image`, form, {
+        reportProgress: true,
+        observe: 'events'
+      })
+      .pipe(
+        map((event) => {
+          if (event.type !== HttpEventType.Response) {
+            return event;
+          }
+          return event.clone({ body: this.mapExercise(event.body ?? {}) });
+        })
+      );
+  }
+
   archiveExercise(exerciseId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/workouts/exercises/${exerciseId}`);
   }
