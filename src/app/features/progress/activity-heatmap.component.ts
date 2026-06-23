@@ -77,6 +77,7 @@ export class ActivityHeatmapComponent implements OnInit {
     { label: 'Year', key: 'year' }
   ];
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  readonly compactWeekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   readonly legendLevels = [0, 1, 2, 3, 4];
 
   readonly data = signal<AnalyticsActivityCalendarResponse | null>(null);
@@ -558,19 +559,16 @@ export class ActivityHeatmapComponent implements OnInit {
 
   private buildMonthHeatmap(month: Date): MonthHeatmap {
     const firstOfMonth = this.startOfMonth(month);
-    const lastOfMonth = this.endOfMonth(month);
     const cursor = this.startOfWeek(firstOfMonth);
-    const end = this.addDays(this.startOfWeek(lastOfMonth), 6);
     const weeks: CalendarDay[][] = [];
-    let week: CalendarDay[] = [];
 
-    while (cursor <= end) {
-      week.push(this.calendarDay(this.formatIsoDate(cursor), cursor.getMonth() === firstOfMonth.getMonth()));
-      if (week.length === 7) {
-        weeks.push(week);
-        week = [];
+    for (let weekIndex = 0; weekIndex < 6; weekIndex += 1) {
+      const week: CalendarDay[] = [];
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+        week.push(this.calendarDay(this.formatIsoDate(cursor), cursor.getMonth() === firstOfMonth.getMonth()));
+        cursor.setDate(cursor.getDate() + 1);
       }
-      cursor.setDate(cursor.getDate() + 1);
+      weeks.push(week);
     }
 
     return {
@@ -613,6 +611,10 @@ export class ActivityHeatmapComponent implements OnInit {
   }
 
   private calendarDay(date: string, inMonth: boolean): CalendarDay {
+    if (!inMonth) {
+      return { date, workoutCount: 0, workoutMinutes: 0, inRange: false, inMonth };
+    }
+
     const day = this.dayByDate().get(date) ?? { date, workoutCount: 0, workoutMinutes: 0 };
     return {
       ...day,
