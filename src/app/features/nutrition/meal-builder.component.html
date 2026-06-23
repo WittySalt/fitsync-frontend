@@ -1,12 +1,12 @@
 <section class="meal-builder" aria-labelledby="meal-builder-title">
-  <div class="builder-header">
+  <header class="builder-header">
     <div>
       <span class="card-label">Log Meal</span>
       <h2 id="meal-builder-title">Build a meal from foods</h2>
       <p>Search the catalog, choose servings, and let FitSync calculate the nutrition.</p>
     </div>
     <div class="totals-card" aria-label="Meal totals">
-      <strong>{{ totals().calories }}</strong>
+      <strong>{{ formatAmount(totals().calories) }}</strong>
       <span>kcal</span>
       <small>
         {{ formatAmount(totals().proteinGrams, 'g') }} protein /
@@ -14,7 +14,7 @@
         {{ formatAmount(totals().fatGrams, 'g') }} fat
       </small>
     </div>
-  </div>
+  </header>
 
   <form class="meal-meta" [formGroup]="mealForm">
     <fieldset class="meal-type-grid segmented" aria-label="Meal type">
@@ -48,185 +48,351 @@
     <section class="finder-panel" aria-label="Food finder">
       <div class="section-title">
         <div>
-          <span class="card-label">Food Search</span>
+          <span class="card-label">Food Finder</span>
           <h3>Find foods</h3>
         </div>
       </div>
 
-      <label class="search-field">
-        <span class="fs-icon" data-icon="spark" aria-hidden="true"></span>
-        <input
-          type="search"
-          [formControl]="searchControl"
-          placeholder="Search foods (chicken, oats, yogurt)"
-          aria-label="Search foods"
-        />
-      </label>
+      <div class="search-shell">
+        @if (filtersOpen()) {
+          <button type="button" class="floating-backdrop" aria-label="Close filters" (click)="closeFilters()"></button>
+        }
+        <div class="search-row">
+          <button
+            type="button"
+            class="icon-button"
+            [class.active]="filtersOpen()"
+            [attr.aria-expanded]="filtersOpen()"
+            aria-label="Filters"
+            (click)="toggleFilters($event)"
+          >
+            <span class="fs-icon" data-icon="ruler" aria-hidden="true"></span>
+          </button>
+          <label class="search-field">
+            <span class="fs-icon" data-icon="spark" aria-hidden="true"></span>
+            <input
+              type="search"
+              [formControl]="searchControl"
+              placeholder="Search foods"
+              aria-label="Search foods"
+            />
+          </label>
+          <button
+            type="button"
+            class="icon-button"
+            [class.active]="barcodeOpen()"
+            [attr.aria-expanded]="barcodeOpen()"
+            aria-label="Barcode lookup"
+            (click)="toggleBarcode($event)"
+          >
+            <span class="fs-icon" data-icon="target" aria-hidden="true"></span>
+          </button>
+        </div>
 
-      <div class="toolbar-row">
-        <button type="button" class="chip" [class.active]="verifiedOnly()" [attr.aria-pressed]="verifiedOnly()" (click)="toggleVerifiedOnly()">
-          Verified only
-        </button>
-        @if (selectedCategory()) {
-          <button type="button" class="chip" (click)="selectCategory(null)">Clear {{ categoryLabel() }}</button>
+        @if (filtersOpen()) {
+          <aside class="filter-popover" aria-label="Food filters">
+            <div class="filter-head">
+              <h4>Filters</h4>
+              <button type="button" class="text-button" (click)="resetFilters()">Reset</button>
+            </div>
+            <button type="button" class="toggle-row" [class.active]="verifiedOnly()" (click)="toggleVerifiedOnly()">
+              <span>Verified only</span>
+              <span>{{ verifiedOnly() ? 'On' : 'Off' }}</span>
+            </button>
+            <label>
+              Category
+              <input type="search" [formControl]="categorySearchControl" placeholder="Search categories" />
+            </label>
+            <div class="category-picker" aria-label="Category filter">
+              <button type="button" [class.active]="!selectedCategory()" (click)="selectCategory(null)">All foods</button>
+              @for (category of filteredCategoryOptions(); track category.categoryId) {
+                <button
+                  type="button"
+                  [class.active]="selectedCategory()?.categoryId === category.categoryId"
+                  (click)="selectCategory(category)"
+                >
+                  {{ category.displayName }}
+                </button>
+              }
+            </div>
+            <div class="filter-actions">
+              <button type="button" class="button secondary" (click)="resetFilters()">Clear</button>
+              <button type="button" class="button nutrition" (click)="closeFilters()">Show {{ totalElements() }}</button>
+            </div>
+          </aside>
+        }
+
+        @if (barcodeOpen()) {
+          <div class="barcode-popover">
+            <input
+              type="text"
+              inputmode="numeric"
+              [formControl]="barcodeControl"
+              (keyup.enter)="lookupBarcode()"
+              placeholder="Scan or enter barcode"
+              aria-label="Food barcode"
+            />
+            <button type="button" class="button secondary" [disabled]="barcodeLooking()" (click)="lookupBarcode()">
+              {{ barcodeLooking() ? 'Looking...' : 'Look up' }}
+            </button>
+          </div>
         }
       </div>
 
-      <div class="barcode-row">
-        <input
-          type="text"
-          inputmode="numeric"
-          [formControl]="barcodeControl"
-          (keyup.enter)="lookupBarcode()"
-          placeholder="Scan or enter a barcode"
-          aria-label="Food barcode"
-        />
-        <button type="button" class="button secondary" [disabled]="barcodeLooking()" (click)="lookupBarcode()">
-          {{ barcodeLooking() ? 'Looking...' : 'Look up' }}
-        </button>
-      </div>
-
-      @if (categoryOptions().length) {
-        <div class="chip-list" aria-label="Food categories">
-          <button type="button" class="chip" [class.active]="!selectedCategory()" (click)="selectCategory(null)">All</button>
-          @for (category of categoryOptions(); track category.categoryId) {
-            <button
-              type="button"
-              class="chip"
-              [class.active]="selectedCategory()?.categoryId === category.categoryId"
-              (click)="selectCategory(category)"
-            >
-              {{ category.displayName }}
+      @if (activeFilters().length) {
+        <div class="active-filters" aria-label="Active filters">
+          @for (filter of activeFilters(); track filter) {
+            <button type="button" class="filter-pill" (click)="clearFilter(filter)">
+              {{ filter }} <span aria-hidden="true">x</span>
             </button>
           }
         </div>
       }
 
-      <div class="quick-sections">
-        @if (recentFoods().length) {
-          <section aria-label="Recent foods">
-            <span class="card-label">Recent</span>
-            <div class="chip-list">
-              @for (food of recentFoods(); track food.foodName + food.calories) {
-                <button type="button" class="chip food-chip" (click)="addLoggedFood(food)">
-                  {{ food.foodName }} · {{ food.calories }} kcal
-                </button>
-              }
-            </div>
-          </section>
-        }
-
-        @if (frequentFoods().length) {
-          <section aria-label="Frequent foods">
-            <span class="card-label">Frequent</span>
-            <div class="chip-list">
-              @for (food of frequentFoods(); track food.foodName + food.timesLogged) {
-                <button type="button" class="chip food-chip" (click)="addLoggedFood(food)">
-                  {{ food.foodName }} · {{ food.timesLogged }} logs
-                </button>
-              }
-            </div>
-          </section>
-        }
-
-        <section aria-label="Favorite foods">
-          <span class="card-label">Favorites</span>
-          @if (favoriteFoods().length) {
-            <div class="chip-list">
-              @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
-                <button type="button" class="chip food-chip" (click)="selectFood(food)">
-                  {{ food.displayName }} · {{ food.calories }} kcal
-                </button>
-              }
-            </div>
-          } @else {
-            <p class="empty-copy">Save foods from search results to keep them here.</p>
-          }
-        </section>
-
-        @if (mealTemplates().length) {
-          <section aria-label="Saved meals">
-            <span class="card-label">Saved meals</span>
-            <div class="chip-list">
-              @for (template of mealTemplates(); track template.templateId) {
-                <button type="button" class="chip food-chip" (click)="logTemplate(template)">
-                  {{ template.name }} · {{ template.totalCalories }} kcal
-                </button>
-              }
-            </div>
-          </section>
+      <div class="finder-tabs segmented" role="tablist" aria-label="Food sources">
+        @for (tab of finderTabs; track tab.value) {
+          <button
+            type="button"
+            role="tab"
+            [class.active]="activeTab() === tab.value"
+            [attr.aria-selected]="activeTab() === tab.value"
+            (click)="setActiveTab(tab.value)"
+          >
+            {{ tab.label }}
+          </button>
         }
       </div>
 
-      @if (searching()) {
-        <div class="summary-card skeleton"></div>
-      } @else if (foods().length) {
-        <div class="food-list">
-          @for (food of foods(); track food.foodId ?? food.displayName) {
-            <article class="food-result">
-              <button type="button" class="food-row" (click)="selectFood(food)">
-                <span>
-                  <strong>
-                    {{ food.displayName }}
-                    @if (food.verified) { <span class="verified-tag">Verified</span> }
-                  </strong>
-                  <small>{{ food.brandName || 'Generic' }} · per {{ food.basisLabel || food.basisUnit }}</small>
-                </span>
-                <span class="food-cal">
-                  <strong>{{ food.calories }}</strong>
-                  <small>kcal</small>
-                </span>
-              </button>
-              <button
-                type="button"
-                class="chip"
-                [class.active]="isFavorite(food)"
-                [disabled]="!food.foodId || isFavoriteUpdating(food)"
-                [attr.aria-label]="isFavorite(food) ? 'Remove from favorites' : 'Add to favorites'"
-                (click)="toggleFavorite(food)"
-              >
-                {{ isFavorite(food) ? 'Saved' : 'Save' }}
-              </button>
-            </article>
-          }
-        </div>
-        <nav class="pagination-bar" aria-label="Food search settings">
-          <label class="page-size">
-            Per page
-            <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
-              @for (size of pageSizeOptions; track size) {
-                <option [value]="size">{{ size }}</option>
-              }
-            </select>
-          </label>
-          @if (totalPages() > 1) {
-            <div class="page-controls" aria-label="Food search pages">
-            <button class="button secondary" type="button" (click)="prevPage()" [disabled]="searching() || page() <= 0">
-              Previous
-            </button>
-            <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} foods)</span>
-            <button class="button secondary" type="button" (click)="nextPage()" [disabled]="searching() || page() + 1 >= totalPages()">
-              Next
-            </button>
-            </div>
-          }
-        </nav>
-      } @else {
-        <app-state-panel title="No matches" message="Try another search term or a broader category." />
+      @if (activeTab() === 'results') {
+        @if (searching()) {
+          <div class="summary-card skeleton"></div>
+        } @else if (foods().length) {
+          <div class="food-list">
+            @for (food of foods(); track food.foodId ?? food.displayName) {
+              <article class="food-result">
+                <button type="button" class="food-row" (click)="selectFood(food)">
+                  <span>
+                    <strong>{{ food.displayName }}</strong>
+                    <small>per {{ food.basisLabel || food.basisUnit }}</small>
+                    <span class="tag-list">
+                      @for (tag of foodTags(food); track tag) {
+                        <span class="result-tag">{{ tag }}</span>
+                      }
+                    </span>
+                  </span>
+                  <span class="food-cal">
+                    @if (selectedCount(food) > 0) {
+                      <small class="in-meal">In meal · {{ formatQuantity(selectedCount(food)) }}</small>
+                    }
+                    <strong>{{ formatAmount(food.calories) }}</strong>
+                    <small>kcal</small>
+                  </span>
+                </button>
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="icon-button"
+                    [class.active]="isFavorite(food)"
+                    [disabled]="!food.foodId || isFavoriteUpdating(food)"
+                    [attr.aria-label]="isFavorite(food) ? 'Remove from favorites' : 'Add to favorites'"
+                    (click)="toggleFavorite(food, $event)"
+                  >
+                    <span class="fs-icon" data-icon="spark" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="quantity-button" [disabled]="!food.foodId" (click)="addFoodResult(food, $event)">
+                    +
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+          <nav class="pagination-bar" aria-label="Food search settings">
+            <label class="page-size">
+              Per page
+              <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
+                @for (size of pageSizeOptions; track size) {
+                  <option [value]="size">{{ size }}</option>
+                }
+              </select>
+            </label>
+            @if (totalPages() > 1) {
+              <div class="page-controls" aria-label="Food search pages">
+                <button class="button secondary" type="button" (click)="prevPage()" [disabled]="searching() || page() <= 0">
+                  Previous
+                </button>
+                <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} foods)</span>
+                <button class="button secondary" type="button" (click)="nextPage()" [disabled]="searching() || page() + 1 >= totalPages()">
+                  Next
+                </button>
+              </div>
+            }
+          </nav>
+        } @else {
+          <app-state-panel title="No matches" message="Try another search term or a broader category." />
+        }
+      }
+
+      @if (activeTab() === 'recent') {
+        <fieldset class="sort-toggle segmented">
+          <legend class="sr-only">Recent sort</legend>
+          <button type="button" [class.active]="recentSort() === 'recent'" (click)="setRecentSort('recent')">Most recent</button>
+          <button type="button" [class.active]="recentSort() === 'frequent'" (click)="setRecentSort('frequent')">Most logged</button>
+        </fieldset>
+        @if (shownRecentFoods().length) {
+          <div class="compact-list">
+            @for (food of shownRecentFoods(); track (food.customFoodId ?? food.foodId ?? food.foodName) + food.servingLabel) {
+              <article class="compact-food">
+                <button type="button" (click)="selectLoggedFood(food)">
+                  <strong>{{ food.foodName }}</strong>
+                  <span>{{ food.servingLabel || food.unit }} · {{ formatAmount(food.calories) }} kcal</span>
+                  <small>{{ food.timesLogged }} logs@if (food.lastLoggedAt) { · {{ formatLoggedAt(food.lastLoggedAt) }} }</small>
+                </button>
+                <button type="button" class="quantity-button" (click)="addLoggedFoodToMeal(food, $event)">+</button>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="empty-copy">No logged foods yet.</p>
+        }
+      }
+
+      @if (activeTab() === 'favorites') {
+        @if (favoriteFoods().length) {
+          <div class="food-list">
+            @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
+              <article class="food-result">
+                <button type="button" class="food-row" (click)="selectFood(food)">
+                  <span>
+                    <strong>{{ food.displayName }}</strong>
+                    <small>{{ food.brandName || 'Generic' }} · per {{ food.basisLabel || food.basisUnit }}</small>
+                    <span class="tag-list">
+                      @for (tag of foodTags(food); track tag) {
+                        <span class="result-tag">{{ tag }}</span>
+                      }
+                    </span>
+                  </span>
+                  <span class="food-cal">
+                    <strong>{{ formatAmount(food.calories) }}</strong>
+                    <small>kcal</small>
+                  </span>
+                </button>
+                <button type="button" class="quantity-button" [disabled]="!food.foodId" (click)="addFoodResult(food, $event)">+</button>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="empty-copy">Save foods from search results to keep them here.</p>
+        }
+      }
+
+      @if (activeTab() === 'templates') {
+        @if (mealTemplates().length) {
+          <div class="compact-list">
+            @for (template of mealTemplates(); track template.templateId) {
+              <article class="compact-food">
+                <button type="button" (click)="addTemplateToMeal(template)">
+                  <strong>{{ template.name }}</strong>
+                  <span>{{ template.mealType }} · {{ formatAmount(template.totalCalories) }} kcal</span>
+                  <small>{{ template.items.length }} items</small>
+                </button>
+                <button
+                  type="button"
+                  class="button secondary"
+                  [disabled]="templateLoading() === template.templateId"
+                  (click)="addTemplateToMeal(template, $event)"
+                >
+                  {{ templateLoading() === template.templateId ? 'Adding...' : 'Add all' }}
+                </button>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="empty-copy">Saved meals will appear here.</p>
+        }
       }
     </section>
 
     <section class="builder-panel" aria-label="Meal builder">
+      <section class="plan-panel" aria-label="Daily plan progress">
+        <article class="calorie-ring-card">
+          <div class="ring-wrap large">
+            <svg viewBox="0 0 120 120" role="img" aria-label="Calories progress">
+              <circle class="ring-track" cx="60" cy="60" r="48" pathLength="100"></circle>
+              @if (calorieRing().target) {
+                <circle class="ring-logged" cx="60" cy="60" r="48" pathLength="100" [attr.stroke-dasharray]="ringSegment(calorieRing().current, calorieRing().target) + ' 100'"></circle>
+                <circle
+                  class="ring-meal"
+                  cx="60"
+                  cy="60"
+                  r="48"
+                  pathLength="100"
+                  [attr.stroke-dasharray]="ringSegment(calorieRing().meal, calorieRing().target) + ' 100'"
+                  [attr.stroke-dashoffset]="ringMealOffset(calorieRing())"
+                ></circle>
+                @if (ringOverSegment(calorieRing()) > 0) {
+                  <circle class="ring-over" cx="60" cy="60" r="36" pathLength="100" [attr.stroke-dasharray]="ringOverSegment(calorieRing()) + ' 100'"></circle>
+                }
+              }
+            </svg>
+            <div>
+              <strong>{{ formatAmount(totals().calories) }}</strong>
+              <span>meal kcal</span>
+            </div>
+          </div>
+          <div class="ring-copy">
+            <span>Today {{ formatAmount(dailySummary()?.totalCalories) }} / {{ dailySummary()?.targetCalories == null ? 'No target' : formatAmount(dailySummary()?.targetCalories) }}</span>
+            @if (remainingCalories() != null) {
+              <strong [class.over]="remainingCalories()! < 0">
+                {{ remainingCalories()! < 0 ? formatAmount(-remainingCalories()!) + ' over' : formatAmount(remainingCalories()) + ' left' }}
+              </strong>
+            }
+          </div>
+        </article>
+
+        <div class="macro-rings">
+          @for (metric of macroRings(); track metric.label) {
+            <article>
+              <div class="ring-wrap small">
+                <svg viewBox="0 0 80 80" role="img" [attr.aria-label]="metric.label + ' progress'">
+                  <circle class="ring-track" cx="40" cy="40" r="30" pathLength="100"></circle>
+                  @if (metric.target) {
+                    <circle class="ring-logged" cx="40" cy="40" r="30" pathLength="100" [attr.stroke-dasharray]="ringSegment(metric.current, metric.target) + ' 100'"></circle>
+                    <circle
+                      class="ring-meal"
+                      cx="40"
+                      cy="40"
+                      r="30"
+                      pathLength="100"
+                      [attr.stroke-dasharray]="ringSegment(metric.meal, metric.target) + ' 100'"
+                      [attr.stroke-dashoffset]="ringMealOffset(metric)"
+                    ></circle>
+                  }
+                </svg>
+                <strong>{{ formatAmount(metric.meal, metric.unit) }}</strong>
+              </div>
+              <span>{{ metric.label }}</span>
+              <small>{{ formatAmount(metric.current, metric.unit) }} / {{ metric.target == null ? 'No target' : formatAmount(metric.target, metric.unit) }}</small>
+            </article>
+          }
+        </div>
+      </section>
+
       @if (selectedDetail(); as detail) {
-        <article class="serving-card">
+        <article class="food-detail-card">
           <div class="section-title">
             <div>
-              <span class="card-label">Serving</span>
+              <span class="card-label">Food Detail</span>
               <h3>{{ detail.displayName }}</h3>
             </div>
-            <button type="button" class="chip" (click)="clearSelectedFood()">Close</button>
+            <button type="button" class="icon-button" aria-label="Close food detail" (click)="clearSelectedFood()">x</button>
           </div>
-          <p>{{ detail.brandName || 'Generic' }} · base {{ detail.basisQuantity }} {{ detail.basisUnit }}</p>
+          <div class="detail-tags">
+            @if (detail.brandName) { <span>{{ detail.brandName }}</span> }
+            @if (detail.categoryName) { <span>{{ detail.categoryName }}</span> }
+            @if (isCustomFoodScope(detail.scope)) { <span>Custom</span> }
+            @if (detail.primaryBarcode) { <span>{{ detail.primaryBarcode }}</span> }
+          </div>
+          <p>Base {{ formatAmount(detail.basisQuantity) }} {{ detail.basisUnit }}</p>
 
           <div class="serving-controls">
             <label>
@@ -237,73 +403,54 @@
                 }
               </select>
             </label>
-            <label>
-              Quantity
-              <input type="number" min="0.1" step="0.1" [value]="selectedQuantity()" (input)="setQuantity($any($event.target).value)" />
-            </label>
+            <div class="stepper-field">
+              <label for="selected-food-quantity">Quantity</label>
+              <div class="stepper">
+                <button type="button" (click)="adjustSelectedQuantity(-1)">-</button>
+                <input id="selected-food-quantity" type="number" min="0.1" step="0.1" [value]="selectedQuantity()" (input)="setQuantity($any($event.target).value)" />
+                <button type="button" (click)="adjustSelectedQuantity(1)">+</button>
+              </div>
+            </div>
           </div>
 
           @if (itemPreview(); as preview) {
             <div class="preview-grid" aria-label="Selected serving nutrition preview">
-              <div><strong>{{ preview.calories }}</strong><span>kcal</span></div>
+              <div><strong>{{ formatAmount(preview.calories) }}</strong><span>kcal</span></div>
               <div><strong>{{ formatAmount(preview.proteinGrams, 'g') }}</strong><span>protein</span></div>
               <div><strong>{{ formatAmount(preview.carbsGrams, 'g') }}</strong><span>carbs</span></div>
               <div><strong>{{ formatAmount(preview.fatGrams, 'g') }}</strong><span>fat</span></div>
             </div>
-            <button type="button" class="button nutrition" (click)="addSelectedFood()">Add to meal</button>
+            <div class="micro-grid">
+              @if (preview.fiberGrams != null) { <span>Fiber {{ formatAmount(preview.fiberGrams, 'g') }}</span> }
+              @if (preview.sugarGrams != null) { <span>Sugar {{ formatAmount(preview.sugarGrams, 'g') }}</span> }
+              @if (preview.sodiumMg != null) { <span>Sodium {{ formatAmount(preview.sodiumMg, 'mg') }}</span> }
+            </div>
+            <button type="button" class="button nutrition" (click)="addSelectedFood()">Add to meal · {{ formatAmount(preview.calories) }} kcal</button>
           } @else {
             <app-state-panel title="Serving cannot be calculated" message="This food is missing serving conversion data. Try another serving or use quick-add." />
           }
         </article>
       } @else {
-        <app-state-panel title="Choose a food" message="Pick a food from search, recent, frequent, or favorites to choose a serving." />
+        <app-state-panel title="Choose a food" message="Pick a food from search, recent, favorites, or saved meals." />
       }
 
       <section class="meal-items" aria-label="Current meal items">
         <div class="section-title">
           <div>
-            <span class="card-label">Meal Items</span>
+            <span class="card-label">This Meal</span>
             <h3>{{ items().length }} selected</h3>
           </div>
+          <button
+            type="button"
+            class="quick-toggle"
+            [attr.aria-expanded]="quickAddOpen()"
+            aria-controls="quick-add-panel"
+            (click)="toggleQuickAdd()"
+          >
+            Quick add
+          </button>
         </div>
 
-        @if (items().length) {
-          <div class="item-list">
-            @for (item of items(); track item.id) {
-              <article class="meal-item">
-                <div>
-                  <strong>{{ item.foodName }}</strong>
-                  <span>{{ item.quantity }} × {{ item.snapshotServingLabel || item.unit }}</span>
-                </div>
-                <label>
-                  Qty
-                  <input type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
-                </label>
-                <div class="item-calories">
-                  <strong>{{ item.calories }} kcal</strong>
-                  <button type="button" class="chip" (click)="removeItem(item.id)">Remove</button>
-                </div>
-              </article>
-            }
-          </div>
-          <button type="button" class="button nutrition save-button" [disabled]="saving()" (click)="saveMeal()">
-            {{ saving() ? 'Saving...' : 'Save meal' }}
-          </button>
-        } @else {
-          <p class="empty-copy">Add multiple foods before saving the meal.</p>
-        }
-      </section>
-
-      <section class="quick-add" aria-label="Quick manual add">
-        <button
-          type="button"
-          class="quick-toggle"
-          [attr.aria-expanded]="quickAddOpen()"
-          aria-controls="quick-add-panel"
-          (click)="toggleQuickAdd()"
-        >
-          Quick manual add
-        </button>
         @if (quickAddOpen()) {
           <form id="quick-add-panel" class="quick-form" [formGroup]="quickAddForm" (ngSubmit)="saveQuickAdd()">
             <label>
@@ -334,6 +481,42 @@
             </button>
           </form>
         }
+
+        @if (items().length) {
+          <div class="item-list">
+            @for (item of items(); track item.id) {
+              <article class="meal-item">
+                <div>
+                  <strong>{{ item.foodName }}</strong>
+                  <span>{{ formatServing(item) }}</span>
+                </div>
+                <div class="item-stepper">
+                  <label class="sr-only" for="meal-item-quantity-{{ item.id }}">Quantity for {{ item.foodName }}</label>
+                  <div class="stepper compact">
+                    <button type="button" (click)="incrementItem(item.id, -1)">-</button>
+                    <input id="meal-item-quantity-{{ item.id }}" type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
+                    <button type="button" (click)="incrementItem(item.id, 1)">+</button>
+                  </div>
+                </div>
+                <div class="item-calories">
+                  <strong>{{ formatAmount(item.calories) }} kcal</strong>
+                  <button type="button" class="icon-button" aria-label="Remove item" (click)="removeItem(item.id)">x</button>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="empty-copy">Add foods before saving the meal.</p>
+        }
+
+        <div class="cart-actions">
+          <button type="button" class="button secondary" [disabled]="!items().length || templateSaving()" (click)="saveAsTemplate()">
+            {{ templateSaving() ? 'Saving...' : 'Save as template' }}
+          </button>
+          <button type="button" class="button nutrition" [disabled]="!items().length || saving()" (click)="saveMeal()">
+            {{ saving() ? 'Saving...' : 'Log meal' }}
+          </button>
+        </div>
       </section>
     </section>
   </div>

@@ -37,6 +37,7 @@ import {
   MealDraft,
   MealItemDraft,
   MealTemplate,
+  MealTemplateItem,
   MealFormValue,
   QuickAddMealValue,
   WorkoutSessionFormValue,
@@ -170,6 +171,7 @@ interface BackendFoodSearchResult {
   displayName?: string | null;
   brandName?: string | null;
   categoryCode?: string | null;
+  categoryName?: string | null;
   scope?: string | null;
   calories?: number | null;
   proteinGrams?: number | null;
@@ -345,6 +347,7 @@ interface BackendFoodDetail {
   foodId?: string | null;
   displayName?: string | null;
   brandName?: string | null;
+  categoryName?: string | null;
   scope?: string | null;
   densityGramsPerMl?: number | string | null;
   calories?: number | null;
@@ -392,6 +395,56 @@ interface BackendLoggedFood {
   sugarGrams?: number | string | null;
   sodiumMg?: number | string | null;
   timesLogged?: number | string | null;
+  lastLoggedAt?: string | null;
+}
+
+interface BackendMealTemplateItem {
+  templateItemId?: string | null;
+  customFoodId?: string | null;
+  foodCatalogItemId?: string | null;
+  foodServingId?: string | null;
+  foodName?: string | null;
+  brandName?: string | null;
+  quantity?: number | string | null;
+  unit?: string | null;
+  snapshotServingLabel?: string | null;
+  calories?: number | null;
+  proteinGrams?: number | string | null;
+  carbsGrams?: number | string | null;
+  fatGrams?: number | string | null;
+  fiberGrams?: number | string | null;
+  sugarGrams?: number | string | null;
+  sodiumMg?: number | string | null;
+}
+
+interface BackendMealTemplate {
+  templateId?: string | null;
+  name?: string | null;
+  mealType?: string | null;
+  note?: string | null;
+  totalCalories?: number | null;
+  items?: BackendMealTemplateItem[] | null;
+}
+
+interface BackendDailyNutritionSummary {
+  totalCalories?: number | null;
+  targetCalories?: number | null;
+  totalProteinGrams?: number | string | null;
+  targetProteinGrams?: number | string | null;
+  totalCarbsGrams?: number | string | null;
+  targetCarbsGrams?: number | string | null;
+  totalFatGrams?: number | string | null;
+  targetFatGrams?: number | string | null;
+  mealCount?: number | null;
+  totalFiberGrams?: number | string | null;
+  totalSugarGrams?: number | string | null;
+  totalSodiumMg?: number | string | null;
+  fiberTargetGrams?: number | string | null;
+  sugarLimitGrams?: number | string | null;
+  sodiumLimitMg?: number | string | null;
+  fiberTargetMet?: boolean | null;
+  sugarWithinLimit?: boolean | null;
+  sodiumWithinLimit?: boolean | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -1082,12 +1135,25 @@ export class FitSyncDataService {
       );
   }
 
+  getDailyNutritionSummary(date = new Date(), timezone = this.getLocalTimezone()): Observable<NutritionSummary> {
+    const params = new HttpParams()
+      .set('date', this.toDateParam(date))
+      .set('timezone', timezone);
+    return this.http
+      .get<BackendDailyNutritionSummary>(`${this.apiBaseUrl}/nutrition/summary/daily`, { params })
+      .pipe(
+        map((summary) => this.mapDailyNutritionSummary(summary)),
+        catchError(() => of(this.emptyNutritionSummary()))
+      );
+  }
+
   getFallbackFoods(): Observable<FoodSearchResult[]> {
     return of<FoodSearchResult[]>([
       {
         foodId: null,
         displayName: 'Greek yogurt',
         brandName: 'Generic',
+        categoryName: 'Dairy',
         scope: 'CATALOG',
         calories: 96,
         proteinGrams: 10,
@@ -1100,6 +1166,7 @@ export class FitSyncDataService {
         foodId: null,
         displayName: 'Grilled chicken breast',
         brandName: 'Generic',
+        categoryName: 'Protein',
         scope: 'CATALOG',
         calories: 165,
         proteinGrams: 31,
@@ -1112,6 +1179,7 @@ export class FitSyncDataService {
         foodId: null,
         displayName: 'Brown rice',
         brandName: 'Generic',
+        categoryName: 'Grains',
         scope: 'CATALOG',
         calories: 112,
         proteinGrams: 2.6,
@@ -1210,11 +1278,34 @@ export class FitSyncDataService {
 
   getMealTemplates(): Observable<MealTemplate[]> {
     return this.http
-      .get<Partial<MealTemplate>[]>(`${this.apiBaseUrl}/nutrition/meal-templates`)
+      .get<BackendMealTemplate[]>(`${this.apiBaseUrl}/nutrition/meal-templates`)
       .pipe(
         map((templates) => templates.map((template) => this.mapMealTemplate(template))),
         catchError(() => of([] as MealTemplate[]))
       );
+  }
+
+  getMealTemplate(templateId: string): Observable<MealTemplate | null> {
+    if (!templateId) {
+      return of(null);
+    }
+    return this.http
+      .get<BackendMealTemplate>(`${this.apiBaseUrl}/nutrition/meal-templates/${templateId}`)
+      .pipe(
+        map((template) => this.mapMealTemplate(template)),
+        catchError(() => of(null))
+      );
+  }
+
+  createMealTemplate(value: Pick<MealTemplate, 'name' | 'mealType' | 'note'> & { items: MealItemDraft[] }): Observable<MealTemplate> {
+    return this.http
+      .post<BackendMealTemplate>(`${this.apiBaseUrl}/nutrition/meal-templates`, {
+        name: value.name,
+        mealType: value.mealType,
+        note: value.note || null,
+        items: value.items.map((item) => this.toMealItemInput(item))
+      })
+      .pipe(map((template) => this.mapMealTemplate(template)));
   }
 
   logMealFromTemplate(templateId: string): Observable<{ ok: true }> {
@@ -1254,7 +1345,8 @@ export class FitSyncDataService {
                 fiberGrams: this.numericValue(food.fiberGrams),
                 sugarGrams: this.numericValue(food.sugarGrams),
                 sodiumMg: this.numericValue(food.sodiumMg),
-                timesLogged: 0
+                timesLogged: 0,
+                lastLoggedAt: null
               }
             : null
         ),
@@ -1262,13 +1354,35 @@ export class FitSyncDataService {
       );
   }
 
-  private mapMealTemplate(template: Partial<MealTemplate>): MealTemplate {
+  private mapMealTemplate(template: BackendMealTemplate): MealTemplate {
     return {
       templateId: template.templateId ?? '',
       name: template.name ?? 'Saved meal',
       mealType: template.mealType ?? 'MEAL',
       note: template.note ?? '',
-      totalCalories: template.totalCalories ?? 0
+      totalCalories: template.totalCalories ?? 0,
+      items: (template.items ?? []).map((item) => this.mapMealTemplateItem(item))
+    };
+  }
+
+  private mapMealTemplateItem(item: BackendMealTemplateItem): MealTemplateItem {
+    return {
+      templateItemId: item.templateItemId ?? '',
+      customFoodId: item.customFoodId ?? null,
+      foodCatalogItemId: item.foodCatalogItemId ?? null,
+      foodServingId: item.foodServingId ?? null,
+      foodName: item.foodName ?? 'Food',
+      brandName: item.brandName ?? null,
+      quantity: this.numericValue(item.quantity) ?? 1,
+      unit: item.unit ?? 'serving',
+      snapshotServingLabel: item.snapshotServingLabel ?? null,
+      calories: item.calories ?? 0,
+      proteinGrams: this.numericValue(item.proteinGrams) ?? 0,
+      carbsGrams: this.numericValue(item.carbsGrams) ?? 0,
+      fatGrams: this.numericValue(item.fatGrams) ?? 0,
+      fiberGrams: this.numericValue(item.fiberGrams),
+      sugarGrams: this.numericValue(item.sugarGrams),
+      sodiumMg: this.numericValue(item.sodiumMg)
     };
   }
 
@@ -1397,6 +1511,13 @@ export class FitSyncDataService {
     } catch {
       return 'Asia/Singapore';
     }
+  }
+
+  private toDateParam(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   // FE-12.1: prefill onboarding for returning users + normalize backend numeric enum codes.
@@ -2005,6 +2126,7 @@ export class FitSyncDataService {
       foodId: food.foodId ?? null,
       displayName: food.displayName ?? 'Food',
       brandName: food.brandName ?? '',
+      categoryName: food.categoryName ?? null,
       scope: food.scope ?? 'CATALOG',
       calories: food.calories ?? 0,
       // Search results carry calories + basis only; macros require the food detail
@@ -2028,6 +2150,7 @@ export class FitSyncDataService {
       foodId: food.foodId ?? null,
       displayName: food.displayName ?? 'Food',
       brandName: food.brandName ?? '',
+      categoryName: food.categoryName ?? null,
       scope: food.scope ?? 'CATALOG',
       calories: food.calories ?? 0,
       proteinGrams: this.numericValue(food.proteinGrams) ?? 0,
@@ -2090,7 +2213,54 @@ export class FitSyncDataService {
       fiberGrams: this.numericValue(food.fiberGrams),
       sugarGrams: this.numericValue(food.sugarGrams),
       sodiumMg: this.numericValue(food.sodiumMg),
-      timesLogged: Number(food.timesLogged ?? 0)
+      timesLogged: Number(food.timesLogged ?? 0),
+      lastLoggedAt: food.lastLoggedAt ?? null
+    };
+  }
+
+  private mapDailyNutritionSummary(summary: BackendDailyNutritionSummary): NutritionSummary {
+    return {
+      totalCalories: summary.totalCalories ?? 0,
+      targetCalories: summary.targetCalories ?? null,
+      totalProteinGrams: this.numericValue(summary.totalProteinGrams) ?? 0,
+      targetProteinGrams: this.numericValue(summary.targetProteinGrams),
+      totalCarbsGrams: this.numericValue(summary.totalCarbsGrams) ?? 0,
+      targetCarbsGrams: this.numericValue(summary.targetCarbsGrams),
+      totalFatGrams: this.numericValue(summary.totalFatGrams) ?? 0,
+      targetFatGrams: this.numericValue(summary.targetFatGrams),
+      mealCount: summary.mealCount ?? 0,
+      totalFiberGrams: this.numericValue(summary.totalFiberGrams),
+      totalSugarGrams: this.numericValue(summary.totalSugarGrams),
+      totalSodiumMg: this.numericValue(summary.totalSodiumMg),
+      fiberTargetGrams: this.numericValue(summary.fiberTargetGrams),
+      sugarLimitGrams: this.numericValue(summary.sugarLimitGrams),
+      sodiumLimitMg: this.numericValue(summary.sodiumLimitMg),
+      fiberTargetMet: summary.fiberTargetMet ?? null,
+      sugarWithinLimit: summary.sugarWithinLimit ?? null,
+      sodiumWithinLimit: summary.sodiumWithinLimit ?? null
+    };
+  }
+
+  private emptyNutritionSummary(): NutritionSummary {
+    return {
+      totalCalories: 0,
+      targetCalories: null,
+      totalProteinGrams: 0,
+      targetProteinGrams: null,
+      totalCarbsGrams: 0,
+      targetCarbsGrams: null,
+      totalFatGrams: 0,
+      targetFatGrams: null,
+      mealCount: 0,
+      totalFiberGrams: null,
+      totalSugarGrams: null,
+      totalSodiumMg: null,
+      fiberTargetGrams: null,
+      sugarLimitGrams: null,
+      sodiumLimitMg: null,
+      fiberTargetMet: null,
+      sugarWithinLimit: null,
+      sodiumWithinLimit: null
     };
   }
 
