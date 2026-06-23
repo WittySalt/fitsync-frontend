@@ -429,6 +429,39 @@ describe('ExerciseLibraryComponent', () => {
     expect(toast.success).toHaveBeenCalledWith('Exercise created.');
   });
 
+  it('creates an exercise then uploads selected photo and video before finishing', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const imageFile = new File(['image'], 'row.webp', { type: 'image/webp' });
+    const videoFile = new File(['video'], 'row.webm', { type: 'video/webm' });
+    dataService.createExercise.and.returnValue(of(exercise({ exerciseId: 'created-1', custom: true })));
+    dataService.uploadExerciseImage.and.returnValue(
+      of(new HttpResponse({ body: exercise({ exerciseId: 'created-1', custom: true, images: [{ position: 0, url: 'https://media.example.test/row.webp' }] }) }))
+    );
+    dataService.uploadExerciseVideo.and.returnValue(
+      of(new HttpResponse({ body: exercise({ exerciseId: 'created-1', custom: true, videoUrl: 'https://media.example.test/row.webm' }) }))
+    );
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.setValue({
+      name: 'Row',
+      description: '',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'CHEST',
+      equipment: 'DUMBBELL',
+      difficulty: 'BEGINNER',
+      videoMode: 'upload',
+      videoUrl: ''
+    });
+    fixture.componentInstance.createImageFile.set(imageFile);
+    fixture.componentInstance.createVideoFile.set(videoFile);
+    fixture.componentInstance.createExercise();
+
+    expect(dataService.uploadExerciseImage).toHaveBeenCalledWith('created-1', imageFile);
+    expect(dataService.uploadExerciseVideo).toHaveBeenCalledWith('created-1', videoFile);
+    expect(fixture.componentInstance.saving()).toBeFalse();
+    expect(toast.success).toHaveBeenCalledWith('Exercise created.');
+  });
+
   it('reports create failures and clears the saving state', () => {
     dataService.createExercise.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
@@ -667,6 +700,27 @@ describe('ExerciseLibraryComponent', () => {
     expect(dataService.uploadExerciseVideo).not.toHaveBeenCalled();
   });
 
+  it('rejects invalid image selections and clears an empty image selection', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    const imageFile = new File(['image'], 'demo.jpg', { type: 'image/jpeg' });
+
+    fixture.componentInstance.selectCreateImageFile({
+      target: { files: [{ name: 'demo.gif', type: 'image/gif', size: 1000 }], value: 'demo.gif' }
+    } as unknown as Event);
+    expect(fixture.componentInstance.createImageFile()).toBeNull();
+    expect(fixture.componentInstance.createImageError()).toBe('Use a PNG, JPEG, or WebP image.');
+
+    fixture.componentInstance.selectCreateImageFile(fileEvent(imageFile));
+    expect(fixture.componentInstance.createImageFile()).toBe(imageFile);
+    expect(fixture.componentInstance.createImageError()).toBe('');
+
+    fixture.componentInstance.createImageError.set('previous');
+    fixture.componentInstance.selectCreateImageFile(fileEvent(null));
+    expect(fixture.componentInstance.createImageFile()).toBeNull();
+    expect(fixture.componentInstance.createImageError()).toBe('');
+  });
+
   it('clears video selection when no file is selected and accepts valid create/edit files', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
@@ -717,6 +771,31 @@ describe('ExerciseLibraryComponent', () => {
     fixture.componentInstance.uploadEditingVideo();
 
     expect(fixture.componentInstance.editVideoError()).toBe('Unable to upload video. Please retry.');
+  });
+
+  it('reports image upload failures for create media', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const file = new File(['image'], 'demo.webp', { type: 'image/webp' });
+    dataService.createExercise.and.returnValue(of(exercise({ exerciseId: 'created-1', custom: true })));
+    dataService.uploadExerciseImage.and.returnValue(throwError(() => new Error('upload failed')));
+    fixture.detectChanges();
+
+    fixture.componentInstance.createForm.setValue({
+      name: 'Row',
+      description: '',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'CHEST',
+      equipment: 'DUMBBELL',
+      difficulty: 'BEGINNER',
+      videoMode: 'url',
+      videoUrl: ''
+    });
+    fixture.componentInstance.createImageFile.set(file);
+    fixture.componentInstance.createExercise();
+
+    expect(fixture.componentInstance.createImageError()).toBe('Unable to upload photo. Please retry.');
+    expect(toast.error).toHaveBeenCalledWith('Unable to upload exercise photo. Please retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
   });
 
   it('does not upload an editing video when required state is missing', () => {
