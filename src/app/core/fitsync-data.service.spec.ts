@@ -859,7 +859,7 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].durationMinutes).toBe(54);
   });
 
-  it('lists workout sessions in a from/to range with a generous page size', () => {
+  it('lists workout sessions in a from/to range with the backend-safe page size', () => {
     let result: WorkoutSession[] | undefined;
     service
       .getWorkoutSessionsInRange('2026-06-01T00:00:00.000Z', '2026-06-30T23:59:59.999Z')
@@ -870,7 +870,7 @@ describe('FitSyncDataService', () => {
         req.url === '/api/v1/workouts/sessions' &&
         req.params.get('from') === '2026-06-01T00:00:00.000Z' &&
         req.params.get('to') === '2026-06-30T23:59:59.999Z' &&
-        req.params.get('size') === '200'
+        req.params.get('size') === '100'
     );
     request.flush({
       content: [

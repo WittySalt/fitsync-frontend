@@ -675,7 +675,7 @@ export class FitSyncDataService {
     const params = new HttpParams()
       .set('from', fromInstant)
       .set('to', toInstant)
-      .set('size', '200');
+      .set('size', '100');
 
     return this.http
       .get<PageResponse<Partial<WorkoutSession>>>(`${this.apiBaseUrl}/workouts/sessions`, { params })
