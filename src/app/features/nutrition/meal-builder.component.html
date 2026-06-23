@@ -244,7 +244,7 @@
                 <button type="button" (click)="selectLoggedFood(food)">
                   <strong>{{ food.foodName }}</strong>
                   <span>{{ food.servingLabel || food.unit }} · {{ formatAmount(food.calories) }} kcal</span>
-                  <small>{{ food.timesLogged }} logs@if (food.lastLoggedAt) { · {{ food.lastLoggedAt | date:'MMM d' }} }</small>
+                  <small>{{ food.timesLogged }} logs@if (food.lastLoggedAt) { · {{ formatLoggedAt(food.lastLoggedAt) }} }</small>
                 </button>
                 <button type="button" class="quantity-button" (click)="addLoggedFoodToMeal(food, $event)">+</button>
               </article>

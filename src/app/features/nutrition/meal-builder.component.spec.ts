@@ -626,7 +626,151 @@ describe('MealBuilderComponent', () => {
     component.toggleFavorite(searchFood);
 
     expect(component.isFavorite(searchFood)).toBeFalse();
-    expect(component.isFavoriteUpdating(searchFood)).toBeTrue();
+    expect(component.isFavoriteUpdating(searchFood)).toBeFalse();
     expect(toast.error).toHaveBeenCalledWith('Unable to update favorites. Please retry.');
+  });
+
+  it('formats recent food timestamps for relative, yesterday, weekday, and older labels', () => {
+    const now = new Date('2026-06-24T12:00:00');
+
+    expect(component.formatLoggedAt(null, now)).toBe('');
+    expect(component.formatLoggedAt('not-a-date', now)).toBe('');
+    expect(component.formatLoggedAt('2026-06-24T11:58:00', now)).toBe('2m ago');
+    expect(component.formatLoggedAt('2026-06-24T10:00:00', now)).toBe('2h ago');
+    expect(component.formatLoggedAt('2026-06-23T19:40:00', now)).toBe('Yesterday 19:40');
+    expect(component.formatLoggedAt('2026-06-22T09:00:00', now)).toBe('Mon');
+    expect(component.formatLoggedAt('2026-05-20T09:00:00', now)).toBe('May 20');
+  });
+
+  it('opens and resets floating filter and barcode panels without changing document flow', () => {
+    component.categories.set([category]);
+    component.toggleFilters();
+    fixture.detectChanges();
+
+    const popover: HTMLElement = fixture.nativeElement.querySelector('.filter-popover');
+    expect(component.filtersOpen()).toBeTrue();
+    expect(popover).not.toBeNull();
+    expect(getComputedStyle(popover).position).toBe('absolute');
+    expect(Number(getComputedStyle(popover).zIndex)).toBeGreaterThan(0);
+
+    component.toggleVerifiedOnly();
+    component.selectCategory(category.children[0]);
+
+    expect(component.activeFilters()).toEqual(['Verified', 'Chicken']);
+
+    component.clearFilter('Verified');
+    expect(component.verifiedOnly()).toBeFalse();
+
+    component.resetFilters();
+    expect(component.selectedCategory()).toBeNull();
+    expect(component.categorySearchControl.value).toBe('');
+
+    component.toggleBarcode();
+    expect(component.barcodeOpen()).toBeTrue();
+
+    component.closeFloatingPanels();
+    expect(component.filtersOpen()).toBeFalse();
+    expect(component.barcodeOpen()).toBeFalse();
+  });
+
+  it('adds search results directly, handles unavailable details, and adjusts item quantities down to removal', () => {
+    component.addFoodResult({ ...searchFood, foodId: null });
+
+    expect(dataService.getFoodDetail).not.toHaveBeenCalled();
+
+    dataService.getFoodDetail.and.returnValue(of({ ...chickenDetail, servings: [] }));
+    component.addFoodResult(searchFood);
+
+    expect(toast.error).toHaveBeenCalledWith('Choose a serving with enough nutrition data first.');
+
+    dataService.getFoodDetail.and.returnValue(of(chickenDetail));
+    component.addFoodResult(searchFood);
+
+    expect(component.items().length).toBe(1);
+    expect(component.items()[0]).toEqual(jasmine.objectContaining({ quantity: 1, calories: 150 }));
+    expect(toast.success).toHaveBeenCalledWith('Added "Chicken rice".');
+
+    const itemId = component.items()[0].id;
+    component.incrementItem('missing-item', 1);
+    component.incrementItem(itemId, 1);
+    expect(component.items()[0].quantity).toBe(2);
+
+    component.incrementItem(itemId, -2);
+    expect(component.items().length).toBe(0);
+  });
+
+  it('saves templates, validates required names, and handles template creation failure', () => {
+    component.saveAsTemplate();
+
+    expect(dataService.createMealTemplate).not.toHaveBeenCalled();
+
+    component.selectFood(searchFood);
+    component.addSelectedFood();
+    component.setMealType('OTHER');
+    component.saveAsTemplate();
+
+    expect(toast.error).toHaveBeenCalledWith('Name your meal before saving it as a template.');
+    expect(dataService.createMealTemplate).not.toHaveBeenCalled();
+
+    component.mealForm.patchValue({ mealType: 'OTHER', name: 'Custom bowl', note: 'Bulk prep' });
+    component.saveAsTemplate();
+
+    expect(dataService.createMealTemplate).toHaveBeenCalledWith(jasmine.objectContaining({
+      name: 'Custom bowl',
+      mealType: 'OTHER',
+      note: 'Bulk prep'
+    }));
+    expect(component.templateSaving()).toBeFalse();
+    expect(component.mealTemplates()[0].templateId).toBe('template-1');
+
+    dataService.createMealTemplate.and.returnValue(throwError(() => new Error('save failed')));
+    component.saveAsTemplate();
+
+    expect(component.templateSaving()).toBeFalse();
+    expect(toast.error).toHaveBeenCalledWith('Unable to save meal template. Please retry.');
+  });
+
+  it('uses loaded template details for Add all and handles loading guard, empty templates, and fallback source', () => {
+    component.templateLoading.set('other-template');
+    component.addTemplateToMeal(template);
+
+    expect(dataService.getMealTemplate).not.toHaveBeenCalled();
+
+    component.templateLoading.set(null);
+    dataService.getMealTemplate.and.returnValue(of({ ...template, items: [] }));
+    component.addTemplateToMeal(template);
+
+    expect(component.templateLoading()).toBeNull();
+    expect(toast.error).toHaveBeenCalledWith('That saved meal has no food items.');
+
+    dataService.getMealTemplate.and.returnValue(of(null));
+    component.addTemplateToMeal(template);
+
+    expect(component.items().some((item) => item.foodName === 'Chicken rice')).toBeTrue();
+    expect(toast.success).toHaveBeenCalledWith('Added "Training lunch" to this meal.');
+  });
+
+  it('calculates ring overflow and no-target fallback values', () => {
+    component.dailySummary.set({
+      ...dailySummary,
+      totalCalories: 1900,
+      targetCalories: 2000,
+      totalProteinGrams: 130,
+      targetProteinGrams: 140
+    });
+    component.selectFood(searchFood);
+    component.setQuantity('2');
+    component.addSelectedFood();
+
+    expect(component.ringSegment(2600, 2000)).toBe(100);
+    expect(component.ringOverSegment(component.calorieRing())).toBe(10);
+    expect(component.remainingCalories()).toBe(-200);
+
+    component.dailySummary.set({ ...dailySummary, targetCalories: null, targetProteinGrams: null });
+
+    expect(component.ringSegment(500, null)).toBe(0);
+    expect(component.ringMealOffset(component.calorieRing())).toBe(0);
+    expect(component.ringOverSegment(component.calorieRing())).toBe(0);
+    expect(component.remainingCalories()).toBeNull();
   });
 });

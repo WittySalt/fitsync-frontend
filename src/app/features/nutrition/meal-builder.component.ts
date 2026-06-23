@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, HostListener, OnInit, computed, inject, output, signal } from '@angular/core';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
@@ -146,7 +145,7 @@ function roundDecimal(value: number, digits = 1): number {
 
 @Component({
   selector: 'app-meal-builder',
-  imports: [DatePipe, ReactiveFormsModule, StatePanelComponent],
+  imports: [ReactiveFormsModule, StatePanelComponent],
   templateUrl: './meal-builder.component.html',
   styleUrl: './meal-builder.component.scss'
 })
@@ -667,6 +666,7 @@ export class MealBuilderComponent implements OnInit {
       next: () => this.toast.success(wasFavorite ? 'Removed from favorites.' : 'Added to favorites.'),
       error: () => {
         this.favoriteFoods.set(previous);
+        this.setFavoriteUpdating(foodId, false);
         this.toast.error('Unable to update favorites. Please retry.');
       },
       complete: () => this.setFavoriteUpdating(foodId, false)
@@ -710,6 +710,36 @@ export class MealBuilderComponent implements OnInit {
 
   formatQuantity(value: number): string {
     return Number.isInteger(value) ? String(value) : String(roundDecimal(value, 2));
+  }
+
+  formatLoggedAt(value: string | null | undefined, now = new Date()): string {
+    if (!value) {
+      return '';
+    }
+    const loggedAt = new Date(value);
+    if (Number.isNaN(loggedAt.getTime())) {
+      return '';
+    }
+
+    const elapsedMs = now.getTime() - loggedAt.getTime();
+    const minuteMs = 60_000;
+    const hourMs = 60 * minuteMs;
+    if (this.isYesterday(loggedAt, now)) {
+      return `Yesterday ${this.formatClock(loggedAt)}`;
+    }
+    if (elapsedMs >= 0 && elapsedMs < hourMs) {
+      return `${Math.max(1, Math.round(elapsedMs / minuteMs))}m ago`;
+    }
+    if (elapsedMs >= 0 && elapsedMs < 24 * hourMs) {
+      return `${Math.round(elapsedMs / hourMs)}h ago`;
+    }
+
+    const dayMs = 24 * hourMs;
+    if (elapsedMs >= 0 && elapsedMs < 7 * dayMs) {
+      return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(loggedAt);
+    }
+
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(loggedAt);
   }
 
   foodTags(food: FoodSearchResult): string[] {
@@ -933,6 +963,18 @@ export class MealBuilderComponent implements OnInit {
 
   private flattenCategories(categories: FoodCategory[]): FoodCategory[] {
     return categories.flatMap((category) => [category, ...this.flattenCategories(category.children)]);
+  }
+
+  private isYesterday(value: Date, now: Date): boolean {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    return value.getFullYear() === yesterday.getFullYear()
+      && value.getMonth() === yesterday.getMonth()
+      && value.getDate() === yesterday.getDate();
+  }
+
+  private formatClock(value: Date): string {
+    return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
   }
 
   private updateMealNameValidator(mealType: string): void {
