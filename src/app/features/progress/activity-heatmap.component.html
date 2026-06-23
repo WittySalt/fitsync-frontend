@@ -99,7 +99,6 @@
               <button
                 class="session-block"
                 type="button"
-                [style.grid-column]="block.dayIndex + 1"
                 [style.top.%]="block.top"
                 [style.height.px]="block.height"
                 [style.left.%]="block.left"
@@ -148,22 +147,6 @@
               <button class="more-chip" type="button" (click)="expandMonthDay(day)">+{{ day.hiddenCount }} more</button>
             }
           </article>
-        }
-      </div>
-
-      <div class="month-day-list" aria-label="Workout month list">
-        @for (day of monthDays(); track day.date) {
-          @if (day.inMonth && day.chips.length) {
-            <section>
-              <h3>{{ day.date }}</h3>
-              @for (chip of day.chips; track trackSession(chip.session)) {
-                <button class="session-chip" type="button" (click)="openSession(chip.session)">
-                  <span>{{ chip.timeLabel }}</span>
-                  <strong>{{ chip.title }}</strong>
-                </button>
-              }
-            </section>
-          }
         }
       </div>
 

@@ -126,7 +126,10 @@ export class ActivityHeatmapComponent implements OnInit {
   readonly weekBlocks = computed(() => this.resolveWeekBlocks());
   readonly allDaySessions = computed(() => this.resolveAllDaySessions());
   readonly monthDays = computed(() => this.buildMonthCalendarDays(this.selectedDate()));
-  readonly expandedMonthDay = computed(() => this.monthDays().find((day) => day.date === this.expandedMonthDate()) ?? null);
+  readonly expandedMonthDay = computed(() => {
+    const expandedDate = this.expandedMonthDate();
+    return expandedDate ? (this.monthDays().find((day) => day.date === expandedDate) ?? null) : null;
+  });
 
   ngOnInit(): void {
     this.load();
@@ -430,8 +433,8 @@ export class ActivityHeatmapComponent implements OnInit {
         result.push(
           ...clusterBlocks.map(({ laneIndex, ...block }) => ({
             ...block,
-            left: (laneIndex / columns) * 100,
-            width: 100 / columns
+            left: ((dayIndex + laneIndex / columns) / 7) * 100,
+            width: (1 / columns / 7) * 100
           }))
         );
       }

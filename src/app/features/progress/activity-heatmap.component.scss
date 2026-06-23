@@ -319,14 +319,9 @@
   font-weight: var(--fw-semibold);
 }
 
-.month-day-list,
 .expanded-day {
   display: grid;
   gap: 10px;
-}
-
-.month-day-list {
-  display: none;
 }
 
 .expanded-day {
@@ -458,24 +453,8 @@
     grid-template-columns: 60px minmax(620px, 1fr);
   }
 
-  .month-calendar-grid {
-    display: none;
-  }
-
-  .month-day-list {
-    display: grid;
-
-    section {
-      display: grid;
-      gap: 6px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    h3 {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-    }
+  .month-day {
+    min-height: 84px;
+    padding: 6px;
   }
 }
