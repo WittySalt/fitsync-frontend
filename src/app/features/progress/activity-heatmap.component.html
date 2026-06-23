@@ -191,7 +191,7 @@
           <article class="month-heatmap">
             <h3>{{ month.label }}</h3>
             <div class="weekday-row" aria-hidden="true">
-              @for (weekday of weekDays; track weekday) {
+              @for (weekday of compactWeekDays; track $index) {
                 <span>{{ weekday }}</span>
               }
             </div>

@@ -114,6 +114,52 @@ describe('ActivityHeatmapComponent', () => {
     expect(compiled.textContent).toContain('More');
   });
 
+  it('renders compact weekday initials for quarter month grids', () => {
+    fixture.detectChanges();
+
+    const labels = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.month-heatmap:first-child .weekday-row span')).map((label) =>
+      label.textContent?.trim()
+    );
+
+    expect(labels).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S']);
+  });
+
+  it('pads quarter month heatmaps to six fixed week rows', () => {
+    fixture.detectChanges();
+    component.startDate.set('2026-04-01');
+    component.endDate.set('2026-06-30');
+    component.data.set({ from: '2026-04-01', to: '2026-06-30', days: [] });
+    fixture.detectChanges();
+
+    const monthCellCounts = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.month-heatmap')).map(
+      (month) => month.querySelectorAll('.month-grid .heatmap-cell').length
+    );
+
+    expect(component.quarterMonths().map((month) => month.weeks.length)).toEqual([6, 6, 6]);
+    expect(monthCellCounts).toEqual([42, 42, 42]);
+  });
+
+  it('shares one heatmap cell size and gap token across quarter and year views', () => {
+    fixture.detectChanges();
+
+    const monthGrid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.month-grid');
+    const monthStyle = getComputedStyle(monthGrid!);
+    const monthCellSize = monthStyle.getPropertyValue('--activity-heatmap-cell-size').trim();
+    const monthCellGap = monthStyle.getPropertyValue('--activity-heatmap-cell-gap').trim();
+
+    const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
+    presetButtons[3].click();
+    fixture.detectChanges();
+
+    const yearGrid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.year-grid');
+    const yearStyle = getComputedStyle(yearGrid!);
+
+    expect(monthCellSize).toBe('16px');
+    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-size').trim()).toBe('16px');
+    expect(monthCellGap).toBe('5px');
+    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-gap').trim()).toBe('5px');
+  });
+
   it('renders year activity as a week-column heatmap with month labels', () => {
     fixture.detectChanges();
 
