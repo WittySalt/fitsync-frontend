@@ -95,6 +95,11 @@ export interface WorkoutSession {
   exerciseCount: number;
 }
 
+export interface WorkoutSessionPage {
+  sessions: WorkoutSession[];
+  total: number;
+}
+
 export interface WorkoutSessionFormValue {
   name: string;
   workoutType: string;
