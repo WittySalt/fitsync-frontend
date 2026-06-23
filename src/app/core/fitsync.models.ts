@@ -482,6 +482,7 @@ export interface FoodSearchResult {
   foodId: string | null;
   displayName: string;
   brandName: string;
+  categoryName: string | null;
   scope: string;
   calories: number;
   proteinGrams: number;
@@ -514,6 +515,7 @@ export interface FoodDetail {
   foodId: string | null;
   displayName: string;
   brandName: string;
+  categoryName: string | null;
   scope: string;
   calories: number;
   proteinGrams: number;
@@ -540,12 +542,32 @@ export interface FoodCategory {
 }
 
 /** A saved meal template for one-tap meal logging. */
+export interface MealTemplateItem {
+  templateItemId: string;
+  customFoodId: string | null;
+  foodCatalogItemId: string | null;
+  foodServingId: string | null;
+  foodName: string;
+  brandName: string | null;
+  quantity: number;
+  unit: string;
+  snapshotServingLabel: string | null;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  fiberGrams: number | null;
+  sugarGrams: number | null;
+  sodiumMg: number | null;
+}
+
 export interface MealTemplate {
   templateId: string;
   name: string;
   mealType: string;
   note: string;
   totalCalories: number;
+  items: MealTemplateItem[];
 }
 
 /** A previously logged food surfaced for one-tap re-logging (recent / frequent). */
@@ -569,6 +591,7 @@ export interface LoggedFood {
   sugarGrams: number | null;
   sodiumMg: number | null;
   timesLogged: number;
+  lastLoggedAt: string | null;
 }
 
 export interface MealFormValue {

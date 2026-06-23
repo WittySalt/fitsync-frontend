@@ -9,6 +9,7 @@ import {
   FoodServing,
   LoggedFood,
   MealTemplate,
+  NutritionSummary,
   PagedFoods
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
@@ -35,6 +36,7 @@ describe('MealBuilderComponent', () => {
     foodId: 'food-chicken',
     displayName: 'Chicken rice',
     brandName: 'Hawker',
+    categoryName: 'Prepared meals',
     scope: 'CATALOG',
     calories: 100,
     proteinGrams: 10,
@@ -54,6 +56,7 @@ describe('MealBuilderComponent', () => {
     foodId: 'food-chicken',
     displayName: 'Chicken rice',
     brandName: 'Hawker',
+    categoryName: 'Prepared meals',
     scope: 'CATALOG',
     calories: 100,
     proteinGrams: 0,
@@ -98,14 +101,53 @@ describe('MealBuilderComponent', () => {
     fiberGrams: 1.5,
     sugarGrams: 3,
     sodiumMg: 120,
-    timesLogged: 3
+    timesLogged: 3,
+    lastLoggedAt: '2026-06-20T04:00:00Z'
   };
   const template: MealTemplate = {
     templateId: 'template-1',
     name: 'Training lunch',
     mealType: 'LUNCH',
     note: 'Default',
-    totalCalories: 450
+    totalCalories: 450,
+    items: [{
+      templateItemId: 'template-item-1',
+      customFoodId: null,
+      foodCatalogItemId: 'food-chicken',
+      foodServingId: 'serving-150',
+      foodName: 'Chicken rice',
+      brandName: 'Hawker',
+      quantity: 1,
+      unit: 'serving',
+      snapshotServingLabel: '1 bowl',
+      calories: 150,
+      proteinGrams: 15,
+      carbsGrams: 18,
+      fatGrams: 4.5,
+      fiberGrams: 1.5,
+      sugarGrams: 3,
+      sodiumMg: 120
+    }]
+  };
+  const dailySummary: NutritionSummary = {
+    totalCalories: 600,
+    targetCalories: 2000,
+    totalProteinGrams: 40,
+    targetProteinGrams: 140,
+    totalCarbsGrams: 80,
+    targetCarbsGrams: 220,
+    totalFatGrams: 20,
+    targetFatGrams: 70,
+    mealCount: 2,
+    totalFiberGrams: null,
+    totalSugarGrams: null,
+    totalSodiumMg: null,
+    fiberTargetGrams: null,
+    sugarLimitGrams: null,
+    sodiumLimitMg: null,
+    fiberTargetMet: null,
+    sugarWithinLimit: null,
+    sodiumWithinLimit: null
   };
 
   function pagedFoods(items: FoodSearchResult[], overrides: Partial<Omit<PagedFoods, 'items'>> = {}): PagedFoods {
@@ -127,11 +169,13 @@ describe('MealBuilderComponent', () => {
       'getFavoriteFoods',
       'getFrequentFoods',
       'getMealTemplates',
+      'getMealTemplate',
+      'createMealTemplate',
+      'getDailyNutritionSummary',
       'getFoodDetail',
       'createMeal',
       'quickAddMeal',
       'getFoodByBarcode',
-      'logMealFromTemplate',
       'addFavoriteFood',
       'removeFavoriteFood'
     ]);
@@ -141,11 +185,13 @@ describe('MealBuilderComponent', () => {
     dataService.getFavoriteFoods.and.returnValue(of([]));
     dataService.getFrequentFoods.and.returnValue(of([]));
     dataService.getMealTemplates.and.returnValue(of([]));
+    dataService.getMealTemplate.and.returnValue(of(template));
+    dataService.createMealTemplate.and.returnValue(of(template));
+    dataService.getDailyNutritionSummary.and.returnValue(of(dailySummary));
     dataService.getFoodDetail.and.returnValue(of(chickenDetail));
     dataService.createMeal.and.returnValue(of({ mealId: 'meal-1', mealType: 'LUNCH', name: 'Lunch', totalCalories: 300, totalProteinGrams: 30, consumedAt: '2026-06-20T04:00:00Z', itemCount: 1 }));
     dataService.quickAddMeal.and.returnValue(of({ mealId: 'meal-2', mealType: 'SNACK', name: 'Snack', totalCalories: 120, totalProteinGrams: 5, consumedAt: '2026-06-20T04:00:00Z', itemCount: 0 }));
     dataService.getFoodByBarcode.and.returnValue(of(null));
-    dataService.logMealFromTemplate.and.returnValue(of({ ok: true }));
     dataService.addFavoriteFood.and.returnValue(of(void 0));
     dataService.removeFavoriteFood.and.returnValue(of(void 0));
 
@@ -246,6 +292,18 @@ describe('MealBuilderComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Page 1 / 2 (21 foods)');
   });
 
+  it('keeps the per-page select bound to pageSize and sends it to search', () => {
+    dataService.searchFoodsPage.calls.reset();
+
+    component.setPageSize(50);
+    fixture.detectChanges();
+
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('.page-size select');
+    expect(component.pageSize()).toBe(50);
+    expect(select.value).toBe('50');
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith('', jasmine.objectContaining({ size: 50, page: 0 }));
+  });
+
   it('hides the page controls when there is only one food page', () => {
     component.totalPages.set(1);
     fixture.detectChanges();
@@ -253,7 +311,25 @@ describe('MealBuilderComponent', () => {
     expect(fixture.nativeElement.querySelector('.page-controls')).toBeNull();
   });
 
-  it('adds multiple foods and totals their nutrition', () => {
+  it('builds search result tags from backend metadata and local state', () => {
+    component.recentFoods.set([loggedFood]);
+    component.favoriteFoods.set([searchFood]);
+    fixture.detectChanges();
+
+    expect(component.foodTags(searchFood)).toEqual(['Verified', 'Hawker', 'Prepared meals', 'Recent', 'Favorite']);
+    expect(fixture.nativeElement.textContent).toContain('Prepared meals');
+  });
+
+  it('calculates daily plan ring segments with the current meal overlay', () => {
+    component.selectFood(searchFood);
+    component.addSelectedFood();
+
+    expect(component.ringSegment(component.calorieRing().current, component.calorieRing().target)).toBe(30);
+    expect(component.ringSegment(component.calorieRing().meal, component.calorieRing().target)).toBe(8);
+    expect(component.remainingCalories()).toBe(1250);
+  });
+
+  it('merges duplicate foods and totals their nutrition', () => {
     component.selectFood(searchFood);
     component.setQuantity('2');
     component.addSelectedFood();
@@ -262,7 +338,8 @@ describe('MealBuilderComponent', () => {
     component.setQuantity('1');
     component.addSelectedFood();
 
-    expect(component.items().length).toBe(2);
+    expect(component.items().length).toBe(1);
+    expect(component.items()[0].quantity).toBe(3);
     expect(component.totals().calories).toBe(450);
     expect(component.totals().proteinGrams).toBe(45);
   });
@@ -280,14 +357,14 @@ describe('MealBuilderComponent', () => {
     expect(dataService.createMeal).toHaveBeenCalled();
     const draft = dataService.createMeal.calls.mostRecent().args[0];
     expect(draft.mealType).toBe('DINNER');
-    expect(draft.items.length).toBe(2);
+    expect(draft.items.length).toBe(1);
     expect(draft.items[0]).toEqual(
       jasmine.objectContaining({
         foodCatalogItemId: 'food-chicken',
         foodServingId: 'serving-150',
-        quantity: 2,
-        calories: 300,
-        proteinGrams: 30
+        quantity: 3,
+        calories: 450,
+        proteinGrams: 45
       })
     );
     expect(component.items().length).toBe(0);
@@ -298,6 +375,11 @@ describe('MealBuilderComponent', () => {
 
     expect(item?.customFoodId).toBe('custom-1');
     expect(item?.foodCatalogItemId).toBeNull();
+  });
+
+  it('formats serving labels without duplicated quantity text', () => {
+    expect(component.formatServing({ ...loggedFood, snapshotServingLabel: '200 g', quantity: 200, servingUnit: 'g' })).toBe('200 g');
+    expect(component.formatServing({ ...loggedFood, snapshotServingLabel: '100 g', quantity: 2, servingUnit: 'g' })).toBe('2 x 100 g');
   });
 
   it('quick-add fallback posts through quickAddMeal', () => {
@@ -404,7 +486,7 @@ describe('MealBuilderComponent', () => {
     component.setQuantity('not-a-number');
 
     expect(component.selectedQuantity()).toBe(1);
-    expect(component.formatAmount(12.34, 'g')).toBe('12.3g');
+    expect(component.formatAmount(12.34, 'g')).toBe('12g');
   });
 
   it('adds logged foods from detail lookup or snapshot and updates item quantities', () => {
@@ -412,7 +494,6 @@ describe('MealBuilderComponent', () => {
     component.addLoggedFood(loggedFood);
 
     expect(component.selectedDetail()).toEqual(chickenDetail);
-    expect(toast.success).toHaveBeenCalledWith('Loaded "Chicken rice" for serving selection.');
 
     dataService.getFoodDetail.and.returnValue(of(null));
     component.addLoggedFood(loggedFood);
@@ -435,7 +516,7 @@ describe('MealBuilderComponent', () => {
 
     component.selectFood(searchFood);
     component.addSelectedFood();
-    const detailedItem = component.items().at(-1)!;
+    const detailedItem = component.items().find((item) => item.foodCatalogItemId === 'food-chicken')!;
     component.updateItemQuantity(detailedItem.id, '2.25');
 
     expect(component.items().find((item) => item.id === detailedItem.id)?.quantity).toBe(2.25);
@@ -501,7 +582,8 @@ describe('MealBuilderComponent', () => {
     dataService.getFoodByBarcode.and.returnValue(of(loggedFood));
     component.lookupBarcode();
 
-    expect(component.selectedDetail()).toEqual(chickenDetail);
+    expect(component.items().some((item) => item.foodName === 'Chicken rice')).toBeTrue();
+    expect(component.selectedDetail()).toBeNull();
 
     dataService.getFoodByBarcode.and.returnValue(throwError(() => new Error('scanner offline')));
     component.lookupBarcode();
@@ -510,19 +592,19 @@ describe('MealBuilderComponent', () => {
     expect(toast.error).toHaveBeenCalledWith('Barcode lookup failed. Please retry.');
   });
 
-  it('logs templates and rolls back favorite updates on failure', () => {
+  it('adds saved meal templates to the current meal and rolls back favorite updates on failure', () => {
     spyOn(component.saved, 'emit');
 
     component.logTemplate(template);
 
-    expect(dataService.logMealFromTemplate).toHaveBeenCalledWith('template-1');
-    expect(toast.success).toHaveBeenCalledWith('Logged "Training lunch".');
-    expect(component.saved.emit).toHaveBeenCalled();
+    expect(dataService.getMealTemplate).toHaveBeenCalledWith('template-1');
+    expect(component.items()[0]).toEqual(jasmine.objectContaining({ foodName: 'Chicken rice', calories: 150 }));
+    expect(component.saved.emit).not.toHaveBeenCalled();
 
-    dataService.logMealFromTemplate.and.returnValue(throwError(() => new Error('template failed')));
+    dataService.getMealTemplate.and.returnValue(throwError(() => new Error('template failed')));
     component.logTemplate(template);
 
-    expect(toast.error).toHaveBeenCalledWith('Unable to log from template. Please retry.');
+    expect(toast.error).toHaveBeenCalledWith('Unable to load saved meal. Please retry.');
 
     component.toggleFavorite({ ...searchFood, foodId: null });
     expect(dataService.addFavoriteFood).not.toHaveBeenCalled();

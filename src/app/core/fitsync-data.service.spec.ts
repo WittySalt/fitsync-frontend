@@ -429,6 +429,52 @@ describe('FitSyncDataService', () => {
     );
   });
 
+  it('loads daily nutrition summary with date and timezone params', () => {
+    let result: unknown;
+    service.getDailyNutritionSummary(new Date(2026, 5, 24), 'Asia/Singapore').subscribe((value) => {
+      result = value;
+    });
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/nutrition/summary/daily' &&
+        req.params.get('date') === '2026-06-24' &&
+        req.params.get('timezone') === 'Asia/Singapore'
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      totalCalories: 900,
+      targetCalories: 2100,
+      totalProteinGrams: '66.5',
+      targetProteinGrams: '150',
+      totalCarbsGrams: '110',
+      targetCarbsGrams: '240',
+      totalFatGrams: '25',
+      targetFatGrams: '70',
+      mealCount: 2,
+      totalFiberGrams: '12',
+      fiberTargetGrams: '30',
+      fiberTargetMet: false
+    });
+
+    expect(result).toEqual(
+      jasmine.objectContaining({
+        totalCalories: 900,
+        targetCalories: 2100,
+        totalProteinGrams: 66.5,
+        targetProteinGrams: 150,
+        totalCarbsGrams: 110,
+        targetCarbsGrams: 240,
+        totalFatGrams: 25,
+        targetFatGrams: 70,
+        mealCount: 2,
+        totalFiberGrams: 12,
+        fiberTargetGrams: 30,
+        fiberTargetMet: false
+      })
+    );
+  });
+
   it('searches foods by query and maps Spring Page content calories + basis', () => {
     let result: FoodSearchResult[] | undefined;
     service.searchFoods('chicken').subscribe((value) => (result = value));
@@ -439,7 +485,7 @@ describe('FitSyncDataService', () => {
     expect(request.request.method).toBe('GET');
     request.flush({
       content: [
-        { foodId: 'f1', displayName: 'Grilled chicken breast', brandName: 'Generic', calories: 165, basisLabel: '100 g', verified: true }
+        { foodId: 'f1', displayName: 'Grilled chicken breast', brandName: 'Generic', categoryName: 'Protein', calories: 165, basisLabel: '100 g', verified: true }
       ],
       number: 0,
       size: 20,
@@ -451,6 +497,7 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].foodId).toBe('f1');
     expect(result?.[0].calories).toBe(165);
     expect(result?.[0].basisUnit).toBe('100 g');
+    expect(result?.[0].categoryName).toBe('Protein');
     expect(result?.[0].verified).toBeTrue();
     expect(result?.[0].proteinGrams).toBe(0);
   });
@@ -493,11 +540,12 @@ describe('FitSyncDataService', () => {
     const request = httpTesting.expectOne('/api/v1/nutrition/favorites');
     expect(request.request.method).toBe('GET');
     request.flush([
-      { foodId: 'f1', displayName: 'Greek yogurt', brandName: 'Generic', calories: 96, basisLabel: '100 g', verified: true }
+      { foodId: 'f1', displayName: 'Greek yogurt', brandName: 'Generic', categoryName: 'Dairy', calories: 96, basisLabel: '100 g', verified: true }
     ]);
 
     expect(result?.[0].foodId).toBe('f1');
     expect(result?.[0].displayName).toBe('Greek yogurt');
+    expect(result?.[0].categoryName).toBe('Dairy');
   });
 
   it('adds and removes a favorite food through the favorite endpoints', () => {
@@ -551,14 +599,33 @@ describe('FitSyncDataService', () => {
     request.flush({ content: [], number: 2, size: 20, totalPages: 0, totalElements: 0 });
   });
 
-  it('lists meal templates and logs a meal from a template', () => {
+  it('lists meal templates with items and logs a meal from a template', () => {
     let templates: MealTemplate[] | undefined;
     service.getMealTemplates().subscribe((value) => (templates = value));
     httpTesting.expectOne('/api/v1/nutrition/meal-templates').flush([
-      { templateId: 't1', name: 'Protein breakfast', mealType: 'BREAKFAST', note: '', totalCalories: 520 }
+      {
+        templateId: 't1',
+        name: 'Protein breakfast',
+        mealType: 'BREAKFAST',
+        note: '',
+        totalCalories: 520,
+        items: [{
+          templateItemId: 'ti1',
+          foodCatalogItemId: 'f1',
+          foodName: 'Greek yogurt',
+          quantity: '1',
+          unit: 'serving',
+          snapshotServingLabel: '170 g',
+          calories: 120,
+          proteinGrams: '18',
+          carbsGrams: '6',
+          fatGrams: '0'
+        }]
+      }
     ]);
     expect(templates?.[0].name).toBe('Protein breakfast');
     expect(templates?.[0].totalCalories).toBe(520);
+    expect(templates?.[0].items[0].proteinGrams).toBe(18);
 
     let ok = false;
     service.logMealFromTemplate('t1').subscribe(() => (ok = true));
@@ -566,6 +633,54 @@ describe('FitSyncDataService', () => {
     expect(request.request.method).toBe('POST');
     request.flush({});
     expect(ok).toBeTrue();
+  });
+
+  it('loads a meal template detail and creates a template from item drafts', () => {
+    let template: MealTemplate | null | undefined;
+    service.getMealTemplate('t1').subscribe((value) => (template = value));
+    const detailRequest = httpTesting.expectOne('/api/v1/nutrition/meal-templates/t1');
+    expect(detailRequest.request.method).toBe('GET');
+    detailRequest.flush({
+      templateId: 't1',
+      name: 'Protein breakfast',
+      mealType: 'BREAKFAST',
+      note: '',
+      totalCalories: 520,
+      items: [{ templateItemId: 'ti1', foodCatalogItemId: 'f1', foodName: 'Greek yogurt', quantity: 1, unit: 'serving', calories: 120 }]
+    });
+    expect(template?.items.length).toBe(1);
+
+    let created: MealTemplate | undefined;
+    service.createMealTemplate({
+      name: 'Lunch set',
+      mealType: 'LUNCH',
+      note: '',
+      items: [{
+        foodCatalogItemId: 'f1',
+        customFoodId: null,
+        foodServingId: 's1',
+        foodName: 'Chicken rice',
+        brandName: 'Hawker',
+        quantity: 1,
+        unit: 'serving',
+        servingSize: 150,
+        servingUnit: 'g',
+        snapshotServingLabel: '1 bowl',
+        calories: 450,
+        proteinGrams: 35,
+        carbsGrams: 50,
+        fatGrams: 12,
+        fiberGrams: null,
+        sugarGrams: null,
+        sodiumMg: null
+      }]
+    }).subscribe((value) => (created = value));
+
+    const createRequest = httpTesting.expectOne('/api/v1/nutrition/meal-templates');
+    expect(createRequest.request.method).toBe('POST');
+    expect(createRequest.request.body.items[0]).toEqual(jasmine.objectContaining({ foodCatalogItemId: 'f1', calories: 450 }));
+    createRequest.flush({ templateId: 't2', name: 'Lunch set', mealType: 'LUNCH', note: '', totalCalories: 450, items: [] });
+    expect(created?.templateId).toBe('t2');
   });
 
   it('copies a meal to now via POST /meals/{id}/copy', () => {
@@ -797,12 +912,13 @@ describe('FitSyncDataService', () => {
       (req) => req.url === '/api/v1/nutrition/foods/recent' && req.params.get('limit') === '5'
     );
     request.flush([
-      { foodName: 'Greek yogurt', brandName: 'Generic', snapshotServingLabel: '170 g', calories: 100, proteinGrams: 17, carbsGrams: 6, fatGrams: 0, timesLogged: 4 }
+      { foodName: 'Greek yogurt', brandName: 'Generic', snapshotServingLabel: '170 g', calories: 100, proteinGrams: 17, carbsGrams: 6, fatGrams: 0, timesLogged: 4, lastLoggedAt: '2026-06-20T04:00:00Z' }
     ]);
 
     expect(result?.[0].proteinGrams).toBe(17);
     expect(result?.[0].servingLabel).toBe('170 g');
     expect(result?.[0].timesLogged).toBe(4);
+    expect(result?.[0].lastLoggedAt).toBe('2026-06-20T04:00:00Z');
   });
 
   it('maps frequent foods with full macros for one-tap re-logging', () => {
@@ -813,12 +929,13 @@ describe('FitSyncDataService', () => {
       (req) => req.url === '/api/v1/nutrition/foods/frequent' && req.params.get('limit') === '6'
     );
     request.flush([
-      { foodName: 'Chicken rice', brandName: 'Hawker', snapshotServingLabel: '1 plate', calories: 620, proteinGrams: '38', carbsGrams: '72', fatGrams: '18', timesLogged: '9' }
+      { foodName: 'Chicken rice', brandName: 'Hawker', snapshotServingLabel: '1 plate', calories: 620, proteinGrams: '38', carbsGrams: '72', fatGrams: '18', timesLogged: '9', lastLoggedAt: '2026-06-19T04:00:00Z' }
     ]);
 
     expect(result?.[0].foodName).toBe('Chicken rice');
     expect(result?.[0].proteinGrams).toBe(38);
     expect(result?.[0].timesLogged).toBe(9);
+    expect(result?.[0].lastLoggedAt).toBe('2026-06-19T04:00:00Z');
   });
 
   it('fetches today meals within a from/to day window and optional timezone', () => {
