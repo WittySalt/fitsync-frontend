@@ -59,6 +59,7 @@ import {
   WorkoutPlanStatus,
   WorkoutSession,
   WorkoutSessionDetail,
+  WorkoutSessionPage,
   UpdateExerciseRequest
 } from './fitsync.models';
 
@@ -657,17 +658,25 @@ export class FitSyncDataService {
       .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
   }
 
-  getWorkoutSessions(limit = 20): Observable<WorkoutSession[]> {
-    const params = new HttpParams().set('size', String(limit));
+  getWorkoutSessions(limit = 10): Observable<WorkoutSession[]> {
+    return this.getWorkoutSessionPage(limit).pipe(map((page) => page.sessions));
+  }
+
+  getWorkoutSessionPage(limit = 10): Observable<WorkoutSessionPage> {
+    const params = new HttpParams().set('size', String(this.safeWorkoutSessionPageSize(limit)));
     return this.http
       .get<PageResponse<Partial<WorkoutSession>>>(`${this.apiBaseUrl}/workouts/sessions`, { params })
       .pipe(
-        map((response) =>
-          (response.content ?? [])
+        map((response) => {
+          const sessions = (response.content ?? [])
             .map((session) => this.mapWorkoutSession(session))
-            .filter((session): session is WorkoutSession => session !== null)
-        ),
-        catchError(() => of([] as WorkoutSession[]))
+            .filter((session): session is WorkoutSession => session !== null);
+          return {
+            sessions,
+            total: response.totalElements ?? sessions.length
+          };
+        }),
+        catchError(() => of({ sessions: [], total: 0 } as WorkoutSessionPage))
       );
   }
 
@@ -694,6 +703,14 @@ export class FitSyncDataService {
         ),
         catchError(() => of([] as WorkoutSession[]))
       );
+  }
+
+  private safeWorkoutSessionPageSize(limit: number): number {
+    const parsed = Math.trunc(Number(limit));
+    if (!Number.isFinite(parsed)) {
+      return 10;
+    }
+    return Math.min(Math.max(parsed, 1), 100);
   }
 
   getGoals(): Observable<UserGoal[]> {

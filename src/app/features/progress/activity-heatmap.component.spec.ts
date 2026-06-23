@@ -154,8 +154,8 @@ describe('ActivityHeatmapComponent', () => {
     const yearGrid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.year-grid');
     const yearStyle = getComputedStyle(yearGrid!);
 
-    expect(monthCellSize).toBe('16px');
-    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-size').trim()).toBe('16px');
+    expect(monthCellSize).toBe('18px');
+    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-size').trim()).toBe('18px');
     expect(monthCellGap).toBe('5px');
     expect(yearStyle.getPropertyValue('--activity-heatmap-cell-gap').trim()).toBe('5px');
   });
@@ -168,9 +168,33 @@ describe('ActivityHeatmapComponent', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
+    const currentYear = new Date().getFullYear();
     expect(component.selectedPreset()).toBe('year');
+    expect(component.startDate()).toBe(`${currentYear}-01-01`);
+    expect(component.endDate()).toBe(`${currentYear}-12-31`);
+    expect(compiled.textContent).toContain(String(currentYear));
     expect(compiled.querySelectorAll('.year-week').length).toBeGreaterThan(50);
     expect(compiled.querySelectorAll('.year-month-labels span').length).toBeGreaterThan(6);
+  });
+
+  it('moves year activity by natural calendar years with previous and next navigation', () => {
+    fixture.detectChanges();
+
+    const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
+    presetButtons[3].click();
+    fixture.detectChanges();
+    analyticsApi.getActivityCalendar.calls.reset();
+
+    component.previousPeriod();
+    expect(component.startDate()).toBe(`${new Date().getFullYear() - 1}-01-01`);
+    expect(component.endDate()).toBe(`${new Date().getFullYear() - 1}-12-31`);
+    expect(analyticsApi.getActivityCalendar).toHaveBeenCalledWith(component.startDate(), component.endDate());
+
+    analyticsApi.getActivityCalendar.calls.reset();
+    component.nextPeriod();
+    expect(component.startDate()).toBe(`${new Date().getFullYear()}-01-01`);
+    expect(component.endDate()).toBe(`${new Date().getFullYear()}-12-31`);
+    expect(analyticsApi.getActivityCalendar).toHaveBeenCalledWith(component.startDate(), component.endDate());
   });
 
   it('maps overlapping week sessions into split-width blocks in the profile timezone', () => {
@@ -188,9 +212,30 @@ describe('ActivityHeatmapComponent', () => {
     expect(blocks.map((block) => block.session.sessionId)).toEqual(['first', 'second']);
     expect(blocks[0].dayIndex).toBe(1);
     expect(blocks[0].timeLabel).toBe('10:00-11:00');
-    expect(blocks[0].width).toBe(50);
-    expect(blocks[1].left).toBe(50);
+    expect(blocks[0].left).toBeCloseTo((1 / 7) * 100, 4);
+    expect(blocks[0].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
+    expect(blocks[1].left).toBeCloseTo(((1 + 1 / 2) / 7) * 100, 4);
+    expect(blocks[1].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
     expect(component.allDaySessionsForDate('2026-06-16')[0].sessionId).toBe('untimed');
+  });
+
+  it('positions a single week session within its day slice without grid-column placement', () => {
+    component.timezone = 'Asia/Singapore';
+    component.selectedPreset.set('week');
+    component.startDate.set('2026-06-15');
+    component.endDate.set('2026-06-21');
+    dataService.getWorkoutSessionsInRange.and.returnValue(
+      of([session({ sessionId: 'solo', startedAt: '2026-06-17T02:00:00Z', completedAt: '2026-06-17T03:00:00Z', durationMinutes: 60 })])
+    );
+    fixture.detectChanges();
+
+    const block = component.weekBlocks()[0];
+    const rendered = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.session-block');
+
+    expect(block.dayIndex).toBe(2);
+    expect(block.left).toBeCloseTo((2 / 7) * 100, 4);
+    expect(block.width).toBeCloseTo((1 / 7) * 100, 4);
+    expect(rendered?.style.gridColumn).toBe('');
   });
 
   it('maps month sessions into time-sorted chips with overflow', () => {
@@ -295,6 +340,34 @@ describe('ActivityHeatmapComponent', () => {
 
     expect(component.expandedMonthDay()?.date).toBe('2026-06-11');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No sessions logged for this day.');
+  });
+
+  it('switches the expanded month detail when a second day overflow is opened', () => {
+    component.timezone = 'Asia/Singapore';
+    component.selectedPreset.set('month');
+    component.selectedDate.set(new Date(2026, 5, 1));
+    dataService.getWorkoutSessionsInRange.and.returnValue(
+      of([
+        session({ sessionId: 'a-1', startedAt: '2026-06-10T00:00:00Z' }),
+        session({ sessionId: 'a-2', startedAt: '2026-06-10T01:00:00Z' }),
+        session({ sessionId: 'a-3', startedAt: '2026-06-10T02:00:00Z' }),
+        session({ sessionId: 'b-1', startedAt: '2026-06-12T00:00:00Z' }),
+        session({ sessionId: 'b-2', startedAt: '2026-06-12T01:00:00Z' }),
+        session({ sessionId: 'b-3', startedAt: '2026-06-12T02:00:00Z' })
+      ])
+    );
+    fixture.detectChanges();
+
+    const moreButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.more-chip'));
+    moreButtons[0].click();
+    fixture.detectChanges();
+    expect(component.expandedMonthDay()?.date).toBe('2026-06-10');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.expanded-day h3')?.textContent).toContain('2026-06-10');
+
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.more-chip'))[1].click();
+    fixture.detectChanges();
+    expect(component.expandedMonthDay()?.date).toBe('2026-06-12');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.expanded-day h3')?.textContent).toContain('2026-06-12');
   });
 
   it('marks heatmap cells outside the active range or month as muted', () => {

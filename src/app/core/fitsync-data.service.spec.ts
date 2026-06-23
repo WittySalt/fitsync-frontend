@@ -846,7 +846,7 @@ describe('FitSyncDataService', () => {
     service.getWorkoutSessions().subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/workouts/sessions' && req.params.get('size') === '20'
+      (req) => req.url === '/api/v1/workouts/sessions' && req.params.get('size') === '10'
     );
     request.flush({
       content: [
@@ -857,6 +857,34 @@ describe('FitSyncDataService', () => {
     expect(result?.length).toBe(1);
     expect(result?.[0].status).toBe('COMPLETED');
     expect(result?.[0].durationMinutes).toBe(54);
+  });
+
+  it('preserves workout session totalElements and caps page size at the backend maximum', () => {
+    let result: { sessions: WorkoutSession[]; total: number } | undefined;
+    service.getWorkoutSessionPage(200).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/workouts/sessions' && Number(req.params.get('size')) <= 100
+    );
+    expect(request.request.params.get('size')).toBe('100');
+    request.flush({
+      totalElements: 123,
+      content: [
+        {
+          name: 'Lower body',
+          workoutType: 'STRENGTH',
+          status: 'COMPLETED',
+          startedAt: '2026-06-18T10:00:00Z',
+          completedAt: '2026-06-18T11:00:00Z',
+          durationMinutes: 54,
+          caloriesBurned: 400,
+          exerciseCount: 6
+        }
+      ]
+    });
+
+    expect(result?.total).toBe(123);
+    expect(result?.sessions.length).toBe(1);
   });
 
   it('lists workout sessions in a from/to range with the backend-safe page size', () => {

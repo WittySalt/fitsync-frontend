@@ -57,6 +57,7 @@ export class WorkoutPage implements OnInit {
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
+  readonly totalSessionCount = signal(0);
   readonly exercises = signal<Exercise[]>([]);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
@@ -85,7 +86,7 @@ export class WorkoutPage implements OnInit {
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
-  private readonly historyLoadLimit = 200;
+  private readonly historyLoadLimit = 10;
   private readonly resetHistoryPageOnFilterChange = effect(() => {
     this.historySearch();
     this.filterType();
@@ -127,7 +128,7 @@ export class WorkoutPage implements OnInit {
     const latest = this.latestSession();
 
     return [
-      { label: 'Sessions logged', value: String(sessions.length), detail: 'recent history', tone: 'green' },
+      { label: 'Sessions logged', value: String(this.totalSessionCount()), detail: 'all time', tone: 'green' },
       { label: 'This week', value: String(thisWeek), detail: 'in the last 7 days', tone: 'blue' },
       {
         label: 'Last session',
@@ -579,7 +580,10 @@ export class WorkoutPage implements OnInit {
   }
 
   private loadSessions(): void {
-    this.dataService.getWorkoutSessions(this.historyLoadLimit).subscribe((sessions) => this.sessions.set(sessions));
+    this.dataService.getWorkoutSessionPage(this.historyLoadLimit).subscribe((page) => {
+      this.sessions.set(page.sessions);
+      this.totalSessionCount.set(page.total);
+    });
   }
 
   private loadExercises(): void {

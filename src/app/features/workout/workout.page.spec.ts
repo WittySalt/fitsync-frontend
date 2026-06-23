@@ -24,6 +24,10 @@ function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   };
 }
 
+function sessionPage(sessions: WorkoutSession[], total = sessions.length) {
+  return { sessions, total };
+}
+
 function sessionDetail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
   return {
     ...session({ sessionId: 'session-1', name: 'Session', status: 'IN_PROGRESS' }),
@@ -75,7 +79,7 @@ describe('WorkoutPage', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'getWorkoutPlans',
-      'getWorkoutSessions',
+      'getWorkoutSessionPage',
       'getExercises',
       'getActivePlan',
       'saveWorkoutSession',
@@ -102,7 +106,7 @@ describe('WorkoutPage', () => {
       'importSessions'
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
-    dataService.getWorkoutSessions.and.returnValue(of([]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     dataService.getExercises.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
     dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
@@ -162,22 +166,30 @@ describe('WorkoutPage', () => {
     expect(component.latestSession()?.name).toBe('New');
   });
 
-  it('counts total and this-week sessions in the metric strip', () => {
+  it('counts total sessions from the paged total and this-week sessions from loaded rows', () => {
     component.sessions.set([
       session({ name: 'recent', completedAt: new Date().toISOString() }),
       session({ name: 'old', completedAt: '2025-01-01T00:00:00Z' })
     ]);
+    component.totalSessionCount.set(42);
 
     const metrics = component.metrics();
-    expect(metrics[0].value).toBe('2');
+    expect(metrics[0].value).toBe('42');
     expect(metrics[1].value).toBe('1');
   });
 
-  it('loads a larger workout history set for client-side history filtering', () => {
+  it('loads a small workout history page for client-side history display', () => {
+    dataService.getWorkoutSessionPage.and.returnValue(
+      of(sessionPage([session({ sessionId: 'loaded', completedAt: new Date().toISOString() })], 37))
+    );
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
 
-    expect(dataService.getWorkoutSessions).toHaveBeenCalledWith(200);
+    const requestedSize = dataService.getWorkoutSessionPage.calls.mostRecent().args[0];
+    expect(requestedSize).toBe(10);
+    expect(requestedSize).toBeLessThanOrEqual(100);
+    expect(fixture.componentInstance.sessions().length).toBe(1);
+    expect(fixture.componentInstance.metrics()[0].value).toBe('37');
   });
 
   it('filters history by case-insensitive session name search', () => {
@@ -417,7 +429,7 @@ describe('WorkoutPage', () => {
 
   it('refreshes sessions when the nested past workout flow finishes', () => {
     const backfilled = session({ sessionId: 'session-backfilled', name: 'Backfilled', status: 'COMPLETED' });
-    dataService.getWorkoutSessions.and.returnValue(of([backfilled]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([backfilled])));
 
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
@@ -425,7 +437,7 @@ describe('WorkoutPage', () => {
     const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
     startCard.backfilled.emit();
 
-    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(fixture.componentInstance.sessions()[0].sessionId).toBe('session-backfilled');
   });
 
@@ -471,7 +483,7 @@ describe('WorkoutPage', () => {
   it('starts a plan and moves the user to training history', () => {
     const started = sessionDetail({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
     dataService.startWorkoutPlan.and.returnValue(of(started));
-    dataService.getWorkoutSessions.and.returnValue(of([started]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([started])));
 
     component.startPlan(plan({ status: 'ACTIVE' }));
 
@@ -482,12 +494,12 @@ describe('WorkoutPage', () => {
 
   it('refreshes sessions and opens history when the live tracker completes', () => {
     const completed = session({ sessionId: 'session-2', name: 'Finished', status: 'COMPLETED' });
-    dataService.getWorkoutSessions.and.returnValue(of([completed]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([completed])));
     component.liveTrackerSession.set(sessionDetail({ sessionId: 'session-live' }));
 
     component.handleLiveTrackerFinished();
 
-    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-2');
     expect(component.liveTrackerSession()).toBeNull();
     expect(component.selectedTab()).toBe('history');
@@ -495,7 +507,7 @@ describe('WorkoutPage', () => {
 
   it('opens session detail from a history row', () => {
     const completed = session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' });
-    dataService.getWorkoutSessions.and.returnValue(of([completed]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([completed])));
     dataService.getSession.and.returnValue(of(sessionDetail({ sessionId: 'session-1', name: 'Push day' })));
 
     const fixture = TestBed.createComponent(WorkoutPage);
@@ -511,7 +523,9 @@ describe('WorkoutPage', () => {
   });
 
   it('renders a filtered history empty state separately from no logged sessions', () => {
-    dataService.getWorkoutSessions.and.returnValue(of([session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' })]));
+    dataService.getWorkoutSessionPage.and.returnValue(
+      of(sessionPage([session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' })]))
+    );
 
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
@@ -525,7 +539,7 @@ describe('WorkoutPage', () => {
     expect(compiled.textContent).toContain('No sessions match these filters');
     expect(compiled.textContent).not.toContain('No sessions logged');
 
-    dataService.getWorkoutSessions.and.returnValue(of([]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     const emptyFixture = TestBed.createComponent(WorkoutPage);
     emptyFixture.detectChanges();
     emptyFixture.componentInstance.selectedTab.set('history');
@@ -537,22 +551,22 @@ describe('WorkoutPage', () => {
   it('repeats the latest session and refreshes history', () => {
     const repeated = sessionDetail({ sessionId: 'session-latest', name: 'Repeated', status: 'IN_PROGRESS' });
     dataService.repeatLatestSession.and.returnValue(of(repeated));
-    dataService.getWorkoutSessions.and.returnValue(of([repeated]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([repeated])));
 
     component.repeatLatestSession();
 
     expect(dataService.repeatLatestSession).toHaveBeenCalled();
-    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-latest');
   });
 
   it('refreshes history after workout data import finishes', () => {
     const imported = session({ sessionId: 'session-imported', name: 'Imported', status: 'COMPLETED' });
-    dataService.getWorkoutSessions.and.returnValue(of([imported]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([imported])));
 
     component.handleWorkoutImportFinished();
 
-    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-imported');
   });
 
@@ -588,7 +602,7 @@ describe('WorkoutPage', () => {
 
   it('refreshes history when the expanded data tools emit imported', () => {
     const imported = session({ sessionId: 'session-imported', name: 'Imported', status: 'COMPLETED' });
-    dataService.getWorkoutSessions.and.returnValue(of([imported]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([imported])));
 
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
@@ -598,7 +612,7 @@ describe('WorkoutPage', () => {
 
     fixture.debugElement.query(By.directive(WorkoutDataIoComponent)).componentInstance.imported.emit();
 
-    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(fixture.componentInstance.sessions()[0].sessionId).toBe('session-imported');
   });
 
@@ -806,7 +820,7 @@ describe('WorkoutPage', () => {
 
     expect(component.guidedPlayerSession()).toBeNull();
     expect(component.guidedInitialExerciseId()).toBeNull();
-    expect(dataService.getWorkoutSessions).toHaveBeenCalled();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
   });
 
   it('updates session detail state and handles empty history selections', () => {
@@ -822,7 +836,7 @@ describe('WorkoutPage', () => {
     expect(component.selectedSessionId()).toBe('session-1');
 
     const updated = sessionDetail({ sessionId: 'session-1', name: 'Updated', status: 'COMPLETED' });
-    dataService.getWorkoutSessions.and.returnValue(of([updated, second]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([updated, second])));
 
     component.handleSessionUpdated(updated);
     expect(component.sessions()[0].name).toBe('Updated');
@@ -831,7 +845,7 @@ describe('WorkoutPage', () => {
     expect(component.selectedSessionId()).toBeNull();
 
     const repeated = sessionDetail({ sessionId: 'session-2', name: 'Repeated' });
-    dataService.getWorkoutSessions.and.returnValue(of([repeated, first]));
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([repeated, first])));
 
     component.handleSessionRepeated(repeated);
     expect(component.sessions()[0].name).toBe('Repeated');
@@ -864,3 +878,4 @@ describe('WorkoutPage', () => {
     expect(component.metrics()[2].detail).toBe('Strength');
   });
 });
+
