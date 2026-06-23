@@ -71,6 +71,9 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly createVideoError = signal('');
   readonly editVideoError = signal('');
   readonly createImageError = signal('');
+  readonly editImageFile = signal<File | null>(null);
+  readonly editImageUploadProgress = signal<number | null>(null);
+  readonly editImageError = signal('');
 
   private readonly allowedImageTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
   private readonly allowedVideoTypes = new Set(['video/mp4', 'video/webm']);
@@ -289,6 +292,9 @@ export class ExerciseLibraryComponent implements OnInit {
     this.editVideoFile.set(null);
     this.editUploadProgress.set(null);
     this.editVideoError.set('');
+    this.editImageFile.set(null);
+    this.editImageUploadProgress.set(null);
+    this.editImageError.set('');
   }
 
   createExercise(): void {
@@ -346,21 +352,41 @@ export class ExerciseLibraryComponent implements OnInit {
 
     this.saving.set(true);
     this.uploadVideoForExercise(exercise.exerciseId, file, 'edit', (updatedExercise) => {
-      this.toast.success('Exercise video uploaded.');
-      this.editingExercise.set(updatedExercise);
-      if (this.selectedExercise()?.exerciseId === updatedExercise.exerciseId) {
-        this.selectedExercise.set(updatedExercise);
-      }
-      if (this.selectedExerciseDetail()?.exerciseId === updatedExercise.exerciseId) {
-        this.selectedExerciseDetail.set({
-          ...this.selectedExerciseDetail()!,
-          videoUrl: updatedExercise.videoUrl ?? null
-        });
-      }
       this.editVideoFile.set(null);
-      this.loadExercises();
-      this.saving.set(false);
+      this.refreshEditedExercise(updatedExercise, 'Exercise video uploaded.');
     });
+  }
+
+  uploadEditingImage(): void {
+    const exercise = this.editingExercise();
+    const file = this.editImageFile();
+    if (!exercise?.exerciseId || !file || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.uploadImageForExercise(exercise.exerciseId, file, 'edit', (updatedExercise) => {
+      this.editImageFile.set(null);
+      this.refreshEditedExercise(updatedExercise, 'Exercise photo uploaded.');
+    });
+  }
+
+  private refreshEditedExercise(updatedExercise: Exercise, successMessage: string): void {
+    this.toast.success(successMessage);
+    this.editingExercise.set(updatedExercise);
+    if (this.selectedExercise()?.exerciseId === updatedExercise.exerciseId) {
+      this.selectedExercise.set(updatedExercise);
+    }
+    const detail = this.selectedExerciseDetail();
+    if (detail?.exerciseId === updatedExercise.exerciseId) {
+      this.selectedExerciseDetail.set({
+        ...detail,
+        videoUrl: updatedExercise.videoUrl ?? null,
+        images: updatedExercise.images ?? detail.images
+      });
+    }
+    this.loadExercises();
+    this.saving.set(false);
   }
 
   archiveExercise(exercise: Exercise): void {
@@ -448,6 +474,10 @@ export class ExerciseLibraryComponent implements OnInit {
 
   selectEditVideoFile(event: Event): void {
     this.selectVideoFile(event, this.editVideoFile, this.editVideoError, this.editUploadProgress);
+  }
+
+  selectEditImageFile(event: Event): void {
+    this.selectImageFile(event, this.editImageFile, this.editImageError, this.editImageUploadProgress);
   }
 
   goToPage(nextPage: number): void {
@@ -715,25 +745,32 @@ export class ExerciseLibraryComponent implements OnInit {
       return;
     }
 
-    this.uploadImageForExercise(exerciseId, imageFile, uploadVideo);
+    this.uploadImageForExercise(exerciseId, imageFile, 'create', uploadVideo);
   }
 
-  private uploadImageForExercise(exerciseId: string, file: File, onSuccess: () => void): void {
-    this.createImageUploadProgress.set(0);
+  private uploadImageForExercise(
+    exerciseId: string,
+    file: File,
+    target: 'create' | 'edit',
+    onSuccess: (exercise: Exercise) => void
+  ): void {
+    const progressSignal = target === 'create' ? this.createImageUploadProgress : this.editImageUploadProgress;
+    const errorSignal = target === 'create' ? this.createImageError : this.editImageError;
+    progressSignal.set(0);
     this.dataService.uploadExerciseImage(exerciseId, file).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress) {
           const total = event.total ?? file.size;
-          this.createImageUploadProgress.set(total > 0 ? Math.round((event.loaded / total) * 100) : 0);
+          progressSignal.set(total > 0 ? Math.round((event.loaded / total) * 100) : 0);
           return;
         }
-        if (event.type === HttpEventType.Response) {
-          this.createImageUploadProgress.set(100);
-          onSuccess();
+        if (event.type === HttpEventType.Response && event.body) {
+          progressSignal.set(100);
+          onSuccess(event.body);
         }
       },
       error: () => {
-        this.createImageError.set('Unable to upload photo. Please retry.');
+        errorSignal.set('Unable to upload photo. Please retry.');
         this.toast.error('Unable to upload exercise photo. Please retry.');
         this.saving.set(false);
       }
