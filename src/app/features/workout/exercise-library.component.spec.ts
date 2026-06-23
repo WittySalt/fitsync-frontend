@@ -142,6 +142,60 @@ describe('ExerciseLibraryComponent', () => {
     expect(optionText).toContain('Intermediate');
   });
 
+  it('switches between browse and create library views', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    const tabs = Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('.library-view-nav button'));
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(fixture.nativeElement.querySelector('.filter-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.exercise-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[aria-label="Create custom exercise"]')).toBeNull();
+
+    tabs[1].click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.libraryView()).toBe('create');
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(fixture.nativeElement.querySelector('[aria-label="Create custom exercise"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.filter-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.exercise-list')).toBeNull();
+
+    const cancel = Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Cancel')
+    );
+    cancel?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.libraryView()).toBe('browse');
+    expect(fixture.nativeElement.querySelector('.filter-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.exercise-list')).not.toBeNull();
+  });
+
+  it('routes shared editor submit and cancel actions by active library view', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const create = spyOn(component, 'createExercise');
+    const update = spyOn(component, 'updateExercise');
+    const cancelCreate = spyOn(component, 'cancelCreate');
+    const cancelEdit = spyOn(component, 'cancelEdit');
+
+    component.libraryView.set('create');
+    component.submitEditor();
+    component.cancelEditor();
+
+    component.libraryView.set('browse');
+    component.startEdit(exercise({ custom: true }));
+    component.submitEditor();
+    component.cancelEditor();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(cancelCreate).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(cancelEdit).toHaveBeenCalledTimes(1);
+  });
+
   it('loads the first exercise page with the default page size', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
@@ -250,6 +304,25 @@ describe('ExerciseLibraryComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
+  });
+
+  it('opens the edit form from the browse list and keeps create hidden', () => {
+    const customExercise = exercise({ custom: true });
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([customExercise])));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    const edit = Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('button')).find((button) =>
+      button.textContent?.trim() === 'Edit'
+    );
+    edit?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.libraryView()).toBe('browse');
+    expect(fixture.componentInstance.editingExercise()).toEqual(customExercise);
+    expect(fixture.nativeElement.querySelector('[aria-label="Edit custom exercise"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[aria-label="Create custom exercise"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Save changes');
   });
 
   it('creates a custom exercise with the normalized backend body', () => {
