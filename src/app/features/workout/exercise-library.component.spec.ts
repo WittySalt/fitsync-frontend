@@ -684,6 +684,35 @@ describe('ExerciseLibraryComponent', () => {
     expect(toast.success).toHaveBeenCalledWith('Exercise video uploaded.');
   });
 
+  it('uploads a selected edit photo file and refreshes the exercise', () => {
+    const customExercise = exercise({ custom: true });
+    const file = new File(['image'], 'demo.webp', { type: 'image/webp' });
+    dataService.searchExercisesPage.and.returnValue(of(pagedExercises([customExercise])));
+    dataService.uploadExerciseImage.and.returnValue(
+      of(
+        { type: HttpEventType.UploadProgress, loaded: 6, total: 12 } as HttpUploadProgressEvent,
+        new HttpResponse({
+          body: exercise({
+            custom: true,
+            images: [{ position: 0, url: 'https://media.example.test/demo.webp' }]
+          })
+        })
+      )
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit(customExercise);
+    fixture.componentInstance.editImageFile.set(file);
+    fixture.componentInstance.uploadEditingImage();
+
+    expect(dataService.uploadExerciseImage).toHaveBeenCalledWith('exercise-1', file);
+    expect(fixture.componentInstance.editImageUploadProgress()).toBe(100);
+    expect(fixture.componentInstance.editImageFile()).toBeNull();
+    expect(fixture.componentInstance.editingExercise()?.images?.[0]?.url).toBe('https://media.example.test/demo.webp');
+    expect(toast.success).toHaveBeenCalledWith('Exercise photo uploaded.');
+  });
+
   it('rejects non-video and oversized upload selections before calling the API', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();

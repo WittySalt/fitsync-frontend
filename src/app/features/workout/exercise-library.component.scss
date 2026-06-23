@@ -146,6 +146,22 @@ label {
   min-width: 92px;
 }
 
+.edit-media-group {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+
+.edit-media-thumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-md, 8px);
+  justify-self: start;
+}
+
 .field-error {
   color: var(--danger);
   font-size: 13px;

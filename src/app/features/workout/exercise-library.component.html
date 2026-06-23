@@ -187,6 +187,30 @@
                 </div>
               }
             } @else {
+              <div class="edit-media-group">
+                <span class="card-label">Photo</span>
+                @if (editingExercise()?.images?.[0]?.url; as currentImage) {
+                  <img class="edit-media-thumb" [src]="currentImage" alt="Exercise photo" />
+                }
+                <label>
+                  Photo file
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="selectEditImageFile($event)" />
+                </label>
+                @if (editImageFile(); as file) {
+                  <small>{{ file.name }} selected.</small>
+                  <button class="button secondary" type="button" [disabled]="saving()" (click)="uploadEditingImage()">
+                    Upload photo
+                  </button>
+                }
+                @if (editImageUploadProgress() !== null) {
+                  <progress max="100" [value]="editImageUploadProgress() ?? 0"></progress>
+                }
+                @if (editImageError()) {
+                  <p class="field-error">{{ editImageError() }}</p>
+                }
+              </div>
+
+              <span class="card-label">Demo video</span>
               @if (editingExercise(); as exercise) {
                 @if (exercise.videoUrl) {
                   <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
