@@ -334,9 +334,10 @@
 }
 
 .quarter-heatmaps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
 }
 
 .month-heatmap {
@@ -434,10 +435,6 @@
 
   .legend {
     justify-content: flex-start;
-  }
-
-  .quarter-heatmaps {
-    grid-template-columns: 1fr;
   }
 
   .calendar-toolbar {
