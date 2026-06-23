@@ -233,10 +233,11 @@
       }
 
       @if (activeTab() === 'recent') {
-        <div class="sort-toggle segmented" role="group" aria-label="Recent sort">
+        <fieldset class="sort-toggle segmented">
+          <legend class="sr-only">Recent sort</legend>
           <button type="button" [class.active]="recentSort() === 'recent'" (click)="setRecentSort('recent')">Most recent</button>
           <button type="button" [class.active]="recentSort() === 'frequent'" (click)="setRecentSort('frequent')">Most logged</button>
-        </div>
+        </fieldset>
         @if (shownRecentFoods().length) {
           <div class="compact-list">
             @for (food of shownRecentFoods(); track (food.customFoodId ?? food.foodId ?? food.foodName) + food.servingLabel) {
@@ -403,10 +404,10 @@
               </select>
             </label>
             <div class="stepper-field">
-              <span>Quantity</span>
+              <label for="selected-food-quantity">Quantity</label>
               <div class="stepper">
                 <button type="button" (click)="adjustSelectedQuantity(-1)">-</button>
-                <input type="number" min="0.1" step="0.1" [value]="selectedQuantity()" (input)="setQuantity($any($event.target).value)" />
+                <input id="selected-food-quantity" type="number" min="0.1" step="0.1" [value]="selectedQuantity()" (input)="setQuantity($any($event.target).value)" />
                 <button type="button" (click)="adjustSelectedQuantity(1)">+</button>
               </div>
             </div>
@@ -489,10 +490,13 @@
                   <strong>{{ item.foodName }}</strong>
                   <span>{{ formatServing(item) }}</span>
                 </div>
-                <div class="stepper compact" aria-label="Item quantity">
-                  <button type="button" (click)="incrementItem(item.id, -1)">-</button>
-                  <input type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
-                  <button type="button" (click)="incrementItem(item.id, 1)">+</button>
+                <div class="item-stepper">
+                  <label class="sr-only" for="meal-item-quantity-{{ item.id }}">Quantity for {{ item.foodName }}</label>
+                  <div class="stepper compact">
+                    <button type="button" (click)="incrementItem(item.id, -1)">-</button>
+                    <input id="meal-item-quantity-{{ item.id }}" type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
+                    <button type="button" (click)="incrementItem(item.id, 1)">+</button>
+                  </div>
                 </div>
                 <div class="item-calories">
                   <strong>{{ formatAmount(item.calories) }} kcal</strong>
