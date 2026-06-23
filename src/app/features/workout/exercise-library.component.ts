@@ -352,20 +352,8 @@ export class ExerciseLibraryComponent implements OnInit {
 
     this.saving.set(true);
     this.uploadVideoForExercise(exercise.exerciseId, file, 'edit', (updatedExercise) => {
-      this.toast.success('Exercise video uploaded.');
-      this.editingExercise.set(updatedExercise);
-      if (this.selectedExercise()?.exerciseId === updatedExercise.exerciseId) {
-        this.selectedExercise.set(updatedExercise);
-      }
-      if (this.selectedExerciseDetail()?.exerciseId === updatedExercise.exerciseId) {
-        this.selectedExerciseDetail.set({
-          ...this.selectedExerciseDetail()!,
-          videoUrl: updatedExercise.videoUrl ?? null
-        });
-      }
       this.editVideoFile.set(null);
-      this.loadExercises();
-      this.saving.set(false);
+      this.refreshEditedExercise(updatedExercise, 'Exercise video uploaded.');
     });
   }
 
@@ -378,21 +366,27 @@ export class ExerciseLibraryComponent implements OnInit {
 
     this.saving.set(true);
     this.uploadImageForExercise(exercise.exerciseId, file, 'edit', (updatedExercise) => {
-      this.toast.success('Exercise photo uploaded.');
-      this.editingExercise.set(updatedExercise);
-      if (this.selectedExercise()?.exerciseId === updatedExercise.exerciseId) {
-        this.selectedExercise.set(updatedExercise);
-      }
-      if (this.selectedExerciseDetail()?.exerciseId === updatedExercise.exerciseId) {
-        this.selectedExerciseDetail.set({
-          ...this.selectedExerciseDetail()!,
-          images: updatedExercise.images ?? []
-        });
-      }
       this.editImageFile.set(null);
-      this.loadExercises();
-      this.saving.set(false);
+      this.refreshEditedExercise(updatedExercise, 'Exercise photo uploaded.');
     });
+  }
+
+  private refreshEditedExercise(updatedExercise: Exercise, successMessage: string): void {
+    this.toast.success(successMessage);
+    this.editingExercise.set(updatedExercise);
+    if (this.selectedExercise()?.exerciseId === updatedExercise.exerciseId) {
+      this.selectedExercise.set(updatedExercise);
+    }
+    const detail = this.selectedExerciseDetail();
+    if (detail?.exerciseId === updatedExercise.exerciseId) {
+      this.selectedExerciseDetail.set({
+        ...detail,
+        videoUrl: updatedExercise.videoUrl ?? null,
+        images: updatedExercise.images ?? detail.images
+      });
+    }
+    this.loadExercises();
+    this.saving.set(false);
   }
 
   archiveExercise(exercise: Exercise): void {
