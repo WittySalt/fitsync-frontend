@@ -154,8 +154,8 @@ describe('ActivityHeatmapComponent', () => {
     const yearGrid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.year-grid');
     const yearStyle = getComputedStyle(yearGrid!);
 
-    expect(monthCellSize).toBe('16px');
-    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-size').trim()).toBe('16px');
+    expect(monthCellSize).toBe('18px');
+    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-size').trim()).toBe('18px');
     expect(monthCellGap).toBe('5px');
     expect(yearStyle.getPropertyValue('--activity-heatmap-cell-gap').trim()).toBe('5px');
   });
@@ -168,9 +168,33 @@ describe('ActivityHeatmapComponent', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
+    const currentYear = new Date().getFullYear();
     expect(component.selectedPreset()).toBe('year');
+    expect(component.startDate()).toBe(`${currentYear}-01-01`);
+    expect(component.endDate()).toBe(`${currentYear}-12-31`);
+    expect(compiled.textContent).toContain(String(currentYear));
     expect(compiled.querySelectorAll('.year-week').length).toBeGreaterThan(50);
     expect(compiled.querySelectorAll('.year-month-labels span').length).toBeGreaterThan(6);
+  });
+
+  it('moves year activity by natural calendar years with previous and next navigation', () => {
+    fixture.detectChanges();
+
+    const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
+    presetButtons[3].click();
+    fixture.detectChanges();
+    analyticsApi.getActivityCalendar.calls.reset();
+
+    component.previousPeriod();
+    expect(component.startDate()).toBe(`${new Date().getFullYear() - 1}-01-01`);
+    expect(component.endDate()).toBe(`${new Date().getFullYear() - 1}-12-31`);
+    expect(analyticsApi.getActivityCalendar).toHaveBeenCalledWith(component.startDate(), component.endDate());
+
+    analyticsApi.getActivityCalendar.calls.reset();
+    component.nextPeriod();
+    expect(component.startDate()).toBe(`${new Date().getFullYear()}-01-01`);
+    expect(component.endDate()).toBe(`${new Date().getFullYear()}-12-31`);
+    expect(analyticsApi.getActivityCalendar).toHaveBeenCalledWith(component.startDate(), component.endDate());
   });
 
   it('maps overlapping week sessions into split-width blocks in the profile timezone', () => {

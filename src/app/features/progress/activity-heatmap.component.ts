@@ -196,8 +196,8 @@ export class ActivityHeatmapComponent implements OnInit {
       this.startDate.set(this.formatIsoDate(this.addMonths(this.startOfMonth(today), -2)));
       this.endDate.set(this.formatIsoDate(this.endOfMonth(today)));
     } else {
-      this.startDate.set(this.isoDaysAgo(364));
-      this.endDate.set(this.isoToday());
+      this.startDate.set(this.formatIsoDate(this.startOfYear(today)));
+      this.endDate.set(this.formatIsoDate(this.endOfYear(today)));
     }
 
     this.load();
@@ -205,12 +205,20 @@ export class ActivityHeatmapComponent implements OnInit {
 
   previousPeriod(): void {
     const preset = this.selectedPreset();
+    if (preset === 'year') {
+      this.moveYearPeriod(this.selectedDate().getFullYear() - 1);
+      return;
+    }
     const nextDate = preset === 'month' ? this.addMonths(this.selectedDate(), -1) : this.addDays(this.selectedDate(), -7);
     this.moveEventPeriod(nextDate);
   }
 
   nextPeriod(): void {
     const preset = this.selectedPreset();
+    if (preset === 'year') {
+      this.moveYearPeriod(this.selectedDate().getFullYear() + 1);
+      return;
+    }
     const nextDate = preset === 'month' ? this.addMonths(this.selectedDate(), 1) : this.addDays(this.selectedDate(), 7);
     this.moveEventPeriod(nextDate);
   }
@@ -326,6 +334,15 @@ export class ActivityHeatmapComponent implements OnInit {
     }
 
     this.loadSessions();
+  }
+
+  private moveYearPeriod(year: number): void {
+    const date = new Date(year, 0, 1);
+    this.selectedDate.set(date);
+    this.expandedMonthDate.set(null);
+    this.startDate.set(this.formatIsoDate(this.startOfYear(date)));
+    this.endDate.set(this.formatIsoDate(this.endOfYear(date)));
+    this.loadActivityCalendar();
   }
 
   private resolveWeekTimeWindow(): { start: number; end: number } {
@@ -643,12 +660,6 @@ export class ActivityHeatmapComponent implements OnInit {
     return new Date().toISOString().slice(0, 10);
   }
 
-  private isoDaysAgo(days: number): string {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return date.toISOString().slice(0, 10);
-  }
-
   private parseIsoDate(value: string): Date {
     const [year, month, day] = value.split('-').map(Number);
     return new Date(year, month - 1, day);
@@ -669,6 +680,14 @@ export class ActivityHeatmapComponent implements OnInit {
 
   private endOfMonth(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  }
+
+  private startOfYear(date: Date): Date {
+    return new Date(date.getFullYear(), 0, 1);
+  }
+
+  private endOfYear(date: Date): Date {
+    return new Date(date.getFullYear(), 11, 31);
   }
 
   private addDays(date: Date, days: number): Date {

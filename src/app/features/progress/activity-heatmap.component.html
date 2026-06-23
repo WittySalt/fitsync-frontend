@@ -193,6 +193,12 @@
         }
       </div>
     } @else if (selectedPreset() === 'year') {
+      <div class="calendar-toolbar" aria-label="Year calendar navigation">
+        <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous year</button>
+        <strong>{{ selectedDate().getFullYear() }}</strong>
+        <button class="button secondary compact" type="button" (click)="nextPeriod()">Next year</button>
+      </div>
+
       <div class="year-heatmap" aria-label="Year workout activity">
         <div class="year-month-labels" aria-hidden="true">
           @for (month of yearHeatmap().monthLabels; track month.column + month.label) {
