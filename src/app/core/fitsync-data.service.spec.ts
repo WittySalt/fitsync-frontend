@@ -1149,6 +1149,49 @@ describe('FitSyncDataService', () => {
     );
   });
 
+  it('uploads an exercise image as multipart form data and maps the exercise response', () => {
+    const file = new Blob(['image'], { type: 'image/webp' });
+    const events: unknown[] = [];
+
+    service.uploadExerciseImage('exercise-1', file).subscribe((event) => events.push(event));
+
+    const request = httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1/image');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.reportProgress).toBeTrue();
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    expect(request.request.body instanceof FormData).toBeTrue();
+    const uploaded = (request.request.body as FormData).get('file') as File;
+    expect(uploaded.type).toBe('image/webp');
+    expect(uploaded.size).toBe(file.size);
+
+    request.event({ type: HttpEventType.UploadProgress, loaded: 4, total: 8 });
+    request.flush({
+      exerciseId: 'exercise-1',
+      code: 'CUSTOM_BACK_SQUAT',
+      name: 'Back Squat',
+      description: 'Barbell back squat',
+      exerciseType: 'STRENGTH',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL',
+      difficulty: 'INTERMEDIATE',
+      status: 'ACTIVE',
+      custom: true,
+      images: [{ position: 0, url: 'https://media.example.test/exercise.webp' }]
+    });
+
+    expect(events).toContain(jasmine.objectContaining({ type: HttpEventType.Sent }));
+    expect(events).toContain(jasmine.objectContaining({ type: HttpEventType.UploadProgress, loaded: 4, total: 8 }));
+    expect(events).toContain(
+      jasmine.objectContaining({
+        type: HttpEventType.Response,
+        body: jasmine.objectContaining({
+          exerciseId: 'exercise-1',
+          imageUrls: ['https://media.example.test/exercise.webp']
+        })
+      })
+    );
+  });
+
   it('loads exercise records and preserves null personal records', () => {
     let result: ExerciseRecords | null | undefined;
     service.getExerciseRecords('exercise-1').subscribe((value) => (result = value));
