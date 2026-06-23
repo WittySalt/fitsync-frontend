@@ -1,4 +1,5 @@
 import { HttpEventType } from '@angular/common/http';
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, EventEmitter, OnInit, Output, WritableSignal, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
@@ -33,7 +34,7 @@ interface HistoryTrend {
 
 @Component({
   selector: 'app-exercise-library',
-  imports: [ReactiveFormsModule, FsChartComponent, StatePanelComponent, ExerciseVideoComponent],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, FsChartComponent, StatePanelComponent, ExerciseVideoComponent],
   templateUrl: './exercise-library.component.html',
   styleUrl: './exercise-library.component.scss'
 })
@@ -52,6 +53,7 @@ export class ExerciseLibraryComponent implements OnInit {
   readonly pageSize = signal(20);
   readonly totalPages = signal(0);
   readonly totalElements = signal(0);
+  readonly libraryView = signal<'browse' | 'create'>('browse');
   readonly editingExercise = signal<Exercise | null>(null);
   readonly selectedExercise = signal<Exercise | null>(null);
   readonly selectedExerciseDetail = signal<ExerciseDetail | null>(null);
@@ -172,6 +174,9 @@ export class ExerciseLibraryComponent implements OnInit {
     };
   });
 
+  readonly activeExerciseForm = computed(() => (this.libraryView() === 'create' ? this.createForm : this.editForm));
+  readonly activeVideoMode = computed(() => this.activeExerciseForm().controls.videoMode.value);
+
   ngOnInit(): void {
     this.loadMetadata();
     this.loadExercises();
@@ -221,6 +226,7 @@ export class ExerciseLibraryComponent implements OnInit {
     if (!exercise.custom) {
       return;
     }
+    this.libraryView.set('browse');
     this.editingExercise.set(exercise);
     this.editForm.setValue({
       name: exercise.name,
@@ -235,6 +241,33 @@ export class ExerciseLibraryComponent implements OnInit {
     this.editVideoFile.set(null);
     this.editUploadProgress.set(null);
     this.editVideoError.set('');
+  }
+
+  setLibraryView(view: 'browse' | 'create'): void {
+    this.libraryView.set(view);
+    if (view === 'create') {
+      this.cancelEdit();
+    }
+  }
+
+  cancelCreate(): void {
+    this.libraryView.set('browse');
+  }
+
+  submitEditor(): void {
+    if (this.libraryView() === 'create') {
+      this.createExercise();
+      return;
+    }
+    this.updateExercise();
+  }
+
+  cancelEditor(): void {
+    if (this.libraryView() === 'create') {
+      this.cancelCreate();
+      return;
+    }
+    this.cancelEdit();
   }
 
   cancelEdit(): void {
@@ -581,6 +614,7 @@ export class ExerciseLibraryComponent implements OnInit {
     this.createVideoFile.set(null);
     this.createUploadProgress.set(null);
     this.createVideoError.set('');
+    this.libraryView.set('browse');
     this.loadExercises();
     this.saving.set(false);
   }

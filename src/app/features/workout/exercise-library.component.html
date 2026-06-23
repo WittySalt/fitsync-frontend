@@ -6,208 +6,147 @@
     </div>
   </div>
 
+  <div class="library-view-nav segmented" role="tablist" aria-label="Exercise library view">
+    <button
+      type="button"
+      role="tab"
+      [class.active]="libraryView() === 'browse'"
+      [attr.aria-selected]="libraryView() === 'browse'"
+      (click)="setLibraryView('browse')"
+    >
+      Browse
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="libraryView() === 'create'"
+      [attr.aria-selected]="libraryView() === 'create'"
+      (click)="setLibraryView('create')"
+    >
+      Create
+    </button>
+  </div>
+
   @if (metadata(); as meta) {
-    @if (!displayExercise()) {
-      <form class="filter-panel" [formGroup]="filterForm">
-      <label>
-        Search
-        <input formControlName="q" type="search" placeholder="Search exercises" autocomplete="off" />
-      </label>
-      <label>
-        Type
-        <select formControlName="exerciseType">
-          <option value="">All types</option>
-          @for (option of meta.exerciseTypes; track option) {
-            <option [value]="option">{{ formatLabel(option) }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Muscle
-        <select formControlName="primaryMuscleGroup">
-          <option value="">All muscles</option>
-          @for (option of meta.muscleGroups; track option) {
-            <option [value]="option">{{ formatLabel(option) }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Equipment
-        <select formControlName="equipment">
-          <option value="">All equipment</option>
-          @for (option of meta.equipment; track option) {
-            <option [value]="option">{{ formatLabel(option) }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Difficulty
-        <select formControlName="difficulty">
-          <option value="">Any difficulty</option>
-          @for (option of meta.difficulties; track option) {
-            <option [value]="option">{{ formatLabel(option) }}</option>
-          }
-        </select>
-      </label>
-      </form>
-
-      <section class="editor-panel" aria-label="Create custom exercise">
-      <div>
-        <span class="card-label">Custom exercise</span>
-        <h3>Create exercise</h3>
-      </div>
-      <form class="exercise-form" [formGroup]="createForm" (ngSubmit)="createExercise()">
-        <label>
-          Code
-          <input formControlName="code" maxlength="100" autocomplete="off" />
-        </label>
-        <label>
-          Name
-          <input formControlName="name" maxlength="120" autocomplete="off" />
-        </label>
-        <label class="wide">
-          Description
-          <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
-        </label>
-        <label>
-          Type
-          <select formControlName="exerciseType">
-            @for (option of meta.exerciseTypes; track option) {
-              <option [value]="option">{{ formatLabel(option) }}</option>
-            }
-          </select>
-        </label>
-        <label>
-          Muscle
-          <select formControlName="primaryMuscleGroup">
-            @for (option of meta.muscleGroups; track option) {
-              <option [value]="option">{{ formatLabel(option) }}</option>
-            }
-          </select>
-        </label>
-        <label>
-          Equipment
-          <select formControlName="equipment">
-            @for (option of meta.equipment; track option) {
-              <option [value]="option">{{ formatLabel(option) }}</option>
-            }
-          </select>
-        </label>
-        <label>
-          Difficulty
-          <select formControlName="difficulty">
-            @for (option of meta.difficulties; track option) {
-              <option [value]="option">{{ formatLabel(option) }}</option>
-            }
-          </select>
-        </label>
-        <fieldset class="video-fields wide">
-          <legend>Video (optional)</legend>
-          <div class="video-mode">
-            <label>
-              <input type="radio" formControlName="videoMode" value="url" />
-              Paste YouTube/Vimeo link
-            </label>
-            <label>
-              <input type="radio" formControlName="videoMode" value="upload" />
-              Upload short clip
-            </label>
-          </div>
-          @if (createForm.controls.videoMode.value === 'url') {
-            <label>
-              Video URL
-              <input formControlName="videoUrl" maxlength="500" placeholder="https://youtube.com/watch?v=..." />
-            </label>
-          } @else {
-            <label>
-              Video file
-              <input type="file" accept="video/mp4,video/webm" (change)="selectCreateVideoFile($event)" />
-            </label>
-            @if (createVideoFile(); as file) {
-              <small>{{ file.name }} selected. It will upload after the exercise is created.</small>
-            }
-            @if (createUploadProgress() !== null) {
-              <progress max="100" [value]="createUploadProgress() ?? 0"></progress>
-            }
-          }
-          @if (createVideoError()) {
-            <p class="field-error">{{ createVideoError() }}</p>
-          }
-        </fieldset>
-        <button class="button primary" type="submit" [disabled]="saving()">Create</button>
-      </form>
-      </section>
-
-      @if (editingExercise(); as exercise) {
-        <section class="editor-panel" aria-label="Edit custom exercise">
+    <ng-template #exerciseEditor>
+      <section
+        class="editor-panel"
+        [attr.aria-label]="libraryView() === 'create' ? 'Create custom exercise' : 'Edit custom exercise'"
+      >
         <div class="editor-header">
           <div>
-            <span class="card-label">Edit</span>
-            <h3>{{ exercise.name }}</h3>
+            <span class="card-label">{{ libraryView() === 'create' ? 'Custom exercise' : 'Edit' }}</span>
+            <h3>
+              @if (libraryView() === 'create') {
+                Create exercise
+              } @else if (editingExercise(); as exercise) {
+                {{ exercise.name }}
+              }
+            </h3>
           </div>
-          <button class="text-link" type="button" (click)="cancelEdit()">Cancel</button>
+          @if (libraryView() !== 'create') {
+            <button class="text-link" type="button" (click)="cancelEdit()">Cancel</button>
+          }
         </div>
-        <form class="exercise-form" [formGroup]="editForm" (ngSubmit)="updateExercise()">
-          <label>
-            Name
-            <input formControlName="name" maxlength="120" autocomplete="off" />
-          </label>
-          <label class="wide">
-            Description
-            <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
-          </label>
-          <label>
-            Type
-            <select formControlName="exerciseType">
-              @for (option of meta.exerciseTypes; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
+
+        <form class="exercise-form" [formGroup]="activeExerciseForm()" (ngSubmit)="submitEditor()">
+          <section class="form-section" aria-labelledby="exercise-basics-title">
+            <span class="form-section-label" id="exercise-basics-title">Basics</span>
+            <div class="form-grid basics-grid">
+              @if (libraryView() === 'create') {
+                <label>
+                  Code
+                  <input formControlName="code" maxlength="100" autocomplete="off" />
+                </label>
               }
-            </select>
-          </label>
-          <label>
-            Muscle
-            <select formControlName="primaryMuscleGroup">
-              @for (option of meta.muscleGroups; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
+              <label>
+                Name
+                <input formControlName="name" maxlength="120" autocomplete="off" />
+              </label>
+              <label class="full-field">
+                Description
+                <textarea formControlName="description" maxlength="1000" rows="3"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section" aria-labelledby="exercise-classification-title">
+            <span class="form-section-label" id="exercise-classification-title">Classification</span>
+            <div class="form-grid classification-grid">
+              <label>
+                Type
+                <select formControlName="exerciseType">
+                  @for (option of meta.exerciseTypes; track option) {
+                    <option [value]="option">{{ formatLabel(option) }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                Muscle
+                <select formControlName="primaryMuscleGroup">
+                  @for (option of meta.muscleGroups; track option) {
+                    <option [value]="option">{{ formatLabel(option) }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                Equipment
+                <select formControlName="equipment">
+                  @for (option of meta.equipment; track option) {
+                    <option [value]="option">{{ formatLabel(option) }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                Difficulty
+                <select formControlName="difficulty">
+                  @for (option of meta.difficulties; track option) {
+                    <option [value]="option">{{ formatLabel(option) }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <fieldset class="form-section video-fields">
+            <legend class="form-section-label">Video (optional)</legend>
+            @if (libraryView() !== 'create') {
+              @if (editingExercise(); as exercise) {
+                @if (exercise.videoUrl) {
+                  <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
+                }
               }
-            </select>
-          </label>
-          <label>
-            Equipment
-            <select formControlName="equipment">
-              @for (option of meta.equipment; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            Difficulty
-            <select formControlName="difficulty">
-              @for (option of meta.difficulties; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
-              }
-            </select>
-          </label>
-          <fieldset class="video-fields wide">
-            <legend>Video (optional)</legend>
-            @if (exercise.videoUrl) {
-              <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
             }
-            <div class="video-mode">
+            <div class="segmented video-mode" role="radiogroup" aria-label="Video source">
               <label>
                 <input type="radio" formControlName="videoMode" value="url" />
-                Paste YouTube/Vimeo link
+                <span>URL</span>
               </label>
               <label>
                 <input type="radio" formControlName="videoMode" value="upload" />
-                Upload short clip
+                <span>Upload</span>
               </label>
             </div>
-            @if (editForm.controls.videoMode.value === 'url') {
+            @if (activeVideoMode() === 'url') {
               <label>
                 Video URL
-                <input formControlName="videoUrl" maxlength="500" placeholder="https://vimeo.com/..." />
+                <input
+                  formControlName="videoUrl"
+                  maxlength="500"
+                  [placeholder]="libraryView() === 'create' ? 'https://youtube.com/watch?v=...' : 'https://vimeo.com/...'"
+                />
               </label>
+            } @else if (libraryView() === 'create') {
+              <label>
+                Video file
+                <input type="file" accept="video/mp4,video/webm" (change)="selectCreateVideoFile($event)" />
+              </label>
+              @if (createVideoFile(); as file) {
+                <small>{{ file.name }} selected. It will upload after the exercise is created.</small>
+              }
+              @if (createUploadProgress() !== null) {
+                <progress max="100" [value]="createUploadProgress() ?? 0"></progress>
+              }
             } @else {
               <label>
                 Video file
@@ -223,194 +162,257 @@
                 <progress max="100" [value]="editUploadProgress() ?? 0"></progress>
               }
             }
-            @if (editVideoError()) {
+            @if (libraryView() === 'create' && createVideoError()) {
+              <p class="field-error">{{ createVideoError() }}</p>
+            }
+            @if (libraryView() !== 'create' && editVideoError()) {
               <p class="field-error">{{ editVideoError() }}</p>
             }
           </fieldset>
-          <button class="button primary" type="submit" [disabled]="saving()">Save changes</button>
-        </form>
-        </section>
-      }
 
-      @if (loading()) {
-        <div class="skeleton tall"></div>
-      } @else if (exercises().length) {
-        <div class="exercise-list">
-        @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
-          <article class="exercise-item">
-            <button class="exercise-select" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
-              <strong>{{ exercise.name }}</strong>
-              @if (exercise.custom) {
-                <span class="custom-tag">Custom</span>
-              }
-              <p>{{ exercise.description || 'No description yet.' }}</p>
-              <small>
-                {{ formatLabel(exercise.exerciseType) }} -
-                {{ formatLabel(exercise.primaryMuscleGroup) }} -
-                {{ formatLabel(exercise.equipment) }} -
-                {{ formatLabel(exercise.difficulty) }}
-              </small>
+          <div class="form-actions">
+            <button class="button primary" type="submit" [disabled]="saving()">
+              {{ libraryView() === 'create' ? 'Create' : 'Save changes' }}
             </button>
-            <div class="item-actions">
-              <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">Details</button>
-              @if (exercise.custom) {
-                <button class="button secondary" type="button" (click)="startEdit(exercise)">Edit</button>
-                <button class="button secondary" type="button" (click)="archiveExercise(exercise)">Archive</button>
+            <button class="button secondary" type="button" (click)="cancelEditor()">Cancel</button>
+          </div>
+        </form>
+      </section>
+    </ng-template>
+
+    @if (libraryView() === 'create') {
+      <ng-container [ngTemplateOutlet]="exerciseEditor" />
+    } @else {
+      @if (!displayExercise()) {
+        <form class="filter-panel" [formGroup]="filterForm">
+          <label>
+            Search
+            <input formControlName="q" type="search" placeholder="Search exercises" autocomplete="off" />
+          </label>
+          <label>
+            Type
+            <select formControlName="exerciseType">
+              <option value="">All types</option>
+              @for (option of meta.exerciseTypes; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
               }
-            </div>
-          </article>
-        }
-        </div>
-        @if (totalPages() > 1) {
-          <nav class="pagination-bar" aria-label="Exercise catalog pages">
-          <button class="button secondary" type="button" (click)="prevPage()" [disabled]="loading() || page() <= 0">
-            Previous
-          </button>
-          <label class="page-size">
-            Per page
-            <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
-              <option [value]="10">10</option>
-              <option [value]="20">20</option>
-              <option [value]="50">50</option>
             </select>
           </label>
-          <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} exercises)</span>
-          <button class="button secondary" type="button" (click)="nextPage()" [disabled]="loading() || page() + 1 >= totalPages()">
-            Next
-          </button>
-          </nav>
+          <label>
+            Muscle
+            <select formControlName="primaryMuscleGroup">
+              <option value="">All muscles</option>
+              @for (option of meta.muscleGroups; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Equipment
+            <select formControlName="equipment">
+              <option value="">All equipment</option>
+              @for (option of meta.equipment; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Difficulty
+            <select formControlName="difficulty">
+              <option value="">Any difficulty</option>
+              @for (option of meta.difficulties; track option) {
+                <option [value]="option">{{ formatLabel(option) }}</option>
+              }
+            </select>
+          </label>
+        </form>
+
+        @if (editingExercise()) {
+          <ng-container [ngTemplateOutlet]="exerciseEditor" />
         }
-      } @else {
-        <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
-      }
-    }
 
-    @if (displayExercise(); as exercise) {
-      <section class="exercise-detail" aria-label="Exercise detail">
-        <div class="editor-header">
-          <div>
-            <span class="card-label">Exercise detail</span>
-            <h3>{{ exercise.name }}</h3>
-          </div>
-          <button class="button secondary" type="button" (click)="clearSelectedExercise()">&larr; Back to library</button>
-        </div>
-
-        @if (exerciseDetailLoading()) {
-          <app-state-panel title="Loading exercise" message="Fetching movement details, personal records, and history." />
-        } @else {
-          <div class="detail-layout">
-            <figure class="media-panel">
-              @if (mediaUrl(); as url) {
-                <img [src]="url" [alt]="exercise.name + ' demonstration'" (error)="markMediaFailed()" />
-              } @else {
-                <div class="media-placeholder" aria-label="No demonstration media available">
-                  <strong>{{ exercise.name.slice(0, 1) }}</strong>
-                  <span>No demo media yet</span>
+        @if (loading()) {
+          <div class="skeleton tall"></div>
+        } @else if (exercises().length) {
+          <div class="exercise-list">
+            @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
+              <article class="exercise-item">
+                <button class="exercise-select" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
+                  <strong>{{ exercise.name }}</strong>
+                  @if (exercise.custom) {
+                    <span class="custom-tag">Custom</span>
+                  }
+                  <p>{{ exercise.description || 'No description yet.' }}</p>
+                  <small>
+                    {{ formatLabel(exercise.exerciseType) }} -
+                    {{ formatLabel(exercise.primaryMuscleGroup) }} -
+                    {{ formatLabel(exercise.equipment) }} -
+                    {{ formatLabel(exercise.difficulty) }}
+                  </small>
+                </button>
+                <div class="item-actions">
+                  <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
+                    Details
+                  </button>
+                  @if (exercise.custom) {
+                    <button class="button secondary" type="button" (click)="startEdit(exercise)">Edit</button>
+                    <button class="button secondary" type="button" (click)="archiveExercise(exercise)">Archive</button>
+                  }
                 </div>
-              }
-              @if (exercise.videoUrl) {
-                <figcaption>
-                  <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
-                </figcaption>
-              }
-            </figure>
-
-            <div class="detail-copy">
-              <p>{{ exercise.description || 'No description available yet.' }}</p>
-              <dl class="meta-grid">
-                <div>
-                  <dt>Primary muscle</dt>
-                  <dd>{{ formatLabel(exercise.primaryMuscleGroup) || 'Not specified' }}</dd>
-                </div>
-                <div>
-                  <dt>Secondary muscles</dt>
-                  <dd>
-                    @if (exercise.secondaryMuscleGroups?.length) {
-                      {{ formatLabels(exercise.secondaryMuscleGroups) }}
-                    } @else {
-                      Not specified
-                    }
-                  </dd>
-                </div>
-                <div>
-                  <dt>Equipment</dt>
-                  <dd>{{ formatLabel(exercise.equipment) || 'Not specified' }}</dd>
-                </div>
-                <div>
-                  <dt>Type</dt>
-                  <dd>{{ formatLabel(exercise.exerciseType) || 'Not specified' }}</dd>
-                </div>
-                <div>
-                  <dt>Difficulty</dt>
-                  <dd>{{ formatLabel(exercise.difficulty) || 'Not specified' }}</dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-
-          <section class="detail-section" aria-labelledby="exercise-steps-title">
-            <h4 id="exercise-steps-title">Steps</h4>
-            @if (exercise.instructions?.length) {
-              <ol class="step-list">
-                @for (step of exercise.instructions; track step.stepNumber ?? step.text) {
-                  <li>{{ step.text }}</li>
-                }
-              </ol>
-            } @else {
-              <app-state-panel title="No steps yet" message="Step-by-step coaching notes will appear here when the catalog provides them." />
+              </article>
             }
-          </section>
-
-          <section class="detail-section" aria-labelledby="exercise-records-title">
-            <h4 id="exercise-records-title">Personal records</h4>
-            @if (recordsEmpty()) {
-              <app-state-panel title="No records yet" message="Complete and log sets for this exercise to start building personal records." />
-            } @else {
-              <div class="record-grid">
-                @for (record of recordCards(); track record.label) {
-                  <article class="record-card">
-                    <span>{{ record.label }}</span>
-                    <strong>{{ record.value }}</strong>
-                    <small>{{ record.detail }}</small>
-                  </article>
-                }
-              </div>
-            }
-          </section>
-
-          <section class="detail-section" aria-labelledby="exercise-history-title">
-            <h4 id="exercise-history-title">History trend</h4>
-          @if (historyTrend().labels.length) {
-            <div class="chart-shell">
-              <fs-chart
-                [type]="'line'"
-                [labels]="historyTrend().labels"
-                [series]="historyTrend().series"
-                ariaLabel="Per-exercise max weight trend"
-                yAxisLabel="Max weight (kg)"
-              />
-            </div>
-            <ul class="history-list" aria-label="Exercise history details">
-              @for (entry of sortedHistory(); track entry.setLogId || entry.sessionId + entry.setNumber) {
-                <li>
-                  <div>
-                    <strong>{{ entry.sessionName || 'Workout session' }}</strong>
-                    <small>{{ formatDateTime(entry.completedAt || entry.startedAt) }}</small>
-                  </div>
-                  <span>
-                    Set {{ entry.setNumber || '-' }}:
-                    {{ entry.reps ?? '-' }} reps,
-                    {{ formatMetric(entry.weightKg, 'kg', 1) }}
-                  </span>
-                </li>
-              }
-            </ul>
-          } @else {
-            <app-state-panel title="No history yet" message="Completed sets for this exercise will appear here." />
+          </div>
+          @if (totalPages() > 1) {
+            <nav class="pagination-bar" aria-label="Exercise catalog pages">
+              <button class="button secondary" type="button" (click)="prevPage()" [disabled]="loading() || page() <= 0">
+                Previous
+              </button>
+              <label class="page-size">
+                Per page
+                <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
+                  <option [value]="10">10</option>
+                  <option [value]="20">20</option>
+                  <option [value]="50">50</option>
+                </select>
+              </label>
+              <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} exercises)</span>
+              <button class="button secondary" type="button" (click)="nextPage()" [disabled]="loading() || page() + 1 >= totalPages()">
+                Next
+              </button>
+            </nav>
           }
-          </section>
+        } @else {
+          <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
         }
-      </section>
+      }
+
+      @if (displayExercise(); as exercise) {
+        <section class="exercise-detail" aria-label="Exercise detail">
+          <div class="editor-header">
+            <div>
+              <span class="card-label">Exercise detail</span>
+              <h3>{{ exercise.name }}</h3>
+            </div>
+            <button class="button secondary" type="button" (click)="clearSelectedExercise()">&larr; Back to library</button>
+          </div>
+
+          @if (exerciseDetailLoading()) {
+            <app-state-panel title="Loading exercise" message="Fetching movement details, personal records, and history." />
+          } @else {
+            <div class="detail-layout">
+              <figure class="media-panel">
+                @if (mediaUrl(); as url) {
+                  <img [src]="url" [alt]="exercise.name + ' demonstration'" (error)="markMediaFailed()" />
+                } @else {
+                  <div class="media-placeholder" aria-label="No demonstration media available">
+                    <strong>{{ exercise.name.slice(0, 1) }}</strong>
+                    <span>No demo media yet</span>
+                  </div>
+                }
+                @if (exercise.videoUrl) {
+                  <figcaption>
+                    <app-exercise-video [videoUrl]="exercise.videoUrl" [title]="exercise.name + ' video guide'" />
+                  </figcaption>
+                }
+              </figure>
+
+              <div class="detail-copy">
+                <p>{{ exercise.description || 'No description available yet.' }}</p>
+                <dl class="meta-grid">
+                  <div>
+                    <dt>Primary muscle</dt>
+                    <dd>{{ formatLabel(exercise.primaryMuscleGroup) || 'Not specified' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Secondary muscles</dt>
+                    <dd>
+                      @if (exercise.secondaryMuscleGroups?.length) {
+                        {{ formatLabels(exercise.secondaryMuscleGroups) }}
+                      } @else {
+                        Not specified
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Equipment</dt>
+                    <dd>{{ formatLabel(exercise.equipment) || 'Not specified' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Type</dt>
+                    <dd>{{ formatLabel(exercise.exerciseType) || 'Not specified' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Difficulty</dt>
+                    <dd>{{ formatLabel(exercise.difficulty) || 'Not specified' }}</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <section class="detail-section" aria-labelledby="exercise-steps-title">
+              <h4 id="exercise-steps-title">Steps</h4>
+              @if (exercise.instructions?.length) {
+                <ol class="step-list">
+                  @for (step of exercise.instructions; track step.stepNumber ?? step.text) {
+                    <li>{{ step.text }}</li>
+                  }
+                </ol>
+              } @else {
+                <app-state-panel title="No steps yet" message="Step-by-step coaching notes will appear here when the catalog provides them." />
+              }
+            </section>
+
+            <section class="detail-section" aria-labelledby="exercise-records-title">
+              <h4 id="exercise-records-title">Personal records</h4>
+              @if (recordsEmpty()) {
+                <app-state-panel title="No records yet" message="Complete and log sets for this exercise to start building personal records." />
+              } @else {
+                <div class="record-grid">
+                  @for (record of recordCards(); track record.label) {
+                    <article class="record-card">
+                      <span>{{ record.label }}</span>
+                      <strong>{{ record.value }}</strong>
+                      <small>{{ record.detail }}</small>
+                    </article>
+                  }
+                </div>
+              }
+            </section>
+
+            <section class="detail-section" aria-labelledby="exercise-history-title">
+              <h4 id="exercise-history-title">History trend</h4>
+              @if (historyTrend().labels.length) {
+                <div class="chart-shell">
+                  <fs-chart
+                    [type]="'line'"
+                    [labels]="historyTrend().labels"
+                    [series]="historyTrend().series"
+                    ariaLabel="Per-exercise max weight trend"
+                    yAxisLabel="Max weight (kg)"
+                  />
+                </div>
+                <ul class="history-list" aria-label="Exercise history details">
+                  @for (entry of sortedHistory(); track entry.setLogId || entry.sessionId + entry.setNumber) {
+                    <li>
+                      <div>
+                        <strong>{{ entry.sessionName || 'Workout session' }}</strong>
+                        <small>{{ formatDateTime(entry.completedAt || entry.startedAt) }}</small>
+                      </div>
+                      <span>
+                        Set {{ entry.setNumber || '-' }}:
+                        {{ entry.reps ?? '-' }} reps,
+                        {{ formatMetric(entry.weightKg, 'kg', 1) }}
+                      </span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <app-state-panel title="No history yet" message="Completed sets for this exercise will appear here." />
+              }
+            </section>
+          }
+        </section>
+      }
     }
   } @else {
     <app-state-panel title="Exercise metadata unavailable" message="Filters and custom exercise forms need metadata from the workout API." />
