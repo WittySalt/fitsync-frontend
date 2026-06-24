@@ -1,5 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 
@@ -80,7 +80,7 @@ describe('WorkoutPage', () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'getWorkoutPlans',
       'getWorkoutSessionPage',
-      'getExercises',
+      'searchExercisesPage',
       'getActivePlan',
       'saveWorkoutSession',
       'createWorkoutPlan',
@@ -107,7 +107,7 @@ describe('WorkoutPage', () => {
     ]);
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
-    dataService.getExercises.and.returnValue(of([]));
+    dataService.searchExercisesPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
     dataService.getActivePlan.and.returnValue(of(null));
     dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
     dataService.createWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
@@ -504,7 +504,6 @@ describe('WorkoutPage', () => {
   });
 
   it('submits a workout plan with a real exercise blueprint', () => {
-    component.exercises.set([exercise()]);
     component.planForm.patchValue({
       name: 'Strength base',
       goalFocus: 'STRENGTH',
@@ -540,6 +539,118 @@ describe('WorkoutPage', () => {
         ]
       })
     );
+  });
+
+  it('searches and selects a deep-catalog exercise in the plan picker', fakeAsync(() => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    const deepCatalogExercise = exercise({
+      exerciseId: 'exercise-57',
+      name: 'Paused squat',
+      primaryMuscleGroup: 'QUADS',
+      equipment: 'BARBELL'
+    });
+    dataService.searchExercisesPage.and.returnValue(of({
+      items: [deepCatalogExercise],
+      page: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 1
+    }));
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    input!.value = 'squat';
+    input!.dispatchEvent(new Event('input'));
+    tick(275);
+    fixture.detectChanges();
+
+    const option = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="option"]');
+    option!.click();
+    fixture.detectChanges();
+
+    expect(dataService.searchExercisesPage).toHaveBeenCalledWith({ q: 'squat', page: 0, size: 20 });
+    expect(fixture.componentInstance.planExercises.at(0).value.exerciseId).toBe('exercise-57');
+    expect(input!.value).toBe('Paused squat');
+  }));
+
+  it('prefills existing plan exercise names without searching', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+    dataService.searchExercisesPage.calls.reset();
+
+    fixture.componentInstance.editPlan(
+      plan({
+        planId: 'plan-edit',
+        exercises: [
+          {
+            exerciseId: 'exercise-deep',
+            exerciseNameSnapshot: 'Zercher squat',
+            sequence: 1,
+            targetSets: 4,
+            targetReps: 6,
+            targetWeightKg: 80,
+            targetDurationSeconds: null,
+            targetDistanceKm: null,
+            restSeconds: 150,
+            notes: 'Strong',
+            setTargets: []
+          }
+        ]
+      })
+    );
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    expect(input?.value).toBe('Zercher squat');
+    expect(dataService.searchExercisesPage).not.toHaveBeenCalled();
+  });
+
+  it('debounces plan exercise search and only sends the latest query', fakeAsync(() => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    dataService.searchExercisesPage.and.returnValue(of({
+      items: [exercise({ exerciseId: 'exercise-57', name: 'Paused squat' })],
+      page: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 1
+    }));
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    ['s', 'sq', 'squ', 'squa', 'squat'].forEach((query) => {
+      input!.value = query;
+      input!.dispatchEvent(new Event('input'));
+      tick(50);
+    });
+
+    expect(dataService.searchExercisesPage).not.toHaveBeenCalled();
+
+    tick(275);
+    fixture.detectChanges();
+
+    expect(dataService.searchExercisesPage).toHaveBeenCalledTimes(1);
+    expect(dataService.searchExercisesPage).toHaveBeenCalledWith({ q: 'squat', page: 0, size: 20 });
+  }));
+
+  it('closes the plan exercise picker and marks exerciseId touched on blur', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    input!.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.exercisePickerState(0).open).toBeTrue();
+
+    input!.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.exercisePickerState(0).open).toBeFalse();
+    expect(fixture.componentInstance.planExercises.at(0).get('exerciseId')?.touched).toBeTrue();
   });
 
   it('starts a plan and moves the user to training history', () => {
@@ -676,12 +787,6 @@ describe('WorkoutPage', () => {
 
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(fixture.componentInstance.sessions()[0].sessionId).toBe('session-imported');
-  });
-
-  it('keeps the workout exercise cache in sync with the library component', () => {
-    component.handleExerciseLibraryChanged([exercise({ name: 'Bench press' })]);
-
-    expect(component.exercises()[0].name).toBe('Bench press');
   });
 
   it('loads plan errors and refilters plans by status', () => {
@@ -940,4 +1045,3 @@ describe('WorkoutPage', () => {
     expect(component.metrics()[2].detail).toBe('Strength');
   });
 });
-
