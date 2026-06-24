@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
@@ -643,6 +643,161 @@ describe('WorkoutPage', () => {
     expect(dataService.searchExercisesPage).toHaveBeenCalledTimes(1);
     expect(dataService.searchExercisesPage).toHaveBeenCalledWith({ q: 'squat', page: 0, size: 20 });
   }));
+
+  it('shows a visible search error when plan exercise lookup fails', fakeAsync(() => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    dataService.searchExercisesPage.and.returnValue(throwError(() => new Error('search failed')));
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    input!.value = 'squat';
+    input!.dispatchEvent(new Event('input'));
+    tick(275);
+    fixture.detectChanges();
+
+    const status = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.typeahead-status.error');
+    expect(status?.textContent?.trim()).toBe('Unable to search exercises. Please retry.');
+    expect(status?.getAttribute('aria-live')).toBe('assertive');
+    expect(input?.getAttribute('aria-activedescendant')).toBeNull();
+  }));
+
+  it('ignores stale exercise search responses after the row query changes', fakeAsync(() => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    const staleSearch = new Subject<{
+      items: Exercise[];
+      page: number;
+      size: number;
+      totalPages: number;
+      totalElements: number;
+    }>();
+    dataService.searchExercisesPage.and.returnValues(
+      staleSearch.asObservable(),
+      of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 })
+    );
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    input!.value = 'squat';
+    input!.dispatchEvent(new Event('input'));
+    tick(275);
+    expect(dataService.searchExercisesPage).toHaveBeenCalledTimes(1);
+
+    input!.value = 'press';
+    input!.dispatchEvent(new Event('input'));
+    staleSearch.next({
+      items: [exercise({ exerciseId: 'stale-exercise', name: 'Stale squat' })],
+      page: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 1
+    });
+    staleSearch.complete();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.exercisePickerState(0).query).toBe('press');
+    expect(fixture.componentInstance.exercisePickerState(0).results).toEqual([]);
+
+    tick(275);
+    fixture.detectChanges();
+
+    expect(dataService.searchExercisesPage).toHaveBeenCalledTimes(2);
+  }));
+
+  it('supports keyboard navigation through typeahead results', fakeAsync(() => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    dataService.searchExercisesPage.and.returnValue(of({
+      items: [
+        exercise({ exerciseId: 'exercise-1', name: 'Back squat' }),
+        exercise({ exerciseId: 'exercise-2', name: 'Front squat' })
+      ],
+      page: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 2
+    }));
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    input!.value = 'squat';
+    input!.dispatchEvent(new Event('input'));
+    tick(275);
+    fixture.detectChanges();
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    fixture.detectChanges();
+
+    const secondOption = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#plan-exercise-option-0-1');
+    expect(input?.getAttribute('aria-activedescendant')).toBe(secondOption?.id);
+    expect(secondOption?.getAttribute('role')).toBe('option');
+    expect(secondOption?.getAttribute('aria-selected')).toBe('true');
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    fixture.detectChanges();
+    expect(input?.getAttribute('aria-activedescendant')).toBe('plan-exercise-option-0-0');
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.planExercises.at(0).value.exerciseId).toBe('exercise-1');
+    expect(input!.value).toBe('Back squat');
+  }));
+
+  it('opens an empty picker with ArrowDown and closes it with Escape', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
+    expect(fixture.componentInstance.exercisePickerState(0).open).toBeFalse();
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.exercisePickerState(0).open).toBeTrue();
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.exercisePickerState(0).open).toBeFalse();
+  });
+
+  it('keeps an empty typeahead picker stable when arrowing through no results', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    fixture.componentInstance.openExercisePicker(0);
+    fixture.componentInstance.handleExercisePickerKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }), 0);
+
+    expect(fixture.componentInstance.exercisePickerState(0).activeIndex).toBe(-1);
+    expect(fixture.componentInstance.exercisePickerState(99).open).toBeFalse();
+  });
+
+  it('does not select a typeahead result without an exercise id', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectExerciseResult(0, exercise({ exerciseId: undefined }));
+
+    expect(fixture.componentInstance.planExercises.at(0).value.exerciseId).toBe('');
+    expect(fixture.componentInstance.exerciseHint(exercise({ primaryMuscleGroup: '', equipment: '' }))).toBe('');
+  });
+
+  it('keeps exercise picker state aligned when removing plan rows', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    fixture.componentInstance.addPlanExercise();
+    fixture.componentInstance.setExerciseSearchQuery(0, 'squat');
+    fixture.componentInstance.setExerciseSearchQuery(1, 'press');
+
+    fixture.componentInstance.removePlanExercise(0);
+
+    expect(fixture.componentInstance.exercisePickerState(0).query).toBe('press');
+  });
 
   it('closes the plan exercise picker and marks exerciseId touched on blur', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
