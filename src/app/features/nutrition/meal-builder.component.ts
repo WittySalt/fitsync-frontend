@@ -1,5 +1,5 @@
 import { Component, HostListener, OnInit, computed, inject, output, signal } from '@angular/core';
-import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -145,7 +145,7 @@ function roundDecimal(value: number, digits = 1): number {
 
 @Component({
   selector: 'app-meal-builder',
-  imports: [ReactiveFormsModule, StatePanelComponent],
+  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent],
   templateUrl: './meal-builder.component.html',
   styleUrl: './meal-builder.component.scss'
 })
@@ -195,6 +195,7 @@ export class MealBuilderComponent implements OnInit {
   readonly barcodeLooking = signal(false);
   readonly barcodeOpen = signal(false);
   readonly filtersOpen = signal(false);
+  readonly labelNoteOpen = signal(false);
   readonly verifiedOnly = signal(false);
   readonly activeTab = signal<FinderTab>('results');
   readonly recentSort = signal<RecentSort>('recent');
@@ -308,6 +309,13 @@ export class MealBuilderComponent implements OnInit {
 
   setMealType(mealType: string): void {
     this.mealForm.controls.mealType.setValue(mealType);
+    if (mealType === 'OTHER') {
+      this.labelNoteOpen.set(true);
+    }
+  }
+
+  toggleLabelNote(): void {
+    this.labelNoteOpen.update((value) => !value);
   }
 
   setActiveTab(tab: FinderTab): void {
@@ -376,10 +384,11 @@ export class MealBuilderComponent implements OnInit {
   }
 
   setPageSize(size: number): void {
-    if (!this.pageSizeOptions.includes(size as (typeof this.pageSizeOptions)[number]) || size === this.pageSize()) {
+    const nextSize = Number(size);
+    if (!this.pageSizeOptions.includes(nextSize as (typeof this.pageSizeOptions)[number]) || nextSize === this.pageSize()) {
       return;
     }
-    this.pageSize.set(size);
+    this.pageSize.set(nextSize);
     this.runSearch();
   }
 
@@ -694,6 +703,10 @@ export class MealBuilderComponent implements OnInit {
     return `${Math.round(value ?? 0)}${suffix}`;
   }
 
+  defaultMealName(): string {
+    return this.resolveMealName(this.mealForm.controls.mealType.value, '');
+  }
+
   formatServing(item: MealItemDraft): string {
     const label = item.snapshotServingLabel || item.unit || 'serving';
     const quantity = Number(item.quantity);
@@ -978,6 +991,9 @@ export class MealBuilderComponent implements OnInit {
   }
 
   private updateMealNameValidator(mealType: string): void {
+    if (mealType === 'OTHER') {
+      this.labelNoteOpen.set(true);
+    }
     const validators = mealType === 'OTHER'
       ? [Validators.required, Validators.maxLength(120)]
       : [Validators.maxLength(120)];

@@ -19,7 +19,7 @@
 }
 
 .builder-header {
-  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 
   h2 {
@@ -54,7 +54,6 @@
   background: var(--surface-sunken);
 }
 
-.totals-card,
 .plan-panel,
 .food-detail-card,
 .meal-items {
@@ -62,23 +61,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
-}
-
-.totals-card {
-  min-width: 210px;
-  text-align: right;
-
-  strong {
-    display: block;
-    font-size: 32px;
-    line-height: 1;
-  }
-
-  span,
-  small {
-    display: block;
-    color: var(--text-secondary);
-  }
 }
 
 .meal-meta {
@@ -120,14 +102,13 @@
 .toggle-row {
   min-width: 0;
   min-height: 38px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
   color: var(--text-secondary);
   font: inherit;
   font-size: 12px;
-  font-weight: var(--fw-bold);
   cursor: pointer;
 }
 
@@ -145,15 +126,6 @@
   border: 0;
   background: transparent;
   color: var(--accent);
-}
-
-label {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: var(--fw-bold);
 }
 
 .search-shell {
@@ -185,15 +157,12 @@ label {
   border-radius: var(--radius-md);
   background: var(--surface);
 
-  input {
-    border: 0;
-    background: transparent;
-  }
+  &:focus-within { border-color: var(--accent); }
+}
 
-  &:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--focus-ring);
-  }
+.search-field input {
+  border: 0;
+  background: transparent;
 }
 
 .icon-button,
@@ -202,13 +171,11 @@ label {
   place-items: center;
   width: 42px;
   height: 42px;
-  min-width: 42px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-secondary);
   font: inherit;
-  font-weight: var(--fw-bold);
   cursor: pointer;
 }
 
@@ -309,9 +276,9 @@ label {
   min-width: 0;
   display: flex;
   justify-content: space-between;
-  gap: 14px;
-  min-height: 76px;
-  padding: 12px;
+  gap: 12px;
+  min-height: 0;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -443,6 +410,28 @@ label {
   gap: 8px;
 }
 
+.macro-rings article {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  text-align: center;
+}
+
+.macro-total,
+.ring-total-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.ring-copy {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
 .ring-wrap {
   position: relative;
   display: grid;
@@ -492,7 +481,6 @@ label {
   stroke: var(--danger);
 }
 
-.ring-copy { color: var(--text-secondary); }
 .ring-copy strong { color: var(--accent); }
 .ring-copy strong.over { color: var(--danger); }
 
@@ -523,22 +511,35 @@ label {
   }
 }
 
+.meal-label-card {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.label-note-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--fw-bold);
+  text-align: left;
+  cursor: pointer;
+}
+
 .pagination-bar {
   width: 100%;
   color: var(--text-secondary);
   font-size: 13px;
-}
-
-.page-size {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  select {
-    width: auto;
-    min-height: 34px;
-    padding: 5px 8px;
-  }
 }
 
 @media (max-width: 1040px) {
@@ -546,10 +547,6 @@ label {
   .builder-grid,
   .plan-panel {
     grid-template-columns: 1fr;
-  }
-
-  .totals-card {
-    text-align: left;
   }
 }
 
