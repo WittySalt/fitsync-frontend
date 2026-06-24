@@ -24,10 +24,15 @@ describe('GoalLifecycleComponent', () => {
   let toast: jasmine.SpyObj<ToastService>;
 
   beforeEach(async () => {
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getGoals', 'upsertGoal']);
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
+      'getGoals',
+      'upsertGoal',
+      'deleteGoal'
+    ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
 
     dataService.getGoals.and.returnValue(of([goal()]));
+    dataService.deleteGoal.and.returnValue(of(void 0));
     dataService.upsertGoal.and.callFake((goalType: GoalType, request) =>
       of(
         goal({
@@ -138,6 +143,67 @@ describe('GoalLifecycleComponent', () => {
         targetDate: null
       })
     );
+  });
+
+  it('soft-deletes a goal after confirmation and removes it locally', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(dataService.deleteGoal).toHaveBeenCalledWith('WEIGHT');
+    expect(toast.success).toHaveBeenCalledWith('Goal deleted.');
+    expect(fixture.componentInstance.goalFor('WEIGHT')).toBeNull();
+    expect(fixture.componentInstance.deletingGoalType()).toBeNull();
+  });
+
+  it('does not delete when confirmation is dismissed', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(dataService.deleteGoal).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.goalFor('WEIGHT')).not.toBeNull();
+  });
+
+  it('surfaces delete failures through toast errors', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    dataService.deleteGoal.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to delete goal. Please retry.');
+    expect(fixture.componentInstance.deletingGoalType()).toBeNull();
+  });
+
+  it('closes the edit form when the goal being edited is deleted', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit('WEIGHT');
+    expect(fixture.componentInstance.editingGoalType()).toBe('WEIGHT');
+
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(fixture.componentInstance.editingGoalType()).toBeNull();
+  });
+
+  it('ignores a delete while one is already in flight', () => {
+    const confirmSpy = spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.deletingGoalType.set('PROTEIN');
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(dataService.deleteGoal).not.toHaveBeenCalled();
   });
 
   it('surfaces write failures through toast errors', () => {
