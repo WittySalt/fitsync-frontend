@@ -286,6 +286,38 @@ describe('AccountDataService', () => {
       })
     ]);
   });
+
+  it('refreshes the lightweight profile summary after profile or avatar changes', () => {
+    const summaries: AccountSummary[] = [];
+
+    service.getProfileSummary().subscribe((summary) => summaries.push(summary));
+    httpTesting.expectOne('/api/v1/users/me').flush(userFixture({ profile: profileFixture({ displayName: 'Alice Tan' }) }));
+
+    const updatedProfile = profileFixture({ displayName: 'Updated User' });
+    service.updateProfile(updatedProfile).subscribe();
+    const profileRequest = httpTesting.expectOne('/api/v1/users/me/profile');
+    expect(profileRequest.request.method).toBe('PUT');
+    profileRequest.flush(updatedProfile);
+
+    service.getProfileSummary().subscribe((summary) => summaries.push(summary));
+    httpTesting.expectOne('/api/v1/users/me').flush(userFixture({ profile: profileFixture({ displayName: 'Updated User' }) }));
+
+    service.uploadAvatar(new Blob(['avatar'], { type: 'image/png' })).subscribe();
+    const avatarRequest = httpTesting.expectOne('/api/v1/users/me/profile/avatar');
+    expect(avatarRequest.request.method).toBe('POST');
+    avatarRequest.flush(profileFixture({ displayName: 'Updated User', avatarUrl: 'https://cdn.example/avatar.png' }));
+
+    service.getProfileSummary().subscribe((summary) => summaries.push(summary));
+    httpTesting.expectOne('/api/v1/users/me').flush(
+      userFixture({ profile: profileFixture({ displayName: 'Updated User', avatarUrl: 'https://cdn.example/avatar.png' }) })
+    );
+
+    expect(summaries).toEqual([
+      jasmine.objectContaining({ displayName: 'Alice Tan', initials: 'AT' }),
+      jasmine.objectContaining({ displayName: 'Updated User', initials: 'UU' }),
+      jasmine.objectContaining({ displayName: 'Updated User', avatarUrl: 'https://cdn.example/avatar.png' })
+    ]);
+  });
 });
 
 function profileFixture(overrides: Partial<AccountProfile> = {}): AccountProfile {

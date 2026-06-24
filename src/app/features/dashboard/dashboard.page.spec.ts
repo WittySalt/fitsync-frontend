@@ -201,6 +201,40 @@ describe('DashboardPage', () => {
     expect(text).not.toContain('NaN');
   });
 
+  it('formats relative dates and fallback dates without exposing raw ISO timestamps', () => {
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    expect(component.metricDateLabel(null)).toBe('');
+    expect(component.metricDateLabel('2026-06-23T20:00:00+08:00')).toBe('Yesterday');
+    expect(component.metricDateLabel('2026-06-20T08:00:00+08:00')).toBe('4 days ago');
+    expect(component.metricDateLabel('2024-12-31T16:00:00Z')).toBe('1 Jan 2025');
+    expect(component.metricDateLabel('not-a-date')).toBe('not-a-date');
+    expect(component.metricDateLabel('2026-99-99T99:99:99Z')).toBe('Recently');
+  });
+
+  it('formats goal labels and target amounts for default units and missing targets', () => {
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    expect(component.goalLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY' })).toBe('Workout Frequency');
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'PROTEIN', targetUnit: '', currentValue: 130, targetValue: 140 })).toBe(
+      '130 / 140 g'
+    );
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WEIGHT', targetUnit: '', currentValue: 77.25, targetValue: 75 })).toBe(
+      '77.3 / 75 kg'
+    );
+    expect(
+      component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY', targetUnit: '', currentValue: 3, targetValue: 4 })
+    ).toBe('3 / 4 workouts/week');
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: null, targetValue: 0 })).toBe(
+      'No target set'
+    );
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: 2000, targetValue: 0 })).toBe(
+      '2,000 / No target'
+    );
+  });
+
   it('renders the dashboard error state', () => {
     dataService.getDashboard.and.returnValue(throwError(() => new Error('Unable to load dashboard data.')));
 
