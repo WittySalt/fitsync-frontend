@@ -22,8 +22,8 @@ describe('App', () => {
   beforeEach(async () => {
     authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout', 'ensureSession']);
     authService.ensureSession.and.returnValue(of(true));
-    accountDataService = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['getAccountSummary']);
-    accountDataService.getAccountSummary.and.returnValue(of(accountSummary));
+    accountDataService = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['getProfileSummary']);
+    accountDataService.getProfileSummary.and.returnValue(of(accountSummary));
 
     await TestBed.configureTestingModule({
       imports: [App],

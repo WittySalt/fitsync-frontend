@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 import { WorkoutPlan, WorkoutPlanExercise, WorkoutSession } from '../../core/fitsync.models';
 import { PlanTemplatesComponent } from './plan-templates.component';
+import { isCompletedSession } from './workout-session.util';
 
 @Component({
   selector: 'app-today-overview',
@@ -20,7 +21,9 @@ export class TodayOverviewComponent {
   @Output() templateActivated = new EventEmitter<WorkoutPlan>();
 
   latestSession(): WorkoutSession | null {
-    const sorted = [...this.sessions].sort((a, b) => this.timeOf(b) - this.timeOf(a));
+    const sorted = this.sessions
+      .filter(isCompletedSession)
+      .sort((a, b) => this.timeOf(b) - this.timeOf(a));
     return sorted[0] ?? null;
   }
 

@@ -71,7 +71,28 @@ const dashboardAnalytics: AnalyticsDashboardResponse = {
     todayProteinGrams: 120,
     todayProteinTargetGrams: 150
   },
-  goals: [{ goalId: 'goal-calories', goalType: 'CALORIES', progressRatio: 0.95, onTrack: true }]
+  goals: [
+    {
+      goalId: 'goal-calories-old',
+      goalType: 'CALORIES',
+      targetValue: 2100,
+      targetUnit: 'kcal',
+      currentValue: 1050,
+      progressRatio: 0.5,
+      onTrack: false,
+      lastEvaluatedAt: '2026-06-21T00:00:00Z'
+    },
+    {
+      goalId: 'goal-calories',
+      goalType: 'CALORIES',
+      targetValue: 2000,
+      targetUnit: 'kcal',
+      currentValue: 1900,
+      progressRatio: 0.95,
+      onTrack: true,
+      lastEvaluatedAt: '2026-06-22T00:00:00Z'
+    }
+  ]
 };
 
 describe('FitSyncDataService', () => {
@@ -389,7 +410,17 @@ describe('FitSyncDataService', () => {
           bodyFatRate: 18,
           bmi: 24.3
         }),
-        goals: [jasmine.objectContaining({ goalId: 'goal-calories', goalType: 'CALORIES', onTrack: true })]
+        goals: [
+          jasmine.objectContaining({
+            goalId: 'goal-calories',
+            goalType: 'CALORIES',
+            targetValue: 2000,
+            targetUnit: 'kcal',
+            currentValue: 1900,
+            onTrack: true,
+            lastEvaluatedAt: '2026-06-22T00:00:00Z'
+          })
+        ]
       })
     );
   });

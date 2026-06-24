@@ -178,7 +178,7 @@
           <span>{{ item.sequence }}</span>
           <div>
             <strong>{{ item.exerciseNameSnapshot }}</strong>
-            <small>{{ item.sets.length }} sets recorded</small>
+            <small>{{ recordedSetCount(item) }} / {{ plannedSetCount(item) }} sets</small>
           </div>
         </div>
       }

@@ -80,7 +80,7 @@ export class App implements OnInit {
           return;
         }
 
-        this.accountDataService.getAccountSummary().subscribe({
+        this.accountDataService.getProfileSummary().subscribe({
           next: (account) => {
             this.account.set(account);
             this.accountLoading.set(false);

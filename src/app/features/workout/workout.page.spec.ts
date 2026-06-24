@@ -178,6 +178,68 @@ describe('WorkoutPage', () => {
     expect(metrics[1].value).toBe('1');
   });
 
+  it('uses only completed sessions for client-derived metrics and default history', () => {
+    component.totalSessionCount.set(4);
+    component.sessions.set([
+      session({
+        sessionId: 'completed-recent',
+        name: 'Completed recent',
+        status: 'COMPLETED',
+        workoutType: 'STRENGTH',
+        completedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        durationMinutes: 45
+      }),
+      session({
+        sessionId: 'completed-old',
+        name: 'Completed old',
+        status: 'COMPLETED',
+        workoutType: 'CARDIO',
+        completedAt: '2025-01-01T10:00:00Z',
+        startedAt: '2025-01-01T09:00:00Z',
+        durationMinutes: 30
+      }),
+      session({
+        sessionId: 'cancelled-newest',
+        name: 'Cancelled newest',
+        status: 'CANCELLED',
+        workoutType: 'HIIT',
+        completedAt: new Date(Date.now() + 60_000).toISOString(),
+        startedAt: new Date(Date.now() + 60_000).toISOString(),
+        durationMinutes: 0
+      }),
+      session({
+        sessionId: 'in-progress-zombie',
+        name: 'In progress zombie',
+        status: 'IN_PROGRESS',
+        workoutType: 'YOGA',
+        completedAt: '',
+        startedAt: new Date(Date.now() + 120_000).toISOString(),
+        durationMinutes: 0
+      })
+    ]);
+
+    const metrics = component.metrics();
+
+    expect(metrics[0]).toEqual(jasmine.objectContaining({ label: 'Sessions tracked', value: '4', detail: 'all statuses' }));
+    expect(metrics[1]).toEqual(jasmine.objectContaining({ label: 'This week', value: '1', detail: 'completed in the last 7 days' }));
+    expect(component.latestSession()?.sessionId).toBe('completed-recent');
+    expect(metrics[2].detail).toBe('Strength');
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['completed-recent', 'completed-old']);
+
+    component.setFilterStatus('');
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual([
+      'in-progress-zombie',
+      'cancelled-newest',
+      'completed-recent',
+      'completed-old'
+    ]);
+
+    component.setFilterStatus('CANCELLED');
+
+    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['cancelled-newest']);
+  });
+
   it('loads a small workout history page for client-side history display', () => {
     dataService.getWorkoutSessionPage.and.returnValue(
       of(sessionPage([session({ sessionId: 'loaded', completedAt: new Date().toISOString() })], 37))
@@ -211,7 +273,7 @@ describe('WorkoutPage', () => {
     ]);
 
     expect(component.historyTypeOptions()).toEqual(['CARDIO', 'STRENGTH']);
-    expect(component.historyStatusOptions()).toEqual(['CANCELLED', 'COMPLETED']);
+    expect(component.historyStatusOptions).toEqual(['COMPLETED', 'CANCELLED', 'IN_PROGRESS']);
   });
 
   it('filters history by type, status, duration bucket, and date range', () => {
