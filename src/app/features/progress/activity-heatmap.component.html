@@ -103,12 +103,12 @@
                 [style.height.px]="block.height"
                 [style.left.%]="block.left"
                 [style.width.%]="block.width"
+                [attr.title]="block.startLabel + ' · ' + block.title + ' (' + block.timeLabel + ')'"
+                [attr.aria-label]="block.startLabel + ' ' + block.title + ', ' + block.timeLabel"
                 (click)="openSession(block.session)"
               >
-                <strong>{{ block.title }}</strong>
-                @if (block.height >= 40) {
-                  <span>{{ block.timeLabel }}</span>
-                }
+                <span class="block-time">{{ block.startLabel }}</span>
+                <span class="block-title">{{ block.title }}</span>
               </button>
             }
           </div>

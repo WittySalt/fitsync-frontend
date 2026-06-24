@@ -33,6 +33,7 @@ interface WeekSessionBlock {
   height: number;
   left: number;
   width: number;
+  startLabel: string;
   timeLabel: string;
   title: string;
 }
@@ -405,6 +406,7 @@ export class ActivityHeatmapComponent implements OnInit {
       height: 0,
       left: 0,
       width: 100,
+      startLabel: this.formatMinuteLabel(startMinutes),
       timeLabel: this.sessionTimeLabel(session),
       title: session.name || this.formatWorkoutType(session.workoutType)
     };

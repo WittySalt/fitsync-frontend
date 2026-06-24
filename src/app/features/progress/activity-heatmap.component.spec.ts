@@ -238,7 +238,9 @@ describe('ActivityHeatmapComponent', () => {
     const blocks = component.weekBlocks();
     expect(blocks.map((block) => block.session.sessionId)).toEqual(['first', 'second']);
     expect(blocks[0].dayIndex).toBe(1);
+    expect(blocks[0].startLabel).toBe('10:00');
     expect(blocks[0].timeLabel).toBe('10:00-11:00');
+    expect(blocks[1].startLabel).toBe('10:30');
     expect(blocks.every((block) => block.height >= 22)).toBeTrue();
     expect(blocks[0].left).toBeCloseTo((1 / 7) * 100, 4);
     expect(blocks[0].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
@@ -247,7 +249,7 @@ describe('ActivityHeatmapComponent', () => {
     expect(component.allDaySessionsForDate('2026-06-16')[0].sessionId).toBe('untimed');
   });
 
-  it('hides week block times only when the duration renders below the compact threshold', () => {
+  it('renders inline start times for short and long week blocks', () => {
     component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
     component.startDate.set('2026-06-15');
@@ -256,7 +258,7 @@ describe('ActivityHeatmapComponent', () => {
       of([
         session({
           sessionId: 'short',
-          name: 'Short strength',
+          name: 'Short strength with a title long enough to truncate',
           startedAt: '2026-06-16T02:00:00Z',
           completedAt: '2026-06-16T02:20:00Z',
           durationMinutes: 20
@@ -274,13 +276,20 @@ describe('ActivityHeatmapComponent', () => {
 
     const blocks = component.weekBlocks();
     const renderedBlocks = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.session-block'));
+    const shortBlock = renderedBlocks.find((block) => block.textContent?.includes('Short strength'));
+    const longBlock = renderedBlocks.find((block) => block.textContent?.includes('Long conditioning'));
+    const shortTitle = shortBlock?.querySelector<HTMLElement>('.block-title');
 
     expect(blocks.find((block) => block.session.sessionId === 'short')?.height).toBeLessThan(40);
     expect(blocks.find((block) => block.session.sessionId === 'long')?.height).toBeGreaterThanOrEqual(40);
-    expect(renderedBlocks.find((block) => block.textContent?.includes('Short strength'))?.querySelector('span')).toBeNull();
-    expect(renderedBlocks.find((block) => block.textContent?.includes('Long conditioning'))?.querySelector('span')?.textContent).toContain(
-      '12:00-13:30'
-    );
+    expect(blocks.find((block) => block.session.sessionId === 'short')?.startLabel).toBe('10:00');
+    expect(blocks.find((block) => block.session.sessionId === 'long')?.startLabel).toBe('12:00');
+    expect(renderedBlocks.every((block) => block.querySelector('.block-time') !== null)).toBeTrue();
+    expect(shortBlock?.querySelector('.block-time')?.textContent?.trim()).toBe('10:00');
+    expect(longBlock?.querySelector('.block-time')?.textContent?.trim()).toBe('12:00');
+    expect(shortTitle?.textContent?.trim()).toBe('Short strength with a title long enough to truncate');
+    expect(getComputedStyle(shortTitle!).textOverflow).toBe('ellipsis');
+    expect(getComputedStyle(shortTitle!).whiteSpace).toBe('nowrap');
   });
 
   it('positions a single week session within its day slice without grid-column placement', () => {
