@@ -23,6 +23,7 @@ import { SessionDetailComponent } from './session-detail.component';
 import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
+import { isCompletedSession } from './workout-session.util';
 
 interface TrainingMetric {
   label: string;
@@ -76,7 +77,7 @@ export class WorkoutPage implements OnInit {
   readonly dataToolsOpen = signal(false);
   readonly historySearch = signal('');
   readonly filterType = signal('');
-  readonly filterStatus = signal('');
+  readonly filterStatus = signal('COMPLETED');
   readonly filterDuration = signal<HistoryDurationFilter>('');
   readonly filterDateFrom = signal('');
   readonly filterDateTo = signal('');
@@ -117,19 +118,19 @@ export class WorkoutPage implements OnInit {
   });
 
   readonly latestSession = computed(() => {
-    const sorted = [...this.sessions()].sort((a, b) => this.timeOf(b) - this.timeOf(a));
+    const sorted = this.completedSessions();
     return sorted[0] ?? null;
   });
 
   readonly metrics = computed<TrainingMetric[]>(() => {
-    const sessions = this.sessions();
+    const sessions = this.completedSessions();
     const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
     const thisWeek = sessions.filter((session) => this.timeOf(session) >= weekAgo).length;
     const latest = this.latestSession();
 
     return [
-      { label: 'Sessions logged', value: String(this.totalSessionCount()), detail: 'all time', tone: 'green' },
-      { label: 'This week', value: String(thisWeek), detail: 'in the last 7 days', tone: 'blue' },
+      { label: 'Sessions tracked', value: String(this.totalSessionCount()), detail: 'all statuses', tone: 'green' },
+      { label: 'This week', value: String(thisWeek), detail: 'completed in the last 7 days', tone: 'blue' },
       {
         label: 'Last session',
         value: latest ? this.formatDate(latest.completedAt || latest.startedAt) : '—',
@@ -141,7 +142,7 @@ export class WorkoutPage implements OnInit {
 
   readonly historyTypeOptions = computed(() => this.distinctSessionValues('workoutType'));
 
-  readonly historyStatusOptions = computed(() => this.distinctSessionValues('status'));
+  readonly historyStatusOptions = ['COMPLETED', 'CANCELLED', 'IN_PROGRESS'] as const;
 
   readonly filteredSessions = computed(() => {
     const search = this.historySearch().trim().toLowerCase();
@@ -665,6 +666,12 @@ export class WorkoutPage implements OnInit {
     const value = session.completedAt || session.startedAt;
     const time = value ? new Date(value).getTime() : 0;
     return Number.isNaN(time) ? 0 : time;
+  }
+
+  private completedSessions(): WorkoutSession[] {
+    return this.sessions()
+      .filter(isCompletedSession)
+      .sort((a, b) => this.timeOf(b) - this.timeOf(a));
   }
 
   private distinctSessionValues(key: 'workoutType' | 'status'): string[] {

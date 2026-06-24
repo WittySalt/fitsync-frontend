@@ -126,6 +126,43 @@ describe('TodayOverviewComponent', () => {
     expect(component.startPlan.emit).toHaveBeenCalledWith(plan());
   });
 
+  it('uses the latest completed session for recent context', () => {
+    const fixture = TestBed.createComponent(TodayOverviewComponent);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('activePlan', plan());
+    fixture.componentRef.setInput('sessions', [
+      session({
+        sessionId: 'completed',
+        name: 'Completed lift',
+        status: 'COMPLETED',
+        completedAt: '2026-06-18T11:00:00Z',
+        startedAt: '2026-06-18T10:00:00Z'
+      }),
+      session({
+        sessionId: 'cancelled',
+        name: 'Cancelled draft',
+        status: 'CANCELLED',
+        completedAt: '2026-06-19T11:00:00Z',
+        startedAt: '2026-06-19T10:00:00Z'
+      }),
+      session({
+        sessionId: 'in-progress',
+        name: 'In-progress zombie',
+        status: 'IN_PROGRESS',
+        completedAt: '',
+        startedAt: '2026-06-20T10:00:00Z',
+        durationMinutes: 0
+      })
+    ]);
+
+    fixture.detectChanges();
+
+    expect(component.latestSession()?.sessionId).toBe('completed');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Completed lift');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Cancelled draft');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('In-progress zombie');
+  });
+
   it('emits the selected exercise when a movement card is opened', () => {
     const fixture = TestBed.createComponent(TodayOverviewComponent);
     const component = fixture.componentInstance;
