@@ -130,6 +130,35 @@
       font-size: 13px;
     }
   }
+
+  .goal-row .goal-amount {
+    display: inline;
+    margin: 0 0 0 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+  }
+
+  .empty-workout-state {
+    display: grid;
+    gap: 10px;
+    min-height: 156px;
+    align-content: center;
+
+    strong {
+      font-size: 20px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--text-secondary);
+    }
+
+    .button {
+      justify-self: start;
+    }
+  }
 }
 
 @media (max-width: 960px) {
@@ -159,6 +188,12 @@
 
     .goal-row {
       gap: 10px;
+    }
+
+    .goal-row .goal-amount {
+      display: block;
+      margin: 4px 0 0;
+      white-space: normal;
     }
   }
 }

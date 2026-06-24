@@ -26,8 +26,13 @@ export interface AnalyticsDashboardNutrition {
 export interface AnalyticsDashboardGoal {
   goalId: string;
   goalType: string;
+  targetValue?: number | null;
+  targetUnit?: string | null;
+  targetDate?: string | null;
+  currentValue?: number | null;
   progressRatio: number;
   onTrack: boolean;
+  lastEvaluatedAt?: string | null;
 }
 
 export interface AnalyticsDashboardResponse {

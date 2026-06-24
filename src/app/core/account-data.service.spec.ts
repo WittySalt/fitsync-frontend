@@ -7,6 +7,7 @@ import {
   AccountDataService,
   AccountPreferences,
   AccountProfile,
+  AccountSummary,
   AccountUserResponse,
   CreateBodyMetricRequest,
   SecurityOverview,
@@ -254,6 +255,36 @@ describe('AccountDataService', () => {
     }));
     expect(initialsFor('   ')).toBe('FS');
     expect(initialsFor('alice tan lee')).toBe('AT');
+  });
+
+  it('loads a lightweight cached profile summary from users/me only', () => {
+    const summaries: AccountSummary[] = [];
+    service.getProfileSummary().subscribe((summary) => summaries.push(summary));
+    service.getProfileSummary().subscribe((summary) => summaries.push(summary));
+
+    const request = httpTesting.expectOne('/api/v1/users/me');
+    expect(request.request.method).toBe('GET');
+    request.flush(userFixture({ profile: profileFixture({ displayName: 'Wang Xu', membershipTier: 'Plus' }) }));
+
+    httpTesting.expectNone('/api/v1/auth/me');
+    httpTesting.expectNone('/api/v1/auth/security/overview');
+    httpTesting.expectNone('/api/v1/auth/security/sessions');
+    httpTesting.expectNone('/api/v1/users/me/data-export/requests/latest');
+    httpTesting.expectNone('/api/v1/auth/account-deletion');
+
+    expect(summaries).toEqual([
+      jasmine.objectContaining({
+        displayName: 'Wang Xu',
+        email: 'user@example.com',
+        initials: 'WX',
+        authProvider: 'Cognito',
+        membershipTier: 'Plus'
+      }),
+      jasmine.objectContaining({
+        displayName: 'Wang Xu',
+        initials: 'WX'
+      })
+    ]);
   });
 });
 
