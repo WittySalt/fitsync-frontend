@@ -565,7 +565,16 @@ describe('WorkoutPage', () => {
     tick(275);
     fixture.detectChanges();
 
+    const listbox = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="listbox"]');
+    expect(listbox?.id).toBe('plan-exercise-results-0');
+    expect(input?.getAttribute('aria-controls')).toBe(listbox?.id);
+
     const option = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.typeahead-option');
+    expect(option?.getAttribute('role')).toBe('option');
+    expect(option?.id).toBe('plan-exercise-option-0-0');
+    expect(option?.getAttribute('aria-selected')).toBe('true');
+    expect(input?.getAttribute('aria-activedescendant')).toBe(option?.id);
+
     option!.click();
     fixture.detectChanges();
 

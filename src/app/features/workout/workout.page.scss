@@ -279,6 +279,55 @@
     grid-column: span 2;
   }
 
+  .exercise-typeahead {
+    position: relative;
+  }
+
+  .exercise-typeahead-panel {
+    position: absolute;
+    z-index: 5;
+    inset: 100% 0 auto;
+    display: grid;
+    max-height: 240px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+
+  .typeahead-option {
+    display: grid;
+    gap: 3px;
+    width: 100%;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+
+    small {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    &:hover,
+    &.active {
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    }
+  }
+
+  .typeahead-status {
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+
+  .typeahead-status.error,
+  .field-error {
+    color: var(--danger);
+  }
+
   input,
   select,
   textarea {

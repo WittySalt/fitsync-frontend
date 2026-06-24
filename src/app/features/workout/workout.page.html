@@ -125,7 +125,7 @@
               @if (exercisePickerState(rowIndex); as picker) {
                 <label class="exercise-picker-label">
                   Exercise
-                  <div class="exercise-typeahead fs-typeahead-anchor">
+                  <div class="exercise-typeahead">
                     <input
                       #exerciseSearch
                       type="text"
@@ -144,39 +144,42 @@
                       (keydown)="handleExercisePickerKeydown($event, rowIndex)"
                     />
                     @if (picker.open) {
-                      <ul
-                        class="exercise-typeahead-panel fs-typeahead-panel"
+                      <div
+                        class="exercise-typeahead-panel"
                         [id]="exerciseListboxId(rowIndex)"
+                        role="listbox"
                         [attr.aria-label]="'Exercise search results for row ' + (rowIndex + 1)"
                       >
                         @if (picker.loading) {
-                          <li><output class="typeahead-status" aria-live="polite">Searching exercises...</output></li>
+                          <output class="typeahead-status" aria-live="polite">Searching exercises...</output>
                         } @else if (picker.error) {
-                          <li><output class="typeahead-status error" aria-live="assertive">{{ picker.error }}</output></li>
+                          <output class="typeahead-status error" aria-live="assertive">{{ picker.error }}</output>
                         } @else if (picker.results.length) {
                           @for (exercise of picker.results; track exercise.exerciseId ?? exercise.name; let optionIndex = $index) {
                             @if (exercise.exerciseId) {
-                              <li>
-                                <button
-                                  class="typeahead-option fs-typeahead-option"
-                                  type="button"
-                                  [id]="exerciseOptionId(rowIndex, optionIndex)"
-                                  [class.active]="picker.activeIndex === optionIndex"
-                                  (mousedown)="$event.preventDefault()"
-                                  (click)="selectExerciseResult(rowIndex, exercise)"
-                                >
-                                  <strong>{{ exercise.name }}</strong>
-                                  <small>{{ exerciseHint(exercise) }}</small>
-                                </button>
-                              </li>
+                              <div
+                                class="typeahead-option"
+                                [id]="exerciseOptionId(rowIndex, optionIndex)"
+                                role="option"
+                                tabindex="-1"
+                                [class.active]="picker.activeIndex === optionIndex"
+                                [attr.aria-selected]="picker.activeIndex === optionIndex"
+                                (mousedown)="$event.preventDefault()"
+                                (click)="selectExerciseResult(rowIndex, exercise)"
+                                (keydown.enter)="selectExerciseResult(rowIndex, exercise)"
+                                (keydown.space)="selectExerciseResult(rowIndex, exercise)"
+                              >
+                                <strong>{{ exercise.name }}</strong>
+                                <small>{{ exerciseHint(exercise) }}</small>
+                              </div>
                             }
                           }
                         } @else if (picker.query) {
-                          <li><output class="typeahead-status" aria-live="polite">No exercises found.</output></li>
+                          <output class="typeahead-status" aria-live="polite">No exercises found.</output>
                         } @else {
-                          <li><output class="typeahead-status">Type to search exercises.</output></li>
+                          <output class="typeahead-status">Type to search exercises.</output>
                         }
-                      </ul>
+                      </div>
                     }
                   </div>
                   @if (group.get('exerciseId')?.invalid && group.get('exerciseId')?.touched) {
