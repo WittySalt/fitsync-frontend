@@ -5,7 +5,9 @@
       <h1>Today</h1>
       <p>Keep training, meals, and body progress in one view.</p>
     </div>
-    <a class="button primary" routerLink="/onboarding">Complete setup</a>
+    @if (data()?.profile?.onboardingCompleted === false) {
+      <a class="button primary" routerLink="/onboarding">Complete setup</a>
+    }
   </header>
 
   @if (loading()) {
@@ -66,9 +68,15 @@
       <article class="metric-card streak">
         <span class="metric-icon">ST</span>
         <div>
-          <span>Active streak</span>
-          <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
-          <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts - {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min this week</small>
+          @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
+            <span>Active streak</span>
+            <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
+            <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min this week</small>
+          } @else {
+            <span>This week</span>
+            <strong>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min</strong>
+            <small>Start a workout to build a streak</small>
+          }
         </div>
       </article>
 
@@ -82,7 +90,7 @@
               -
               {{ dashboard.latestBodyMetric.bmi ? 'BMI ' + dashboard.latestBodyMetric.bmi : 'BMI not available' }}
             </strong>
-            <small>{{ dashboard.latestBodyMetric.measuredAt }}</small>
+            <small>{{ metricDateLabel(dashboard.latestBodyMetric.measuredAt) }}</small>
           } @else {
             <strong>No metric yet</strong>
             <small>Record weight to start trends</small>
@@ -94,7 +102,7 @@
     <section class="activity-grid">
       <article class="summary-card">
         <span class="card-label">Latest Workout</span>
-        @if (dashboard.latestWorkout) {
+        @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
           <h3>{{ dashboard.latestWorkout.name }}</h3>
           <p>{{ dashboard.latestWorkout.workoutType }} · {{ dashboard.latestWorkout.durationMinutes }} min</p>
           <dl>
@@ -108,7 +116,11 @@
             </div>
           </dl>
         } @else {
-          <app-state-panel title="No workout yet" message="Start a session to build your streak." />
+          <div class="empty-workout-state">
+            <strong>No completed workout yet</strong>
+            <p>Start one to build your weekly training summary.</p>
+            <a routerLink="/workout" class="button workout">Start Workout</a>
+          </div>
         }
       </article>
 
@@ -147,8 +159,11 @@
           @for (goal of dashboard.goals; track goal.goalType) {
             <div class="goal-row">
               <div>
-                <strong>{{ goal.goalType.replace('_', ' ') }}</strong>
-                <span>{{ goal.onTrack === false ? 'Needs attention' : 'On track' }} - {{ goalProgress(goal.progressRatio) }}% complete</span>
+                <strong>
+                  {{ goalLabel(goal) }}
+                  <span class="goal-amount">{{ goalAmountLabel(goal) }}</span>
+                </strong>
+                <span>{{ goal.onTrack === false ? 'Needs attention' : 'On track' }} &middot; {{ goalProgress(goal.progressRatio) }}% complete</span>
               </div>
               <div class="progress-track" aria-hidden="true">
                 <span [style.width.%]="goalProgress(goal.progressRatio)"></span>

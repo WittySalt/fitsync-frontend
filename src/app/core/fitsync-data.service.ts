@@ -103,6 +103,28 @@ export interface ProgressData {
   goals: Goal[];
 }
 
+export function dedupeGoalsByLatestEvaluation(goals: Goal[]): Goal[] {
+  const latestByType = new Map<string, Goal>();
+
+  for (const goal of goals) {
+    const existing = latestByType.get(goal.goalType);
+    if (!existing || goalEvaluationTime(goal) >= goalEvaluationTime(existing)) {
+      latestByType.set(goal.goalType, goal);
+    }
+  }
+
+  return Array.from(latestByType.values());
+}
+
+function goalEvaluationTime(goal: Goal): number {
+  if (!goal.lastEvaluatedAt) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = Date.parse(goal.lastEvaluatedAt);
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
 export interface FoodSearchOptions {
   categoryId?: string | null;
   includeSubcategories?: boolean;
@@ -469,7 +491,7 @@ export class FitSyncDataService {
         latestWorkout: this.mapWorkoutSession(latestWorkout),
         latestMeal: this.mapMeal(latestMeal),
         latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
-        goals: (analytics.goals ?? []).map((goal) => this.mapAnalyticsDashboardGoal(goal))
+        goals: this.mapAnalyticsDashboardGoals(analytics.goals)
       })),
       catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
     );
@@ -1961,16 +1983,24 @@ export class FitSyncDataService {
     };
   }
 
+  private mapAnalyticsDashboardGoals(goals: AnalyticsDashboardGoal[] | null | undefined): Goal[] {
+    return dedupeGoalsByLatestEvaluation((goals ?? []).map((goal) => this.mapAnalyticsDashboardGoal(goal)));
+  }
+
   private mapAnalyticsDashboardGoal(goal: AnalyticsDashboardGoal): Goal {
+    const targetValue = goal.targetValue ?? 0;
+
     return {
       goalId: goal.goalId,
       goalType: goal.goalType,
-      targetValue: 0,
-      targetUnit: '',
-      targetDate: '',
+      targetValue,
+      targetUnit: goal.targetUnit ?? '',
+      targetDate: goal.targetDate ?? '',
       status: 'ACTIVE',
       progressRatio: goal.progressRatio,
-      onTrack: goal.onTrack
+      onTrack: goal.onTrack,
+      currentValue: goal.currentValue ?? (targetValue > 0 ? Math.round(goal.progressRatio * targetValue) : null),
+      lastEvaluatedAt: goal.lastEvaluatedAt ?? null
     };
   }
 
@@ -1985,7 +2015,8 @@ export class FitSyncDataService {
       progressRatio: goal.progressRatio,
       onTrack: goal.onTrack,
       currentValue: goal.currentValue,
-      daysRemaining: goal.daysRemaining
+      daysRemaining: goal.daysRemaining,
+      lastEvaluatedAt: goal.lastEvaluatedAt
     };
   }
 

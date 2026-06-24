@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map } from 'rxjs';
+import { Observable, forkJoin, map, shareReplay } from 'rxjs';
 
 export type ActivityLevel = 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'ATHLETE';
 export type Gender = 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY';
@@ -208,6 +208,7 @@ export interface ListBodyMetricsOptions {
 export class AccountDataService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = '/api/v1';
+  private profileSummary$?: Observable<AccountSummary>;
 
   getAccountCenter(): Observable<AccountCenterData> {
     return forkJoin({
@@ -224,13 +225,23 @@ export class AccountDataService {
     return this.getAccountCenter().pipe(map((data) => this.toAccountSummary(data)));
   }
 
+  getProfileSummary(): Observable<AccountSummary> {
+    this.profileSummary$ ??= this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`).pipe(
+      map((user) => this.toProfileSummary(user)),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.profileSummary$;
+  }
+
   updateProfile(profile: AccountProfile): Observable<AccountProfile> {
+    this.profileSummary$ = undefined;
     return this.http.put<AccountProfile>(`${this.apiBaseUrl}/users/me/profile`, profile);
   }
 
   uploadAvatar(file: Blob): Observable<AccountProfile> {
     const form = new FormData();
     form.append('file', file, 'avatar.png');
+    this.profileSummary$ = undefined;
     return this.http.post<AccountProfile>(`${this.apiBaseUrl}/users/me/profile/avatar`, form);
   }
 
@@ -307,6 +318,18 @@ export class AccountDataService {
       avatarUrl: data.user.profile.avatarUrl,
       authProvider: data.auth.authProvider || data.security.authProvider || 'Cognito',
       membershipTier: data.user.profile.membershipTier || 'Member'
+    };
+  }
+
+  private toProfileSummary(user: AccountUserResponse): AccountSummary {
+    const displayName = user.profile.displayName || 'FitSync User';
+    return {
+      displayName,
+      email: user.email || 'Cognito account',
+      initials: initialsFor(displayName),
+      avatarUrl: user.profile.avatarUrl,
+      authProvider: 'Cognito',
+      membershipTier: user.profile.membershipTier || 'Member'
     };
   }
 }
