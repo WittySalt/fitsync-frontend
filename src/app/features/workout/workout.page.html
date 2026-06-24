@@ -120,22 +120,73 @@
             <span class="card-label">Exercise blueprint</span>
             <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
           </div>
-          @if (!exercises().length) {
-            <app-state-panel title="Exercise catalog unavailable" message="Load the exercise library before saving a plan." />
-          }
-          @for (group of planExercises.controls; track $index) {
-            <div class="exercise-row" [formGroupName]="$index">
-              <label>
-                Exercise
-                <select formControlName="exerciseId">
-                  <option value="">Choose exercise</option>
-                  @for (exercise of exercises(); track exercise.exerciseId ?? exercise.name) {
-                    @if (exercise.exerciseId) {
-                      <option [value]="exercise.exerciseId">{{ exercise.name }}</option>
+          @for (group of planExercises.controls; track $index; let rowIndex = $index) {
+            <div class="exercise-row" [formGroupName]="rowIndex">
+              @if (exercisePickerState(rowIndex); as picker) {
+                <label class="exercise-picker-label">
+                  Exercise
+                  <div class="exercise-typeahead">
+                    <input
+                      #exerciseSearch
+                      type="text"
+                      autocomplete="off"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      [value]="picker.inputValue"
+                      [attr.aria-expanded]="picker.open"
+                      [attr.aria-controls]="exerciseListboxId(rowIndex)"
+                      [attr.aria-activedescendant]="activeExerciseOptionId(rowIndex)"
+                      [attr.aria-invalid]="group.get('exerciseId')?.invalid && group.get('exerciseId')?.touched"
+                      placeholder="Search exercises"
+                      (focus)="openExercisePicker(rowIndex)"
+                      (blur)="markExercisePickerTouched(rowIndex); closeExercisePicker(rowIndex)"
+                      (input)="setExerciseSearchQuery(rowIndex, exerciseSearch.value)"
+                      (keydown)="handleExercisePickerKeydown($event, rowIndex)"
+                    />
+                    @if (picker.open) {
+                      <div
+                        class="exercise-typeahead-panel"
+                        [id]="exerciseListboxId(rowIndex)"
+                        role="listbox"
+                        [attr.aria-label]="'Exercise search results for row ' + (rowIndex + 1)"
+                      >
+                        @if (picker.loading) {
+                          <output class="typeahead-status" aria-live="polite">Searching exercises...</output>
+                        } @else if (picker.error) {
+                          <output class="typeahead-status error" aria-live="assertive">{{ picker.error }}</output>
+                        } @else if (picker.results.length) {
+                          @for (exercise of picker.results; track exercise.exerciseId ?? exercise.name; let optionIndex = $index) {
+                            @if (exercise.exerciseId) {
+                              <div
+                                class="typeahead-option"
+                                [id]="exerciseOptionId(rowIndex, optionIndex)"
+                                role="option"
+                                tabindex="-1"
+                                [class.active]="picker.activeIndex === optionIndex"
+                                [attr.aria-selected]="picker.activeIndex === optionIndex"
+                                (mousedown)="$event.preventDefault()"
+                                (click)="selectExerciseResult(rowIndex, exercise)"
+                                (keydown.enter)="selectExerciseResult(rowIndex, exercise)"
+                                (keydown.space)="selectExerciseResult(rowIndex, exercise)"
+                              >
+                                <strong>{{ exercise.name }}</strong>
+                                <small>{{ exerciseHint(exercise) }}</small>
+                              </div>
+                            }
+                          }
+                        } @else if (picker.query) {
+                          <output class="typeahead-status" aria-live="polite">No exercises found.</output>
+                        } @else {
+                          <output class="typeahead-status">Type to search exercises.</output>
+                        }
+                      </div>
                     }
+                  </div>
+                  @if (group.get('exerciseId')?.invalid && group.get('exerciseId')?.touched) {
+                    <span class="field-error">Choose an exercise.</span>
                   }
-                </select>
-              </label>
+                </label>
+              }
               <label>
                 Sets
                 <input formControlName="targetSets" type="number" min="0" inputmode="numeric" />
@@ -156,12 +207,12 @@
                 Notes
                 <input formControlName="notes" type="text" maxlength="300" autocomplete="off" />
               </label>
-              <button class="button secondary" type="button" (click)="removePlanExercise($index)">Remove</button>
+              <button class="button secondary" type="button" (click)="removePlanExercise(rowIndex)">Remove</button>
             </div>
           }
         </div>
 
-        <button class="button primary" type="submit" [disabled]="savingPlan() || !exercises().length">
+        <button class="button primary" type="submit" [disabled]="savingPlan()">
           {{ savingPlan() ? 'Saving...' : editingPlanId() ? 'Update plan' : 'Create plan' }}
         </button>
       </form>
@@ -343,7 +394,7 @@
     </section>
   } @else {
     <section id="workout-panel-library" role="tabpanel" aria-labelledby="workout-tab-library">
-      <app-exercise-library (exercisesChanged)="handleExerciseLibraryChanged($event)" />
+      <app-exercise-library />
     </section>
   }
 </div>

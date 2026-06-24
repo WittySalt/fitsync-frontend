@@ -1,5 +1,6 @@
-import { Component, computed, effect, inject, OnInit, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
@@ -32,6 +33,21 @@ interface TrainingMetric {
   tone: 'green' | 'blue' | 'orange';
 }
 
+interface ExercisePickerState {
+  inputValue: string;
+  query: string;
+  results: Exercise[];
+  loading: boolean;
+  error: string | null;
+  open: boolean;
+  activeIndex: number;
+}
+
+interface ExerciseSearchRequest {
+  index: number;
+  query: string;
+}
+
 type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
@@ -50,19 +66,20 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
-export class WorkoutPage implements OnInit {
+export class WorkoutPage implements OnInit, OnDestroy {
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   private readonly workoutLive = inject(WorkoutLiveService);
+  private readonly exerciseSearchTerms = new Subject<ExerciseSearchRequest>();
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
   readonly totalSessionCount = signal(0);
-  readonly exercises = signal<Exercise[]>([]);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
   readonly planError = signal<string | null>(null);
+  readonly exercisePickerStates = signal<Record<number, ExercisePickerState>>({});
   readonly planStatus = signal<WorkoutPlanStatus | null>('ACTIVE');
   readonly editingPlanId = signal<string | null>(null);
   readonly savingPlan = signal(false);
@@ -115,6 +132,34 @@ export class WorkoutPage implements OnInit {
     difficulty: ['BEGINNER', Validators.required],
     estimatedDurationMinutes: [45, [Validators.required, Validators.min(1)]],
     exercises: this.fb.array([this.createExerciseGroup()])
+  });
+
+  private readonly exerciseSearchSubscription = this.exerciseSearchTerms.pipe(
+    debounceTime(275),
+    distinctUntilChanged((previous, current) => previous.index === current.index && previous.query === current.query),
+    switchMap(({ index, query }) =>
+      this.dataService.searchExercisesPage({ q: query, page: 0, size: 20 }).pipe(
+        map((page) => ({ index, query, results: page.items, error: null as string | null })),
+        catchError(() => of({
+          index,
+          query,
+          results: [] as Exercise[],
+          error: 'Unable to search exercises. Please retry.'
+        }))
+      )
+    )
+  ).subscribe(({ index, query, results, error }) => {
+    const current = this.exercisePickerStates()[index];
+    if (!current || current.query !== query) {
+      return;
+    }
+    this.setExercisePickerState(index, {
+      results,
+      error,
+      loading: false,
+      open: true,
+      activeIndex: results.length ? 0 : -1
+    });
   });
 
   readonly latestSession = computed(() => {
@@ -174,13 +219,17 @@ export class WorkoutPage implements OnInit {
   });
 
   ngOnInit(): void {
+    this.ensureExercisePickerStates();
     this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.exerciseSearchSubscription.unsubscribe();
   }
 
   load(): void {
     this.loadPlans();
     this.loadSessions();
-    this.loadExercises();
     this.loadActivePlan();
   }
 
@@ -238,6 +287,7 @@ export class WorkoutPage implements OnInit {
 
   addPlanExercise(): void {
     this.planExercises.push(this.createExerciseGroup());
+    this.setExercisePickerState(this.planExercises.length - 1, this.emptyExercisePickerState());
   }
 
   removePlanExercise(index: number): void {
@@ -250,9 +300,11 @@ export class WorkoutPage implements OnInit {
         restSeconds: 90,
         notes: ''
       });
+      this.setExercisePickerState(0, this.emptyExercisePickerState());
       return;
     }
     this.planExercises.removeAt(index);
+    this.reindexExercisePickerStates(index);
   }
 
   editPlan(plan: WorkoutPlan): void {
@@ -272,8 +324,9 @@ export class WorkoutPage implements OnInit {
     });
 
     this.planExercises.clear();
+    this.exercisePickerStates.set({});
     const exercises = plan.exercises.length ? plan.exercises : [null];
-    exercises.forEach((exercise) => {
+    exercises.forEach((exercise, index) => {
       const group = this.createExerciseGroup();
       if (exercise) {
         group.patchValue({
@@ -284,6 +337,12 @@ export class WorkoutPage implements OnInit {
           restSeconds: exercise.restSeconds ?? 0,
           notes: exercise.notes
         });
+        this.setExercisePickerState(index, {
+          ...this.emptyExercisePickerState(),
+          inputValue: exercise.exerciseNameSnapshot || ''
+        });
+      } else {
+        this.setExercisePickerState(index, this.emptyExercisePickerState());
       }
       this.planExercises.push(group);
     });
@@ -483,8 +542,102 @@ export class WorkoutPage implements OnInit {
     this.selectedTab.set('plans');
   }
 
-  handleExerciseLibraryChanged(exercises: Exercise[]): void {
-    this.exercises.set(exercises);
+  exercisePickerState(index: number): ExercisePickerState {
+    return this.exercisePickerStates()[index] ?? this.emptyExercisePickerState();
+  }
+
+  setExerciseSearchQuery(index: number, value: string): void {
+    const query = value.trim();
+    this.planExercises.at(index)?.get('exerciseId')?.setValue('');
+    this.setExercisePickerState(index, {
+      inputValue: value,
+      query,
+      results: [],
+      error: null,
+      loading: Boolean(query),
+      open: true,
+      activeIndex: -1
+    });
+    if (query) {
+      this.exerciseSearchTerms.next({ index, query });
+    }
+  }
+
+  openExercisePicker(index: number): void {
+    this.ensureExercisePickerState(index);
+    this.setExercisePickerState(index, { open: true });
+  }
+
+  closeExercisePicker(index: number): void {
+    this.setExercisePickerState(index, { open: false, activeIndex: -1 });
+  }
+
+  markExercisePickerTouched(index: number): void {
+    this.planExercises.at(index)?.get('exerciseId')?.markAsTouched();
+  }
+
+  handleExercisePickerKeydown(event: KeyboardEvent, index: number): void {
+    const state = this.exercisePickerState(index);
+    if (event.key === 'Escape') {
+      this.closeExercisePicker(index);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.moveExercisePickerActive(index, 1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.moveExercisePickerActive(index, -1);
+      return;
+    }
+    if (event.key === 'Enter' && state.open && state.activeIndex >= 0) {
+      event.preventDefault();
+      const exercise = state.results[state.activeIndex];
+      if (exercise) {
+        this.selectExerciseResult(index, exercise);
+      }
+    }
+  }
+
+  selectExerciseResult(index: number, exercise: Exercise): void {
+    if (!exercise.exerciseId) {
+      return;
+    }
+    const control = this.planExercises.at(index)?.get('exerciseId');
+    control?.setValue(exercise.exerciseId);
+    control?.markAsDirty();
+    control?.markAsTouched();
+    this.setExercisePickerState(index, {
+      inputValue: exercise.name,
+      query: '',
+      results: [exercise],
+      error: null,
+      loading: false,
+      open: false,
+      activeIndex: -1
+    });
+  }
+
+  exerciseHint(exercise: Exercise): string {
+    return [exercise.primaryMuscleGroup, exercise.equipment]
+      .filter(Boolean)
+      .map((value) => this.formatLabel(value))
+      .join(' / ');
+  }
+
+  exerciseListboxId(index: number): string {
+    return `plan-exercise-results-${index}`;
+  }
+
+  exerciseOptionId(rowIndex: number, optionIndex: number): string {
+    return `plan-exercise-option-${rowIndex}-${optionIndex}`;
+  }
+
+  activeExerciseOptionId(index: number): string | null {
+    const state = this.exercisePickerState(index);
+    return state.open && state.activeIndex >= 0 ? this.exerciseOptionId(index, state.activeIndex) : null;
   }
 
   openSessionDetail(session: WorkoutSession): void {
@@ -587,10 +740,6 @@ export class WorkoutPage implements OnInit {
     });
   }
 
-  private loadExercises(): void {
-    this.dataService.getExercises().subscribe((exercises) => this.exercises.set(exercises));
-  }
-
   private loadActivePlan(): void {
     this.dataService.getActivePlan().subscribe((plan) => this.activePlan.set(plan));
   }
@@ -645,6 +794,7 @@ export class WorkoutPage implements OnInit {
     });
     this.planExercises.clear();
     this.planExercises.push(this.createExerciseGroup());
+    this.exercisePickerStates.set({ 0: this.emptyExercisePickerState() });
   }
 
   private optionalNumber(value: unknown): number | null {
@@ -719,5 +869,64 @@ export class WorkoutPage implements OnInit {
 
   private toDurationFilter(value: string): HistoryDurationFilter {
     return value === 'lt30' || value === '30to60' || value === 'gt60' ? value : '';
+  }
+
+  private emptyExercisePickerState(): ExercisePickerState {
+    return {
+      inputValue: '',
+      query: '',
+      results: [],
+      loading: false,
+      error: null,
+      open: false,
+      activeIndex: -1
+    };
+  }
+
+  private ensureExercisePickerStates(): void {
+    this.planExercises.controls.forEach((_, index) => this.ensureExercisePickerState(index));
+  }
+
+  private ensureExercisePickerState(index: number): void {
+    if (!this.exercisePickerStates()[index]) {
+      this.setExercisePickerState(index, this.emptyExercisePickerState());
+    }
+  }
+
+  private setExercisePickerState(index: number, patch: Partial<ExercisePickerState>): void {
+    this.exercisePickerStates.update((states) => ({
+      ...states,
+      [index]: {
+        ...this.emptyExercisePickerState(),
+        ...states[index],
+        ...patch
+      }
+    }));
+  }
+
+  private moveExercisePickerActive(index: number, delta: number): void {
+    const state = this.exercisePickerState(index);
+    if (!state.open) {
+      this.setExercisePickerState(index, { open: true });
+      return;
+    }
+    if (!state.results.length) {
+      return;
+    }
+    const nextIndex = (state.activeIndex + delta + state.results.length) % state.results.length;
+    this.setExercisePickerState(index, { activeIndex: nextIndex });
+  }
+
+  private reindexExercisePickerStates(removedIndex: number): void {
+    const nextStates: Record<number, ExercisePickerState> = {};
+    Object.entries(this.exercisePickerStates()).forEach(([key, state]) => {
+      const index = Number(key);
+      if (index < removedIndex) {
+        nextStates[index] = state;
+      } else if (index > removedIndex) {
+        nextStates[index - 1] = state;
+      }
+    });
+    this.exercisePickerStates.set(nextStates);
   }
 }

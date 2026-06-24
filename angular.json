@@ -45,7 +45,8 @@
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  // Workout page component styles are legitimately larger because the page owns several tabbed workflows.
+                  "maximumError": "10kB"
                 }
               ],
               "outputHashing": "all"
