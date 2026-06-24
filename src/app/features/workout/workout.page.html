@@ -283,57 +283,56 @@
           {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
         </button>
       </div>
-      @if (sessions().length) {
-        <div class="history-filter-bar" aria-label="Filter workout history">
-          <label>
-            Search
-            <input
-              type="search"
-              autocomplete="off"
-              placeholder="Session name"
-              [value]="historySearch()"
-              (input)="setHistorySearch($any($event.target).value)"
-            />
-          </label>
-          <label>
-            Type
-            <select [value]="filterType()" (change)="setFilterType($any($event.target).value)">
-              <option value="">All types</option>
-              @for (type of historyTypeOptions(); track type) {
-                <option [value]="type">{{ formatLabel(type) }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            Status
-            <select [value]="filterStatus()" (change)="setFilterStatus($any($event.target).value)">
-              <option value="">All statuses</option>
-              @for (status of historyStatusOptions; track status) {
-                <option [value]="status">{{ formatLabel(status) }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            Duration
-            <select [value]="filterDuration()" (change)="setFilterDuration($any($event.target).value)">
-              <option value="">Any duration</option>
-              <option value="lt30">Under 30 min</option>
-              <option value="30to60">30 to 60 min</option>
-              <option value="gt60">Over 60 min</option>
-            </select>
-          </label>
-          <label>
-            From
-            <input type="date" [value]="filterDateFrom()" (input)="setFilterDateFrom($any($event.target).value)" />
-          </label>
-          <label>
-            To
-            <input type="date" [value]="filterDateTo()" (input)="setFilterDateTo($any($event.target).value)" />
-          </label>
-        </div>
-        @if (filteredSessions().length) {
+      <div class="history-filter-bar" aria-label="Filter workout history">
+        <label>
+          Search
+          <input
+            type="search"
+            autocomplete="off"
+            placeholder="Session name (current page)"
+            [value]="historySearch()"
+            (input)="setHistorySearch($any($event.target).value)"
+          />
+        </label>
+        <label>
+          Type
+          <select [value]="filterType()" (change)="setFilterType($any($event.target).value)">
+            <option value="">All types</option>
+            @for (type of historyTypeOptions; track type) {
+              <option [value]="type">{{ formatLabel(type) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Status
+          <select [value]="filterStatus()" (change)="setFilterStatus($any($event.target).value)">
+            <option value="">All statuses</option>
+            @for (status of historyStatusOptions; track status) {
+              <option [value]="status">{{ formatLabel(status) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Duration
+          <select [value]="filterDuration()" (change)="setFilterDuration($any($event.target).value)">
+            <option value="">Any duration</option>
+            <option value="lt30">Under 30 min</option>
+            <option value="30to60">30 to 60 min</option>
+            <option value="gt60">Over 60 min</option>
+          </select>
+        </label>
+        <label>
+          From
+          <input type="date" lang="en-SG" [value]="filterDateFrom()" (input)="setFilterDateFrom($any($event.target).value)" />
+        </label>
+        <label>
+          To
+          <input type="date" lang="en-SG" [value]="filterDateTo()" (input)="setFilterDateTo($any($event.target).value)" />
+        </label>
+      </div>
+      @if (visibleSessions().length) {
         <div class="history-list">
-          @for (session of pagedSessions(); track session.sessionId ?? session.name + session.startedAt) {
+          @for (session of visibleSessions(); track session.sessionId ?? session.name + session.startedAt) {
             <button
               class="history-row"
               type="button"
@@ -349,22 +348,19 @@
             </button>
           }
         </div>
-          @if (totalHistoryPages() > 1) {
-            <nav class="pagination-bar history-pagination" aria-label="Workout history pages">
-              <button class="button secondary" type="button" (click)="prevHistoryPage()" [disabled]="page() <= 0">
-                Previous
-              </button>
-              <span>Page {{ page() + 1 }} / {{ totalHistoryPages() }} ({{ filteredSessions().length }} sessions)</span>
-              <button class="button secondary" type="button" (click)="nextHistoryPage()" [disabled]="page() + 1 >= totalHistoryPages()">
-                Next
-              </button>
-            </nav>
-          }
-        } @else {
-          <app-state-panel title="No sessions match these filters" message="Try a broader search, date range, or workout type." />
+        @if (historyTotalPages() > 1) {
+          <nav class="pagination-bar history-pagination" aria-label="Workout history pages">
+            <button class="button secondary" type="button" (click)="prevHistoryPage()" [disabled]="page() <= 0">
+              Previous
+            </button>
+            <span>Page {{ page() + 1 }} / {{ historyTotalPages() }} ({{ historyTotal() }} sessions)</span>
+            <button class="button secondary" type="button" (click)="nextHistoryPage()" [disabled]="page() + 1 >= historyTotalPages()">
+              Next
+            </button>
+          </nav>
         }
       } @else {
-        <app-state-panel title="No sessions logged" message="Your completed workouts will appear here." />
+        <app-state-panel title="No sessions match these filters" message="Try a broader search, status, date range, or workout type." />
       }
       @if (selectedSessionId(); as sessionId) {
         <app-session-detail

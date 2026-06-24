@@ -5,7 +5,7 @@ import { of, Subject, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
-import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
+import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, WorkoutSessionQuery } from '../../core/fitsync.models';
 import { LiveStartCardComponent } from './live-start-card.component';
 import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
@@ -24,8 +24,8 @@ function session(overrides: Partial<WorkoutSession>): WorkoutSession {
   };
 }
 
-function sessionPage(sessions: WorkoutSession[], total = sessions.length) {
-  return { sessions, total };
+function sessionPage(sessions: WorkoutSession[], total = sessions.length, totalPages = 1, page = 0) {
+  return { sessions, total, totalPages, page };
 }
 
 function sessionDetail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
@@ -157,104 +157,87 @@ describe('WorkoutPage', () => {
     component = TestBed.createComponent(WorkoutPage).componentInstance;
   });
 
-  it('derives the latest session by completion time', () => {
-    component.sessions.set([
-      session({ name: 'Old', completedAt: '2026-06-10T10:00:00Z' }),
-      session({ name: 'New', completedAt: '2026-06-18T10:00:00Z' })
-    ]);
-
-    expect(component.latestSession()?.name).toBe('New');
-  });
-
-  it('counts total sessions from the paged total and this-week sessions from loaded rows', () => {
-    component.sessions.set([
-      session({ name: 'recent', completedAt: new Date().toISOString() }),
-      session({ name: 'old', completedAt: '2025-01-01T00:00:00Z' })
-    ]);
-    component.totalSessionCount.set(42);
-
-    const metrics = component.metrics();
-    expect(metrics[0].value).toBe('42');
-    expect(metrics[1].value).toBe('1');
-  });
-
-  it('uses only completed sessions for client-derived metrics and default history', () => {
-    component.totalSessionCount.set(4);
-    component.sessions.set([
-      session({
-        sessionId: 'completed-recent',
-        name: 'Completed recent',
-        status: 'COMPLETED',
-        workoutType: 'STRENGTH',
-        completedAt: new Date().toISOString(),
-        startedAt: new Date().toISOString(),
-        durationMinutes: 45
-      }),
-      session({
-        sessionId: 'completed-old',
-        name: 'Completed old',
-        status: 'COMPLETED',
-        workoutType: 'CARDIO',
-        completedAt: '2025-01-01T10:00:00Z',
-        startedAt: '2025-01-01T09:00:00Z',
-        durationMinutes: 30
-      }),
-      session({
-        sessionId: 'cancelled-newest',
-        name: 'Cancelled newest',
-        status: 'CANCELLED',
-        workoutType: 'HIIT',
-        completedAt: new Date(Date.now() + 60_000).toISOString(),
-        startedAt: new Date(Date.now() + 60_000).toISOString(),
-        durationMinutes: 0
-      }),
-      session({
-        sessionId: 'in-progress-zombie',
-        name: 'In progress zombie',
-        status: 'IN_PROGRESS',
-        workoutType: 'YOGA',
-        completedAt: '',
-        startedAt: new Date(Date.now() + 120_000).toISOString(),
-        durationMinutes: 0
-      })
-    ]);
-
-    const metrics = component.metrics();
-
-    expect(metrics[0]).toEqual(jasmine.objectContaining({ label: 'Sessions tracked', value: '4', detail: 'all statuses' }));
-    expect(metrics[1]).toEqual(jasmine.objectContaining({ label: 'This week', value: '1', detail: 'completed in the last 7 days' }));
-    expect(component.latestSession()?.sessionId).toBe('completed-recent');
-    expect(metrics[2].detail).toBe('Strength');
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['completed-recent', 'completed-old']);
-
-    component.setFilterStatus('');
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual([
-      'in-progress-zombie',
-      'cancelled-newest',
-      'completed-recent',
-      'completed-old'
-    ]);
-
-    component.setFilterStatus('CANCELLED');
-
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['cancelled-newest']);
-  });
-
-  it('loads a small workout history page for client-side history display', () => {
-    dataService.getWorkoutSessionPage.and.returnValue(
-      of(sessionPage([session({ sessionId: 'loaded', completedAt: new Date().toISOString() })], 37))
+  it('shows completed-only metrics from server counts and the last completed session', () => {
+    component.completedSessionCount.set(42);
+    component.weekCompletedCount.set(3);
+    component.lastCompletedSession.set(
+      session({ name: 'New', workoutType: 'STRENGTH', completedAt: '2026-06-18T10:00:00Z' })
     );
+
+    const metrics = component.metrics();
+    expect(metrics[0]).toEqual(jasmine.objectContaining({ label: 'Sessions logged', value: '42', detail: 'completed all time' }));
+    expect(metrics[1]).toEqual(jasmine.objectContaining({ label: 'This week', value: '3', detail: 'completed in the last 7 days' }));
+    expect(metrics[2].detail).toBe('Strength');
+    expect(metrics[2].value).not.toBe('—');
+  });
+
+  it('loads completed-only metric counts and last session from the server', () => {
+    dataService.getWorkoutSessionPage.and.callFake((query) => {
+      const q = query as WorkoutSessionQuery;
+      if (q.from) {
+        return of(sessionPage([], 5));
+      }
+      if (q.status === 'COMPLETED' && q.size === 1) {
+        return of(sessionPage([session({ sessionId: 'last', workoutType: 'STRENGTH', completedAt: new Date().toISOString() })], 40));
+      }
+      return of(sessionPage([]));
+    });
+
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
+    const c = fixture.componentInstance;
 
-    const requestedSize = dataService.getWorkoutSessionPage.calls.mostRecent().args[0];
-    expect(requestedSize).toBe(10);
-    expect(requestedSize).toBeLessThanOrEqual(100);
-    expect(fixture.componentInstance.sessions().length).toBe(1);
-    expect(fixture.componentInstance.metrics()[0].value).toBe('37');
+    expect(c.completedSessionCount()).toBe(40);
+    expect(c.weekCompletedCount()).toBe(5);
+    expect(c.lastCompletedSession()?.sessionId).toBe('last');
   });
 
-  it('filters history by case-insensitive session name search', () => {
+  it('requests history from the server with the active filters', () => {
+    dataService.getWorkoutSessionPage.calls.reset();
+
+    component.setFilterType('STRENGTH');
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({ workoutType: 'STRENGTH', status: 'COMPLETED', page: 0 })
+    );
+
+    component.setFilterDuration('30to60');
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({ minDurationMinutes: 30, maxDurationMinutes: 60 })
+    );
+
+    component.setFilterStatus('');
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({ status: undefined })
+    );
+
+    component.setFilterDateFrom('2026-06-15');
+    const lastQuery = dataService.getWorkoutSessionPage.calls.mostRecent().args[0] as WorkoutSessionQuery;
+    expect(lastQuery.from).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('drives the history pager from server page metadata', () => {
+    dataService.getWorkoutSessionPage.and.callFake((query) => {
+      const q = query as WorkoutSessionQuery;
+      if (q.size === 1) {
+        return of(sessionPage([], 40));
+      }
+      return of(sessionPage([session({ sessionId: 'loaded', completedAt: new Date().toISOString() })], 30, 4, q.page ?? 0));
+    });
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+
+    expect(c.historyTotal()).toBe(30);
+    expect(c.historyTotalPages()).toBe(4);
+    expect(c.sessions().length).toBe(1);
+
+    dataService.getWorkoutSessionPage.calls.reset();
+    c.nextHistoryPage();
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(jasmine.objectContaining({ page: 1 }));
+  });
+
+  it('refines the loaded history page client-side by case-insensitive name search', () => {
     component.sessions.set([
       session({ sessionId: 'push', name: 'Push Day', completedAt: '2026-06-14T10:00:00Z' }),
       session({ sessionId: 'run', name: 'Easy Run', workoutType: 'CARDIO', completedAt: '2026-06-15T10:00:00Z' })
@@ -262,108 +245,30 @@ describe('WorkoutPage', () => {
 
     component.setHistorySearch('push');
 
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['push']);
+    expect(component.visibleSessions().map((item) => item.sessionId)).toEqual(['push']);
   });
 
-  it('derives history type and status options from loaded sessions', () => {
-    component.sessions.set([
-      session({ workoutType: 'STRENGTH', status: 'COMPLETED' }),
-      session({ workoutType: 'CARDIO', status: 'CANCELLED' }),
-      session({ workoutType: 'STRENGTH', status: 'COMPLETED' })
-    ]);
-
-    expect(component.historyTypeOptions()).toEqual(['CARDIO', 'STRENGTH']);
+  it('offers canonical history type and status filter options', () => {
+    expect(component.historyTypeOptions).toEqual(component.workoutTypeOptions);
     expect(component.historyStatusOptions).toEqual(['COMPLETED', 'CANCELLED', 'IN_PROGRESS']);
   });
 
-  it('filters history by type, status, duration bucket, and date range', () => {
-    component.sessions.set([
-      session({
-        sessionId: 'match',
-        name: 'Tempo strength',
-        workoutType: 'STRENGTH',
-        status: 'COMPLETED',
-        durationMinutes: 45,
-        completedAt: '2026-06-15T10:00:00Z'
-      }),
-      session({
-        sessionId: 'wrong-type',
-        workoutType: 'CARDIO',
-        status: 'COMPLETED',
-        durationMinutes: 45,
-        completedAt: '2026-06-15T10:00:00Z'
-      }),
-      session({
-        sessionId: 'wrong-status',
-        workoutType: 'STRENGTH',
-        status: 'CANCELLED',
-        durationMinutes: 45,
-        completedAt: '2026-06-15T10:00:00Z'
-      }),
-      session({
-        sessionId: 'too-short',
-        workoutType: 'STRENGTH',
-        status: 'COMPLETED',
-        durationMinutes: 20,
-        completedAt: '2026-06-15T10:00:00Z'
-      }),
-      session({
-        sessionId: 'too-early',
-        workoutType: 'STRENGTH',
-        status: 'COMPLETED',
-        durationMinutes: 45,
-        completedAt: '2026-06-10T10:00:00Z'
-      })
-    ]);
-
-    component.setFilterType('STRENGTH');
-    component.setFilterStatus('COMPLETED');
-    component.setFilterDuration('30to60');
-    component.setFilterDateFrom('2026-06-15');
-    component.setFilterDateTo('2026-06-15');
-
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['match']);
+  it('maps duration buckets and date filters into server query params', () => {
+    dataService.getWorkoutSessionPage.calls.reset();
 
     component.setFilterDuration('lt30');
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['too-short']);
-
-    component.setFilterDuration('gt60');
-    expect(component.filteredSessions()).toEqual([]);
-  });
-
-  it('sorts history newest-first and pages through filtered sessions', () => {
-    component.sessions.set(
-      Array.from({ length: 10 }, (_, index) =>
-        session({
-          sessionId: `session-${index + 1}`,
-          name: `Session ${index + 1}`,
-          completedAt: `2026-06-${String(index + 1).padStart(2, '0')}T10:00:00Z`
-        })
-      )
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({ minDurationMinutes: undefined, maxDurationMinutes: 29 })
     );
 
-    expect(component.totalHistoryPages()).toBe(2);
-    expect(component.pagedSessions().map((item) => item.sessionId)).toEqual([
-      'session-10',
-      'session-9',
-      'session-8',
-      'session-7',
-      'session-6',
-      'session-5',
-      'session-4',
-      'session-3'
-    ]);
+    component.setFilterDuration('gt60');
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({ minDurationMinutes: 61, maxDurationMinutes: undefined })
+    );
 
-    component.nextHistoryPage();
-    expect(component.page()).toBe(1);
-    expect(component.pagedSessions().map((item) => item.sessionId)).toEqual(['session-2', 'session-1']);
-
-    component.nextHistoryPage();
-    expect(component.page()).toBe(1);
-
-    component.setHistorySearch('Session 1');
-    expect(component.page()).toBe(0);
-    expect(component.filteredSessions().map((item) => item.sessionId)).toEqual(['session-10', 'session-1']);
+    component.setFilterDateTo('2026-06-15');
+    const query = dataService.getWorkoutSessionPage.calls.mostRecent().args[0] as WorkoutSessionQuery;
+    expect(query.to).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('wires workout tabs to their active tabpanel', () => {
@@ -859,7 +764,7 @@ describe('WorkoutPage', () => {
     expect(dataService.getSession).toHaveBeenCalledWith('session-1');
   });
 
-  it('renders a filtered history empty state separately from no logged sessions', () => {
+  it('shows a filter-aware empty state and keeps the filter bar reachable when empty', () => {
     dataService.getWorkoutSessionPage.and.returnValue(
       of(sessionPage([session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' })]))
     );
@@ -874,7 +779,7 @@ describe('WorkoutPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('No sessions match these filters');
-    expect(compiled.textContent).not.toContain('No sessions logged');
+    expect(compiled.querySelector('.history-filter-bar')).not.toBeNull();
 
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     const emptyFixture = TestBed.createComponent(WorkoutPage);
@@ -882,7 +787,9 @@ describe('WorkoutPage', () => {
     emptyFixture.componentInstance.selectedTab.set('history');
     emptyFixture.detectChanges();
 
-    expect((emptyFixture.nativeElement as HTMLElement).textContent).toContain('No sessions logged');
+    const emptyEl = emptyFixture.nativeElement as HTMLElement;
+    expect(emptyEl.textContent).toContain('No sessions match these filters');
+    expect(emptyEl.querySelector('.history-filter-bar')).not.toBeNull();
   });
 
   it('repeats the latest session and refreshes history', () => {
@@ -1200,7 +1107,7 @@ describe('WorkoutPage', () => {
   });
 
   it('formats missing labels and invalid dates for summary cards', () => {
-    component.sessions.set([session({ completedAt: 'not-a-date', startedAt: '' })]);
+    component.lastCompletedSession.set(session({ workoutType: 'STRENGTH', completedAt: '2026-06-18T10:00:00Z' }));
 
     expect(component.formatLabel(null)).toBe('');
     expect(component.formatLabel('MUSCLE_GAIN')).toBe('Muscle Gain');
