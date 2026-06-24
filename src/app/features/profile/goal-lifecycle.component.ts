@@ -30,6 +30,7 @@ export class GoalLifecycleComponent implements OnInit {
   readonly loading = signal(true);
   readonly editingGoalType = signal<GoalType | null>(null);
   readonly savingGoalType = signal<GoalType | null>(null);
+  readonly deletingGoalType = signal<GoalType | null>(null);
 
   readonly form = this.fb.group({
     targetValue: [null as number | null, [Validators.min(0)]],
@@ -103,6 +104,31 @@ export class GoalLifecycleComponent implements OnInit {
         this.savingGoalType.set(null);
       },
       complete: () => this.savingGoalType.set(null)
+    });
+  }
+
+  deleteGoal(goalType: GoalType): void {
+    if (this.deletingGoalType()) {
+      return;
+    }
+    if (!confirm(`Delete the ${this.label(goalType)} goal? You can add it again later.`)) {
+      return;
+    }
+
+    this.deletingGoalType.set(goalType);
+    this.dataService.deleteGoal(goalType).subscribe({
+      next: () => {
+        this.toast.success('Goal deleted.');
+        this.goals.update((goals) => goals.filter((goal) => goal.goalType !== goalType));
+        if (this.editingGoalType() === goalType) {
+          this.editingGoalType.set(null);
+        }
+      },
+      error: () => {
+        this.toast.error('Unable to delete goal. Please retry.');
+        this.deletingGoalType.set(null);
+      },
+      complete: () => this.deletingGoalType.set(null)
     });
   }
 

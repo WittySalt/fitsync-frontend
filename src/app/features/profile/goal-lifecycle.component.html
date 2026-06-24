@@ -91,7 +91,17 @@
                 <dd>{{ goal.notes || 'No notes' }}</dd>
               </div>
             </dl>
-            <button class="button secondary" type="button" (click)="startEdit(type)">Edit</button>
+            <div class="goal-actions">
+              <button class="button secondary" type="button" (click)="startEdit(type)">Edit</button>
+              <button
+                class="button ghost danger"
+                type="button"
+                [disabled]="deletingGoalType() === type"
+                (click)="deleteGoal(type)"
+              >
+                {{ deletingGoalType() === type ? 'Deleting...' : 'Delete' }}
+              </button>
+            </div>
           } @else {
             <app-state-panel title="Not set" message="Add this goal when you are ready to track it." />
             <button class="button secondary" type="button" (click)="startEdit(type)">Add</button>

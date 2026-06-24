@@ -587,7 +587,12 @@ export class FitSyncDataService {
     }).pipe(
       map(({ trends, goals }) => {
         const trendRows = trends.points.map((point) => this.mapAnalyticsBodyTrendPoint(point));
-        const mappedGoals = goals.goals.map((goal) => this.mapAnalyticsGoalProgress(goal));
+        // The goal-progress read model is keyed by goalId and can hold stale rows from
+        // superseded/seeded goals, so collapse to one row per type (latest evaluated) —
+        // same guard the dashboard path already applies.
+        const mappedGoals = dedupeGoalsByLatestEvaluation(
+          goals.goals.map((goal) => this.mapAnalyticsGoalProgress(goal))
+        );
 
         return {
           latestBodyMetric: trendRows.at(-1) ?? null,
@@ -811,6 +816,10 @@ export class FitSyncDataService {
           return mapped;
         })
       );
+  }
+
+  deleteGoal(goalType: GoalType): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/users/me/goals/${goalType}`);
   }
 
   getSession(sessionId: string): Observable<WorkoutSessionDetail | null> {
