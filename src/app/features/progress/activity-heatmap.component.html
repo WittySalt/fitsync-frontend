@@ -106,7 +106,9 @@
                 (click)="openSession(block.session)"
               >
                 <strong>{{ block.title }}</strong>
-                <span>{{ block.timeLabel }}</span>
+                @if (block.height >= 40) {
+                  <span>{{ block.timeLabel }}</span>
+                }
               </button>
             }
           </div>
@@ -168,9 +170,21 @@
           }
         </div>
       }
-    } @else if (selectedPreset() === 'quarter') {
-      <div class="quarter-heatmaps" aria-label="Quarter workout activity">
-        @for (month of quarterMonths(); track month.label) {
+    } @else if (selectedPreset() === 'quarter' || selectedPreset() === 'year') {
+      @if (selectedPreset() === 'year') {
+        <div class="calendar-toolbar" aria-label="Year calendar navigation">
+          <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous year</button>
+          <strong>{{ selectedDate().getFullYear() }}</strong>
+          <button class="button secondary compact" type="button" (click)="nextPeriod()">Next year</button>
+        </div>
+      }
+
+      <div
+        [class.quarter-heatmaps]="selectedPreset() === 'quarter'"
+        [class.year-months]="selectedPreset() === 'year'"
+        [attr.aria-label]="selectedPreset() === 'quarter' ? 'Quarter workout activity' : 'Year workout activity'"
+      >
+        @for (month of densityMonths(); track month.label) {
           <article class="month-heatmap">
             <h3>{{ month.label }}</h3>
             <div class="weekday-row" aria-hidden="true">
@@ -192,35 +206,6 @@
           </article>
         }
       </div>
-    } @else if (selectedPreset() === 'year') {
-      <div class="calendar-toolbar" aria-label="Year calendar navigation">
-        <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous year</button>
-        <strong>{{ selectedDate().getFullYear() }}</strong>
-        <button class="button secondary compact" type="button" (click)="nextPeriod()">Next year</button>
-      </div>
-
-      <div class="year-heatmap" aria-label="Year workout activity">
-        <div class="year-month-labels" aria-hidden="true">
-          @for (month of yearHeatmap().monthLabels; track month.column + month.label) {
-            <span [style.grid-column]="month.column">{{ month.label }}</span>
-          }
-        </div>
-        <ul class="year-grid" aria-label="Year workout activity weeks">
-          @for (week of yearHeatmap().weeks; track $index) {
-            <li class="year-week">
-              <ul class="year-week-days">
-                @for (day of week; track day.date) {
-                  <li
-                    [class]="cellClass(day)"
-                    [attr.title]="tooltip(day)"
-                    [attr.aria-label]="tooltip(day)"
-                  ></li>
-                }
-              </ul>
-            </li>
-          }
-        </ul>
-      </div>
     } @else {
       <div class="heatmap" role="list" aria-label="Daily workout activity">
         @for (day of days(); track day.date) {
@@ -234,13 +219,15 @@
       </div>
     }
 
-    <div class="legend" aria-hidden="true">
-      <span>Less</span>
-      @for (level of legendLevels; track level) {
-        <i class="heatmap-cell intensity-{{ level }}"></i>
-      }
-      <span>More</span>
-    </div>
+    @if (isLongRangeHeatmap()) {
+      <div class="legend" aria-hidden="true">
+        <span>Less</span>
+        @for (level of legendLevels; track level) {
+          <i class="heatmap-cell intensity-{{ level }}"></i>
+        }
+        <span>More</span>
+      </div>
+    }
 
     @if (selectedSessionId(); as sessionId) {
       <app-session-detail

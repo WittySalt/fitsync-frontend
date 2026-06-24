@@ -139,28 +139,57 @@ describe('ActivityHeatmapComponent', () => {
     expect(monthCellCounts).toEqual([42, 42, 42]);
   });
 
-  it('shares one heatmap cell size and gap token across quarter and year views', () => {
+  it('shows the heatmap legend only for quarter and year views', () => {
     fixture.detectChanges();
 
-    const monthGrid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.month-grid');
-    const monthStyle = getComputedStyle(monthGrid!);
-    const monthCellSize = monthStyle.getPropertyValue('--activity-heatmap-cell-size').trim();
-    const monthCellGap = monthStyle.getPropertyValue('--activity-heatmap-cell-gap').trim();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.legend')).not.toBeNull();
+
+    const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
+    presetButtons[0].click();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.legend')).toBeNull();
+
+    presetButtons[1].click();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.legend')).toBeNull();
+
+    presetButtons[3].click();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.legend')).not.toBeNull();
+  });
+
+  it('computes year activity as twelve month heatmaps for the selected calendar year', () => {
+    fixture.detectChanges();
 
     const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
     presetButtons[3].click();
     fixture.detectChanges();
 
-    const yearGrid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.year-grid');
-    const yearStyle = getComputedStyle(yearGrid!);
-
-    expect(monthCellSize).toBe('18px');
-    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-size').trim()).toBe('18px');
-    expect(monthCellGap).toBe('5px');
-    expect(yearStyle.getPropertyValue('--activity-heatmap-cell-gap').trim()).toBe('5px');
+    const currentYear = new Date().getFullYear();
+    expect(component.selectedPreset()).toBe('year');
+    expect(component.startDate()).toBe(`${currentYear}-01-01`);
+    expect(component.endDate()).toBe(`${currentYear}-12-31`);
+    expect(component.yearMonths().map((month) => month.label)).toEqual([
+      `January ${currentYear}`,
+      `February ${currentYear}`,
+      `March ${currentYear}`,
+      `April ${currentYear}`,
+      `May ${currentYear}`,
+      `June ${currentYear}`,
+      `July ${currentYear}`,
+      `August ${currentYear}`,
+      `September ${currentYear}`,
+      `October ${currentYear}`,
+      `November ${currentYear}`,
+      `December ${currentYear}`
+    ]);
+    expect(component.yearMonths().every((month) => month.weeks.length === 6)).toBeTrue();
   });
 
-  it('renders year activity as a week-column heatmap with month labels', () => {
+  it('renders year activity as a twelve-month calendar heatmap matrix', () => {
     fixture.detectChanges();
 
     const presetButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.range-presets button'));
@@ -169,12 +198,10 @@ describe('ActivityHeatmapComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const currentYear = new Date().getFullYear();
-    expect(component.selectedPreset()).toBe('year');
-    expect(component.startDate()).toBe(`${currentYear}-01-01`);
-    expect(component.endDate()).toBe(`${currentYear}-12-31`);
     expect(compiled.textContent).toContain(String(currentYear));
-    expect(compiled.querySelectorAll('.year-week').length).toBeGreaterThan(50);
-    expect(compiled.querySelectorAll('.year-month-labels span').length).toBeGreaterThan(6);
+    expect(compiled.querySelectorAll('.year-months .month-heatmap').length).toBe(12);
+    expect(compiled.querySelectorAll('.year-months .month-heatmap:first-child .weekday-row span').length).toBe(7);
+    expect(compiled.querySelectorAll('.year-months .month-heatmap:first-child .month-grid .heatmap-cell').length).toBe(42);
   });
 
   it('moves year activity by natural calendar years with previous and next navigation', () => {
@@ -212,11 +239,48 @@ describe('ActivityHeatmapComponent', () => {
     expect(blocks.map((block) => block.session.sessionId)).toEqual(['first', 'second']);
     expect(blocks[0].dayIndex).toBe(1);
     expect(blocks[0].timeLabel).toBe('10:00-11:00');
+    expect(blocks.every((block) => block.height >= 22)).toBeTrue();
     expect(blocks[0].left).toBeCloseTo((1 / 7) * 100, 4);
     expect(blocks[0].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
     expect(blocks[1].left).toBeCloseTo(((1 + 1 / 2) / 7) * 100, 4);
     expect(blocks[1].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
     expect(component.allDaySessionsForDate('2026-06-16')[0].sessionId).toBe('untimed');
+  });
+
+  it('hides week block times only when the duration renders below the compact threshold', () => {
+    component.timezone = 'Asia/Singapore';
+    component.selectedPreset.set('week');
+    component.startDate.set('2026-06-15');
+    component.endDate.set('2026-06-21');
+    dataService.getWorkoutSessionsInRange.and.returnValue(
+      of([
+        session({
+          sessionId: 'short',
+          name: 'Short strength',
+          startedAt: '2026-06-16T02:00:00Z',
+          completedAt: '2026-06-16T02:20:00Z',
+          durationMinutes: 20
+        }),
+        session({
+          sessionId: 'long',
+          name: 'Long conditioning',
+          startedAt: '2026-06-16T04:00:00Z',
+          completedAt: '2026-06-16T05:30:00Z',
+          durationMinutes: 90
+        })
+      ])
+    );
+    fixture.detectChanges();
+
+    const blocks = component.weekBlocks();
+    const renderedBlocks = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.session-block'));
+
+    expect(blocks.find((block) => block.session.sessionId === 'short')?.height).toBeLessThan(40);
+    expect(blocks.find((block) => block.session.sessionId === 'long')?.height).toBeGreaterThanOrEqual(40);
+    expect(renderedBlocks.find((block) => block.textContent?.includes('Short strength'))?.querySelector('span')).toBeNull();
+    expect(renderedBlocks.find((block) => block.textContent?.includes('Long conditioning'))?.querySelector('span')?.textContent).toContain(
+      '12:00-13:30'
+    );
   });
 
   it('positions a single week session within its day slice without grid-column placement', () => {
