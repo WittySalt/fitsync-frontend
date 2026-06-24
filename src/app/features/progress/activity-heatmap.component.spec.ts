@@ -239,12 +239,48 @@ describe('ActivityHeatmapComponent', () => {
     expect(blocks.map((block) => block.session.sessionId)).toEqual(['first', 'second']);
     expect(blocks[0].dayIndex).toBe(1);
     expect(blocks[0].timeLabel).toBe('10:00-11:00');
-    expect(blocks.every((block) => block.height >= 46)).toBeTrue();
+    expect(blocks.every((block) => block.height >= 22)).toBeTrue();
     expect(blocks[0].left).toBeCloseTo((1 / 7) * 100, 4);
     expect(blocks[0].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
     expect(blocks[1].left).toBeCloseTo(((1 + 1 / 2) / 7) * 100, 4);
     expect(blocks[1].width).toBeCloseTo((1 / 2 / 7) * 100, 4);
     expect(component.allDaySessionsForDate('2026-06-16')[0].sessionId).toBe('untimed');
+  });
+
+  it('hides week block times only when the duration renders below the compact threshold', () => {
+    component.timezone = 'Asia/Singapore';
+    component.selectedPreset.set('week');
+    component.startDate.set('2026-06-15');
+    component.endDate.set('2026-06-21');
+    dataService.getWorkoutSessionsInRange.and.returnValue(
+      of([
+        session({
+          sessionId: 'short',
+          name: 'Short strength',
+          startedAt: '2026-06-16T02:00:00Z',
+          completedAt: '2026-06-16T02:20:00Z',
+          durationMinutes: 20
+        }),
+        session({
+          sessionId: 'long',
+          name: 'Long conditioning',
+          startedAt: '2026-06-16T04:00:00Z',
+          completedAt: '2026-06-16T05:30:00Z',
+          durationMinutes: 90
+        })
+      ])
+    );
+    fixture.detectChanges();
+
+    const blocks = component.weekBlocks();
+    const renderedBlocks = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.session-block'));
+
+    expect(blocks.find((block) => block.session.sessionId === 'short')?.height).toBeLessThan(40);
+    expect(blocks.find((block) => block.session.sessionId === 'long')?.height).toBeGreaterThanOrEqual(40);
+    expect(renderedBlocks.find((block) => block.textContent?.includes('Short strength'))?.querySelector('span')).toBeNull();
+    expect(renderedBlocks.find((block) => block.textContent?.includes('Long conditioning'))?.querySelector('span')?.textContent).toContain(
+      '12:00-13:30'
+    );
   });
 
   it('positions a single week session within its day slice without grid-column placement', () => {

@@ -106,7 +106,9 @@
                 (click)="openSession(block.session)"
               >
                 <strong>{{ block.title }}</strong>
-                <span>{{ block.timeLabel }}</span>
+                @if (block.height >= 40) {
+                  <span>{{ block.timeLabel }}</span>
+                }
               </button>
             }
           </div>
@@ -168,39 +170,21 @@
           }
         </div>
       }
-    } @else if (selectedPreset() === 'quarter') {
-      <div class="quarter-heatmaps" aria-label="Quarter workout activity">
-        @for (month of quarterMonths(); track month.label) {
-          <article class="month-heatmap">
-            <h3>{{ month.label }}</h3>
-            <div class="weekday-row" aria-hidden="true">
-              @for (weekday of compactWeekDays; track $index) {
-                <span>{{ weekday }}</span>
-              }
-            </div>
-            <ul class="month-grid" [attr.aria-label]="month.label + ' workout activity'">
-              @for (week of month.weeks; track $index) {
-                @for (day of week; track day.date) {
-                  <li
-                    [class]="cellClass(day)"
-                    [attr.title]="tooltip(day)"
-                    [attr.aria-label]="tooltip(day)"
-                  ></li>
-                }
-              }
-            </ul>
-          </article>
-        }
-      </div>
-    } @else if (selectedPreset() === 'year') {
-      <div class="calendar-toolbar" aria-label="Year calendar navigation">
-        <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous year</button>
-        <strong>{{ selectedDate().getFullYear() }}</strong>
-        <button class="button secondary compact" type="button" (click)="nextPeriod()">Next year</button>
-      </div>
+    } @else if (selectedPreset() === 'quarter' || selectedPreset() === 'year') {
+      @if (selectedPreset() === 'year') {
+        <div class="calendar-toolbar" aria-label="Year calendar navigation">
+          <button class="button secondary compact" type="button" (click)="previousPeriod()">Previous year</button>
+          <strong>{{ selectedDate().getFullYear() }}</strong>
+          <button class="button secondary compact" type="button" (click)="nextPeriod()">Next year</button>
+        </div>
+      }
 
-      <div class="year-months" aria-label="Year workout activity">
-        @for (month of yearMonths(); track month.label) {
+      <div
+        [class.quarter-heatmaps]="selectedPreset() === 'quarter'"
+        [class.year-months]="selectedPreset() === 'year'"
+        [attr.aria-label]="selectedPreset() === 'quarter' ? 'Quarter workout activity' : 'Year workout activity'"
+      >
+        @for (month of densityMonths(); track month.label) {
           <article class="month-heatmap">
             <h3>{{ month.label }}</h3>
             <div class="weekday-row" aria-hidden="true">

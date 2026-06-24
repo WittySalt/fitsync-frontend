@@ -109,6 +109,7 @@ export class ActivityHeatmapComponent implements OnInit {
     const year = this.selectedDate().getFullYear();
     return Array.from({ length: 12 }, (_, month) => this.buildMonthHeatmap(new Date(year, month, 1)));
   });
+  readonly densityMonths = computed(() => (this.selectedPreset() === 'year' ? this.yearMonths() : this.quarterMonths()));
   readonly isEventCalendar = computed(() => this.selectedPreset() === 'week' || this.selectedPreset() === 'month');
   readonly hasSessions = computed(() => this.sessions().length > 0);
   readonly weekDates = computed(() => this.eachDate(this.startDate(), this.endDate()));
@@ -363,7 +364,7 @@ export class ActivityHeatmapComponent implements OnInit {
     const blocks = this.sessionBlocksForWeek().map((block) => ({
       ...block,
       top: ((block.startMinutes - window.start) / totalMinutes) * 100,
-      height: Math.max(46, ((block.endMinutes - block.startMinutes) / totalMinutes) * 720),
+      height: Math.max(22, ((block.endMinutes - block.startMinutes) / totalMinutes) * 720),
       left: 0,
       width: 100
     }));
