@@ -38,6 +38,7 @@ describe('LiveTrackerComponent', () => {
   let live: WorkoutLiveService;
 
   beforeEach(async () => {
+    spyOn(window, 'confirm').and.returnValue(true);
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startWorkoutPlan',
       'startAdHocSession',
@@ -103,7 +104,7 @@ describe('LiveTrackerComponent', () => {
     startTracker();
 
     tick(30_000);
-    fixture.debugElement.query(By.css('.tracker-actions .button.primary')).nativeElement.click();
+    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
 
     expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
     expect(dataService.completeSession).not.toHaveBeenCalled();
@@ -117,7 +118,7 @@ describe('LiveTrackerComponent', () => {
     startTracker();
 
     tick(60_000);
-    fixture.debugElement.query(By.css('.tracker-actions .button.primary')).nativeElement.click();
+    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
 
     expect(dataService.completeSession).toHaveBeenCalledWith('session-live');
     expect(dataService.cancelSession).not.toHaveBeenCalled();
@@ -130,7 +131,7 @@ describe('LiveTrackerComponent', () => {
     startTracker();
 
     tick(60_000);
-    fixture.debugElement.query(By.css('.tracker-actions .button.primary')).nativeElement.click();
+    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to finish workout. Please retry.');
   }));

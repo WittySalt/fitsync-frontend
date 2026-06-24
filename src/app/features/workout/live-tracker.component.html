@@ -50,7 +50,7 @@
 
   <footer class="tracker-actions">
     <p>Terminate saves workouts of at least 60 seconds. Shorter sessions are cancelled and excluded from metrics.</p>
-    <button class="button primary" type="button" [disabled]="ending()" (click)="terminate()">
+    <button class="button secondary danger" type="button" [disabled]="ending()" (click)="terminate()">
       {{ ending() ? 'Finishing...' : 'Terminate workout' }}
     </button>
   </footer>

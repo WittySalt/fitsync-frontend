@@ -68,6 +68,9 @@ export class LiveTrackerComponent implements OnChanges {
     if (this.ending()) {
       return;
     }
+    if (!window.confirm('Terminate this workout now? Sessions under 60 seconds are discarded and will not be saved.')) {
+      return;
+    }
 
     this.ending.set(true);
     this.live.finish().subscribe({

@@ -49,14 +49,19 @@ export class TodayOverviewComponent {
 
   exerciseTarget(exercise: WorkoutPlanExercise): string {
     const parts: string[] = [];
-    if (exercise.targetSets || exercise.targetReps) {
-      parts.push(`${exercise.targetSets ?? '-'} x ${exercise.targetReps ?? '-'}`);
+    const { targetSets: sets, targetReps: reps, targetDurationSeconds: duration } = exercise;
+    if (reps) {
+      parts.push(`${sets ?? '-'} x ${reps}`);
+      if (duration) {
+        parts.push(`${duration} sec`);
+      }
+    } else if (duration) {
+      parts.push(sets ? `${sets} x ${duration} sec hold` : `${duration} sec hold`);
+    } else if (sets) {
+      parts.push(`${sets} sets`);
     }
     if (exercise.targetWeightKg) {
       parts.push(`${exercise.targetWeightKg} kg`);
-    }
-    if (exercise.targetDurationSeconds) {
-      parts.push(`${exercise.targetDurationSeconds} sec`);
     }
     if (exercise.restSeconds) {
       parts.push(`${exercise.restSeconds} sec rest`);

@@ -136,9 +136,9 @@
               @if (detail.description) {
                 <p>{{ detail.description }}</p>
               }
-              @if (sortedInstructions().length) {
+              @if (guidanceInstructions().length) {
                 <ol class="instruction-list">
-                  @for (step of sortedInstructions(); track step.stepNumber ?? step.text) {
+                  @for (step of guidanceInstructions(); track step.stepNumber ?? step.text) {
                     <li>{{ step.text }}</li>
                   }
                 </ol>

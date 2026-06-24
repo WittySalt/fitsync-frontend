@@ -132,6 +132,20 @@ describe('ExerciseLibraryComponent', () => {
     }).compileComponents();
   });
 
+  it('disambiguates duplicate names by equipment and exposes a list thumbnail', () => {
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const component = fixture.componentInstance;
+    const gobletKb = exercise({ exerciseId: 'a', name: 'Goblet Squat', equipment: 'KETTLEBELL', images: [{ position: 0, url: 'https://media/a.jpg' }] });
+    const gobletDb = exercise({ exerciseId: 'b', name: 'Goblet Squat', equipment: 'DUMBBELL' });
+    const frontSquat = exercise({ exerciseId: 'c', name: 'Front Squat', equipment: 'BARBELL' });
+    component.exercises.set([gobletKb, gobletDb, frontSquat]);
+
+    expect(component.exerciseListName(gobletKb)).toBe('Goblet Squat - Kettlebell');
+    expect(component.exerciseListName(frontSquat)).toBe('Front Squat');
+    expect(component.exerciseThumbnail(gobletKb)).toBe('https://media/a.jpg');
+    expect(component.exerciseThumbnail(frontSquat)).toBeNull();
+  });
+
   it('renders filter and form options from exercise metadata', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();

@@ -108,6 +108,20 @@ describe('TodayOverviewComponent', () => {
     }).compileComponents();
   });
 
+  it('formats a duration-only target as a hold instead of "x -"', () => {
+    const fixture = TestBed.createComponent(TodayOverviewComponent);
+    const component = fixture.componentInstance;
+    const summary = component.exerciseTarget({
+      ...plan().exercises[0],
+      targetSets: 3,
+      targetReps: null,
+      targetWeightKg: null,
+      targetDurationSeconds: 45
+    });
+    expect(summary).toContain('3 x 45 sec hold');
+    expect(summary).not.toContain('x -');
+  });
+
   it('renders active plan details and emits start from the CTA', () => {
     const fixture = TestBed.createComponent(TodayOverviewComponent);
     const component = fixture.componentInstance;

@@ -126,6 +126,16 @@ export class ExerciseLibraryComponent implements OnInit {
 
   readonly recordsEmpty = computed(() => this.recordCards().every((record) => record.detail === 'No data yet'));
 
+  /** Names appearing more than once on the current page, so we can disambiguate them in the list. */
+  readonly duplicateNames = computed(() => {
+    const counts = new Map<string, number>();
+    for (const exercise of this.exercises()) {
+      const key = exercise.name.trim().toLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key));
+  });
+
   readonly mediaUrl = computed(() => {
     const exercise = this.displayExercise();
     if (!exercise || this.mediaFailed()) {
@@ -203,6 +213,18 @@ export class ExerciseLibraryComponent implements OnInit {
 
   formatLabels(values: string[] | null | undefined): string {
     return (values ?? []).map((value) => this.formatLabel(value)).filter(Boolean).join(', ');
+  }
+
+  /** Disambiguate duplicate names by appending the equipment (e.g. "Goblet Squat - Kettlebell"). */
+  exerciseListName(exercise: Exercise): string {
+    const isDuplicate = this.duplicateNames().has(exercise.name.trim().toLowerCase());
+    return isDuplicate && exercise.equipment
+      ? `${exercise.name} - ${this.formatLabel(exercise.equipment)}`
+      : exercise.name;
+  }
+
+  exerciseThumbnail(exercise: Exercise): string | null {
+    return exercise.images?.[0]?.url ?? exercise.imageUrls?.[0] ?? exercise.animationUrl ?? null;
   }
 
   formatDateTime(value: string | null | undefined): string {

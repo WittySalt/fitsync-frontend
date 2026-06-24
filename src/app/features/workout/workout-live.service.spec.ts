@@ -58,18 +58,29 @@ describe('WorkoutLiveService', () => {
     service.reset();
   });
 
+  it('ramps the mock heart rate from rest toward the working band instead of jumping', () => {
+    const early = service.mockHeartRate(2, 'STRENGTH');
+    const later = service.mockHeartRate(120, 'STRENGTH');
+    expect(early).toBeLessThan(later);
+    expect(early).toBeLessThan(100);
+    expect(later).toBeGreaterThan(120);
+    expect(later).toBeLessThanOrEqual(140);
+  });
+
   it('starts from a plan and exposes elapsed time, mock heart rate, and estimated calories', fakeAsync(() => {
     service.startFromPlan('plan-1').subscribe();
 
     expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1');
     expect(service.session()?.sessionId).toBe('session-live');
-    expect(service.heartRate()).toBeGreaterThanOrEqual(110);
-    expect(service.heartRate()).toBeLessThanOrEqual(150);
+    expect(service.heartRate()).toBeGreaterThanOrEqual(60);
+    expect(service.heartRate()).toBeLessThan(95);
 
     tick(30_000);
 
     expect(service.elapsedSeconds()).toBe(30);
     expect(service.estimatedCalories()).toBe(3);
+    expect(service.heartRate()).toBeGreaterThan(100);
+    expect(service.heartRate()).toBeLessThanOrEqual(140);
   }));
 
   it('pauses without accumulating elapsed time until resumed', fakeAsync(() => {

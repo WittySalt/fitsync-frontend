@@ -324,17 +324,22 @@
             @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
               <article class="exercise-item">
                 <button class="exercise-select" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
-                  <strong>{{ exercise.name }}</strong>
-                  @if (exercise.custom) {
-                    <span class="custom-tag">Custom</span>
+                  @if (exerciseThumbnail(exercise); as thumb) {
+                    <img class="exercise-thumb" [src]="thumb" alt="" loading="lazy" />
                   }
-                  <p>{{ exercise.description || 'No description yet.' }}</p>
-                  <small>
-                    {{ formatLabel(exercise.exerciseType) }} -
-                    {{ formatLabel(exercise.primaryMuscleGroup) }} -
-                    {{ formatLabel(exercise.equipment) }} -
-                    {{ formatLabel(exercise.difficulty) }}
-                  </small>
+                  <span class="exercise-select-body">
+                    <strong>{{ exerciseListName(exercise) }}</strong>
+                    @if (exercise.custom) {
+                      <span class="custom-tag">Custom</span>
+                    }
+                    <p>{{ exercise.description || 'No description yet.' }}</p>
+                    <small>
+                      {{ formatLabel(exercise.exerciseType) }} -
+                      {{ formatLabel(exercise.primaryMuscleGroup) }} -
+                      {{ formatLabel(exercise.equipment) }} -
+                      {{ formatLabel(exercise.difficulty) }}
+                    </small>
+                  </span>
                 </button>
                 <div class="item-actions">
                   <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
