@@ -565,7 +565,7 @@ describe('WorkoutPage', () => {
     tick(275);
     fixture.detectChanges();
 
-    const option = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="option"]');
+    const option = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.typeahead-option');
     option!.click();
     fixture.detectChanges();
 

@@ -218,6 +218,24 @@
   color: var(--danger) !important;
 }
 
+.fs-typeahead-anchor {
+  position: relative;
+}
+
+.fs-typeahead-panel {
+  position: absolute;
+  z-index: 5;
+  inset: 100% 0 auto;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--surface);
+}
+
+.fs-typeahead-option {
+  width: 100%;
+  text-align: left;
+}
+
 .bottom-nav {
   display: none;
 }
