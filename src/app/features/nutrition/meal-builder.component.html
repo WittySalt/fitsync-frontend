@@ -5,15 +5,6 @@
       <h2 id="meal-builder-title">Build a meal from foods</h2>
       <p>Search the catalog, choose servings, and let FitSync calculate the nutrition.</p>
     </div>
-    <div class="totals-card" aria-label="Meal totals">
-      <strong>{{ formatAmount(totals().calories) }}</strong>
-      <span>kcal</span>
-      <small>
-        {{ formatAmount(totals().proteinGrams, 'g') }} protein /
-        {{ formatAmount(totals().carbsGrams, 'g') }} carbs /
-        {{ formatAmount(totals().fatGrams, 'g') }} fat
-      </small>
-    </div>
   </header>
 
   <form class="meal-meta" [formGroup]="mealForm">
@@ -29,19 +20,6 @@
         </button>
       }
     </fieldset>
-    <div class="meal-text-grid">
-      <label>
-        Meal name
-        <input formControlName="name" [placeholder]="mealForm.controls.mealType.value === 'OTHER' ? 'Name your meal' : 'Post-workout lunch'" />
-        @if (mealForm.controls.name.hasError('required') && mealForm.controls.name.touched) {
-          <span class="field-error">Name your meal</span>
-        }
-      </label>
-      <label>
-        Note
-        <input formControlName="note" placeholder="Optional context" />
-      </label>
-    </div>
   </form>
 
   <div class="builder-grid">
@@ -66,7 +44,7 @@
             aria-label="Filters"
             (click)="toggleFilters($event)"
           >
-            <span class="fs-icon" data-icon="ruler" aria-hidden="true"></span>
+            <span class="fs-icon" data-icon="filter" aria-hidden="true"></span>
           </button>
           <label class="search-field">
             <span class="fs-icon" data-icon="spark" aria-hidden="true"></span>
@@ -197,7 +175,7 @@
                     [attr.aria-label]="isFavorite(food) ? 'Remove from favorites' : 'Add to favorites'"
                     (click)="toggleFavorite(food, $event)"
                   >
-                    <span class="fs-icon" data-icon="spark" aria-hidden="true"></span>
+                    <span class="favorite-star" aria-hidden="true">{{ isFavorite(food) ? '★' : '☆' }}</span>
                   </button>
                   <button type="button" class="quantity-button" [disabled]="!food.foodId" (click)="addFoodResult(food, $event)">
                     +
@@ -209,7 +187,11 @@
           <nav class="pagination-bar" aria-label="Food search settings">
             <label class="page-size">
               Per page
-              <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
+              <select
+                [ngModel]="pageSize()"
+                (ngModelChange)="setPageSize($event)"
+                [ngModelOptions]="{ standalone: true }"
+              >
                 @for (size of pageSizeOptions; track size) {
                   <option [value]="size">{{ size }}</option>
                 }
@@ -340,7 +322,10 @@
             </div>
           </div>
           <div class="ring-copy">
-            <span>Today {{ formatAmount(dailySummary()?.totalCalories) }} / {{ dailySummary()?.targetCalories == null ? 'No target' : formatAmount(dailySummary()?.targetCalories) }}</span>
+            <span class="ring-total-line">
+              <span>Today</span>
+              <span>{{ formatAmount(dailySummary()?.totalCalories) }} / {{ dailySummary()?.targetCalories == null ? 'No target' : formatAmount(dailySummary()?.targetCalories) }}</span>
+            </span>
             @if (remainingCalories() != null) {
               <strong [class.over]="remainingCalories()! < 0">
                 {{ remainingCalories()! < 0 ? formatAmount(-remainingCalories()!) + ' over' : formatAmount(remainingCalories()) + ' left' }}
@@ -370,8 +355,12 @@
                 </svg>
                 <strong>{{ formatAmount(metric.meal, metric.unit) }}</strong>
               </div>
-              <span>{{ metric.label }}</span>
-              <small>{{ formatAmount(metric.current, metric.unit) }} / {{ metric.target == null ? 'No target' : formatAmount(metric.target, metric.unit) }}</small>
+              <span class="macro-label">{{ metric.label }}</span>
+              <small class="macro-total">
+                <span>{{ formatAmount(metric.current, metric.unit) }}</span>
+                <span>/</span>
+                <span>{{ metric.target == null ? 'No target' : formatAmount(metric.target, metric.unit) }}</span>
+              </small>
             </article>
           }
         </div>
@@ -397,7 +386,11 @@
           <div class="serving-controls">
             <label>
               Serving size
-              <select [value]="selectedServingId()" (change)="setServing($any($event.target).value)">
+              <select
+                [ngModel]="selectedServingId()"
+                (ngModelChange)="setServing($event)"
+                [ngModelOptions]="{ standalone: true }"
+              >
                 @for (serving of detail.servings; track servingKey(serving)) {
                   <option [value]="servingKey(serving)">{{ serving.label }}</option>
                 }
@@ -431,7 +424,7 @@
           }
         </article>
       } @else {
-        <app-state-panel title="Choose a food" message="Pick a food from search, recent, favorites, or saved meals." />
+        <app-state-panel title="Choose a food" message="Search foods or choose Recent, Favorites, or Saved meals to set a serving." />
       }
 
       <section class="meal-items" aria-label="Current meal items">
@@ -506,8 +499,37 @@
             }
           </div>
         } @else {
-          <p class="empty-copy">Add foods before saving the meal.</p>
+          <p class="empty-copy">Start with search results, Recent, Favorites, or Saved meals. Added foods will appear here with quantity controls.</p>
         }
+
+        <section class="meal-label-card" [formGroup]="mealForm" aria-label="Meal label and note">
+          <button
+            type="button"
+            class="label-note-toggle"
+            [attr.aria-expanded]="labelNoteOpen() || mealForm.controls.mealType.value === 'OTHER'"
+            (click)="toggleLabelNote()"
+          >
+            <span>Add label & note</span>
+            <small>
+              {{ mealForm.controls.mealType.value === 'OTHER' ? 'Required for Other meals' : 'Optional - defaults to "' + defaultMealName() + '"' }}
+            </small>
+          </button>
+          @if (labelNoteOpen() || mealForm.controls.mealType.value === 'OTHER') {
+            <div class="meal-text-grid">
+              <label>
+                Meal name
+                <input formControlName="name" [placeholder]="mealForm.controls.mealType.value === 'OTHER' ? 'Name your meal' : defaultMealName()" />
+                @if (mealForm.controls.name.hasError('required') && mealForm.controls.name.touched) {
+                  <span class="field-error">Name your meal</span>
+                }
+              </label>
+              <label>
+                Note
+                <input formControlName="note" placeholder="Optional context" />
+              </label>
+            </div>
+          }
+        </section>
 
         <div class="cart-actions">
           <button type="button" class="button secondary" [disabled]="!items().length || templateSaving()" (click)="saveAsTemplate()">

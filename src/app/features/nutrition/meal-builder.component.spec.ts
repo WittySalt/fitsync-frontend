@@ -292,16 +292,35 @@ describe('MealBuilderComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Page 1 / 2 (21 foods)');
   });
 
-  it('keeps the per-page select bound to pageSize and sends it to search', () => {
-    dataService.searchFoodsPage.calls.reset();
+  it('keeps the per-page select bound to pageSize and requests the selected size from page zero', () => {
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('.page-size select');
 
-    component.setPageSize(50);
+    expect(Number(select.selectedOptions[0].value)).toBe(component.pageSize());
+
+    dataService.searchFoodsPage.calls.reset();
+    select.value = '10';
+    select.dispatchEvent(new Event('change'));
     fixture.detectChanges();
 
-    const select: HTMLSelectElement = fixture.nativeElement.querySelector('.page-size select');
+    expect(component.pageSize()).toBe(10);
+    expect(dataService.searchFoodsPage).toHaveBeenCalledTimes(1);
+    expect(dataService.searchFoodsPage).toHaveBeenCalledWith('', jasmine.objectContaining({ size: 10, page: 0 }));
+
+    dataService.searchFoodsPage.calls.reset();
+    select.value = '50';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
     expect(component.pageSize()).toBe(50);
-    expect(select.value).toBe('50');
+    expect(dataService.searchFoodsPage).toHaveBeenCalledTimes(1);
     expect(dataService.searchFoodsPage).toHaveBeenCalledWith('', jasmine.objectContaining({ size: 50, page: 0 }));
+
+    dataService.searchFoodsPage.calls.reset();
+    select.value = '50';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(dataService.searchFoodsPage).not.toHaveBeenCalled();
   });
 
   it('hides the page controls when there is only one food page', () => {
