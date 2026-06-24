@@ -68,8 +68,9 @@ describe('DashboardPage', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
 
   beforeEach(async () => {
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard']);
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard', 'getDailyNutritionSummary']);
     dataService.getDashboard.and.returnValue(of(dashboardData));
+    dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
 
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
@@ -90,20 +91,22 @@ describe('DashboardPage', () => {
   });
 
   it('renders friendly empty states for new users without NaN', () => {
+    const emptyNutrition = {
+      ...dashboardData.nutrition,
+      totalCalories: 0,
+      targetCalories: null,
+      totalProteinGrams: 0,
+      targetProteinGrams: null
+    };
     dataService.getDashboard.and.returnValue(
       of({
         ...dashboardData,
-        nutrition: {
-          ...dashboardData.nutrition,
-          totalCalories: 0,
-          targetCalories: null,
-          totalProteinGrams: 0,
-          targetProteinGrams: null
-        },
+        nutrition: emptyNutrition,
         latestBodyMetric: null,
         goals: []
       })
     );
+    dataService.getDailyNutritionSummary.and.returnValue(of(emptyNutrition));
 
     fixture.detectChanges();
 
