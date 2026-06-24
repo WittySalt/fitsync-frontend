@@ -237,6 +237,18 @@ describe('FitSyncDataService', () => {
     expect(result?.status).toBe('PAUSED');
   });
 
+  it('deletes a user goal by goal type', () => {
+    const goalType: GoalType = 'WEIGHT';
+    let completed = false;
+    service.deleteGoal(goalType).subscribe({ complete: () => (completed = true) });
+
+    const request = httpTesting.expectOne('/api/v1/users/me/goals/WEIGHT');
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(completed).toBeTrue();
+  });
+
   it('saves goal-driven onboarding to the single onboarding endpoint with a local timezone', () => {
     service.saveOnboarding(baseOnboarding).subscribe();
 

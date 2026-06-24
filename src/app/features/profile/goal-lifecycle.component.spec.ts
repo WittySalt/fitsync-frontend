@@ -181,6 +181,31 @@ describe('GoalLifecycleComponent', () => {
     expect(fixture.componentInstance.deletingGoalType()).toBeNull();
   });
 
+  it('closes the edit form when the goal being edited is deleted', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit('WEIGHT');
+    expect(fixture.componentInstance.editingGoalType()).toBe('WEIGHT');
+
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(fixture.componentInstance.editingGoalType()).toBeNull();
+  });
+
+  it('ignores a delete while one is already in flight', () => {
+    const confirmSpy = spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.deletingGoalType.set('PROTEIN');
+    fixture.componentInstance.deleteGoal('WEIGHT');
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(dataService.deleteGoal).not.toHaveBeenCalled();
+  });
+
   it('surfaces write failures through toast errors', () => {
     dataService.upsertGoal.and.returnValue(throwError(() => new Error('nope')));
     const fixture = TestBed.createComponent(GoalLifecycleComponent);
