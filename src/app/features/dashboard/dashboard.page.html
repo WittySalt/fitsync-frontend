@@ -42,8 +42,8 @@
         <div>
           <span>Calories</span>
           @if (hasCalorieData()) {
-            <strong>{{ dashboard.nutrition.totalCalories }} / {{ dashboard.nutrition.targetCalories ?? 'No target' }}</strong>
-            <small>{{ dashboard.nutrition.totalCalories > 0 ? 'Logged today' : 'No calories logged yet' }}</small>
+            <strong>{{ nutritionSummary()?.totalCalories ?? 0 }} / {{ nutritionSummary()?.targetCalories ?? 'No target' }}</strong>
+            <small>{{ (nutritionSummary()?.totalCalories ?? 0) > 0 ? 'Logged today' : 'No calories logged yet' }}</small>
           } @else {
             <strong>No nutrition yet</strong>
             <small>Log your first meal to start today's summary</small>
@@ -56,8 +56,8 @@
         <div>
           <span>Protein</span>
           @if (hasProteinData()) {
-            <strong>{{ dashboard.nutrition.totalProteinGrams }}g / {{ dashboard.nutrition.targetProteinGrams !== null ? dashboard.nutrition.targetProteinGrams + 'g' : 'No target' }}</strong>
-            <small>{{ dashboard.nutrition.totalProteinGrams > 0 ? 'Daily target progress' : 'No protein logged yet' }}</small>
+            <strong>{{ nutritionSummary()?.totalProteinGrams ?? 0 }}g / {{ nutritionSummary()?.targetProteinGrams != null ? (nutritionSummary()?.targetProteinGrams ?? 0) + 'g' : 'No target' }}</strong>
+            <small>{{ (nutritionSummary()?.totalProteinGrams ?? 0) > 0 ? 'Daily target progress' : 'No protein logged yet' }}</small>
           } @else {
             <strong>No protein yet</strong>
             <small>Protein appears after meals are logged</small>

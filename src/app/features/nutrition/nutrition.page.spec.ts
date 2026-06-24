@@ -2,46 +2,32 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
-import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { NutritionSummary } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { NutritionPage } from './nutrition.page';
 
-function dashboard(overrides: Partial<DashboardData['nutrition']> = {}): DashboardData {
+function summary(overrides: Partial<NutritionSummary> = {}): NutritionSummary {
   return {
-    profile: {
-      displayName: 'Wang Xu',
-      firstName: 'Wang',
-      lastName: 'Xu',
-      heightCm: 178,
-      activityLevel: 'MODERATELY_ACTIVE',
-      timezone: 'Asia/Singapore',
-      onboardingCompleted: true
-    },
-    nutrition: {
-      totalCalories: 142,
-      targetCalories: null,
-      totalProteinGrams: 2.8,
-      targetProteinGrams: null,
-      totalCarbsGrams: 20,
-      targetCarbsGrams: null,
-      totalFatGrams: 5,
-      targetFatGrams: null,
-      mealCount: 1,
-      totalFiberGrams: null,
-      totalSugarGrams: null,
-      totalSodiumMg: null,
-      fiberTargetGrams: null,
-      sugarLimitGrams: null,
-      sodiumLimitMg: null,
-      fiberTargetMet: null,
-      sugarWithinLimit: null,
-      sodiumWithinLimit: null,
-      ...overrides
-    },
-    latestWorkout: null,
-    latestMeal: null,
-    latestBodyMetric: null,
-    goals: []
+    totalCalories: 142,
+    targetCalories: null,
+    totalProteinGrams: 2.8,
+    targetProteinGrams: null,
+    totalCarbsGrams: 20,
+    targetCarbsGrams: null,
+    totalFatGrams: 5,
+    targetFatGrams: null,
+    mealCount: 1,
+    totalFiberGrams: null,
+    totalSugarGrams: null,
+    totalSodiumMg: null,
+    fiberTargetGrams: null,
+    sugarLimitGrams: null,
+    sodiumLimitMg: null,
+    fiberTargetMet: null,
+    sugarWithinLimit: null,
+    sodiumWithinLimit: null,
+    ...overrides
   };
 }
 
@@ -51,7 +37,7 @@ describe('NutritionPage', () => {
 
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
-      'getDashboard',
+      'getDailyNutritionSummary',
       'getTodayMeals',
       'copyMeal',
       'getFoodCategories',
@@ -88,7 +74,7 @@ describe('NutritionPage', () => {
   });
 
   it('shows logged totals and target setup guidance when daily targets are missing', () => {
-    dataService.getDashboard.and.returnValue(of(dashboard()));
+    dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
     const fixture = TestBed.createComponent(NutritionPage);
     fixture.detectChanges();
 
@@ -104,9 +90,9 @@ describe('NutritionPage', () => {
   });
 
   it('keeps progress and remaining copy when daily targets are available', () => {
-    dataService.getDashboard.and.returnValue(
+    dataService.getDailyNutritionSummary.and.returnValue(
       of(
-        dashboard({
+        summary({
           totalCalories: 600,
           targetCalories: 2000,
           totalProteinGrams: 50,
@@ -131,7 +117,7 @@ describe('NutritionPage', () => {
   });
 
   it('stores dashboard load errors while still refreshing meal history', () => {
-    dataService.getDashboard.and.returnValue(throwError(() => new Error('Dashboard unavailable')));
+    dataService.getDailyNutritionSummary.and.returnValue(throwError(() => new Error('Dashboard unavailable')));
     dataService.getTodayMeals.and.returnValue(of([]));
 
     const fixture = TestBed.createComponent(NutritionPage);
@@ -143,7 +129,7 @@ describe('NutritionPage', () => {
   });
 
   it('copies meals, guards empty ids, and reports copy errors', () => {
-    dataService.getDashboard.and.returnValue(of(dashboard()));
+    dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
     const component = TestBed.createComponent(NutritionPage).componentInstance;
 
     component.copyMeal('', 'DINNER');
@@ -160,7 +146,7 @@ describe('NutritionPage', () => {
   });
 
   it('reports refresh-dashboard errors after a meal save', () => {
-    dataService.getDashboard.and.returnValue(throwError(() => new Error('refresh failed')));
+    dataService.getDailyNutritionSummary.and.returnValue(throwError(() => new Error('refresh failed')));
     dataService.getTodayMeals.and.returnValue(of([]));
     const component = TestBed.createComponent(NutritionPage).componentInstance;
 
@@ -190,7 +176,7 @@ describe('NutritionPage', () => {
 
   it('builds meal timeline entries and calorie/macro cards from loaded data', () => {
     const component = TestBed.createComponent(NutritionPage).componentInstance;
-    component.data.set(dashboard({ totalCalories: 2300, targetCalories: 2000, targetProteinGrams: 100 }));
+    component.nutritionSummary.set(summary({ totalCalories: 2300, targetCalories: 2000, targetProteinGrams: 100 }));
     component.todayMeals.set([
       {
         mealId: 'meal-1',
@@ -212,7 +198,7 @@ describe('NutritionPage', () => {
 
   it('uses zeroed nutrition fallbacks when dashboard data is absent', () => {
     const component = TestBed.createComponent(NutritionPage).componentInstance;
-    component.data.set(null);
+    component.nutritionSummary.set(null);
 
     expect(component.nutrition()).toBeNull();
     expect(component.hasCalorieTarget()).toBeFalse();
@@ -230,8 +216,8 @@ describe('NutritionPage', () => {
 
     expect(component.nutritionChecks()).toEqual([]);
 
-    component.data.set(
-      dashboard({
+    component.nutritionSummary.set(
+      summary({
         totalFiberGrams: 18,
         fiberTargetGrams: 25,
         fiberTargetMet: false,
@@ -250,7 +236,7 @@ describe('NutritionPage', () => {
       jasmine.objectContaining({ label: 'Sodium', status: 'warning', statusLabel: 'Over limit', detail: "300mg over today's limit." })
     ]);
 
-    component.data.set(dashboard({ totalFiberGrams: 25, fiberTargetGrams: 25, fiberTargetMet: true, totalSugarGrams: 10, sugarWithinLimit: null }));
+    component.nutritionSummary.set(summary({ totalFiberGrams: 25, fiberTargetGrams: 25, fiberTargetMet: true, totalSugarGrams: 10, sugarWithinLimit: null }));
 
     expect(component.nutritionChecks()).toEqual([
       jasmine.objectContaining({ label: 'Fiber', status: 'success', statusLabel: 'Target met', detail: 'Fiber target met.' }),

@@ -1,8 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { Meal } from '../../core/fitsync.models';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { Meal, NutritionSummary } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { MealBuilderComponent } from './meal-builder.component';
@@ -27,7 +27,7 @@ export class NutritionPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly toast = inject(ToastService);
 
-  readonly data = signal<DashboardData | null>(null);
+  readonly nutritionSummary = signal<NutritionSummary | null>(null);
   readonly todayMeals = signal<Meal[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -39,7 +39,15 @@ export class NutritionPage implements OnInit {
     day: 'numeric'
   }).format(new Date());
 
-  readonly nutrition = computed(() => this.data()?.nutrition ?? null);
+  // The timezone whose day boundary drives the Today view (matches the one
+  // getDailyNutritionSummary sends to the backend).
+  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
+
+  // Source the Today budget/macros/checks from the nutrition daily summary, which
+  // honours the user's timezone (day boundary) and carries real carbs/fat + the
+  // fiber/sugar/sodium micros. The analytics dashboard's "today" is a server/UTC-day
+  // snapshot, so it lagged a day vs the meal list (getTodayMeals uses local midnight).
+  readonly nutrition = computed(() => this.nutritionSummary());
 
   readonly hasCalorieTarget = computed(() => this.nutrition()?.targetCalories != null);
 
@@ -112,9 +120,9 @@ export class NutritionPage implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.dataService.getDashboard().subscribe({
-      next: (data) => {
-        this.data.set(data);
+    this.dataService.getDailyNutritionSummary().subscribe({
+      next: (summary) => {
+        this.nutritionSummary.set(summary);
         this.loading.set(false);
       },
       error: (error: Error) => {
@@ -185,8 +193,8 @@ export class NutritionPage implements OnInit {
   }
 
   private refreshDashboard(): void {
-    this.dataService.getDashboard().subscribe({
-      next: (data) => this.data.set(data),
+    this.dataService.getDailyNutritionSummary().subscribe({
+      next: (summary) => this.nutritionSummary.set(summary),
       error: () => this.toast.error('Meal saved, but today summary could not refresh.')
     });
   }

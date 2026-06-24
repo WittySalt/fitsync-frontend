@@ -184,12 +184,17 @@ export class AnalyticsTrendChartsComponent implements OnInit {
   }
 
   private isoToday(): string {
-    return new Date().toISOString().slice(0, 10);
+    return this.localIso(new Date());
   }
 
   private isoDaysAgo(days: number): string {
     const date = new Date();
     date.setDate(date.getDate() - days);
-    return date.toISOString().slice(0, 10);
+    return this.localIso(date);
+  }
+
+  // Local calendar date (not UTC) so the series window matches the user's day.
+  private localIso(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 }
