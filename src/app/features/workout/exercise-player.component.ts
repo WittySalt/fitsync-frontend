@@ -334,6 +334,14 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return (log?.exerciseNameSnapshot ?? 'Exercise').trim().charAt(0).toUpperCase() || 'E';
   }
 
+  recordedSetCount(log: WorkoutExerciseLog): number {
+    return log.sets.filter((set) => set.logged).length;
+  }
+
+  plannedSetCount(log: WorkoutExerciseLog): number {
+    return Math.max(1, this.findPlanExercise(log)?.targetSets ?? log.sets.length);
+  }
+
   onMediaError(): void {
     const url = this.currentMediaUrl();
     if (!url) {

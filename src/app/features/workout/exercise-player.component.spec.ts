@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
   ExerciseDetail,
+  WorkoutExerciseSetLog,
   WorkoutPlan,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
@@ -131,6 +132,21 @@ function exerciseDetail(overrides: Partial<ExerciseDetail> = {}): ExerciseDetail
     ],
     secondaryMuscleGroups: ['GLUTES'],
     ...overrides
+  };
+}
+
+function setLog(setNumber: number, logged: boolean): WorkoutExerciseSetLog {
+  return {
+    setLogId: logged ? `set-${setNumber}` : '',
+    setNumber,
+    reps: logged ? 10 : null,
+    weightKg: logged ? 20 : null,
+    durationSeconds: null,
+    distanceKm: null,
+    restSeconds: logged ? 1 : null,
+    perceivedExertion: null,
+    logged,
+    notes: ''
   };
 }
 
@@ -367,6 +383,35 @@ describe('ExercisePlayerComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('128 bpm mock');
     expect(fixture.nativeElement.textContent).toContain('kcal estimated');
+  });
+
+  it('shows recorded set progress against planned targets in the movement queue', () => {
+    const withSetProgress = TestBed.createComponent(ExercisePlayerComponent);
+    withSetProgress.componentRef.setInput('session', detail({
+      exercises: [
+        {
+          ...detail().exercises[0],
+          sets: [setLog(1, true), setLog(2, false), setLog(3, false)]
+        },
+        {
+          ...detail().exercises[1],
+          sets: [setLog(1, false), setLog(2, false), setLog(3, false)]
+        }
+      ]
+    }));
+    withSetProgress.componentRef.setInput('activePlan', plan({
+      exercises: [
+        { ...plan().exercises[0], targetSets: 3 },
+        { ...plan().exercises[1], targetSets: 3 }
+      ]
+    }));
+    withSetProgress.detectChanges();
+
+    const subtitles = Array.from(
+      (withSetProgress.nativeElement as HTMLElement).querySelectorAll('.movement-queue .queue-item small')
+    ).map((subtitle) => subtitle.textContent?.trim());
+
+    expect(subtitles).toEqual(['1 / 3 sets', '0 / 3 sets']);
   });
 
   it('starts focused on the requested initial exercise', () => {
