@@ -199,16 +199,17 @@
         <button class="button secondary compact" type="button" (click)="nextPeriod()">Next year</button>
       </div>
 
-      <div class="year-heatmap" aria-label="Year workout activity">
-        <div class="year-month-labels" aria-hidden="true">
-          @for (month of yearHeatmap().monthLabels; track month.column + month.label) {
-            <span [style.grid-column]="month.column">{{ month.label }}</span>
-          }
-        </div>
-        <ul class="year-grid" aria-label="Year workout activity weeks">
-          @for (week of yearHeatmap().weeks; track $index) {
-            <li class="year-week">
-              <ul class="year-week-days">
+      <div class="year-months" aria-label="Year workout activity">
+        @for (month of yearMonths(); track month.label) {
+          <article class="month-heatmap">
+            <h3>{{ month.label }}</h3>
+            <div class="weekday-row" aria-hidden="true">
+              @for (weekday of compactWeekDays; track $index) {
+                <span>{{ weekday }}</span>
+              }
+            </div>
+            <ul class="month-grid" [attr.aria-label]="month.label + ' workout activity'">
+              @for (week of month.weeks; track $index) {
                 @for (day of week; track day.date) {
                   <li
                     [class]="cellClass(day)"
@@ -216,10 +217,10 @@
                     [attr.aria-label]="tooltip(day)"
                   ></li>
                 }
-              </ul>
-            </li>
-          }
-        </ul>
+              }
+            </ul>
+          </article>
+        }
       </div>
     } @else {
       <div class="heatmap" role="list" aria-label="Daily workout activity">
@@ -234,13 +235,15 @@
       </div>
     }
 
-    <div class="legend" aria-hidden="true">
-      <span>Less</span>
-      @for (level of legendLevels; track level) {
-        <i class="heatmap-cell intensity-{{ level }}"></i>
-      }
-      <span>More</span>
-    </div>
+    @if (isLongRangeHeatmap()) {
+      <div class="legend" aria-hidden="true">
+        <span>Less</span>
+        @for (level of legendLevels; track level) {
+          <i class="heatmap-cell intensity-{{ level }}"></i>
+        }
+        <span>More</span>
+      </div>
+    }
 
     @if (selectedSessionId(); as sessionId) {
       <app-session-detail

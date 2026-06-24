@@ -24,11 +24,6 @@ interface MonthHeatmap {
   weeks: CalendarDay[][];
 }
 
-interface YearHeatmap {
-  weeks: CalendarDay[][];
-  monthLabels: { label: string; column: number }[];
-}
-
 interface WeekSessionBlock {
   session: WorkoutSession;
   dayIndex: number;
@@ -110,7 +105,10 @@ export class ActivityHeatmapComponent implements OnInit {
     const startMonth = this.addMonths(this.startOfMonth(end), -2);
     return [0, 1, 2].map((offset) => this.buildMonthHeatmap(this.addMonths(startMonth, offset)));
   });
-  readonly yearHeatmap = computed(() => this.buildYearHeatmap());
+  readonly yearMonths = computed(() => {
+    const year = this.selectedDate().getFullYear();
+    return Array.from({ length: 12 }, (_, month) => this.buildMonthHeatmap(new Date(year, month, 1)));
+  });
   readonly isEventCalendar = computed(() => this.selectedPreset() === 'week' || this.selectedPreset() === 'month');
   readonly hasSessions = computed(() => this.sessions().length > 0);
   readonly weekDates = computed(() => this.eachDate(this.startDate(), this.endDate()));
@@ -365,7 +363,7 @@ export class ActivityHeatmapComponent implements OnInit {
     const blocks = this.sessionBlocksForWeek().map((block) => ({
       ...block,
       top: ((block.startMinutes - window.start) / totalMinutes) * 100,
-      height: Math.max(28, ((block.endMinutes - block.startMinutes) / totalMinutes) * 720),
+      height: Math.max(46, ((block.endMinutes - block.startMinutes) / totalMinutes) * 720),
       left: 0,
       width: 100
     }));
@@ -595,39 +593,6 @@ export class ActivityHeatmapComponent implements OnInit {
       label: firstOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       weeks
     };
-  }
-
-  private buildYearHeatmap(): YearHeatmap {
-    const start = this.startOfWeek(this.parseIsoDate(this.startDate()));
-    const end = this.addDays(this.startOfWeek(this.parseIsoDate(this.endDate())), 6);
-    const weeks: CalendarDay[][] = [];
-    const monthLabels: { label: string; column: number }[] = [];
-    const cursor = new Date(start);
-    let previousMonth = -1;
-
-    while (cursor <= end) {
-      const weekStart = new Date(cursor);
-      const week = Array.from({ length: 7 }, (_, dayIndex) =>
-        this.calendarDay(this.formatIsoDate(this.addDays(weekStart, dayIndex)), true)
-      );
-      weeks.push(week);
-
-      const labelDate = week.find((day) => day.inRange && this.parseIsoDate(day.date).getDate() <= 7);
-      if (labelDate) {
-        const parsed = this.parseIsoDate(labelDate.date);
-        if (parsed.getMonth() !== previousMonth) {
-          previousMonth = parsed.getMonth();
-          monthLabels.push({
-            label: parsed.toLocaleDateString('en-US', { month: 'short' }),
-            column: weeks.length
-          });
-        }
-      }
-
-      cursor.setDate(cursor.getDate() + 7);
-    }
-
-    return { weeks, monthLabels };
   }
 
   private calendarDay(date: string, inMonth: boolean): CalendarDay {
