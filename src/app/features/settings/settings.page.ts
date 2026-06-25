@@ -270,8 +270,8 @@ export class SettingsPage implements OnInit {
   }
 
   region(): string {
-    const profile = this.data()?.user.profile;
-    return profile?.locationDisplay || profile?.timezone || 'Not set';
+    const data = this.data();
+    return data?.user.preferences.app.timezone || data?.user.profile.timezone || 'Not set';
   }
 
   displayHeight(heightCm: number | null | undefined): string {

@@ -7,6 +7,10 @@
   gap: 16px;
 }
 
+.settings-section {
+  gap: 12px;
+}
+
 .settings-hero {
   position: sticky;
   top: 0;
@@ -244,6 +248,10 @@
   font-size: 13px;
 }
 
+.danger-help {
+  color: var(--danger);
+}
+
 .avatar-settings {
   display: flex;
   align-items: center;
@@ -338,6 +346,15 @@ button.field-row {
 
 button.field-row:hover {
   background: var(--surface-sunken);
+}
+
+button.danger-action {
+  border-color: color-mix(in srgb, var(--danger) 36%, var(--border));
+
+  em {
+    color: var(--text-on-accent);
+    background: var(--danger);
+  }
 }
 
 .toggle-field {

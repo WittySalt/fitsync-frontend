@@ -78,16 +78,6 @@
   font-weight: var(--fw-semibold);
 }
 
-.danger-panel {
-  border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
-}
-
-.danger-note {
-  color: var(--danger);
-  font-weight: var(--fw-semibold);
-}
-
 .action-row {
   grid-column: 1 / -1;
   display: flex;

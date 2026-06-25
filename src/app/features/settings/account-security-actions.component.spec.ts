@@ -14,14 +14,12 @@ describe('AccountSecurityActionsComponent', () => {
   beforeEach(async () => {
     authService = jasmine.createSpyObj<AuthService>('AuthService', [
       'changePassword',
-      'signOutEverywhere',
-      'deleteAccount'
+      'signOutEverywhere'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
 
     authService.changePassword.and.returnValue(of(undefined));
     authService.signOutEverywhere.and.returnValue(of(undefined));
-    authService.deleteAccount.and.returnValue(of(undefined));
 
     await TestBed.configureTestingModule({
       imports: [AccountSecurityActionsComponent],
@@ -84,33 +82,10 @@ describe('AccountSecurityActionsComponent', () => {
     expect(authService.signOutEverywhere).toHaveBeenCalled();
   });
 
-  it('requires typed confirmation before deleting the Cognito account', () => {
-    const prompt = spyOn(window, 'prompt').and.returnValue('not delete');
-
-    component.deleteAccount();
-
-    expect(prompt.calls.mostRecent().args[0]).toContain('Backend data is not automatically deleted');
-    expect(authService.deleteAccount).not.toHaveBeenCalled();
-
-    prompt.and.returnValue('DELETE');
-
-    component.deleteAccount();
-
-    expect(authService.deleteAccount).toHaveBeenCalled();
-  });
-
-  it('shows a toast when Cognito account deletion fails', () => {
-    spyOn(window, 'prompt').and.returnValue('DELETE');
-    authService.deleteAccount.and.returnValue(throwError(() => new Error('Cognito denied the request.')));
-
-    component.deleteAccount();
-
-    expect(toast.error).toHaveBeenCalledWith('Cognito denied the request.');
-  });
-
-  it('renders the backend data cleanup warning in the danger panel', () => {
+  it('does not render a separate Cognito account deletion flow', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
-    expect(text).toContain('Backend workout, nutrition, body-metric, and profile data are not automatically cleaned.');
+    expect(text).not.toContain('Delete Cognito account');
+    expect(text).not.toContain('Delete login credential');
   });
 });

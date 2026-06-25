@@ -53,6 +53,15 @@ export class App implements OnInit {
     this.themeService.toggleTheme();
   }
 
+  protected themeToggleLabel(): string {
+    const activeTheme = this.themeService.theme();
+    const nextTheme = activeTheme === 'dark' ? 'light' : 'dark';
+    if (this.themeService.preference() === 'system') {
+      return `System theme (${activeTheme}). Switch to ${nextTheme} theme`;
+    }
+    return `Switch to ${nextTheme} theme`;
+  }
+
   protected logout(): void {
     this.closeAccountMenu();
     this.authService.logout();

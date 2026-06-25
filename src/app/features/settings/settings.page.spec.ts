@@ -205,10 +205,12 @@ describe('SettingsPage', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
     expect(text).toContain('Alice Tan');
+    expect(text).toContain('Timezone');
     expect(text).toContain('Identity');
     expect(text).toContain('Gender');
     expect(text).toContain('Activity level');
     expect(text).toContain('Manage goals');
+    expect(text).not.toContain('Region');
     expect(text).not.toContain('Goals / targets');
     expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/me#goal-lifecycle"]')).not.toBeNull();
     // Section tabs: these live in non-default sections but the nav labels are always rendered.
@@ -272,6 +274,14 @@ describe('SettingsPage', () => {
       gender: 'FEMALE',
       birthDate: '1995-04-12'
     }));
+  });
+
+  it('uses row-level settings edit affordances without duplicate section header edit buttons', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.sub-card-header .button.secondary.compact')).toBeNull();
+    expect(compiled.textContent).toContain('Profile location');
+    expect(compiled.textContent).not.toContain('LocationNot set');
   });
 
   it('formats account dates with the fixed English locale', () => {
@@ -490,6 +500,29 @@ describe('SettingsPage', () => {
 
     expect(accountDataService.requestAccountDeletion).toHaveBeenCalledWith('DELETE', 'password123');
     expect(toast.success).toHaveBeenCalledWith('Account deletion request submitted.');
+  });
+
+  it('uses the single privacy account deletion flow', () => {
+    const component = fixture.componentInstance;
+    component.selectedSection.set('security');
+    fixture.detectChanges();
+
+    let text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).not.toContain('Delete Cognito account');
+    expect(text).not.toContain('Delete login credential');
+
+    component.selectedSection.set('privacy-data');
+    fixture.detectChanges();
+    text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('Delete account');
+    expect(text).toContain('Request account deletion');
+
+    const deleteButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.danger-action');
+    deleteButton?.click();
+    fixture.detectChanges();
+
+    expect(component.editPanel()).toBe('delete');
   });
 
   it('persists notification toggles inline with optimistic state', () => {
