@@ -764,6 +764,32 @@ describe('WorkoutPage', () => {
     expect(dataService.getSession).toHaveBeenCalledWith('session-1');
   });
 
+  it('renders missing history duration without fake zeroes', () => {
+    dataService.getWorkoutSessionPage.and.returnValue(
+      of(
+        sessionPage([
+          session({
+            sessionId: 'session-1',
+            name: 'Push day',
+            status: 'COMPLETED',
+            durationMinutes: null,
+            caloriesBurned: null,
+            completedAt: ''
+          })
+        ])
+      )
+    );
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const rowText = (fixture.nativeElement as HTMLElement).querySelector('.history-row')?.textContent ?? '';
+    expect(rowText).toContain('—');
+    expect(rowText).not.toContain('0 min');
+  });
+
   it('shows a filter-aware empty state and keeps the filter bar reachable when empty', () => {
     dataService.getWorkoutSessionPage.and.returnValue(
       of(sessionPage([session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' })]))

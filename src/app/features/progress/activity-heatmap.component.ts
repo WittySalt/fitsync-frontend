@@ -442,7 +442,7 @@ export class ActivityHeatmapComponent implements OnInit {
 
   private toWeekBlock(session: WorkoutSession, weekDates: string[]): WeekSessionBlock | null {
     const start = this.validDate(session.startedAt);
-    if (!start || session.durationMinutes <= 0) {
+    if (!start) {
       return null;
     }
 
@@ -454,6 +454,9 @@ export class ActivityHeatmapComponent implements OnInit {
 
     const startMinutes = local.hour * 60 + local.minute;
     const end = this.sessionEnd(session, start);
+    if (end <= start) {
+      return null;
+    }
     const endLocal = this.localDateTimeParts(end);
     const endMinutes = Math.max(startMinutes + 15, endLocal.hour * 60 + endLocal.minute);
     return {
@@ -478,7 +481,7 @@ export class ActivityHeatmapComponent implements OnInit {
       if (!start) {
         return false;
       }
-      return session.durationMinutes <= 0 && dates.has(this.localDateTimeParts(start).date);
+      return !this.validDate(session.completedAt) && (session.durationMinutes ?? 0) <= 0 && dates.has(this.localDateTimeParts(start).date);
     });
   }
 
@@ -575,7 +578,8 @@ export class ActivityHeatmapComponent implements OnInit {
     if (completed && completed > start) {
       return completed;
     }
-    return new Date(start.getTime() + Math.max(1, session.durationMinutes) * 60_000);
+    const durationMinutes = session.durationMinutes ?? 0;
+    return durationMinutes > 0 ? new Date(start.getTime() + durationMinutes * 60_000) : start;
   }
 
   private sessionTimeLabel(session: WorkoutSession): string {

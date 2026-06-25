@@ -6,6 +6,7 @@ import { Goal, NutritionSummary, WorkoutSession } from '../../core/fitsync.model
 import { ActivityHeatmapComponent } from '../progress/activity-heatmap.component';
 import { ProgressRingComponent } from '../../shared/progress-ring.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { caloriesLabel, sessionDurationLabel } from '../workout/workout-session.util';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -68,7 +69,15 @@ export class DashboardPage implements OnInit {
   }
 
   hasCompletedWorkout(workout: WorkoutSession | null): boolean {
-    return Boolean(workout?.status === 'COMPLETED' && (workout.exerciseCount > 0 || workout.durationMinutes > 0));
+    return Boolean(workout?.status === 'COMPLETED' && (workout.exerciseCount > 0 || (workout.durationMinutes ?? 0) > 0));
+  }
+
+  workoutDurationLabel(workout: WorkoutSession): string {
+    return sessionDurationLabel(workout);
+  }
+
+  workoutCaloriesLabel(workout: WorkoutSession): string {
+    return workout.caloriesBurned == null ? 'Not recorded' : caloriesLabel(workout.caloriesBurned);
   }
 
   metricDateLabel(value: string | null | undefined): string {

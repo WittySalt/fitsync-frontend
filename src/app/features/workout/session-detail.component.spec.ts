@@ -126,6 +126,21 @@ describe('SessionDetailComponent', () => {
     );
   });
 
+  it('derives duration from timestamps and preserves blank calorie estimates', () => {
+    dataService.getSession.and.returnValue(of(detail({ durationMinutes: null, caloriesBurned: null })));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit();
+    fixture.componentInstance.editForm.patchValue({ caloriesBurned: null });
+    fixture.componentInstance.saveEdit();
+
+    const [, body] = dataService.updateSession.calls.mostRecent().args;
+    expect(body.durationMinutes).toBe(60);
+    expect(body.caloriesBurned).toBeNull();
+  });
+
   it('omits completedAt when editing a non-completed session', () => {
     dataService.getSession.and.returnValue(of(detail({ status: 'IN_PROGRESS', completedAt: '' })));
     const fixture = TestBed.createComponent(SessionDetailComponent);

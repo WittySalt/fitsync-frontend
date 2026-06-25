@@ -25,6 +25,7 @@ import { SessionDetailComponent } from './session-detail.component';
 import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
+import { sessionDurationLabel } from './workout-session.util';
 
 interface TrainingMetric {
   label: string;
@@ -689,6 +690,10 @@ export class WorkoutPage implements OnInit, OnDestroy {
       minute: '2-digit',
       hour12: false
     }).format(date);
+  }
+
+  formatDuration(session: WorkoutSession): string {
+    return sessionDurationLabel(session);
   }
 
   private loadPlans(): void {

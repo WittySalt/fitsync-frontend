@@ -813,7 +813,7 @@ export class FitSyncDataService {
             .map((session) =>
               this.mapWorkoutSession({
                 name: session.name ?? this.defaultSessionName(session),
-                caloriesBurned: 0,
+                caloriesBurned: null,
                 exerciseCount: 0,
                 ...session
               })
@@ -1817,8 +1817,8 @@ export class FitSyncDataService {
       status,
       source: session.source ?? null,
       startedAt: session.startedAt ?? '',
-      durationMinutes: session.durationMinutes ?? 0,
-      caloriesBurned: session.caloriesBurned ?? 0,
+      durationMinutes: session.durationMinutes ?? null,
+      caloriesBurned: session.caloriesBurned ?? null,
       completedAt: session.completedAt ?? '',
       exerciseCount: session.exerciseCount ?? 0
     };
@@ -1841,8 +1841,8 @@ export class FitSyncDataService {
       status: session.status ?? 'IN_PROGRESS',
       source: session.source ?? null,
       startedAt: session.startedAt ?? '',
-      durationMinutes: session.durationMinutes ?? 0,
-      caloriesBurned: session.caloriesBurned ?? 0,
+      durationMinutes: session.durationMinutes ?? null,
+      caloriesBurned: session.caloriesBurned ?? null,
       completedAt: session.completedAt ?? '',
       exerciseCount: session.exerciseCount ?? session.exercises?.length ?? 0
     };

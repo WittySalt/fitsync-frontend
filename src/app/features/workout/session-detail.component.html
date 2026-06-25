@@ -41,6 +41,10 @@
           Effort
           <input formControlName="perceivedExertion" type="number" min="1" max="10" inputmode="numeric" />
         </label>
+        <label>
+          Calories (estimate)
+          <input formControlName="caloriesBurned" type="number" min="0" inputmode="numeric" placeholder="Not recorded" />
+        </label>
         <label class="wide">
           Notes
           <textarea formControlName="notes" maxlength="1000" rows="2"></textarea>
@@ -71,11 +75,11 @@
       </div>
       <div>
         <dt>Duration</dt>
-        <dd>{{ detail.durationMinutes }} min</dd>
+        <dd>{{ formatDuration(detail) }}</dd>
       </div>
       <div>
         <dt>Calories</dt>
-        <dd>{{ detail.caloriesBurned }}</dd>
+        <dd>{{ formatCalories(detail.caloriesBurned) }}</dd>
       </div>
       <div>
         <dt>Effort</dt>

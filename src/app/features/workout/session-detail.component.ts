@@ -11,6 +11,7 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
 
 @Component({
   selector: 'app-session-detail',
@@ -38,6 +39,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   readonly editForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
     workoutType: ['', Validators.required],
+    caloriesBurned: [null as number | null, [Validators.min(0)]],
     perceivedExertion: [null as number | null, [Validators.min(1), Validators.max(10)]],
     notes: ['', Validators.maxLength(1000)]
   });
@@ -61,6 +63,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     this.editForm.setValue({
       name: session.name,
       workoutType: session.workoutType,
+      caloriesBurned: session.caloriesBurned,
       perceivedExertion: session.perceivedExertion,
       notes: session.notes
     });
@@ -170,6 +173,14 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     return `${value}${unit}`;
   }
 
+  formatDuration(session: WorkoutSessionDetail): string {
+    return sessionDurationLabel(session);
+  }
+
+  formatCalories(value: number | null | undefined): string {
+    return caloriesLabel(value);
+  }
+
   private loadMetadata(): void {
     this.dataService.getExerciseMetadata().subscribe((metadata) => this.metadata.set(metadata));
   }
@@ -207,8 +218,8 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       status: session.status,
       source: session.source ?? 'MANUAL',
       startedAt: session.startedAt,
-      durationMinutes: session.durationMinutes,
-      caloriesBurned: session.caloriesBurned,
+      durationMinutes: deriveDurationMinutes(session.startedAt, session.completedAt) ?? session.durationMinutes,
+      caloriesBurned: raw.caloriesBurned ?? session.caloriesBurned,
       perceivedExertion: raw.perceivedExertion,
       notes: raw.notes.trim() || null,
       exercises: session.exercises.map((exercise) => this.mapExerciseInput(exercise))
