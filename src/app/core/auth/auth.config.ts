@@ -39,24 +39,24 @@ const STAGING_POOL: CognitoPool = {
 // (the prod CloudFront distribution, localhost dev) falls back to the prod pool.
 const STAGING_HOSTS = new Set<string>(['d1z92tpb353lfi.cloudfront.net']);
 
-function resolvePool(): CognitoPool {
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  return STAGING_HOSTS.has(host) ? STAGING_POOL : PROD_POOL;
+export function buildCognitoAuthConfig(hostname: string, origin: string): CognitoAuthConfig {
+  const pool = STAGING_HOSTS.has(hostname) ? STAGING_POOL : PROD_POOL;
+  return {
+    region: pool.region,
+    userPoolId: pool.userPoolId,
+    domain: pool.domain,
+    clientId: pool.clientId,
+    apiEndpoint: 'https://cognito-idp.ap-southeast-1.amazonaws.com/',
+    redirectUri: `${origin}/auth/callback`,
+    postLogoutRedirectUri: `${origin}/logout/callback`,
+    scope: 'openid email profile'
+  };
 }
 
-const pool = resolvePool();
-const origin = typeof window !== 'undefined' ? window.location.origin : '';
-
-export const COGNITO_AUTH_CONFIG: CognitoAuthConfig = {
-  region: pool.region,
-  userPoolId: pool.userPoolId,
-  domain: pool.domain,
-  clientId: pool.clientId,
-  apiEndpoint: 'https://cognito-idp.ap-southeast-1.amazonaws.com/',
-  redirectUri: `${origin}/auth/callback`,
-  postLogoutRedirectUri: `${origin}/logout/callback`,
-  scope: 'openid email profile'
-};
+export const COGNITO_AUTH_CONFIG: CognitoAuthConfig = buildCognitoAuthConfig(
+  window.location.hostname,
+  window.location.origin
+);
 
 export const AUTH_STORAGE_KEYS = {
   accessToken: 'fitsync.accessToken',
