@@ -38,8 +38,6 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   readonly editForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
     workoutType: ['', Validators.required],
-    durationMinutes: [0, [Validators.required, Validators.min(0)]],
-    caloriesBurned: [0, [Validators.required, Validators.min(0)]],
     perceivedExertion: [null as number | null, [Validators.min(1), Validators.max(10)]],
     notes: ['', Validators.maxLength(1000)]
   });
@@ -63,8 +61,6 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     this.editForm.setValue({
       name: session.name,
       workoutType: session.workoutType,
-      durationMinutes: session.durationMinutes,
-      caloriesBurned: session.caloriesBurned,
       perceivedExertion: session.perceivedExertion,
       notes: session.notes
     });
@@ -211,8 +207,8 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       status: session.status,
       source: session.source ?? 'MANUAL',
       startedAt: session.startedAt,
-      durationMinutes: raw.durationMinutes,
-      caloriesBurned: raw.caloriesBurned,
+      durationMinutes: session.durationMinutes,
+      caloriesBurned: session.caloriesBurned,
       perceivedExertion: raw.perceivedExertion,
       notes: raw.notes.trim() || null,
       exercises: session.exercises.map((exercise) => this.mapExerciseInput(exercise))

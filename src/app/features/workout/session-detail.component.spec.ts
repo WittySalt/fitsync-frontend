@@ -95,18 +95,20 @@ describe('SessionDetailComponent', () => {
     }).compileComponents();
   });
 
-  it('sends completedAt and preserves exercises when editing a completed session', () => {
+  it('sends completedAt and preserves session timing and exercises when editing details', () => {
     const fixture = TestBed.createComponent(SessionDetailComponent);
     fixture.componentInstance.sessionId = 'session-1';
     fixture.detectChanges();
 
     fixture.componentInstance.startEdit();
-    fixture.componentInstance.editForm.patchValue({ name: 'Updated push', durationMinutes: 55 });
+    fixture.componentInstance.editForm.patchValue({ name: 'Updated push' });
     fixture.componentInstance.saveEdit();
 
     const [, body] = dataService.updateSession.calls.mostRecent().args;
     expect(dataService.updateSession).toHaveBeenCalledWith('session-1', jasmine.any(Object));
     expect(body.completedAt).toBe('2026-06-20T11:00:00Z');
+    expect(body.durationMinutes).toBe(60);
+    expect(body.caloriesBurned).toBe(420);
     expect(body.exercises.length).toBe(1);
     expect(body.exercises[0]).toEqual(
       jasmine.objectContaining({

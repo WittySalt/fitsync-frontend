@@ -11,7 +11,10 @@
     <div class="skeleton tall" aria-label="Loading session detail"></div>
   } @else if (session(); as detail) {
     <div class="detail-actions">
-      <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit</button>
+      <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit details</button>
+      <button class="button secondary" type="button" disabled title="Exercise editing lands in the next step">
+        Edit exercises
+      </button>
       <button class="button secondary" type="button" (click)="repeatThis()" [disabled]="saving()">Repeat this</button>
       <button class="button secondary" type="button" (click)="deleteSession()" [disabled]="saving()">Delete</button>
     </div>
@@ -33,14 +36,6 @@
               <option [value]="detail.workoutType">{{ formatLabel(detail.workoutType) }}</option>
             }
           </select>
-        </label>
-        <label>
-          Duration
-          <input formControlName="durationMinutes" type="number" min="0" inputmode="numeric" />
-        </label>
-        <label>
-          Calories
-          <input formControlName="caloriesBurned" type="number" min="0" inputmode="numeric" />
         </label>
         <label>
           Effort
