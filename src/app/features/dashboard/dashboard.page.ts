@@ -3,12 +3,13 @@ import { RouterLink } from '@angular/router';
 
 import { DashboardData, dedupeGoalsByLatestEvaluation, FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal, NutritionSummary, WorkoutSession } from '../../core/fitsync.models';
+import { ActivityHeatmapComponent } from '../progress/activity-heatmap.component';
 import { ProgressRingComponent } from '../../shared/progress-ring.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [ProgressRingComponent, RouterLink, StatePanelComponent],
+  imports: [ActivityHeatmapComponent, ProgressRingComponent, RouterLink, StatePanelComponent],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss'
 })
@@ -32,19 +33,9 @@ export class DashboardPage implements OnInit {
     return nutrition?.targetCalories ? (nutrition.totalCalories / nutrition.targetCalories) * 100 : 0;
   });
 
-  readonly proteinPercent = computed(() => {
-    const nutrition = this.nutritionSummary();
-    return nutrition?.targetProteinGrams ? (nutrition.totalProteinGrams / nutrition.targetProteinGrams) * 100 : 0;
-  });
-
   readonly hasCalorieData = computed(() => {
     const nutrition = this.nutritionSummary();
     return Boolean(nutrition && (nutrition.totalCalories > 0 || nutrition.targetCalories != null));
-  });
-
-  readonly hasProteinData = computed(() => {
-    const nutrition = this.nutritionSummary();
-    return Boolean(nutrition && (nutrition.totalProteinGrams > 0 || nutrition.targetProteinGrams != null));
   });
 
   ngOnInit(): void {

@@ -51,19 +51,13 @@
         </div>
       </article>
 
-      <article class="metric-card protein">
-        <app-progress-ring label="Protein" [value]="proteinPercent()" />
+      <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
         <div>
-          <span>Protein</span>
-          @if (hasProteinData()) {
-            <strong>{{ nutritionSummary()?.totalProteinGrams ?? 0 }}g / {{ nutritionSummary()?.targetProteinGrams != null ? (nutritionSummary()?.targetProteinGrams ?? 0) + 'g' : 'No target' }}</strong>
-            <small>{{ (nutritionSummary()?.totalProteinGrams ?? 0) > 0 ? 'Daily target progress' : 'No protein logged yet' }}</small>
-          } @else {
-            <strong>No protein yet</strong>
-            <small>Protein appears after meals are logged</small>
-          }
+          <span>This month</span>
+          <strong>Workout consistency</strong>
+          <app-activity-heatmap variant="compact" [timezone]="dashboard.profile.timezone" />
         </div>
-      </article>
+      </a>
 
       <article class="metric-card streak">
         <span class="metric-icon">ST</span>

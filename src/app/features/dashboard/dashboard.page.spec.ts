@@ -2,8 +2,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsActivityCalendarResponse } from '../../core/analytics.models';
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { DashboardPage } from './dashboard.page';
+
+const activityCalendar: AnalyticsActivityCalendarResponse = {
+  from: '2026-06-01',
+  to: '2026-06-30',
+  days: [
+    { date: '2026-06-20', workoutCount: 1, workoutMinutes: 45 },
+    { date: '2026-06-24', workoutCount: 2, workoutMinutes: 80 }
+  ]
+};
 
 const dashboardData: DashboardData = {
   profile: {
@@ -88,15 +99,22 @@ const dashboardData: DashboardData = {
 describe('DashboardPage', () => {
   let fixture: ComponentFixture<DashboardPage>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
 
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard', 'getDailyNutritionSummary']);
     dataService.getDashboard.and.returnValue(of(dashboardData));
     dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getActivityCalendar']);
+    analyticsApi.getActivityCalendar.and.returnValue(of(activityCalendar));
 
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
-      providers: [{ provide: FitSyncDataService, useValue: dataService }, provideRouter([])]
+      providers: [
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: AnalyticsApiService, useValue: analyticsApi },
+        provideRouter([])
+      ]
     }).compileComponents();
 
     jasmine.clock().install();
@@ -198,10 +216,21 @@ describe('DashboardPage', () => {
 
     const text = pageText();
     expect(text).toContain('No nutrition yet');
-    expect(text).toContain('No protein yet');
+    expect(text).toContain('Workout consistency');
     expect(text).toContain('No metric yet');
     expect(text).toContain('Complete setup');
     expect(text).not.toContain('NaN');
+  });
+
+  it('replaces the protein stat with a compact workout heatmap link', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const heatmapCard = compiled.querySelector<HTMLAnchorElement>('.heatmap-metric');
+    expect(heatmapCard?.getAttribute('href')).toBe('/progress');
+    expect(heatmapCard?.textContent).toContain('This month');
+    expect(heatmapCard?.textContent).toContain('3 workouts · 125 min');
+    expect(compiled.textContent).not.toContain('Daily target progress');
   });
 
   it('formats relative dates and fallback dates without exposing raw ISO timestamps', () => {
