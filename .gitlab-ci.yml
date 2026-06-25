@@ -16,6 +16,7 @@ stages:
   - test
   - build
   - secret-detection
+  - iac
   - deploy
 
 variables:
