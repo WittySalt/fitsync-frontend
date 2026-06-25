@@ -112,6 +112,9 @@
               @for (session of allDaySessionsForDate(date); track trackSession(session)) {
                 <button class="session-chip" type="button" (click)="openSession(session)">
                   {{ session.name }}
+                  @if (session.status === 'IN_PROGRESS') {
+                    <span class="chip-status">In progress</span>
+                  }
                 </button>
               }
             </div>

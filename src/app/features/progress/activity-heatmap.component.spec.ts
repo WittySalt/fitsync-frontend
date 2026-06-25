@@ -249,6 +249,36 @@ describe('ActivityHeatmapComponent', () => {
     expect(component.allDaySessionsForDate('2026-06-16')[0].sessionId).toBe('untimed');
   });
 
+  it('drops cancelled sessions when loading the activity calendar', () => {
+    component.timezone = 'Asia/Singapore';
+    component.selectedPreset.set('week');
+    component.startDate.set('2026-06-15');
+    component.endDate.set('2026-06-21');
+    dataService.getWorkoutSessionsInRange.and.returnValue(
+      of([
+        session({
+          sessionId: 'done',
+          startedAt: '2026-06-16T02:00:00Z',
+          completedAt: '2026-06-16T02:30:00Z',
+          durationMinutes: 30,
+          status: 'COMPLETED'
+        }),
+        session({
+          sessionId: 'gone',
+          startedAt: '2026-06-16T05:00:00Z',
+          completedAt: '',
+          durationMinutes: 0,
+          status: 'CANCELLED'
+        })
+      ])
+    );
+
+    component.loadSessions();
+
+    expect(component.sessions().map((entry) => entry.sessionId)).toEqual(['done']);
+    expect(component.allDaySessionsForDate('2026-06-16').length).toBe(0);
+  });
+
   it('renders inline start times for short and long week blocks', () => {
     component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
