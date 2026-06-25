@@ -322,4 +322,109 @@ describe('SessionDetailComponent', () => {
     expect(toast.error).toHaveBeenCalledWith('Unable to update session. Please retry.');
     expect(fixture.componentInstance.saving()).toBeFalse();
   });
+
+  it('reorders exercises and ignores out-of-range moves', () => {
+    const second = { ...detail().exercises[0], exerciseLogId: 'log-2', exerciseId: 'exercise-2', exerciseNameSnapshot: 'Row', sequence: 2 };
+    const twoExercises = detail({ exercises: [detail().exercises[0], second] });
+    dataService.getSession.and.returnValue(of(twoExercises));
+    dataService.updateSession.and.returnValue(of(twoExercises));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.moveExercise(0, -1);
+    fixture.componentInstance.moveExercise(1, 1);
+    fixture.componentInstance.moveExercise(1, -1);
+    fixture.componentInstance.saveExerciseEdit();
+
+    const [, body] = dataService.updateSession.calls.mostRecent().args;
+    expect(body.exercises[0].exerciseId).toBe('exercise-2');
+    expect(body.exercises[1].exerciseId).toBe('exercise-1');
+  });
+
+  it('cancels detail and exercise edit modes', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit();
+    fixture.componentInstance.cancelEdit();
+    expect(fixture.componentInstance.editing()).toBeFalse();
+
+    fixture.componentInstance.startExerciseEdit();
+    expect(fixture.componentInstance.exerciseEditing()).toBeTrue();
+    fixture.componentInstance.cancelExerciseEdit();
+    expect(fixture.componentInstance.exerciseEditing()).toBeFalse();
+  });
+
+  it('surfaces exercise update failures through toast errors', () => {
+    dataService.updateSession.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.saveExerciseEdit();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to update exercises. Please retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
+  });
+
+  it('surfaces delete and repeat failures through toast errors', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    dataService.deleteSession.and.returnValue(throwError(() => new Error('nope')));
+    dataService.repeatSession.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.deleteSession();
+    expect(toast.error).toHaveBeenCalledWith('Unable to delete session. Please retry.');
+
+    fixture.componentInstance.repeatThis();
+    expect(toast.error).toHaveBeenCalledWith('Unable to repeat session. Please retry.');
+  });
+
+  it('keeps exercises and sets when removal is not confirmed', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    const setsBefore = fixture.componentInstance.exerciseSetGroups(0).length;
+    fixture.componentInstance.removeSet(0, 0);
+    fixture.componentInstance.removeExercise(0);
+
+    expect(fixture.componentInstance.exerciseSetGroups(0).length).toBe(setsBefore);
+    expect(fixture.componentInstance.exerciseGroups().length).toBe(1);
+  });
+
+  it('formats missing or invalid dates as a dash', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.formatDate(null)).toBe('-');
+    expect(fixture.componentInstance.formatDate('not-a-date')).toBe('-');
+  });
+
+  it('clears the session when no id is provided', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = null;
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.session()).toBeNull();
+  });
+
+  it('surfaces load failures through toast errors', () => {
+    dataService.getSession.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to load session detail.');
+    expect(fixture.componentInstance.session()).toBeNull();
+  });
 });
