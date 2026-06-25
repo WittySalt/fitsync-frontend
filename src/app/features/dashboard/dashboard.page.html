@@ -30,9 +30,9 @@
         <p>{{ dashboard.profile.timezone }} · {{ dashboard.profile.activityLevel.replace('_', ' ') }}</p>
       </div>
       <div class="quick-actions" aria-label="Quick actions">
-        <a routerLink="/nutrition" class="button nutrition">Log Meal</a>
-        <a routerLink="/workout" class="button workout">Start Workout</a>
-        <a routerLink="/body" class="button secondary">Record Weight</a>
+        <a routerLink="/nutrition" class="button nutrition">Nutrition</a>
+        <a routerLink="/workout" class="button workout">Workouts</a>
+        <a routerLink="/body" class="button secondary">Body</a>
       </div>
     </section>
 
@@ -151,7 +151,7 @@
           <span class="card-label">Goals</span>
           <h2>Active targets</h2>
         </div>
-        <a routerLink="/settings" class="text-link">Manage</a>
+        <a routerLink="/me" fragment="goal-lifecycle" class="text-link">Manage</a>
       </div>
 
       @if (dashboard.goals.length) {

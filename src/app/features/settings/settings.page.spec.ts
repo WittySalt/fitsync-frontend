@@ -210,7 +210,7 @@ describe('SettingsPage', () => {
     expect(text).toContain('Activity level');
     expect(text).toContain('Manage goals');
     expect(text).not.toContain('Goals / targets');
-    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/progress"]')).not.toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/me#goal-lifecycle"]')).not.toBeNull();
     // Section tabs: these live in non-default sections but the nav labels are always rendered.
     expect(text).toContain('Preferences');
     expect(text).toContain('Privacy & Data');

@@ -286,6 +286,16 @@ describe('DashboardPage', () => {
     expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout', '/nutrition']);
   });
 
+  it('uses navigation labels for dashboard quick actions and one goal management target', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const quickActions = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.quick-actions a'));
+    expect(quickActions.map((link) => (link.textContent ?? '').trim())).toEqual(['Nutrition', 'Workouts', 'Body']);
+    expect(quickActions.map((link) => link.getAttribute('href'))).toEqual(['/nutrition', '/workout', '/body']);
+    expect(compiled.querySelector<HTMLAnchorElement>('.goals-card .text-link')?.getAttribute('href')).toBe('/me#goal-lifecycle');
+  });
+
   it('renders protein goal progress from the active goal source without the daily nutrition target', () => {
     dataService.getDashboard.and.returnValue(
       of({
