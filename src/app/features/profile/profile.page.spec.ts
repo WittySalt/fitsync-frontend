@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { ProfilePage } from './profile.page';
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsWorkoutSummaryResponse } from '../../core/analytics.models';
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 
 const mockDashboard: DashboardData = {
@@ -55,22 +57,38 @@ const mockDashboard: DashboardData = {
   ]
 };
 
+const mockWorkoutSummary: AnalyticsWorkoutSummaryResponse = {
+  from: '2025-06-25',
+  to: '2026-06-25',
+  totalWorkoutCount: 82,
+  totalWorkoutMinutes: 3690,
+  totalCaloriesBurned: 24000,
+  totalExerciseCount: 420,
+  averageDuration: 45,
+  activeStreakDays: 7
+};
+
 describe('ProfilePage', () => {
   let component: ProfilePage;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
 
   beforeEach(() => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard']);
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getWorkoutSummary']);
     dataService.getDashboard.and.returnValue(of(mockDashboard));
+    analyticsApi.getWorkoutSummary.and.returnValue(of(mockWorkoutSummary));
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideRouter([]),
-        { provide: FitSyncDataService, useValue: dataService }
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: AnalyticsApiService, useValue: analyticsApi }
       ]
     });
     component = TestBed.createComponent(ProfilePage).componentInstance;
     component.data.set(mockDashboard);
+    component.workoutSummary.set(mockWorkoutSummary);
   });
 
   it('derives initials from the display name', () => {
@@ -100,6 +118,14 @@ describe('ProfilePage', () => {
     expect(activity.length).toBe(2);
     expect(activity[0].title).toBe('Upper body strength');
     expect(activity[1].icon).toBe('scale');
+  });
+
+  it('uses analytics workout summary for training history and streak labels', () => {
+    expect(component.hasTrainingHistory(mockWorkoutSummary)).toBeTrue();
+    expect(component.totalTrainingHours(mockWorkoutSummary)).toBe('61.5');
+    expect(component.streakLabel(mockWorkoutSummary.activeStreakDays)).toBe('7 days');
+    expect(component.streakLabel(1)).toBe('1 day');
+    expect(component.hasTrainingHistory({ ...mockWorkoutSummary, totalWorkoutCount: 0, totalWorkoutMinutes: 0 })).toBeFalse();
   });
 
   it('hides non-completed latest workouts from recent activity', () => {
@@ -193,12 +219,15 @@ describe('ProfilePage', () => {
   it('loads dashboard data and stores load errors', () => {
     const fresh = TestBed.createComponent(ProfilePage).componentInstance;
     dataService.getDashboard.and.returnValue(of({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Loaded User' } }));
+    analyticsApi.getWorkoutSummary.and.returnValue(of({ ...mockWorkoutSummary, totalWorkoutCount: 10 }));
 
     fresh.load();
 
     expect(fresh.loading()).toBeFalse();
     expect(fresh.error()).toBeNull();
     expect(fresh.data()?.profile.displayName).toBe('Loaded User');
+    expect(fresh.workoutSummary()?.totalWorkoutCount).toBe(10);
+    expect(analyticsApi.getWorkoutSummary).toHaveBeenCalledWith(jasmine.stringMatching(/^\d{4}-\d{2}-\d{2}$/), jasmine.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
 
     dataService.getDashboard.and.returnValue(throwError(() => new Error('Profile unavailable')));
     fresh.load();

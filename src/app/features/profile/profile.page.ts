@@ -1,6 +1,9 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsWorkoutSummaryResponse } from '../../core/analytics.models';
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
@@ -21,8 +24,10 @@ interface ActivityItem {
 })
 export class ProfilePage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly analyticsApi = inject(AnalyticsApiService);
 
   readonly data = signal<DashboardData | null>(null);
+  readonly workoutSummary = signal<AnalyticsWorkoutSummaryResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -95,9 +100,15 @@ export class ProfilePage implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.dataService.getDashboard().subscribe({
-      next: (data) => {
-        this.data.set(data);
+    const range = this.trainingHistoryRange();
+
+    forkJoin({
+      dashboard: this.dataService.getDashboard(),
+      workoutSummary: this.analyticsApi.getWorkoutSummary(range.from, range.to)
+    }).subscribe({
+      next: ({ dashboard, workoutSummary }) => {
+        this.workoutSummary.set(workoutSummary);
+        this.data.set(dashboard);
         this.loading.set(false);
       },
       error: (error: Error) => {
@@ -136,6 +147,18 @@ export class ProfilePage implements OnInit {
     return goal.targetDate ? `by ${this.formatDate(goal.targetDate, true)}` : 'No target date';
   }
 
+  totalTrainingHours(summary: AnalyticsWorkoutSummaryResponse): string {
+    return this.formatNumber(summary.totalWorkoutMinutes / 60, 1);
+  }
+
+  hasTrainingHistory(summary: AnalyticsWorkoutSummaryResponse | null): summary is AnalyticsWorkoutSummaryResponse {
+    return Boolean(summary && (summary.totalWorkoutCount > 0 || summary.totalWorkoutMinutes > 0));
+  }
+
+  streakLabel(days: number): string {
+    return `${this.formatNumber(days)} day${days === 1 ? '' : 's'}`;
+  }
+
   formatDate(value: string | null | undefined, includeYear = false): string {
     if (!value) {
       return '';
@@ -149,5 +172,29 @@ export class ProfilePage implements OnInit {
       day: 'numeric',
       ...(includeYear ? { year: 'numeric' } : {})
     }).format(date);
+  }
+
+  private trainingHistoryRange(): { from: string; to: string } {
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - 365);
+    return {
+      from: this.toDateParam(from),
+      to: this.toDateParam(to)
+    };
+  }
+
+  private toDateParam(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private formatNumber(value: number, maximumFractionDigits = 0): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+    return new Intl.NumberFormat('en-SG', { maximumFractionDigits }).format(value);
   }
 }

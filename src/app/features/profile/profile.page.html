@@ -34,20 +34,46 @@
           <h2>Your training history</h2>
         </div>
       </div>
-      <app-state-panel
-        title="Stats coming soon"
-        message="Workout totals, hours trained, and personal records appear here once the analytics service is connected."
-      />
+      @if (workoutSummary(); as summary) {
+        @if (hasTrainingHistory(summary)) {
+          <div class="training-stat-grid">
+            <article>
+              <span>Workouts</span>
+              <strong>{{ summary.totalWorkoutCount }}</strong>
+            </article>
+            <article>
+              <span>Hours trained</span>
+              <strong>{{ totalTrainingHours(summary) }}</strong>
+            </article>
+            <article>
+              <span>Average session</span>
+              <strong>{{ summary.averageDuration || 0 }} min</strong>
+            </article>
+            <article>
+              <span>Calories burned</span>
+              <strong>{{ summary.totalCaloriesBurned || 0 }}</strong>
+            </article>
+          </div>
+        } @else {
+          <app-state-panel title="No training history yet" message="Complete a workout to start building your training totals." />
+        }
+      } @else {
+        <app-state-panel title="No training history yet" message="Complete a workout to start building your training totals." />
+      }
     </section>
 
     <section class="profile-split">
       <article class="summary-card">
         <span class="card-label">Consistency</span>
         <h2>Streak</h2>
-        <app-state-panel
-          title="Streak coming soon"
-          message="Daily streaks light up here once activity rollups are available."
-        />
+        @if (workoutSummary()?.activeStreakDays; as streakDays) {
+          <div class="streak-metric">
+            <strong>{{ streakLabel(streakDays) }}</strong>
+            <span>Active workout streak</span>
+          </div>
+        } @else {
+          <app-state-panel title="No active streak" message="Complete a workout to start a new streak." />
+        }
       </article>
 
       <article class="summary-card goal-card">
@@ -102,19 +128,6 @@
       } @else {
         <app-state-panel title="Nothing logged yet" message="Log a workout, meal, or weigh-in to see it here." />
       }
-    </section>
-
-    <section class="summary-card">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Achievements</span>
-          <h2>Badges &amp; milestones</h2>
-        </div>
-      </div>
-      <app-state-panel
-        title="Achievements coming soon"
-        message="Streak milestones and personal records unlock here once analytics events are wired."
-      />
     </section>
   }
 </div>
