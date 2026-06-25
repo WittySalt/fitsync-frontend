@@ -300,34 +300,31 @@
         <section class="settings-section" id="notifications" role="tabpanel" aria-labelledby="settings-tab-notifications">
           <div class="section-heading"><p class="eyebrow">Notifications</p><h2>Notifications</h2><p>{{ sections[4].description }}</p></div>
           <article class="sub-card">
-            <div class="sub-card-header"><h3>Channels & reminders</h3><button class="button secondary compact" type="button" (click)="startEdit('notifications')">Edit</button></div>
+            <div class="sub-card-header"><h3>Channels & reminders</h3></div>
             @if (sectionErrors().notifications; as message) { <p class="section-error">{{ message }}</p> }
             @if (editPanel() === 'notifications') {
-              <form class="settings-editor" [formGroup]="notificationsForm" (ngSubmit)="savePreferences('notifications')">
-                <label class="toggle-row"><input type="checkbox" formControlName="pushEnabled" /> Push notifications</label>
-                <label class="toggle-row"><input type="checkbox" formControlName="emailEnabled" /> Email notifications</label>
-                <label class="toggle-row"><input type="checkbox" formControlName="workoutReminderEnabled" /> Workout reminders</label>
-                <label class="toggle-row"><input type="checkbox" formControlName="mealReminderEnabled" /> Meal reminders</label>
-                <label class="toggle-row"><input type="checkbox" formControlName="weighInReminderEnabled" /> Weigh-in reminders</label>
-                <label class="toggle-row"><input type="checkbox" formControlName="goalProgressReminderEnabled" /> Goal progress reminders</label>
-                <label class="toggle-row"><input type="checkbox" formControlName="weeklyProgressReportEnabled" /> Weekly progress report</label>
+              <form class="settings-editor single" [formGroup]="notificationsForm" (ngSubmit)="savePreferences('notifications')">
                 <label>Report channel<select formControlName="weeklyProgressReportChannel">@for (option of channelOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label class="toggle-row"><input type="checkbox" formControlName="marketingEmailsEnabled" /> Marketing emails</label>
                 <label>Quiet hours start<input type="time" formControlName="quietHoursStart" /></label>
                 <label>Quiet hours end<input type="time" formControlName="quietHoursEnd" /></label>
-                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'notifications'">Save notifications</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'notifications'">Save schedule</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
               </form>
             } @else {
               <div class="field-list">
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Push channel</span><strong>{{ account.user.preferences.notifications.pushEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Email channel</span><strong>{{ account.user.preferences.notifications.emailEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Workout reminders</span><strong>{{ account.user.preferences.notifications.workoutReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Meal reminders</span><strong>{{ account.user.preferences.notifications.mealReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Weigh-in reminders</span><strong>{{ account.user.preferences.notifications.weighInReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Goal progress reminders</span><strong>{{ account.user.preferences.notifications.goalProgressReminderEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Weekly report</span><strong>{{ account.user.preferences.notifications.weeklyProgressReportEnabled ? 'On - ' + labelFor(account.user.preferences.notifications.weeklyProgressReportChannel) : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Marketing emails</span><strong>{{ account.user.preferences.notifications.marketingEmailsEnabled ? 'On' : 'Off' }}</strong><em>Edit</em></button>
-                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Quiet hours</span><strong>{{ displayTime(account.user.preferences.notifications.quietHoursStart) }} - {{ displayTime(account.user.preferences.notifications.quietHoursEnd) }}</strong><em>Edit</em></button>
+                @for (option of notificationToggleOptions; track option.key) {
+                  <div class="field-row toggle-field">
+                    <app-toggle
+                      [label]="option.label"
+                      [description]="option.description"
+                      [checked]="notificationToggleValue(option.key)"
+                      [disabled]="savingNotificationToggle() === option.key"
+                      (checkedChange)="toggleNotification(option.key, $event)"
+                    />
+                    <em>{{ notificationToggleValue(option.key) ? 'On' : 'Off' }}</em>
+                  </div>
+                }
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Report channel</span><strong>{{ labelFor(account.user.preferences.notifications.weeklyProgressReportChannel || 'EMAIL') }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('notifications')"><span>Quiet hours</span><strong>{{ quietHoursSummary() }}</strong><em>Edit</em></button>
               </div>
             }
           </article>

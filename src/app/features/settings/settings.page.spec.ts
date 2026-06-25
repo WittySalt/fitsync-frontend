@@ -492,6 +492,39 @@ describe('SettingsPage', () => {
     expect(toast.success).toHaveBeenCalledWith('Account deletion request submitted.');
   });
 
+  it('persists notification toggles inline with optimistic state', () => {
+    const component = fixture.componentInstance;
+    const updatedPreferences = {
+      ...accountData.user.preferences,
+      notifications: {
+        ...accountData.user.preferences.notifications,
+        mealReminderEnabled: true
+      }
+    };
+    accountDataService.updatePreferences.and.returnValue(of(updatedPreferences));
+
+    component.toggleNotification('mealReminderEnabled', true);
+
+    expect(component.notificationToggleValue('mealReminderEnabled')).toBeTrue();
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      notifications: jasmine.objectContaining({ mealReminderEnabled: true })
+    }));
+    expect(component.savingNotificationToggle()).toBeNull();
+    expect(toast.success).toHaveBeenCalledWith('Notifications updated.');
+  });
+
+  it('rolls back notification toggles when persistence fails', () => {
+    const component = fixture.componentInstance;
+    accountDataService.updatePreferences.and.returnValue(throwError(() => new Error('notifications failed')));
+
+    component.toggleNotification('pushEnabled', false);
+
+    expect(component.notificationToggleValue('pushEnabled')).toBeTrue();
+    expect(component.sectionErrors().notifications).toBe('notifications failed');
+    expect(component.savingNotificationToggle()).toBeNull();
+    expect(toast.error).toHaveBeenCalledWith('notifications failed');
+  });
+
   it('marks forms touched and skips service calls for invalid or unavailable save paths', () => {
     const component = fixture.componentInstance;
 

@@ -340,6 +340,15 @@ button.field-row:hover {
   background: var(--surface-sunken);
 }
 
+.toggle-field {
+  grid-template-columns: minmax(0, 1fr) auto;
+
+  app-toggle {
+    display: block;
+    min-width: 0;
+  }
+}
+
 .field-row.readonly {
   cursor: default;
 
