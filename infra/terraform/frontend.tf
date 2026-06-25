@@ -58,6 +58,23 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
+  # API origin: proxy /api/* to the backend gateway (:8088). Lets the SPA keep
+  # using same-origin relative /api over HTTPS, exactly like the prod dist.
+  dynamic "origin" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      domain_name = var.api_origin_domain
+      origin_id   = "ec2-api"
+
+      custom_origin_config {
+        http_port              = 8088
+        https_port             = 443
+        origin_protocol_policy = "http-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
   default_cache_behavior {
     target_origin_id       = "s3-frontend"
     viewer_protocol_policy = "redirect-to-https"
@@ -67,6 +84,23 @@ resource "aws_cloudfront_distribution" "frontend" {
     forwarded_values {
       query_string = false
       cookies { forward = "none" }
+    }
+  }
+
+  # /api/* → gateway, pass-through. Use the same AWS managed policies as the prod
+  # distribution: CachingDisabled (no caching) + AllViewer (forward every header,
+  # cookie and query string to the origin, incl. Authorization). Guarantees the
+  # API proxy behaves identically to prod.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      path_pattern             = "/api/*"
+      target_origin_id         = "ec2-api"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # Managed-AllViewer
     }
   }
 

@@ -29,3 +29,13 @@ variable "enable_cloudfront" {
   type        = bool
   default     = false
 }
+
+# Backend gateway host that CloudFront proxies /api/* to, so the SPA can use
+# same-origin relative /api calls over HTTPS (mirrors prod's hand-built dist).
+# Empty = no /api behavior (SPA-only distribution). Set to the env's EC2 gateway
+# public DNS, e.g. ec2-52-221-91-77.ap-southeast-1.compute.amazonaws.com.
+variable "api_origin_domain" {
+  description = "EC2 gateway DNS for the CloudFront /api/* origin (empty = SPA only)"
+  type        = string
+  default     = ""
+}
