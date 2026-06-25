@@ -233,6 +233,43 @@ describe('DashboardPage', () => {
     expect(compiled.textContent).not.toContain('Daily target progress');
   });
 
+  it('renders protein goal progress from the active goal source without the daily nutrition target', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        goals: [
+          {
+            goalId: 'goal-protein',
+            goalType: 'PROTEIN',
+            targetValue: 140,
+            targetUnit: 'g',
+            targetDate: '2026-08-31',
+            status: 'ACTIVE',
+            progressRatio: 1,
+            onTrack: true,
+            currentValue: 140,
+            lastEvaluatedAt: '2026-06-24T00:05:00Z'
+          }
+        ]
+      })
+    );
+    dataService.getDailyNutritionSummary.and.returnValue(
+      of({
+        ...dashboardData.nutrition,
+        totalProteinGrams: 7.47,
+        targetProteinGrams: 155
+      })
+    );
+
+    fixture.detectChanges();
+
+    const text = pageText();
+    expect(goalRowText()[0]).toContain('Protein 140 g');
+    expect(goalRowText()[0]).toContain('On track · 100% complete · by 31 Aug 2026');
+    expect(text).not.toContain('155g');
+    expect(text).not.toContain('155 g');
+  });
+
   it('formats relative dates and fallback dates without exposing raw ISO timestamps', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
