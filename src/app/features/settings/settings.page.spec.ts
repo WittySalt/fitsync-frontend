@@ -274,6 +274,36 @@ describe('SettingsPage', () => {
     }));
   });
 
+  it('formats account dates with the fixed English locale', () => {
+    const component = fixture.componentInstance;
+
+    component.data.set({
+      ...accountData,
+      user: {
+        ...accountData.user,
+        preferences: {
+          ...accountData.user.preferences,
+          app: {
+            ...accountData.user.preferences.app,
+            language: '110002'
+          }
+        }
+      }
+    });
+
+    expect(component.displayDate('1995-04-12')).toBe('12 Apr 1995');
+    expect(component.displayDateTime('2026-06-17T07:00:00Z')).toBe('17 Jun 2026, 3:00 pm');
+    expect(component.displayDate('not-a-date')).toBe('Not set');
+    expect(component.displayDateTime('not-a-date')).toBe('Not set');
+
+    component.selectedSection.set('security');
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('expires 17 Jun 2026, 3:00 pm');
+    expect(text).not.toContain('2026年');
+  });
+
   it('requests account data export from the privacy section', () => {
     fixture.componentInstance.requestDataExport();
 

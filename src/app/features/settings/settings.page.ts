@@ -39,6 +39,8 @@ interface SectionNavItem {
   description: string;
 }
 
+const DISPLAY_LOCALE = 'en-SG';
+
 @Component({
   selector: 'app-settings-page',
   imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent],
@@ -265,17 +267,29 @@ export class SettingsPage implements OnInit {
     if (!value) {
       return 'Not set';
     }
-    return new Intl.DateTimeFormat(undefined, {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'Not set';
+    }
+    return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
       dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(new Date(value));
+      timeStyle: 'short',
+      timeZone: this.accountTimezone()
+    }).format(date);
   }
 
   displayDate(value: string | null | undefined): string {
     if (!value) {
       return 'Not set';
     }
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(`${value}T00:00:00`));
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return 'Not set';
+    }
+    return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
+      dateStyle: 'medium',
+      timeZone: this.accountTimezone()
+    }).format(date);
   }
 
   displayTime(value: string | null | undefined): string {
@@ -731,6 +745,12 @@ export class SettingsPage implements OnInit {
 
   private options(entries: string[][]): Option[] {
     return entries.map(([value, label]) => ({ value, label }));
+  }
+
+  private accountTimezone(): string {
+    return this.data()?.user.preferences.app.timezone
+      || this.data()?.user.profile.timezone
+      || 'Asia/Singapore';
   }
 }
 
