@@ -98,6 +98,7 @@ describe('WorkoutPage', () => {
       'updateExercise',
       'archiveExercise',
       'getSession',
+      'getExercises',
       'updateSession',
       'deleteSession',
       'repeatSession',
@@ -134,6 +135,7 @@ describe('WorkoutPage', () => {
     dataService.updateExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.archiveExercise.and.returnValue(of(void 0));
     dataService.getSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
+    dataService.getExercises.and.returnValue(of([exercise()]));
     dataService.updateSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
     dataService.deleteSession.and.returnValue(of(void 0));
     dataService.repeatSession.and.returnValue(of(sessionDetail({ sessionId: 'session-repeat', status: 'IN_PROGRESS' })));
