@@ -257,6 +257,35 @@ describe('DashboardPage', () => {
     expect(compiled.textContent).not.toContain('Daily target progress');
   });
 
+  it('links dashboard cards to their related sections', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        latestWorkout: {
+          name: 'Upper body strength',
+          workoutType: 'STRENGTH',
+          status: 'COMPLETED',
+          startedAt: '2026-06-24T09:00:00Z',
+          completedAt: '2026-06-24T10:00:00Z',
+          durationMinutes: 60,
+          caloriesBurned: 320,
+          exerciseCount: 6
+        }
+      })
+    );
+
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.calories')?.getAttribute('href')).toBe('/nutrition');
+    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.streak')?.getAttribute('href')).toBe('/workout');
+    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.body')?.getAttribute('href')).toBe('/body');
+    expect(compiled.querySelector<HTMLAnchorElement>('.heatmap-metric')?.getAttribute('href')).toBe('/progress');
+
+    const activityLinks = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.activity-link-card'));
+    expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout', '/nutrition']);
+  });
+
   it('renders protein goal progress from the active goal source without the daily nutrition target', () => {
     dataService.getDashboard.and.returnValue(
       of({

@@ -37,7 +37,7 @@
     </section>
 
     <section class="metrics-grid">
-      <article class="metric-card calories">
+      <a class="metric-card calories" routerLink="/nutrition" aria-label="Open nutrition dashboard">
         <app-progress-ring label="Calories" [value]="caloriePercent()" />
         <div>
           <span>Calories</span>
@@ -49,7 +49,7 @@
             <small>Log your first meal to start today's summary</small>
           }
         </div>
-      </article>
+      </a>
 
       <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
         <div>
@@ -59,7 +59,7 @@
         </div>
       </a>
 
-      <article class="metric-card streak">
+      <a class="metric-card streak" routerLink="/workout" aria-label="Open workouts">
         <span class="metric-icon">ST</span>
         <div>
           @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
@@ -72,9 +72,9 @@
             <small>Start a workout to build a streak</small>
           }
         </div>
-      </article>
+      </a>
 
-      <article class="metric-card body">
+      <a class="metric-card body" routerLink="/body" aria-label="Open body metrics">
         <span class="metric-icon">kg</span>
         <div>
           <span>Latest body metric</span>
@@ -90,13 +90,13 @@
             <small>Record weight to start trends</small>
           }
         </div>
-      </article>
+      </a>
     </section>
 
     <section class="activity-grid">
-      <article class="summary-card">
-        <span class="card-label">Latest Workout</span>
-        @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
+      @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
+        <a class="summary-card activity-link-card" routerLink="/workout" aria-label="Open latest workout">
+          <span class="card-label">Latest Workout</span>
           <h3>{{ dashboard.latestWorkout.name }}</h3>
           <p>{{ dashboard.latestWorkout.workoutType }} · {{ dashboard.latestWorkout.durationMinutes }} min</p>
           <dl>
@@ -109,18 +109,21 @@
               <dd>{{ dashboard.latestWorkout.exerciseCount }}</dd>
             </div>
           </dl>
-        } @else {
+        </a>
+      } @else {
+        <article class="summary-card">
+          <span class="card-label">Latest Workout</span>
           <div class="empty-workout-state">
             <strong>No completed workout yet</strong>
             <p>Start one to build your weekly training summary.</p>
             <a routerLink="/workout" class="button workout">Start Workout</a>
           </div>
-        }
-      </article>
+        </article>
+      }
 
-      <article class="summary-card">
-        <span class="card-label">Latest Meal</span>
-        @if (dashboard.latestMeal) {
+      @if (dashboard.latestMeal) {
+        <a class="summary-card activity-link-card" routerLink="/nutrition" aria-label="Open latest meal">
+          <span class="card-label">Latest Meal</span>
           <h3>{{ dashboard.latestMeal.name }}</h3>
           <p>{{ dashboard.latestMeal.mealType }} · {{ dashboard.latestMeal.consumedAt }}</p>
           <dl>
@@ -133,10 +136,13 @@
               <dd>{{ dashboard.latestMeal.totalProteinGrams }}g</dd>
             </div>
           </dl>
-        } @else {
+        </a>
+      } @else {
+        <article class="summary-card">
+          <span class="card-label">Latest Meal</span>
           <app-state-panel title="No meal yet" message="Log your first meal for today's summary." />
-        }
-      </article>
+        </article>
+      }
     </section>
 
     <section class="summary-card goals-card">

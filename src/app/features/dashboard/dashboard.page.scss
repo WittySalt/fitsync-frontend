@@ -79,7 +79,8 @@
     }
   }
 
-  a.metric-card {
+  a.metric-card,
+  a.activity-link-card {
     transition:
       border-color 160ms ease,
       box-shadow 160ms ease,
@@ -92,6 +93,11 @@
       transform: translateY(-1px);
       outline: none;
     }
+  }
+
+  .activity-link-card {
+    color: inherit;
+    text-decoration: none;
   }
 
   .heatmap-metric {
