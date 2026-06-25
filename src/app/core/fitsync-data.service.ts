@@ -61,6 +61,7 @@ import {
   WorkoutSession,
   WorkoutSessionDetail,
   WorkoutSessionPage,
+  WorkoutSessionQuery,
   UpdateExerciseRequest
 } from './fitsync.models';
 
@@ -742,8 +743,30 @@ export class FitSyncDataService {
     return this.getWorkoutSessionPage(limit).pipe(map((page) => page.sessions));
   }
 
-  getWorkoutSessionPage(limit = 10): Observable<WorkoutSessionPage> {
-    const params = new HttpParams().set('size', String(this.safeWorkoutSessionPageSize(limit)));
+  getWorkoutSessionPage(query: number | WorkoutSessionQuery = 10): Observable<WorkoutSessionPage> {
+    const q: WorkoutSessionQuery = typeof query === 'number' ? { size: query } : query;
+    const requestedPage = Math.max(0, q.page ?? 0);
+    let params = new HttpParams()
+      .set('size', String(this.safeWorkoutSessionPageSize(q.size ?? 10)))
+      .set('page', String(requestedPage));
+    if (q.status) {
+      params = params.set('status', q.status);
+    }
+    if (q.workoutType) {
+      params = params.set('workoutType', q.workoutType);
+    }
+    if (q.minDurationMinutes != null) {
+      params = params.set('minDurationMinutes', String(q.minDurationMinutes));
+    }
+    if (q.maxDurationMinutes != null) {
+      params = params.set('maxDurationMinutes', String(q.maxDurationMinutes));
+    }
+    if (q.from) {
+      params = params.set('from', q.from);
+    }
+    if (q.to) {
+      params = params.set('to', q.to);
+    }
     return this.http
       .get<PageResponse<Partial<WorkoutSession>>>(`${this.apiBaseUrl}/workouts/sessions`, { params })
       .pipe(
@@ -753,10 +776,12 @@ export class FitSyncDataService {
             .filter((session): session is WorkoutSession => session !== null);
           return {
             sessions,
-            total: response.totalElements ?? sessions.length
+            total: response.totalElements ?? sessions.length,
+            totalPages: response.totalPages ?? 1,
+            page: response.number ?? requestedPage
           };
         }),
-        catchError(() => of({ sessions: [], total: 0 } as WorkoutSessionPage))
+        catchError(() => of({ sessions: [], total: 0, totalPages: 1, page: requestedPage } as WorkoutSessionPage))
       );
   }
 

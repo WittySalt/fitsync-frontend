@@ -98,6 +98,19 @@ export interface WorkoutSession {
 export interface WorkoutSessionPage {
   sessions: WorkoutSession[];
   total: number;
+  totalPages: number;
+  page: number;
+}
+
+export interface WorkoutSessionQuery {
+  status?: string;
+  workoutType?: string;
+  minDurationMinutes?: number | null;
+  maxDurationMinutes?: number | null;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface WorkoutSessionFormValue {

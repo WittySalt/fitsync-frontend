@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap } from 'rxjs';
 
@@ -11,7 +11,8 @@ import {
   WorkoutPlanRequest,
   WorkoutPlanStatus,
   WorkoutSession,
-  WorkoutSessionDetail
+  WorkoutSessionDetail,
+  WorkoutSessionQuery
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
@@ -24,7 +25,6 @@ import { SessionDetailComponent } from './session-detail.component';
 import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
-import { isCompletedSession } from './workout-session.util';
 
 interface TrainingMetric {
   label: string;
@@ -75,7 +75,12 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
-  readonly totalSessionCount = signal(0);
+  readonly historyTotal = signal(0);
+  readonly historyTotalPages = signal(1);
+  readonly historyLoading = signal(false);
+  readonly completedSessionCount = signal(0);
+  readonly weekCompletedCount = signal(0);
+  readonly lastCompletedSession = signal<WorkoutSession | null>(null);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
   readonly planError = signal<string | null>(null);
@@ -104,21 +109,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
-  private readonly historyLoadLimit = 10;
-  private readonly resetHistoryPageOnFilterChange = effect(() => {
-    this.historySearch();
-    this.filterType();
-    this.filterStatus();
-    this.filterDuration();
-    this.filterDateFrom();
-    this.filterDateTo();
-
-    untracked(() => {
-      if (this.page() !== 0) {
-        this.page.set(0);
-      }
-    });
-  });
   readonly todayStarting = computed(() => {
     const planId = this.activePlan()?.planId;
     return Boolean(planId && this.planMutations().has(planId));
@@ -162,20 +152,11 @@ export class WorkoutPage implements OnInit, OnDestroy {
     });
   });
 
-  readonly latestSession = computed(() => {
-    const sorted = this.completedSessions();
-    return sorted[0] ?? null;
-  });
-
   readonly metrics = computed<TrainingMetric[]>(() => {
-    const sessions = this.completedSessions();
-    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-    const thisWeek = sessions.filter((session) => this.timeOf(session) >= weekAgo).length;
-    const latest = this.latestSession();
-
+    const latest = this.lastCompletedSession();
     return [
-      { label: 'Sessions tracked', value: String(this.totalSessionCount()), detail: 'all statuses', tone: 'green' },
-      { label: 'This week', value: String(thisWeek), detail: 'completed in the last 7 days', tone: 'blue' },
+      { label: 'Sessions logged', value: String(this.completedSessionCount()), detail: 'completed all time', tone: 'green' },
+      { label: 'This week', value: String(this.weekCompletedCount()), detail: 'completed in the last 7 days', tone: 'blue' },
       {
         label: 'Last session',
         value: latest ? this.formatDate(latest.completedAt || latest.startedAt) : '—',
@@ -185,37 +166,16 @@ export class WorkoutPage implements OnInit, OnDestroy {
     ];
   });
 
-  readonly historyTypeOptions = computed(() => this.distinctSessionValues('workoutType'));
+  readonly historyTypeOptions = this.workoutTypeOptions;
 
   readonly historyStatusOptions = ['COMPLETED', 'CANCELLED', 'IN_PROGRESS'] as const;
 
-  readonly filteredSessions = computed(() => {
+  // Server-side filters (status/type/duration/date) + pagination drive this list.
+  // Name search has no backend param, so it refines the loaded page client-side only.
+  readonly visibleSessions = computed(() => {
     const search = this.historySearch().trim().toLowerCase();
-    const type = this.filterType();
-    const status = this.filterStatus();
-    const duration = this.filterDuration();
-    const from = this.dateStart(this.filterDateFrom());
-    const to = this.dateEnd(this.filterDateTo());
-
-    return [...this.sessions()]
-      .filter((session) => {
-        const sessionTime = this.timeOf(session);
-        return (
-          (!search || session.name.toLowerCase().includes(search)) &&
-          (!type || session.workoutType === type) &&
-          (!status || session.status === status) &&
-          this.matchesDuration(session, duration) &&
-          this.matchesDateRange(sessionTime, from, to)
-        );
-      })
-      .sort((a, b) => this.timeOf(b) - this.timeOf(a));
-  });
-
-  readonly totalHistoryPages = computed(() => Math.max(1, Math.ceil(this.filteredSessions().length / this.pageSize())));
-
-  readonly pagedSessions = computed(() => {
-    const start = this.page() * this.pageSize();
-    return this.filteredSessions().slice(start, start + this.pageSize());
+    const rows = this.sessions();
+    return search ? rows.filter((session) => session.name.toLowerCase().includes(search)) : rows;
   });
 
   ngOnInit(): void {
@@ -238,33 +198,33 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   setHistorySearch(value: string): void {
+    // Name search has no backend param; refine the loaded page client-side only.
     this.historySearch.set(value);
-    this.page.set(0);
   }
 
   setFilterType(value: string): void {
     this.filterType.set(value);
-    this.page.set(0);
+    this.reloadHistoryFromFirstPage();
   }
 
   setFilterStatus(value: string): void {
     this.filterStatus.set(value);
-    this.page.set(0);
+    this.reloadHistoryFromFirstPage();
   }
 
   setFilterDuration(value: string): void {
     this.filterDuration.set(this.toDurationFilter(value));
-    this.page.set(0);
+    this.reloadHistoryFromFirstPage();
   }
 
   setFilterDateFrom(value: string): void {
     this.filterDateFrom.set(value);
-    this.page.set(0);
+    this.reloadHistoryFromFirstPage();
   }
 
   setFilterDateTo(value: string): void {
     this.filterDateTo.set(value);
-    this.page.set(0);
+    this.reloadHistoryFromFirstPage();
   }
 
   prevHistoryPage(): void {
@@ -276,8 +236,18 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   goToHistoryPage(page: number): void {
-    const maxPage = this.totalHistoryPages() - 1;
-    this.page.set(Math.min(Math.max(page, 0), maxPage));
+    const maxPage = this.historyTotalPages() - 1;
+    const next = Math.min(Math.max(page, 0), maxPage);
+    if (next === this.page()) {
+      return;
+    }
+    this.page.set(next);
+    this.loadHistory();
+  }
+
+  private reloadHistoryFromFirstPage(): void {
+    this.page.set(0);
+    this.loadHistory();
   }
 
   selectPlanStatus(status: WorkoutPlanStatus | null): void {
@@ -645,6 +615,10 @@ export class WorkoutPage implements OnInit, OnDestroy {
       return;
     }
     this.selectedSessionId.set(session.sessionId);
+    // Bring the detail panel into view; it renders below the (possibly long) list.
+    if (typeof queueMicrotask === 'function' && typeof document !== 'undefined') {
+      queueMicrotask(() => document.querySelector('app-session-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
   }
 
   closeSessionDetail(): void {
@@ -734,10 +708,70 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   private loadSessions(): void {
-    this.dataService.getWorkoutSessionPage(this.historyLoadLimit).subscribe((page) => {
-      this.sessions.set(page.sessions);
-      this.totalSessionCount.set(page.total);
+    this.loadHistory();
+    this.loadMetrics();
+  }
+
+  private loadHistory(): void {
+    this.historyLoading.set(true);
+    this.dataService.getWorkoutSessionPage(this.historyQuery()).subscribe({
+      next: (page) => {
+        this.sessions.set(page.sessions);
+        this.historyTotal.set(page.total);
+        this.historyTotalPages.set(Math.max(1, page.totalPages));
+        if (page.page !== this.page()) {
+          this.page.set(page.page);
+        }
+        this.historyLoading.set(false);
+      },
+      error: () => this.historyLoading.set(false)
     });
+  }
+
+  private loadMetrics(): void {
+    this.dataService.getWorkoutSessionPage({ status: 'COMPLETED', page: 0, size: 1 }).subscribe((page) => {
+      this.completedSessionCount.set(page.total);
+      this.lastCompletedSession.set(page.sessions[0] ?? null);
+    });
+    const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    this.dataService.getWorkoutSessionPage({ status: 'COMPLETED', from: weekAgo, page: 0, size: 1 }).subscribe((page) => {
+      this.weekCompletedCount.set(page.total);
+    });
+  }
+
+  private historyQuery(): WorkoutSessionQuery {
+    const [minDurationMinutes, maxDurationMinutes] = this.durationBounds(this.filterDuration());
+    return {
+      status: this.filterStatus() || undefined,
+      workoutType: this.filterType() || undefined,
+      minDurationMinutes,
+      maxDurationMinutes,
+      from: this.dateToInstant(this.filterDateFrom(), false),
+      to: this.dateToInstant(this.filterDateTo(), true),
+      page: this.page(),
+      size: this.pageSize()
+    };
+  }
+
+  private durationBounds(filter: HistoryDurationFilter): [number | undefined, number | undefined] {
+    if (filter === 'lt30') {
+      return [undefined, 29];
+    }
+    if (filter === '30to60') {
+      return [30, 60];
+    }
+    if (filter === 'gt60') {
+      return [61, undefined];
+    }
+    return [undefined, undefined];
+  }
+
+  private dateToInstant(value: string, endOfDay: boolean): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const date = new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}`);
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
   }
 
   private loadActivePlan(): void {
@@ -810,61 +844,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
       next.delete(planId);
     }
     this.planMutations.set(next);
-  }
-
-  private timeOf(session: WorkoutSession): number {
-    const value = session.completedAt || session.startedAt;
-    const time = value ? new Date(value).getTime() : 0;
-    return Number.isNaN(time) ? 0 : time;
-  }
-
-  private completedSessions(): WorkoutSession[] {
-    return this.sessions()
-      .filter(isCompletedSession)
-      .sort((a, b) => this.timeOf(b) - this.timeOf(a));
-  }
-
-  private distinctSessionValues(key: 'workoutType' | 'status'): string[] {
-    return [...new Set(this.sessions().map((session) => session[key]).filter(Boolean))].sort((a, b) =>
-      this.formatLabel(a).localeCompare(this.formatLabel(b))
-    );
-  }
-
-  private matchesDuration(session: WorkoutSession, filter: HistoryDurationFilter): boolean {
-    if (!filter) {
-      return true;
-    }
-    const minutes = session.durationMinutes ?? 0;
-    if (filter === 'lt30') {
-      return minutes < 30;
-    }
-    if (filter === '30to60') {
-      return minutes >= 30 && minutes <= 60;
-    }
-    return minutes > 60;
-  }
-
-  private dateStart(value: string): number | null {
-    if (!value) {
-      return null;
-    }
-    const time = new Date(`${value}T00:00:00`).getTime();
-    return Number.isNaN(time) ? null : time;
-  }
-
-  private dateEnd(value: string): number | null {
-    if (!value) {
-      return null;
-    }
-    const time = new Date(`${value}T23:59:59.999`).getTime();
-    return Number.isNaN(time) ? null : time;
-  }
-
-  private matchesDateRange(sessionTime: number, from: number | null, to: number | null): boolean {
-    if (from === null && to === null) {
-      return true;
-    }
-    return sessionTime > 0 && (from === null || sessionTime >= from) && (to === null || sessionTime <= to);
   }
 
   private toDurationFilter(value: string): HistoryDurationFilter {
