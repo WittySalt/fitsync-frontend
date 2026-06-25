@@ -7,6 +7,7 @@ import { AnalyticsWorkoutSummaryResponse } from '../../core/analytics.models';
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { sessionDurationLabel } from '../workout/workout-session.util';
 import { GoalLifecycleComponent } from './goal-lifecycle.component';
 
 interface ActivityItem {
@@ -69,7 +70,7 @@ export class ProfilePage implements OnInit {
       items.push({
         icon: 'dumbbell',
         title: data.latestWorkout.name,
-        detail: `${this.label(data.latestWorkout.workoutType)} · ${data.latestWorkout.durationMinutes} min`,
+        detail: `${this.label(data.latestWorkout.workoutType)} · ${sessionDurationLabel(data.latestWorkout)}`,
         when: data.latestWorkout.completedAt
       });
     }

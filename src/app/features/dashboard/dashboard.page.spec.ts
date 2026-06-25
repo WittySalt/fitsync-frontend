@@ -286,6 +286,31 @@ describe('DashboardPage', () => {
     expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout', '/nutrition']);
   });
 
+  it('renders missing latest workout duration and calories without fake zeroes', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        latestWorkout: {
+          name: 'Upper body strength',
+          workoutType: 'STRENGTH',
+          status: 'COMPLETED',
+          startedAt: '2026-06-24T09:00:00Z',
+          completedAt: '',
+          durationMinutes: null,
+          caloriesBurned: null,
+          exerciseCount: 6
+        }
+      })
+    );
+
+    fixture.detectChanges();
+
+    const latestWorkoutCard = (fixture.nativeElement as HTMLElement).querySelector('.activity-link-card')?.textContent ?? '';
+    expect(latestWorkoutCard).toContain('STRENGTH · —');
+    expect(latestWorkoutCard).toContain('Not recorded');
+    expect(latestWorkoutCard).not.toContain('0 min');
+  });
+
   it('uses navigation labels for dashboard quick actions and one goal management target', () => {
     fixture.detectChanges();
 

@@ -120,6 +120,27 @@ describe('ProfilePage', () => {
     expect(activity[1].icon).toBe('scale');
   });
 
+  it('renders missing latest workout duration without fake zeroes in recent activity', () => {
+    component.data.set({
+      ...mockDashboard,
+      latestWorkout: {
+        ...mockDashboard.latestWorkout!,
+        startedAt: '2026-06-18T08:08:00Z',
+        completedAt: '',
+        durationMinutes: null,
+        caloriesBurned: null
+      },
+      latestBodyMetric: null
+    });
+
+    expect(component.recentActivity()).toEqual([
+      jasmine.objectContaining({
+        icon: 'dumbbell',
+        detail: 'Strength · —'
+      })
+    ]);
+  });
+
   it('uses analytics workout summary for training history and streak labels', () => {
     expect(component.hasTrainingHistory(mockWorkoutSummary)).toBeTrue();
     expect(component.totalTrainingHours(mockWorkoutSummary)).toBe('61.5');

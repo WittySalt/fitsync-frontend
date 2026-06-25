@@ -98,6 +98,7 @@ describe('WorkoutPage', () => {
       'updateExercise',
       'archiveExercise',
       'getSession',
+      'getExercises',
       'updateSession',
       'deleteSession',
       'repeatSession',
@@ -134,6 +135,7 @@ describe('WorkoutPage', () => {
     dataService.updateExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.archiveExercise.and.returnValue(of(void 0));
     dataService.getSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
+    dataService.getExercises.and.returnValue(of([exercise()]));
     dataService.updateSession.and.returnValue(of(sessionDetail({ status: 'COMPLETED' })));
     dataService.deleteSession.and.returnValue(of(void 0));
     dataService.repeatSession.and.returnValue(of(sessionDetail({ sessionId: 'session-repeat', status: 'IN_PROGRESS' })));
@@ -762,6 +764,32 @@ describe('WorkoutPage', () => {
 
     expect(fixture.componentInstance.selectedSessionId()).toBe('session-1');
     expect(dataService.getSession).toHaveBeenCalledWith('session-1');
+  });
+
+  it('renders missing history duration without fake zeroes', () => {
+    dataService.getWorkoutSessionPage.and.returnValue(
+      of(
+        sessionPage([
+          session({
+            sessionId: 'session-1',
+            name: 'Push day',
+            status: 'COMPLETED',
+            durationMinutes: null,
+            caloriesBurned: null,
+            completedAt: ''
+          })
+        ])
+      )
+    );
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const rowText = (fixture.nativeElement as HTMLElement).querySelector('.history-row')?.textContent ?? '';
+    expect(rowText).toContain('—');
+    expect(rowText).not.toContain('0 min');
   });
 
   it('shows a filter-aware empty state and keeps the filter bar reachable when empty', () => {

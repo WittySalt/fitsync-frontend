@@ -11,7 +11,16 @@
     <div class="skeleton tall" aria-label="Loading session detail"></div>
   } @else if (session(); as detail) {
     <div class="detail-actions">
-      <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit</button>
+      <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit details</button>
+      <button
+        class="button secondary"
+        type="button"
+        (click)="startExerciseEdit()"
+        [disabled]="saving() || !canEditExercises(detail)"
+        [title]="exerciseEditUnavailableLabel(detail)"
+      >
+        Edit exercises
+      </button>
       <button class="button secondary" type="button" (click)="repeatThis()" [disabled]="saving()">Repeat this</button>
       <button class="button secondary" type="button" (click)="deleteSession()" [disabled]="saving()">Delete</button>
     </div>
@@ -35,16 +44,12 @@
           </select>
         </label>
         <label>
-          Duration
-          <input formControlName="durationMinutes" type="number" min="0" inputmode="numeric" />
-        </label>
-        <label>
-          Calories
-          <input formControlName="caloriesBurned" type="number" min="0" inputmode="numeric" />
-        </label>
-        <label>
           Effort
           <input formControlName="perceivedExertion" type="number" min="1" max="10" inputmode="numeric" />
+        </label>
+        <label>
+          Calories (estimate)
+          <input formControlName="caloriesBurned" type="number" min="0" inputmode="numeric" placeholder="Not recorded" />
         </label>
         <label class="wide">
           Notes
@@ -53,6 +58,140 @@
         <div class="form-actions">
           <button class="button primary" type="submit" [disabled]="saving()">Save changes</button>
           <button class="button secondary" type="button" (click)="cancelEdit()" [disabled]="saving()">Cancel</button>
+        </div>
+      </form>
+    }
+
+    @if (exerciseEditing()) {
+      <form class="exercise-edit-form" [formGroup]="exerciseEditForm" (ngSubmit)="saveExerciseEdit()">
+        <div class="exercise-add-row" [formGroup]="addExerciseForm">
+          <label>
+            Add exercise
+            <select formControlName="exerciseId">
+              <option value="">Choose exercise</option>
+              @for (exercise of exercises(); track exercise.exerciseId ?? exercise.name) {
+                @if (exercise.exerciseId) {
+                  <option [value]="exercise.exerciseId">{{ exercise.name }}</option>
+                }
+              }
+            </select>
+          </label>
+          <button class="button secondary" type="button" (click)="addExercise()" [disabled]="!exercises().length">
+            Add exercise
+          </button>
+        </div>
+
+        @if (exerciseGroups().length) {
+          <div class="exercise-list editable">
+            @for (exerciseGroup of exerciseGroups(); track exerciseGroup.controls.exerciseId.value + '-' + $index; let exerciseIndex = $index) {
+              <section class="exercise-block" [formGroup]="exerciseGroup">
+                <div class="exercise-heading">
+                  <div>
+                    <h3>{{ exerciseGroup.controls.exerciseNameSnapshot.value }}</h3>
+                    <small>Exercise {{ exerciseIndex + 1 }}</small>
+                  </div>
+                  <div class="exercise-row-actions" aria-label="Exercise actions">
+                    <button
+                      class="text-link"
+                      type="button"
+                      (click)="moveExercise(exerciseIndex, -1)"
+                      [disabled]="exerciseIndex === 0"
+                      [attr.aria-label]="'Move ' + exerciseGroup.controls.exerciseNameSnapshot.value + ' up'"
+                    >
+                      Move up
+                    </button>
+                    <button
+                      class="text-link"
+                      type="button"
+                      (click)="moveExercise(exerciseIndex, 1)"
+                      [disabled]="exerciseIndex === exerciseGroups().length - 1"
+                      [attr.aria-label]="'Move ' + exerciseGroup.controls.exerciseNameSnapshot.value + ' down'"
+                    >
+                      Move down
+                    </button>
+                    <button
+                      class="text-link danger"
+                      type="button"
+                      (click)="removeExercise(exerciseIndex)"
+                      [attr.aria-label]="'Remove ' + exerciseGroup.controls.exerciseNameSnapshot.value"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <label class="exercise-notes">
+                  Exercise notes
+                  <input formControlName="notes" maxlength="300" placeholder="Notes" />
+                </label>
+
+                @if (exerciseSetGroups(exerciseIndex).length) {
+                  <div class="set-list" [attr.aria-label]="exerciseGroup.controls.exerciseNameSnapshot.value + ' editable sets'">
+                    <div class="set-row header" aria-hidden="true">
+                      <span>Set</span>
+                      <span>Reps</span>
+                      <span>Weight</span>
+                      <span>Rest</span>
+                      <span>RPE</span>
+                      <span>Notes</span>
+                      <span>Actions</span>
+                    </div>
+                    @for (setGroup of exerciseSetGroups(exerciseIndex); track $index; let setIndex = $index) {
+                      <div class="set-row editable" [formGroup]="setGroup">
+                        <span class="set-state">Set {{ exerciseSetNumber(setIndex) }}</span>
+                        <input aria-label="Reps" formControlName="reps" type="number" min="0" step="1" placeholder="Reps" />
+                        <input
+                          aria-label="Weight kg"
+                          formControlName="weightKg"
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          placeholder="kg"
+                        />
+                        <input
+                          aria-label="Rest seconds"
+                          formControlName="restSeconds"
+                          type="number"
+                          min="0"
+                          placeholder="Rest"
+                        />
+                        <input
+                          aria-label="RPE"
+                          formControlName="perceivedExertion"
+                          type="number"
+                          min="1"
+                          max="10"
+                          placeholder="RPE"
+                        />
+                        <input aria-label="Set notes" formControlName="notes" maxlength="300" placeholder="Notes" />
+                        <button
+                          class="text-link danger"
+                          type="button"
+                          (click)="removeSet(exerciseIndex, setIndex)"
+                          [attr.aria-label]="'Remove set ' + exerciseSetNumber(setIndex)"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <app-state-panel title="No sets recorded" message="Add a set or keep this exercise empty." />
+                }
+
+                <button class="button secondary" type="button" (click)="addSet(exerciseIndex)">Add set</button>
+              </section>
+            }
+          </div>
+        } @else {
+          <app-state-panel title="No exercise detail" message="Add an exercise or save this session with no exercises." />
+        }
+
+        <div class="form-actions">
+          <button class="button primary" type="submit" [disabled]="saving() || exerciseEditForm.invalid">
+            {{ saving() ? 'Saving...' : 'Save exercise edits' }}
+          </button>
+          <button class="button secondary" type="button" (click)="cancelExerciseEdit()" [disabled]="saving()">Cancel</button>
         </div>
       </form>
     }
@@ -76,11 +215,11 @@
       </div>
       <div>
         <dt>Duration</dt>
-        <dd>{{ detail.durationMinutes }} min</dd>
+        <dd>{{ formatDuration(detail) }}</dd>
       </div>
       <div>
         <dt>Calories</dt>
-        <dd>{{ detail.caloriesBurned }}</dd>
+        <dd>{{ formatCalories(detail.caloriesBurned) }}</dd>
       </div>
       <div>
         <dt>Effort</dt>
@@ -117,6 +256,7 @@
                     <th scope="col">Weight</th>
                     <th scope="col">Rest</th>
                     <th scope="col">RPE</th>
+                    <th scope="col">Notes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -127,6 +267,7 @@
                     <td>{{ formatNumber(set.weightKg, ' kg') }}</td>
                     <td>{{ formatNumber(set.restSeconds, ' sec') }}</td>
                     <td>{{ formatNumber(set.perceivedExertion) }}</td>
+                    <td>{{ set.notes || '-' }}</td>
                   </tr>
                 }
                 </tbody>

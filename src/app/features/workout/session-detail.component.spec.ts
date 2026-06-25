@@ -67,7 +67,8 @@ describe('SessionDetailComponent', () => {
       'updateSession',
       'deleteSession',
       'repeatSession',
-      'getExerciseMetadata'
+      'getExerciseMetadata',
+      'getExercises'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
 
@@ -85,6 +86,34 @@ describe('SessionDetailComponent', () => {
         goalFocuses: []
       })
     );
+    dataService.getExercises.and.returnValue(
+      of([
+        {
+          exerciseId: 'exercise-1',
+          code: 'bench-press',
+          name: 'Bench press',
+          description: '',
+          exerciseType: 'STRENGTH',
+          primaryMuscleGroup: 'CHEST',
+          equipment: 'BARBELL',
+          difficulty: 'INTERMEDIATE',
+          status: 'ACTIVE',
+          custom: false
+        },
+        {
+          exerciseId: 'exercise-2',
+          code: 'row',
+          name: 'Row',
+          description: '',
+          exerciseType: 'STRENGTH',
+          primaryMuscleGroup: 'BACK',
+          equipment: 'CABLE',
+          difficulty: 'BEGINNER',
+          status: 'ACTIVE',
+          custom: false
+        }
+      ])
+    );
 
     await TestBed.configureTestingModule({
       imports: [SessionDetailComponent],
@@ -95,18 +124,20 @@ describe('SessionDetailComponent', () => {
     }).compileComponents();
   });
 
-  it('sends completedAt and preserves exercises when editing a completed session', () => {
+  it('sends completedAt and preserves session timing and exercises when editing details', () => {
     const fixture = TestBed.createComponent(SessionDetailComponent);
     fixture.componentInstance.sessionId = 'session-1';
     fixture.detectChanges();
 
     fixture.componentInstance.startEdit();
-    fixture.componentInstance.editForm.patchValue({ name: 'Updated push', durationMinutes: 55 });
+    fixture.componentInstance.editForm.patchValue({ name: 'Updated push' });
     fixture.componentInstance.saveEdit();
 
     const [, body] = dataService.updateSession.calls.mostRecent().args;
     expect(dataService.updateSession).toHaveBeenCalledWith('session-1', jasmine.any(Object));
     expect(body.completedAt).toBe('2026-06-20T11:00:00Z');
+    expect(body.durationMinutes).toBe(60);
+    expect(body.caloriesBurned).toBe(420);
     expect(body.exercises.length).toBe(1);
     expect(body.exercises[0]).toEqual(
       jasmine.objectContaining({
@@ -124,6 +155,21 @@ describe('SessionDetailComponent', () => {
     );
   });
 
+  it('derives duration from timestamps and preserves blank calorie estimates', () => {
+    dataService.getSession.and.returnValue(of(detail({ durationMinutes: null, caloriesBurned: null })));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit();
+    fixture.componentInstance.editForm.patchValue({ caloriesBurned: null });
+    fixture.componentInstance.saveEdit();
+
+    const [, body] = dataService.updateSession.calls.mostRecent().args;
+    expect(body.durationMinutes).toBe(60);
+    expect(body.caloriesBurned).toBeNull();
+  });
+
   it('omits completedAt when editing a non-completed session', () => {
     dataService.getSession.and.returnValue(of(detail({ status: 'IN_PROGRESS', completedAt: '' })));
     const fixture = TestBed.createComponent(SessionDetailComponent);
@@ -137,6 +183,107 @@ describe('SessionDetailComponent', () => {
     expect(Object.prototype.hasOwnProperty.call(body, 'completedAt')).toBeFalse();
     expect(body.status).toBe('IN_PROGRESS');
     expect(body.exercises.length).toBe(1);
+  });
+
+  it('sends edited set values in the full exercise update request and reflects the response', () => {
+    const initial = detail();
+    const updated = detail({
+      exercises: [
+        {
+          ...initial.exercises[0],
+          performedReps: 6,
+          totalVolumeKg: 600,
+          sets: [{ ...initial.exercises[0].sets[0], reps: 6 }]
+        }
+      ]
+    });
+    dataService.getSession.and.returnValues(of(initial), of(updated));
+    dataService.updateSession.and.returnValue(of(updated));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.exerciseSetGroups(0)[0].controls.reps.setValue(6);
+    fixture.componentInstance.saveExerciseEdit();
+
+    const [, body] = dataService.updateSession.calls.mostRecent().args;
+    expect(body.exercises[0]).toEqual(
+      jasmine.objectContaining({
+        exerciseId: 'exercise-1',
+        sequence: 1,
+        performedSets: 1,
+        performedReps: 6,
+        totalVolumeKg: 600
+      })
+    );
+    expect(body.exercises[0].sets[0]).toEqual(
+      jasmine.objectContaining({
+        setNumber: 1,
+        reps: 6,
+        weightKg: 100,
+        restSeconds: 180,
+        perceivedExertion: 8
+      })
+    );
+    expect(fixture.componentInstance.session()?.exercises[0].totalVolumeKg).toBe(600);
+    expect(dataService.getSession).toHaveBeenCalledWith('session-1');
+    expect(toast.success).toHaveBeenCalledWith('Exercises updated.');
+  });
+
+  it('adds and removes exercises and sets before saving', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.addSet(0);
+    fixture.componentInstance.exerciseSetGroups(0)[1].patchValue({ reps: 8, weightKg: 80 });
+    fixture.componentInstance.removeSet(0, 0);
+    fixture.componentInstance.addExerciseForm.setValue({ exerciseId: 'exercise-2' });
+    fixture.componentInstance.addExercise();
+    fixture.componentInstance.removeExercise(0);
+    fixture.componentInstance.saveExerciseEdit();
+
+    const [, body] = dataService.updateSession.calls.mostRecent().args;
+    expect(window.confirm).toHaveBeenCalledWith('Remove set 1?');
+    expect(window.confirm).toHaveBeenCalledWith('Remove Bench press?');
+    expect(body.exercises.length).toBe(1);
+    expect(body.exercises[0]).toEqual(
+      jasmine.objectContaining({
+        exerciseId: 'exercise-2',
+        sequence: 1,
+        performedSets: null,
+        performedReps: null,
+        totalVolumeKg: null
+      })
+    );
+    expect(body.exercises[0].sets).toEqual([]);
+  });
+
+  it('blocks exercise saves when edited set values are invalid', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.exerciseSetGroups(0)[0].controls.reps.setValue(1.5);
+    fixture.componentInstance.saveExerciseEdit();
+
+    expect(fixture.componentInstance.exerciseEditForm.invalid).toBeTrue();
+    expect(dataService.updateSession).not.toHaveBeenCalled();
+  });
+
+  it('keeps exercise editing read-only for non-manual sessions', () => {
+    dataService.getSession.and.returnValue(of(detail({ source: 'LIVE' })));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+
+    expect(fixture.componentInstance.exerciseEditing()).toBeFalse();
   });
 
   it('deletes a session after confirmation', () => {
@@ -174,5 +321,110 @@ describe('SessionDetailComponent', () => {
 
     expect(toast.error).toHaveBeenCalledWith('Unable to update session. Please retry.');
     expect(fixture.componentInstance.saving()).toBeFalse();
+  });
+
+  it('reorders exercises and ignores out-of-range moves', () => {
+    const second = { ...detail().exercises[0], exerciseLogId: 'log-2', exerciseId: 'exercise-2', exerciseNameSnapshot: 'Row', sequence: 2 };
+    const twoExercises = detail({ exercises: [detail().exercises[0], second] });
+    dataService.getSession.and.returnValue(of(twoExercises));
+    dataService.updateSession.and.returnValue(of(twoExercises));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.moveExercise(0, -1);
+    fixture.componentInstance.moveExercise(1, 1);
+    fixture.componentInstance.moveExercise(1, -1);
+    fixture.componentInstance.saveExerciseEdit();
+
+    const [, body] = dataService.updateSession.calls.mostRecent().args;
+    expect(body.exercises[0].exerciseId).toBe('exercise-2');
+    expect(body.exercises[1].exerciseId).toBe('exercise-1');
+  });
+
+  it('cancels detail and exercise edit modes', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startEdit();
+    fixture.componentInstance.cancelEdit();
+    expect(fixture.componentInstance.editing()).toBeFalse();
+
+    fixture.componentInstance.startExerciseEdit();
+    expect(fixture.componentInstance.exerciseEditing()).toBeTrue();
+    fixture.componentInstance.cancelExerciseEdit();
+    expect(fixture.componentInstance.exerciseEditing()).toBeFalse();
+  });
+
+  it('surfaces exercise update failures through toast errors', () => {
+    dataService.updateSession.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    fixture.componentInstance.saveExerciseEdit();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to update exercises. Please retry.');
+    expect(fixture.componentInstance.saving()).toBeFalse();
+  });
+
+  it('surfaces delete and repeat failures through toast errors', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    dataService.deleteSession.and.returnValue(throwError(() => new Error('nope')));
+    dataService.repeatSession.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.deleteSession();
+    expect(toast.error).toHaveBeenCalledWith('Unable to delete session. Please retry.');
+
+    fixture.componentInstance.repeatThis();
+    expect(toast.error).toHaveBeenCalledWith('Unable to repeat session. Please retry.');
+  });
+
+  it('keeps exercises and sets when removal is not confirmed', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+    const setsBefore = fixture.componentInstance.exerciseSetGroups(0).length;
+    fixture.componentInstance.removeSet(0, 0);
+    fixture.componentInstance.removeExercise(0);
+
+    expect(fixture.componentInstance.exerciseSetGroups(0).length).toBe(setsBefore);
+    expect(fixture.componentInstance.exerciseGroups().length).toBe(1);
+  });
+
+  it('formats missing or invalid dates as a dash', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.formatDate(null)).toBe('-');
+    expect(fixture.componentInstance.formatDate('not-a-date')).toBe('-');
+  });
+
+  it('clears the session when no id is provided', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = null;
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.session()).toBeNull();
+  });
+
+  it('surfaces load failures through toast errors', () => {
+    dataService.getSession.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    expect(toast.error).toHaveBeenCalledWith('Unable to load session detail.');
+    expect(fixture.componentInstance.session()).toBeNull();
   });
 });

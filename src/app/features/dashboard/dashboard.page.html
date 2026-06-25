@@ -98,11 +98,11 @@
         <a class="summary-card activity-link-card" routerLink="/workout" aria-label="Open latest workout">
           <span class="card-label">Latest Workout</span>
           <h3>{{ dashboard.latestWorkout.name }}</h3>
-          <p>{{ dashboard.latestWorkout.workoutType }} · {{ dashboard.latestWorkout.durationMinutes }} min</p>
+          <p>{{ dashboard.latestWorkout.workoutType }} · {{ workoutDurationLabel(dashboard.latestWorkout) }}</p>
           <dl>
             <div>
               <dt>Calories</dt>
-              <dd>{{ dashboard.latestWorkout.caloriesBurned }}</dd>
+              <dd>{{ workoutCaloriesLabel(dashboard.latestWorkout) }}</dd>
             </div>
             <div>
               <dt>Exercises</dt>

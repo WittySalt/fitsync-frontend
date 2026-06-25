@@ -9,20 +9,32 @@
 }
 
 .detail-actions,
-.form-actions {
+.form-actions,
+.exercise-row-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.session-form {
+.session-form,
+.exercise-edit-form {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
+}
+
+.session-form {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.exercise-add-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
 }
 
 label {
@@ -99,6 +111,7 @@ dd {
 .exercise-heading {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -135,11 +148,26 @@ small {
 
 .set-row {
   display: grid;
-  grid-template-columns: 0.7fr repeat(4, 1fr);
   gap: 8px;
   min-width: 520px;
   padding: 9px 0;
   border-top: 1px solid var(--border);
+}
+
+.set-table .set-row {
+  grid-template-columns: 0.7fr repeat(5, 1fr);
+  min-width: 640px;
+}
+
+.set-list {
+  display: grid;
+  overflow-x: auto;
+}
+
+.set-list .set-row {
+  grid-template-columns: 0.7fr repeat(5, minmax(92px, 1fr)) minmax(78px, auto);
+  min-width: 820px;
+  align-items: center;
 }
 
 .set-row.header {
@@ -153,6 +181,19 @@ small {
 .set-row td {
   text-align: left;
   font: inherit;
+}
+
+.set-state {
+  color: var(--text-secondary);
+  font-weight: var(--fw-semibold);
+}
+
+.exercise-notes {
+  max-width: 520px;
+}
+
+.text-link.danger {
+  color: var(--danger);
 }
 
 @media (max-width: 980px) {
@@ -176,7 +217,8 @@ small {
     grid-column: auto;
   }
 
-  .exercise-heading {
+  .exercise-heading,
+  .exercise-add-row {
     display: grid;
   }
 }

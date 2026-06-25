@@ -89,8 +89,8 @@ export interface WorkoutSession {
   status: string;
   source?: string | null;
   startedAt: string;
-  durationMinutes: number;
-  caloriesBurned: number;
+  durationMinutes: number | null;
+  caloriesBurned: number | null;
   completedAt: string;
   exerciseCount: number;
 }
@@ -201,8 +201,8 @@ export interface UpsertWorkoutSessionRequest {
   source: string;
   startedAt: string;
   completedAt?: string;
-  durationMinutes: number;
-  caloriesBurned: number;
+  durationMinutes: number | null;
+  caloriesBurned: number | null;
   perceivedExertion: number | null;
   notes: string | null;
   exercises: WorkoutExerciseLogInput[];
@@ -225,8 +225,8 @@ export interface ImportSessionRow {
   status: string;
   startedAt: string;
   completedAt?: string;
-  durationMinutes: number;
-  caloriesBurned: number;
+  durationMinutes: number | null;
+  caloriesBurned: number | null;
   perceivedExertion: number | null;
   notes: string | null;
   exercises: WorkoutExerciseLogInput[];
