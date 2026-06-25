@@ -239,6 +239,28 @@ describe('ExercisePlayerComponent', () => {
     return player;
   }
 
+  it('drops a leading instruction that merely repeats the description', () => {
+    fixture.componentInstance.currentDetail.set(exerciseDetail({
+      description: 'Brace your core and keep a flat back.',
+      instructions: [
+        { stepNumber: 1, text: 'Brace your core and keep a flat back.' },
+        { stepNumber: 2, text: 'Hinge at the hips and lower the bar.' }
+      ]
+    }));
+
+    const steps = fixture.componentInstance.guidanceInstructions();
+    expect(steps.length).toBe(1);
+    expect(steps[0].text).toBe('Hinge at the hips and lower the bar.');
+  });
+
+  it('does not abort when the confirmation is dismissed', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+
+    fixture.componentInstance.abort();
+
+    expect(dataService.cancelSession).not.toHaveBeenCalled();
+  });
+
   it('saves the current set with session, exercise log, set number, and target values', () => {
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
 

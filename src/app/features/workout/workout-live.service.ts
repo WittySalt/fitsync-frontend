@@ -156,8 +156,35 @@ export class WorkoutLiveService {
   }
 
   private refreshMockHeartRate(): void {
-    const elapsed = this.elapsedSeconds();
-    this.heartRate.set(112 + ((elapsed * 7) % 39));
+    this.heartRate.set(this.mockHeartRate(this.elapsedSeconds(), this.session()?.workoutType));
+  }
+
+  /**
+   * Deterministic mock heart rate: starts near resting, eases up over the first ~45s,
+   * then drifts within a believable band for the workout type (no instant jump to peak).
+   */
+  mockHeartRate(elapsedSeconds: number, workoutType: string | null | undefined): number {
+    const rest = 72;
+    const peak = this.peakHeartRate(workoutType);
+    const ramp = Math.min(1, Math.max(0, elapsedSeconds) / 45);
+    const baseline = rest + (peak - rest) * ramp;
+    const wander = Math.sin(elapsedSeconds / 6) * 3 + Math.sin(elapsedSeconds / 2.3) * 1.5;
+    return Math.round(baseline + wander);
+  }
+
+  private peakHeartRate(workoutType: string | null | undefined): number {
+    switch (workoutType) {
+      case 'HIIT':
+        return 158;
+      case 'CARDIO':
+        return 150;
+      case 'STRENGTH':
+        return 134;
+      case 'MOBILITY':
+        return 104;
+      default:
+        return 138;
+    }
   }
 
   private caloriesPerMinute(workoutType: string | null | undefined): number {

@@ -126,6 +126,15 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly sortedInstructions = computed(() =>
     [...(this.currentDetail()?.instructions ?? [])].sort((a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER))
   );
+  /** Instructions for display: drop a leading step that merely repeats the description paragraph. */
+  readonly guidanceInstructions = computed(() => {
+    const description = this.currentDetail()?.description?.trim();
+    const steps = this.sortedInstructions();
+    if (description && steps.length && steps[0].text?.trim() === description) {
+      return steps.slice(1);
+    }
+    return steps;
+  });
   readonly guidanceChips = computed(() => {
     const detail = this.currentDetail();
     if (!detail) {
@@ -296,6 +305,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   abort(): void {
     if (this.ending()) {
+      return;
+    }
+    if (!window.confirm('Abort this workout? Your in-progress session will be discarded.')) {
       return;
     }
     this.ending.set(true);

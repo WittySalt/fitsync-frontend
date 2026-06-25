@@ -48,10 +48,11 @@
 }
 
 .exercise-select {
-  display: grid;
+  display: flex;
+  align-items: flex-start;
   flex: 1;
   min-width: 0;
-  gap: 4px;
+  gap: 12px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -59,6 +60,21 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.exercise-select-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.exercise-thumb {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.05));
 }
 
 .exercise-select:disabled {

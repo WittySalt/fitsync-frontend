@@ -104,6 +104,22 @@
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-track span {
+    transition: none;
+  }
+}
+
+.button.danger {
+  color: #b42318;
+  border-color: #f3c0bb;
+}
+
+.button.danger:hover:not(:disabled) {
+  background: #fef3f2;
 }
 
 .signal-grid {
