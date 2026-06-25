@@ -554,7 +554,12 @@ describe('ActivityHeatmapComponent', () => {
   });
 
   it('highlights today in the compact month grid', () => {
-    const today = localIsoDate(new Date());
+    // Resolve "today" in a single fixed timezone in BOTH the component and the
+    // test. The component defaults to Asia/Singapore while CI runs in UTC, so
+    // comparing against the runner-local date made this flaky for an 8h window
+    // each day (it failed whenever UTC and SGT were on different calendar days).
+    component.timezone = 'UTC';
+    const today = new Date().toISOString().slice(0, 10);
     const monthRange = rangeForMonth(today);
     component.variant = 'compact';
     component.range = monthRange;
@@ -586,10 +591,6 @@ function session(overrides: Partial<WorkoutSession> = {}): WorkoutSession {
     exerciseCount: 5,
     ...overrides
   };
-}
-
-function localIsoDate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function rangeForMonth(date: string): { from: string; to: string } {
