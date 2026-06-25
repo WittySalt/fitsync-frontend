@@ -253,6 +253,14 @@ describe('ExercisePlayerComponent', () => {
     expect(steps[0].text).toBe('Hinge at the hips and lower the bar.');
   });
 
+  it('does not abort when the confirmation is dismissed', () => {
+    spyOn(window, 'confirm').and.returnValue(false);
+
+    fixture.componentInstance.abort();
+
+    expect(dataService.cancelSession).not.toHaveBeenCalled();
+  });
+
   it('saves the current set with session, exercise log, set number, and target values', () => {
     fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
 

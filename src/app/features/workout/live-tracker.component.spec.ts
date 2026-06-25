@@ -135,4 +135,15 @@ describe('LiveTrackerComponent', () => {
 
     expect(toast.error).toHaveBeenCalledWith('Unable to finish workout. Please retry.');
   }));
+
+  it('does not terminate when the confirmation is dismissed', fakeAsync(() => {
+    (window.confirm as jasmine.Spy).and.returnValue(false);
+    startTracker();
+
+    tick(60_000);
+    fixture.componentInstance.terminate();
+
+    expect(dataService.completeSession).not.toHaveBeenCalled();
+    expect(dataService.cancelSession).not.toHaveBeenCalled();
+  }));
 });

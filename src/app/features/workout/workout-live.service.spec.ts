@@ -67,6 +67,16 @@ describe('WorkoutLiveService', () => {
     expect(later).toBeLessThanOrEqual(140);
   });
 
+  it('uses workout-type-specific heart-rate bands', () => {
+    const hiit = service.mockHeartRate(120, 'HIIT');
+    const cardio = service.mockHeartRate(120, 'CARDIO');
+    const mobility = service.mockHeartRate(120, 'MOBILITY');
+    const fallback = service.mockHeartRate(120, 'YOGA');
+    expect(hiit).toBeGreaterThan(cardio);
+    expect(cardio).toBeGreaterThan(mobility);
+    expect(fallback).toBeGreaterThan(mobility);
+  });
+
   it('starts from a plan and exposes elapsed time, mock heart rate, and estimated calories', fakeAsync(() => {
     service.startFromPlan('plan-1').subscribe();
 
