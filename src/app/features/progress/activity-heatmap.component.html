@@ -1,3 +1,43 @@
+@if (variant === 'compact') {
+  <div class="compact-activity" aria-label="This month workout activity heatmap">
+    @if (loading()) {
+      <div class="compact-skeleton" aria-busy="true" aria-label="Loading workout activity"></div>
+    } @else if (error()) {
+      <div class="compact-status" role="status">Activity unavailable</div>
+    } @else {
+      <ul
+        class="compact-month-grid"
+        [class.is-empty]="!hasCompactActivity()"
+        [attr.aria-label]="compactMonth().label + ' workout activity'"
+      >
+        @for (week of compactMonth().weeks; track $index) {
+          @for (day of week; track day.date) {
+            <li
+              [class]="cellClass(day)"
+              [attr.title]="tooltip(day)"
+              [attr.aria-label]="tooltip(day)"
+            ></li>
+          }
+        }
+      </ul>
+
+      <div class="compact-footer">
+        <span>{{ compactWorkoutCount() }} workouts &middot; {{ compactWorkoutMinutes() }} min</span>
+        <div class="legend compact-legend" aria-hidden="true">
+          <span>Less</span>
+          @for (level of legendLevels; track level) {
+            <i class="heatmap-cell intensity-{{ level }}"></i>
+          }
+          <span>More</span>
+        </div>
+      </div>
+
+      @if (!hasCompactActivity()) {
+        <p class="compact-empty">Log a workout to fill this in</p>
+      }
+    }
+  </div>
+} @else {
 <section class="summary-card activity-card" aria-label="Workout activity heatmap">
   <div class="section-title">
     <div>
@@ -240,3 +280,4 @@
     }
   }
 </section>
+}

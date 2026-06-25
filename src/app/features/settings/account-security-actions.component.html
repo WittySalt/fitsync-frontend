@@ -46,14 +46,4 @@
     </button>
   </div>
 
-  <div class="security-action-list danger-panel">
-    <div>
-      <strong>Delete login credential</strong>
-      <p>Deletes only the Cognito user. Backend workout, nutrition, body-metric, and profile data are not automatically cleaned.</p>
-      <p class="danger-note">Export workout data and account data before deleting this credential.</p>
-    </div>
-    <button class="button danger" type="button" [disabled]="deletingAccount()" (click)="deleteAccount()">
-      {{ deletingAccount() ? 'Deleting...' : 'Delete Cognito account' }}
-    </button>
-  </div>
 </article>

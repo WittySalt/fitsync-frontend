@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
-import { FitSyncDataService, ProgressData } from './fitsync-data.service';
+import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
 import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
@@ -89,6 +89,37 @@ const dashboardAnalytics: AnalyticsDashboardResponse = {
       targetUnit: 'kcal',
       currentValue: 1900,
       progressRatio: 0.95,
+      onTrack: true,
+      lastEvaluatedAt: '2026-06-22T00:00:00Z'
+    }
+  ]
+};
+
+const activeGoalProgress = {
+  goals: [
+    {
+      goalId: 'goal-calories-old',
+      goalType: 'CALORIES',
+      goalStatus: 'ACTIVE' as const,
+      targetValue: 2100,
+      targetUnit: 'kcal',
+      targetDate: '2026-08-31',
+      currentValue: 1050,
+      progressRatio: 0.5,
+      daysRemaining: 68,
+      onTrack: false,
+      lastEvaluatedAt: '2026-06-21T00:00:00Z'
+    },
+    {
+      goalId: 'goal-calories',
+      goalType: 'CALORIES',
+      goalStatus: 'ACTIVE' as const,
+      targetValue: 2000,
+      targetUnit: 'kcal',
+      targetDate: '2026-08-31',
+      currentValue: 1900,
+      progressRatio: 0.95,
+      daysRemaining: 67,
       onTrack: true,
       lastEvaluatedAt: '2026-06-22T00:00:00Z'
     }
@@ -400,6 +431,9 @@ describe('FitSyncDataService', () => {
     });
 
     httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
     httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
     httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
     httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
@@ -428,8 +462,10 @@ describe('FitSyncDataService', () => {
             goalType: 'CALORIES',
             targetValue: 2000,
             targetUnit: 'kcal',
+            targetDate: '2026-08-31',
             currentValue: 1900,
             onTrack: true,
+            daysRemaining: 67,
             lastEvaluatedAt: '2026-06-22T00:00:00Z'
           })
         ]
@@ -454,6 +490,9 @@ describe('FitSyncDataService', () => {
       },
       goals: []
     });
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush({ goals: [] });
     httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
     httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
     httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
@@ -470,6 +509,60 @@ describe('FitSyncDataService', () => {
         goals: []
       })
     );
+  });
+
+  it('hides non-completed latest workout sessions from dashboard data', () => {
+    let result: DashboardData | undefined;
+    service.getDashboard().subscribe((value) => {
+      result = value;
+    });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({
+      sessionId: 'cancelled-session',
+      name: 'Cancelled workout',
+      workoutType: 'STRENGTH',
+      status: 'CANCELLED',
+      startedAt: '2026-06-24T10:00:00Z',
+      completedAt: null,
+      durationMinutes: null,
+      caloriesBurned: null,
+      exerciseCount: 4
+    });
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result?.latestWorkout).toBeNull();
+  });
+
+  it('keeps completed latest workout sessions in dashboard data', () => {
+    let result: DashboardData | undefined;
+    service.getDashboard().subscribe((value) => {
+      result = value;
+    });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({
+      sessionId: 'completed-session',
+      name: 'Completed workout',
+      workoutType: 'STRENGTH',
+      status: 'COMPLETED',
+      startedAt: '2026-06-24T10:00:00Z',
+      completedAt: '2026-06-24T10:45:00Z',
+      durationMinutes: 45,
+      caloriesBurned: 320,
+      exerciseCount: 4
+    });
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result?.latestWorkout).toEqual(jasmine.objectContaining({ sessionId: 'completed-session', status: 'COMPLETED' }));
   });
 
   it('loads daily nutrition summary with date and timezone params', () => {

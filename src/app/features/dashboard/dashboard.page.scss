@@ -64,6 +64,8 @@
     background: var(--surface);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
+    color: inherit;
+    text-decoration: none;
 
     span,
     small {
@@ -74,6 +76,41 @@
       display: block;
       margin: 4px 0;
       font-size: 20px;
+    }
+  }
+
+  a.metric-card,
+  a.activity-link-card {
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+
+  .activity-link-card {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .heatmap-metric {
+    align-items: stretch;
+
+    > div {
+      display: grid;
+      gap: 4px;
+      width: 100%;
+    }
+
+    app-activity-heatmap {
+      margin-top: 4px;
     }
   }
 

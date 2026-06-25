@@ -8,6 +8,12 @@ import { StatePanelComponent } from '../../shared/state-panel.component';
 import { SessionDetailComponent } from '../workout/session-detail.component';
 
 type ActivityPresetKey = 'week' | 'month' | 'quarter' | 'year';
+type ActivityHeatmapVariant = 'full' | 'compact';
+
+export interface ActivityHeatmapRange {
+  from: string;
+  to: string;
+}
 
 interface RangePreset {
   label: string;
@@ -65,6 +71,8 @@ export class ActivityHeatmapComponent implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
 
   @Input() timezone = 'Asia/Singapore';
+  @Input() variant: ActivityHeatmapVariant = 'full';
+  @Input() range: ActivityHeatmapRange | null = null;
 
   readonly rangePresets: RangePreset[] = [
     { label: 'Week', key: 'week' },
@@ -126,16 +134,28 @@ export class ActivityHeatmapComponent implements OnInit {
   readonly weekBlocks = computed(() => this.resolveWeekBlocks());
   readonly allDaySessions = computed(() => this.resolveAllDaySessions());
   readonly monthDays = computed(() => this.buildMonthCalendarDays(this.selectedDate()));
+  readonly compactMonth = computed(() => this.buildMonthHeatmap(this.parseIsoDate(this.startDate())));
+  readonly compactWorkoutCount = computed(() => this.days().reduce((total, day) => total + day.workoutCount, 0));
+  readonly compactWorkoutMinutes = computed(() => this.days().reduce((total, day) => total + day.workoutMinutes, 0));
+  readonly hasCompactActivity = computed(() => this.compactWorkoutCount() > 0 || this.compactWorkoutMinutes() > 0);
   readonly expandedMonthDay = computed(() => {
     const expandedDate = this.expandedMonthDate();
     return expandedDate ? (this.monthDays().find((day) => day.date === expandedDate) ?? null) : null;
   });
 
   ngOnInit(): void {
+    if (this.variant === 'compact') {
+      this.configureCompactRange();
+    }
     this.load();
   }
 
   load(): void {
+    if (this.variant === 'compact') {
+      this.loadActivityCalendar();
+      return;
+    }
+
     if (this.isEventCalendar()) {
       this.loadSessions();
       return;
@@ -264,7 +284,12 @@ export class ActivityHeatmapComponent implements OnInit {
 
   cellClass(day: CalendarDay): string {
     const muted = day.inRange && day.inMonth !== false ? '' : ' is-muted';
-    return `heatmap-cell intensity-${this.intensity(day)}${muted}`;
+    const today = this.isToday(day.date) ? ' is-today' : '';
+    return `heatmap-cell intensity-${this.intensity(day)}${muted}${today}`;
+  }
+
+  isToday(date: string): boolean {
+    return date === this.isoToday();
   }
 
   weekColumnLabel(date: string): string {
@@ -318,6 +343,37 @@ export class ActivityHeatmapComponent implements OnInit {
       const start = this.validDate(session.startedAt);
       return start ? this.localDateTimeParts(start).date === date : false;
     });
+  }
+
+  private configureCompactRange(): void {
+    const range = this.range ?? this.currentMonthRange();
+    this.selectedPreset.set('month');
+    this.selectedDate.set(this.parseIsoDate(range.from));
+    this.startDate.set(range.from);
+    this.endDate.set(range.to);
+  }
+
+  private currentMonthRange(): ActivityHeatmapRange {
+    const parts = new Intl.DateTimeFormat('en-SG', {
+      timeZone: this.timezone || 'Asia/Singapore',
+      year: 'numeric',
+      month: '2-digit'
+    })
+      .formatToParts(new Date())
+      .reduce<Record<string, string>>((acc, part) => {
+        if (part.type !== 'literal') {
+          acc[part.type] = part.value;
+        }
+        return acc;
+      }, {});
+    const year = Number(parts['year']);
+    const month = Number(parts['month']);
+    const lastDay = new Date(year, month, 0).getDate();
+
+    return {
+      from: `${year}-${String(month).padStart(2, '0')}-01`,
+      to: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    };
   }
 
   private moveEventPeriod(date: Date): void {
@@ -625,9 +681,21 @@ export class ActivityHeatmapComponent implements OnInit {
   }
 
   private isoToday(): string {
-    // Local calendar date (not UTC) so the "today" cell matches the user's day.
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // Local calendar date in the profile timezone so the "today" cell matches the user's day.
+    const parts = new Intl.DateTimeFormat('en-SG', {
+      timeZone: this.timezone || 'Asia/Singapore',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+      .formatToParts(new Date())
+      .reduce<Record<string, string>>((acc, part) => {
+        if (part.type !== 'literal') {
+          acc[part.type] = part.value;
+        }
+        return acc;
+      }, {});
+    return `${parts['year']}-${parts['month']}-${parts['day']}`;
   }
 
   private parseIsoDate(value: string): Date {

@@ -205,12 +205,14 @@ describe('SettingsPage', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
     expect(text).toContain('Alice Tan');
+    expect(text).toContain('Timezone');
     expect(text).toContain('Identity');
     expect(text).toContain('Gender');
     expect(text).toContain('Activity level');
     expect(text).toContain('Manage goals');
+    expect(text).not.toContain('Region');
     expect(text).not.toContain('Goals / targets');
-    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/progress"]')).not.toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/me#goal-lifecycle"]')).not.toBeNull();
     // Section tabs: these live in non-default sections but the nav labels are always rendered.
     expect(text).toContain('Preferences');
     expect(text).toContain('Privacy & Data');
@@ -272,6 +274,44 @@ describe('SettingsPage', () => {
       gender: 'FEMALE',
       birthDate: '1995-04-12'
     }));
+  });
+
+  it('uses row-level settings edit affordances without duplicate section header edit buttons', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.sub-card-header .button.secondary.compact')).toBeNull();
+    expect(compiled.textContent).toContain('Profile location');
+    expect(compiled.textContent).not.toContain('LocationNot set');
+  });
+
+  it('formats account dates with the fixed English locale', () => {
+    const component = fixture.componentInstance;
+
+    component.data.set({
+      ...accountData,
+      user: {
+        ...accountData.user,
+        preferences: {
+          ...accountData.user.preferences,
+          app: {
+            ...accountData.user.preferences.app,
+            language: '110002'
+          }
+        }
+      }
+    });
+
+    expect(component.displayDate('1995-04-12')).toBe('12 Apr 1995');
+    expect(component.displayDateTime('2026-06-17T07:00:00Z')).toBe('17 Jun 2026, 3:00 pm');
+    expect(component.displayDate('not-a-date')).toBe('Not set');
+    expect(component.displayDateTime('not-a-date')).toBe('Not set');
+
+    component.selectedSection.set('security');
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('expires 17 Jun 2026, 3:00 pm');
+    expect(text).not.toContain('2026年');
   });
 
   it('requests account data export from the privacy section', () => {
@@ -460,6 +500,62 @@ describe('SettingsPage', () => {
 
     expect(accountDataService.requestAccountDeletion).toHaveBeenCalledWith('DELETE', 'password123');
     expect(toast.success).toHaveBeenCalledWith('Account deletion request submitted.');
+  });
+
+  it('uses the single privacy account deletion flow', () => {
+    const component = fixture.componentInstance;
+    component.selectedSection.set('security');
+    fixture.detectChanges();
+
+    let text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).not.toContain('Delete Cognito account');
+    expect(text).not.toContain('Delete login credential');
+
+    component.selectedSection.set('privacy-data');
+    fixture.detectChanges();
+    text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('Delete account');
+    expect(text).toContain('Request account deletion');
+
+    const deleteButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.danger-action');
+    deleteButton?.click();
+    fixture.detectChanges();
+
+    expect(component.editPanel()).toBe('delete');
+  });
+
+  it('persists notification toggles inline with optimistic state', () => {
+    const component = fixture.componentInstance;
+    const updatedPreferences = {
+      ...accountData.user.preferences,
+      notifications: {
+        ...accountData.user.preferences.notifications,
+        mealReminderEnabled: true
+      }
+    };
+    accountDataService.updatePreferences.and.returnValue(of(updatedPreferences));
+
+    component.toggleNotification('mealReminderEnabled', true);
+
+    expect(component.notificationToggleValue('mealReminderEnabled')).toBeTrue();
+    expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
+      notifications: jasmine.objectContaining({ mealReminderEnabled: true })
+    }));
+    expect(component.savingNotificationToggle()).toBeNull();
+    expect(toast.success).toHaveBeenCalledWith('Notifications updated.');
+  });
+
+  it('rolls back notification toggles when persistence fails', () => {
+    const component = fixture.componentInstance;
+    accountDataService.updatePreferences.and.returnValue(throwError(() => new Error('notifications failed')));
+
+    component.toggleNotification('pushEnabled', false);
+
+    expect(component.notificationToggleValue('pushEnabled')).toBeTrue();
+    expect(component.sectionErrors().notifications).toBe('notifications failed');
+    expect(component.savingNotificationToggle()).toBeNull();
+    expect(toast.error).toHaveBeenCalledWith('notifications failed');
   });
 
   it('marks forms touched and skips service calls for invalid or unavailable save paths', () => {

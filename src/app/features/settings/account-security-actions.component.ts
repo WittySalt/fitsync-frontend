@@ -4,9 +4,6 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../core/toast/toast.service';
 
-const DELETE_CONFIRMATION = 'DELETE';
-const BACKEND_DATA_WARNING = 'Backend data is not automatically deleted';
-
 @Component({
   selector: 'app-account-security-actions',
   imports: [ReactiveFormsModule],
@@ -20,7 +17,6 @@ export class AccountSecurityActionsComponent {
 
   readonly changingPassword = signal(false);
   readonly signingOut = signal(false);
-  readonly deletingAccount = signal(false);
 
   readonly passwordForm = this.fb.group({
     currentPassword: ['', [Validators.required, Validators.maxLength(120)]],
@@ -69,23 +65,6 @@ export class AccountSecurityActionsComponent {
       error: (error: Error) => {
         this.signingOut.set(false);
         this.toast.error(error.message || 'Unable to sign out of all devices.');
-      }
-    });
-  }
-
-  deleteAccount(): void {
-    const confirmation = window.prompt(
-      `Delete your Cognito login credential?\n\n${BACKEND_DATA_WARNING}: deleting this login does not automatically remove backend workout, nutrition, profile, or body-metric data. Export workout data and account data before continuing.\n\nType ${DELETE_CONFIRMATION} to continue.`
-    );
-    if (confirmation !== DELETE_CONFIRMATION) {
-      return;
-    }
-
-    this.deletingAccount.set(true);
-    this.authService.deleteAccount().subscribe({
-      error: (error: Error) => {
-        this.deletingAccount.set(false);
-        this.toast.error(error.message || 'Unable to delete account.');
       }
     });
   }

@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
+import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
 import { AUTH_STORAGE_KEYS, COGNITO_AUTH_CONFIG } from './auth.config';
 
@@ -30,6 +30,7 @@ interface BootstrapAuthResponse {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly config = COGNITO_AUTH_CONFIG;
+  private sessionBootstrap$?: Observable<boolean>;
 
   readonly authError = signal<string | null>(null);
 
@@ -37,6 +38,10 @@ export class AuthService {
     const token = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
     const expiresAt = Number(localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt) ?? 0);
     return Boolean(token && expiresAt > Date.now());
+  }
+
+  getAccessToken(): string | null {
+    return this.isAuthenticated() ? localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) : null;
   }
 
   ensureSession(): Observable<boolean> {
@@ -50,13 +55,19 @@ export class AuthService {
       return of(false);
     }
 
-    return this.bootstrapWithCognitoToken(cognitoIdToken).pipe(
+    this.sessionBootstrap$ ??= this.bootstrapWithCognitoToken(cognitoIdToken).pipe(
       map(() => true),
       catchError(() => {
         this.clearSession();
         return of(false);
-      })
+      }),
+      finalize(() => {
+        this.sessionBootstrap$ = undefined;
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
     );
+
+    return this.sessionBootstrap$;
   }
 
   signIn(email: string, password: string): Observable<void> {
@@ -223,6 +234,7 @@ export class AuthService {
   }
 
   private clearSession(): void {
+    this.sessionBootstrap$ = undefined;
     this.clearLocalAccessToken();
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoAccessToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoIdToken);

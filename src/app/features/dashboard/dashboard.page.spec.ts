@@ -2,8 +2,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsActivityCalendarResponse } from '../../core/analytics.models';
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
 import { DashboardPage } from './dashboard.page';
+
+const activityCalendar: AnalyticsActivityCalendarResponse = {
+  from: '2026-06-01',
+  to: '2026-06-30',
+  days: [
+    { date: '2026-06-20', workoutCount: 1, workoutMinutes: 45 },
+    { date: '2026-06-24', workoutCount: 2, workoutMinutes: 80 }
+  ]
+};
 
 const dashboardData: DashboardData = {
   profile: {
@@ -63,7 +74,7 @@ const dashboardData: DashboardData = {
       goalType: 'CALORIES',
       targetValue: 2100,
       targetUnit: 'kcal',
-      targetDate: '',
+      targetDate: '2026-08-30',
       status: 'ACTIVE',
       progressRatio: 0.5,
       onTrack: false,
@@ -75,7 +86,7 @@ const dashboardData: DashboardData = {
       goalType: 'CALORIES',
       targetValue: 2000,
       targetUnit: 'kcal',
-      targetDate: '',
+      targetDate: '2026-08-31',
       status: 'ACTIVE',
       progressRatio: 0.95,
       onTrack: true,
@@ -88,15 +99,22 @@ const dashboardData: DashboardData = {
 describe('DashboardPage', () => {
   let fixture: ComponentFixture<DashboardPage>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
 
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard', 'getDailyNutritionSummary']);
     dataService.getDashboard.and.returnValue(of(dashboardData));
     dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getActivityCalendar']);
+    analyticsApi.getActivityCalendar.and.returnValue(of(activityCalendar));
 
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
-      providers: [{ provide: FitSyncDataService, useValue: dataService }, provideRouter([])]
+      providers: [
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: AnalyticsApiService, useValue: analyticsApi },
+        provideRouter([])
+      ]
     }).compileComponents();
 
     jasmine.clock().install();
@@ -116,14 +134,14 @@ describe('DashboardPage', () => {
     expect(text).toContain('Active streak');
     expect(text).toContain('7 days');
     expect(text).toContain('7 workouts · 300 min this week');
-    expect(text).toContain('On track · 95% complete');
+    expect(text).toContain('On track · 95% complete · by 31 Aug 2026');
     expect(text).toContain('Today');
     expect(text).toContain('3 days ago');
     expect(text).not.toContain('2026-06-24T00:05:00.512709Z');
     expect(text).not.toContain('2026-06-21T12:30:00Z');
     expect(goalRowText().length).toBe(1);
-    expect(goalRowText()[0]).toContain('Calories 1,900 / 2,000 kcal');
-    expect(goalRowText()[0]).toContain('On track · 95% complete');
+    expect(goalRowText()[0]).toContain('Calories 2,000 kcal');
+    expect(goalRowText()[0]).toContain('On track · 95% complete · by 31 Aug 2026');
     expect(text).not.toContain('Complete setup');
   });
 
@@ -172,6 +190,30 @@ describe('DashboardPage', () => {
     expect(compiled.querySelector<HTMLAnchorElement>('.empty-workout-state a')?.getAttribute('href')).toBe('/workout');
   });
 
+  it('renders the latest workout empty state for non-completed sessions', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        latestWorkout: {
+          name: 'Cancelled workout',
+          workoutType: 'STRENGTH',
+          status: 'CANCELLED',
+          startedAt: '2026-06-24T10:00:00Z',
+          durationMinutes: 0,
+          caloriesBurned: 0,
+          completedAt: '',
+          exerciseCount: 4
+        }
+      })
+    );
+
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('No completed workout yet');
+    expect(compiled.textContent).not.toContain('Cancelled workout');
+  });
+
   it('renders friendly empty states for new users without NaN', () => {
     const emptyNutrition = {
       ...dashboardData.nutrition,
@@ -198,10 +240,97 @@ describe('DashboardPage', () => {
 
     const text = pageText();
     expect(text).toContain('No nutrition yet');
-    expect(text).toContain('No protein yet');
+    expect(text).toContain('Workout consistency');
     expect(text).toContain('No metric yet');
     expect(text).toContain('Complete setup');
     expect(text).not.toContain('NaN');
+  });
+
+  it('replaces the protein stat with a compact workout heatmap link', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const heatmapCard = compiled.querySelector<HTMLAnchorElement>('.heatmap-metric');
+    expect(heatmapCard?.getAttribute('href')).toBe('/progress');
+    expect(heatmapCard?.textContent).toContain('This month');
+    expect(heatmapCard?.textContent).toContain('3 workouts · 125 min');
+    expect(compiled.textContent).not.toContain('Daily target progress');
+  });
+
+  it('links dashboard cards to their related sections', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        latestWorkout: {
+          name: 'Upper body strength',
+          workoutType: 'STRENGTH',
+          status: 'COMPLETED',
+          startedAt: '2026-06-24T09:00:00Z',
+          completedAt: '2026-06-24T10:00:00Z',
+          durationMinutes: 60,
+          caloriesBurned: 320,
+          exerciseCount: 6
+        }
+      })
+    );
+
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.calories')?.getAttribute('href')).toBe('/nutrition');
+    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.streak')?.getAttribute('href')).toBe('/workout');
+    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.body')?.getAttribute('href')).toBe('/body');
+    expect(compiled.querySelector<HTMLAnchorElement>('.heatmap-metric')?.getAttribute('href')).toBe('/progress');
+
+    const activityLinks = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.activity-link-card'));
+    expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout', '/nutrition']);
+  });
+
+  it('uses navigation labels for dashboard quick actions and one goal management target', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const quickActions = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.quick-actions a'));
+    expect(quickActions.map((link) => (link.textContent ?? '').trim())).toEqual(['Nutrition', 'Workouts', 'Body']);
+    expect(quickActions.map((link) => link.getAttribute('href'))).toEqual(['/nutrition', '/workout', '/body']);
+    expect(compiled.querySelector<HTMLAnchorElement>('.goals-card .text-link')?.getAttribute('href')).toBe('/me#goal-lifecycle');
+  });
+
+  it('renders protein goal progress from the active goal source without the daily nutrition target', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        goals: [
+          {
+            goalId: 'goal-protein',
+            goalType: 'PROTEIN',
+            targetValue: 140,
+            targetUnit: 'g',
+            targetDate: '2026-08-31',
+            status: 'ACTIVE',
+            progressRatio: 1,
+            onTrack: true,
+            currentValue: 140,
+            lastEvaluatedAt: '2026-06-24T00:05:00Z'
+          }
+        ]
+      })
+    );
+    dataService.getDailyNutritionSummary.and.returnValue(
+      of({
+        ...dashboardData.nutrition,
+        totalProteinGrams: 7.47,
+        targetProteinGrams: 155
+      })
+    );
+
+    fixture.detectChanges();
+
+    const text = pageText();
+    expect(goalRowText()[0]).toContain('Protein 140 g');
+    expect(goalRowText()[0]).toContain('On track · 100% complete · by 31 Aug 2026');
+    expect(text).not.toContain('155g');
+    expect(text).not.toContain('155 g');
   });
 
   it('formats relative dates and fallback dates without exposing raw ISO timestamps', () => {
@@ -221,21 +350,19 @@ describe('DashboardPage', () => {
     const component = fixture.componentInstance;
 
     expect(component.goalLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY' })).toBe('Workout Frequency');
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'PROTEIN', targetUnit: '', currentValue: 130, targetValue: 140 })).toBe(
-      '130 / 140 g'
-    );
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WEIGHT', targetUnit: '', currentValue: 77.25, targetValue: 75 })).toBe(
-      '77.3 / 75 kg'
-    );
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'PROTEIN', targetUnit: '', currentValue: 130, targetValue: 140 })).toBe('140 g');
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WEIGHT', targetUnit: '', currentValue: 77.25, targetValue: 75 })).toBe('75 kg');
     expect(
       component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY', targetUnit: '', currentValue: 3, targetValue: 4 })
-    ).toBe('3 / 4 workouts/week');
+    ).toBe('4 workouts/week');
     expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: null, targetValue: 0 })).toBe(
       'No target set'
     );
     expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: 2000, targetValue: 0 })).toBe(
-      '2,000 / No target'
+      'No target set'
     );
+    expect(component.goalDateLabel({ ...dashboardData.goals[0], targetDate: '2026-08-31' })).toBe('by 31 Aug 2026');
+    expect(component.goalDateLabel({ ...dashboardData.goals[0], targetDate: '' })).toBe('No target date');
   });
 
   it('renders the dashboard error state', () => {

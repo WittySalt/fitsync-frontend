@@ -1,0 +1,12 @@
+<label class="toggle-control" [class.disabled]="disabled()">
+  <span class="toggle-copy">
+    <span>{{ label() }}</span>
+    @if (description(); as descriptionText) {
+      <small>{{ descriptionText }}</small>
+    }
+  </span>
+  <input type="checkbox" [checked]="checked()" [disabled]="disabled()" (change)="onChanged($event)" />
+  <span class="toggle-track" aria-hidden="true">
+    <span></span>
+  </span>
+</label>

@@ -1,7 +1,11 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsWorkoutSummaryResponse } from '../../core/analytics.models';
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
+import { Goal } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { GoalLifecycleComponent } from './goal-lifecycle.component';
 
@@ -20,8 +24,10 @@ interface ActivityItem {
 })
 export class ProfilePage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly analyticsApi = inject(AnalyticsApiService);
 
   readonly data = signal<DashboardData | null>(null);
+  readonly workoutSummary = signal<AnalyticsWorkoutSummaryResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -59,7 +65,7 @@ export class ProfilePage implements OnInit {
       return [];
     }
     const items: ActivityItem[] = [];
-    if (data.latestWorkout) {
+    if (this.isCompletedWorkout(data.latestWorkout)) {
       items.push({
         icon: 'dumbbell',
         title: data.latestWorkout.name,
@@ -94,9 +100,15 @@ export class ProfilePage implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.dataService.getDashboard().subscribe({
-      next: (data) => {
-        this.data.set(data);
+    const range = this.trainingHistoryRange();
+
+    forkJoin({
+      dashboard: this.dataService.getDashboard(),
+      workoutSummary: this.analyticsApi.getWorkoutSummary(range.from, range.to)
+    }).subscribe({
+      next: ({ dashboard, workoutSummary }) => {
+        this.workoutSummary.set(workoutSummary);
+        this.data.set(dashboard);
         this.loading.set(false);
       },
       error: (error: Error) => {
@@ -118,7 +130,36 @@ export class ProfilePage implements OnInit {
     return goal ? Math.round(Math.min(1, Math.max(0, goal.progressRatio)) * 100) : 0;
   }
 
-  formatDate(value: string | null | undefined): string {
+  isCompletedWorkout(workout: DashboardData['latestWorkout']): workout is NonNullable<DashboardData['latestWorkout']> {
+    return workout?.status === 'COMPLETED';
+  }
+
+  goalTargetLabel(goal: Goal): string {
+    if (goal.targetValue <= 0) {
+      return 'No target set';
+    }
+    const value = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 }).format(goal.targetValue);
+    const unit = goal.targetUnit.trim();
+    return `${value}${unit ? ` ${unit}` : ''}`;
+  }
+
+  goalTargetDateLabel(goal: Goal): string {
+    return goal.targetDate ? `by ${this.formatDate(goal.targetDate, true)}` : 'No target date';
+  }
+
+  totalTrainingHours(summary: AnalyticsWorkoutSummaryResponse): string {
+    return this.formatNumber(summary.totalWorkoutMinutes / 60, 1);
+  }
+
+  hasTrainingHistory(summary: AnalyticsWorkoutSummaryResponse | null): summary is AnalyticsWorkoutSummaryResponse {
+    return Boolean(summary && (summary.totalWorkoutCount > 0 || summary.totalWorkoutMinutes > 0));
+  }
+
+  streakLabel(days: number): string {
+    return `${this.formatNumber(days)} day${days === 1 ? '' : 's'}`;
+  }
+
+  formatDate(value: string | null | undefined, includeYear = false): string {
     if (!value) {
       return '';
     }
@@ -126,6 +167,34 @@ export class ProfilePage implements OnInit {
     if (Number.isNaN(date.getTime())) {
       return value;
     }
-    return new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat('en-SG', {
+      month: 'short',
+      day: 'numeric',
+      ...(includeYear ? { year: 'numeric' } : {})
+    }).format(date);
+  }
+
+  private trainingHistoryRange(): { from: string; to: string } {
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - 365);
+    return {
+      from: this.toDateParam(from),
+      to: this.toDateParam(to)
+    };
+  }
+
+  private toDateParam(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private formatNumber(value: number, maximumFractionDigits = 0): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+    return new Intl.NumberFormat('en-SG', { maximumFractionDigits }).format(value);
   }
 }

@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { App } from './app';
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
+import { ThemeService } from './core/theme/theme.service';
 
 describe('App', () => {
   let authService: jasmine.SpyObj<AuthService>;
@@ -20,6 +21,10 @@ describe('App', () => {
   };
 
   beforeEach(async () => {
+    localStorage.removeItem('fs-theme');
+    document.documentElement.removeAttribute('data-theme');
+    spyOn(window, 'matchMedia').and.returnValue({ matches: false } as MediaQueryList);
+
     authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout', 'ensureSession']);
     authService.ensureSession.and.returnValue(of(true));
     accountDataService = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['getProfileSummary']);
@@ -33,6 +38,11 @@ describe('App', () => {
         { provide: AccountDataService, useValue: accountDataService }
       ]
     }).compileComponents();
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('fs-theme');
+    document.documentElement.removeAttribute('data-theme');
   });
 
   it('creates the app shell', () => {
@@ -66,5 +76,19 @@ describe('App', () => {
     expect(compiled.textContent).toContain('Profile overview');
     expect(compiled.textContent).toContain('Security settings');
     expect(compiled.textContent).toContain('Sign out');
+  });
+
+  it('reflects system theme preference in the header theme control', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const themeButton = compiled.querySelector<HTMLButtonElement>('.theme-toggle');
+
+    expect(themeButton?.getAttribute('aria-label')).toContain('System theme (light)');
+
+    TestBed.inject(ThemeService).setTheme('dark');
+    fixture.detectChanges();
+
+    expect(themeButton?.getAttribute('aria-label')).toBe('Switch to light theme');
   });
 });

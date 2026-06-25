@@ -1,4 +1,4 @@
-<section class="summary-card goal-lifecycle" aria-labelledby="goal-lifecycle-title">
+<section class="summary-card goal-lifecycle" id="goal-lifecycle" aria-labelledby="goal-lifecycle-title">
   <div class="section-title">
     <div>
       <span class="card-label">Goals</span>
@@ -84,7 +84,7 @@
               </div>
               <div>
                 <dt>Date</dt>
-                <dd>{{ goal.targetDate || 'Not set' }}</dd>
+                <dd>{{ formatTargetDate(goal) }}</dd>
               </div>
               <div class="wide">
                 <dt>Notes</dt>

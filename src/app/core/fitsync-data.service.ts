@@ -3,11 +3,11 @@ import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from './analytics-api.service';
+import { AccountDataService } from './account-data.service';
 import {
   AnalyticsBodyTrendPoint,
   AnalyticsBucket,
   AnalyticsDashboardBody,
-  AnalyticsDashboardGoal,
   AnalyticsDashboardNutrition,
   AnalyticsGoalProgress
 } from './analytics.models';
@@ -145,10 +145,22 @@ interface PageResponse<T> {
 }
 
 interface BackendCurrentUser {
-  profile?: Partial<UserProfile> | null;
+  profile?: BackendUserProfile | null;
   preferences?: BackendUserPreferences | null;
   activeGoals?: Array<Partial<Goal>> | null;
   latestBodyMetrics?: Partial<BodyMetric> | null;
+}
+
+interface BackendUserProfile {
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  heightCm?: number | null;
+  activityLevel?: string | null;
+  timezone?: string | null;
+  onboardingCompleted?: boolean | null;
 }
 
 interface BackendUserPreferences {
@@ -474,6 +486,7 @@ interface BackendDailyNutritionSummary {
 export class FitSyncDataService {
   private readonly http = inject(HttpClient);
   private readonly analyticsApi = inject(AnalyticsApiService);
+  private readonly accountDataService = inject(AccountDataService);
 
   readonly apiBaseUrl = '/api/v1';
   readonly lastSavedMessage = signal<string | null>(null);
@@ -481,18 +494,19 @@ export class FitSyncDataService {
   getDashboard(): Observable<DashboardData> {
     return forkJoin({
       analytics: this.analyticsApi.getDashboard(),
-      user: this.http.get<BackendCurrentUser>(`${this.apiBaseUrl}/users/me`),
+      goalProgress: this.analyticsApi.getGoalsProgress('ACTIVE'),
+      user: this.accountDataService.getCurrentUser(),
       latestWorkout: this.http.get<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/sessions/latest`),
       latestMeal: this.http.get<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/latest`)
     }).pipe(
-      map(({ analytics, user, latestWorkout, latestMeal }) => ({
+      map(({ analytics, goalProgress, user, latestWorkout, latestMeal }) => ({
         profile: this.mapProfile(user.profile),
         nutrition: this.mapAnalyticsNutrition(analytics.nutrition),
         workout: analytics.workout,
-        latestWorkout: this.mapWorkoutSession(latestWorkout),
+        latestWorkout: this.mapWorkoutSession(latestWorkout, { completedOnly: true }),
         latestMeal: this.mapMeal(latestMeal),
         latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
-        goals: this.mapAnalyticsDashboardGoals(analytics.goals)
+        goals: dedupeGoalsByLatestEvaluation(goalProgress.goals.map((goal) => this.mapAnalyticsGoalProgress(goal)))
       })),
       catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
     );
@@ -1511,13 +1525,13 @@ export class FitSyncDataService {
     return throwError(() => new Error('Unable to load FitSync data. Please retry.'));
   }
 
-  private mapProfile(profile?: Partial<UserProfile> | null): UserProfile {
+  private mapProfile(profile?: BackendUserProfile | null): UserProfile {
     return {
       displayName: profile?.displayName ?? 'FitSync User',
       firstName: profile?.firstName ?? profile?.displayName?.split(' ')[0] ?? 'FitSync',
       lastName: profile?.lastName ?? '',
-      gender: profile?.gender,
-      birthDate: profile?.birthDate,
+      gender: profile?.gender ?? undefined,
+      birthDate: profile?.birthDate ?? undefined,
       heightCm: profile?.heightCm ?? 0,
       activityLevel: profile?.activityLevel ?? 'NOT_SET',
       timezone: profile?.timezone ?? 'Asia/Singapore',
@@ -1606,7 +1620,7 @@ export class FitSyncDataService {
 
   private applyProfileSeed(
     value: Partial<OnboardingFormValue>,
-    profile: Partial<UserProfile> | null | undefined,
+    profile: BackendUserProfile | null | undefined,
     latestBodyMetric: Partial<BodyMetric> | null | undefined,
     weightGoal: Partial<Goal> | undefined
   ): void {
@@ -1782,8 +1796,16 @@ export class FitSyncDataService {
       .filter((value): value is string => Boolean(value));
   }
 
-  private mapWorkoutSession(session?: Partial<WorkoutSession> | null): WorkoutSession | null {
+  private mapWorkoutSession(
+    session?: Partial<WorkoutSession> | null,
+    options: { completedOnly?: boolean } = {}
+  ): WorkoutSession | null {
     if (!session?.name) {
+      return null;
+    }
+
+    const status = session.status ?? 'COMPLETED';
+    if (options.completedOnly && status !== 'COMPLETED') {
       return null;
     }
 
@@ -1792,7 +1814,7 @@ export class FitSyncDataService {
       planId: session.planId ?? null,
       name: session.name,
       workoutType: session.workoutType ?? 'CUSTOM',
-      status: session.status ?? 'COMPLETED',
+      status,
       source: session.source ?? null,
       startedAt: session.startedAt ?? '',
       durationMinutes: session.durationMinutes ?? 0,
@@ -2014,27 +2036,6 @@ export class FitSyncDataService {
       bmi: point.bmi,
       waistCm: point.waistCm,
       measuredAt: point.date
-    };
-  }
-
-  private mapAnalyticsDashboardGoals(goals: AnalyticsDashboardGoal[] | null | undefined): Goal[] {
-    return dedupeGoalsByLatestEvaluation((goals ?? []).map((goal) => this.mapAnalyticsDashboardGoal(goal)));
-  }
-
-  private mapAnalyticsDashboardGoal(goal: AnalyticsDashboardGoal): Goal {
-    const targetValue = goal.targetValue ?? 0;
-
-    return {
-      goalId: goal.goalId,
-      goalType: goal.goalType,
-      targetValue,
-      targetUnit: goal.targetUnit ?? '',
-      targetDate: goal.targetDate ?? '',
-      status: 'ACTIVE',
-      progressRatio: goal.progressRatio,
-      onTrack: goal.onTrack,
-      currentValue: goal.currentValue ?? (targetValue > 0 ? Math.round(goal.progressRatio * targetValue) : null),
-      lastEvaluatedAt: goal.lastEvaluatedAt ?? null
     };
   }
 

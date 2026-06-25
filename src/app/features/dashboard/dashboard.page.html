@@ -30,14 +30,14 @@
         <p>{{ dashboard.profile.timezone }} · {{ dashboard.profile.activityLevel.replace('_', ' ') }}</p>
       </div>
       <div class="quick-actions" aria-label="Quick actions">
-        <a routerLink="/nutrition" class="button nutrition">Log Meal</a>
-        <a routerLink="/workout" class="button workout">Start Workout</a>
-        <a routerLink="/body" class="button secondary">Record Weight</a>
+        <a routerLink="/nutrition" class="button nutrition">Nutrition</a>
+        <a routerLink="/workout" class="button workout">Workouts</a>
+        <a routerLink="/body" class="button secondary">Body</a>
       </div>
     </section>
 
     <section class="metrics-grid">
-      <article class="metric-card calories">
+      <a class="metric-card calories" routerLink="/nutrition" aria-label="Open nutrition dashboard">
         <app-progress-ring label="Calories" [value]="caloriePercent()" />
         <div>
           <span>Calories</span>
@@ -49,23 +49,17 @@
             <small>Log your first meal to start today's summary</small>
           }
         </div>
-      </article>
+      </a>
 
-      <article class="metric-card protein">
-        <app-progress-ring label="Protein" [value]="proteinPercent()" />
+      <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
         <div>
-          <span>Protein</span>
-          @if (hasProteinData()) {
-            <strong>{{ nutritionSummary()?.totalProteinGrams ?? 0 }}g / {{ nutritionSummary()?.targetProteinGrams != null ? (nutritionSummary()?.targetProteinGrams ?? 0) + 'g' : 'No target' }}</strong>
-            <small>{{ (nutritionSummary()?.totalProteinGrams ?? 0) > 0 ? 'Daily target progress' : 'No protein logged yet' }}</small>
-          } @else {
-            <strong>No protein yet</strong>
-            <small>Protein appears after meals are logged</small>
-          }
+          <span>This month</span>
+          <strong>Workout consistency</strong>
+          <app-activity-heatmap variant="compact" [timezone]="dashboard.profile.timezone" />
         </div>
-      </article>
+      </a>
 
-      <article class="metric-card streak">
+      <a class="metric-card streak" routerLink="/workout" aria-label="Open workouts">
         <span class="metric-icon">ST</span>
         <div>
           @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
@@ -78,9 +72,9 @@
             <small>Start a workout to build a streak</small>
           }
         </div>
-      </article>
+      </a>
 
-      <article class="metric-card body">
+      <a class="metric-card body" routerLink="/body" aria-label="Open body metrics">
         <span class="metric-icon">kg</span>
         <div>
           <span>Latest body metric</span>
@@ -96,13 +90,13 @@
             <small>Record weight to start trends</small>
           }
         </div>
-      </article>
+      </a>
     </section>
 
     <section class="activity-grid">
-      <article class="summary-card">
-        <span class="card-label">Latest Workout</span>
-        @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
+      @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
+        <a class="summary-card activity-link-card" routerLink="/workout" aria-label="Open latest workout">
+          <span class="card-label">Latest Workout</span>
           <h3>{{ dashboard.latestWorkout.name }}</h3>
           <p>{{ dashboard.latestWorkout.workoutType }} · {{ dashboard.latestWorkout.durationMinutes }} min</p>
           <dl>
@@ -115,18 +109,21 @@
               <dd>{{ dashboard.latestWorkout.exerciseCount }}</dd>
             </div>
           </dl>
-        } @else {
+        </a>
+      } @else {
+        <article class="summary-card">
+          <span class="card-label">Latest Workout</span>
           <div class="empty-workout-state">
             <strong>No completed workout yet</strong>
             <p>Start one to build your weekly training summary.</p>
             <a routerLink="/workout" class="button workout">Start Workout</a>
           </div>
-        }
-      </article>
+        </article>
+      }
 
-      <article class="summary-card">
-        <span class="card-label">Latest Meal</span>
-        @if (dashboard.latestMeal) {
+      @if (dashboard.latestMeal) {
+        <a class="summary-card activity-link-card" routerLink="/nutrition" aria-label="Open latest meal">
+          <span class="card-label">Latest Meal</span>
           <h3>{{ dashboard.latestMeal.name }}</h3>
           <p>{{ dashboard.latestMeal.mealType }} · {{ dashboard.latestMeal.consumedAt }}</p>
           <dl>
@@ -139,10 +136,13 @@
               <dd>{{ dashboard.latestMeal.totalProteinGrams }}g</dd>
             </div>
           </dl>
-        } @else {
+        </a>
+      } @else {
+        <article class="summary-card">
+          <span class="card-label">Latest Meal</span>
           <app-state-panel title="No meal yet" message="Log your first meal for today's summary." />
-        }
-      </article>
+        </article>
+      }
     </section>
 
     <section class="summary-card goals-card">
@@ -151,7 +151,7 @@
           <span class="card-label">Goals</span>
           <h2>Active targets</h2>
         </div>
-        <a routerLink="/settings" class="text-link">Manage</a>
+        <a routerLink="/me" fragment="goal-lifecycle" class="text-link">Manage</a>
       </div>
 
       @if (dashboard.goals.length) {
@@ -163,7 +163,11 @@
                   {{ goalLabel(goal) }}
                   <span class="goal-amount">{{ goalAmountLabel(goal) }}</span>
                 </strong>
-                <span>{{ goal.onTrack === false ? 'Needs attention' : 'On track' }} &middot; {{ goalProgress(goal.progressRatio) }}% complete</span>
+                <span>
+                  {{ goal.onTrack === false ? 'Needs attention' : 'On track' }}
+                  &middot; {{ goalProgress(goal.progressRatio) }}% complete
+                  &middot; {{ goalDateLabel(goal) }}
+                </span>
               </div>
               <div class="progress-track" aria-hidden="true">
                 <span [style.width.%]="goalProgress(goal.progressRatio)"></span>

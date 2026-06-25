@@ -10,10 +10,12 @@ import {
   AccountDataService,
   AccountPreferences,
   AccountProfile,
+  NotificationPreferences,
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
+import { ToggleComponent } from '../../shared/toggle.component';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
 
 type EditablePanel =
@@ -39,9 +41,21 @@ interface SectionNavItem {
   description: string;
 }
 
+type NotificationToggleKey = {
+  [Key in keyof NotificationPreferences]: NotificationPreferences[Key] extends boolean | null ? Key : never;
+}[keyof NotificationPreferences];
+
+interface NotificationToggleOption {
+  key: NotificationToggleKey;
+  label: string;
+  description: string;
+}
+
+const DISPLAY_LOCALE = 'en-SG';
+
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent],
+  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent, ToggleComponent],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss'
 })
@@ -58,6 +72,7 @@ export class SettingsPage implements OnInit {
   readonly saveMessage = signal<string | null>(null);
   readonly sectionErrors = signal<Partial<Record<EditablePanel, string>>>({});
   readonly saving = signal<EditablePanel | null>(null);
+  readonly savingNotificationToggle = signal<NotificationToggleKey | null>(null);
   readonly editPanel = signal<EditablePanel | null>(null);
   readonly accountMenuOpen = signal(false);
   readonly selectedSection = signal('personal');
@@ -142,6 +157,16 @@ export class SettingsPage implements OnInit {
     ['EMAIL', 'Email'],
     ['PUSH', 'Push']
   ]);
+  readonly notificationToggleOptions: NotificationToggleOption[] = [
+    { key: 'pushEnabled', label: 'Push channel', description: 'In-app and device push notifications.' },
+    { key: 'emailEnabled', label: 'Email channel', description: 'Email notifications for account activity.' },
+    { key: 'workoutReminderEnabled', label: 'Workout reminders', description: 'Prompts for planned training.' },
+    { key: 'mealReminderEnabled', label: 'Meal reminders', description: 'Prompts to keep nutrition logs current.' },
+    { key: 'weighInReminderEnabled', label: 'Weigh-in reminders', description: 'Prompts for body metric check-ins.' },
+    { key: 'goalProgressReminderEnabled', label: 'Goal progress reminders', description: 'Progress nudges for active targets.' },
+    { key: 'weeklyProgressReportEnabled', label: 'Weekly report', description: 'Weekly progress summaries.' },
+    { key: 'marketingEmailsEnabled', label: 'Marketing emails', description: 'Product news and offers.' }
+  ];
   readonly identityForm = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     firstName: ['', [Validators.maxLength(80)]],
@@ -245,8 +270,8 @@ export class SettingsPage implements OnInit {
   }
 
   region(): string {
-    const profile = this.data()?.user.profile;
-    return profile?.locationDisplay || profile?.timezone || 'Not set';
+    const data = this.data();
+    return data?.user.preferences.app.timezone || data?.user.profile.timezone || 'Not set';
   }
 
   displayHeight(heightCm: number | null | undefined): string {
@@ -265,17 +290,29 @@ export class SettingsPage implements OnInit {
     if (!value) {
       return 'Not set';
     }
-    return new Intl.DateTimeFormat(undefined, {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'Not set';
+    }
+    return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
       dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(new Date(value));
+      timeStyle: 'short',
+      timeZone: this.accountTimezone()
+    }).format(date);
   }
 
   displayDate(value: string | null | undefined): string {
     if (!value) {
       return 'Not set';
     }
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(`${value}T00:00:00`));
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return 'Not set';
+    }
+    return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
+      dateStyle: 'medium',
+      timeZone: this.accountTimezone()
+    }).format(date);
   }
 
   displayTime(value: string | null | undefined): string {
@@ -312,6 +349,54 @@ export class SettingsPage implements OnInit {
       return 'Not set';
     }
     return `${this.displayTime(notifications.quietHoursStart)} / ${this.displayTime(notifications.quietHoursEnd)}`;
+  }
+
+  notificationToggleValue(key: NotificationToggleKey): boolean {
+    return Boolean(this.data()?.user.preferences.notifications[key]);
+  }
+
+  toggleNotification(key: NotificationToggleKey, enabled: boolean): void {
+    const data = this.data();
+    if (!data || this.notificationToggleValue(key) === enabled) {
+      return;
+    }
+
+    const previousPreferences = data.user.preferences;
+    const nextPreferences: AccountPreferences = {
+      ...previousPreferences,
+      notifications: {
+        ...previousPreferences.notifications,
+        [key]: enabled
+      }
+    };
+
+    this.savingNotificationToggle.set(key);
+    this.clearSectionError('notifications');
+    this.setData({ ...data, user: { ...data.user, preferences: nextPreferences } });
+
+    this.accountDataService.updatePreferences(nextPreferences).subscribe({
+      next: (updatedPreferences) => {
+        const latest = this.data();
+        if (latest) {
+          this.setData({ ...latest, user: { ...latest.user, preferences: updatedPreferences } });
+        }
+        this.savingNotificationToggle.set(null);
+        this.toast.success('Notifications updated.');
+      },
+      error: (error: Error) => {
+        const latest = this.data();
+        if (latest) {
+          this.setData({ ...latest, user: { ...latest.user, preferences: previousPreferences } });
+        }
+        this.savingNotificationToggle.set(null);
+        const message = error.message || 'Unable to update notifications.';
+        this.sectionErrors.update((errors) => ({
+          ...errors,
+          notifications: message
+        }));
+        this.toast.error(message);
+      }
+    });
   }
 
   labelFor(value: string | null | undefined): string {
@@ -731,6 +816,12 @@ export class SettingsPage implements OnInit {
 
   private options(entries: string[][]): Option[] {
     return entries.map(([value, label]) => ({ value, label }));
+  }
+
+  private accountTimezone(): string {
+    return this.data()?.user.preferences.app.timezone
+      || this.data()?.user.profile.timezone
+      || 'Asia/Singapore';
   }
 }
 

@@ -475,6 +475,72 @@ describe('ActivityHeatmapComponent', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Activity unavailable');
   });
+
+  it('renders the compact variant without weekday or month axis labels', () => {
+    component.variant = 'compact';
+    component.range = { from: '2026-06-01', to: '2026-06-30' };
+
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.compact-month-grid')).not.toBeNull();
+    expect(compiled.querySelector('.weekday-row')).toBeNull();
+    expect(compiled.querySelector('.month-heatmap h3')).toBeNull();
+    expect(compiled.querySelectorAll('.compact-legend .heatmap-cell').length).toBe(5);
+    expect(compiled.textContent).toContain('Less');
+    expect(compiled.textContent).toContain('More');
+  });
+
+  it('aggregates compact monthly workout totals in the footer', () => {
+    component.variant = 'compact';
+    component.range = { from: '2026-06-01', to: '2026-06-30' };
+    analyticsApi.getActivityCalendar.and.returnValue(
+      of({
+        from: '2026-06-01',
+        to: '2026-06-30',
+        days: [
+          { date: '2026-06-01', workoutCount: 1, workoutMinutes: 40 },
+          { date: '2026-06-10', workoutCount: 2, workoutMinutes: 75 }
+        ]
+      })
+    );
+
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('3 workouts · 115 min');
+  });
+
+  it('renders a compact empty-month state without NaN', () => {
+    component.variant = 'compact';
+    component.range = { from: '2026-06-01', to: '2026-06-30' };
+    analyticsApi.getActivityCalendar.and.returnValue(of({ from: '2026-06-01', to: '2026-06-30', days: [] }));
+
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('0 workouts · 0 min');
+    expect(text).toContain('Log a workout to fill this in');
+    expect(text).not.toContain('NaN');
+  });
+
+  it('highlights today in the compact month grid', () => {
+    const today = localIsoDate(new Date());
+    const monthRange = rangeForMonth(today);
+    component.variant = 'compact';
+    component.range = monthRange;
+    analyticsApi.getActivityCalendar.and.returnValue(
+      of({
+        from: monthRange.from,
+        to: monthRange.to,
+        days: [{ date: today, workoutCount: 1, workoutMinutes: 30 }]
+      })
+    );
+
+    fixture.detectChanges();
+
+    const todayCell = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`.heatmap-cell[title="${today}: 1 workout, 30 min"]`);
+    expect(todayCell?.classList).toContain('is-today');
+  });
 });
 
 function session(overrides: Partial<WorkoutSession> = {}): WorkoutSession {
@@ -489,5 +555,18 @@ function session(overrides: Partial<WorkoutSession> = {}): WorkoutSession {
     caloriesBurned: 300,
     exerciseCount: 5,
     ...overrides
+  };
+}
+
+function localIsoDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function rangeForMonth(date: string): { from: string; to: string } {
+  const [year, month] = date.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    from: `${year}-${String(month).padStart(2, '0')}-01`,
+    to: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
   };
 }

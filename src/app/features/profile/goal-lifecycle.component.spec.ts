@@ -69,6 +69,7 @@ describe('GoalLifecycleComponent', () => {
     expect(text).toContain('Workout Frequency');
     expect(text).toContain('Not set');
     expect(text).toContain('75 kg');
+    expect(text).toContain('31 Dec 2026');
     expect(text).not.toContain('0 kcal');
     expect(text).not.toContain('0 g');
   });
@@ -82,6 +83,15 @@ describe('GoalLifecycleComponent', () => {
 
     fixture.componentInstance.startEdit('FAT');
     expect(fixture.componentInstance.form.controls.targetUnit.value).toBe('g');
+  });
+
+  it('formats target dates and preserves the empty target date label', () => {
+    const fixture = TestBed.createComponent(GoalLifecycleComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.formatTargetDate(goal({ targetDate: '2026-12-31' }))).toBe('31 Dec 2026');
+    expect(fixture.componentInstance.formatTargetDate(goal({ targetDate: null }))).toBe('Not set');
+    expect(fixture.componentInstance.formatTargetDate(goal({ targetDate: 'not-a-date' }))).toBe('not-a-date');
   });
 
   it('upserts a goal with the selected goal type and form body', () => {

@@ -3,12 +3,13 @@ import { RouterLink } from '@angular/router';
 
 import { DashboardData, dedupeGoalsByLatestEvaluation, FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal, NutritionSummary, WorkoutSession } from '../../core/fitsync.models';
+import { ActivityHeatmapComponent } from '../progress/activity-heatmap.component';
 import { ProgressRingComponent } from '../../shared/progress-ring.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [ProgressRingComponent, RouterLink, StatePanelComponent],
+  imports: [ActivityHeatmapComponent, ProgressRingComponent, RouterLink, StatePanelComponent],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss'
 })
@@ -32,19 +33,9 @@ export class DashboardPage implements OnInit {
     return nutrition?.targetCalories ? (nutrition.totalCalories / nutrition.targetCalories) * 100 : 0;
   });
 
-  readonly proteinPercent = computed(() => {
-    const nutrition = this.nutritionSummary();
-    return nutrition?.targetProteinGrams ? (nutrition.totalProteinGrams / nutrition.targetProteinGrams) * 100 : 0;
-  });
-
   readonly hasCalorieData = computed(() => {
     const nutrition = this.nutritionSummary();
     return Boolean(nutrition && (nutrition.totalCalories > 0 || nutrition.targetCalories != null));
-  });
-
-  readonly hasProteinData = computed(() => {
-    const nutrition = this.nutritionSummary();
-    return Boolean(nutrition && (nutrition.totalProteinGrams > 0 || nutrition.targetProteinGrams != null));
   });
 
   ngOnInit(): void {
@@ -77,7 +68,7 @@ export class DashboardPage implements OnInit {
   }
 
   hasCompletedWorkout(workout: WorkoutSession | null): boolean {
-    return Boolean(workout && (workout.exerciseCount > 0 || workout.durationMinutes > 0));
+    return Boolean(workout?.status === 'COMPLETED' && (workout.exerciseCount > 0 || workout.durationMinutes > 0));
   }
 
   metricDateLabel(value: string | null | undefined): string {
@@ -93,14 +84,17 @@ export class DashboardPage implements OnInit {
   }
 
   goalAmountLabel(goal: Goal): string {
-    if (goal.currentValue == null && goal.targetValue <= 0) {
+    if (goal.targetValue <= 0) {
       return 'No target set';
     }
 
-    const currentValue = this.formatGoalNumber(goal.currentValue ?? 0);
-    const targetValue = goal.targetValue > 0 ? this.formatGoalNumber(goal.targetValue) : 'No target';
+    const targetValue = this.formatGoalNumber(goal.targetValue);
     const unit = (goal.targetUnit || this.defaultGoalUnit(goal.goalType)).trim();
-    return `${currentValue} / ${targetValue}${unit ? ` ${unit}` : ''}`;
+    return `${targetValue}${unit ? ` ${unit}` : ''}`;
+  }
+
+  goalDateLabel(goal: Goal): string {
+    return goal.targetDate ? `by ${this.formatTargetDate(goal.targetDate)}` : 'No target date';
   }
 
   private humanDate(value: string | null | undefined, timezone?: string | null): string {
@@ -157,6 +151,14 @@ export class DashboardPage implements OnInit {
 
   private formatGoalNumber(value: number): string {
     return new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 }).format(value);
+  }
+
+  private formatTargetDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return new Intl.DateTimeFormat('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
   }
 
   private defaultGoalUnit(goalType: string): string {

@@ -287,6 +287,28 @@ describe('AccountDataService', () => {
     ]);
   });
 
+  it('shares one current-user request across account center and profile summary consumers', () => {
+    const summaries: AccountSummary[] = [];
+    let center: AccountCenterData | undefined;
+
+    service.getProfileSummary().subscribe((summary) => summaries.push(summary));
+    service.getAccountCenter().subscribe((value) => {
+      center = value;
+    });
+
+    const userRequest = httpTesting.expectOne('/api/v1/users/me');
+    httpTesting.expectOne('/api/v1/auth/me').flush({ userId: 'user-1', email: null, displayName: 'Auth Name', role: 'USER', authProvider: null });
+    httpTesting.expectOne('/api/v1/auth/security/overview').flush(securityFixture({ authProvider: 'COGNITO' }));
+    httpTesting.expectOne('/api/v1/auth/security/sessions').flush([]);
+    httpTesting.expectOne('/api/v1/users/me/data-export/requests/latest').flush(null);
+    httpTesting.expectOne('/api/v1/auth/account-deletion').flush({ status: 'NOT_REQUESTED', requestedAt: null, passwordConfirmationRequired: false });
+    userRequest.flush(userFixture({ profile: profileFixture({ displayName: 'Wang Xu', membershipTier: 'Plus' }) }));
+
+    httpTesting.expectNone('/api/v1/users/me');
+    expect(summaries).toEqual([jasmine.objectContaining({ displayName: 'Wang Xu', initials: 'WX' })]);
+    expect(center?.user.profile.displayName).toBe('Wang Xu');
+  });
+
   it('refreshes the lightweight profile summary after profile or avatar changes', () => {
     const summaries: AccountSummary[] = [];
 
