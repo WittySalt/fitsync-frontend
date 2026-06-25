@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
+import { Goal } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { GoalLifecycleComponent } from './goal-lifecycle.component';
 
@@ -118,7 +119,20 @@ export class ProfilePage implements OnInit {
     return goal ? Math.round(Math.min(1, Math.max(0, goal.progressRatio)) * 100) : 0;
   }
 
-  formatDate(value: string | null | undefined): string {
+  goalTargetLabel(goal: Goal): string {
+    if (goal.targetValue <= 0) {
+      return 'No target set';
+    }
+    const value = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 }).format(goal.targetValue);
+    const unit = goal.targetUnit.trim();
+    return `${value}${unit ? ` ${unit}` : ''}`;
+  }
+
+  goalTargetDateLabel(goal: Goal): string {
+    return goal.targetDate ? `by ${this.formatDate(goal.targetDate, true)}` : 'No target date';
+  }
+
+  formatDate(value: string | null | undefined, includeYear = false): string {
     if (!value) {
       return '';
     }
@@ -126,6 +140,10 @@ export class ProfilePage implements OnInit {
     if (Number.isNaN(date.getTime())) {
       return value;
     }
-    return new Intl.DateTimeFormat('en-SG', { month: 'short', day: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat('en-SG', {
+      month: 'short',
+      day: 'numeric',
+      ...(includeYear ? { year: 'numeric' } : {})
+    }).format(date);
   }
 }

@@ -74,7 +74,7 @@ const dashboardData: DashboardData = {
       goalType: 'CALORIES',
       targetValue: 2100,
       targetUnit: 'kcal',
-      targetDate: '',
+      targetDate: '2026-08-30',
       status: 'ACTIVE',
       progressRatio: 0.5,
       onTrack: false,
@@ -86,7 +86,7 @@ const dashboardData: DashboardData = {
       goalType: 'CALORIES',
       targetValue: 2000,
       targetUnit: 'kcal',
-      targetDate: '',
+      targetDate: '2026-08-31',
       status: 'ACTIVE',
       progressRatio: 0.95,
       onTrack: true,
@@ -134,14 +134,14 @@ describe('DashboardPage', () => {
     expect(text).toContain('Active streak');
     expect(text).toContain('7 days');
     expect(text).toContain('7 workouts · 300 min this week');
-    expect(text).toContain('On track · 95% complete');
+    expect(text).toContain('On track · 95% complete · by 31 Aug 2026');
     expect(text).toContain('Today');
     expect(text).toContain('3 days ago');
     expect(text).not.toContain('2026-06-24T00:05:00.512709Z');
     expect(text).not.toContain('2026-06-21T12:30:00Z');
     expect(goalRowText().length).toBe(1);
-    expect(goalRowText()[0]).toContain('Calories 1,900 / 2,000 kcal');
-    expect(goalRowText()[0]).toContain('On track · 95% complete');
+    expect(goalRowText()[0]).toContain('Calories 2,000 kcal');
+    expect(goalRowText()[0]).toContain('On track · 95% complete · by 31 Aug 2026');
     expect(text).not.toContain('Complete setup');
   });
 
@@ -250,21 +250,19 @@ describe('DashboardPage', () => {
     const component = fixture.componentInstance;
 
     expect(component.goalLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY' })).toBe('Workout Frequency');
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'PROTEIN', targetUnit: '', currentValue: 130, targetValue: 140 })).toBe(
-      '130 / 140 g'
-    );
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WEIGHT', targetUnit: '', currentValue: 77.25, targetValue: 75 })).toBe(
-      '77.3 / 75 kg'
-    );
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'PROTEIN', targetUnit: '', currentValue: 130, targetValue: 140 })).toBe('140 g');
+    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WEIGHT', targetUnit: '', currentValue: 77.25, targetValue: 75 })).toBe('75 kg');
     expect(
       component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY', targetUnit: '', currentValue: 3, targetValue: 4 })
-    ).toBe('3 / 4 workouts/week');
+    ).toBe('4 workouts/week');
     expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: null, targetValue: 0 })).toBe(
       'No target set'
     );
     expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: 2000, targetValue: 0 })).toBe(
-      '2,000 / No target'
+      'No target set'
     );
+    expect(component.goalDateLabel({ ...dashboardData.goals[0], targetDate: '2026-08-31' })).toBe('by 31 Aug 2026');
+    expect(component.goalDateLabel({ ...dashboardData.goals[0], targetDate: '' })).toBe('No target date');
   });
 
   it('renders the dashboard error state', () => {

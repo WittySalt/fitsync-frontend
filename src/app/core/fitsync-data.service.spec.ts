@@ -95,6 +95,37 @@ const dashboardAnalytics: AnalyticsDashboardResponse = {
   ]
 };
 
+const activeGoalProgress = {
+  goals: [
+    {
+      goalId: 'goal-calories-old',
+      goalType: 'CALORIES',
+      goalStatus: 'ACTIVE' as const,
+      targetValue: 2100,
+      targetUnit: 'kcal',
+      targetDate: '2026-08-31',
+      currentValue: 1050,
+      progressRatio: 0.5,
+      daysRemaining: 68,
+      onTrack: false,
+      lastEvaluatedAt: '2026-06-21T00:00:00Z'
+    },
+    {
+      goalId: 'goal-calories',
+      goalType: 'CALORIES',
+      goalStatus: 'ACTIVE' as const,
+      targetValue: 2000,
+      targetUnit: 'kcal',
+      targetDate: '2026-08-31',
+      currentValue: 1900,
+      progressRatio: 0.95,
+      daysRemaining: 67,
+      onTrack: true,
+      lastEvaluatedAt: '2026-06-22T00:00:00Z'
+    }
+  ]
+};
+
 describe('FitSyncDataService', () => {
   let service: FitSyncDataService;
   let httpTesting: HttpTestingController;
@@ -400,6 +431,9 @@ describe('FitSyncDataService', () => {
     });
 
     httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
     httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
     httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
     httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
@@ -428,8 +462,10 @@ describe('FitSyncDataService', () => {
             goalType: 'CALORIES',
             targetValue: 2000,
             targetUnit: 'kcal',
+            targetDate: '2026-08-31',
             currentValue: 1900,
             onTrack: true,
+            daysRemaining: 67,
             lastEvaluatedAt: '2026-06-22T00:00:00Z'
           })
         ]
@@ -454,6 +490,9 @@ describe('FitSyncDataService', () => {
       },
       goals: []
     });
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush({ goals: [] });
     httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
     httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
     httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});

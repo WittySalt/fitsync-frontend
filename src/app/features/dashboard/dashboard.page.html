@@ -157,7 +157,11 @@
                   {{ goalLabel(goal) }}
                   <span class="goal-amount">{{ goalAmountLabel(goal) }}</span>
                 </strong>
-                <span>{{ goal.onTrack === false ? 'Needs attention' : 'On track' }} &middot; {{ goalProgress(goal.progressRatio) }}% complete</span>
+                <span>
+                  {{ goal.onTrack === false ? 'Needs attention' : 'On track' }}
+                  &middot; {{ goalProgress(goal.progressRatio) }}% complete
+                  &middot; {{ goalDateLabel(goal) }}
+                </span>
               </div>
               <div class="progress-track" aria-hidden="true">
                 <span [style.width.%]="goalProgress(goal.progressRatio)"></span>

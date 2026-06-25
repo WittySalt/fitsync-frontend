@@ -7,7 +7,6 @@ import {
   AnalyticsBodyTrendPoint,
   AnalyticsBucket,
   AnalyticsDashboardBody,
-  AnalyticsDashboardGoal,
   AnalyticsDashboardNutrition,
   AnalyticsGoalProgress
 } from './analytics.models';
@@ -481,18 +480,19 @@ export class FitSyncDataService {
   getDashboard(): Observable<DashboardData> {
     return forkJoin({
       analytics: this.analyticsApi.getDashboard(),
+      goalProgress: this.analyticsApi.getGoalsProgress('ACTIVE'),
       user: this.http.get<BackendCurrentUser>(`${this.apiBaseUrl}/users/me`),
       latestWorkout: this.http.get<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/sessions/latest`),
       latestMeal: this.http.get<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/latest`)
     }).pipe(
-      map(({ analytics, user, latestWorkout, latestMeal }) => ({
+      map(({ analytics, goalProgress, user, latestWorkout, latestMeal }) => ({
         profile: this.mapProfile(user.profile),
         nutrition: this.mapAnalyticsNutrition(analytics.nutrition),
         workout: analytics.workout,
         latestWorkout: this.mapWorkoutSession(latestWorkout),
         latestMeal: this.mapMeal(latestMeal),
         latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
-        goals: this.mapAnalyticsDashboardGoals(analytics.goals)
+        goals: dedupeGoalsByLatestEvaluation(goalProgress.goals.map((goal) => this.mapAnalyticsGoalProgress(goal)))
       })),
       catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
     );
@@ -2014,27 +2014,6 @@ export class FitSyncDataService {
       bmi: point.bmi,
       waistCm: point.waistCm,
       measuredAt: point.date
-    };
-  }
-
-  private mapAnalyticsDashboardGoals(goals: AnalyticsDashboardGoal[] | null | undefined): Goal[] {
-    return dedupeGoalsByLatestEvaluation((goals ?? []).map((goal) => this.mapAnalyticsDashboardGoal(goal)));
-  }
-
-  private mapAnalyticsDashboardGoal(goal: AnalyticsDashboardGoal): Goal {
-    const targetValue = goal.targetValue ?? 0;
-
-    return {
-      goalId: goal.goalId,
-      goalType: goal.goalType,
-      targetValue,
-      targetUnit: goal.targetUnit ?? '',
-      targetDate: goal.targetDate ?? '',
-      status: 'ACTIVE',
-      progressRatio: goal.progressRatio,
-      onTrack: goal.onTrack,
-      currentValue: goal.currentValue ?? (targetValue > 0 ? Math.round(goal.progressRatio * targetValue) : null),
-      lastEvaluatedAt: goal.lastEvaluatedAt ?? null
     };
   }
 

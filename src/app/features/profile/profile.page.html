@@ -62,7 +62,7 @@
         @if (activeGoal(); as goal) {
           <div class="goal-headline">
             <strong>{{ label(goal.goalType) }}</strong>
-            <span>{{ goal.targetValue }} {{ goal.targetUnit }} · by {{ formatDate(goal.targetDate) }}</span>
+            <span>{{ goalTargetLabel(goal) }} &middot; {{ goalTargetDateLabel(goal) }}</span>
           </div>
           <div class="progress-track" aria-hidden="true">
             <span [style.width.%]="goalProgress()"></span>

@@ -146,6 +146,17 @@ export class GoalLifecycleComponent implements OnInit {
     return `${goal.targetValue} ${goal.targetUnit ?? ''}`.trim();
   }
 
+  formatTargetDate(goal: UserGoal): string {
+    if (!goal.targetDate) {
+      return 'Not set';
+    }
+    const date = new Date(goal.targetDate);
+    if (Number.isNaN(date.getTime())) {
+      return goal.targetDate;
+    }
+    return new Intl.DateTimeFormat('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+  }
+
   private buildRequest(): UpsertGoalRequest {
     const raw = this.form.getRawValue();
     return {

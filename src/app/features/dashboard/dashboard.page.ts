@@ -84,14 +84,17 @@ export class DashboardPage implements OnInit {
   }
 
   goalAmountLabel(goal: Goal): string {
-    if (goal.currentValue == null && goal.targetValue <= 0) {
+    if (goal.targetValue <= 0) {
       return 'No target set';
     }
 
-    const currentValue = this.formatGoalNumber(goal.currentValue ?? 0);
-    const targetValue = goal.targetValue > 0 ? this.formatGoalNumber(goal.targetValue) : 'No target';
+    const targetValue = this.formatGoalNumber(goal.targetValue);
     const unit = (goal.targetUnit || this.defaultGoalUnit(goal.goalType)).trim();
-    return `${currentValue} / ${targetValue}${unit ? ` ${unit}` : ''}`;
+    return `${targetValue}${unit ? ` ${unit}` : ''}`;
+  }
+
+  goalDateLabel(goal: Goal): string {
+    return goal.targetDate ? `by ${this.formatTargetDate(goal.targetDate)}` : 'No target date';
   }
 
   private humanDate(value: string | null | undefined, timezone?: string | null): string {
@@ -148,6 +151,14 @@ export class DashboardPage implements OnInit {
 
   private formatGoalNumber(value: number): string {
     return new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 }).format(value);
+  }
+
+  private formatTargetDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return new Intl.DateTimeFormat('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
   }
 
   private defaultGoalUnit(goalType: string): string {

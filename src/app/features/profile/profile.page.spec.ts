@@ -86,6 +86,15 @@ describe('ProfilePage', () => {
     expect(component.goalProgress()).toBe(42);
   });
 
+  it('formats the active target value and deadline without fake zero labels', () => {
+    const goal = mockDashboard.goals[0];
+
+    expect(component.goalTargetLabel(goal)).toBe('68 kg');
+    expect(component.goalTargetDateLabel(goal)).toBe('by 12 Sept 2026');
+    expect(component.goalTargetLabel({ ...goal, targetValue: 0 })).toBe('No target set');
+    expect(component.goalTargetDateLabel({ ...goal, targetDate: '' })).toBe('No target date');
+  });
+
   it('builds recent activity from the latest workout and body metric', () => {
     const activity = component.recentActivity();
     expect(activity.length).toBe(2);
