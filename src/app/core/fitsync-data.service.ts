@@ -3,6 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from './analytics-api.service';
+import { AccountDataService } from './account-data.service';
 import {
   AnalyticsBodyTrendPoint,
   AnalyticsBucket,
@@ -144,10 +145,22 @@ interface PageResponse<T> {
 }
 
 interface BackendCurrentUser {
-  profile?: Partial<UserProfile> | null;
+  profile?: BackendUserProfile | null;
   preferences?: BackendUserPreferences | null;
   activeGoals?: Array<Partial<Goal>> | null;
   latestBodyMetrics?: Partial<BodyMetric> | null;
+}
+
+interface BackendUserProfile {
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  heightCm?: number | null;
+  activityLevel?: string | null;
+  timezone?: string | null;
+  onboardingCompleted?: boolean | null;
 }
 
 interface BackendUserPreferences {
@@ -473,6 +486,7 @@ interface BackendDailyNutritionSummary {
 export class FitSyncDataService {
   private readonly http = inject(HttpClient);
   private readonly analyticsApi = inject(AnalyticsApiService);
+  private readonly accountDataService = inject(AccountDataService);
 
   readonly apiBaseUrl = '/api/v1';
   readonly lastSavedMessage = signal<string | null>(null);
@@ -481,7 +495,7 @@ export class FitSyncDataService {
     return forkJoin({
       analytics: this.analyticsApi.getDashboard(),
       goalProgress: this.analyticsApi.getGoalsProgress('ACTIVE'),
-      user: this.http.get<BackendCurrentUser>(`${this.apiBaseUrl}/users/me`),
+      user: this.accountDataService.getCurrentUser(),
       latestWorkout: this.http.get<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/sessions/latest`),
       latestMeal: this.http.get<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/latest`)
     }).pipe(
@@ -1511,13 +1525,13 @@ export class FitSyncDataService {
     return throwError(() => new Error('Unable to load FitSync data. Please retry.'));
   }
 
-  private mapProfile(profile?: Partial<UserProfile> | null): UserProfile {
+  private mapProfile(profile?: BackendUserProfile | null): UserProfile {
     return {
       displayName: profile?.displayName ?? 'FitSync User',
       firstName: profile?.firstName ?? profile?.displayName?.split(' ')[0] ?? 'FitSync',
       lastName: profile?.lastName ?? '',
-      gender: profile?.gender,
-      birthDate: profile?.birthDate,
+      gender: profile?.gender ?? undefined,
+      birthDate: profile?.birthDate ?? undefined,
       heightCm: profile?.heightCm ?? 0,
       activityLevel: profile?.activityLevel ?? 'NOT_SET',
       timezone: profile?.timezone ?? 'Asia/Singapore',
@@ -1606,7 +1620,7 @@ export class FitSyncDataService {
 
   private applyProfileSeed(
     value: Partial<OnboardingFormValue>,
-    profile: Partial<UserProfile> | null | undefined,
+    profile: BackendUserProfile | null | undefined,
     latestBodyMetric: Partial<BodyMetric> | null | undefined,
     weightGoal: Partial<Goal> | undefined
   ): void {

@@ -208,11 +208,19 @@ export interface ListBodyMetricsOptions {
 export class AccountDataService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = '/api/v1';
+  private currentUser$?: Observable<AccountUserResponse>;
   private profileSummary$?: Observable<AccountSummary>;
+
+  getCurrentUser(): Observable<AccountUserResponse> {
+    this.currentUser$ ??= this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`).pipe(
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.currentUser$;
+  }
 
   getAccountCenter(): Observable<AccountCenterData> {
     return forkJoin({
-      user: this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`),
+      user: this.getCurrentUser(),
       auth: this.http.get<AuthAccountResponse>(`${this.apiBaseUrl}/auth/me`),
       security: this.http.get<SecurityOverview>(`${this.apiBaseUrl}/auth/security/overview`),
       sessions: this.getActiveSessions(),
@@ -226,7 +234,7 @@ export class AccountDataService {
   }
 
   getProfileSummary(): Observable<AccountSummary> {
-    this.profileSummary$ ??= this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`).pipe(
+    this.profileSummary$ ??= this.getCurrentUser().pipe(
       map((user) => this.toProfileSummary(user)),
       shareReplay({ bufferSize: 1, refCount: false })
     );
@@ -234,22 +242,24 @@ export class AccountDataService {
   }
 
   updateProfile(profile: AccountProfile): Observable<AccountProfile> {
-    this.profileSummary$ = undefined;
+    this.invalidateCurrentUser();
     return this.http.put<AccountProfile>(`${this.apiBaseUrl}/users/me/profile`, profile);
   }
 
   uploadAvatar(file: Blob): Observable<AccountProfile> {
     const form = new FormData();
     form.append('file', file, 'avatar.png');
-    this.profileSummary$ = undefined;
+    this.invalidateCurrentUser();
     return this.http.post<AccountProfile>(`${this.apiBaseUrl}/users/me/profile/avatar`, form);
   }
 
   updatePreferences(preferences: AccountPreferences): Observable<AccountPreferences> {
+    this.invalidateCurrentUser();
     return this.http.put<AccountPreferences>(`${this.apiBaseUrl}/users/me/preferences`, preferences);
   }
 
   createBodyMetric(request: CreateBodyMetricRequest): Observable<AccountBodyMetric> {
+    this.invalidateCurrentUser();
     return this.http.post<AccountBodyMetric>(`${this.apiBaseUrl}/users/me/body-metrics`, request);
   }
 
@@ -268,10 +278,12 @@ export class AccountDataService {
   }
 
   replaceBodyMetric(metricId: string, request: CreateBodyMetricRequest): Observable<AccountBodyMetric> {
+    this.invalidateCurrentUser();
     return this.http.put<AccountBodyMetric>(`${this.apiBaseUrl}/users/me/body-metrics/${metricId}`, request);
   }
 
   updateGoal(goalType: GoalType, request: UpsertUserGoalRequest): Observable<UserGoal> {
+    this.invalidateCurrentUser();
     return this.http.put<UserGoal>(`${this.apiBaseUrl}/users/me/goals/${goalType}`, request);
   }
 
@@ -331,6 +343,11 @@ export class AccountDataService {
       authProvider: 'Cognito',
       membershipTier: user.profile.membershipTier || 'Member'
     };
+  }
+
+  private invalidateCurrentUser(): void {
+    this.currentUser$ = undefined;
+    this.profileSummary$ = undefined;
   }
 }
 

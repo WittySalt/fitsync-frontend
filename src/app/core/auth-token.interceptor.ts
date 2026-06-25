@@ -1,20 +1,40 @@
 import { HttpInterceptorFn } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { switchMap } from 'rxjs';
 
-const TOKEN_STORAGE_KEY = 'fitsync.accessToken';
+import { AuthService } from './auth/auth.service';
 
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
-  const token = typeof localStorage === 'undefined' ? null : localStorage.getItem(TOKEN_STORAGE_KEY);
+  const authService = inject(AuthService);
+  const token = authService.getAccessToken();
   const isCognitoIdpRequest = request.url.startsWith('https://cognito-idp.');
+  const isAuthBootstrapRequest = request.url.startsWith('/api/v1/auth/bootstrap');
+  const isApiRequest = request.url.startsWith('/api/v1/');
 
-  if (isCognitoIdpRequest || !token || request.headers.has('Authorization')) {
+  if (isCognitoIdpRequest || isAuthBootstrapRequest || !isApiRequest || request.headers.has('Authorization')) {
     return next(request);
   }
 
-  return next(
-    request.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
+  if (token) {
+    return next(withAuthorization(request, token));
+  }
+
+  return authService.ensureSession().pipe(
+    switchMap((authenticated) => {
+      const readyToken = authService.getAccessToken();
+      if (!authenticated || !readyToken) {
+        return next(request);
       }
+
+      return next(withAuthorization(request, readyToken));
     })
   );
 };
+
+function withAuthorization(request: Parameters<HttpInterceptorFn>[0], token: string): Parameters<HttpInterceptorFn>[0] {
+  return request.clone({
+    setHeaders: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}

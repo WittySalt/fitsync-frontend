@@ -1,4 +1,4 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
@@ -55,6 +55,48 @@ describe('AuthService', () => {
       accessToken: localJwt,
       tokenType: 'Bearer'
     });
+  });
+
+  it('shares an in-flight bootstrap session across callers', () => {
+    const localJwt = jwtWithExpiry(Math.floor((Date.now() + 3_600_000) / 1000));
+    const results: boolean[] = [];
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoIdToken, 'stored-cognito-id-token');
+
+    service.ensureSession().subscribe((authenticated) => results.push(authenticated));
+    service.ensureSession().subscribe((authenticated) => results.push(authenticated));
+
+    const bootstrapRequest = httpMock.expectOne('/api/v1/auth/bootstrap');
+    bootstrapRequest.flush({
+      accessToken: localJwt,
+      tokenType: 'Bearer'
+    });
+
+    expect(results).toEqual([true, true]);
+    expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBe(localJwt);
+  });
+
+  it('waits for bootstrap before sending protected API requests', () => {
+    const http = TestBed.inject(HttpClient);
+    const localJwt = jwtWithExpiry(Math.floor((Date.now() + 3_600_000) / 1000));
+    let response: { ok: boolean } | undefined;
+    localStorage.setItem(AUTH_STORAGE_KEYS.cognitoIdToken, 'stored-cognito-id-token');
+
+    http.get<{ ok: boolean }>('/api/v1/analytics/dashboard').subscribe((value) => {
+      response = value;
+    });
+
+    const bootstrapRequest = httpMock.expectOne('/api/v1/auth/bootstrap');
+    httpMock.expectNone('/api/v1/analytics/dashboard');
+    bootstrapRequest.flush({
+      accessToken: localJwt,
+      tokenType: 'Bearer'
+    });
+
+    const protectedRequest = httpMock.expectOne('/api/v1/analytics/dashboard');
+    expect(protectedRequest.request.headers.get('Authorization')).toBe(`Bearer ${localJwt}`);
+    protectedRequest.flush({ ok: true });
+
+    expect(response).toEqual({ ok: true });
   });
 
   it('clears the browser session if bootstrap restoration fails', (done) => {
