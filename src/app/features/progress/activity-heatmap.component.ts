@@ -189,7 +189,10 @@ export class ActivityHeatmapComponent implements OnInit {
 
     this.dataService.getWorkoutSessionsInRange(this.startInstant(), this.endInstant()).subscribe({
       next: (sessions) => {
-        this.sessions.set(sessions);
+        // The activity calendar reflects what was actually done. Cancelled sessions
+        // have no duration and never completed, so they are not activity — drop them
+        // (otherwise they pile up in the untimed "All day" band as mystery cards).
+        this.sessions.set(sessions.filter((session) => session.status !== 'CANCELLED'));
         this.loading.set(false);
       },
       error: () => {

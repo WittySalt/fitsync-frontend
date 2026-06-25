@@ -302,6 +302,13 @@
   span {
     font-size: var(--text-xs);
   }
+
+  .chip-status {
+    font-weight: 500;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
 }
 
 .month-calendar-grid {
