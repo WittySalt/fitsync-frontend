@@ -102,6 +102,21 @@ describe('ProfilePage', () => {
     expect(activity[1].icon).toBe('scale');
   });
 
+  it('hides non-completed latest workouts from recent activity', () => {
+    component.data.set({
+      ...mockDashboard,
+      latestWorkout: {
+        ...mockDashboard.latestWorkout!,
+        name: 'Cancelled workout',
+        status: 'CANCELLED'
+      },
+      latestMeal: null,
+      latestBodyMetric: null
+    });
+
+    expect(component.recentActivity()).toEqual([]);
+  });
+
   it('uses initials fallbacks for missing, blank, and single-word names', () => {
     component.data.set(null);
     expect(component.initials()).toBe('FS');

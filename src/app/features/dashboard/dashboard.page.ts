@@ -68,7 +68,7 @@ export class DashboardPage implements OnInit {
   }
 
   hasCompletedWorkout(workout: WorkoutSession | null): boolean {
-    return Boolean(workout && (workout.exerciseCount > 0 || workout.durationMinutes > 0));
+    return Boolean(workout?.status === 'COMPLETED' && (workout.exerciseCount > 0 || workout.durationMinutes > 0));
   }
 
   metricDateLabel(value: string | null | undefined): string {

@@ -190,6 +190,30 @@ describe('DashboardPage', () => {
     expect(compiled.querySelector<HTMLAnchorElement>('.empty-workout-state a')?.getAttribute('href')).toBe('/workout');
   });
 
+  it('renders the latest workout empty state for non-completed sessions', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        latestWorkout: {
+          name: 'Cancelled workout',
+          workoutType: 'STRENGTH',
+          status: 'CANCELLED',
+          startedAt: '2026-06-24T10:00:00Z',
+          durationMinutes: 0,
+          caloriesBurned: 0,
+          completedAt: '',
+          exerciseCount: 4
+        }
+      })
+    );
+
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('No completed workout yet');
+    expect(compiled.textContent).not.toContain('Cancelled workout');
+  });
+
   it('renders friendly empty states for new users without NaN', () => {
     const emptyNutrition = {
       ...dashboardData.nutrition,

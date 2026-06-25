@@ -60,7 +60,7 @@ export class ProfilePage implements OnInit {
       return [];
     }
     const items: ActivityItem[] = [];
-    if (data.latestWorkout) {
+    if (this.isCompletedWorkout(data.latestWorkout)) {
       items.push({
         icon: 'dumbbell',
         title: data.latestWorkout.name,
@@ -117,6 +117,10 @@ export class ProfilePage implements OnInit {
   goalProgress(): number {
     const goal = this.activeGoal();
     return goal ? Math.round(Math.min(1, Math.max(0, goal.progressRatio)) * 100) : 0;
+  }
+
+  isCompletedWorkout(workout: DashboardData['latestWorkout']): workout is NonNullable<DashboardData['latestWorkout']> {
+    return workout?.status === 'COMPLETED';
   }
 
   goalTargetLabel(goal: Goal): string {

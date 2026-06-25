@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
-import { FitSyncDataService, ProgressData } from './fitsync-data.service';
+import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
 import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
@@ -509,6 +509,60 @@ describe('FitSyncDataService', () => {
         goals: []
       })
     );
+  });
+
+  it('hides non-completed latest workout sessions from dashboard data', () => {
+    let result: DashboardData | undefined;
+    service.getDashboard().subscribe((value) => {
+      result = value;
+    });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({
+      sessionId: 'cancelled-session',
+      name: 'Cancelled workout',
+      workoutType: 'STRENGTH',
+      status: 'CANCELLED',
+      startedAt: '2026-06-24T10:00:00Z',
+      completedAt: null,
+      durationMinutes: null,
+      caloriesBurned: null,
+      exerciseCount: 4
+    });
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result?.latestWorkout).toBeNull();
+  });
+
+  it('keeps completed latest workout sessions in dashboard data', () => {
+    let result: DashboardData | undefined;
+    service.getDashboard().subscribe((value) => {
+      result = value;
+    });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu' }, activeGoals: [] });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({
+      sessionId: 'completed-session',
+      name: 'Completed workout',
+      workoutType: 'STRENGTH',
+      status: 'COMPLETED',
+      startedAt: '2026-06-24T10:00:00Z',
+      completedAt: '2026-06-24T10:45:00Z',
+      durationMinutes: 45,
+      caloriesBurned: 320,
+      exerciseCount: 4
+    });
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result?.latestWorkout).toEqual(jasmine.objectContaining({ sessionId: 'completed-session', status: 'COMPLETED' }));
   });
 
   it('loads daily nutrition summary with date and timezone params', () => {

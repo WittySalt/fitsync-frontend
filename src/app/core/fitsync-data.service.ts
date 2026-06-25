@@ -489,7 +489,7 @@ export class FitSyncDataService {
         profile: this.mapProfile(user.profile),
         nutrition: this.mapAnalyticsNutrition(analytics.nutrition),
         workout: analytics.workout,
-        latestWorkout: this.mapWorkoutSession(latestWorkout),
+        latestWorkout: this.mapWorkoutSession(latestWorkout, { completedOnly: true }),
         latestMeal: this.mapMeal(latestMeal),
         latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
         goals: dedupeGoalsByLatestEvaluation(goalProgress.goals.map((goal) => this.mapAnalyticsGoalProgress(goal)))
@@ -1782,8 +1782,16 @@ export class FitSyncDataService {
       .filter((value): value is string => Boolean(value));
   }
 
-  private mapWorkoutSession(session?: Partial<WorkoutSession> | null): WorkoutSession | null {
+  private mapWorkoutSession(
+    session?: Partial<WorkoutSession> | null,
+    options: { completedOnly?: boolean } = {}
+  ): WorkoutSession | null {
     if (!session?.name) {
+      return null;
+    }
+
+    const status = session.status ?? 'COMPLETED';
+    if (options.completedOnly && status !== 'COMPLETED') {
       return null;
     }
 
@@ -1792,7 +1800,7 @@ export class FitSyncDataService {
       planId: session.planId ?? null,
       name: session.name,
       workoutType: session.workoutType ?? 'CUSTOM',
-      status: session.status ?? 'COMPLETED',
+      status,
       source: session.source ?? null,
       startedAt: session.startedAt ?? '',
       durationMinutes: session.durationMinutes ?? 0,
