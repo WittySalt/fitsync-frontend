@@ -219,6 +219,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
         this.exerciseEditing.set(false);
         this.toast.success('Exercises updated.');
         this.updated.emit(updated);
+        this.refreshSavedSession(updated.sessionId);
       },
       error: () => {
         this.toast.error('Unable to update exercises. Please retry.');
@@ -243,6 +244,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
         this.editing.set(false);
         this.toast.success('Session updated.');
         this.updated.emit(updated);
+        this.refreshSavedSession(updated.sessionId);
       },
       error: () => {
         this.toast.error('Unable to update session. Please retry.');
@@ -504,6 +506,20 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       maxHeartRate: new FormControl<number | null>(exercise.maxHeartRate),
       notes: new FormControl<string | null>(exercise.notes || null, Validators.maxLength(300)),
       sets: new FormArray<ExerciseSetEditGroup>(exercise.sets.map((set) => this.createSetGroup(set)))
+    });
+  }
+
+  private refreshSavedSession(sessionId: string | null | undefined): void {
+    if (!sessionId) {
+      return;
+    }
+
+    this.dataService.getSession(sessionId).subscribe({
+      next: (session) => {
+        if (session) {
+          this.session.set(session);
+        }
+      }
     });
   }
 

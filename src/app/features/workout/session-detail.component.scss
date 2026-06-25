@@ -155,7 +155,8 @@ small {
 }
 
 .set-table .set-row {
-  grid-template-columns: 0.7fr repeat(4, 1fr);
+  grid-template-columns: 0.7fr repeat(5, 1fr);
+  min-width: 640px;
 }
 
 .set-list {

@@ -96,6 +96,7 @@
                       type="button"
                       (click)="moveExercise(exerciseIndex, -1)"
                       [disabled]="exerciseIndex === 0"
+                      [attr.aria-label]="'Move ' + exerciseGroup.controls.exerciseNameSnapshot.value + ' up'"
                     >
                       Move up
                     </button>
@@ -104,10 +105,18 @@
                       type="button"
                       (click)="moveExercise(exerciseIndex, 1)"
                       [disabled]="exerciseIndex === exerciseGroups().length - 1"
+                      [attr.aria-label]="'Move ' + exerciseGroup.controls.exerciseNameSnapshot.value + ' down'"
                     >
                       Move down
                     </button>
-                    <button class="text-link danger" type="button" (click)="removeExercise(exerciseIndex)">Remove</button>
+                    <button
+                      class="text-link danger"
+                      type="button"
+                      (click)="removeExercise(exerciseIndex)"
+                      [attr.aria-label]="'Remove ' + exerciseGroup.controls.exerciseNameSnapshot.value"
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
 
@@ -155,7 +164,14 @@
                           placeholder="RPE"
                         />
                         <input aria-label="Set notes" formControlName="notes" maxlength="300" placeholder="Notes" />
-                        <button class="text-link danger" type="button" (click)="removeSet(exerciseIndex, setIndex)">Remove</button>
+                        <button
+                          class="text-link danger"
+                          type="button"
+                          (click)="removeSet(exerciseIndex, setIndex)"
+                          [attr.aria-label]="'Remove set ' + exerciseSetNumber(setIndex)"
+                        >
+                          Remove
+                        </button>
                       </div>
                     }
                   </div>
@@ -240,6 +256,7 @@
                     <th scope="col">Weight</th>
                     <th scope="col">Rest</th>
                     <th scope="col">RPE</th>
+                    <th scope="col">Notes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -250,6 +267,7 @@
                     <td>{{ formatNumber(set.weightKg, ' kg') }}</td>
                     <td>{{ formatNumber(set.restSeconds, ' sec') }}</td>
                     <td>{{ formatNumber(set.perceivedExertion) }}</td>
+                    <td>{{ set.notes || '-' }}</td>
                   </tr>
                 }
                 </tbody>

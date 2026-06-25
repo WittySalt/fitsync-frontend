@@ -186,16 +186,18 @@ describe('SessionDetailComponent', () => {
   });
 
   it('sends edited set values in the full exercise update request and reflects the response', () => {
+    const initial = detail();
     const updated = detail({
       exercises: [
         {
-          ...detail().exercises[0],
+          ...initial.exercises[0],
           performedReps: 6,
           totalVolumeKg: 600,
-          sets: [{ ...detail().exercises[0].sets[0], reps: 6 }]
+          sets: [{ ...initial.exercises[0].sets[0], reps: 6 }]
         }
       ]
     });
+    dataService.getSession.and.returnValues(of(initial), of(updated));
     dataService.updateSession.and.returnValue(of(updated));
     const fixture = TestBed.createComponent(SessionDetailComponent);
     fixture.componentInstance.sessionId = 'session-1';
@@ -225,6 +227,7 @@ describe('SessionDetailComponent', () => {
       })
     );
     expect(fixture.componentInstance.session()?.exercises[0].totalVolumeKg).toBe(600);
+    expect(dataService.getSession).toHaveBeenCalledWith('session-1');
     expect(toast.success).toHaveBeenCalledWith('Exercises updated.');
   });
 
