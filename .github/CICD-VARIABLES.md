@@ -2,9 +2,10 @@
 
 Pipelines ported from GitLab CI to GitHub Actions.
 
-- **CI** (`ci.yml`, `codeql.yml`) needs **no** variables or secrets — green out of
-  the box (typecheck, headless-Chrome unit tests + coverage, production build,
-  gitleaks secret scan, CodeQL SAST).
+- **CI** (`ci.yml`) needs **no** variables or secrets — green out of the box
+  (typecheck, headless-Chrome unit tests + coverage, production build, gitleaks
+  secret scan). SAST is via SonarCloud; GitHub CodeQL is not wired up because code
+  scanning on a private repo requires GitHub Advanced Security.
 - **CD** (`cd.yml`) is **dormant** until the `AWS_ROLE_ARN` *repository variable* is
   set. AWS auth uses **GitHub OIDC** — the `fitsync-frontend-deploy` IAM role must
   trust `token.actions.githubusercontent.com` with subject

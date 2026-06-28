@@ -1,6 +1,8 @@
 # CI: lint, test, build (ported from .gitlab-ci.yml).
-# Runs on pull requests and pushes to main/develop. SAST is handled by the
-# separate CodeQL workflow (codeql.yml); secret detection runs here via gitleaks.
+# Runs on pull requests and pushes to main/develop. Secret detection runs here via
+# gitleaks. SAST is via SonarCloud (the build's Sonar step) — GitHub CodeQL code
+# scanning needs a public repo or GitHub Advanced Security, neither of which this
+# private repo has, so it is intentionally not wired up here.
 name: CI
 
 on:
@@ -23,6 +25,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # gitleaks container runs as root; allow the differently-owned checkout.
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory '*'
       - run: gitleaks detect --source . --verbose --redact
 
   typecheck:
