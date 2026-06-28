@@ -1,0 +1,83 @@
+# CI: lint, test, build (ported from .gitlab-ci.yml).
+# Runs on pull requests and pushes to main/develop. Secret detection runs here via
+# gitleaks. SAST is via SonarCloud (the build's Sonar step) — GitHub CodeQL code
+# scanning needs a public repo or GitHub Advanced Security, neither of which this
+# private repo has, so it is intentionally not wired up here.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    container:
+      image: zricethezav/gitleaks:v8.24.2
+      options: --entrypoint ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # gitleaks container runs as root; allow the differently-owned checkout.
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory '*'
+      - run: gitleaks detect --source . --verbose --redact
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: ng test (headless Chrome + coverage)
+        env:
+          # ubuntu-latest ships google-chrome; the ChromeHeadlessNoGpu launcher in
+          # karma.conf.js already passes --no-sandbox / --disable-gpu for CI.
+          CHROME_BIN: /usr/bin/google-chrome
+        run: npx ng test --watch=false --browsers=ChromeHeadlessNoGpu --code-coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 5
+          if-no-files-found: warn
+
+  build:
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build -- --configuration production
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/fitsync-frontend/
+          retention-days: 5

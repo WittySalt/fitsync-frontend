@@ -1,0 +1,117 @@
+# CD: frontend infra (Terraform) + deploy the SPA to S3 + CloudFront.
+# Ported from .gitlab-cd.yml.
+#
+# DORMANT BY DEFAULT. Gated on the `AWS_ROLE_ARN` repository variable — while it
+# is empty the whole workflow is skipped and the repo stays green. AWS auth uses
+# GitHub OIDC; the IAM role (fitsync-frontend-deploy) must trust:
+#   Provider : token.actions.githubusercontent.com
+#   Audience : sts.amazonaws.com
+#   Subject  : repo:WittySalt/fitsync-frontend:*
+#
+# Deploys are manual: trigger from the Actions tab → "Run workflow", and choose
+# the target. Add required reviewers to the `production` Environment for approval.
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to run"
+        type: choice
+        default: deploy_staging
+        options:
+          - infra_staging       # terraform apply the S3 bucket + CloudFront
+          - deploy_staging      # s3 sync the build to the STAGING bucket
+          - deploy_production   # s3 sync the build to the PRODUCTION bucket
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.15.7"
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  infra-staging:
+    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'infra_staging' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: terraform apply (staging)
+        working-directory: infra/terraform
+        run: |
+          terraform init
+          terraform workspace select staging || terraform workspace new staging
+          terraform apply -auto-approve -var-file=staging.tfvars
+
+  deploy-staging:
+    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy_staging' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build -- --configuration production
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: s3 sync (staging) + CloudFront invalidation
+        env:
+          S3_BUCKET_STAGING: ${{ vars.S3_BUCKET_STAGING }}
+          CLOUDFRONT_DISTRIBUTION_ID_STAGING: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}
+        run: |
+          if [ -z "$S3_BUCKET_STAGING" ]; then echo "S3_BUCKET_STAGING not set."; exit 1; fi
+          aws s3 sync dist/fitsync-frontend/browser/ "s3://$S3_BUCKET_STAGING" --delete \
+            --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
+          aws s3 cp dist/fitsync-frontend/browser/index.html "s3://$S3_BUCKET_STAGING/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate"
+          if [ -n "$CLOUDFRONT_DISTRIBUTION_ID_STAGING" ]; then
+            aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID_STAGING" --paths "/*"
+          else
+            echo "CLOUDFRONT_DISTRIBUTION_ID_STAGING not set; skipping invalidation."
+          fi
+
+  deploy-production:
+    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy_production' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build -- --configuration production
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: s3 sync (production) + CloudFront invalidation
+        env:
+          S3_BUCKET_PROD: ${{ vars.S3_BUCKET_PROD }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          if [ -z "$S3_BUCKET_PROD" ]; then echo "S3_BUCKET_PROD not set."; exit 1; fi
+          aws s3 sync dist/fitsync-frontend/browser/ "s3://$S3_BUCKET_PROD" --delete \
+            --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
+          aws s3 cp dist/fitsync-frontend/browser/index.html "s3://$S3_BUCKET_PROD/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate"
+          if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
+            aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
+          else
+            echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
+          fi
