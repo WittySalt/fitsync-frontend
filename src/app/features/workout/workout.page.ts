@@ -42,6 +42,7 @@ interface ExercisePickerState {
   error: string | null;
   open: boolean;
   activeIndex: number;
+  exerciseType: string | null;
 }
 
 interface ExerciseSearchRequest {
@@ -109,6 +110,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
+  // Exercise types whose plan targets are time-based (a duration) rather than sets×reps.
+  readonly timedExerciseTypes = new Set(['CARDIO', 'MOBILITY']);
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
   readonly todayStarting = computed(() => {
     const planId = this.activePlan()?.planId;
@@ -267,6 +270,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
         exerciseId: '',
         targetSets: 3,
         targetReps: 8,
+        targetDurationSeconds: null,
         targetWeightKg: null,
         restSeconds: 90,
         notes: ''
@@ -304,13 +308,17 @@ export class WorkoutPage implements OnInit, OnDestroy {
           exerciseId: exercise.exerciseId ?? '',
           targetSets: exercise.targetSets ?? 0,
           targetReps: exercise.targetReps ?? 0,
+          targetDurationSeconds: exercise.targetDurationSeconds ?? null,
           targetWeightKg: exercise.targetWeightKg,
           restSeconds: exercise.restSeconds ?? 0,
           notes: exercise.notes
         });
         this.setExercisePickerState(index, {
           ...this.emptyExercisePickerState(),
-          inputValue: exercise.exerciseNameSnapshot || ''
+          inputValue: exercise.exerciseNameSnapshot || '',
+          // Existing plans don't carry the exercise type; infer "timed" from a
+          // saved duration target so the row shows the right inputs on edit.
+          exerciseType: (exercise.targetDurationSeconds ?? 0) > 0 ? 'CARDIO' : 'STRENGTH'
         });
       } else {
         this.setExercisePickerState(index, this.emptyExercisePickerState());
@@ -517,6 +525,13 @@ export class WorkoutPage implements OnInit, OnDestroy {
     return this.exercisePickerStates()[index] ?? this.emptyExercisePickerState();
   }
 
+  // A plan row is "timed" once a CARDIO/MOBILITY exercise is chosen — then the
+  // form shows a single Duration target instead of Sets & Reps.
+  isTimedRow(index: number): boolean {
+    const type = this.exercisePickerState(index).exerciseType;
+    return !!type && this.timedExerciseTypes.has(type);
+  }
+
   setExerciseSearchQuery(index: number, value: string): void {
     const query = value.trim();
     this.planExercises.at(index)?.get('exerciseId')?.setValue('');
@@ -580,6 +595,13 @@ export class WorkoutPage implements OnInit, OnDestroy {
     control?.setValue(exercise.exerciseId);
     control?.markAsDirty();
     control?.markAsTouched();
+    // Give a timed exercise a sensible default duration so the field isn't blank.
+    if (this.timedExerciseTypes.has(exercise.exerciseType)) {
+      const durationControl = this.planExercises.at(index)?.get('targetDurationSeconds');
+      if (!durationControl?.value) {
+        durationControl?.setValue(60);
+      }
+    }
     this.setExercisePickerState(index, {
       inputValue: exercise.name,
       query: '',
@@ -587,7 +609,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
       error: null,
       loading: false,
       open: false,
-      activeIndex: -1
+      activeIndex: -1,
+      exerciseType: exercise.exerciseType
     });
   }
 
@@ -788,6 +811,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
       exerciseId: ['', Validators.required],
       targetSets: [3, [Validators.min(0)]],
       targetReps: [8, [Validators.min(0)]],
+      targetDurationSeconds: [null as number | null, [Validators.min(0)]],
       targetWeightKg: [null as number | null, [Validators.min(0)]],
       restSeconds: [90, [Validators.min(0)]],
       notes: ['', Validators.maxLength(300)]
@@ -798,18 +822,21 @@ export class WorkoutPage implements OnInit, OnDestroy {
     const raw = this.planForm.getRawValue();
     const exercises: WorkoutPlanExerciseInput[] = raw.exercises
       .filter((exercise): exercise is typeof exercise & { exerciseId: string } => Boolean(exercise.exerciseId))
-      .map((exercise, index) => ({
-        exerciseId: exercise.exerciseId,
-        sequence: index + 1,
-        targetSets: this.optionalNumber(exercise.targetSets),
-        targetReps: this.optionalNumber(exercise.targetReps),
-        targetWeightKg: this.optionalNumber(exercise.targetWeightKg),
-        targetDurationSeconds: null,
-        targetDistanceKm: null,
-        restSeconds: this.optionalNumber(exercise.restSeconds),
-        notes: exercise.notes ?? '',
-        setTargets: []
-      }));
+      .map((exercise, index) => {
+        const timed = this.isTimedRow(index);
+        return {
+          exerciseId: exercise.exerciseId,
+          sequence: index + 1,
+          targetSets: timed ? null : this.optionalNumber(exercise.targetSets),
+          targetReps: timed ? null : this.optionalNumber(exercise.targetReps),
+          targetWeightKg: timed ? null : this.optionalNumber(exercise.targetWeightKg),
+          targetDurationSeconds: timed ? this.optionalNumber(exercise.targetDurationSeconds) : null,
+          targetDistanceKm: null,
+          restSeconds: this.optionalNumber(exercise.restSeconds),
+          notes: exercise.notes ?? '',
+          setTargets: []
+        };
+      });
 
     return {
       name: raw.name ?? '',
@@ -863,7 +890,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
       loading: false,
       error: null,
       open: false,
-      activeIndex: -1
+      activeIndex: -1,
+      exerciseType: null
     };
   }
 
