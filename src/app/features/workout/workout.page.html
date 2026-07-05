@@ -187,18 +187,25 @@
                   }
                 </label>
               }
-              <label>
-                Sets
-                <input formControlName="targetSets" type="number" min="0" inputmode="numeric" />
-              </label>
-              <label>
-                Reps
-                <input formControlName="targetReps" type="number" min="0" inputmode="numeric" />
-              </label>
-              <label>
-                Weight kg
-                <input formControlName="targetWeightKg" type="number" min="0" step="0.5" inputmode="decimal" />
-              </label>
+              @if (isTimedRow(rowIndex)) {
+                <label>
+                  Duration sec
+                  <input formControlName="targetDurationSeconds" type="number" min="0" inputmode="numeric" placeholder="e.g. 60" />
+                </label>
+              } @else {
+                <label>
+                  Sets
+                  <input formControlName="targetSets" type="number" min="0" inputmode="numeric" />
+                </label>
+                <label>
+                  Reps
+                  <input formControlName="targetReps" type="number" min="0" inputmode="numeric" />
+                </label>
+                <label>
+                  Weight kg
+                  <input formControlName="targetWeightKg" type="number" min="0" step="0.5" inputmode="decimal" />
+                </label>
+              }
               <label>
                 Rest sec
                 <input formControlName="restSeconds" type="number" min="0" inputmode="numeric" />
