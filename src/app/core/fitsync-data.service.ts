@@ -1,6 +1,6 @@
 import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, delay, forkJoin, map, Observable, of, throwError } from 'rxjs';
+import { catchError, delay, forkJoin, map, Observable, of, tap, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from './analytics-api.service';
 import { AccountDataService } from './account-data.service';
@@ -496,8 +496,15 @@ export class FitSyncDataService {
       analytics: this.analyticsApi.getDashboard(),
       goalProgress: this.analyticsApi.getGoalsProgress('ACTIVE'),
       user: this.accountDataService.getCurrentUser(),
-      latestWorkout: this.http.get<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/sessions/latest`),
-      latestMeal: this.http.get<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/latest`)
+      // "latest" workout/meal are optional — a brand-new user has none, and the
+      // backend returns 404 for the workout one. Don't let that fail the whole
+      // forkJoin (which would break the entire dashboard); treat absence as null.
+      latestWorkout: this.http
+        .get<Partial<WorkoutSession>>(`${this.apiBaseUrl}/workouts/sessions/latest`)
+        .pipe(catchError(() => of(null))),
+      latestMeal: this.http
+        .get<Partial<Meal>>(`${this.apiBaseUrl}/nutrition/meals/latest`)
+        .pipe(catchError(() => of(null)))
     }).pipe(
       map(({ analytics, goalProgress, user, latestWorkout, latestMeal }) => ({
         profile: this.mapProfile(user.profile),
@@ -1322,7 +1329,13 @@ export class FitSyncDataService {
       mealReminderEnabled: value.mealReminderEnabled,
       weighInReminderEnabled: true,
       ...(healthReadiness ? { healthReadiness } : {})
-    }).pipe(map(() => ({ ok: true as const })));
+    }).pipe(
+      // Onboarding writes onboardingCompleted=true server-side; the auth guard
+      // reads it from AccountDataService's cached getCurrentUser(). Without this
+      // the stale (false) cache keeps bouncing the user back to /onboarding.
+      tap(() => this.accountDataService.invalidateCurrentUser()),
+      map(() => ({ ok: true as const }))
+    );
   }
 
   saveWorkoutSession(value: WorkoutSessionFormValue): Observable<{ ok: true }> {

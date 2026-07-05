@@ -345,7 +345,7 @@ export class AccountDataService {
     };
   }
 
-  private invalidateCurrentUser(): void {
+  invalidateCurrentUser(): void {
     this.currentUser$ = undefined;
     this.profileSummary$ = undefined;
   }
