@@ -3,6 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { SocialProvider } from '../../core/auth/auth.config';
 
 type AuthMode = 'signin' | 'signup' | 'confirm' | 'reset' | 'reset-confirm';
 type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend' | 'reset' | 'reset-confirm';
@@ -32,6 +33,7 @@ export class LoginPage implements OnInit, OnDestroy {
   readonly showPassword = signal(false);
   readonly activeQuoteIndex = signal(0);
   readonly currentFact = signal('');
+  readonly socialSignInEnabled = this.authService.socialSignInEnabled;
 
   readonly brandQuotes: BrandQuote[] = [
     {
@@ -253,6 +255,10 @@ export class LoginPage implements OnInit, OnDestroy {
 
   togglePasswordVisibility(): void {
     this.showPassword.update((visible) => !visible);
+  }
+
+  continueWith(provider: SocialProvider): void {
+    this.authService.beginSocialSignIn(provider);
   }
 
   private resetMessages(): void {

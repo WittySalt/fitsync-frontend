@@ -41,8 +41,11 @@ export const routes: Routes = [
     title: 'FitSync Progress'
   },
   {
+    // Body metrics now live inside the Progress hub as a sub-tab. This alias keeps
+    // existing /body links and bookmarks working: ProgressPage opens the Body tab
+    // when the active URL is /body.
     path: 'body',
-    loadComponent: () => import('./features/body/body.page').then((module) => module.BodyPage),
+    loadComponent: () => import('./features/progress/progress.page').then((module) => module.ProgressPage),
     canActivate: [authGuard],
     title: 'FitSync Body Metrics'
   },

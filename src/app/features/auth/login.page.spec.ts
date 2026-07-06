@@ -12,14 +12,11 @@ describe('LoginPage', () => {
   let router: Router;
 
   beforeEach(async () => {
-    authService = jasmine.createSpyObj<AuthService>('AuthService', [
-      'signIn',
-      'signUp',
-      'confirmSignUp',
-      'resendConfirmationCode',
-      'forgotPassword',
-      'confirmForgotPassword'
-    ]);
+    authService = jasmine.createSpyObj<AuthService>(
+      'AuthService',
+      ['signIn', 'signUp', 'confirmSignUp', 'resendConfirmationCode', 'forgotPassword', 'confirmForgotPassword', 'beginSocialSignIn'],
+      { socialSignInEnabled: false }
+    );
     authService.signIn.and.returnValue(of(void 0));
     authService.signUp.and.returnValue(of(void 0));
     authService.confirmSignUp.and.returnValue(of(void 0));

@@ -41,11 +41,24 @@ Per environment (staging + prod pools in `src/app/core/auth/auth.config.ts`):
 4. **Hosted UI domain**: already present (`domain` in `auth.config.ts`); confirm it is
    active for each pool.
 
+## The seam that already exists
+
+The frontend is pre-wired so enabling this is a small, contained change — no refactor:
+
+- `SOCIAL_SIGN_IN_ENABLED` (in `auth.config.ts`) gates everything. It is `false` today.
+- `buildSocialAuthorizeUrl(config, provider)` builds the correct Hosted UI
+  `/oauth2/authorize` URL (Google → `Google`, Apple → `SignInWithApple`).
+- `AuthService.beginSocialSignIn(provider)` redirects there — but is a **no-op while the
+  flag is false**, so the login buttons can bind it unconditionally.
+- `login.page.html` reads `socialSignInEnabled`: the Google/Apple buttons are `disabled`
+  with a "Soon" badge when off, and become live `(click)="continueWith(...)"` when on.
+
 ## Frontend work once infra is ready
 
-1. Restore a redirect helper in `AuthService` that builds the `/oauth2/authorize` URL and
-   `window.location.assign`s to it (per provider).
-2. Re-implement `completeCallback()` to exchange the returned `code` at `/oauth2/token`,
-   store the Cognito tokens, then call the existing `bootstrapWithCognitoToken()`.
-3. Swap the disabled buttons in `login.page.html` back to enabled `(click)` handlers and
-   remove the `.social-soon` badge + `.social-hint` copy.
+1. Flip `SOCIAL_SIGN_IN_ENABLED` to `true`. The buttons go live and redirect into the
+   Hosted UI automatically — no template or handler edits needed.
+2. Re-implement `AuthService.completeCallback()` (currently throws) to exchange the
+   returned `code` at `/oauth2/token`, store the Cognito tokens, then call the existing
+   `bootstrapWithCognitoToken()`. `auth-callback.page.ts` already routes the callback
+   through it.
+3. That's it — the disabled-state badge/hint hide themselves when the flag is on.

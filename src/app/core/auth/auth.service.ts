@@ -2,7 +2,13 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
-import { AUTH_STORAGE_KEYS, COGNITO_AUTH_CONFIG } from './auth.config';
+import {
+  AUTH_STORAGE_KEYS,
+  buildSocialAuthorizeUrl,
+  COGNITO_AUTH_CONFIG,
+  SOCIAL_SIGN_IN_ENABLED,
+  SocialProvider
+} from './auth.config';
 
 interface CognitoAttribute {
   Name: string;
@@ -33,6 +39,21 @@ export class AuthService {
   private sessionBootstrap$?: Observable<boolean>;
 
   readonly authError = signal<string | null>(null);
+
+  /** Whether federated Google/Apple sign-in is wired up (see AUTH-SOCIAL-SIGNIN.md). */
+  readonly socialSignInEnabled = SOCIAL_SIGN_IN_ENABLED;
+
+  /**
+   * Redirect into the Cognito Hosted UI for a federated provider. No-op while
+   * social sign-in is disabled so callers can bind it unconditionally; the
+   * login page keeps the buttons disabled until the seam is turned on.
+   */
+  beginSocialSignIn(provider: SocialProvider): void {
+    if (!this.socialSignInEnabled) {
+      return;
+    }
+    window.location.assign(buildSocialAuthorizeUrl(this.config, provider));
+  }
 
   isAuthenticated(): boolean {
     const token = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);

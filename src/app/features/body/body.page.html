@@ -1,12 +1,22 @@
-<div class="page-grid body-page">
-  <header class="page-header">
-    <div>
-      <p class="eyebrow">Body</p>
-      <h1>Body metrics</h1>
-      <p>Track weight, composition, and circumference changes from your raw measurement records.</p>
+<div class="page-grid body-page" [class.embedded]="embedded()">
+  @if (!embedded()) {
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Body</p>
+        <h1>Body metrics</h1>
+        <p>Track weight, composition, and circumference changes from your raw measurement records.</p>
+      </div>
+      <button class="button primary" type="button" (click)="openNewMeasurement()">Add measurement</button>
+    </header>
+  } @else {
+    <div class="section-title">
+      <div>
+        <span class="card-label">Body</span>
+        <h2>Weight &amp; measurements</h2>
+      </div>
+      <button class="button primary" type="button" (click)="openNewMeasurement()">Add measurement</button>
     </div>
-    <button class="button primary" type="button" (click)="openNewMeasurement()">Add measurement</button>
-  </header>
+  }
 
   @if (loading()) {
     <section class="body-skeleton" aria-label="Loading body metrics" aria-busy="true">
