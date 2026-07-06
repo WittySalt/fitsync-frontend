@@ -141,6 +141,28 @@ export class AuthService {
     );
   }
 
+  forgotPassword(email: string): Observable<void> {
+    return this.cognitoPost('ForgotPassword', {
+      ClientId: this.config.clientId,
+      Username: email.trim()
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  confirmForgotPassword(email: string, confirmationCode: string, newPassword: string): Observable<void> {
+    return this.cognitoPost('ConfirmForgotPassword', {
+      ClientId: this.config.clientId,
+      Username: email.trim(),
+      ConfirmationCode: confirmationCode.trim(),
+      Password: newPassword
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
   changePassword(previousPassword: string, proposedPassword: string): Observable<void> {
     return this.cognitoPostWithAccessToken('ChangePassword', {
       PreviousPassword: previousPassword,
@@ -295,6 +317,21 @@ export class AuthService {
     }
     if (code === 'InvalidParameterException' && message?.includes('USER_PASSWORD_AUTH')) {
       return 'Cognito app client must enable USER_PASSWORD_AUTH for custom sign-in.';
+    }
+    if (code === 'CodeMismatchException') {
+      return 'That code is incorrect. Check your email and try again.';
+    }
+    if (code === 'ExpiredCodeException') {
+      return 'That code has expired. Request a new one and try again.';
+    }
+    if (code === 'InvalidPasswordException') {
+      return message ?? 'Your new password does not meet the requirements.';
+    }
+    if (code === 'LimitExceededException') {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    if (code === 'UserNotFoundException') {
+      return 'If that email has an account, a reset code is on its way.';
     }
 
     return message ?? null;

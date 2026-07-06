@@ -345,6 +345,65 @@ describe('AuthService', () => {
     request.flush({});
   });
 
+  it('requests a Cognito password reset code', (done) => {
+    service.forgotPassword(' sam@example.com ').subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.headers.get('X-Amz-Target')).toBe('AWSCognitoIdentityProviderService.ForgotPassword');
+    expect(request.request.body).toEqual({
+      ClientId: COGNITO_AUTH_CONFIG.clientId,
+      Username: 'sam@example.com'
+    });
+    request.flush({});
+  });
+
+  it('confirms a Cognito password reset with the code and new password', (done) => {
+    service.confirmForgotPassword(' sam@example.com ', ' 123456 ', 'NewPassword1').subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    const request = httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint);
+    expect(request.request.headers.get('X-Amz-Target')).toBe('AWSCognitoIdentityProviderService.ConfirmForgotPassword');
+    expect(request.request.body).toEqual({
+      ClientId: COGNITO_AUTH_CONFIG.clientId,
+      Username: 'sam@example.com',
+      ConfirmationCode: '123456',
+      Password: 'NewPassword1'
+    });
+    request.flush({});
+  });
+
+  it('maps reset-code and password-policy Cognito errors to friendly messages', (done) => {
+    service.confirmForgotPassword('sam@example.com', '000000', 'weak').subscribe({
+      next: () => done.fail('expected code-mismatch rejection'),
+      error: (mismatchError: Error) => {
+        expect(mismatchError.message).toBe('That code is incorrect. Check your email and try again.');
+
+        service.confirmForgotPassword('sam@example.com', '000000', 'weak').subscribe({
+          next: () => done.fail('expected invalid-password rejection'),
+          error: (passwordError: Error) => {
+            expect(passwordError.message).toBe('Password does not satisfy policy.');
+            done();
+          }
+        });
+
+        httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush(
+          { __type: 'InvalidPasswordException', message: 'Password does not satisfy policy.' },
+          { status: 400, statusText: 'Bad Request' }
+        );
+      }
+    });
+
+    httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush(
+      { __type: 'CodeMismatchException', message: 'wrong code' },
+      { status: 400, statusText: 'Bad Request' }
+    );
+  });
+
   it('rejects unsupported Cognito challenges and missing token responses', (done) => {
     service.signIn('sam@example.com', 'supersecret').subscribe({
       next: () => done.fail('expected challenge rejection'),
