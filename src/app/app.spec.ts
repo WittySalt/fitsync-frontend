@@ -58,7 +58,10 @@ describe('App', () => {
     expect(compiled.textContent).toContain('FitSync');
     expect(compiled.textContent).toContain('Workout');
     expect(compiled.textContent).toContain('Nutrition');
-    expect(compiled.textContent).toContain('Body');
+    expect(compiled.textContent).toContain('Progress');
+    // Body was folded into the Progress hub; the bottom nav now carries five items.
+    const navLabels = Array.from(compiled.querySelectorAll('.nav-list a')).map((a) => a.textContent?.trim());
+    expect(navLabels).toEqual(['Home', 'Workout', 'Nutrition', 'Progress', 'Me']);
   });
 
   it('opens the account menu from the avatar control', () => {

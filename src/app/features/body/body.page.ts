@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 
@@ -41,6 +41,9 @@ export class BodyPage implements OnInit {
   private readonly accountDataService = inject(AccountDataService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly toast = inject(ToastService);
+
+  /** When rendered inside another page (e.g. the Progress hub) the page header is suppressed. */
+  readonly embedded = input(false);
 
   readonly data = signal<AccountCenterData | null>(null);
   readonly metrics = signal<AccountBodyMetric[]>([]);

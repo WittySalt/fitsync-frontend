@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import {
@@ -182,10 +183,13 @@ describe('ProgressPage', () => {
     dataService.getProgressGoals.and.returnValue(of(goals));
     accountDataService = jasmine.createSpyObj<AccountDataService>('AccountDataService', [
       'getAccountCenter',
-      'updateGoal'
+      'updateGoal',
+      'listBodyMetrics'
     ]);
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
     accountDataService.updateGoal.and.returnValue(of(weightGoal));
+    // Needed once the embedded Body tab is rendered (BodyPage loads metrics on init).
+    accountDataService.listBodyMetrics.and.returnValue(of([]));
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', [
       'getWorkoutSeries',
       'getNutritionSeries',
@@ -201,6 +205,7 @@ describe('ProgressPage', () => {
     await TestBed.configureTestingModule({
       imports: [ProgressPage],
       providers: [
+        provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
         { provide: AccountDataService, useValue: accountDataService },
         { provide: AnalyticsApiService, useValue: analyticsApi },
@@ -209,23 +214,48 @@ describe('ProgressPage', () => {
     }).compileComponents();
   });
 
-  it('renders activity analytics and active goals without body metric panels', () => {
+  it('defaults to the Overview tab: hub header and tabs, no body or goals detail', () => {
     const fixture = TestBed.createComponent(ProgressPage);
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
+    const component = fixture.componentInstance;
 
     expect(dataService.getProgressGoals).toHaveBeenCalled();
-    expect(compiled.textContent).toContain('Activity analytics');
+    expect(component.selectedTab()).toBe('overview');
+    expect(compiled.textContent).toContain('Your progress');
+    expect(compiled.querySelector('#progress-tab-overview')).not.toBeNull();
+    expect(compiled.querySelector('#progress-tab-body')).not.toBeNull();
+    expect(compiled.querySelector('#progress-tab-goals')).not.toBeNull();
+    // Body and Goals panels are not rendered until their tab is selected.
+    expect(compiled.textContent).not.toContain('Latest weight');
+    expect(compiled.textContent).not.toContain('Active goal progress');
+  });
+
+  it('shows active goal progress on the Goals tab', () => {
+    const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectTab('goals');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Active goal progress');
     expect(compiled.textContent).toContain('Add goal');
     expect(compiled.textContent).toContain('Edit');
     expect(compiled.textContent).toContain('55%');
     expect(compiled.textContent).toContain('On track - 100 days left');
-    expect(compiled.textContent).not.toContain('Latest weight');
-    expect(compiled.textContent).not.toContain('Body Metrics');
-    expect(compiled.querySelector('#progress-trend-panel')).toBeNull();
-    expect(compiled.querySelector('[role="tablist"][aria-label="Trend metric"]')).toBeNull();
+  });
+
+  it('renders the Body tab through the embedded body page', () => {
+    const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectTab('body');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-body-page')).not.toBeNull();
+    // Embedded mode suppresses the standalone Body page heading.
+    expect(compiled.textContent).not.toContain('Body metrics');
   });
 
   it('shows a goals empty state when no active goals exist', () => {
@@ -233,12 +263,16 @@ describe('ProgressPage', () => {
 
     const fixture = TestBed.createComponent(ProgressPage);
     fixture.detectChanges();
+    fixture.componentInstance.selectTab('goals');
+    fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No active goals');
   });
 
   it('opens an add-goal editor with defaults', () => {
     const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectTab('goals');
     fixture.detectChanges();
 
     const addButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="add-goal"]');
@@ -256,6 +290,8 @@ describe('ProgressPage', () => {
 
   it('opens a per-goal editor with the existing editable goal values', () => {
     const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectTab('goals');
     fixture.detectChanges();
 
     const editButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="edit-goal-WEIGHT"]');
@@ -321,6 +357,8 @@ describe('ProgressPage', () => {
     dataService.getProgressGoals.and.returnValue(throwError(() => new Error('Unable to load goal progress.')));
 
     const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectTab('goals');
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;

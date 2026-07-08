@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import {
   AccountCenterData,
@@ -13,6 +14,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { BodyPage } from '../body/body.page';
 import { ActivityHeatmapComponent } from './activity-heatmap.component';
 import { AnalyticsComparisonCardComponent } from './analytics-comparison-card.component';
 import { AnalyticsTrendChartsComponent } from './analytics-trend-charts.component';
@@ -22,12 +24,15 @@ interface GoalOption {
   label: string;
 }
 
+type ProgressTab = 'overview' | 'body' | 'goals';
+
 @Component({
   selector: 'app-progress-page',
   imports: [
     ActivityHeatmapComponent,
     AnalyticsComparisonCardComponent,
     AnalyticsTrendChartsComponent,
+    BodyPage,
     ReactiveFormsModule,
     StatePanelComponent
   ],
@@ -39,7 +44,10 @@ export class ProgressPage implements OnInit {
   private readonly accountDataService = inject(AccountDataService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
+  readonly selectedTab = signal<ProgressTab>('overview');
   readonly accountData = signal<AccountCenterData | null>(null);
   readonly goals = signal<Goal[]>([]);
   readonly loading = signal(true);
@@ -73,7 +81,24 @@ export class ProgressPage implements OnInit {
   });
 
   ngOnInit(): void {
+    this.initSelectedTab();
     this.load();
+  }
+
+  selectTab(tab: ProgressTab): void {
+    this.selectedTab.set(tab);
+  }
+
+  private initSelectedTab(): void {
+    // `/body` is kept as a backward-compatible alias that opens the Body tab.
+    if (this.router.url.split('?')[0] === '/body') {
+      this.selectedTab.set('body');
+      return;
+    }
+    const tab = this.route.snapshot.queryParamMap.get('tab');
+    if (tab === 'overview' || tab === 'body' || tab === 'goals') {
+      this.selectedTab.set(tab);
+    }
   }
 
   load(): void {

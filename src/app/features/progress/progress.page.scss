@@ -3,6 +3,15 @@
     align-items: center;
   }
 
+  .progress-tabs {
+    justify-self: start;
+  }
+
+  .progress-panel {
+    display: grid;
+    gap: 18px;
+  }
+
   .progress-skeleton,
   .goal-list {
     display: grid;

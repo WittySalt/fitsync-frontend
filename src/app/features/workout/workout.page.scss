@@ -3,89 +3,9 @@
     align-items: center;
   }
 
-  .header-actions,
-  .hero-tags,
-  .live-header,
   .plan-card-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-  }
-
-  .header-actions {
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .training-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
-    gap: 18px;
-    align-items: stretch;
-    padding: 24px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--surface), var(--surface-tint));
-    box-shadow: var(--shadow-sm);
-  }
-
-  .hero-copy {
-    display: grid;
-    align-content: center;
-
-    h2 {
-      max-width: 640px;
-      margin: 8px 0 10px;
-      font-size: var(--text-5xl);
-      line-height: 0.96;
-    }
-
-    p {
-      max-width: 560px;
-      margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.55;
-    }
-  }
-
-  .hero-tags {
-    flex-wrap: wrap;
-    margin-top: 20px;
-
-    span {
-      min-height: 34px;
-      display: inline-flex;
-      align-items: center;
-      padding: 0 12px;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--surface) 82%, transparent);
-      border: 1px solid var(--border);
-      font-size: 13px;
-      font-weight: var(--fw-bold);
-    }
-  }
-
-  .live-panel {
-    display: grid;
-    gap: 14px;
-    padding: 18px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .live-header {
-    justify-content: space-between;
-
-    strong {
-      font-size: 18px;
-    }
-  }
-
-  .set-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
 
@@ -133,102 +53,16 @@
     width: fit-content;
   }
 
-  .workout-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
-    gap: 16px;
-  }
-
-  .session-card,
-  .coaching-card,
   .plan-card {
     min-width: 0;
   }
 
-  .set-list,
-  .history-list,
-  .readiness-list {
+  .history-list {
     display: grid;
     gap: 10px;
   }
 
-  .set-row,
-  .history-row {
-    display: grid;
-    align-items: center;
-    gap: 14px;
-    min-height: 68px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-  }
-
-  .set-row {
-    grid-template-columns: 72px minmax(0, 1fr) minmax(120px, auto);
-
-    strong,
-    small {
-      display: block;
-    }
-
-    small {
-      margin-top: 4px;
-      color: var(--text-secondary);
-    }
-
-    > span:last-child {
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-weight: var(--fw-bold);
-      text-align: right;
-    }
-  }
-
-  .set-row.active {
-    border-color: color-mix(in srgb, var(--blue-500) 36%, var(--border));
-    background: color-mix(in srgb, var(--blue-500) 14%, var(--surface));
-  }
-
-  .set-status {
-    min-height: 30px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: var(--fw-bold);
-  }
-
-  .coaching-card {
-    p {
-      margin: 10px 0 16px;
-      color: var(--text-secondary);
-      line-height: 1.55;
-    }
-  }
-
-  .readiness-list div {
-    padding: 12px;
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-
-    strong,
-    span {
-      display: block;
-    }
-
-    span {
-      margin-top: 3px;
-      color: var(--text-secondary);
-      font-size: 13px;
-    }
-  }
-
-  .plan-grid,
-  .catalog-grid,
-  .record-grid {
+  .plan-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 16px;
@@ -352,17 +186,13 @@
     margin-top: 16px;
   }
 
-  .plan-card,
-  .exercise-card,
-  .record-card {
+  .plan-card {
     padding: 18px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--surface);
     box-shadow: var(--shadow-sm);
-  }
 
-  .plan-card {
     h2 {
       margin: 12px 0 8px;
     }
@@ -386,6 +216,14 @@
   }
 
   .history-row {
+    display: grid;
+    align-items: center;
+    gap: 14px;
+    min-height: 68px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
     grid-template-columns: minmax(0, 1fr) 100px 100px;
     font: inherit;
     color: var(--text-primary);
@@ -407,53 +245,10 @@
       text-align: right;
     }
   }
-
-  .exercise-card {
-    display: grid;
-    gap: 6px;
-    color: inherit;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-
-    span,
-    small {
-      color: var(--text-secondary);
-    }
-
-    &.active {
-      border-color: var(--accent);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.68;
-    }
-  }
-
-  .exercise-detail {
-    display: grid;
-    gap: 16px;
-    margin-top: 18px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-  }
-
-  .record-card {
-    display: grid;
-    gap: 8px;
-
-    span,
-    small {
-      color: var(--text-secondary);
-    }
-  }
 }
 
 @media (max-width: 980px) {
   .workout-page {
-    .training-hero,
-    .workout-layout,
     .metric-strip {
       grid-template-columns: 1fr;
     }
@@ -462,24 +257,12 @@
 
 @media (max-width: 640px) {
   .workout-page {
-    .header-actions,
-    .header-actions .button {
-      width: 100%;
-    }
-
-    .training-hero {
-      padding: 18px;
-    }
-
-    .set-grid,
-    .set-row,
     .history-row,
     .form-grid,
     .exercise-row {
       grid-template-columns: 1fr;
     }
 
-    .set-row > span:last-child,
     .history-row span {
       text-align: left;
     }
@@ -495,37 +278,7 @@
   }
 }
 
-.verified-tag {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--surface-tint);
-  color: var(--accent-text);
-  font-size: 11px;
-  font-weight: 600;
-  vertical-align: middle;
-}
-
 .overview-panel {
   display: grid;
   gap: 18px;
-}
-
-.log-workout-form {
-  display: grid;
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.log-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 760px) {
-  .log-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }

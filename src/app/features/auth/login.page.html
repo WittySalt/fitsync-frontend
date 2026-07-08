@@ -16,6 +16,10 @@
             Create your FitSync account
           } @else if (mode() === 'confirm') {
             Confirm your email
+          } @else if (mode() === 'reset') {
+            Reset your password
+          } @else if (mode() === 'reset-confirm') {
+            Set a new password
           } @else {
             Sign in to FitSync
           }
@@ -41,7 +45,7 @@
 
           <div class="field-row">
             <label for="password">Password</label>
-            <button class="link-button muted" type="button" (click)="notice.set('Password reset is not connected yet.')">Forgot password?</button>
+            <button class="link-button muted" type="button" (click)="showMode('reset')">Forgot password?</button>
           </div>
           <div class="password-field">
             <input id="password" [type]="showPassword() ? 'text' : 'password'" autocomplete="current-password" formControlName="password" [class.invalid]="signInForm.controls.password.invalid && signInForm.controls.password.touched" />
@@ -61,7 +65,13 @@
         <div class="social-auth" aria-label="Alternative sign-in options">
           <div class="divider"><span>or continue with</span></div>
           <div class="social-grid">
-            <button type="button" aria-label="Continue with Google" (click)="showUnavailableSignIn('Google')">
+            <button
+              type="button"
+              class="social-btn"
+              [disabled]="!socialSignInEnabled"
+              [attr.aria-label]="socialSignInEnabled ? 'Continue with Google' : 'Continue with Google (coming soon)'"
+              (click)="continueWith('Google')"
+            >
               <svg class="si" width="19" height="19" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
                 <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.1-.2-1.6H9v3.1h4.8c-.2 1-.8 1.9-1.7 2.5v2h2.7c1.7-1.5 2.8-3.7 2.8-6Z" />
                 <path fill="#34A853" d="M9 18c2.4 0 4.4-.8 5.8-2.2l-2.7-2c-.7.5-1.7.8-3.1.8-2.3 0-4.3-1.6-5-3.7H1.3v2.1C2.8 16 5.7 18 9 18Z" />
@@ -69,14 +79,29 @@
                 <path fill="#EA4335" d="M9 3.4c1.3 0 2.5.5 3.4 1.3l2.5-2.5C13.4.8 11.4 0 9 0 5.7 0 2.8 2 1.3 5L4 7.1c.7-2.1 2.7-3.7 5-3.7Z" />
               </svg>
               <span class="social-label">Google</span>
+              @if (!socialSignInEnabled) {
+                <span class="social-soon">Soon</span>
+              }
             </button>
-            <button type="button" aria-label="Continue with Apple" (click)="showUnavailableSignIn('Apple')">
+            <button
+              type="button"
+              class="social-btn"
+              [disabled]="!socialSignInEnabled"
+              [attr.aria-label]="socialSignInEnabled ? 'Continue with Apple' : 'Continue with Apple (coming soon)'"
+              (click)="continueWith('Apple')"
+            >
               <svg class="si" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path fill="currentColor" d="M17.1 12.7c0-2 1.6-3 1.7-3.1-1-.1-1.9-.7-2.4-1.4-1-.9-2-.8-2.5-.8-1.1.1-2.1.7-2.7.7-.6 0-1.5-.7-2.5-.7-1.3 0-2.5.8-3.2 2-1.4 2.5-.4 6.1 1 8.1.7 1 1.5 2.1 2.5 2.1s1.4-.6 2.6-.6 1.5.6 2.6.6 1.8-1 2.5-2c.8-1.2 1.1-2.3 1.1-2.4 0-.1-2.2-.9-2.2-3.5ZM13.3 6.2c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.7-1 1.7-.9 2.6 1 0 1.9-.5 2.5-1.2Z" />
               </svg>
               <span class="social-label">Apple</span>
+              @if (!socialSignInEnabled) {
+                <span class="social-soon">Soon</span>
+              }
             </button>
           </div>
+          @if (!socialSignInEnabled) {
+            <p class="social-hint">Social sign-in is coming soon. Use your email and password for now.</p>
+          }
         </div>
 
         <p class="auth-switch">
@@ -103,7 +128,7 @@
           Already registered?
           <button class="link-button" type="button" (click)="showMode('signin')">Sign in</button>
         </p>
-      } @else {
+      } @else if (mode() === 'confirm') {
         <form class="auth-form" [formGroup]="confirmForm" (ngSubmit)="confirmSignUp()" novalidate>
           <label for="confirmEmail">Email</label>
           <input id="confirmEmail" type="email" autocomplete="email" formControlName="email" />
@@ -119,6 +144,54 @@
         <div class="auth-actions">
           <button class="link-button" type="button" [disabled]="loading() !== null" (click)="resendCode()">
             {{ loading() === 'resend' ? 'Sending...' : 'Resend code' }}
+          </button>
+          <button class="link-button muted" type="button" (click)="showMode('signin')">Back to sign in</button>
+        </div>
+      } @else if (mode() === 'reset') {
+        <form class="auth-form" [formGroup]="resetForm" (ngSubmit)="requestPasswordReset()" novalidate>
+          <p class="auth-hint">Enter your account email and we'll send you a reset code.</p>
+
+          <label for="resetEmail">Email</label>
+          <input id="resetEmail" type="email" autocomplete="email" formControlName="email" [class.invalid]="resetForm.controls.email.invalid && resetForm.controls.email.touched" />
+          @if (resetForm.controls.email.invalid && resetForm.controls.email.touched) {
+            <span class="field-error">Enter a valid email address.</span>
+          }
+
+          <button class="button primary" type="submit" [disabled]="loading() !== null">
+            {{ loading() === 'reset' ? 'Sending...' : 'Send reset code' }}
+          </button>
+        </form>
+
+        <div class="auth-actions">
+          <button class="link-button muted" type="button" (click)="showMode('signin')">Back to sign in</button>
+        </div>
+      } @else {
+        <form class="auth-form" [formGroup]="resetConfirmForm" (ngSubmit)="confirmPasswordReset()" novalidate>
+          <label for="resetConfirmEmail">Email</label>
+          <input id="resetConfirmEmail" type="email" autocomplete="email" formControlName="email" />
+
+          <label for="resetCode">Reset code</label>
+          <input id="resetCode" type="text" inputmode="numeric" autocomplete="one-time-code" formControlName="confirmationCode" />
+
+          <label for="resetPassword">New password</label>
+          <div class="password-field">
+            <input id="resetPassword" [type]="showPassword() ? 'text' : 'password'" autocomplete="new-password" formControlName="password" [class.invalid]="resetConfirmForm.controls.password.invalid && resetConfirmForm.controls.password.touched" />
+            <button type="button" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" (click)="togglePasswordVisibility()">
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          @if (resetConfirmForm.controls.password.invalid && resetConfirmForm.controls.password.touched) {
+            <span class="field-error">Use at least 8 characters.</span>
+          }
+
+          <button class="button primary" type="submit" [disabled]="loading() !== null">
+            {{ loading() === 'reset-confirm' ? 'Updating...' : 'Update password' }}
+          </button>
+        </form>
+
+        <div class="auth-actions">
+          <button class="link-button" type="button" [disabled]="loading() !== null" (click)="requestPasswordReset()">
+            {{ loading() === 'reset' ? 'Sending...' : 'Resend code' }}
           </button>
           <button class="link-button muted" type="button" (click)="showMode('signin')">Back to sign in</button>
         </div>

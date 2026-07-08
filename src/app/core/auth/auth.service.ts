@@ -2,7 +2,13 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
-import { AUTH_STORAGE_KEYS, COGNITO_AUTH_CONFIG } from './auth.config';
+import {
+  AUTH_STORAGE_KEYS,
+  buildSocialAuthorizeUrl,
+  COGNITO_AUTH_CONFIG,
+  SOCIAL_SIGN_IN_ENABLED,
+  SocialProvider
+} from './auth.config';
 
 interface CognitoAttribute {
   Name: string;
@@ -33,6 +39,21 @@ export class AuthService {
   private sessionBootstrap$?: Observable<boolean>;
 
   readonly authError = signal<string | null>(null);
+
+  /** Whether federated Google/Apple sign-in is wired up (see AUTH-SOCIAL-SIGNIN.md). */
+  readonly socialSignInEnabled = SOCIAL_SIGN_IN_ENABLED;
+
+  /**
+   * Redirect into the Cognito Hosted UI for a federated provider. No-op while
+   * social sign-in is disabled so callers can bind it unconditionally; the
+   * login page keeps the buttons disabled until the seam is turned on.
+   */
+  beginSocialSignIn(provider: SocialProvider): void {
+    if (!this.socialSignInEnabled) {
+      return;
+    }
+    window.location.assign(buildSocialAuthorizeUrl(this.config, provider));
+  }
 
   isAuthenticated(): boolean {
     const token = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
@@ -135,6 +156,28 @@ export class AuthService {
     return this.cognitoPost('ResendConfirmationCode', {
       ClientId: this.config.clientId,
       Username: email.trim()
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  forgotPassword(email: string): Observable<void> {
+    return this.cognitoPost('ForgotPassword', {
+      ClientId: this.config.clientId,
+      Username: email.trim()
+    }).pipe(
+      map(() => undefined),
+      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+    );
+  }
+
+  confirmForgotPassword(email: string, confirmationCode: string, newPassword: string): Observable<void> {
+    return this.cognitoPost('ConfirmForgotPassword', {
+      ClientId: this.config.clientId,
+      Username: email.trim(),
+      ConfirmationCode: confirmationCode.trim(),
+      Password: newPassword
     }).pipe(
       map(() => undefined),
       catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
@@ -295,6 +338,21 @@ export class AuthService {
     }
     if (code === 'InvalidParameterException' && message?.includes('USER_PASSWORD_AUTH')) {
       return 'Cognito app client must enable USER_PASSWORD_AUTH for custom sign-in.';
+    }
+    if (code === 'CodeMismatchException') {
+      return 'That code is incorrect. Check your email and try again.';
+    }
+    if (code === 'ExpiredCodeException') {
+      return 'That code has expired. Request a new one and try again.';
+    }
+    if (code === 'InvalidPasswordException') {
+      return message ?? 'Your new password does not meet the requirements.';
+    }
+    if (code === 'LimitExceededException') {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    if (code === 'UserNotFoundException') {
+      return 'If that email has an account, a reset code is on its way.';
     }
 
     return message ?? null;

@@ -12,16 +12,17 @@ describe('LoginPage', () => {
   let router: Router;
 
   beforeEach(async () => {
-    authService = jasmine.createSpyObj<AuthService>('AuthService', [
-      'signIn',
-      'signUp',
-      'confirmSignUp',
-      'resendConfirmationCode'
-    ]);
+    authService = jasmine.createSpyObj<AuthService>(
+      'AuthService',
+      ['signIn', 'signUp', 'confirmSignUp', 'resendConfirmationCode', 'forgotPassword', 'confirmForgotPassword', 'beginSocialSignIn'],
+      { socialSignInEnabled: false }
+    );
     authService.signIn.and.returnValue(of(void 0));
     authService.signUp.and.returnValue(of(void 0));
     authService.confirmSignUp.and.returnValue(of(void 0));
     authService.resendConfirmationCode.and.returnValue(of(void 0));
+    authService.forgotPassword.and.returnValue(of(void 0));
+    authService.confirmForgotPassword.and.returnValue(of(void 0));
 
     await TestBed.configureTestingModule({
       imports: [LoginPage],
@@ -100,17 +101,13 @@ describe('LoginPage', () => {
     expect(passwordInput?.type).toBe('text');
   });
 
-  it('shows a notice for unavailable social sign-in', () => {
-    const component = fixture.componentInstance;
+  it('presents social sign-in as disabled coming-soon options, not silent dead-ends', () => {
     const element = fixture.nativeElement as HTMLElement;
-    const googleButton = Array.from(element.querySelectorAll<HTMLButtonElement>('.social-grid button'))
-      .find((button) => button.textContent?.includes('Google'));
+    const socialButtons = Array.from(element.querySelectorAll<HTMLButtonElement>('.social-grid button'));
 
-    googleButton?.click();
-    fixture.detectChanges();
-
-    expect(component.notice()).toContain('Google sign-in is not connected yet.');
-    expect(element.textContent).toContain('Google sign-in is not connected yet.');
+    expect(socialButtons.length).toBe(2);
+    expect(socialButtons.every((button) => button.disabled)).toBeTrue();
+    expect(element.textContent).toContain('Social sign-in is coming soon.');
   });
 
   it('signs in with valid credentials and navigates to the dashboard', () => {
@@ -232,11 +229,70 @@ describe('LoginPage', () => {
     component.resumeQuoteRotation();
 
     expect(component.activeQuoteIndex()).toBe(2);
+  });
 
-    component.error.set('old error');
-    component.showUnavailableSignIn('Apple');
+  it('opens the password reset flow carrying the sign-in email', () => {
+    const component = fixture.componentInstance;
 
-    expect(component.error()).toBeNull();
-    expect(component.notice()).toBe('Apple sign-in is not connected yet.');
+    component.signInForm.controls.email.setValue('user@example.com');
+    component.showMode('reset');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(component.mode()).toBe('reset');
+    expect(component.resetForm.controls.email.value).toBe('user@example.com');
+    expect(element.textContent).toContain('Reset your password');
+  });
+
+  it('validates and requests a password reset code, then advances to confirmation', () => {
+    const component = fixture.componentInstance;
+
+    component.requestPasswordReset();
+
+    expect(component.resetForm.invalid).toBeTrue();
+    expect(component.error()).toBe('Please enter the email address for your account.');
+    expect(authService.forgotPassword).not.toHaveBeenCalled();
+
+    component.resetForm.controls.email.setValue('user@example.com');
+    component.requestPasswordReset();
+
+    expect(authService.forgotPassword).toHaveBeenCalledWith('user@example.com');
+    expect(component.mode()).toBe('reset-confirm');
+    expect(component.resetConfirmForm.controls.email.value).toBe('user@example.com');
+    expect(component.notice()).toBe('We sent a reset code to your email.');
+
+    authService.forgotPassword.and.returnValue(throwError(() => new Error('Reset request failed.')));
+    component.requestPasswordReset();
+
+    expect(component.error()).toBe('Reset request failed.');
+    expect(component.loading()).toBeNull();
+  });
+
+  it('validates and confirms a new password, then returns to sign-in', () => {
+    const component = fixture.componentInstance;
+
+    component.confirmPasswordReset();
+
+    expect(component.resetConfirmForm.invalid).toBeTrue();
+    expect(component.error()).toBe('Enter the reset code and a new password of at least 8 characters.');
+    expect(authService.confirmForgotPassword).not.toHaveBeenCalled();
+
+    component.resetConfirmForm.setValue({
+      email: 'user@example.com',
+      confirmationCode: '123456',
+      password: 'newsecret1'
+    });
+    component.confirmPasswordReset();
+
+    expect(authService.confirmForgotPassword).toHaveBeenCalledWith('user@example.com', '123456', 'newsecret1');
+    expect(component.mode()).toBe('signin');
+    expect(component.signInForm.controls.email.value).toBe('user@example.com');
+    expect(component.notice()).toBe('Password updated. Sign in with your new password.');
+
+    authService.confirmForgotPassword.and.returnValue(throwError(() => new Error('Reset failed.')));
+    component.confirmPasswordReset();
+
+    expect(component.error()).toBe('Reset failed.');
+    expect(component.loading()).toBeNull();
   });
 });

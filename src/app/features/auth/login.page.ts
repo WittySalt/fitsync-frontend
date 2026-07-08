@@ -3,9 +3,10 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { SocialProvider } from '../../core/auth/auth.config';
 
-type AuthMode = 'signin' | 'signup' | 'confirm';
-type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend';
+type AuthMode = 'signin' | 'signup' | 'confirm' | 'reset' | 'reset-confirm';
+type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend' | 'reset' | 'reset-confirm';
 type BrandQuote = {
   headline: string;
   sub: string;
@@ -32,6 +33,7 @@ export class LoginPage implements OnInit, OnDestroy {
   readonly showPassword = signal(false);
   readonly activeQuoteIndex = signal(0);
   readonly currentFact = signal('');
+  readonly socialSignInEnabled = this.authService.socialSignInEnabled;
 
   readonly brandQuotes: BrandQuote[] = [
     {
@@ -77,6 +79,16 @@ export class LoginPage implements OnInit, OnDestroy {
   readonly confirmForm = new FormGroup({
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     confirmationCode: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+
+  readonly resetForm = new FormGroup({
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] })
+  });
+
+  readonly resetConfirmForm = new FormGroup({
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    confirmationCode: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(8)] })
   });
 
   ngOnInit(): void {
@@ -180,12 +192,62 @@ export class LoginPage implements OnInit, OnDestroy {
     });
   }
 
+  requestPasswordReset(): void {
+    if (this.resetForm.invalid) {
+      this.resetForm.markAllAsTouched();
+      this.error.set('Please enter the email address for your account.');
+      return;
+    }
+
+    this.loading.set('reset');
+    this.resetMessages();
+
+    const email = this.resetForm.controls.email.getRawValue();
+    this.authService.forgotPassword(email).subscribe({
+      next: () => {
+        this.resetConfirmForm.controls.email.setValue(email);
+        this.mode.set('reset-confirm');
+        this.notice.set('We sent a reset code to your email.');
+      },
+      error: (error: Error) => this.fail(error),
+      complete: () => this.loading.set(null)
+    });
+  }
+
+  confirmPasswordReset(): void {
+    if (this.resetConfirmForm.invalid) {
+      this.resetConfirmForm.markAllAsTouched();
+      this.error.set('Enter the reset code and a new password of at least 8 characters.');
+      return;
+    }
+
+    this.loading.set('reset-confirm');
+    this.resetMessages();
+
+    const { email, confirmationCode, password } = this.resetConfirmForm.getRawValue();
+    this.authService.confirmForgotPassword(email, confirmationCode, password).subscribe({
+      next: () => {
+        this.signInForm.controls.email.setValue(email);
+        this.mode.set('signin');
+        this.notice.set('Password updated. Sign in with your new password.');
+      },
+      error: (error: Error) => this.fail(error),
+      complete: () => this.loading.set(null)
+    });
+  }
+
   showMode(nextMode: AuthMode): void {
     if (nextMode === 'signup') {
       this.signUpForm.controls.email.setValue(this.signInForm.controls.email.getRawValue());
     }
     if (nextMode === 'confirm') {
       this.confirmForm.controls.email.setValue(this.signUpForm.controls.email.getRawValue());
+    }
+    if (nextMode === 'reset') {
+      this.resetForm.controls.email.setValue(this.signInForm.controls.email.getRawValue());
+    }
+    if (nextMode === 'reset-confirm') {
+      this.resetConfirmForm.controls.email.setValue(this.resetForm.controls.email.getRawValue());
     }
     this.mode.set(nextMode);
     this.resetMessages();
@@ -195,9 +257,8 @@ export class LoginPage implements OnInit, OnDestroy {
     this.showPassword.update((visible) => !visible);
   }
 
-  showUnavailableSignIn(provider: string): void {
-    this.error.set(null);
-    this.notice.set(`${provider} sign-in is not connected yet.`);
+  continueWith(provider: SocialProvider): void {
+    this.authService.beginSocialSignIn(provider);
   }
 
   private resetMessages(): void {

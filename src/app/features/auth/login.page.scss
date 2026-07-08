@@ -180,10 +180,43 @@ input.invalid {
   min-width: 0;
   flex: 1;
   min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
+  color: var(--text-primary);
   font-weight: var(--fw-bold);
+}
+
+.social-grid button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.social-soon {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.social-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auth-hint {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 .si {

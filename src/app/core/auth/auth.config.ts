@@ -58,6 +58,39 @@ export const COGNITO_AUTH_CONFIG: CognitoAuthConfig = buildCognitoAuthConfig(
   window.location.origin
 );
 
+// ---------------------------------------------------------------------------
+// Social sign-in (Google / Apple) — enablement seam.
+//
+// Federated login cannot use the custom USER_PASSWORD_AUTH page flow; it needs
+// the Cognito Hosted UI authorization-code redirect and the IdPs configured on
+// the user pool. Until that infra lands (see AUTH-SOCIAL-SIGNIN.md) this stays
+// false: the login buttons render as a disabled "Soon" state.
+//
+// To go live: register the IdPs + callback URLs on the pool, implement the
+// callback token exchange (AuthService.completeCallback), then flip this to
+// true. `beginSocialSignIn` below already builds the correct authorize URL.
+// ---------------------------------------------------------------------------
+export const SOCIAL_SIGN_IN_ENABLED = false;
+
+export type SocialProvider = 'Google' | 'Apple';
+
+// Cognito identity-provider names differ from the display labels.
+const SOCIAL_PROVIDER_IDP: Record<SocialProvider, string> = {
+  Google: 'Google',
+  Apple: 'SignInWithApple'
+};
+
+export function buildSocialAuthorizeUrl(config: CognitoAuthConfig, provider: SocialProvider): string {
+  const params = new URLSearchParams({
+    identity_provider: SOCIAL_PROVIDER_IDP[provider],
+    response_type: 'code',
+    client_id: config.clientId,
+    redirect_uri: config.redirectUri,
+    scope: config.scope
+  });
+  return `${config.domain}/oauth2/authorize?${params.toString()}`;
+}
+
 export const AUTH_STORAGE_KEYS = {
   accessToken: 'fitsync.accessToken',
   idToken: 'fitsync.idToken',

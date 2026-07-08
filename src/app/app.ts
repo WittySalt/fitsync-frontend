@@ -28,7 +28,6 @@ export class App implements OnInit {
     { path: '/workout', label: 'Workout', icon: 'dumbbell' },
     { path: '/nutrition', label: 'Nutrition', icon: 'bowl' },
     { path: '/progress', label: 'Progress', icon: 'chart' },
-    { path: '/body', label: 'Body', icon: 'scale' },
     { path: '/me', label: 'Me', icon: 'user' }
   ];
 
