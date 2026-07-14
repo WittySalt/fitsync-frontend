@@ -48,10 +48,10 @@
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: var(--accent);
+  background: var(--gradient-accent);
   color: var(--text-on-accent);
   font-weight: var(--fw-bold);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .nav-list {
@@ -64,17 +64,31 @@
     gap: 11px;
     min-height: 44px;
     padding: 0 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: var(--fw-semibold);
     font-size: 14px;
+    transition:
+      background var(--dur-fast) var(--ease-standard),
+      color var(--dur-fast) var(--ease-standard),
+      transform var(--dur-fast) var(--ease-standard);
   }
 
-  a:hover,
-  a.active {
+  a:hover {
     color: var(--text-primary);
     background: var(--surface-sunken);
+    transform: translateX(2px);
+  }
+
+  a.active {
+    color: var(--accent-text);
+    background: var(--accent-subtle);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  a.active .fs-icon {
+    color: var(--accent);
   }
 }
 
@@ -112,6 +126,14 @@
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
+  transition:
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
 
   svg {
     width: 20px;

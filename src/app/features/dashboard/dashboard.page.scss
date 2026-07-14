@@ -1,24 +1,67 @@
 .dashboard-page {
   .hero-panel {
+    position: relative;
     display: flex;
     justify-content: space-between;
     gap: 24px;
     align-items: center;
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-tint) 100%);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    padding: 28px;
+    border-radius: var(--radius-xl);
+    background: var(--gradient-hero);
+    border: 0;
+    box-shadow: var(--shadow-glow);
+    overflow: hidden;
+    isolation: isolate;
+
+    /* Ambient light blobs so the hero reads as a "scene", not a flat card */
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    &::before {
+      top: -90px;
+      right: -60px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, var(--hero-glass) 0%, transparent 70%);
+    }
+
+    &::after {
+      bottom: -120px;
+      left: 32%;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, var(--hero-glow) 0%, transparent 70%);
+    }
 
     h2 {
       margin: 12px 0 4px;
+      color: var(--text-on-hero);
       font-size: var(--text-3xl);
       line-height: 1;
     }
 
     p {
       margin: 0;
-      color: var(--text-secondary);
+      color: var(--text-on-hero-muted);
+    }
+
+    .button {
+      color: var(--text-on-hero);
+      background: var(--hero-glass);
+      border: 1px solid var(--hero-glass-border);
+      box-shadow: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .button:not(:disabled):hover {
+      background: var(--hero-glass-hover);
+      filter: none;
     }
   }
 
@@ -28,9 +71,11 @@
     display: grid;
     place-items: center;
     border-radius: 14px;
-    color: var(--text-on-accent);
-    background: var(--accent);
+    color: var(--text-on-hero);
+    background: var(--hero-glass);
+    border: 1px solid var(--hero-glass-border);
     font-weight: var(--fw-bold);
+    backdrop-filter: blur(8px);
   }
 
   .quick-actions {
@@ -60,7 +105,7 @@
     gap: 16px;
     min-height: 132px;
     padding: 20px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     background: var(--surface);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
@@ -75,7 +120,10 @@
     strong {
       display: block;
       margin: 4px 0;
+      color: var(--text-primary);
       font-size: 20px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
     }
   }
 
@@ -90,9 +138,24 @@
     &:focus-visible {
       border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
       box-shadow: var(--shadow-md);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
       outline: none;
     }
+  }
+
+  a.metric-card.calories:hover,
+  a.metric-card.calories:focus-visible {
+    border-color: color-mix(in srgb, var(--nutrition) 45%, var(--border));
+  }
+
+  a.metric-card.streak:hover,
+  a.metric-card.streak:focus-visible {
+    border-color: color-mix(in srgb, var(--nutrition) 45%, var(--border));
+  }
+
+  a.metric-card.body:hover,
+  a.metric-card.body:focus-visible {
+    border-color: color-mix(in srgb, var(--body-domain) 45%, var(--border));
   }
 
   .activity-link-card {
@@ -117,12 +180,28 @@
   .metric-icon {
     width: 64px;
     height: 64px;
+    flex: 0 0 auto;
     border-radius: 18px;
     display: grid;
     place-items: center;
     background: var(--accent-subtle);
     color: var(--accent) !important;
     font-weight: var(--fw-bold);
+
+    .fs-icon {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  .streak .metric-icon {
+    background: var(--nutrition-subtle);
+    color: var(--nutrition-text) !important;
+  }
+
+  .body .metric-icon {
+    background: var(--body-subtle);
+    color: var(--body-text) !important;
   }
 
   dl {

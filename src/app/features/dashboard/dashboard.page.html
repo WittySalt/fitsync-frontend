@@ -60,7 +60,7 @@
       </a>
 
       <a class="metric-card streak" routerLink="/workout" aria-label="Open workouts">
-        <span class="metric-icon">ST</span>
+        <span class="metric-icon" aria-hidden="true"><span class="fs-icon" data-icon="flame"></span></span>
         <div>
           @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
             <span>Active streak</span>
@@ -75,7 +75,7 @@
       </a>
 
       <a class="metric-card body" routerLink="/body" aria-label="Open body metrics">
-        <span class="metric-icon">kg</span>
+        <span class="metric-icon" aria-hidden="true"><span class="fs-icon" data-icon="scale"></span></span>
         <div>
           <span>Latest body metric</span>
           @if (dashboard.latestBodyMetric) {
