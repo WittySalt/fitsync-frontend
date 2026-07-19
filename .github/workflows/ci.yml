@@ -57,8 +57,10 @@ jobs:
           # karma.conf.js already passes --no-sandbox / --disable-gpu for CI.
           CHROME_BIN: /usr/bin/google-chrome
         run: npx ng test --watch=false --browsers=ChromeHeadlessNoGpu --code-coverage
+      # Non-fatal: an artifact-quota hiccup must not fail an otherwise green build.
       - uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: coverage
           path: coverage/
@@ -77,6 +79,7 @@ jobs:
       - run: npm ci
       - run: npm run build -- --configuration production
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: dist
           path: dist/fitsync-frontend/
