@@ -542,6 +542,8 @@ export interface FoodDetail {
   basisUnit: string;
   densityGramsPerMl: number | null;
   primaryBarcode: string;
+  /** Upstream open-data provenance ('OFF' = Open Food Facts, 'USDA_SR'); null for native entries. */
+  sourceDataset: string | null;
   servings: FoodServing[];
 }
 

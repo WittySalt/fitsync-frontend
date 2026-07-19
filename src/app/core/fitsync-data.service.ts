@@ -395,6 +395,7 @@ interface BackendFoodDetail {
   basisQuantity?: number | string | null;
   basisUnit?: string | null;
   primaryBarcode?: string | null;
+  sourceDataset?: string | null;
   servings?: BackendFoodServing[] | null;
 }
 
@@ -2242,6 +2243,7 @@ export class FitSyncDataService {
       basisUnit,
       densityGramsPerMl: this.numericValue(food.densityGramsPerMl),
       primaryBarcode: food.primaryBarcode ?? '',
+      sourceDataset: food.sourceDataset ?? null,
       servings: servings.length
         ? servings
         : [
