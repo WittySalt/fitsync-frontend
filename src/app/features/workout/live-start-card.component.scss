@@ -9,10 +9,64 @@
   gap: 16px;
 }
 
-// Side-rail proportions next to the guided hero: the heading steps down a size
-// and the whole card reads as the assisting path, not a second hero.
+// Side-rail proportions next to the guided hero: short heading, workout-blue
+// domain accents, and a full-width mode switch — the assisting path, not a
+// second hero.
 .live-start-card .section-title h2 {
+  margin: 4px 0 0;
   font-size: var(--text-2xl);
+}
+
+.live-start-card .card-label {
+  color: var(--workout-text);
+}
+
+.rail-sub {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.live-start-card .mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 4px;
+
+  button {
+    display: grid;
+    gap: 2px;
+    justify-items: center;
+    padding: 9px 10px;
+
+    strong {
+      font-weight: var(--fw-semibold);
+    }
+
+    small {
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+    }
+
+    &.active {
+      background: var(--workout-subtle);
+      color: var(--workout-text);
+
+      small {
+        color: var(--workout-text);
+      }
+    }
+  }
+}
+
+.live-start-card .button.workout {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow-workout);
+  }
 }
 
 .mode-switch {
@@ -51,6 +105,7 @@ select {
 .past-workout-disclosure p {
   margin: 0;
   color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .past-workout-disclosure {
