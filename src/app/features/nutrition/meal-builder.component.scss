@@ -46,6 +46,17 @@
   gap: 14px;
 }
 
+.food-data-attribution {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}
+
 .finder-panel,
 .builder-panel {
   padding: 16px;

@@ -382,6 +382,13 @@
             @if (detail.primaryBarcode) { <span>{{ detail.primaryBarcode }}</span> }
           </div>
           <p>Base {{ formatAmount(detail.basisQuantity) }} {{ detail.basisUnit }}</p>
+          @if (detail.sourceDataset === 'OFF') {
+            <p class="food-data-attribution">
+              Data from <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">Open Food Facts</a> (ODbL)
+            </p>
+          } @else if (detail.sourceDataset === 'USDA_SR') {
+            <p class="food-data-attribution">Data from USDA FoodData Central (SR Legacy)</p>
+          }
 
           <div class="serving-controls">
             <label>
