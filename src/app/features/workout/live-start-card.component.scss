@@ -9,6 +9,12 @@
   gap: 16px;
 }
 
+// Side-rail proportions next to the guided hero: the heading steps down a size
+// and the whole card reads as the assisting path, not a second hero.
+.live-start-card .section-title h2 {
+  font-size: var(--text-2xl);
+}
+
 .mode-switch {
   width: fit-content;
 }
