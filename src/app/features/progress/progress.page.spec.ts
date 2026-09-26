@@ -1,3 +1,6 @@
+import { CoachApiService } from '../../core/coach/coach-api.service';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -18,6 +21,10 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { ProgressPage } from './progress.page';
+
+// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
+// renders without a request that these specs never asked for.
+const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
 
 describe('ProgressPage', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -205,6 +212,10 @@ describe('ProgressPage', () => {
     await TestBed.configureTestingModule({
       imports: [ProgressPage],
       providers: [
+        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CoachApiService, useValue: coachApiStub },
         provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
         { provide: AccountDataService, useValue: accountDataService },

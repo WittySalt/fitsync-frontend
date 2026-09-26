@@ -1,4 +1,4 @@
-﻿<div class="page-grid workout-page">
+<div class="page-grid workout-page">
   <header class="page-header workout-header">
     <div>
       <p class="eyebrow">Workout</p>
@@ -6,6 +6,8 @@
       <p>Review your plans, training history, and the exercise library - all from your FitSync data.</p>
     </div>
   </header>
+
+  <app-coach-anchor />
 
   <section class="metric-strip" aria-label="Training summary">
     @for (metric of metrics(); track metric.label) {
@@ -315,7 +317,7 @@
           <select [value]="filterStatus()" (change)="setFilterStatus($any($event.target).value)">
             <option value="">All statuses</option>
             @for (status of historyStatusOptions; track status) {
-              <option [value]="status">{{ formatLabel(status) }}</option>
+              <option [value]="status" [selected]="status === filterStatus()">{{ formatLabel(status) }}</option>
             }
           </select>
         </label>

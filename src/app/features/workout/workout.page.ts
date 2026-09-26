@@ -1,3 +1,4 @@
+import { ActivatedRoute } from '@angular/router';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap } from 'rxjs';
@@ -26,6 +27,7 @@ import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { sessionDurationLabel } from './workout-session.util';
+import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
 
 interface TrainingMetric {
   label: string;
@@ -54,7 +56,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
-  imports: [
+  imports: [CoachAnchorComponent, 
     ReactiveFormsModule,
     StatePanelComponent,
     ExercisePlayerComponent,
@@ -69,6 +71,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   styleUrl: './workout.page.scss'
 })
 export class WorkoutPage implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
@@ -183,6 +186,19 @@ export class WorkoutPage implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    // Another surface can land here on a specific tab. Plan Studio does, after accepting a
+    // draft: the session it started is in History, which is also where this page goes itself
+    // after starting a plan.
+    const tab = this.route.snapshot.queryParamMap.get('tab');
+    if (tab === 'overview' || tab === 'plans' || tab === 'history' || tab === 'library') {
+      this.selectedTab.set(tab);
+    }
+    // History lists completed sessions unless told otherwise, and a session that was started a
+    // moment ago is not completed. Plan Studio passes the status so it is visible on arrival.
+    const status = this.route.snapshot.queryParamMap.get('status');
+    if (status && (this.historyStatusOptions as readonly string[]).includes(status)) {
+      this.filterStatus.set(status);
+    }
     this.ensureExercisePickerStates();
     this.load();
   }

@@ -9,6 +9,7 @@ import { Goal } from '../../core/fitsync.models';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { sessionDurationLabel } from '../workout/workout-session.util';
 import { GoalLifecycleComponent } from './goal-lifecycle.component';
+import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
 
 interface ActivityItem {
   icon: string;
@@ -19,7 +20,7 @@ interface ActivityItem {
 
 @Component({
   selector: 'app-profile-page',
-  imports: [RouterLink, StatePanelComponent, GoalLifecycleComponent],
+  imports: [CoachAnchorComponent, RouterLink, StatePanelComponent, GoalLifecycleComponent],
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.scss'
 })

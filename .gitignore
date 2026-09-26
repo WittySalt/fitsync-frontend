@@ -8,3 +8,6 @@ coverage/
 .env
 .DS_Store
 memory.md
+
+# Local agent tooling (launch configs); never part of the product
+.claude/

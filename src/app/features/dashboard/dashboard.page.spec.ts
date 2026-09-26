@@ -1,3 +1,6 @@
+import { CoachApiService } from '../../core/coach/coach-api.service';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -96,6 +99,10 @@ const dashboardData: DashboardData = {
   ]
 };
 
+// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
+// renders without a request that these specs never asked for.
+const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
+
 describe('DashboardPage', () => {
   let fixture: ComponentFixture<DashboardPage>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -111,6 +118,10 @@ describe('DashboardPage', () => {
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
       providers: [
+        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CoachApiService, useValue: coachApiStub },
         { provide: FitSyncDataService, useValue: dataService },
         { provide: AnalyticsApiService, useValue: analyticsApi },
         provideRouter([])

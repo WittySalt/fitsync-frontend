@@ -94,6 +94,9 @@
     <router-outlet />
   </main>
 
+  <!-- The coach: always mounted, docks to the right edge, never opens itself. -->
+  <app-coach-dock />
+
   <nav class="bottom-nav" aria-label="Mobile navigation">
     @for (item of navItems; track item.path) {
       <a

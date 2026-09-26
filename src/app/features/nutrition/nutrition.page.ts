@@ -6,6 +6,7 @@ import { Meal, NutritionSummary } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { MealBuilderComponent } from './meal-builder.component';
+import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
 
 interface NutritionCheck {
   label: string;
@@ -19,7 +20,7 @@ interface NutritionCheck {
 
 @Component({
   selector: 'app-nutrition-page',
-  imports: [RouterLink, StatePanelComponent, MealBuilderComponent],
+  imports: [CoachAnchorComponent, RouterLink, StatePanelComponent, MealBuilderComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })

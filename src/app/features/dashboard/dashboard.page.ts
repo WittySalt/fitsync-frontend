@@ -7,10 +7,11 @@ import { ActivityHeatmapComponent } from '../progress/activity-heatmap.component
 import { ProgressRingComponent } from '../../shared/progress-ring.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { caloriesLabel, sessionDurationLabel } from '../workout/workout-session.util';
+import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [ActivityHeatmapComponent, ProgressRingComponent, RouterLink, StatePanelComponent],
+  imports: [CoachAnchorComponent, ActivityHeatmapComponent, ProgressRingComponent, RouterLink, StatePanelComponent],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss'
 })
