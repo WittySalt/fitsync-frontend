@@ -56,6 +56,14 @@ export const routes: Routes = [
     title: 'FitSync Profile'
   },
   {
+    // Plan Studio: a generated session, editable, with the validator's findings shown rather than
+    // hidden, and the accept button that turns it into a real plan and session.
+    path: 'coach/plan',
+    loadComponent: () => import('./features/coach/plan-studio.page').then((module) => module.PlanStudioPage),
+    canActivate: [authGuard],
+    title: 'FitSync Plan Studio'
+  },
+  {
     path: 'settings/avatar',
     loadComponent: () => import('./features/settings/avatar-upload.page').then((module) => module.AvatarUploadPage),
     canActivate: [authGuard],

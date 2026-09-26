@@ -43,7 +43,11 @@ describe('CoachStore', () => {
       'createThread',
       'getThread',
       'sendMessage',
-      'streamMessage'
+      'streamMessage',
+      'draftSession',
+      'listSessionDrafts',
+      'acceptSessionDraft',
+      'rejectSessionDraft'
     ]);
     api.listRecommendations.and.returnValue(of([]));
     api.createThread.and.returnValue(of(thread));
@@ -180,6 +184,80 @@ describe('CoachStore', () => {
     expect(store.thread()).toBeNull();
     expect(store.turns()).toEqual([]);
     expect(store.status()).toBe('idle');
+  });
+
+  // --- drafting, which takes its own path rather than the chat loop -----------------------
+
+  const draftView = {
+    artifactId: 'a1',
+    status: 'DRAFT' as const,
+    source: 'MODEL' as const,
+    validationAttempts: 1,
+    session: { title: 'Upper body push', focus: ['CHEST'], estimatedMinutes: 42, exercises: [], summary: 's' },
+    planId: null,
+    sessionId: null,
+    rejectionReason: null
+  };
+
+  it('builds a session through the drafting endpoint and offers it as the latest draft', () => {
+    api.draftSession.and.returnValue(of(draftView));
+
+    store.buildSession('chest and back');
+
+    expect(api.draftSession).toHaveBeenCalledWith('chest and back', undefined);
+    expect(api.streamMessage).not.toHaveBeenCalled();
+    expect(store.latestDraft()?.artifactId).toBe('a1');
+    expect(store.drafts().map((d) => d.artifactId)).toEqual(['a1']);
+    expect(store.status()).toBe('idle');
+    expect(store.pendingQuestion()).toBeNull();
+  });
+
+  it('carries the thread into the draft when a conversation is open', () => {
+    store.ask('Should I train?');
+    stream.next({ name: 'answer', data: answer });
+    api.draftSession.and.returnValue(of(draftView));
+
+    store.buildSession();
+
+    expect(api.draftSession).toHaveBeenCalledWith(undefined, 't1');
+  });
+
+  it("shows the server's own reason when nothing could be built", () => {
+    api.draftSession.and.returnValue(
+      throwError(() => ({ status: 503, error: { message: 'Everything available trains a muscle group worked yesterday.' } }))
+    );
+
+    store.buildSession();
+
+    expect(store.error()).toContain('worked yesterday');
+    expect(store.latestDraft()).toBeNull();
+    expect(store.status()).toBe('idle');
+  });
+
+  it('marks a draft accepted with the plan and session it became', () => {
+    api.draftSession.and.returnValue(of(draftView));
+    store.buildSession();
+    api.acceptSessionDraft.and.returnValue(
+      of({ artifactId: 'a1', status: 'ACCEPTED' as const, planId: 'p1', sessionId: 's1', sessionStarted: true })
+    );
+
+    store.acceptDraft('a1').subscribe();
+
+    expect(store.drafts()[0].status).toBe('ACCEPTED');
+    expect(store.drafts()[0].planId).toBe('p1');
+    expect(store.latestDraft()?.sessionId).toBe('s1');
+  });
+
+  it('drops a rejected draft from the latest-draft card but keeps it in the list', () => {
+    api.draftSession.and.returnValue(of(draftView));
+    store.buildSession();
+    api.rejectSessionDraft.and.returnValue(of({ ...draftView, status: 'DISCARDED' as const, rejectionReason: 'too long' }));
+
+    store.rejectDraft('a1', 'too long').subscribe();
+
+    expect(store.latestDraft()).toBeNull();
+    expect(store.drafts()[0].status).toBe('DISCARDED');
+    expect(store.drafts()[0].rejectionReason).toBe('too long');
   });
 
   it('orders the current surface insights first in the dock feed', () => {

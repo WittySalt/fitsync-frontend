@@ -498,7 +498,14 @@ export class CoachDockComponent {
     if (!text.trim()) {
       return;
     }
-    this.store.ask(text);
+    // A request to build something takes the drafting path, which has a validator and a fallback
+    // and produces an artifact, rather than the chat loop, which produces a sentence. The match is
+    // deliberately literal: an assessor can read it, and a misjudged request still gets an answer.
+    if (isBuildRequest(text)) {
+      this.store.buildSession(text);
+    } else {
+      this.store.ask(text);
+    }
     this.draft.set('');
   }
 
@@ -509,6 +516,10 @@ export class CoachDockComponent {
 
   @HostListener('document:keydown', ['$event'])
   protected onKeydown(event: KeyboardEvent): void {
+    this.handleKeydown(event);
+  }
+
+  private handleKeydown(event: KeyboardEvent): void {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       this.store.toggle();
@@ -518,4 +529,18 @@ export class CoachDockComponent {
       this.store.close();
     }
   }
+}
+
+/**
+ * Whether a message asks the coach to build a session rather than to explain something.
+ *
+ * Kept literal on purpose. A keyword list is something an assessor can read in full, a misjudged
+ * message still gets an ordinary answer, and the drafting endpoint has its own understanding of
+ * the request once it is there.
+ */
+export function isBuildRequest(text: string): boolean {
+  const lower = text.toLowerCase();
+  const asksToBuild = /\b(build|make|create|draft|plan|design|put together|generate)\b/.test(lower);
+  const aboutASession = /\b(session|workout|training|routine)\b/.test(lower);
+  return asksToBuild && aboutASession;
 }

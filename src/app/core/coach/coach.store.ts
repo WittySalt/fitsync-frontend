@@ -1,9 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Observable, Subscription, tap } from 'rxjs';
 
 import { CoachApiService } from './coach-api.service';
 import { CoachContextService } from './coach-context.service';
 import {
+  AcceptSessionDraftResponse,
   CoachMessageResponse,
   CoachProgressEvent,
   CoachThreadDetail,
@@ -153,6 +154,84 @@ export class CoachStore {
       },
       error: () => this.fail('The coach could not open a conversation. Try again in a moment.')
     });
+  }
+
+  /**
+   * Asks the coach to build a session rather than answer a question.
+   *
+   * A separate path from `ask` on purpose. Drafting runs its own pipeline on the server, with a
+   * validator and a fallback, and its result is an artifact to open in Plan Studio rather than a
+   * sentence in the thread. Putting it through the chat loop would nest one inference inside
+   * another's and hide the draft's provenance behind a bubble.
+   */
+  buildSession(request?: string): void {
+    if (this.status() === 'answering') {
+      return;
+    }
+    this.error.set(null);
+    this.status.set('answering');
+    this.pendingQuestion.set(request?.trim() || 'Build me a session for today');
+    this.liveSteps.set([{ tool: 'draftSession', kind: 'TOOL_STARTED', summary: null, latencyMs: null }]);
+
+    this.api.draftSession(request?.trim() || undefined, this.thread()?.thread.threadId).subscribe({
+      next: (draft) => {
+        this.latestDraft.set(draft);
+        this.pendingQuestion.set(null);
+        this.liveSteps.set([]);
+        this.status.set('idle');
+        this.drafts.update((list) => [draft, ...list.filter((d) => d.artifactId !== draft.artifactId)]);
+      },
+      error: (failure: { status?: number; error?: { message?: string } }) => {
+        this.fail(
+          failure?.status === 503
+            ? (failure.error?.message ?? 'Nothing could be built from the exercises available today.')
+            : 'The coach could not draft a session just now. Try again in a moment.'
+        );
+      }
+    });
+  }
+
+  /** Drafts this user has, newest first, as Plan Studio lists them. */
+  readonly drafts = signal<SessionDraftView[]>([]);
+  readonly draftsLoadedAt = signal<string | null>(null);
+
+  loadDrafts(): void {
+    this.api.listSessionDrafts().subscribe({
+      next: (list) => {
+        this.drafts.set(list);
+        this.draftsLoadedAt.set(new Date().toISOString());
+      },
+      error: () => this.draftsLoadedAt.set(new Date().toISOString())
+    });
+  }
+
+  /** Accepts a draft; the caller decides where to go with the plan and session it became. */
+  acceptDraft(artifactId: string): Observable<AcceptSessionDraftResponse> {
+    return this.api.acceptSessionDraft(artifactId).pipe(
+      tap((accepted) => {
+        this.drafts.update((list) =>
+          list.map((d) =>
+            d.artifactId === artifactId
+              ? { ...d, status: accepted.status, planId: accepted.planId, sessionId: accepted.sessionId }
+              : d
+          )
+        );
+        if (this.latestDraft()?.artifactId === artifactId) {
+          this.latestDraft.update((d) => (d ? { ...d, status: 'ACCEPTED', planId: accepted.planId, sessionId: accepted.sessionId } : d));
+        }
+      })
+    );
+  }
+
+  rejectDraft(artifactId: string, reason?: string): Observable<SessionDraftView> {
+    return this.api.rejectSessionDraft(artifactId, reason).pipe(
+      tap((rejected) => {
+        this.drafts.update((list) => list.map((d) => (d.artifactId === artifactId ? rejected : d)));
+        if (this.latestDraft()?.artifactId === artifactId) {
+          this.latestDraft.set(null);
+        }
+      })
+    );
   }
 
   /** Starts a fresh conversation. The old one stays on the server and in the thread list. */
