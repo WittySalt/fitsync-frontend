@@ -8,3 +8,6 @@ coverage/
 .env
 .DS_Store
 memory.md
+
+# Local editor/agent tooling, not part of the app
+.claude/
