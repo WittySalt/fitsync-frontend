@@ -395,6 +395,7 @@ interface BackendFoodDetail {
   basisQuantity?: number | string | null;
   basisUnit?: string | null;
   primaryBarcode?: string | null;
+  sourceDataset?: string | null;
   servings?: BackendFoodServing[] | null;
 }
 
@@ -2006,6 +2007,12 @@ export class FitSyncDataService {
     };
   }
 
+  /**
+   * `measuredAt` is the day the user was actually weighed. It used to be filled with the dashboard
+   * snapshot's `generatedAt`, i.e. when analytics last ran, because the payload carried no
+   * measurement date at all. The card is headed "Latest body metric", so that was simply the wrong
+   * date; the backend now sends `measuredOn`.
+   */
   private mapAnalyticsBodyMetric(body: AnalyticsDashboardBody, generatedAt: string): BodyMetric | null {
     if (body.latestWeightKg == null && body.bmi == null && body.latestBodyFatRate == null) {
       return null;
@@ -2015,7 +2022,7 @@ export class FitSyncDataService {
       weightKg: body.latestWeightKg ?? 0,
       bodyFatRate: body.latestBodyFatRate ?? 0,
       bmi: body.bmi ?? 0,
-      measuredAt: generatedAt
+      measuredAt: body.measuredOn ?? null
     };
   }
 
@@ -2062,6 +2069,7 @@ export class FitSyncDataService {
       status: goal.goalStatus,
       progressRatio: goal.progressRatio,
       onTrack: goal.onTrack,
+      expired: goal.expired ?? false,
       currentValue: goal.currentValue,
       daysRemaining: goal.daysRemaining,
       lastEvaluatedAt: goal.lastEvaluatedAt
@@ -2242,6 +2250,7 @@ export class FitSyncDataService {
       basisUnit,
       densityGramsPerMl: this.numericValue(food.densityGramsPerMl),
       primaryBarcode: food.primaryBarcode ?? '',
+      sourceDataset: food.sourceDataset ?? null,
       servings: servings.length
         ? servings
         : [

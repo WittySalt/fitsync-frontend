@@ -374,7 +374,9 @@ export interface BodyMetric {
   weightKg: number;
   bodyFatRate: number;
   bmi: number;
-  measuredAt: string;
+  /** ISO date of the measurement. Null when the reading carries no date of its own; the caption
+   *  is then omitted rather than filled with an unrelated timestamp. */
+  measuredAt: string | null;
 }
 
 export interface Goal {
@@ -386,6 +388,8 @@ export interface Goal {
   status: string;
   progressRatio: number;
   onTrack?: boolean | null;
+  /** True once targetDate has passed. Rendered as overdue instead of a progress claim. */
+  expired?: boolean | null;
   currentValue?: number | null;
   daysRemaining?: number | null;
   lastEvaluatedAt?: string | null;
@@ -542,6 +546,8 @@ export interface FoodDetail {
   basisUnit: string;
   densityGramsPerMl: number | null;
   primaryBarcode: string;
+  /** Upstream open-data provenance ('OFF' = Open Food Facts, 'USDA_SR'); null for native entries. */
+  sourceDataset: string | null;
   servings: FoodServing[];
 }
 

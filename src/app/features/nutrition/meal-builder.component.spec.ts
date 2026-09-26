@@ -49,6 +49,7 @@ describe('MealBuilderComponent', () => {
     basisUnit: 'g',
     densityGramsPerMl: null,
     primaryBarcode: '',
+    sourceDataset: null,
     servings: [serving]
   };
 

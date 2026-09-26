@@ -352,6 +352,16 @@
             <div class="field-row readonly"><span>Latest export</span><strong>{{ account.latestDataExport ? labelFor(account.latestDataExport.status) + ' - ' + displayDateTime(account.latestDataExport.requestedAt) : 'No export requested' }}</strong><em>{{ account.latestDataExport?.downloadAvailable ? 'Ready' : 'Status' }}</em></div>
             <div class="action-row"><button class="button secondary" type="button" [disabled]="saving() === 'privacy'" (click)="requestDataExport()">Request archive</button><button class="button secondary" type="button" [disabled]="!account.latestDataExport?.downloadAvailable || saving() === 'privacy'" (click)="downloadDataExport()">Download</button></div>
           </article>
+          <article class="sub-card">
+            <h3>Data sources</h3>
+            <p class="settings-help">
+              Food data comes in part from
+              <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">Open Food Facts</a>,
+              available under the
+              <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">Open Database License (ODbL)</a>,
+              and from the USDA FoodData Central SR Legacy dataset (public domain).
+            </p>
+          </article>
           <article class="sub-card danger-zone">
             <div class="sub-card-header"><h3>Delete account</h3></div>
             @if (sectionErrors().delete; as message) { <p class="section-error">{{ message }}</p> }
