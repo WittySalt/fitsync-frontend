@@ -7,6 +7,9 @@ export interface AnalyticsDashboardBody {
   latestBodyFatRate: number | null;
   bmi: number | null;
   weightChange30d: number | null;
+  /** Day the newest measurement was taken. Absent before the backend fix, which is why the
+   *  "Latest body metric" caption used to fall back to the snapshot's generatedAt. */
+  measuredOn: string | null;
 }
 
 export interface AnalyticsDashboardWorkout {
@@ -55,6 +58,8 @@ export interface AnalyticsGoalProgress {
   progressRatio: number;
   daysRemaining: number;
   onTrack: boolean;
+  /** Derived server-side from targetDate. A goal past its deadline is never on track. */
+  expired: boolean;
   lastEvaluatedAt: string;
 }
 
