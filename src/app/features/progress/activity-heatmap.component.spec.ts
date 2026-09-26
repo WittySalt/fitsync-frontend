@@ -44,8 +44,20 @@ describe('ActivityHeatmapComponent', () => {
       ]
     }).compileComponents();
 
+    // The default preset is 'quarter', and the component derives that range from the current date,
+    // so the fixture's June 2026 days only appear in the rendered grid while "today" is near them.
+    // Without a fixed clock this suite silently stops exercising the cells it asserts on as real
+    // time moves past the fixture, which is what happened: it went red in September 2026 with no
+    // code change. Pinning the date keeps the grid over the fixture's own range.
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date('2026-06-22T12:00:00Z'));
+
     fixture = TestBed.createComponent(ActivityHeatmapComponent);
     component = fixture.componentInstance;
+  });
+
+  afterEach(() => {
+    jasmine.clock().uninstall();
   });
 
   it('loads the default activity calendar range', () => {
