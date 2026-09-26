@@ -87,7 +87,7 @@ export class ProfilePage implements OnInit {
         icon: 'scale',
         title: `Weigh-in · ${data.latestBodyMetric.weightKg} kg`,
         detail: `BMI ${data.latestBodyMetric.bmi}`,
-        when: data.latestBodyMetric.measuredAt
+        when: data.latestBodyMetric.measuredAt ?? ''
       });
     }
     return items;

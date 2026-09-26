@@ -103,12 +103,25 @@ export class DashboardPage implements OnInit {
   }
 
   goalDateLabel(goal: Goal): string {
-    return goal.targetDate ? `by ${this.formatTargetDate(goal.targetDate)}` : 'No target date';
+    if (!goal.targetDate) {
+      return 'No target date';
+    }
+    // "by 31 Aug 2026" reads as a live deadline. Once it has passed, say so.
+    const prefix = goal.expired ? 'was due' : 'by';
+    return `${prefix} ${this.formatTargetDate(goal.targetDate)}`;
   }
 
   private humanDate(value: string | null | undefined, timezone?: string | null): string {
     if (!value) {
       return '';
+    }
+
+    // Only an ISO date or instant is accepted. The previous NaN guard was not enough: a value that
+    // had already been formatted, such as "5 Jul", parses successfully under V8's legacy parser and
+    // silently lands in the year 2001. Anything that is not an instant is handed back untouched, so
+    // a stray display string shows as itself rather than as a date 25 years out.
+    if (!/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value;
     }
 
     const date = new Date(value);
@@ -187,24 +200,44 @@ export class DashboardPage implements OnInit {
     }
   }
 
+  /**
+   * Formatting happens at render time only.
+   *
+   * <p>This method used to overwrite `consumedAt` and `measuredAt` with their display labels, so a
+   * field typed as a timestamp held a string like "5 Jul". The template then formatted it a second
+   * time, and `new Date("5 Jul")` parses to the year 2001 under V8's legacy parser, so the card
+   * read "5 Jul 2001" for a measurement taken in 2026. Leaving the model alone removes the whole
+   * class of bug rather than patching one caller.
+   */
   private withDisplayDates(data: DashboardData): DashboardData {
-    const timezone = data.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
     return {
       ...data,
-      latestMeal: data.latestMeal
-        ? {
-            ...data.latestMeal,
-            consumedAt: this.humanDate(data.latestMeal.consumedAt, timezone)
-          }
-        : null,
-      latestBodyMetric: data.latestBodyMetric
-        ? {
-            ...data.latestBodyMetric,
-            measuredAt: this.humanDate(data.latestBodyMetric.measuredAt, timezone)
-          }
-        : null,
       goals: dedupeGoalsByLatestEvaluation(data.goals)
     };
+  }
+
+  mealDateLabel(value: string | null | undefined): string {
+    return this.humanDate(value);
+  }
+
+  goalStatusLabel(goal: Goal): string {
+    if (goal.expired) {
+      return 'Overdue';
+    }
+    return goal.onTrack === false ? 'Needs attention' : 'On track';
+  }
+
+  /**
+   * Built here rather than in the template so the separators cannot pick up stray whitespace when
+   * a part is omitted. An overdue goal drops the completion percentage: claiming progress against
+   * a deadline that has passed is the thing being fixed.
+   */
+  goalSummaryLabel(goal: Goal): string {
+    const parts = [this.goalStatusLabel(goal)];
+    if (!goal.expired) {
+      parts.push(`${this.goalProgress(goal.progressRatio)}% complete`);
+    }
+    parts.push(this.goalDateLabel(goal));
+    return parts.join(' · ');
   }
 }

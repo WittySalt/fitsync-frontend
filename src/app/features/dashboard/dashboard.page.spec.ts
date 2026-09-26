@@ -404,6 +404,65 @@ describe('DashboardPage', () => {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
+  // --- regression: functional-defects-2026-09-26, defects 5, 6 and 7 --------------------------
+
+  it('captions the body metric with the measurement date, not a re-formatted label', () => {
+    // The value used to be overwritten with its own display label before rendering, and the
+    // template then formatted it a second time. new Date("5 Jul") parses to the year 2001 under
+    // V8's legacy parser, so a measurement taken in 2026 rendered as "5 Jul 2001".
+    dataService.getDashboard.and.returnValue(
+      of({ ...dashboardData, latestBodyMetric: { weightKg: 71.1, bodyFatRate: 21.4, bmi: 22.4, measuredAt: '2026-05-20' } })
+    );
+
+    fixture.detectChanges();
+
+    // Outside the "N days ago" window, so the absolute format runs — the branch that used to
+    // append the wrong year.
+    const text = pageText();
+    expect(text).not.toContain('2001');
+    expect(text).toContain('20 May');
+  });
+
+  it('hands back an already-formatted string untouched instead of reparsing it', () => {
+    const page = fixture.componentInstance;
+
+    expect(page.metricDateLabel('5 Jul')).toBe('5 Jul');
+    expect(page.metricDateLabel('5 Jul')).not.toContain('2001');
+  });
+
+  it('renders a goal past its target date as overdue and drops the progress claim', () => {
+    dataService.getDashboard.and.returnValue(
+      of({
+        ...dashboardData,
+        goals: [
+          {
+            goalId: 'goal-protein',
+            goalType: 'PROTEIN',
+            targetValue: 140,
+            targetUnit: 'g',
+            targetDate: '2026-05-31',
+            status: 'ACTIVE',
+            progressRatio: 0.44,
+            onTrack: true,
+            expired: true,
+            currentValue: 62,
+            lastEvaluatedAt: '2026-06-24T00:05:00Z'
+          }
+        ]
+      })
+    );
+
+    fixture.detectChanges();
+
+    const rows = goalRowText();
+    expect(rows[0]).toContain('Overdue');
+    expect(rows[0]).toContain('was due');
+    expect(rows[0]).not.toContain('On track');
+    expect(rows[0])
+      .withContext('claiming progress against a deadline that has passed is the defect')
+      .not.toContain('% complete');
+  });
+
   function goalRowText(): string[] {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.goal-row')).map((row) =>
       (row.textContent ?? '').replace(/\s+/g, ' ').trim()

@@ -57,7 +57,8 @@ const dashboardAnalytics: AnalyticsDashboardResponse = {
     latestWeightKg: 77,
     latestBodyFatRate: 18,
     bmi: 24.3,
-    weightChange30d: -2.4
+    weightChange30d: -2.4,
+    measuredOn: '2026-06-21'
   },
   workout: {
     todayWorkoutCount: 1,
