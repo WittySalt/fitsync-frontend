@@ -5,11 +5,12 @@ import { filter } from 'rxjs';
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
 import { ThemeService } from './core/theme/theme.service';
+import { CoachDockComponent } from './shared/coach/coach-dock.component';
 import { ToastOutletComponent } from './shared/toast-outlet.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, ToastOutletComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, ToastOutletComponent, CoachDockComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
