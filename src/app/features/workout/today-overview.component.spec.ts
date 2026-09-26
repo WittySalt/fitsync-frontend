@@ -229,12 +229,15 @@ describe('TodayOverviewComponent', () => {
   });
 
   it('shows catalog thumbnails when available and numbered badges otherwise', () => {
-    dataService.getExercise.and.callFake((exerciseId: string) =>
-      exerciseId === 'exercise-1'
-        ? of(exerciseDetail({ imageUrls: ['http://media.local/back-squat.png'] }))
-        : of(null));
+    // The thumbnail now rides on the plan itself. The component used to fetch every exercise's full
+    // detail to read one URL, which was one request per plan exercise.
+    const withThumbnail = plan();
+    const squat = withThumbnail.exercises.find((exercise) => exercise.exerciseId === 'exercise-1');
+    if (squat) {
+      squat.primaryImageUrl = 'http://media.local/back-squat.png';
+    }
     const fixture = TestBed.createComponent(TodayOverviewComponent);
-    fixture.componentRef.setInput('activePlan', plan());
+    fixture.componentRef.setInput('activePlan', withThumbnail);
     fixture.componentRef.setInput('sessions', []);
     fixture.detectChanges();
 
