@@ -7,10 +7,15 @@
   min-width: 0;
 }
 
+// The panel can be taller than the wheel. The drawing then sits in the middle of the free space
+// and the legend stays on the panel's lower edge.
 .wheel {
   display: block;
   width: 100%;
+  // The drawing is never enlarged past its own grid, so a full-width panel keeps the same wheel.
+  max-width: 372px;
   height: auto;
+  margin: auto;
 }
 
 .cell {
