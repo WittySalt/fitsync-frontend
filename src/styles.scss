@@ -155,13 +155,19 @@ select {
   transform: translateY(-1px);
 }
 
-.button.primary {
+// The workout and nutrition variants share the primary look. They stay as class names
+// because eleven templates use them, and one colour for every main action is the point.
+.button.primary,
+.button.workout,
+.button.nutrition {
   color: var(--text-on-accent);
   background: var(--accent);
   box-shadow: var(--shadow-sm);
 }
 
-.button.primary:not(:disabled):hover {
+.button.primary:not(:disabled):hover,
+.button.workout:not(:disabled):hover,
+.button.nutrition:not(:disabled):hover {
   background: var(--accent-hover);
   box-shadow: var(--shadow-md);
 }
@@ -172,16 +178,6 @@ select {
 
 .button.secondary:not(:disabled):hover {
   background: var(--surface-sunken);
-}
-
-.button.workout {
-  color: var(--text-on-accent);
-  background: var(--blue-500);
-}
-
-.button.nutrition {
-  color: var(--text-on-accent);
-  background: var(--amber-500);
 }
 
 .text-link {
