@@ -298,7 +298,19 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 16px;
+}
+
+.panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel-sub {
+  font-size: 14px;
+  color: var(--slate-300);
 }
 
 .panel-value {

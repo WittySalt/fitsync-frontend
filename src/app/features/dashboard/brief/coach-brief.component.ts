@@ -4,12 +4,16 @@ import { Router, RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
-import { WorkoutPlan, WorkoutSession } from '../../../core/fitsync.models';
+import { WeeklyTrainingInsight, WorkoutPlan, WorkoutSession } from '../../../core/fitsync.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { briefHeadline, quickQuestions } from './brief-copy';
 import { formatDuration } from './brief-duration';
+import { wheelSectors } from './brief-muscles';
+import { dailyObservations } from './brief-observations';
 import { BRIEF_NOW, DayPeriod, clockLabel, dateLabel, dayPeriodFor, periodLabel } from './brief-time';
 import { BriefDay, buildWeek, completedSessionCount, weekRange } from './brief-week';
+import { CoachNoticedComponent } from './coach-noticed.component';
+import { MuscleWheelComponent } from './muscle-wheel.component';
 
 /** WORKOUT_FREQUENCY goals track a weekly session count; other goal types don't apply here. */
 const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
@@ -17,7 +21,7 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
 @Component({
   selector: 'app-coach-brief',
   standalone: true,
-  imports: [FormsModule, RouterLink, StatePanelComponent],
+  imports: [CoachNoticedComponent, FormsModule, MuscleWheelComponent, RouterLink, StatePanelComponent],
   templateUrl: './coach-brief.component.html',
   styleUrl: './coach-brief.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -40,6 +44,25 @@ export class CoachBriefComponent implements OnInit {
   readonly weeklyTarget = signal<number | null>(null);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly completed = signal(0);
+  // The weekly insight feeds the wheel and the observations. It stays null when its request fails,
+  // and the brief then shows the week's count on the panel and leaves the observations out.
+  readonly insight = signal<WeeklyTrainingInsight | null>(null);
+
+  readonly sectors = computed(() => {
+    const insight = this.insight();
+    return insight ? wheelSectors(insight) : [];
+  });
+
+  readonly observations = computed(() => {
+    const insight = this.insight();
+    return insight ? dailyObservations(insight, this.now(), this.timezone()) : [];
+  });
+
+  readonly panelTitle = computed(() =>
+    this.sectors().some((sector) => sector.inPlan) || (!this.sectors().length && this.activePlan() !== null)
+      ? 'Your plan this week'
+      : 'Your training this week'
+  );
 
   readonly starting = signal(false);
   readonly startError = signal<string | null>(null);
@@ -113,6 +136,11 @@ export class CoachBriefComponent implements OnInit {
         this.loadError.set(true);
         this.loading.set(false);
       }
+    });
+
+    this.dataService.getWeeklyTrainingInsight(this.timezone()).subscribe({
+      next: (insight) => this.insight.set(insight),
+      error: () => this.insight.set(null)
     });
 
     this.dataService.getGoals().subscribe({

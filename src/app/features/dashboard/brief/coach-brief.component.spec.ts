@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
-import { UserGoal, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
+import { MuscleGroupCode, UserGoal, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
 import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
 
@@ -56,6 +56,37 @@ const activePlan: WorkoutPlan = {
   exercises: []
 };
 
+function group(muscleGroup: MuscleGroupCode, sessionsThisWeek: number, inActivePlan: boolean, lastTrainedOn: string, consecutiveSessions = 0): WeeklyTrainingInsight['muscleGroups'][number] {
+  return {
+    muscleGroup,
+    sessionsThisWeek,
+    inActivePlan,
+    trainedYesterday: lastTrainedOn === '2026-09-26',
+    lastTrainedOn,
+    consecutiveSessions,
+    exerciseNames: muscleGroup === 'CORE' ? ['Plank'] : []
+  };
+}
+
+const weeklyInsight: WeeklyTrainingInsight = {
+  timezone: 'Asia/Singapore',
+  referenceDate: '2026-09-27',
+  weekStart: '2026-09-21',
+  weekEnd: '2026-09-27',
+  completedSessions: 4,
+  totalMinutes: 170,
+  previousWeekCompletedSessions: 3,
+  previousWeekTotalMinutes: 120,
+  muscleGroups: [
+    group('CHEST', 2, true, '2026-09-25'),
+    group('BACK', 2, true, '2026-09-25'),
+    group('CORE', 4, true, '2026-09-26', 8),
+    group('LEGS', 2, true, '2026-09-25'),
+    group('CARDIO', 2, false, '2026-09-26', 1)
+  ],
+  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1 }
+};
+
 describe('CoachBriefComponent', () => {
   let fixture: ComponentFixture<CoachBriefComponent>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -77,11 +108,13 @@ describe('CoachBriefComponent', () => {
       'getWorkoutSessionsInRange',
       'getGoals',
       'getActivePlan',
+      'getWeeklyTrainingInsight',
       'startWorkoutPlan'
     ]);
     dataService.getWorkoutSessionsInRange.and.returnValue(of(fourCompletedSessions));
     dataService.getGoals.and.returnValue(of([weeklyFrequencyGoal]));
     dataService.getActivePlan.and.returnValue(of(activePlan));
+    dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight));
     dataService.startWorkoutPlan.and.returnValue(
       of({
         sessionId: 'started-session',
@@ -116,6 +149,42 @@ describe('CoachBriefComponent', () => {
   });
 
 
+
+  it('draws the wheel with one sector for each group in the plan or trained this week', () => {
+    setup();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('app-muscle-wheel circle.badge').length).toBe(5);
+    expect(element.querySelector('.panel-title')?.textContent?.trim()).toBe('Your plan this week');
+    expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith('Asia/Singapore');
+  });
+
+  it('lists what the coach noticed under the week strip', () => {
+    setup();
+    const facts = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.noticed-fact')).map((node) => node.textContent?.trim());
+    expect(facts).toEqual([
+      'Chest, back and legs have had two days off.',
+      'Your core has worked eight sessions running.',
+      "You lifted 2.2 times last week's weight."
+    ]);
+  });
+
+  it('falls back to the week count and leaves the observations out when the insight request fails', () => {
+    dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('offline')));
+    setup();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('app-muscle-wheel')).toBeNull();
+    expect(element.querySelector('app-coach-noticed')).toBeNull();
+    expect(element.querySelector('.panel-number')?.textContent?.replace(/\s+/g, '')).toBe('4/4');
+    expect(element.querySelector('.headline')?.textContent).toContain('Four of four.');
+  });
+
+  it('names the panel after the training when no group belongs to a plan', () => {
+    dataService.getWeeklyTrainingInsight.and.returnValue(
+      of({ ...weeklyInsight, muscleGroups: weeklyInsight.muscleGroups.map((entry) => ({ ...entry, inActivePlan: false })) })
+    );
+    setup();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.panel-title')?.textContent?.trim()).toBe('Your training this week');
+  });
   it('updates the meal question when the calorie target arrives after the first render', () => {
     setup();
     fixture.componentRef.setInput('caloriesTarget', null);

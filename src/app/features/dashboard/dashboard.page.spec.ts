@@ -115,7 +115,8 @@ describe('DashboardPage', () => {
       'getDailyNutritionSummary',
       'getWorkoutSessionsInRange',
       'getGoals',
-      'getActivePlan'
+      'getActivePlan',
+      'getWeeklyTrainingInsight'
     ]);
     dataService.getDashboard.and.returnValue(of(dashboardData));
     dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
@@ -125,6 +126,8 @@ describe('DashboardPage', () => {
     dataService.getWorkoutSessionsInRange.and.returnValue(of([]));
     dataService.getGoals.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
+    // The brief treats a failed insight as no insight, which keeps these page tests about the page.
+    dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('not under test')));
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getActivityCalendar']);
     analyticsApi.getActivityCalendar.and.returnValue(of(activityCalendar));
 

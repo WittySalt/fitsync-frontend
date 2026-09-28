@@ -1,0 +1,30 @@
+<section class="noticed" aria-labelledby="coach-noticed-title">
+  <h2 id="coach-noticed-title" class="noticed-title">What your coach noticed</h2>
+  <ul class="noticed-list">
+    @for (observation of observations(); track observation.id) {
+      <li class="noticed-row">
+        <span class="noticed-tile">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            @for (part of glyph(observation); track $index) {
+              @switch (part.tag) {
+                @case ('path') {
+                  <path [attr.d]="part.d"></path>
+                }
+                @case ('circle') {
+                  <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
+                }
+                @case ('rect') {
+                  <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
+                }
+              }
+            }
+          </svg>
+        </span>
+        <div class="noticed-text">
+          <strong class="noticed-fact">{{ observation.fact }}</strong>
+          <span class="noticed-note">{{ observation.note }}</span>
+        </div>
+      </li>
+    }
+  </ul>
+</section>

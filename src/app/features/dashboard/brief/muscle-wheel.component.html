@@ -1,0 +1,49 @@
+<svg class="wheel" [attr.viewBox]="viewBox" role="img" [attr.aria-label]="description()">
+  @for (shape of shapes(); track shape.sector.code) {
+    @for (cell of shape.cells; track $index) {
+      <path class="cell" [class.trained]="cell.state === 'trained'" [class.yesterday]="cell.state === 'yesterday'" [attr.d]="cell.path"></path>
+    }
+    <circle
+      class="badge"
+      [class.yesterday]="shape.sector.trainedYesterday && shape.sector.sessions > 0"
+      [attr.cx]="shape.badge.x"
+      [attr.cy]="shape.badge.y"
+      [attr.r]="shape.badge.radius"
+    ></circle>
+    <g
+      class="icon"
+      [class.yesterday]="shape.sector.trainedYesterday && shape.sector.sessions > 0"
+      [attr.transform]="shape.iconTransform"
+    >
+      @for (part of glyph(shape.sector.code); track $index) {
+        @switch (part.tag) {
+          @case ('path') {
+            <path [attr.d]="part.d"></path>
+          }
+          @case ('circle') {
+            <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
+          }
+          @case ('rect') {
+            <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
+          }
+        }
+      }
+    </g>
+    <text class="name" [attr.x]="shape.label.x" [attr.y]="shape.label.y" [attr.text-anchor]="shape.label.anchor">{{ shape.sector.label }}</text>
+    <text class="count" [attr.x]="shape.label.x" [attr.y]="shape.label.y + 15" [attr.text-anchor]="shape.label.anchor">
+      {{ sessionsLabel(shape.sector.sessions) }}
+    </text>
+  }
+  <text class="total" [attr.x]="centre.x" [attr.y]="centre.y + 4" text-anchor="middle">
+    {{ completed() }}@if (target(); as goal) {<tspan class="goal">/{{ goal }}</tspan>}
+  </text>
+  <text class="total-caption" [attr.x]="centre.x" [attr.y]="centre.y + 18" text-anchor="middle">sessions</text>
+</svg>
+
+<div class="legend" aria-hidden="true">
+  <span class="legend-item"><span class="swatch trained"></span>Trained</span>
+  @if (hasYesterday()) {
+    <span class="legend-item"><span class="swatch yesterday"></span>Yesterday</span>
+  }
+  <span class="legend-item"><span class="swatch open"></span>Open</span>
+</div>

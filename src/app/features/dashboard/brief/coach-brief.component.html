@@ -86,16 +86,29 @@
             }
           </div>
         </div>
+
+        @if (observations().length) {
+          <app-coach-noticed [observations]="observations()" />
+        }
       </div>
 
       <div class="brief-panel">
-        <span class="panel-title">Your plan this week</span>
-        <div class="panel-value">
-          <span class="panel-number">
-            {{ completed() }}@if (weeklyTarget(); as target) {<span class="panel-slash">/{{ target }}</span>}
-          </span>
-          <span class="panel-caption">sessions</span>
+        <div class="panel-head">
+          <span class="panel-title">{{ panelTitle() }}</span>
+          @if (sectors().length) {
+            <span class="panel-sub">One ring for each session that trained it.</span>
+          }
         </div>
+        @if (sectors().length) {
+          <app-muscle-wheel [sectors]="sectors()" [completed]="completed()" [target]="weeklyTarget()" />
+        } @else {
+          <div class="panel-value">
+            <span class="panel-number">
+              {{ completed() }}@if (weeklyTarget(); as target) {<span class="panel-slash">/{{ target }}</span>}
+            </span>
+            <span class="panel-caption">sessions</span>
+          </div>
+        }
       </div>
     </div>
 

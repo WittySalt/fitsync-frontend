@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -1172,6 +1172,112 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].name).toBe('Cardio');
     expect(result?.[0].workoutType).toBe('CARDIO');
     expect(result?.[0].durationMinutes).toBe(60);
+  });
+
+  it('requests the weekly training insight with timezone and, when given, date', () => {
+    let result: WeeklyTrainingInsight | undefined;
+    service.getWeeklyTrainingInsight('Asia/Singapore', '2026-09-27').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/insights/weekly' &&
+        req.params.get('timezone') === 'Asia/Singapore' &&
+        req.params.get('date') === '2026-09-27'
+    );
+    request.flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 4,
+      totalMinutes: 170,
+      previousWeekCompletedSessions: 3,
+      previousWeekTotalMinutes: 120,
+      muscleGroups: [],
+      volume: {
+        thisWeekKg: 3846,
+        previousWeekKg: 1716,
+        weekBeforePreviousKg: 1716,
+        thisWeekSessionsWithVolume: 2,
+        previousWeekSessionsWithVolume: 1
+      }
+    });
+
+    expect(result?.completedSessions).toBe(4);
+    expect(result?.weekStart).toBe('2026-09-21');
+    expect(result?.volume.thisWeekKg).toBe(3846);
+  });
+
+  it('omits the date param from the weekly training insight request when none is given', () => {
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe();
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/workouts/insights/weekly' && req.params.get('timezone') === 'Asia/Singapore'
+    );
+    expect(request.request.params.has('date')).toBe(false);
+    request.flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 0,
+      totalMinutes: 0,
+      previousWeekCompletedSessions: 0,
+      previousWeekTotalMinutes: 0,
+      muscleGroups: [],
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 }
+    });
+  });
+
+  it('defensively maps a weekly training insight with missing and invalid fields', () => {
+    let result: WeeklyTrainingInsight | undefined;
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/workouts/insights/weekly'
+    );
+    request.flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: null,
+      totalMinutes: undefined,
+      previousWeekCompletedSessions: Number.NaN,
+      previousWeekTotalMinutes: 120,
+      muscleGroups: [
+        { muscleGroup: 'CORE', sessionsThisWeek: 4, inActivePlan: true, trainedYesterday: true, lastTrainedOn: '2026-09-26', consecutiveSessions: 8, exerciseNames: ['Plank'] },
+        { muscleGroup: 'UNKNOWN_CODE', sessionsThisWeek: 1, inActivePlan: true, trainedYesterday: false, lastTrainedOn: null, consecutiveSessions: 0, exerciseNames: [] },
+        { muscleGroup: 'CARDIO', sessionsThisWeek: null, inActivePlan: false, trainedYesterday: true, lastTrainedOn: undefined, consecutiveSessions: undefined, exerciseNames: undefined }
+      ],
+      volume: null
+    });
+
+    expect(result?.completedSessions).toBe(0);
+    expect(result?.totalMinutes).toBe(0);
+    expect(result?.previousWeekCompletedSessions).toBe(0);
+    expect(result?.previousWeekTotalMinutes).toBe(120);
+    expect(result?.muscleGroups.length).toBe(2);
+    expect(result?.muscleGroups.map((group) => group.muscleGroup)).toEqual(['CORE', 'CARDIO']);
+    expect(result?.muscleGroups[1].sessionsThisWeek).toBe(0);
+    expect(result?.muscleGroups[1].lastTrainedOn).toBeNull();
+    expect(result?.muscleGroups[1].exerciseNames).toEqual([]);
+    expect(result?.volume.thisWeekKg).toBe(0);
+    expect(result?.volume.previousWeekKg).toBe(0);
+  });
+
+  it('lets a weekly training insight request error propagate to the caller', () => {
+    let error: unknown;
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe({
+      next: () => fail('expected an error, not a value'),
+      error: (err) => (error = err)
+    });
+
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/workouts/insights/weekly')
+      .flush('nope', { status: 500, statusText: 'Server Error' });
+
+    expect(error).toBeTruthy();
   });
 
   it('lists exercises from the paginated catalog endpoint', () => {
