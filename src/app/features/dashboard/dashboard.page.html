@@ -1,16 +1,9 @@
 <div class="page-grid dashboard-page">
-  <header class="page-header">
-    <div>
-      <p class="eyebrow">{{ today }}</p>
-      <h1>Today</h1>
-      <p>Keep training, meals, and body progress in one view.</p>
-    </div>
-    @if (data()?.profile?.onboardingCompleted === false) {
+  @if (data()?.profile?.onboardingCompleted === false) {
+    <header class="page-header">
       <a class="button primary" routerLink="/onboarding">Complete setup</a>
-    }
-  </header>
-
-  <app-coach-anchor />
+    </header>
+  }
 
   @if (loading()) {
     <div class="summary-card skeleton tall"></div>
@@ -25,18 +18,11 @@
       (action)="load()"
     />
   } @else if (data(); as dashboard) {
-    <section class="hero-panel">
-      <div>
-        <span class="avatar" aria-hidden="true">{{ dashboard.profile.displayName.charAt(0) }}</span>
-        <h2>Hi, {{ dashboard.profile.firstName }}</h2>
-        <p>{{ dashboard.profile.timezone }} · {{ dashboard.profile.activityLevel.replace('_', ' ') }}</p>
-      </div>
-      <div class="quick-actions" aria-label="Quick actions">
-        <a routerLink="/nutrition" class="button nutrition">Nutrition</a>
-        <a routerLink="/workout" class="button workout">Workouts</a>
-        <a routerLink="/body" class="button secondary">Body</a>
-      </div>
-    </section>
+    <app-coach-brief
+      [firstName]="dashboard.profile.firstName"
+      [timezone]="dashboard.profile.timezone"
+      [caloriesTarget]="nutritionSummary()?.targetCalories ?? null"
+    />
 
     <section class="metrics-grid">
       <a class="metric-card calories" routerLink="/nutrition" aria-label="Open nutrition dashboard">

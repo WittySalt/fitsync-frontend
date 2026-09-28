@@ -99,8 +99,9 @@ const dashboardData: DashboardData = {
   ]
 };
 
-// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
-// renders without a request that these specs never asked for.
+// The coach brief injects the real CoachStore (only its "ask" path is used by these specs, and
+// none of them trigger it), which in turn needs CoachApiService; only the wire is stubbed so
+// nothing here makes a real HTTP call it never asked for.
 const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
 
 describe('DashboardPage', () => {
@@ -109,9 +110,21 @@ describe('DashboardPage', () => {
   let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
 
   beforeEach(async () => {
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard', 'getDailyNutritionSummary']);
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
+      'getDashboard',
+      'getDailyNutritionSummary',
+      'getWorkoutSessionsInRange',
+      'getGoals',
+      'getActivePlan'
+    ]);
     dataService.getDashboard.and.returnValue(of(dashboardData));
     dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    // The coach brief loads independently of the rest of the dashboard; these specs are not
+    // about the brief itself (see coach-brief.component.spec.ts), so it is given a quiet,
+    // empty week and no active plan unless a test says otherwise.
+    dataService.getWorkoutSessionsInRange.and.returnValue(of([]));
+    dataService.getGoals.and.returnValue(of([]));
+    dataService.getActivePlan.and.returnValue(of(null));
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getActivityCalendar']);
     analyticsApi.getActivityCalendar.and.returnValue(of(activityCalendar));
 
@@ -322,14 +335,21 @@ describe('DashboardPage', () => {
     expect(latestWorkoutCard).not.toContain('0 min');
   });
 
-  it('uses navigation labels for dashboard quick actions and one goal management target', () => {
+  it('links the goals card to goal management', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const quickActions = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.quick-actions a'));
-    expect(quickActions.map((link) => (link.textContent ?? '').trim())).toEqual(['Nutrition', 'Workouts', 'Body']);
-    expect(quickActions.map((link) => link.getAttribute('href'))).toEqual(['/nutrition', '/workout', '/body']);
     expect(compiled.querySelector<HTMLAnchorElement>('.goals-card .text-link')?.getAttribute('href')).toBe('/me#goal-lifecycle');
+  });
+
+  it('renders the coach brief in place of the old hero panel, with the profile passed through', () => {
+    fixture.detectChanges();
+
+    const brief = fixture.nativeElement.querySelector('app-coach-brief');
+    expect(brief).toBeTruthy();
+    expect(brief.textContent).toContain('Wang');
+    expect(fixture.nativeElement.querySelector('.hero-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-coach-anchor')).toBeNull();
   });
 
   it('renders protein goal progress from the active goal source without the daily nutrition target', () => {
