@@ -83,9 +83,16 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     return result?.reading ? readingSegments(result.reading.body, result.facts.length) : [];
   });
 
+  /**
+   * Who wrote the reading. A reading written by fixed rules says so, because it must never be
+   * taken for the model's. Its time is left out, since it is written again on every visit.
+   */
   readonly writtenLabel = computed(() => {
-    const generatedAt = this.result()?.reading?.generatedAt;
-    const age = generatedAt ? ageLabel(generatedAt, this.now()) : '';
+    const reading = this.result()?.reading;
+    if (!reading || reading.source !== 'MODEL') {
+      return 'Fixed rules';
+    }
+    const age = reading.generatedAt ? ageLabel(reading.generatedAt, this.now()) : '';
     return age ? `Coach model · ${age}` : 'Coach model';
   });
 
@@ -160,7 +167,7 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     this.loading.set(false);
 
     if (reading.status === 'READY' && reading.reading) {
-      const alreadyRead = this.readState.wasRead(reading.surface, reading.readingId);
+      const alreadyRead = this.readState.wasRead(reading.surface, readKey(reading));
       this.folded.set(alreadyRead);
       this.shownUnfolded = !alreadyRead;
     }
@@ -176,9 +183,17 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private rememberIfRead(): void {
     const result = this.result();
     if (this.shownUnfolded && result?.status === 'READY' && result.reading) {
-      this.readState.markRead(result.surface, result.readingId);
+      this.readState.markRead(result.surface, readKey(result));
     }
   }
+}
+
+/**
+ * What is remembered as read. The writer is part of it, so that a model reading that arrives for
+ * facts whose rule-written reading was already read opens unfolded.
+ */
+function readKey(reading: CoachReading): string | null {
+  return reading.readingId && reading.reading ? `${reading.readingId}:${reading.reading.source}` : null;
 }
 
 function deviceTimezone(): string {

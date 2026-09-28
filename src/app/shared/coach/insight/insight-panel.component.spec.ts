@@ -84,6 +84,21 @@ describe('InsightPanelComponent', () => {
     expect(text('.written')).toBe('Coach model · 2 min ago');
   });
 
+  it('says so when the reading was written by fixed rules, and leaves the time out', () => {
+    api.getReading.and.returnValue(of({ ...ready, reading: { ...ready.reading!, source: 'RULES' } }));
+    render();
+    expect(text('.written')).toBe('Fixed rules');
+    expect(text('.reading-headline')).toBe('Your lifts grew while your sessions stayed the same length.');
+  });
+
+  it('remembers a rule-written and a model-written reading of the same facts separately', () => {
+    api.getReading.and.returnValue(of({ ...ready, reading: { ...ready.reading!, source: 'RULES' } }));
+    render();
+    expect(readState.wasRead).toHaveBeenCalledWith('WORKOUT', '9f2c4e1ab03d77aa:RULES');
+    fixture.destroy();
+    expect(readState.markRead).toHaveBeenCalledOnceWith('WORKOUT', '9f2c4e1ab03d77aa:RULES');
+  });
+
   it('draws each citation as a numbered badge and leaves the brackets out', () => {
     render();
     const badges = Array.from(element.querySelectorAll('.citation')).map((node) => node.textContent?.trim());
@@ -129,14 +144,14 @@ describe('InsightPanelComponent', () => {
     render();
     (element.querySelector('.fold-button') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(readState.markRead).toHaveBeenCalledOnceWith('WORKOUT', '9f2c4e1ab03d77aa');
+    expect(readState.markRead).toHaveBeenCalledOnceWith('WORKOUT', '9f2c4e1ab03d77aa:MODEL');
     expect(element.querySelector('.folded')).not.toBeNull();
   });
 
   it('remembers the reading as read when the user leaves the page', () => {
     render();
     fixture.destroy();
-    expect(readState.markRead).toHaveBeenCalledOnceWith('WORKOUT', '9f2c4e1ab03d77aa');
+    expect(readState.markRead).toHaveBeenCalledOnceWith('WORKOUT', '9f2c4e1ab03d77aa:MODEL');
   });
 
   it('does not mark a reading as read when it was only ever shown folded', () => {
