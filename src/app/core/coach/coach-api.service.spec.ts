@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { AuthService } from '../auth/auth.service';
-import { CoachApiService, toStreamEvent } from './coach-api.service';
+import { CoachApiService, toCoachReading, toStreamEvent } from './coach-api.service';
 
 describe('CoachApiService', () => {
   let service: CoachApiService;
@@ -30,6 +30,25 @@ describe('CoachApiService', () => {
     const request = httpTesting.expectOne('/api/v1/recommendations');
     expect(request.request.method).toBe('GET');
     request.flush([]);
+  });
+
+  it('asks for a page reading with the surface in the path and the timezone as a parameter', () => {
+    let status = '';
+    service.getReading('WORKOUT', 'Asia/Singapore').subscribe((reading) => (status = reading.status));
+
+    const request = httpTesting.expectOne((candidate) => candidate.url === '/api/v1/coach/readings/workout');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('timezone')).toBe('Asia/Singapore');
+    request.flush({ surface: 'WORKOUT', status: 'RESTING', facts: [], lifts: [] });
+    expect(status).toBe('RESTING');
+  });
+
+  it('passes a failed reading request on to the caller', () => {
+    let failed = false;
+    service.getReading('WORKOUT', 'UTC').subscribe({ error: () => (failed = true) });
+
+    httpTesting.expectOne((candidate) => candidate.url === '/api/v1/coach/readings/workout').flush('down', { status: 503, statusText: 'Unavailable' });
+    expect(failed).toBeTrue();
   });
 
   it('creates a thread with an empty body when no title is given', () => {
@@ -94,5 +113,52 @@ describe('toStreamEvent', () => {
 
   it('drops event names the contract does not define', () => {
     expect(toStreamEvent('heartbeat', '{}')).toBeNull();
+  });
+});
+
+describe('toCoachReading', () => {
+  it('treats a missing or unknown answer as empty', () => {
+    expect(toCoachReading('WORKOUT', null).status).toBe('EMPTY');
+    expect(toCoachReading('WORKOUT', { status: 'DONE' as never }).status).toBe('EMPTY');
+    expect(toCoachReading('WORKOUT', {}).facts).toEqual([]);
+    expect(toCoachReading('WORKOUT', {}).lifts).toEqual([]);
+  });
+
+  it('shows facts only when a ready answer arrives without its text', () => {
+    const reading = toCoachReading('WORKOUT', { status: 'READY', reading: { headline: ' ', body: '', citations: [], source: 'MODEL', generatedAt: null } });
+    expect(reading.status).toBe('RESTING');
+    expect(reading.reading).toBeNull();
+  });
+
+  it('fills in what a fact leaves out and drops a fact without a number or a value', () => {
+    const reading = toCoachReading('WORKOUT', {
+      status: 'RESTING',
+      facts: [
+        { number: 1, value: '50' } as never,
+        { number: 2 } as never,
+        { value: '4' } as never
+      ]
+    });
+    expect(reading.facts).toEqual([{ number: 1, key: '', label: '', value: '50', unit: '', numericValue: null, note: '', detail: '' }]);
+  });
+
+  it('drops a lift without two real weights', () => {
+    const reading = toCoachReading('WORKOUT', {
+      status: 'RESTING',
+      lifts: [
+        { exerciseName: 'Row', fromKg: 18, fromDate: '2026-09-13', toKg: 20, toDate: '2026-09-25' },
+        { exerciseName: 'Plank', fromKg: null as never, fromDate: '', toKg: 0, toDate: '' }
+      ]
+    });
+    expect(reading.lifts.map((lift) => lift.exerciseName)).toEqual(['Row']);
+  });
+
+  it('trims the text of a reading', () => {
+    const reading = toCoachReading('WORKOUT', {
+      status: 'READY',
+      reading: { headline: ' Steady. ', body: ' You trained [1]. ', citations: [1], source: 'MODEL', generatedAt: '2026-09-28T15:20:00Z' }
+    });
+    expect(reading.reading?.headline).toBe('Steady.');
+    expect(reading.reading?.body).toBe('You trained [1].');
   });
 });

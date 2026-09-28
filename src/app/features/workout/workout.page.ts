@@ -27,7 +27,7 @@ import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { sessionDurationLabel } from './workout-session.util';
-import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
+import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
 interface TrainingMetric {
   label: string;
@@ -56,7 +56,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
-  imports: [CoachAnchorComponent, 
+  imports: [InsightPanelComponent, 
     ReactiveFormsModule,
     StatePanelComponent,
     ExercisePlayerComponent,

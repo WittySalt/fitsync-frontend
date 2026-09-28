@@ -150,3 +150,52 @@ export function tierLabel(tier: number | null | undefined): string {
       return 'unknown';
   }
 }
+
+/** Which page a reading belongs to. Only the Workout page has one so far. */
+export type ReadingSurface = 'WORKOUT';
+
+/**
+ * Where a reading stands. READY carries a reading. WRITING means the model is at work and the
+ * client asks again shortly. RESTING means the facts are shown without a reading. EMPTY means
+ * there is nothing to show yet.
+ */
+export type ReadingStatus = 'READY' | 'WRITING' | 'RESTING' | 'EMPTY';
+
+export interface ReadingFact {
+  number: number;
+  key: string;
+  label: string;
+  value: string;
+  unit: string;
+  numericValue: number | null;
+  note: string;
+  detail: string;
+}
+
+export interface CoachReadingText {
+  headline: string;
+  body: string;
+  citations: number[];
+  source: string;
+  generatedAt: string | null;
+}
+
+export interface LiftProgress {
+  exerciseName: string;
+  fromKg: number;
+  fromDate: string;
+  toKg: number;
+  toDate: string;
+}
+
+export interface CoachReading {
+  surface: ReadingSurface;
+  status: ReadingStatus;
+  readingId: string | null;
+  period: 'THIS_WEEK' | 'PREVIOUS_WEEK' | 'NONE';
+  periodStart: string | null;
+  periodEnd: string | null;
+  facts: ReadingFact[];
+  reading: CoachReadingText | null;
+  lifts: LiftProgress[];
+}

@@ -1,0 +1,517 @@
+// Translated from the insight panel boards. The boards are drawn in the light theme, so the ink
+// colours are named once here and remapped for the dark theme. The reading's dark card keeps its
+// own colours in both themes.
+:host {
+  display: block;
+  min-width: 0;
+  container-type: inline-size;
+
+  --insight-ink: var(--slate-900);
+  --insight-ink-soft: var(--slate-700);
+  --insight-ink-quiet: var(--slate-600);
+  --insight-line: var(--slate-200);
+  --insight-dash: var(--slate-300);
+  --insight-well: #f8fafc;
+  --insight-tile: var(--white);
+  --insight-mark: var(--slate-100);
+  --insight-badge: var(--slate-900);
+  --insight-badge-ink: var(--white);
+  --insight-dark: linear-gradient(145deg, var(--slate-900) 0%, var(--slate-900) 62%, var(--green-900) 100%);
+}
+
+@mixin dark-ink {
+  --insight-ink: var(--text-primary);
+  --insight-ink-soft: var(--text-secondary);
+  --insight-ink-quiet: var(--text-secondary);
+  --insight-line: var(--border);
+  --insight-dash: var(--border-strong);
+  --insight-well: var(--surface);
+  --insight-tile: var(--surface-raised);
+  --insight-mark: var(--surface-sunken);
+  --insight-badge: var(--slate-100);
+  --insight-badge-ink: var(--slate-900);
+}
+
+:host-context([data-theme='dark']) {
+  @include dark-ink;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host-context(:root:not([data-theme='light'])) {
+    @include dark-ink;
+  }
+}
+
+.panel-skeleton {
+  min-height: 82px;
+  border-radius: 20px;
+}
+
+.panel {
+  box-sizing: border-box;
+  border-radius: 24px;
+  background: var(--insight-well);
+  border: 1px solid var(--insight-line);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.panel-row {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  min-width: 0;
+}
+
+.reading,
+.reading-away {
+  flex: 2 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.reading {
+  background: var(--insight-dark);
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.reading-away {
+  background: var(--insight-tile);
+  border: 1.5px dashed var(--insight-dash);
+  gap: 14px;
+  justify-content: center;
+}
+
+.reading-head,
+.facts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+// The fold button is a full touch target, so the head is pulled up by the difference. The
+// reading then starts on the same line as the facts beside it.
+.reading-head {
+  margin: -8px -10px -8px 0;
+}
+
+.reading-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reading-meta {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mark {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mark-green {
+  background: var(--green-500);
+  color: var(--slate-900);
+}
+
+.mark-quiet {
+  background: var(--insight-mark);
+  color: var(--insight-ink-soft);
+}
+
+.eyebrow,
+.eyebrow-dark {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.eyebrow {
+  color: var(--insight-ink-quiet);
+}
+
+.eyebrow-dark {
+  color: var(--green-400);
+}
+
+.written {
+  font-size: 12px;
+  color: var(--slate-300);
+  white-space: nowrap;
+}
+
+.fold-button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--slate-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--white);
+  }
+}
+
+.reading-headline,
+.away-headline,
+.folded-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.reading-headline {
+  font-size: 28px;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  color: var(--white);
+}
+
+.away-headline {
+  font-size: 28px;
+  line-height: 1.18;
+  color: var(--insight-ink);
+}
+
+.reading-body,
+.away-body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.reading-body {
+  color: var(--slate-200);
+}
+
+.away-body {
+  color: var(--insight-ink-soft);
+}
+
+.citation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 0 0 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  vertical-align: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reading-actions {
+  display: flex;
+}
+
+.light-button {
+  flex: none;
+  height: 44px;
+  padding: 0 16px 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--green-900);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--green-50);
+  }
+}
+
+.facts {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.facts-head {
+  min-height: 28px;
+}
+
+.facts-by {
+  font-size: 12px;
+  color: var(--insight-ink-quiet);
+  white-space: nowrap;
+}
+
+.fact-list {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fact {
+  flex: 1 1 0;
+  min-height: 64px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--insight-tile);
+  border: 1px solid var(--insight-line);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.fact-number {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--insight-badge);
+  color: var(--insight-badge-ink);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.fact-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fact-label {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--insight-ink-quiet);
+  overflow-wrap: anywhere;
+}
+
+.fact-value {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--insight-ink);
+  white-space: nowrap;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.fact-unit {
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--insight-ink-quiet);
+}
+
+.fact-note {
+  flex: none;
+  max-width: 45%;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--insight-ink-soft);
+  text-align: right;
+}
+
+.panel-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 4px;
+}
+
+.working-link {
+  min-height: 44px;
+  margin: -12px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.working {
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--insight-tile);
+  border: 1px solid var(--insight-line);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.working-period {
+  margin: 0;
+  font-size: 13px;
+  color: var(--insight-ink-quiet);
+}
+
+.working-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 20px;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+  }
+}
+
+.working-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--insight-ink-soft);
+  overflow-wrap: anywhere;
+
+  strong {
+    color: var(--insight-ink);
+  }
+}
+
+.folded {
+  box-sizing: border-box;
+  min-height: 82px;
+  border-radius: 20px;
+  background: var(--insight-dark);
+  padding: 16px 20px 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.folded-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.folded-headline {
+  font-size: 20px;
+  line-height: 1.25;
+  color: var(--white);
+}
+
+.fold-button:focus-visible,
+.light-button:focus-visible,
+.working-link:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.reading .fold-button:focus-visible,
+.reading .light-button:focus-visible,
+.folded .light-button:focus-visible {
+  outline-color: var(--green-400);
+}
+
+@container (max-width: 860px) {
+  .panel-row {
+    flex-direction: column;
+  }
+
+  .reading,
+  .reading-away {
+    flex: none;
+  }
+
+  .fact-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 560px) {
+  .panel {
+    padding: 12px;
+  }
+
+  .reading,
+  .reading-away {
+    padding: 20px;
+  }
+
+  .reading-headline,
+  .away-headline {
+    font-size: 24px;
+  }
+
+  .written {
+    display: none;
+  }
+
+  .fact-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .folded {
+    padding: 14px 14px 14px 16px;
+  }
+
+  .folded-headline {
+    font-size: 17px;
+  }
+}

@@ -75,9 +75,13 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
   };
 }
 
-// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
-// renders without a request that these specs never asked for.
-const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
+// The page carries the coach's insight panel. Only the wire is stubbed, and the reading request
+// fails, so the panel takes no space and these specs stay about the page.
+const coachApiStub = {
+  listRecommendations: () => of([]),
+  refreshRecommendations: () => of(undefined),
+  getReading: () => throwError(() => new Error('not under test'))
+};
 
 describe('WorkoutPage', () => {
   let component: WorkoutPage;

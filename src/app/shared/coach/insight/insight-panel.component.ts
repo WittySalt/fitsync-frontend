@@ -1,0 +1,211 @@
+import { ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription, timer } from 'rxjs';
+
+import { CoachApiService } from '../../../core/coach/coach-api.service';
+import { CoachReading, ReadingSurface } from '../../../core/coach/coach.models';
+import { CoachStore } from '../../../core/coach/coach.store';
+import { InsightReadState } from './insight-read-state';
+import { readingSegments } from './reading-text';
+import { shortDate } from './slope-chart.geometry';
+import { SlopeChartComponent } from './slope-chart.component';
+
+/** The clock, as a token, so that tests can fix the time the panel calls "now". */
+export const INSIGHT_NOW = new InjectionToken<() => Date>('INSIGHT_NOW', {
+  providedIn: 'root',
+  factory: () => () => new Date()
+});
+
+export const READING_POLL_MS = 3000;
+export const READING_POLL_LIMIT = 8;
+
+type PanelView = 'loading' | 'hidden' | 'reading' | 'folded' | 'writing' | 'resting';
+
+/**
+ * The insight panel at the top of a page.
+ *
+ * It shows one reading written by the coach model and the measured facts the reading stands on.
+ * The facts are worked out by fixed rules and are shown whether or not the model is available. A
+ * reading the user has already read is folded to one line, so the page's own content stays on the
+ * first screen. When there is nothing to show, or the request fails, the panel takes no space.
+ */
+@Component({
+  selector: 'app-insight-panel',
+  standalone: true,
+  imports: [SlopeChartComponent],
+  templateUrl: './insight-panel.component.html',
+  styleUrl: './insight-panel.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class InsightPanelComponent implements OnInit, OnDestroy {
+  private readonly api = inject(CoachApiService);
+  private readonly coachStore = inject(CoachStore);
+  private readonly readState = inject(InsightReadState);
+  private readonly now = inject(INSIGHT_NOW);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly surface = input.required<ReadingSurface>();
+  readonly timezone = input<string | null>(null);
+
+  readonly loading = signal(true);
+  readonly failed = signal(false);
+  readonly result = signal<CoachReading | null>(null);
+  readonly folded = signal(false);
+  readonly workingShown = signal(false);
+
+  private attempts = 0;
+  private request: Subscription | null = null;
+  private wait: Subscription | null = null;
+  // The reading counts as read once it has been on screen unfolded. It is recorded when the user
+  // folds it or leaves the page, so that it stays open for the whole of the first visit.
+  private shownUnfolded = false;
+
+  readonly view = computed<PanelView>(() => {
+    if (this.loading()) {
+      return 'loading';
+    }
+    const result = this.result();
+    if (this.failed() || !result || result.status === 'EMPTY' || !result.facts.length) {
+      return 'hidden';
+    }
+    if (result.status === 'READY' && result.reading) {
+      return this.folded() ? 'folded' : 'reading';
+    }
+    return result.status === 'WRITING' ? 'writing' : 'resting';
+  });
+
+  readonly facts = computed(() => this.result()?.facts ?? []);
+  readonly lifts = computed(() => this.result()?.lifts ?? []);
+  readonly headline = computed(() => this.result()?.reading?.headline ?? '');
+
+  readonly segments = computed(() => {
+    const result = this.result();
+    return result?.reading ? readingSegments(result.reading.body, result.facts.length) : [];
+  });
+
+  readonly writtenLabel = computed(() => {
+    const generatedAt = this.result()?.reading?.generatedAt;
+    const age = generatedAt ? ageLabel(generatedAt, this.now()) : '';
+    return age ? `Coach model · ${age}` : 'Coach model';
+  });
+
+  readonly periodLabel = computed(() => {
+    const result = this.result();
+    const from = result?.periodStart ? shortDate(result.periodStart) : '';
+    const to = result?.periodEnd ? shortDate(result.periodEnd) : '';
+    if (!from || !to) {
+      return '';
+    }
+    return from === to ? `Measured on ${from}.` : `Measured from ${from} to ${to}.`;
+  });
+
+  readonly headingId = computed(() => `insight-${this.surface().toLowerCase()}-heading`);
+  readonly workingId = computed(() => `insight-${this.surface().toLowerCase()}-working`);
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.rememberIfRead();
+  }
+
+  fold(): void {
+    this.rememberIfRead();
+    this.folded.set(true);
+  }
+
+  open(): void {
+    this.folded.set(false);
+    this.shownUnfolded = true;
+  }
+
+  toggleWorking(): void {
+    this.workingShown.update((shown) => !shown);
+  }
+
+  /**
+   * Opens the coach with this reading as the subject. Nothing is sent. The composer is filled and
+   * the user decides whether to ask.
+   */
+  askAboutThis(): void {
+    const headline = this.headline();
+    if (!headline) {
+      return;
+    }
+    this.coachStore.composerPrefill.set(`About this reading: "${headline}"`);
+    this.coachStore.open();
+  }
+
+  private load(): void {
+    this.request?.unsubscribe();
+    this.request = this.api
+      .getReading(this.surface(), this.timezone() || deviceTimezone())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (reading) => this.accept(reading),
+        error: () => {
+          this.failed.set(true);
+          this.loading.set(false);
+        }
+      });
+  }
+
+  private accept(reading: CoachReading): void {
+    this.attempts += 1;
+    const stillWriting = reading.status === 'WRITING';
+    // A model that has not answered after the last attempt is shown as resting. The facts are
+    // there either way, and the reading will be found on the next visit if it arrives late.
+    this.result.set(stillWriting && this.attempts >= READING_POLL_LIMIT ? { ...reading, status: 'RESTING' } : reading);
+    this.loading.set(false);
+
+    if (reading.status === 'READY' && reading.reading) {
+      const alreadyRead = this.readState.wasRead(reading.surface, reading.readingId);
+      this.folded.set(alreadyRead);
+      this.shownUnfolded = !alreadyRead;
+    }
+
+    if (stillWriting && this.attempts < READING_POLL_LIMIT) {
+      this.wait?.unsubscribe();
+      this.wait = timer(READING_POLL_MS)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => this.load());
+    }
+  }
+
+  private rememberIfRead(): void {
+    const result = this.result();
+    if (this.shownUnfolded && result?.status === 'READY' && result.reading) {
+      this.readState.markRead(result.surface, result.readingId);
+    }
+  }
+}
+
+function deviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** "just now", "5 min ago", "3 h ago" or "2 days ago". An unreadable time gives an empty label. */
+export function ageLabel(generatedAt: string, now: Date): string {
+  const written = new Date(generatedAt).getTime();
+  if (Number.isNaN(written)) {
+    return '';
+  }
+  const minutes = Math.max(0, Math.floor((now.getTime() - written) / 60_000));
+  if (minutes < 1) {
+    return 'just now';
+  }
+  if (minutes < 60) {
+    return `${minutes} min ago`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours} h ago`;
+  }
+  const days = Math.floor(hours / 24);
+  return days === 1 ? '1 day ago' : `${days} days ago`;
+}
