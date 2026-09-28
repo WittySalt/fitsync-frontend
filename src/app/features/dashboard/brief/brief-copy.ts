@@ -76,6 +76,14 @@ export function briefHeadline(input: BriefHeadlineInput): BriefHeadline {
       return { lines: [line1, line2], greeting };
     }
 
+    if (completed === 0) {
+      // Counting from zero reads as a debt. The week is named and the goal is stated once.
+      return {
+        lines: ['A new week.', `${capitalize(targetWord)} ${plural('session', target)} ahead.`],
+        greeting: `${prefix} Nothing is logged yet this week, and your goal is ${targetWord} ${plural('session', target)}.`
+      };
+    }
+
     const remaining = target - completed;
     const line1 = `${capitalize(numberWord(completed))} of ${targetWord}.`;
     const line2 = `${capitalize(numberWord(remaining))} to go.`;

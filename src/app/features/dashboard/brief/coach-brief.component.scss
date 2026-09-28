@@ -142,6 +142,17 @@
     flex: none;
     color: var(--accent-text);
   }
+
+  // In the evening and at night the pill turns dark, as the evening board draws it.
+  &.after-dark {
+    background: var(--brief-solid);
+    border-color: var(--brief-solid);
+    color: var(--brief-solid-ink);
+
+    svg {
+      color: inherit;
+    }
+  }
 }
 
 .headline {

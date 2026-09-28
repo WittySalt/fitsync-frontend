@@ -92,6 +92,12 @@ describe('briefHeadline — no target', () => {
     expect(result.lines[0]).toBe('One session');
   });
 
+  it('names a new week when nothing is logged against a target', () => {
+    const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7 });
+    expect(result.lines).toEqual(['A new week.', 'Four sessions ahead.']);
+    expect(result.greeting).toBe('Good evening, Ruixian. Nothing is logged yet this week, and your goal is four sessions.');
+  });
+
   it('treats a target of zero or less the same as no target', () => {
     const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 0, target: 0, daysLeftInWeek: 7 });
     expect(result.lines).toEqual(['A new week.', 'Nothing logged yet.']);

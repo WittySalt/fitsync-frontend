@@ -45,6 +45,7 @@ export class CoachBriefComponent implements OnInit {
   readonly startError = signal<string | null>(null);
 
   readonly period = computed<DayPeriod>(() => dayPeriodFor(this.now(), this.timezone()));
+  readonly afterDark = computed(() => this.period() === 'EVENING' || this.period() === 'NIGHT');
   readonly periodLabelText = computed(() => periodLabel(this.period()));
   readonly clockText = computed(() => clockLabel(this.now(), this.timezone()));
   readonly dateText = computed(() => dateLabel(this.now(), this.timezone()));
