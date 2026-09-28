@@ -1,9 +1,11 @@
+import { ApplicationRef, WritableSignal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { Observable, Subject, of, throwError } from 'rxjs';
 
 import { CoachApiService } from './coach-api.service';
-import { CoachMessageResponse, CoachStreamEvent, CoachThreadDetail, Recommendation } from './coach.models';
+import { CoachContextService, Surface } from './coach-context.service';
+import { CoachMessageResponse, CoachReading, CoachStreamEvent, CoachThreadDetail, Recommendation } from './coach.models';
 import { CoachStore } from './coach.store';
 
 /**
@@ -25,7 +27,8 @@ describe('CoachStore', () => {
     answer: 'Train today.',
     tier: 2,
     toolsUsed: ['readFacts'],
-    latencyMs: 900
+    latencyMs: 900,
+    pinnedReadingId: null
   };
   const detail: CoachThreadDetail = {
     thread: { ...thread, turnCount: 2 },
@@ -73,7 +76,7 @@ describe('CoachStore', () => {
     store.ask('Should I train?');
 
     expect(api.createThread).toHaveBeenCalledTimes(1);
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train?');
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train?', { surface: 'HOME' });
     expect(store.status()).toBe('answering');
     expect(store.pendingQuestion()).toBe('Should I train?');
   });
@@ -129,7 +132,7 @@ describe('CoachStore', () => {
 
     store.ask('Should I train?');
 
-    expect(api.sendMessage).toHaveBeenCalledWith('t1', 'Should I train?');
+    expect(api.sendMessage).toHaveBeenCalledWith('t1', 'Should I train?', { surface: 'HOME' });
     expect(store.turns().length).toBe(2);
     expect(store.error()).toBeNull();
   });
@@ -270,5 +273,145 @@ describe('CoachStore', () => {
 
     // The test router sits at "/", which maps to the dashboard surface: nutrition first.
     expect(store.orderedRecommendations().map((r) => r.type)).toEqual(['NUTRITION_GAP', 'WEEKLY_ADHERENCE']);
+  });
+});
+
+/**
+ * Pinning a reading from an insight panel, and how it shapes the next question.
+ *
+ * The surface here is faked rather than driven through the router, so a test can move the store
+ * between surfaces without a real navigation. What matters is the context `ask` builds and how the
+ * pin and the citations it grounds are kept or dropped across a surface change and a new thread.
+ */
+describe('CoachStore — pinned reading', () => {
+  let store: CoachStore;
+  let api: jasmine.SpyObj<CoachApiService>;
+  let stream: Subject<CoachStreamEvent>;
+  let surface: WritableSignal<Surface>;
+
+  const workoutSurface: Surface = { id: 'workout', label: 'Workout, this week', inlineTypes: [], suggestions: [], code: 'WORKOUT' };
+  const nutritionSurface: Surface = { id: 'nutrition', label: 'Nutrition, this week', inlineTypes: [], suggestions: [], code: 'NUTRITION' };
+  const coachSurface: Surface = { id: 'coach', label: 'Coach workspace', inlineTypes: [], suggestions: [], code: null };
+
+  const thread = { threadId: 't1', title: null, turnCount: 0, lastActiveAt: '', createdAt: '' };
+  const detail: CoachThreadDetail = { thread: { ...thread, turnCount: 2 }, turns: [] };
+
+  const workoutReading: CoachReading = {
+    surface: 'WORKOUT',
+    status: 'READY',
+    readingId: 'r1',
+    period: 'THIS_WEEK',
+    periodStart: '2026-09-22',
+    periodEnd: '2026-09-28',
+    facts: [],
+    reading: { headline: 'Your sessions held steady.', body: 'Body.', citations: [], source: 'MODEL', generatedAt: null },
+    lifts: []
+  };
+
+  const answer = (overrides: Partial<CoachMessageResponse> = {}): CoachMessageResponse => ({
+    threadId: 't1',
+    turnId: 'u2',
+    answer: 'Train today.',
+    tier: 2,
+    toolsUsed: [],
+    latencyMs: 900,
+    pinnedReadingId: null,
+    ...overrides
+  });
+
+  beforeEach(() => {
+    stream = new Subject<CoachStreamEvent>();
+    surface = signal(workoutSurface);
+    api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['listRecommendations', 'createThread', 'getThread', 'sendMessage', 'streamMessage']);
+    api.listRecommendations.and.returnValue(of([]));
+    api.createThread.and.returnValue(of(thread));
+    api.getThread.and.returnValue(of(detail));
+    api.streamMessage.and.returnValue(stream.asObservable());
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: CoachApiService, useValue: api }, { provide: CoachContextService, useValue: { surface } }]
+    });
+    store = TestBed.inject(CoachStore);
+  });
+
+  it('pins a reading and opens the dock, sending nothing', () => {
+    store.askAboutReading(workoutReading);
+
+    expect(store.pinnedReading()).toBe(workoutReading);
+    expect(store.dockOpen()).toBeTrue();
+    expect(api.streamMessage).not.toHaveBeenCalled();
+  });
+
+  it('lets go of the pinned reading', () => {
+    store.askAboutReading(workoutReading);
+    store.letGoOfReading();
+
+    expect(store.pinnedReading()).toBeNull();
+  });
+
+  it('sends the surface, the readingId and a timezone when a reading is pinned', () => {
+    store.askAboutReading(workoutReading);
+
+    store.ask('Should my core get a day off?');
+
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should my core get a day off?', {
+      surface: 'WORKOUT',
+      readingId: 'r1',
+      timezone: jasmine.any(String)
+    });
+  });
+
+  it('sends only the surface when nothing is pinned', () => {
+    store.ask('Should I train today?');
+
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train today?', { surface: 'WORKOUT' });
+  });
+
+  it('sends no context on a surface the server does not know', () => {
+    surface.set(coachSurface);
+
+    store.ask('Should I train today?');
+
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train today?', undefined);
+  });
+
+  it('records a cited turn when the answer is grounded in the pinned reading', () => {
+    store.askAboutReading(workoutReading);
+    store.ask('Should my core get a day off?');
+
+    stream.next({ name: 'answer', data: answer({ pinnedReadingId: 'r1' }) });
+
+    expect(store.citedTurns().get('u2')).toBe(workoutReading);
+  });
+
+  it('does not record a cited turn when the server did not ground the answer in it', () => {
+    store.askAboutReading(workoutReading);
+    store.ask('Should my core get a day off?');
+
+    stream.next({ name: 'answer', data: answer({ pinnedReadingId: null }) });
+
+    expect(store.citedTurns().size).toBe(0);
+  });
+
+  it('clears the pin when the surface moves away from the reading', () => {
+    store.askAboutReading(workoutReading);
+
+    surface.set(nutritionSurface);
+    // The store's effect runs on the application's next change-detection pass, not synchronously
+    // on the signal write, so the pass is driven explicitly rather than guessed at with a delay.
+    TestBed.inject(ApplicationRef).tick();
+
+    expect(store.pinnedReading()).toBeNull();
+  });
+
+  it('keeps the pin but forgets which turns were cited when a new thread starts', () => {
+    store.askAboutReading(workoutReading);
+    store.ask('Should my core get a day off?');
+    stream.next({ name: 'answer', data: answer({ pinnedReadingId: 'r1' }) });
+
+    store.newThread();
+
+    expect(store.pinnedReading()).toBe(workoutReading);
+    expect(store.citedTurns().size).toBe(0);
   });
 });

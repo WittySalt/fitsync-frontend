@@ -53,3 +53,8 @@ export function readingSegments(body: string, factCount: number): ReadingSegment
   addText(body.slice(cursor));
   return segments;
 }
+
+/** The same text with every citation marker removed, for a place that cannot draw badges. */
+export function withoutCitations(text: string): string {
+  return text.replace(CITATION, '');
+}

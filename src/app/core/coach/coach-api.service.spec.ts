@@ -60,12 +60,34 @@ describe('CoachApiService', () => {
     request.flush({ threadId: 't1', title: null, turnCount: 0, lastActiveAt: '', createdAt: '' });
   });
 
-  it('sends a plain message on a thread', () => {
+  it('sends a plain message on a thread with no context, exactly as before', () => {
     service.sendMessage('t1', 'Should I train today?').subscribe();
 
     const request = httpTesting.expectOne('/api/v1/coach/threads/t1/messages');
     expect(request.request.body).toEqual({ message: 'Should I train today?' });
     request.flush({ threadId: 't1', turnId: 'u1', answer: 'Yes.', tier: 2, toolsUsed: [], latencyMs: 10 });
+  });
+
+  it('carries the context when the caller gives one', () => {
+    service.sendMessage('t1', 'Should my core get a day off?', { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' }).subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/coach/threads/t1/messages');
+    expect(request.request.body).toEqual({
+      message: 'Should my core get a day off?',
+      context: { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' }
+    });
+    request.flush({ threadId: 't1', turnId: 'u1', answer: 'No.', tier: 2, toolsUsed: [], latencyMs: 10 });
+  });
+
+  it('treats a missing pinnedReadingId from an older server as null', () => {
+    let response: { pinnedReadingId: string | null } | undefined;
+    service.sendMessage('t1', 'Should I train today?').subscribe((r) => (response = r));
+
+    httpTesting
+      .expectOne('/api/v1/coach/threads/t1/messages')
+      .flush({ threadId: 't1', turnId: 'u1', answer: 'Yes.', tier: 2, toolsUsed: [], latencyMs: 10 });
+
+    expect(response?.pinnedReadingId).toBeNull();
   });
 
   it('drafts a session, carrying the thread when one is given', () => {
@@ -87,6 +109,50 @@ describe('CoachApiService', () => {
   });
 });
 
+describe('CoachApiService.streamMessage', () => {
+  let service: CoachApiService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        CoachApiService,
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: { getAccessToken: () => 'the-token' } }
+      ]
+    });
+    service = TestBed.inject(CoachApiService);
+  });
+
+  // The stream cannot go through HttpTestingController: it is built on fetch, not HttpClient. The
+  // request body is observed the same way the service builds it, by reading what was handed to fetch.
+  function bodySentTo(fetchSpy: jasmine.Spy): unknown {
+    const [, init] = fetchSpy.calls.mostRecent().args as [string, RequestInit];
+    return JSON.parse(init.body as string);
+  }
+
+  it('opens the stream with no context in the body when none is given, exactly as before', () => {
+    const fetchSpy = spyOn(window, 'fetch').and.returnValue(Promise.reject(new Error('no network in test')));
+    const subscription = service.streamMessage('t1', 'Should I train today?').subscribe({ error: () => {} });
+
+    expect(bodySentTo(fetchSpy)).toEqual({ message: 'Should I train today?' });
+    subscription.unsubscribe();
+  });
+
+  it('carries the context in the stream body when the caller gives one', () => {
+    const fetchSpy = spyOn(window, 'fetch').and.returnValue(Promise.reject(new Error('no network in test')));
+    const subscription = service
+      .streamMessage('t1', 'Should my core get a day off?', { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' })
+      .subscribe({ error: () => {} });
+
+    expect(bodySentTo(fetchSpy)).toEqual({
+      message: 'Should my core get a day off?',
+      context: { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' }
+    });
+    subscription.unsubscribe();
+  });
+});
+
 describe('toStreamEvent', () => {
   it('types the progress events by name', () => {
     const event = toStreamEvent('tool_finished', '{"kind":"TOOL_FINISHED","tool":"readFacts","summary":"7 fact groups","latencyMs":4}');
@@ -102,6 +168,19 @@ describe('toStreamEvent', () => {
 
     expect(event?.name).toBe('answer');
     expect(event && event.name === 'answer' ? event.data.answer : null).toBe('Yes.');
+  });
+
+  it('defaults a missing pinnedReadingId on the answer to null', () => {
+    const event = toStreamEvent('answer', '{"threadId":"t","turnId":"u","answer":"Yes.","tier":2,"toolsUsed":["readFacts"],"latencyMs":9}');
+    expect(event && event.name === 'answer' ? event.data.pinnedReadingId : undefined).toBeNull();
+  });
+
+  it('keeps the pinnedReadingId on the answer when the server sends one', () => {
+    const event = toStreamEvent(
+      'answer',
+      '{"threadId":"t","turnId":"u","answer":"Yes.","tier":2,"toolsUsed":["readFacts"],"latencyMs":9,"pinnedReadingId":"r1"}'
+    );
+    expect(event && event.name === 'answer' ? event.data.pinnedReadingId : undefined).toBe('r1');
   });
 
   it('unwraps the error text from its JSON string literal', () => {

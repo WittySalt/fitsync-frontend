@@ -132,16 +132,16 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Opens the coach with this reading as the subject. Nothing is sent. The composer is filled and
-   * the user decides whether to ask.
+   * Opens the coach with this reading pinned as the subject. Nothing is sent: the pin is what lets
+   * the coach ground its next answer and offer questions that follow from the reading, and the
+   * user still decides whether and what to ask.
    */
   askAboutThis(): void {
-    const headline = this.headline();
-    if (!headline) {
+    const reading = this.result();
+    if (!reading) {
       return;
     }
-    this.coachStore.composerPrefill.set(`About this reading: "${headline}"`);
-    this.coachStore.open();
+    this.coachStore.askAboutReading(reading);
   }
 
   private load(): void {

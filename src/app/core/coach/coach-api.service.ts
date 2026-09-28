@@ -5,6 +5,7 @@ import { Observable, map } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import {
   AcceptSessionDraftResponse,
+  CoachMessageContext,
   CoachMessageResponse,
   CoachReading,
   CoachStreamEvent,
@@ -70,8 +71,10 @@ export class CoachApiService {
   }
 
   /** The plain, non-streaming turn. The fallback when the stream cannot be opened. */
-  sendMessage(threadId: string, message: string): Observable<CoachMessageResponse> {
-    return this.http.post<CoachMessageResponse>(`${this.coachBaseUrl}/threads/${threadId}/messages`, { message });
+  sendMessage(threadId: string, message: string, context?: CoachMessageContext): Observable<CoachMessageResponse> {
+    return this.http
+      .post<RawMessageResponse>(`${this.coachBaseUrl}/threads/${threadId}/messages`, messageBody(message, context))
+      .pipe(map(toMessageResponse));
   }
 
   /**
@@ -81,7 +84,7 @@ export class CoachApiService {
    * could not finish arrives as an `error` event, because that is what the server sends and the
    * store treats the two differently.
    */
-  streamMessage(threadId: string, message: string): Observable<CoachStreamEvent> {
+  streamMessage(threadId: string, message: string, context?: CoachMessageContext): Observable<CoachStreamEvent> {
     return new Observable<CoachStreamEvent>((subscriber) => {
       const controller = new AbortController();
       const headers: Record<string, string> = {
@@ -96,7 +99,7 @@ export class CoachApiService {
       fetch(`${this.coachBaseUrl}/threads/${threadId}/messages/stream`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(messageBody(message, context)),
         signal: controller.signal
       })
         .then(async (response) => {
@@ -169,12 +172,25 @@ export function toStreamEvent(name: string, data: string): CoachStreamEvent | nu
     case 'thinking':
       return { name, data: JSON.parse(data) };
     case 'answer':
-      return { name, data: JSON.parse(data) };
+      return { name, data: toMessageResponse(JSON.parse(data)) };
     case 'error':
       return { name, data: stripQuotes(data) };
     default:
       return null;
   }
+}
+
+/** The body the server expects: `context` is left out entirely when there is none to send. */
+function messageBody(message: string, context?: CoachMessageContext): { message: string; context?: CoachMessageContext } {
+  return context ? { message, context } : { message };
+}
+
+/** Everything a server that predates `pinnedReadingId` still sends. */
+type RawMessageResponse = Omit<CoachMessageResponse, 'pinnedReadingId'> & { pinnedReadingId?: string | null };
+
+/** A server that predates `pinnedReadingId` never sends it; that is read as no reading was pinned. */
+function toMessageResponse(raw: RawMessageResponse): CoachMessageResponse {
+  return { ...raw, pinnedReadingId: raw.pinnedReadingId ?? null };
 }
 
 /** The server sends the error message as a JSON string literal; the store wants the text. */

@@ -1,4 +1,4 @@
-import { ReadingSegment, readingSegments } from './reading-text';
+import { ReadingSegment, readingSegments, withoutCitations } from './reading-text';
 
 function citations(segments: ReadingSegment[]): number[] {
   return segments.flatMap((segment) => (segment.kind === 'citation' ? [segment.number] : []));
@@ -80,5 +80,23 @@ describe('readingSegments', () => {
 
   it('handles an empty body', () => {
     expect(readingSegments('', 4)).toEqual([]);
+  });
+});
+
+describe('withoutCitations', () => {
+  it('removes a citation marker along with the whitespace before it', () => {
+    expect(withoutCitations('You moved 1,923 kg a session [1], up from before.')).toBe('You moved 1,923 kg a session, up from before.');
+  });
+
+  it('removes several markers, including two-digit ones', () => {
+    expect(withoutCitations('Both rose [1] [12] this week.')).toBe('Both rose this week.');
+  });
+
+  it('leaves other brackets alone', () => {
+    expect(withoutCitations('Sets [heavy] and [123] stay.')).toBe('Sets [heavy] and [123] stay.');
+  });
+
+  it('leaves text with no markers unchanged', () => {
+    expect(withoutCitations('Your week was steady.')).toBe('Your week was steady.');
   });
 });

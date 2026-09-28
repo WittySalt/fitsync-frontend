@@ -1,12 +1,14 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Observable, Subscription, tap } from 'rxjs';
 
 import { CoachApiService } from './coach-api.service';
 import { CoachContextService } from './coach-context.service';
 import {
   AcceptSessionDraftResponse,
+  CoachMessageContext,
   CoachMessageResponse,
   CoachProgressEvent,
+  CoachReading,
   CoachThreadDetail,
   CoachTurn,
   Recommendation,
@@ -68,7 +70,42 @@ export class CoachStore {
     this.open();
   }
 
+  /**
+   * The reading a page's insight panel asked about, pinned as the subject of the conversation.
+   * Pinning opens the dock but sends nothing; the composer is left alone, because the follow-up
+   * questions built from the reading are the usual way in.
+   */
+  readonly pinnedReading = signal<CoachReading | null>(null);
+
+  /**
+   * Turns whose answer the server grounded in the pinned reading, so the dock knows which turns
+   * may show citation badges. Session state only: it is rebuilt from nothing on a fresh thread and
+   * is never sent anywhere.
+   */
+  readonly citedTurns = signal<ReadonlyMap<string, CoachReading>>(new Map());
+
+  askAboutReading(reading: CoachReading): void {
+    this.pinnedReading.set(reading);
+    this.open();
+  }
+
+  letGoOfReading(): void {
+    this.pinnedReading.set(null);
+  }
+
   readonly surface = this.context.surface;
+
+  constructor() {
+    // Moving to a page about something else drops the pin: a reading pinned from the workout page
+    // has nothing to say about the nutrition page, and carrying it across would ground the coach's
+    // next answer in the wrong week's facts.
+    effect(() => {
+      const reading = this.pinnedReading();
+      if (reading && this.surface().code !== reading.surface) {
+        this.pinnedReading.set(null);
+      }
+    });
+  }
 
   /** The current surface's insights first, then everything else, so the dock reads as "about here". */
   readonly orderedRecommendations = computed(() => {
@@ -142,18 +179,38 @@ export class CoachStore {
     this.pendingQuestion.set(text);
     this.liveSteps.set([]);
 
+    const context = this.buildContext();
     const threadId = this.thread()?.thread.threadId;
     if (threadId) {
-      this.stream(threadId, text);
+      this.stream(threadId, text, context);
       return;
     }
     this.api.createThread().subscribe({
       next: (thread) => {
         this.thread.set({ thread, turns: [] });
-        this.stream(thread.threadId, text);
+        this.stream(thread.threadId, text, context);
       },
       error: () => this.fail('The coach could not open a conversation. Try again in a moment.')
     });
+  }
+
+  /**
+   * The context sent with a question: the current surface, plus the pinned reading when there is
+   * one to send. A surface the server does not know (the coach workspace itself, or an unmapped
+   * page) sends no context at all, so the server falls back to its own default grounding.
+   */
+  private buildContext(): CoachMessageContext | undefined {
+    const code = this.surface().code;
+    if (!code) {
+      return undefined;
+    }
+    const context: CoachMessageContext = { surface: code };
+    const reading = this.pinnedReading();
+    if (reading?.readingId) {
+      context.readingId = reading.readingId;
+      context.timezone = deviceTimezone();
+    }
+    return context;
   }
 
   /**
@@ -234,21 +291,27 @@ export class CoachStore {
     );
   }
 
-  /** Starts a fresh conversation. The old one stays on the server and in the thread list. */
+  /**
+   * Starts a fresh conversation. The old one stays on the server and in the thread list. The pin
+   * survives: a reading is the subject of a page, not of one conversation, so switching threads
+   * while it is still relevant should not lose it. Which turns cited it does not survive, because
+   * there are no turns left to cite.
+   */
   newThread(): void {
     this.inflight?.unsubscribe();
     this.thread.set(null);
     this.liveSteps.set([]);
     this.pendingQuestion.set(null);
     this.latestDraft.set(null);
+    this.citedTurns.set(new Map());
     this.status.set('idle');
     this.error.set(null);
   }
 
-  private stream(threadId: string, text: string): void {
+  private stream(threadId: string, text: string, context: CoachMessageContext | undefined): void {
     this.inflight?.unsubscribe();
     let answered = false;
-    this.inflight = this.api.streamMessage(threadId, text).subscribe({
+    this.inflight = this.api.streamMessage(threadId, text, context).subscribe({
       next: (event) => {
         switch (event.name) {
           case 'tool_started':
@@ -274,7 +337,7 @@ export class CoachStore {
       error: () => {
         // The stream could not be opened: a proxy that does not pass it through, or a network that
         // dropped it. The plain endpoint gives the same answer without the progress view.
-        this.api.sendMessage(threadId, text).subscribe({
+        this.api.sendMessage(threadId, text, context).subscribe({
           next: (response) => this.finish(threadId, response),
           error: () => this.fail('The coach could not answer just now. Your computed insights are still on the dashboard.')
         });
@@ -311,6 +374,7 @@ export class CoachStore {
    * reconstruction. Stored state and shown state stay one thing.
    */
   private finish(threadId: string, response: CoachMessageResponse): void {
+    this.recordCitation(response);
     this.api.getThread(threadId).subscribe({
       next: (detail) => {
         this.thread.set(detail);
@@ -324,6 +388,18 @@ export class CoachStore {
     });
   }
 
+  /** Remembers this turn as citable when the server grounded it in the reading still pinned. */
+  private recordCitation(response: CoachMessageResponse): void {
+    const reading = this.pinnedReading();
+    if (reading?.readingId && response.pinnedReadingId === reading.readingId) {
+      this.citedTurns.update((turns) => {
+        const next = new Map(turns);
+        next.set(response.turnId, reading);
+        return next;
+      });
+    }
+  }
+
   private settle(tier: number): void {
     this.pendingQuestion.set(null);
     this.liveSteps.set([]);
@@ -335,6 +411,15 @@ export class CoachStore {
     this.pendingQuestion.set(null);
     this.liveSteps.set([]);
     this.status.set('idle');
+  }
+}
+
+/** The device's IANA zone, guarded because an unsupported environment can throw rather than return one. */
+function deviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
   }
 }
 

@@ -1,4 +1,3 @@
-import { signal } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
@@ -39,7 +38,7 @@ describe('InsightPanelComponent', () => {
   let fixture: ComponentFixture<InsightPanelComponent>;
   let element: HTMLElement;
   let api: jasmine.SpyObj<CoachApiService>;
-  let store: { composerPrefill: ReturnType<typeof signal<string | null>>; open: jasmine.Spy };
+  let store: { askAboutReading: jasmine.Spy };
   let readState: jasmine.SpyObj<InsightReadState>;
 
   function render(): void {
@@ -57,7 +56,7 @@ describe('InsightPanelComponent', () => {
   beforeEach(async () => {
     api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['getReading']);
     api.getReading.and.returnValue(of(ready));
-    store = { composerPrefill: signal<string | null>(null), open: jasmine.createSpy('open') };
+    store = { askAboutReading: jasmine.createSpy('askAboutReading') };
     readState = jasmine.createSpyObj<InsightReadState>('InsightReadState', ['wasRead', 'markRead']);
     readState.wasRead.and.returnValue(false);
 
@@ -121,11 +120,10 @@ describe('InsightPanelComponent', () => {
     expect(element.querySelector('app-slope-chart svg')).not.toBeNull();
   });
 
-  it('fills the coach composer with the reading and opens the coach, without sending anything', () => {
+  it('pins the reading with the coach and does not pre-fill the composer', () => {
     render();
     (element.querySelector('.reading-actions button') as HTMLButtonElement).click();
-    expect(store.composerPrefill()).toBe('About this reading: "Your lifts grew while your sessions stayed the same length."');
-    expect(store.open).toHaveBeenCalledTimes(1);
+    expect(store.askAboutReading).toHaveBeenCalledOnceWith(ready);
   });
 
   it('opens folded when the reading was read before, and unfolds on request', () => {

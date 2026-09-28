@@ -58,6 +58,16 @@ export interface CoachThreadDetail {
   turns: CoachTurn[];
 }
 
+/** Which page a question is asked from, and optionally which reading it is about. */
+export type CoachSurfaceCode = 'HOME' | 'WORKOUT' | 'NUTRITION' | 'PROGRESS' | 'PROFILE';
+
+/** Sent with a question so the server can ground its answer without the client resending facts. */
+export interface CoachMessageContext {
+  surface: CoachSurfaceCode;
+  readingId?: string;
+  timezone?: string;
+}
+
 /** The answer the plain endpoint returns, and the payload of the stream's final `answer` event. */
 export interface CoachMessageResponse {
   threadId: string;
@@ -66,6 +76,8 @@ export interface CoachMessageResponse {
   tier: number;
   toolsUsed: string[];
   latencyMs: number;
+  /** The reading the server grounded this answer in, or null when none was pinned or found. */
+  pinnedReadingId: string | null;
 }
 
 /** What the coach reports while a turn is still running. Names are the SSE event names. */
