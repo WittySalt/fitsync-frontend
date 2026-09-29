@@ -45,6 +45,18 @@ export interface BriefHeadlineInput {
   completed: number;
   target: number | null;
   daysLeftInWeek: number;
+  /** A session was completed today. Undefined behaves as false, so every existing caller still
+   *  compiles and gets the pre-existing copy. */
+  completedToday?: boolean;
+  /** Today is a rest day. Nothing sets this yet; a later change wires it up from the day-kind data. */
+  restToday?: boolean;
+  trainedYesterday?: boolean;
+  /** Whole days since the most recent completed session. Null when unknown or when there has
+   *  never been one. */
+  daysSinceLastSession?: number | null;
+  /** Consecutive weeks, ending with the current or the last full week, that met the goal. Nothing
+   *  sets this yet; a later change wires it up from streak data. */
+  weeksAtGoal?: number | null;
 }
 
 export interface BriefHeadline {
@@ -52,59 +64,125 @@ export interface BriefHeadline {
   greeting: string;
 }
 
-export function briefHeadline(input: BriefHeadlineInput): BriefHeadline {
-  const { period, firstName, completed, target, daysLeftInWeek } = input;
-  const prefix = salutationPrefix(period, firstName);
+/** Picks the two headline lines. The coach cheers what is done and never presses about what is
+ *  left, so the rules are checked in a fixed order and the first match wins; only the "exactly
+ *  met" rule below ever prints an exclamation mark. */
+function headlineLines(args: {
+  completed: number;
+  target: number | null;
+  completedToday: boolean;
+  restToday: boolean;
+  trainedYesterday: boolean;
+  daysSinceLastSession: number | null;
+}): [string, string] {
+  const { completed, target, completedToday, restToday, trainedYesterday, daysSinceLastSession } = args;
 
-  if (target != null && target > 0) {
-    const targetWord = numberWord(target);
-    const targetMet = completed >= target;
-
-    if (targetMet) {
-      const line1 = `${capitalize(numberWord(completed))} of ${targetWord}.`;
-      const line2 = period === 'MORNING' || period === 'AFTERNOON' ? 'The week is yours.' : 'The week is closed.';
-
-      let greeting: string;
-      if (period === 'MORNING' || period === 'AFTERNOON') {
-        greeting = `${prefix} Your goal of ${targetWord} ${plural('session', target)} is met, so today is free for rest or a bonus.`;
-      } else if (period === 'EVENING') {
-        greeting = `${prefix} Your goal of ${targetWord} ${plural('session', target)} is met, and a bonus session still fits into tonight.`;
-      } else {
-        greeting = `${prefix} Your goal of ${targetWord} ${plural('session', target)} is met, and tomorrow starts a fresh page.`;
-      }
-
-      return { lines: [line1, line2], greeting };
+  if (target != null) {
+    if (daysSinceLastSession != null && daysSinceLastSession >= 14 && completed === 0) {
+      // A long absence outranks every other rule: the coach welcomes the return rather than
+      // naming the empty week.
+      return ['Good to see you.', 'One session restarts the week.'];
     }
-
+    if (completed === target) {
+      return [`${capitalize(numberWord(completed))} for ${numberWord(target)}!`, 'The week is yours.'];
+    }
+    if (completed > target) {
+      return [`${capitalize(numberWord(completed))} this week.`, "That's a bonus round."];
+    }
+    if (completedToday) {
+      return ['Done for today.', `That makes ${numberWord(completed)}.`];
+    }
+    if (restToday) {
+      return ['Rest day.', trainedYesterday ? "Yesterday's work is settling in." : 'The week is still open.'];
+    }
     if (completed === 0) {
-      // Counting from zero reads as a debt. The week is named and the goal is stated once.
-      return {
-        lines: ['A new week.', `${capitalize(targetWord)} ${plural('session', target)} ahead.`],
-        greeting: `${prefix} Nothing is logged yet this week, and your goal is ${targetWord} ${plural('session', target)}.`
-      };
+      return ['Fresh week.', 'A clean slate.'];
     }
-
+    if (completed === 1 && target > 1) {
+      return ['One down.', "You're on the board."];
+    }
+    if (target - completed === 1) {
+      return [`${capitalize(numberWord(completed))} down.`, 'One more makes the week.'];
+    }
+    if (completed * 2 === target) {
+      return ['Halfway there.', `${capitalize(numberWord(completed))} in the bag.`];
+    }
     const remaining = target - completed;
-    const line1 = `${capitalize(numberWord(completed))} of ${targetWord}.`;
-    const line2 = `${capitalize(numberWord(remaining))} to go.`;
-    const greeting =
-      `${prefix} ${capitalize(numberWord(remaining))} more ${plural('session', remaining)} would reach your goal of ` +
-      `${targetWord} ${plural('session', target)}, with ${daysLeftInWeek} ${plural('day', daysLeftInWeek)} left in the week.`;
-
-    return { lines: [line1, line2], greeting };
+    return [`${capitalize(numberWord(completed))} down.`, `${capitalize(numberWord(remaining))} to play.`];
   }
 
   if (completed === 0) {
-    return {
-      lines: ['A new week.', 'Nothing logged yet.'],
-      greeting: `${prefix} Here is your week so far.`
-    };
+    return ['Fresh week.', 'Nothing logged yet.'];
+  }
+  return [`${capitalize(numberWord(completed))} ${plural('session', completed)}`, 'this week.'];
+}
+
+/** Builds the greeting sentence that follows the salutation prefix. A met-or-exceeded goal keeps
+ *  the time-of-day sentence the coach already used, except the evening one, which used to suggest
+ *  a bonus session tonight and has been softened to simply hand the evening back. */
+function buildGreeting(args: {
+  prefix: string;
+  period: DayPeriod;
+  completed: number;
+  target: number | null;
+  daysLeftInWeek: number;
+  targetMet: boolean;
+  weeksAtGoal: number | null;
+}): string {
+  const { prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal } = args;
+
+  if (target == null) {
+    return `${prefix} Here is your week so far.`;
   }
 
-  return {
-    lines: [`${capitalize(numberWord(completed))} ${plural('session', completed)}`, 'this week.'],
-    greeting: `${prefix} Here is your week so far.`
-  };
+  const targetWord = numberWord(target);
+
+  if (targetMet) {
+    let sentence: string;
+    if (period === 'MORNING' || period === 'AFTERNOON') {
+      sentence = `Your goal of ${targetWord} ${plural('session', target)} is met, so today is free for rest or a bonus.`;
+    } else if (period === 'EVENING') {
+      sentence = `Your goal of ${targetWord} ${plural('session', target)} is met, and the evening is yours.`;
+    } else {
+      sentence = `Your goal of ${targetWord} ${plural('session', target)} is met, and tomorrow starts a fresh page.`;
+    }
+    let greeting = `${prefix} ${sentence}`;
+    if (weeksAtGoal != null && weeksAtGoal >= 2) {
+      // A running streak is worth naming, but only once the goal itself has been said.
+      greeting += ` That is ${numberWord(weeksAtGoal)} ${plural('week', weeksAtGoal)} running at ${targetWord}.`;
+    }
+    return greeting;
+  }
+
+  if (completed === 0) {
+    return `${prefix} The week is open, and your goal is ${targetWord} ${plural('session', target)}.`;
+  }
+
+  const completedWord = capitalize(numberWord(completed));
+  if (daysLeftInWeek <= 1) {
+    return `${prefix} ${completedWord} ${plural('session', completed)} in, and today is the last day of the week.`;
+  }
+  return (
+    `${prefix} ${completedWord} ${plural('session', completed)} in, and the week still has ` +
+    `${numberWord(daysLeftInWeek)} ${plural('day', daysLeftInWeek)} for the rest.`
+  );
+}
+
+export function briefHeadline(input: BriefHeadlineInput): BriefHeadline {
+  const { period, firstName, completed, daysLeftInWeek } = input;
+  const completedToday = input.completedToday ?? false;
+  const restToday = input.restToday ?? false;
+  const trainedYesterday = input.trainedYesterday ?? false;
+  const daysSinceLastSession = input.daysSinceLastSession ?? null;
+  const weeksAtGoal = input.weeksAtGoal ?? null;
+  const target = input.target != null && input.target > 0 ? input.target : null;
+  const targetMet = target != null && completed >= target;
+  const prefix = salutationPrefix(period, firstName);
+
+  const lines = headlineLines({ completed, target, completedToday, restToday, trainedYesterday, daysSinceLastSession });
+  const greeting = buildGreeting({ prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal });
+
+  return { lines, greeting };
 }
 
 export function quickQuestions(period: DayPeriod, caloriesTarget: number | null): string[] {

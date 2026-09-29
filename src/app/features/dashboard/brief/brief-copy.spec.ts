@@ -13,44 +13,192 @@ describe('numberWord', () => {
   });
 });
 
-describe('briefHeadline — target met', () => {
-  it('renders the reference morning copy for 4 of 4', () => {
+describe('briefHeadline — rule 1: long absence', () => {
+  it('welcomes a return after fourteen or more days with nothing logged this week', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7, daysSinceLastSession: 14
+    });
+    expect(result.lines).toEqual(['Good to see you.', 'One session restarts the week.']);
+  });
+
+  it('does not fire when a session has already been logged this week, even after a long absence', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 7, daysSinceLastSession: 14
+    });
+    expect(result.lines[0]).not.toBe('Good to see you.');
+  });
+
+  it('does not fire for an absence shorter than fourteen days', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7, daysSinceLastSession: 13
+    });
+    expect(result.lines[0]).not.toBe('Good to see you.');
+  });
+});
+
+describe('briefHeadline — rule 2: goal exactly met', () => {
+  it('renders "Four for four!" with the exclamation mark, and takes priority over a same-day completion', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1, completedToday: true
+    });
+    expect(result.lines).toEqual(['Four for four!', 'The week is yours.']);
+  });
+
+  it('is the only line or greeting anywhere that contains an exclamation mark', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1, weeksAtGoal: 3
+    });
+    expect(result.lines[0]).toContain('!');
+    expect(result.lines[1]).not.toContain('!');
+    expect(result.greeting).not.toContain('!');
+  });
+});
+
+describe('briefHeadline — rule 3: goal exceeded', () => {
+  it('renders "Five this week." and "That\'s a bonus round."', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 5, target: 4, daysLeftInWeek: 1 });
+    expect(result.lines).toEqual(['Five this week.', "That's a bonus round."]);
+  });
+});
+
+describe('briefHeadline — rule 4: completed today, goal not met', () => {
+  it('renders "Done for today." and "That makes two."', () => {
+    const result = briefHeadline({
+      period: 'AFTERNOON', firstName: 'Ruixian', completed: 2, target: 4, daysLeftInWeek: 3, completedToday: true
+    });
+    expect(result.lines).toEqual(['Done for today.', 'That makes two.']);
+  });
+});
+
+describe('briefHeadline — rule 5: rest day, goal not met', () => {
+  it('mentions yesterday\'s work when trainedYesterday is true', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 2, target: 4, daysLeftInWeek: 3, restToday: true, trainedYesterday: true
+    });
+    expect(result.lines).toEqual(['Rest day.', "Yesterday's work is settling in."]);
+  });
+
+  it('says the week is still open when yesterday had no training', () => {
+    const result = briefHeadline({
+      period: 'MORNING', firstName: 'Ruixian', completed: 2, target: 4, daysLeftInWeek: 3, restToday: true, trainedYesterday: false
+    });
+    expect(result.lines).toEqual(['Rest day.', 'The week is still open.']);
+  });
+});
+
+describe('briefHeadline — rule 6: fresh week with a target', () => {
+  it('renders "Fresh week." and "A clean slate."', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7 });
+    expect(result.lines).toEqual(['Fresh week.', 'A clean slate.']);
+  });
+});
+
+describe('briefHeadline — rule 7: one session down, target above one', () => {
+  it('renders "One down." and "You\'re on the board." for target 2 completed 1', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: 2, daysLeftInWeek: 5 });
+    expect(result.lines).toEqual(['One down.', "You're on the board."]);
+  });
+
+  it('does not apply when the target itself is one', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: 1, daysLeftInWeek: 5 });
+    expect(result.lines[1]).not.toBe("You're on the board.");
+  });
+});
+
+describe('briefHeadline — rule 8: one session short of the goal', () => {
+  it('renders "Three down." and "One more makes the week."', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: 4, daysLeftInWeek: 1 });
+    expect(result.lines).toEqual(['Three down.', 'One more makes the week.']);
+  });
+});
+
+describe('briefHeadline — rule 9: exactly halfway', () => {
+  it('renders "Halfway there." and "Three in the bag." for target 6 completed 3', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: 6, daysLeftInWeek: 3 });
+    expect(result.lines).toEqual(['Halfway there.', 'Three in the bag.']);
+  });
+});
+
+describe('briefHeadline — rule 10: the remaining not-yet-covered cases', () => {
+  it('renders "Two down." and "Three to play." for target 5 completed 2', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 2, target: 5, daysLeftInWeek: 4 });
+    expect(result.lines).toEqual(['Two down.', 'Three to play.']);
+  });
+});
+
+describe('briefHeadline — rule 11: fresh week, no target', () => {
+  it('renders "Fresh week." and "Nothing logged yet."', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 0, target: null, daysLeftInWeek: 7 });
+    expect(result.lines).toEqual(['Fresh week.', 'Nothing logged yet.']);
+  });
+
+  it('treats a target of zero or less the same as no target', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 0, target: 0, daysLeftInWeek: 7 });
+    expect(result.lines).toEqual(['Fresh week.', 'Nothing logged yet.']);
+  });
+});
+
+describe('briefHeadline — rule 12: sessions logged, no target', () => {
+  it('renders the count and pluralizes when more than one', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: null, daysLeftInWeek: 7 });
+    expect(result.lines).toEqual(['Three sessions', 'this week.']);
+  });
+
+  it('uses singular "session" for a count of one', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: null, daysLeftInWeek: 7 });
+    expect(result.lines[0]).toBe('One session');
+  });
+});
+
+describe('briefHeadline — greeting: no target', () => {
+  it('renders the plain week-so-far sentence', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: null, daysLeftInWeek: 7 });
+    expect(result.greeting).toBe('Good morning, Ruixian. Here is your week so far.');
+  });
+});
+
+describe('briefHeadline — greeting: goal met or exceeded', () => {
+  it('uses the morning/afternoon sentence about a free day', () => {
     const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1 });
-    expect(result.lines).toEqual(['Four of four.', 'The week is yours.']);
     expect(result.greeting).toBe(
       'Good morning, Ruixian. Your goal of four sessions is met, so today is free for rest or a bonus.'
     );
   });
 
-  it('still prints the real numbers when completed exceeds target', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 5, target: 4, daysLeftInWeek: 1 });
-    expect(result.lines[0]).toBe('Five of four.');
-  });
-
-  it('uses "The week is closed." in the evening and night', () => {
-    const evening = briefHeadline({ period: 'EVENING', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1 });
-    expect(evening.lines[1]).toBe('The week is closed.');
-    const night = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1 });
-    expect(night.lines[1]).toBe('The week is closed.');
-  });
-
-  it('uses the evening greeting about a bonus session fitting tonight', () => {
+  it('hands the evening back rather than suggesting a bonus session', () => {
     const result = briefHeadline({ period: 'EVENING', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1 });
     expect(result.greeting).toBe(
-      'Good evening, Ruixian. Your goal of four sessions is met, and a bonus session still fits into tonight.'
+      'Good evening, Ruixian. Your goal of four sessions is met, and the evening is yours.'
     );
   });
 
-  it('uses the night greeting about tomorrow starting fresh', () => {
+  it('uses the night sentence about tomorrow starting fresh', () => {
     const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1 });
     expect(result.greeting).toBe(
       'Good evening, Ruixian. Your goal of four sessions is met, and tomorrow starts a fresh page.'
     );
   });
 
-  it('uses singular "session" when the target is 1', () => {
+  it('uses singular "session" when the target is one', () => {
     const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: 1, daysLeftInWeek: 1 });
     expect(result.greeting).toContain('goal of one session is met');
+  });
+
+  it('appends the streak sentence once weeksAtGoal reaches two', () => {
+    const result = briefHeadline({
+      period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1, weeksAtGoal: 3
+    });
+    expect(result.greeting).toBe(
+      'Good evening, Ruixian. Your goal of four sessions is met, and tomorrow starts a fresh page. ' +
+      'That is three weeks running at four.'
+    );
+  });
+
+  it('omits the streak sentence when weeksAtGoal is only one', () => {
+    const result = briefHeadline({
+      period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1, weeksAtGoal: 1
+    });
+    expect(result.greeting).not.toContain('weeks running');
   });
 
   it('omits the name and comma when firstName is blank', () => {
@@ -59,48 +207,33 @@ describe('briefHeadline — target met', () => {
   });
 });
 
-describe('briefHeadline — target not met', () => {
-  it('renders "One to go." with correct singular in the greeting', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: 4, daysLeftInWeek: 1 });
-    expect(result.lines).toEqual(['Three of four.', 'One to go.']);
-    expect(result.greeting).toBe(
-      'Good morning, Ruixian. One more session would reach your goal of four sessions, with 1 day left in the week.'
-    );
-  });
-
-  it('pluralizes remaining sessions and days when more than one', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 3 });
-    expect(result.lines[1]).toBe('Three to go.');
-    expect(result.greeting).toContain('Three more sessions would reach your goal of four sessions, with 3 days left in the week.');
+describe('briefHeadline — greeting: zero completed with a target', () => {
+  it('names the open week and the goal', () => {
+    const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7 });
+    expect(result.greeting).toBe('Good evening, Ruixian. The week is open, and your goal is four sessions.');
   });
 });
 
-describe('briefHeadline — no target', () => {
-  it('renders "A new week." when nothing has been logged', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 0, target: null, daysLeftInWeek: 7 });
-    expect(result.lines).toEqual(['A new week.', 'Nothing logged yet.']);
-    expect(result.greeting).toBe('Good morning, Ruixian. Here is your week so far.');
+describe('briefHeadline — greeting: sessions logged, goal not yet met', () => {
+  it('counts the sessions in and the days left, pluralizing both', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 6 });
+    expect(result.greeting).toBe(
+      'Good morning, Ruixian. One session in, and the week still has six days for the rest.'
+    );
   });
 
-  it('renders the session count when some sessions exist with no target', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: null, daysLeftInWeek: 7 });
-    expect(result.lines).toEqual(['Three sessions', 'this week.']);
+  it('uses singular "day" when exactly one day is left', () => {
+    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 3, target: 4, daysLeftInWeek: 1 });
+    expect(result.greeting).toBe(
+      'Good morning, Ruixian. Three sessions in, and today is the last day of the week.'
+    );
   });
 
-  it('uses singular "session" for a count of one with no target', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 1, target: null, daysLeftInWeek: 7 });
-    expect(result.lines[0]).toBe('One session');
-  });
-
-  it('names a new week when nothing is logged against a target', () => {
-    const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7 });
-    expect(result.lines).toEqual(['A new week.', 'Four sessions ahead.']);
-    expect(result.greeting).toBe('Good evening, Ruixian. Nothing is logged yet this week, and your goal is four sessions.');
-  });
-
-  it('treats a target of zero or less the same as no target', () => {
-    const result = briefHeadline({ period: 'MORNING', firstName: 'Ruixian', completed: 0, target: 0, daysLeftInWeek: 7 });
-    expect(result.lines).toEqual(['A new week.', 'Nothing logged yet.']);
+  it('also uses the last-day phrasing when zero days are left', () => {
+    const result = briefHeadline({ period: 'EVENING', firstName: 'Ruixian', completed: 3, target: 4, daysLeftInWeek: 0 });
+    expect(result.greeting).toBe(
+      'Good evening, Ruixian. Three sessions in, and today is the last day of the week.'
+    );
   });
 });
 
