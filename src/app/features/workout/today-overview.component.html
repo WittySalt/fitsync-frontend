@@ -1,69 +1,70 @@
 <section class="today-overview" aria-label="Guided workout today">
   @if (activePlan; as plan) {
     <article class="today-hero">
-      <div>
-        <span class="card-label">Today</span>
-        <h2>{{ plan.name }}</h2>
-        <p>
-          {{ formatLabel(plan.goalFocus) }} · {{ formatLabel(plan.difficulty) }} ·
-          {{ plan.estimatedDurationMinutes }} min
-        </p>
-      </div>
-      <button class="button workout" type="button" [disabled]="starting || !plan.planId" (click)="startToday()">
-        {{ starting ? 'Starting...' : 'Start today\'s session' }}
-      </button>
-    </article>
-
-    <section class="guided-card" aria-labelledby="today-moves-title">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Plan focus</span>
-          <h3 id="today-moves-title">Today's movement map</h3>
+      <div class="hero-top">
+        <div class="hero-copy">
+          <span class="hero-eyebrow">Today · {{ formatLabel(plan.goalFocus) }}</span>
+          <h2>{{ plan.name }}</h2>
+          <div class="hero-chips" aria-label="Plan summary">
+            <span class="hero-chip">{{ formatLabel(plan.difficulty) }}</span>
+            <span class="hero-chip">{{ plan.estimatedDurationMinutes }} min</span>
+            <span class="hero-chip">{{ sortedExercises().length }} {{ sortedExercises().length === 1 ? 'move' : 'moves' }}</span>
+          </div>
         </div>
+        <button class="hero-start" type="button" [disabled]="starting || !plan.planId" (click)="startToday()">
+          {{ starting ? 'Starting...' : 'Start today\'s session' }}
+        </button>
       </div>
+
       @if (sortedExercises().length) {
-        <div class="exercise-map">
+        <div class="hero-steps">
           @for (exercise of sortedExercises(); track exerciseKey(exercise)) {
             <button
-              class="exercise-step"
+              class="hero-step"
               type="button"
               [attr.aria-label]="'Start guided player at ' + exercise.exerciseNameSnapshot"
               (click)="startFromExercise(exercise)"
             >
-              <span>{{ exercise.sequence }}</span>
-              <div>
+              @if (thumbnailFor(exercise); as thumbnail) {
+                <img [src]="thumbnail" alt="" loading="lazy" />
+              } @else {
+                <span class="step-index">{{ exercise.sequence }}</span>
+              }
+              <div class="step-copy">
                 <strong>{{ exercise.exerciseNameSnapshot }}</strong>
                 <small>{{ exerciseTarget(exercise) }}</small>
                 @if (exercise.notes) {
                   <em>{{ exercise.notes }}</em>
                 }
               </div>
+              <span class="step-go" aria-hidden="true">›</span>
             </button>
           }
         </div>
       } @else {
-        <p class="empty-copy">This active plan has no exercises yet. Open Plans to add movements before starting.</p>
+        <p class="hero-empty-copy">This active plan has no exercises yet. Open Plans to add movements before starting.</p>
       }
-    </section>
 
-    <article class="guided-card compact">
-      <span class="card-label">Recent context</span>
-      @if (latestSession(); as session) {
-        <h3>{{ session.name }}</h3>
-        <p>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</p>
-      } @else {
-        <h3>No recent sessions yet</h3>
-        <p>Your first completed workout will appear here.</p>
-      }
+      <footer class="hero-context">
+        @if (latestSession(); as session) {
+          <span>Last session</span>
+          <strong>{{ session.name }}</strong>
+          <span>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</span>
+        } @else {
+          <span>Your first completed session will show up here — today is a good day to start.</span>
+        }
+      </footer>
     </article>
   } @else {
-    <article class="today-hero empty">
-      <div>
-        <span class="card-label">Coach setup</span>
-        <h2>Pick a plan for today</h2>
-        <p>Choose a starter template, activate it, and FitSync will make it your guided workout.</p>
+    <article class="today-hero setup">
+      <div class="hero-top">
+        <div class="hero-copy">
+          <span class="hero-eyebrow">Coach setup</span>
+          <h2>Pick a plan for today</h2>
+          <p class="hero-sub">Choose a starter template, activate it, and FitSync will make it your guided workout.</p>
+        </div>
+        <button class="hero-ghost" type="button" (click)="browsePlans.emit()">Browse all plans</button>
       </div>
-      <button class="button secondary" type="button" (click)="browsePlans.emit()">Browse all plans</button>
     </article>
 
     <app-plan-templates (planActivated)="templateActivated.emit($event)" />

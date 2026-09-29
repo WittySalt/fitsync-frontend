@@ -278,7 +278,25 @@
   }
 }
 
+// Today entry: guided hero on the left, quick start as a sticky side rail —
+// the guided path leads, the free-form path assists.
 .overview-panel {
   display: grid;
-  gap: 18px;
+  gap: 16px;
+  align-items: start;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+
+    > app-live-start-card {
+      position: sticky;
+      top: 16px;
+    }
+
+    // The guided player / live tracker replace the split and take the room.
+    > app-exercise-player,
+    > app-live-tracker {
+      grid-column: 1 / -1;
+    }
+  }
 }

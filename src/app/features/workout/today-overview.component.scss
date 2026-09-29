@@ -1,114 +1,242 @@
 .today-overview {
   display: grid;
   gap: 16px;
+}
 
-  .today-hero,
-  .guided-card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
+.today-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--gradient-hero);
+  color: var(--text-on-hero);
+  box-shadow: var(--shadow-glow);
+
+  // Soft energy glow in the corner; purely decorative.
+  &::after {
+    content: '';
+    position: absolute;
+    top: -45%;
+    right: -8%;
+    width: 380px;
+    height: 380px;
+    border-radius: var(--radius-full);
+    background: radial-gradient(circle, var(--hero-glow), transparent 65%);
+    pointer-events: none;
   }
 
-  .today-hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 18px;
-    padding: 20px;
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
 
-    h2,
-    p {
-      margin: 0;
-    }
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
 
-    h2 {
-      margin-top: 4px;
-      font-size: var(--text-4xl);
-      line-height: 1;
-    }
+.hero-copy {
+  min-width: 0;
 
-    p {
-      margin-top: 8px;
-      color: var(--text-secondary);
-      line-height: 1.55;
-    }
+  h2 {
+    margin: 6px 0 0;
+    font-size: var(--text-4xl);
+    line-height: 1.05;
+    color: var(--text-on-hero);
+  }
+}
 
-    &.empty {
-      background: var(--surface-tint);
-    }
+.hero-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-on-hero-muted);
+}
+
+.hero-sub {
+  margin: 10px 0 0;
+  max-width: 52ch;
+  color: var(--text-on-hero-muted);
+  line-height: 1.55;
+}
+
+.hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 11px;
+  border: 1px solid var(--hero-glass-border);
+  border-radius: var(--radius-full);
+  background: var(--hero-glass);
+  color: var(--text-on-hero);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.hero-start {
+  flex-shrink: 0;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: var(--green-800);
+  font: inherit;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow);
   }
 
-  .guided-card {
-    display: grid;
-    gap: 14px;
-    padding: 16px;
+  &:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+}
 
-    &.compact {
-      gap: 6px;
+.hero-ghost {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border: 1px solid var(--hero-glass-border);
+  border-radius: var(--radius-md);
+  background: var(--hero-glass);
+  color: var(--text-on-hero);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
 
-      h3,
-      p {
-        margin: 0;
-      }
+  &:hover {
+    background: var(--hero-glass-hover);
+  }
+}
 
-      p {
-        color: var(--text-secondary);
-      }
-    }
+.hero-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.hero-step {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid var(--hero-glass-border);
+  border-radius: var(--radius-md);
+  background: var(--hero-glass);
+  color: var(--text-on-hero);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--hero-glass-hover);
   }
 
-  .exercise-map {
-    display: grid;
-    gap: 10px;
+  img {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: var(--white);
+    object-fit: cover;
+  }
+}
+
+.step-index {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px dashed var(--hero-glass-border);
+  border-radius: var(--radius-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.step-copy {
+  min-width: 0;
+
+  strong,
+  small,
+  em {
+    display: block;
   }
 
-  .exercise-step {
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr);
-    gap: 12px;
-    align-items: center;
-    min-height: 74px;
-    padding: 12px;
-    text-align: left;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-    cursor: pointer;
-
-    > span {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border-radius: 999px;
-      color: var(--text-on-accent);
-      background: var(--accent);
-      font-weight: var(--fw-semibold);
-    }
-
-    strong,
-    small,
-    em {
-      display: block;
-    }
-
-    small,
-    em {
-      margin-top: 4px;
-      color: var(--text-secondary);
-    }
+  small,
+  em {
+    margin-top: 2px;
+    color: var(--text-on-hero-muted);
   }
+}
 
-  .empty-copy {
-    margin: 0;
-    color: var(--text-secondary);
+.step-go {
+  font-size: var(--text-4xl);
+  line-height: 1;
+  color: var(--text-on-hero-muted);
+}
+
+.hero-empty-copy {
+  margin: 0;
+  color: var(--text-on-hero-muted);
+}
+
+.hero-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  padding-top: 14px;
+  border-top: 1px solid var(--hero-glass-border);
+  color: var(--text-on-hero-muted);
+  font-size: var(--text-sm);
+
+  strong {
+    color: var(--text-on-hero);
   }
 }
 
 @media (max-width: 700px) {
-  .today-overview .today-hero {
+  .today-hero {
+    padding: 18px;
+  }
+
+  .hero-top {
     display: grid;
+  }
+
+  .hero-start,
+  .hero-ghost {
+    width: 100%;
+  }
+
+  .hero-step {
+    grid-template-columns: 40px minmax(0, 1fr);
+
+    img,
+    .step-index {
+      width: 40px;
+      height: 40px;
+    }
+  }
+
+  .step-go {
+    display: none;
   }
 }

@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
+import { Exercise, ExerciseDetail, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { TodayOverviewComponent } from './today-overview.component';
 
@@ -19,6 +19,17 @@ function exercise(overrides: Partial<Exercise> = {}): Exercise {
     difficulty: 'BEGINNER',
     status: 'ACTIVE',
     custom: false,
+    ...overrides
+  };
+}
+
+function exerciseDetail(overrides: Partial<ExerciseDetail> = {}): ExerciseDetail {
+  return {
+    ...exercise(),
+    images: [],
+    imageUrls: [],
+    instructions: [],
+    secondaryMuscleGroups: [],
     ...overrides
   };
 }
@@ -90,11 +101,13 @@ describe('TodayOverviewComponent', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'getExercises',
+      'getExercise',
       'createWorkoutPlan',
       'activateWorkoutPlan'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
     dataService.getExercises.and.returnValue(of([exercise()]));
+    dataService.getExercise.and.returnValue(of(null));
     dataService.createWorkoutPlan.and.returnValue(of(plan()));
     dataService.activateWorkoutPlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
 
@@ -155,7 +168,7 @@ describe('TodayOverviewComponent', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector<HTMLButtonElement>('.today-hero .button.workout')?.click();
+    compiled.querySelector<HTMLButtonElement>('.hero-start')?.click();
 
     expect(compiled.textContent).toContain('Strength base');
     expect(compiled.textContent).toContain('Push up');
@@ -210,9 +223,29 @@ describe('TodayOverviewComponent', () => {
     fixture.componentRef.setInput('sessions', []);
     fixture.detectChanges();
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.exercise-step')?.click();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.hero-step')?.click();
 
     expect(component.startExercise.emit).toHaveBeenCalledWith(activePlan.exercises[1]);
+  });
+
+  it('shows catalog thumbnails when available and numbered badges otherwise', () => {
+    // The thumbnail now rides on the plan itself. The component used to fetch every exercise's full
+    // detail to read one URL, which was one request per plan exercise.
+    const withThumbnail = plan();
+    const squat = withThumbnail.exercises.find((exercise) => exercise.exerciseId === 'exercise-1');
+    if (squat) {
+      squat.primaryImageUrl = 'http://media.local/back-squat.png';
+    }
+    const fixture = TestBed.createComponent(TodayOverviewComponent);
+    fixture.componentRef.setInput('activePlan', withThumbnail);
+    fixture.componentRef.setInput('sessions', []);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const steps = [...compiled.querySelectorAll('.hero-step')];
+    // Sequence 1 = Push up (no media -> numbered badge), sequence 2 = Back squat (thumbnail).
+    expect(steps[0].querySelector('.step-index')?.textContent?.trim()).toBe('1');
+    expect(steps[1].querySelector('img')?.getAttribute('src')).toBe('http://media.local/back-squat.png');
   });
 
   it('shows the template gallery and browse plans action when no active plan exists', () => {
@@ -223,7 +256,7 @@ describe('TodayOverviewComponent', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector<HTMLButtonElement>('.today-hero .button.secondary')?.click();
+    compiled.querySelector<HTMLButtonElement>('.hero-ghost')?.click();
 
     expect(compiled.textContent).toContain('Pick a plan for today');
     expect(compiled.querySelector('app-plan-templates')).not.toBeNull();

@@ -32,6 +32,7 @@
     background: var(--surface);
     box-shadow: var(--shadow-sm);
     cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
     span,
     small {
@@ -43,9 +44,15 @@
       font-weight: var(--fw-semibold);
     }
 
-    &.selected {
+    &:hover {
+      transform: translateY(-2px);
       border-color: var(--border-accent);
-      background: var(--surface-tint);
+    }
+
+    &.selected {
+      border-color: var(--accent);
+      background: var(--accent-subtle);
+      box-shadow: var(--shadow-sm);
     }
   }
 

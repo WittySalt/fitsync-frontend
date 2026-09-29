@@ -100,6 +100,7 @@ describe('WorkoutPage', () => {
       'upsertSessionSet',
       'completeSession',
       'cancelSession',
+      'getExercise',
       'getExerciseMetadata',
       'createExercise',
       'updateExercise',
@@ -113,6 +114,7 @@ describe('WorkoutPage', () => {
       'exportWorkoutData',
       'importSessions'
     ]);
+    dataService.getExercise.and.returnValue(of(null));
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     dataService.searchExercisesPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
