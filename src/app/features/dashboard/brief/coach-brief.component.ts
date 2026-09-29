@@ -79,9 +79,49 @@ export class CoachBriefComponent implements OnInit {
       firstName: this.firstName(),
       completed: this.completed(),
       target: this.weeklyTarget(),
-      daysLeftInWeek: this.daysLeftInWeek()
+      daysLeftInWeek: this.daysLeftInWeek(),
+      completedToday: this.completedToday(),
+      trainedYesterday: this.trainedYesterday(),
+      daysSinceLastSession: this.daysSinceLastSession()
     })
   );
+
+  // Today counts as completed only once it shows a trained session with real minutes; a day
+  // that is still open should never read as "done for today".
+  readonly completedToday = computed(() => {
+    const today = this.week().find((day) => day.state === 'today-trained');
+    return today != null && (today.minutes ?? 0) > 0;
+  });
+
+  // Yesterday's own week-strip entry is the source of truth when yesterday falls inside the
+  // current Monday-to-Sunday week; on a Monday, yesterday belongs to last week, so the weekly
+  // insight's per-muscle-group flag is the only place left to look.
+  readonly trainedYesterday = computed(() => {
+    const days = this.week();
+    const todayIndex = days.findIndex((day) => day.state === 'today-open' || day.state === 'today-trained');
+    if (todayIndex > 0) {
+      return days[todayIndex - 1].state === 'trained';
+    }
+    const insight = this.insight();
+    return insight != null && insight.muscleGroups.some((group) => group.trainedYesterday);
+  });
+
+  // The most recent last-trained date across every muscle group, compared with today's calendar
+  // date in the user's timezone. Null when the insight has not loaded or no group has ever trained.
+  readonly daysSinceLastSession = computed<number | null>(() => {
+    const insight = this.insight();
+    if (!insight) {
+      return null;
+    }
+    const dates = insight.muscleGroups
+      .map((group) => group.lastTrainedOn)
+      .filter((date): date is string => date != null);
+    if (!dates.length) {
+      return null;
+    }
+    const latest = dates.reduce((a, b) => (a > b ? a : b));
+    return this.daysBetweenKeys(latest, this.todayDateKey());
+  });
 
   readonly quickQuestionList = computed(() => quickQuestions(this.period(), this.caloriesTarget()));
 
@@ -206,6 +246,28 @@ export class CoachBriefComponent implements OnInit {
         // An upcoming day has no caption. The stylesheet keeps the line's height.
         return '';
     }
+  }
+
+  /** Today's calendar-day key in the user's timezone, in the same YYYY-MM-DD shape the weekly
+   *  insight uses for lastTrainedOn, so the two can be compared as plain strings. */
+  private todayDateKey(): string {
+    const timezone = this.timezone();
+    try {
+      return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: timezone }).format(
+        this.now()
+      );
+    } catch {
+      return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(this.now());
+    }
+  }
+
+  /** Whole calendar days between two YYYY-MM-DD keys (to minus from), treated as UTC dates so the
+   *  arithmetic never shifts across a timezone boundary. */
+  private daysBetweenKeys(fromKey: string, toKey: string): number {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const from = new Date(`${fromKey}T00:00:00Z`).getTime();
+    const to = new Date(`${toKey}T00:00:00Z`).getTime();
+    return Math.round((to - from) / msPerDay);
   }
 
   private daysLeftInWeek(): number {

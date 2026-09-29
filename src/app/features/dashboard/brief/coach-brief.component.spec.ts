@@ -175,7 +175,7 @@ describe('CoachBriefComponent', () => {
     expect(element.querySelector('app-muscle-wheel')).toBeNull();
     expect(element.querySelector('app-coach-noticed')).toBeNull();
     expect(element.querySelector('.panel-number')?.textContent?.replace(/\s+/g, '')).toBe('4/4');
-    expect(element.querySelector('.headline')?.textContent).toContain('Four of four.');
+    expect(element.querySelector('.headline')?.textContent).toContain('Four for four!');
   });
 
   it('names the panel after the training when no group belongs to a plan', () => {
@@ -202,9 +202,9 @@ describe('CoachBriefComponent', () => {
     expect(strip?.getAttribute('aria-label')).toContain('today open');
     expect(strip?.getAttribute('aria-label')).toContain('Tue rest');
   });
-  it('renders "Four of four." for 4 completed sessions against a target of 4', () => {
+  it('renders "Four for four!" for 4 completed sessions against a target of 4', () => {
     setup();
-    expect(pageText()).toContain('Four of four.');
+    expect(pageText()).toContain('Four for four!');
   });
 
   it('renders seven day columns in the week strip', () => {
@@ -289,6 +289,52 @@ describe('CoachBriefComponent', () => {
 
     expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1');
     expect(router.navigate).toHaveBeenCalledWith(['/workout'], { queryParams: { tab: 'history', status: 'IN_PROGRESS' } });
+  });
+
+  it('leaves completedToday false when today has not been trained yet', () => {
+    setup();
+    expect(fixture.componentInstance.completedToday()).toBe(false);
+  });
+
+  it('sets completedToday when today\'s week-strip entry shows real minutes', () => {
+    dataService.getWorkoutSessionsInRange.and.returnValue(
+      of([
+        ...fourCompletedSessions,
+        session({ sessionId: 's5', workoutType: 'STRENGTH', durationMinutes: 40, completedAt: '2026-09-27T00:05:00Z', startedAt: '2026-09-26T23:00:00Z' })
+      ])
+    );
+    setup();
+    expect(fixture.componentInstance.completedToday()).toBe(true);
+  });
+
+  it('reads trainedYesterday from the week strip when yesterday falls inside the current week', () => {
+    setup();
+    // NOW is Sunday; Saturday (yesterday) carries session s4 in fourCompletedSessions.
+    expect(fixture.componentInstance.trainedYesterday()).toBe(true);
+  });
+
+  it('falls back to the weekly insight for trainedYesterday when yesterday is outside the current week', () => {
+    TestBed.overrideProvider(BRIEF_NOW, { useValue: () => new Date('2026-09-28T00:10:00Z') }); // Monday 08:10 SGT
+    dataService.getWeeklyTrainingInsight.and.returnValue(
+      of({
+        ...weeklyInsight,
+        muscleGroups: weeklyInsight.muscleGroups.map((entry) => ({ ...entry, trainedYesterday: entry.muscleGroup === 'CORE' }))
+      })
+    );
+    setup();
+    expect(fixture.componentInstance.trainedYesterday()).toBe(true);
+  });
+
+  it('computes daysSinceLastSession from the latest lastTrainedOn across muscle groups', () => {
+    setup();
+    // The latest lastTrainedOn in weeklyInsight is 2026-09-26; NOW is 2026-09-27 in Singapore.
+    expect(fixture.componentInstance.daysSinceLastSession()).toBe(1);
+  });
+
+  it('leaves daysSinceLastSession null when the weekly insight has not loaded', () => {
+    dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('offline')));
+    setup();
+    expect(fixture.componentInstance.daysSinceLastSession()).toBeNull();
   });
 
   function pageText(): string {
