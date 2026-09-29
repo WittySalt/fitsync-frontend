@@ -21,7 +21,7 @@
     align-content: center;
     gap: 4px;
     padding: 18px;
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
     border-radius: var(--radius-md);
     background: var(--surface);
     box-shadow: var(--shadow-sm);
@@ -35,18 +35,6 @@
       font-size: 28px;
       line-height: 1.1;
     }
-  }
-
-  .training-metric.green {
-    border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
-  }
-
-  .training-metric.blue {
-    border-color: color-mix(in srgb, var(--blue-500) 28%, var(--border));
-  }
-
-  .training-metric.orange {
-    border-color: color-mix(in srgb, var(--amber-500) 32%, var(--border));
   }
 
   .workout-tabs {

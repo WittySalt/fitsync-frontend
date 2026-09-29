@@ -231,6 +231,7 @@ describe('InsightPanelComponent', () => {
     expect(link.getAttribute('aria-expanded')).toBe('true');
     expect(text('.working-link')).toBe('Hide the working');
     expect(text('.working-period')).toBe('Measured from 21 Sept to 27 Sept.');
+    expect(text('.eyebrow-period')).toBe('21 to 27 Sept');
     expect(text('.working-list li:first-child strong')).toBe('Weight moved per session');
     expect(text('.working-list li:first-child .working-text > span')).toBe('1,923 kg, 1,716 kg the week before');
   });

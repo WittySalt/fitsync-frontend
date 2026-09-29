@@ -9,8 +9,8 @@
   gap: 16px;
 }
 
-// Side-rail proportions next to the guided hero: short heading, workout-blue
-// domain accents, and a full-width mode switch — the assisting path, not a
+// Side-rail proportions next to the guided hero: short heading, the accent
+// green, and a full-width mode switch — the assisting path, not a
 // second hero.
 .live-start-card .section-title h2 {
   margin: 4px 0 0;
@@ -18,7 +18,7 @@
 }
 
 .live-start-card .card-label {
-  color: var(--workout-text);
+  color: var(--accent-text);
 }
 
 .rail-sub {
@@ -50,11 +50,11 @@
     }
 
     &.active {
-      background: var(--workout-subtle);
-      color: var(--workout-text);
+      background: var(--accent-subtle);
+      color: var(--accent-text);
 
       small {
-        color: var(--workout-text);
+        color: var(--accent-text);
       }
     }
   }
@@ -65,7 +65,7 @@
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-glow-workout);
+    box-shadow: var(--shadow-glow);
   }
 }
 

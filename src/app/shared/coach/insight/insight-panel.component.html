@@ -12,7 +12,12 @@
         </svg>
       </span>
       <div class="folded-text">
-        <span class="eyebrow-dark">Your coach's reading</span>
+        <span class="eyebrow-group">
+          <span class="eyebrow-dark">Your coach's reading</span>
+          @if (periodRange()) {
+            <span class="eyebrow-period">{{ periodRange() }}</span>
+          }
+        </span>
         <h2 class="folded-headline" [id]="headingId()">{{ headline() }}</h2>
       </div>
       <button type="button" class="light-button" (click)="open()">
@@ -39,7 +44,12 @@
                     <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"></path>
                   </svg>
                 </span>
-                <span class="eyebrow-dark">Your coach's reading</span>
+                <span class="eyebrow-group">
+                  <span class="eyebrow-dark">Your coach's reading</span>
+                  @if (periodRange()) {
+                    <span class="eyebrow-period">{{ periodRange() }}</span>
+                  }
+                </span>
               </div>
               <div class="reading-meta">
                 <span class="written">{{ writtenLabel() }}</span>

@@ -11,12 +11,7 @@
 
   <section class="metric-strip" aria-label="Training summary">
     @for (metric of metrics(); track metric.label) {
-      <article
-        class="training-metric"
-        [class.green]="metric.tone === 'green'"
-        [class.blue]="metric.tone === 'blue'"
-        [class.orange]="metric.tone === 'orange'"
-      >
+      <article class="training-metric">
         <span>{{ metric.label }}</span>
         <strong>{{ metric.value }}</strong>
         <small>{{ metric.detail }}</small>

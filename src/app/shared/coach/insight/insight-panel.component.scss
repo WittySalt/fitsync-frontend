@@ -138,8 +138,23 @@
   color: var(--insight-ink-soft);
 }
 
+// The title and the days it covers. The days drop to a second line when the panel is narrow.
+.eyebrow-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-width: 0;
+}
+
+.eyebrow-period {
+  color: var(--slate-300);
+}
+
 .eyebrow,
-.eyebrow-dark {
+.eyebrow-dark,
+.eyebrow-period {
   font-size: 12px;
   font-weight: var(--fw-bold);
   letter-spacing: 0.1em;

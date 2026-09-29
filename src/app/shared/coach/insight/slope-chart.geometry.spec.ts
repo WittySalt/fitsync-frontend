@@ -1,5 +1,5 @@
 import { LiftProgress } from '../../../core/coach/coach.models';
-import { changeText, formatKg, shortDate, shortName, slopeChart, spreadLabels } from './slope-chart.geometry';
+import { changeText, dateRange, formatKg, shortDate, shortName, slopeChart, spreadLabels } from './slope-chart.geometry';
 
 const lifts: LiftProgress[] = [
   { exerciseName: 'Dumbbell Bench Press', fromKg: 20, fromDate: '2026-09-13', toKg: 22.5, toDate: '2026-09-25' },
@@ -24,6 +24,14 @@ describe('slope chart geometry', () => {
     expect(shortDate('2026-09-16')).toBe('16 Sept');
     expect(shortDate('2026-10-01')).toBe('1 Oct');
     expect(shortDate('yesterday')).toBe('');
+  });
+
+  it('writes a range of days as one phrase', () => {
+    expect(dateRange('2026-09-21', '2026-09-27')).toBe('21 to 27 Sept');
+    expect(dateRange('2026-09-28', '2026-10-04')).toBe('28 Sept to 4 Oct');
+    expect(dateRange('2026-09-28', '2026-09-28')).toBe('28 Sept');
+    expect(dateRange(null, '2026-09-28')).toBe('');
+    expect(dateRange('soon', '2026-09-28')).toBe('');
   });
 
   it('describes the change as a percentage of the starting weight', () => {

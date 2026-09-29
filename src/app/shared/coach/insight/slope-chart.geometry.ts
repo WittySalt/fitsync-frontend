@@ -63,6 +63,24 @@ export function shortDate(key: string): string {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date).replace(/\bSep\b/, 'Sept');
 }
 
+/**
+ * The days between two date keys as one phrase: "21 to 27 Sept" inside a month, "28 Sept to 4 Oct"
+ * across two, and "28 Sept" for a single day. Empty when either key is not a date.
+ */
+export function dateRange(from: string | null, to: string | null): string {
+  const start = from ? shortDate(from) : '';
+  const end = to ? shortDate(to) : '';
+  if (!start || !end) {
+    return '';
+  }
+  if (start === end) {
+    return start;
+  }
+  const [startDay, startMonth] = start.split(' ');
+  const [, endMonth] = end.split(' ');
+  return startMonth === endMonth ? `${startDay} to ${end}` : `${start} to ${end}`;
+}
+
 export function changeText(from: number, to: number): string {
   if (from <= 0 || to === from) {
     return '';
