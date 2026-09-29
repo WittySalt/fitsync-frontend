@@ -1,3 +1,6 @@
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { CoachApiService } from '../../core/coach/coach-api.service';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -71,6 +74,10 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
     ...overrides
   };
 }
+
+// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
+// renders without a request that these specs never asked for.
+const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
 
 describe('WorkoutPage', () => {
   let component: WorkoutPage;
@@ -155,7 +162,14 @@ describe('WorkoutPage', () => {
 
     await TestBed.configureTestingModule({
       imports: [WorkoutPage],
-      providers: [provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }]
+      providers: [
+        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CoachApiService, useValue: coachApiStub },
+        // The page reads an optional ?tab= on init; these specs land on the default.
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
+        provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }]
     }).compileComponents();
 
     component = TestBed.createComponent(WorkoutPage).componentInstance;

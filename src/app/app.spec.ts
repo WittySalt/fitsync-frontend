@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -33,6 +35,9 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        // The shell mounts the coach dock, whose store reaches HttpClient through the API client.
+        provideHttpClient(),
+        provideHttpClientTesting(),
         provideRouter([]),
         { provide: AuthService, useValue: authService },
         { provide: AccountDataService, useValue: accountDataService }

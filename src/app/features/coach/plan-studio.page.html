@@ -1,0 +1,139 @@
+<div class="page-grid studio-page">
+  <header class="page-header compact">
+    <div>
+      <p class="eyebrow">Coach</p>
+      <h1>Plan Studio</h1>
+      <p>A generated session, checked against your catalogue and your constraints before you see it. Accepting makes it real.</p>
+    </div>
+    <a class="button secondary" routerLink="/workout">Workout page</a>
+  </header>
+
+  <div class="studio-layout">
+    <aside class="studio-side" aria-label="Your drafts">
+      <form class="build" (submit)="$event.preventDefault(); build()">
+        <label for="studio-request">What do you want today?</label>
+        <input
+          id="studio-request"
+          type="text"
+          [value]="request()"
+          (input)="request.set($any($event.target).value)"
+          placeholder="e.g. chest and back, I have a barbell"
+          autocomplete="off"
+          [disabled]="building()"
+        />
+        <button class="button primary" type="submit" [disabled]="building()">
+          {{ building() ? 'Drafting…' : 'Build a session' }}
+        </button>
+        <p class="hint">Leave it blank for a session that fits what you did yesterday and what you train with.</p>
+      </form>
+
+      <p class="side-cap">Open drafts</p>
+      @if (openDrafts().length) {
+        <ul class="draft-list">
+          @for (draft of openDrafts(); track draft.artifactId) {
+            <li>
+              <button type="button" [class.active]="selected()?.artifactId === draft.artifactId" (click)="open(draft.artifactId)">
+                <strong>{{ draft.session.title }}</strong>
+                <span>{{ draft.session.estimatedMinutes }} min · {{ draft.session.exercises.length }} exercises</span>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else if (store.draftsLoadedAt()) {
+        <p class="hint">Nothing waiting. Build one above, or ask the coach for one.</p>
+      }
+
+      @if (decidedDrafts().length) {
+        <p class="side-cap">Decided</p>
+        <ul class="draft-list muted">
+          @for (draft of decidedDrafts(); track draft.artifactId) {
+            <li>
+              <button type="button" [class.active]="selected()?.artifactId === draft.artifactId" (click)="open(draft.artifactId)">
+                <strong>{{ draft.session.title }}</strong>
+                <span>{{ draft.status === 'ACCEPTED' ? 'accepted' : 'set aside' }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+
+    <section class="studio-main">
+      @if (error(); as message) {
+        <app-state-panel title="Plan Studio" [message]="message" [error]="true" />
+      }
+
+      @if (loading()) {
+        <div class="summary-card skeleton tall"></div>
+      } @else if (selected(); as draft) {
+        <article class="studio" [class.decided]="draft.status !== 'DRAFT'">
+          <header class="studio-head">
+            <div class="row">
+              <h2>{{ draft.session.title }}</h2>
+              <span class="meta">{{ sourceLabel(draft.source) }}</span>
+            </div>
+            <p>
+              Estimated {{ draft.session.estimatedMinutes }} min · {{ draft.session.exercises.length }} exercises ·
+              @if (draft.status === 'DRAFT') {
+                draft, not yet in your data
+              } @else if (draft.status === 'ACCEPTED') {
+                accepted, now a real plan
+              } @else {
+                set aside
+              }
+            </p>
+            @if (draft.session.summary) {
+              <p class="summary">{{ draft.session.summary }}</p>
+            }
+          </header>
+
+          <ol class="exercises">
+            @for (exercise of draft.session.exercises; track exercise.exerciseId; let i = $index) {
+              <li class="ex">
+                <span class="idx">{{ i + 1 }}</span>
+                <div class="body">
+                  <div class="nm">{{ exercise.name }}</div>
+                  <div class="spec">{{ volume(exercise.sets, exercise.reps, exercise.seconds, exercise.restSeconds) }}</div>
+                  @if (exercise.rationale) {
+                    <div class="why">{{ exercise.rationale }}</div>
+                  }
+                </div>
+              </li>
+            }
+          </ol>
+
+          <div class="checks" aria-label="What the validator checked">
+            @for (check of checks(draft); track check) {
+              <span class="k" [class.note]="check.startsWith('corrected')">{{ check }}</span>
+            }
+          </div>
+
+          <footer class="studio-foot">
+            @if (draft.status === 'DRAFT') {
+              <button class="button primary" type="button" [disabled]="accepting()" (click)="accept(draft)">
+                {{ accepting() ? 'Starting…' : 'Start this session' }}
+              </button>
+              <button class="button secondary" type="button" [disabled]="accepting()" (click)="reject(draft, 'Not for me today')">Not for me</button>
+            } @else if (draft.status === 'ACCEPTED') {
+              <div class="accepted">
+                <b>Session started.</b>
+                The draft became a real plan and a running session in your workout data.
+                <a routerLink="/workout">Open the Workout page</a>
+              </div>
+            } @else {
+              <div class="accepted muted">
+                <b>Set aside.</b>
+                @if (draft.rejectionReason) { Reason kept: “{{ draft.rejectionReason }}”. } @else { No reason given. }
+              </div>
+            }
+          </footer>
+        </article>
+      } @else {
+        <app-state-panel
+          title="No draft selected"
+          message="Build a session on the left, or ask the coach in the dock and open the draft it offers."
+        />
+      }
+    </section>
+  </div>
+</div>

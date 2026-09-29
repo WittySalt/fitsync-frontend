@@ -9,5 +9,5 @@ coverage/
 .DS_Store
 memory.md
 
-# Local editor/agent tooling, not part of the app
+# Local agent tooling (launch configs); never part of the product
 .claude/
