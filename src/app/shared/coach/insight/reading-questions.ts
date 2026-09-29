@@ -46,7 +46,11 @@ function nextLiftQuestion(facts: ReadingFact[]): ReadingQuestion | null {
 /** A beat-the-record question, from a personal record fact. */
 function beatRecordQuestion(facts: ReadingFact[]): ReadingQuestion | null {
   const fact = facts.find((f) => f.key === 'RECORD');
-  return fact ? { text: 'What would beat this record?', makesDraft: false } : null;
+  if (!fact) {
+    return null;
+  }
+  const named = / record$/.test(fact.label);
+  return { text: named ? `What would beat my ${fact.label}?` : 'What would beat this record?', makesDraft: false };
 }
 
 /**
