@@ -369,6 +369,23 @@ describe('FitSyncDataService', () => {
     request.flush({});
   });
 
+  it('sends the current weight as the target when the goal asks for no target', () => {
+    service
+      .saveOnboarding({
+        ...baseOnboarding,
+        primaryGoal: 'MAINTAIN',
+        currentWeightKg: 71.5,
+        targetWeightKg: null,
+        targetWeightLb: null
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/users/me/onboarding');
+    expect(request.request.body.currentWeightKg).toBe(71.5);
+    expect(request.request.body.targetWeightKg).toBe(71.5);
+    request.flush({});
+  });
+
   it('builds an onboarding seed that normalizes backend enum codes and existing goals', () => {
     let seed: OnboardingSeed | undefined;
     service.getOnboardingSeed().subscribe((value) => (seed = value));

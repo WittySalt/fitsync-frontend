@@ -1348,7 +1348,9 @@ export class FitSyncDataService {
 
     const heightCm = this.getOnboardingHeightCm(value);
     const currentWeightKg = this.getOnboardingCurrentWeightKg(value);
-    const targetWeightKg = this.getOnboardingTargetWeightKg(value);
+    // Maintaining weight and improving fitness ask for no target, and the form leaves it empty.
+    // The server requires one, and for these goals the target is the weight the user has now.
+    const targetWeightKg = this.getOnboardingTargetWeightKg(value) ?? currentWeightKg;
 
     const healthReadiness = value.parqAcknowledged
       ? {
