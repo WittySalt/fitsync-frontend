@@ -1,9 +1,11 @@
-import { Component, ElementRef, HostListener, ViewChild, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
-import { Recommendation } from '../../core/coach/coach.models';
+import { CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
 import { CoachTraceComponent } from './coach-trace.component';
+import { ReadingQuestion, questionsFor } from './insight/reading-questions';
+import { ReadingSegment, readingSegments, withoutCitations } from './insight/reading-text';
 import { RecommendationCardComponent } from './recommendation-card.component';
 
 /**
@@ -39,15 +41,54 @@ import { RecommendationCardComponent } from './recommendation-card.component';
             <button type="button" class="tgl close" (click)="store.close()" aria-label="Close the coach">×</button>
           </div>
           <p class="looking">
-            Looking at <b>{{ store.surface().label }}</b>
-            @if (store.inlineRecommendations().length) {
-              · {{ store.inlineRecommendations().length }} {{ store.inlineRecommendations().length === 1 ? 'insight' : 'insights' }}
+            @if (store.pinnedReading()) {
+              Looking at <b>{{ store.surface().label }}</b> · one reading pinned
+            } @else {
+              Looking at <b>{{ store.surface().label }}</b>
+              @if (store.inlineRecommendations().length) {
+                · {{ store.inlineRecommendations().length }} {{ store.inlineRecommendations().length === 1 ? 'insight' : 'insights' }}
+              }
             }
           </p>
         </div>
 
         <div class="feed" #feed>
-          @if (!store.turns().length && !store.pendingQuestion()) {
+          @if (store.pinnedReading(); as pinned) {
+            <section class="pinned" aria-label="The reading you are asking about">
+              <div class="pinned-top">
+                <span class="pinned-label">You are asking about</span>
+                <button type="button" class="pinned-release" (click)="store.letGoOfReading()">Let go of it</button>
+              </div>
+              <h3 class="pinned-headline">{{ pinnedHeadline(pinned) }}</h3>
+              <div class="pinned-facts">
+                @for (fact of pinned.facts; track fact.number) {
+                  <span class="pinned-chip" [title]="chipLabel(fact)" [attr.aria-label]="chipLabel(fact)">
+                    <span class="pinned-chip-number">{{ fact.number }}</span>
+                    <span class="pinned-chip-value">{{ fact.value }} {{ fact.unit }}</span>
+                  </span>
+                }
+              </div>
+            </section>
+
+            @if (!store.turns().length && !store.pendingQuestion()) {
+              <div class="follow-ups">
+                <span class="follow-heading">Questions that follow from it</span>
+                @for (q of questions(); track q.text) {
+                  <button type="button" class="follow-q" (click)="askFollowUp(q)" [disabled]="store.status() === 'answering'">
+                    <span>{{ q.text }}</span>
+                    @if (q.makesDraft) {
+                      <span class="draft-pill">Makes a draft</span>
+                    }
+                    <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6"></path>
+                    </svg>
+                  </button>
+                }
+              </div>
+            }
+          }
+
+          @if (!store.pinnedReading() && !store.turns().length && !store.pendingQuestion()) {
             @for (rec of store.orderedRecommendations(); track rec.type) {
               <app-recommendation-card [recommendation]="rec" (ask)="askAbout($event)" />
             }
@@ -62,7 +103,7 @@ import { RecommendationCardComponent } from './recommendation-card.component';
                 <div class="turn-q">{{ turn.content }}</div>
               } @else if (turn.role === 'ASSISTANT') {
                 <div class="turn-a">
-                  <p>{{ turn.content }}</p>
+                  <p>@if (citedReading(turn); as citedFrom) {@for (segment of citedSegments(turn, citedFrom); track $index) {@if (segment.kind === 'text') {<span>{{ segment.text }}</span>} @else {<span class="cite-badge" [attr.aria-label]="'fact ' + segment.number">{{ segment.number }}</span>}}} @else {<span>{{ uncitedAnswer(turn) }}</span>}</p>
                   <app-coach-trace [turn]="turn" />
                 </div>
               }
@@ -122,7 +163,7 @@ import { RecommendationCardComponent } from './recommendation-card.component';
               type="text"
               [value]="draft()"
               (input)="draft.set(input.value)"
-              placeholder="Ask, or ask it to build something…"
+              [placeholder]="store.pinnedReading() ? 'Ask about this reading' : 'Ask, or ask it to build something…'"
               autocomplete="off"
               aria-label="Ask the coach"
               [disabled]="store.status() === 'answering'"
@@ -141,6 +182,20 @@ import { RecommendationCardComponent } from './recommendation-card.component';
     `
       :host {
         display: contents;
+        /* The citation badge sits on the turn bubble, whose background is var(--surface) and so
+           already flips with the theme. Translated from the insight panel's own badge tokens. */
+        --dock-badge: var(--slate-900);
+        --dock-badge-ink: var(--white);
+      }
+      :host-context([data-theme='dark']) {
+        --dock-badge: var(--slate-100);
+        --dock-badge-ink: var(--slate-900);
+      }
+      @media (prefers-color-scheme: dark) {
+        :host-context(:root:not([data-theme='light'])) {
+          --dock-badge: var(--slate-100);
+          --dock-badge-ink: var(--slate-900);
+        }
       }
       .mark {
         width: 22px;
@@ -251,6 +306,172 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         display: flex;
         flex-direction: column;
         gap: 9px;
+      }
+      .pinned {
+        box-sizing: border-box;
+        border-radius: 18px;
+        background: linear-gradient(145deg, var(--slate-900) 0%, var(--slate-900) 62%, var(--green-900) 100%);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .pinned-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .pinned-label {
+        font-size: 12px;
+        font-weight: var(--fw-bold);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--green-400);
+      }
+      .pinned-release {
+        min-height: 44px;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        color: var(--slate-300);
+        font-size: 12px;
+        font-weight: var(--fw-semibold);
+        padding: 0 2px;
+        margin: -14px -2px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .pinned-release:hover {
+        color: var(--white);
+      }
+      .pinned-headline {
+        margin: 0;
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 20px;
+        line-height: 1.25;
+        color: var(--white);
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+      }
+      /* Two equal columns, so the chips line up whatever their values are. The dock is too
+         narrow for four in a row. */
+      .pinned-facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .pinned-chip {
+        min-height: 34px;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 0 10px 0 4px;
+        border-radius: var(--radius-full);
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--slate-200);
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+      .pinned-chip-number {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+        color: var(--white);
+        font-size: 11px;
+        font-weight: var(--fw-bold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .pinned-chip-value {
+        min-width: 0;
+        color: var(--white);
+        font-weight: var(--fw-bold);
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      .follow-ups {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .follow-heading {
+        font-size: 12px;
+        font-weight: var(--fw-bold);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+      .follow-q {
+        min-height: 52px;
+        box-sizing: border-box;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        color: var(--text-primary);
+        font: inherit;
+        font-size: 15px;
+        font-weight: var(--fw-medium);
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+      }
+      .follow-q:hover:not(:disabled) {
+        border-color: var(--accent);
+      }
+      .follow-q:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .follow-q span:first-child {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .follow-q .chevron {
+        flex: none;
+        color: var(--text-muted);
+      }
+      .draft-pill {
+        flex: none;
+        height: 22px;
+        box-sizing: border-box;
+        padding: 0 8px;
+        border-radius: var(--radius-full);
+        background: var(--accent-subtle);
+        border: 1px solid var(--border-accent);
+        color: var(--accent-text);
+        font-size: 11px;
+        font-weight: var(--fw-bold);
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+      }
+      .cite-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin: 0 0 0 4px;
+        border-radius: 50%;
+        background: var(--dock-badge);
+        color: var(--dock-badge-ink);
+        font-size: 11px;
+        font-weight: var(--fw-bold);
+        line-height: 1;
+        vertical-align: 2px;
+        font-variant-numeric: tabular-nums;
       }
       .empty {
         margin: 0;
@@ -397,8 +618,8 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         color: var(--accent-text);
       }
       .sugg.gen {
-        border-color: color-mix(in srgb, var(--amber-500) 50%, var(--border));
-        color: var(--amber-500);
+        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+        color: var(--accent-text);
       }
       .sugg:disabled {
         opacity: 0.6;
@@ -441,6 +662,11 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         color: var(--text-muted);
         line-height: 1.45;
         margin: 8px 0 0;
+      }
+      .pinned-release:focus-visible,
+      .follow-q:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
       }
       @media (max-width: 640px) {
         .dock {
@@ -512,6 +738,44 @@ export class CoachDockComponent {
   /** A card's "Ask about this": pre-fill the composer with the card as subject, do not send. */
   protected askAbout(recommendation: Recommendation): void {
     this.store.askAbout(recommendation);
+  }
+
+  /** The questions that follow from the pinned reading, or none when nothing is pinned. */
+  protected readonly questions = computed<ReadingQuestion[]>(() => {
+    const reading = this.store.pinnedReading();
+    return reading ? questionsFor(reading) : [];
+  });
+
+  /** A follow-up question: the drafting path for one that builds a session, the chat loop otherwise. */
+  protected askFollowUp(question: ReadingQuestion): void {
+    if (question.makesDraft) {
+      this.store.buildSession(question.text);
+    } else {
+      this.store.ask(question.text);
+    }
+  }
+
+  /** The pinned card's headline, or a fallback for a reading that is facts only. */
+  protected pinnedHeadline(reading: CoachReading): string {
+    return reading.reading?.headline || "This week's measured facts";
+  }
+
+  protected chipLabel(fact: CoachReading['facts'][number]): string {
+    return `fact ${fact.number}: ${fact.label}, ${fact.value} ${fact.unit}`;
+  }
+
+  /** The reading this turn's answer was grounded in, if the server cited one, for badge rendering. */
+  protected citedReading(turn: CoachTurn): CoachReading | null {
+    return this.store.citedTurns().get(turn.turnId) ?? null;
+  }
+
+  protected citedSegments(turn: CoachTurn, reading: CoachReading): ReadingSegment[] {
+    return readingSegments(turn.content, reading.facts.length);
+  }
+
+  /** An answer the server did not cite: markers are stripped so a stray `[2]` never shows as text. */
+  protected uncitedAnswer(turn: CoachTurn): string {
+    return withoutCitations(turn.content);
   }
 
   @HostListener('document:keydown', ['$event'])

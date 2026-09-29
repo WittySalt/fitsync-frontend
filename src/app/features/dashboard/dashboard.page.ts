@@ -7,11 +7,11 @@ import { ActivityHeatmapComponent } from '../progress/activity-heatmap.component
 import { ProgressRingComponent } from '../../shared/progress-ring.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { caloriesLabel, sessionDurationLabel } from '../workout/workout-session.util';
-import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
+import { CoachBriefComponent } from './brief/coach-brief.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [CoachAnchorComponent, ActivityHeatmapComponent, ProgressRingComponent, RouterLink, StatePanelComponent],
+  imports: [CoachBriefComponent, ActivityHeatmapComponent, ProgressRingComponent, RouterLink, StatePanelComponent],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss'
 })
@@ -24,11 +24,6 @@ export class DashboardPage implements OnInit {
   readonly nutritionSummary = signal<NutritionSummary | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  readonly today = new Intl.DateTimeFormat('en-SG', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric'
-  }).format(new Date());
 
   readonly caloriePercent = computed(() => {
     const nutrition = this.nutritionSummary();

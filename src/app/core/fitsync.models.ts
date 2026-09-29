@@ -498,6 +498,39 @@ export interface WorkoutPlanRequest {
   exercises: WorkoutPlanExerciseInput[];
 }
 
+export type MuscleGroupCode = 'FULL_BODY' | 'CHEST' | 'BACK' | 'SHOULDERS' | 'ARMS' | 'CORE' | 'GLUTES' | 'LEGS' | 'CARDIO';
+
+export interface MuscleGroupInsight {
+  muscleGroup: MuscleGroupCode;
+  sessionsThisWeek: number;
+  inActivePlan: boolean;
+  trainedYesterday: boolean;
+  lastTrainedOn: string | null; // YYYY-MM-DD
+  consecutiveSessions: number;
+  exerciseNames: string[];
+}
+
+export interface WeeklyVolume {
+  thisWeekKg: number;
+  previousWeekKg: number;
+  weekBeforePreviousKg: number;
+  thisWeekSessionsWithVolume: number;
+  previousWeekSessionsWithVolume: number;
+}
+
+export interface WeeklyTrainingInsight {
+  timezone: string;
+  referenceDate: string;
+  weekStart: string;
+  weekEnd: string;
+  completedSessions: number;
+  totalMinutes: number;
+  previousWeekCompletedSessions: number;
+  previousWeekTotalMinutes: number;
+  muscleGroups: MuscleGroupInsight[];
+  volume: WeeklyVolume;
+}
+
 export interface FoodSearchResult {
   foodId: string | null;
   displayName: string;

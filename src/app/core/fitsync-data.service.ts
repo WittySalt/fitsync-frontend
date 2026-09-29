@@ -39,6 +39,8 @@ import {
   MealTemplate,
   MealTemplateItem,
   MealFormValue,
+  MuscleGroupCode,
+  MuscleGroupInsight,
   QuickAddMealValue,
   WorkoutSessionFormValue,
   Meal,
@@ -62,7 +64,8 @@ import {
   WorkoutSessionDetail,
   WorkoutSessionPage,
   WorkoutSessionQuery,
-  UpdateExerciseRequest
+  UpdateExerciseRequest,
+  WeeklyTrainingInsight
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -124,6 +127,33 @@ function goalEvaluationTime(goal: Goal): number {
 
   const timestamp = Date.parse(goal.lastEvaluatedAt);
   return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
+const MUSCLE_GROUP_CODES: MuscleGroupCode[] = [
+  'FULL_BODY', 'CHEST', 'BACK', 'SHOULDERS', 'ARMS', 'CORE', 'GLUTES', 'LEGS', 'CARDIO'
+];
+
+/** Coerces a backend count/measurement to a finite number, defaulting missing or invalid values
+ *  to zero rather than letting NaN or null leak into the coach's arithmetic. */
+function safeInsightNumber(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/** Drops any muscle group entry whose code is not one of the nine the coach understands, since a
+ *  backend rollout ahead of the frontend could otherwise introduce an unrecognised code. */
+function mapMuscleGroupInsight(entry: Partial<MuscleGroupInsight> | null | undefined): MuscleGroupInsight | null {
+  if (!entry || !MUSCLE_GROUP_CODES.includes(entry.muscleGroup as MuscleGroupCode)) {
+    return null;
+  }
+  return {
+    muscleGroup: entry.muscleGroup as MuscleGroupCode,
+    sessionsThisWeek: safeInsightNumber(entry.sessionsThisWeek),
+    inActivePlan: entry.inActivePlan === true,
+    trainedYesterday: entry.trainedYesterday === true,
+    lastTrainedOn: entry.lastTrainedOn ?? null,
+    consecutiveSessions: safeInsightNumber(entry.consecutiveSessions),
+    exerciseNames: entry.exerciseNames ?? []
+  };
 }
 
 export interface FoodSearchOptions {
@@ -831,6 +861,42 @@ export class FitSyncDataService {
             .filter((session): session is WorkoutSession => session !== null)
         ),
         catchError(() => of([] as WorkoutSession[]))
+      );
+  }
+
+  /** Loads the coach's weekly training rollup (sessions, volume, per-muscle-group facts) for the
+   *  given IANA timezone, optionally pinned to a reference date. Errors are left to propagate
+   *  (unlike most reads on this service) so the caller can tell "no data" apart from "request
+   *  failed" and fall back accordingly. */
+  getWeeklyTrainingInsight(timezone: string, date?: string): Observable<WeeklyTrainingInsight> {
+    let params = new HttpParams().set('timezone', timezone);
+    if (date) {
+      params = params.set('date', date);
+    }
+
+    return this.http
+      .get<Partial<WeeklyTrainingInsight>>(`${this.apiBaseUrl}/workouts/insights/weekly`, { params })
+      .pipe(
+        map((response) => ({
+          timezone: response.timezone ?? timezone,
+          referenceDate: response.referenceDate ?? '',
+          weekStart: response.weekStart ?? '',
+          weekEnd: response.weekEnd ?? '',
+          completedSessions: safeInsightNumber(response.completedSessions),
+          totalMinutes: safeInsightNumber(response.totalMinutes),
+          previousWeekCompletedSessions: safeInsightNumber(response.previousWeekCompletedSessions),
+          previousWeekTotalMinutes: safeInsightNumber(response.previousWeekTotalMinutes),
+          muscleGroups: (response.muscleGroups ?? [])
+            .map((entry) => mapMuscleGroupInsight(entry))
+            .filter((entry): entry is MuscleGroupInsight => entry !== null),
+          volume: {
+            thisWeekKg: safeInsightNumber(response.volume?.thisWeekKg),
+            previousWeekKg: safeInsightNumber(response.volume?.previousWeekKg),
+            weekBeforePreviousKg: safeInsightNumber(response.volume?.weekBeforePreviousKg),
+            thisWeekSessionsWithVolume: safeInsightNumber(response.volume?.thisWeekSessionsWithVolume),
+            previousWeekSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSessionsWithVolume)
+          }
+        }))
       );
   }
 

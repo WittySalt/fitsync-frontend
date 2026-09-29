@@ -1,0 +1,157 @@
+@switch (view()) {
+  @case ('loading') {
+    <div class="panel-skeleton skeleton" aria-busy="true" aria-label="Loading your coach's reading"></div>
+  }
+
+  @case ('folded') {
+    <section class="folded" [attr.aria-labelledby]="headingId()">
+      <span class="mark mark-green">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9Z"></path>
+          <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"></path>
+        </svg>
+      </span>
+      <div class="folded-text">
+        <span class="eyebrow-dark">Your coach's reading</span>
+        <h2 class="folded-headline" [id]="headingId()">{{ headline() }}</h2>
+      </div>
+      <button type="button" class="light-button" (click)="open()">
+        <span>Open</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"></path>
+        </svg>
+      </button>
+    </section>
+  }
+
+  @case ('hidden') {}
+
+  @default {
+    <section class="panel" [attr.aria-labelledby]="headingId()">
+      <div class="panel-row">
+        @if (view() === 'reading') {
+          <article class="reading">
+            <div class="reading-head">
+              <div class="reading-title">
+                <span class="mark mark-green">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9Z"></path>
+                    <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"></path>
+                  </svg>
+                </span>
+                <span class="eyebrow-dark">Your coach's reading</span>
+              </div>
+              <div class="reading-meta">
+                <span class="written">{{ writtenLabel() }}</span>
+                <button type="button" class="fold-button" aria-label="Fold the reading" (click)="fold()">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 15l6-6 6 6"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <h2 class="reading-headline" [id]="headingId()">{{ headline() }}</h2>
+
+            <p class="reading-body">@for (segment of segments(); track $index) {@if (segment.kind === 'text') {<span>{{ segment.text }}</span>} @else {<span class="citation" [attr.aria-label]="'fact ' + segment.number">{{ segment.number }}</span>}}</p>
+
+            @if (lifts().length) {
+              <app-slope-chart [lifts]="lifts()" />
+            }
+
+            <div class="reading-actions">
+              <button type="button" class="light-button" (click)="askAboutThis()">
+                <span>Ask about this</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 12h14"></path>
+                  <path d="M13 6l6 6-6 6"></path>
+                </svg>
+              </button>
+            </div>
+          </article>
+        } @else {
+          <article class="reading-away">
+            <div class="reading-title">
+              <span class="mark mark-quiet">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  @if (view() === 'writing') {
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                  } @else {
+                    <path d="M9 5v14"></path>
+                    <path d="M15 5v14"></path>
+                  }
+                </svg>
+              </span>
+              <span class="eyebrow">Your coach's reading</span>
+            </div>
+            @if (view() === 'writing') {
+              <h2 class="away-headline" [id]="headingId()" aria-live="polite">The reading is being written.</h2>
+              <p class="away-body">The facts are ready now.</p>
+            } @else {
+              <h2 class="away-headline" [id]="headingId()">The coach model is resting.</h2>
+              <p class="away-body">The facts are still current. The reading returns with the model.</p>
+            }
+          </article>
+        }
+
+        <div class="facts">
+          <div class="facts-head">
+            <div class="reading-title">
+              <span class="mark mark-quiet">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="8" width="18" height="8" rx="2"></rect>
+                  <path d="M7 8v3"></path>
+                  <path d="M11 8v4"></path>
+                  <path d="M15 8v3"></path>
+                  <path d="M19 8v4"></path>
+                </svg>
+              </span>
+              <span class="eyebrow">Measured</span>
+            </div>
+            <span class="facts-by">Fixed rules</span>
+          </div>
+          <ul class="fact-list">
+            @for (fact of facts(); track fact.number) {
+              <li class="fact">
+                <span class="fact-number">{{ fact.number }}</span>
+                <div class="fact-text">
+                  <span class="fact-label">{{ fact.label }}</span>
+                  <span class="fact-value">{{ fact.value }}<span class="fact-unit"> {{ fact.unit }}</span></span>
+                </div>
+                @if (fact.note) {
+                  <span class="fact-note">{{ fact.note }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel-foot">
+        <button type="button" class="working-link" [attr.aria-expanded]="workingShown()" [attr.aria-controls]="workingId()" (click)="toggleWorking()">
+          {{ workingShown() ? 'Hide the working' : 'Show the working' }}
+        </button>
+      </div>
+
+      @if (workingShown()) {
+        <div class="working" [id]="workingId()">
+          @if (periodLabel()) {
+            <p class="working-period">{{ periodLabel() }}</p>
+          }
+          <ol class="working-list">
+            @for (fact of facts(); track fact.number) {
+              <li>
+                <span class="fact-number">{{ fact.number }}</span>
+                <span class="working-text">
+                  <strong>{{ fact.label }}</strong>
+                  <span>{{ fact.value }} {{ fact.unit }}@if (fact.detail) {, {{ fact.detail }}}</span>
+                </span>
+              </li>
+            }
+          </ol>
+        </div>
+      }
+    </section>
+  }
+}

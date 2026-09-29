@@ -1,0 +1,128 @@
+// The wheel sits on the brief's dark panel, which keeps its colours in both themes. The values are
+// therefore the slate and green primitives and not the themed surface tokens.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+// The panel can be taller than the wheel. The drawing then sits in the middle of the free space
+// and the legend stays on the panel's lower edge.
+.wheel {
+  display: block;
+  width: 100%;
+  // The drawing is never enlarged past its own grid, so a full-width panel keeps the same wheel.
+  max-width: 372px;
+  height: auto;
+  margin: auto;
+}
+
+.cell {
+  fill: var(--slate-800);
+  stroke: var(--slate-700);
+  stroke-width: 1;
+
+  &.trained {
+    fill: var(--green-500);
+    stroke: none;
+  }
+
+  &.yesterday {
+    fill: var(--white);
+    stroke: none;
+  }
+}
+
+.badge {
+  fill: var(--slate-800);
+  stroke: var(--green-500);
+  stroke-width: 1.5;
+
+  &.yesterday {
+    fill: var(--white);
+    stroke: var(--white);
+  }
+}
+
+.icon {
+  fill: none;
+  stroke: var(--green-400);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+
+  &.yesterday {
+    stroke: var(--slate-900);
+  }
+}
+
+.name,
+.count,
+.total-caption {
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--white);
+}
+
+.count {
+  font-size: 12px;
+  fill: var(--slate-300);
+}
+
+.total {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  fill: var(--white);
+  font-variant-numeric: lining-nums;
+}
+
+.goal {
+  fill: var(--green-400);
+}
+
+.total-caption {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--slate-300);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--slate-200);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border-radius: 4px;
+
+  &.trained {
+    background: var(--green-500);
+  }
+
+  &.yesterday {
+    background: var(--white);
+  }
+
+  &.open {
+    background: var(--slate-800);
+    border: 1px solid var(--slate-400);
+  }
+}

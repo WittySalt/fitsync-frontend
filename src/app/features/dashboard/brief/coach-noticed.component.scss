@@ -1,0 +1,67 @@
+// The ink colours come from the brief, which names them once and remaps them for the dark theme.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.noticed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.noticed-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brief-ink-quiet, var(--text-secondary));
+}
+
+.noticed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.noticed-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.noticed-tile {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--green-700);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.noticed-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.noticed-fact {
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--brief-ink, var(--text-primary));
+}
+
+.noticed-note {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--brief-ink-soft, var(--text-secondary));
+}

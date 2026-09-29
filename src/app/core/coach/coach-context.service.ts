@@ -3,6 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
+import { CoachSurfaceCode } from './coach.models';
+
 /** The part of the app the coach is currently looking at. */
 export type SurfaceId = 'dashboard' | 'workout' | 'nutrition' | 'progress' | 'profile' | 'coach' | 'other';
 
@@ -19,6 +21,8 @@ export interface Surface {
   /** Recommendation types this surface shows inline; the dock shows these first. */
   inlineTypes: string[];
   suggestions: SuggestedQuestion[];
+  /** The code sent to the server with a question, or null for a surface the server does not know. */
+  code: CoachSurfaceCode | null;
 }
 
 /**
@@ -59,7 +63,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
       { text: 'How is my day going?', generative: false },
       { text: 'Build me a session for today', generative: true },
       { text: 'What should I eat tonight?', generative: false }
-    ]
+    ],
+    code: 'HOME'
   },
   workout: {
     id: 'workout',
@@ -69,7 +74,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
       { text: 'Should I train today?', generative: false },
       { text: 'Build me a session for today', generative: true },
       { text: 'How is my week going?', generative: false }
-    ]
+    ],
+    code: 'WORKOUT'
   },
   nutrition: {
     id: 'nutrition',
@@ -79,7 +85,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
       { text: 'Am I eating enough vegetables?', generative: false },
       { text: 'Where are my calories coming from?', generative: false },
       { text: 'What should I eat tonight?', generative: false }
-    ]
+    ],
+    code: 'NUTRITION'
   },
   progress: {
     id: 'progress',
@@ -88,7 +95,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
     suggestions: [
       { text: 'Am I on pace for my goal?', generative: false },
       { text: 'What changed this week?', generative: false }
-    ]
+    ],
+    code: 'PROGRESS'
   },
   profile: {
     id: 'profile',
@@ -97,7 +105,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
     suggestions: [
       { text: 'Is my target realistic?', generative: false },
       { text: 'Which goal needs attention?', generative: false }
-    ]
+    ],
+    code: 'PROFILE'
   },
   coach: {
     id: 'coach',
@@ -106,7 +115,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
     suggestions: [
       { text: 'Build me a session for today', generative: true },
       { text: 'Should I train today?', generative: false }
-    ]
+    ],
+    code: null
   },
   other: {
     id: 'other',
@@ -115,7 +125,8 @@ const SURFACES: Record<SurfaceId, Surface> = {
     suggestions: [
       { text: 'How is my day going?', generative: false },
       { text: 'Build me a session for today', generative: true }
-    ]
+    ],
+    code: null
   }
 };
 
