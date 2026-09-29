@@ -20,6 +20,7 @@ export class TodayOverviewComponent {
   @Output() browsePlans = new EventEmitter<void>();
   @Output() templateActivated = new EventEmitter<WorkoutPlan>();
 
+
   latestSession(): WorkoutSession | null {
     const sorted = this.sessions
       .filter(isCompletedSession)
@@ -29,6 +30,15 @@ export class TodayOverviewComponent {
 
   sortedExercises(): WorkoutPlanExercise[] {
     return [...(this.activePlan?.exercises ?? [])].sort((a, b) => a.sequence - b.sequence);
+  }
+
+  /**
+   * The plan carries its own thumbnail now. This used to read a map filled by one
+   * GET /exercises/{id} per plan exercise, which pulled each exercise's full detail to use a single
+   * field — five requests for a five-move plan, and linear in plan size.
+   */
+  thumbnailFor(exercise: WorkoutPlanExercise): string | null {
+    return exercise.primaryImageUrl ?? null;
   }
 
   startToday(): void {
@@ -92,6 +102,7 @@ export class TodayOverviewComponent {
       hour12: false
     }).format(date);
   }
+
 
   private timeOf(session: WorkoutSession): number {
     const value = session.completedAt || session.startedAt;

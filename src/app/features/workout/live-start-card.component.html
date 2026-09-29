@@ -2,16 +2,19 @@
   <div class="section-title">
     <div>
       <span class="card-label">Start training</span>
-      <h2>Choose how you want to train now</h2>
+      <h2>Quick start</h2>
+      <p class="rail-sub">No plan needed — train freestyle or against a target.</p>
     </div>
   </div>
 
   <fieldset class="mode-switch segmented" aria-label="Live workout mode">
     <button type="button" [class.active]="startMode() === 'FREE'" [attr.aria-pressed]="startMode() === 'FREE'" (click)="selectMode('FREE')">
-      Free
+      <strong>Free</strong>
+      <small>Open timer</small>
     </button>
     <button type="button" [class.active]="startMode() === 'GOAL'" [attr.aria-pressed]="startMode() === 'GOAL'" (click)="selectMode('GOAL')">
-      Goal
+      <strong>Goal</strong>
+      <small>Minutes or kcal</small>
     </button>
   </fieldset>
 

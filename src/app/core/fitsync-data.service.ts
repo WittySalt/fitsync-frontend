@@ -262,6 +262,8 @@ interface BackendWorkoutPlanExercise {
   videoUrl?: string | null;
   animationUrl?: string | null;
   images?: BackendExerciseImage[] | string[] | null;
+  /** First catalog image, sent with the plan so a client needs no per-exercise request. */
+  primaryImageUrl?: string | null;
 }
 
 interface BackendWorkoutPlanExerciseSetTarget {
@@ -2239,6 +2241,7 @@ export class FitSyncDataService {
       notes: exercise.notes ?? '',
       videoUrl: exercise.videoUrl ?? null,
       animationUrl: exercise.animationUrl ?? null,
+      primaryImageUrl: exercise.primaryImageUrl ?? null,
       images: this.mapExerciseImages(exercise.images),
       setTargets: (exercise.setTargets ?? []).map((target) => ({
         setTargetId: target.setTargetId ?? null,

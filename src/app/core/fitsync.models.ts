@@ -447,6 +447,8 @@ export interface WorkoutPlanExercise {
   restSeconds: number | null;
   notes: string;
   setTargets: WorkoutPlanExerciseSetTarget[];
+  /** Thumbnail carried on the plan itself, so rendering one needs no extra request. */
+  primaryImageUrl?: string | null;
   videoUrl?: string | null;
   animationUrl?: string | null;
   images?: string[];
