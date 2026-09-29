@@ -163,7 +163,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
     const latest = this.lastCompletedSession();
     return [
       { label: 'Sessions logged', value: String(this.completedSessionCount()), detail: 'completed all time', tone: 'green' },
-      { label: 'This week', value: String(this.weekCompletedCount()), detail: 'completed in the last 7 days', tone: 'blue' },
+      { label: 'Last 7 days', value: String(this.weekCompletedCount()), detail: 'completed sessions', tone: 'blue' },
       {
         label: 'Last session',
         value: latest ? this.formatDate(latest.completedAt || latest.startedAt) : '—',

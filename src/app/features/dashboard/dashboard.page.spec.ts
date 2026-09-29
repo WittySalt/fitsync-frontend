@@ -160,7 +160,7 @@ describe('DashboardPage', () => {
     const text = pageText();
     expect(text).toContain('Active streak');
     expect(text).toContain('7 days');
-    expect(text).toContain('7 workouts · 300 min this week');
+    expect(text).toContain('7 workouts · 300 min in 7 days');
     expect(text).toContain('On track · 95% complete · by 31 Aug 2026');
     expect(text).toContain('Today');
     expect(text).toContain('3 days ago');
@@ -188,7 +188,7 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const text = pageText();
-    expect(text).toContain('This week');
+    expect(text).toContain('Last 7 days');
     expect(text).toContain('5 workouts · 210 min');
     expect(text).not.toContain('0 days');
   });

@@ -59,6 +59,11 @@ describe('questionsFor', () => {
     expect(questions).toEqual([BUILD_QUESTION]);
   });
 
+  it('names the lift in the beat-the-record question', () => {
+    const questions = questionsFor(reading([fact({ key: 'RECORD', label: 'Dumbbell Bench Press record' })]));
+    expect(questions).toEqual([{ text: 'What would beat my Dumbbell Bench Press record?', makesDraft: false }, BUILD_QUESTION]);
+  });
+
   it('offers a beat-the-record question when a record fact is present', () => {
     const questions = questionsFor(reading([fact({ key: 'RECORD' })]));
     expect(questions).toEqual([{ text: 'What would beat this record?', makesDraft: false }, BUILD_QUESTION]);

@@ -153,7 +153,7 @@ describe('CoachDockComponent — pinned reading', () => {
     store.pinnedReading.set({ ...PINNED_READING, reading: null });
     render();
 
-    expect(element.querySelector('.pinned-headline')?.textContent?.trim()).toBe("This week's measured facts");
+    expect(element.querySelector('.pinned-headline')?.textContent?.trim()).toBe('Your measured facts');
   });
 
   it('lets go of the reading, which clears the pinned card', () => {
@@ -204,10 +204,19 @@ describe('CoachDockComponent — pinned reading', () => {
   });
 
   it('shows the header line as "one reading pinned" instead of the insight count', () => {
-    store.pinnedReading.set(PINNED_READING);
+    store.pinnedReading.set({ ...PINNED_READING, period: 'PREVIOUS_WEEK', periodStart: '2026-09-21', periodEnd: '2026-09-27' });
     render();
 
-    expect(element.querySelector('.looking')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Looking at Workout, this week · one reading pinned');
+    expect(element.querySelector('.looking')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Looking at Workout, 21 Sept to 27 Sept · one reading pinned'
+    );
+  });
+
+  it('names the page alone when the pinned reading has no dates', () => {
+    store.pinnedReading.set({ ...PINNED_READING, periodStart: null, periodEnd: null });
+    render();
+
+    expect(element.querySelector('.looking')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Looking at Workout · one reading pinned');
   });
 
   it('draws a cited answer through numbered badges and leaves no brackets in the text', () => {

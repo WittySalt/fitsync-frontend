@@ -53,9 +53,9 @@
           @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
             <span>Active streak</span>
             <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
-            <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min this week</small>
+            <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min in 7 days</small>
           } @else {
-            <span>This week</span>
+            <span>Last 7 days</span>
             <strong>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min</strong>
             <small>Start a workout to build a streak</small>
           }

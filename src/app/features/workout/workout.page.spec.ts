@@ -188,7 +188,7 @@ describe('WorkoutPage', () => {
 
     const metrics = component.metrics();
     expect(metrics[0]).toEqual(jasmine.objectContaining({ label: 'Sessions logged', value: '42', detail: 'completed all time' }));
-    expect(metrics[1]).toEqual(jasmine.objectContaining({ label: 'This week', value: '3', detail: 'completed in the last 7 days' }));
+    expect(metrics[1]).toEqual(jasmine.objectContaining({ label: 'Last 7 days', value: '3', detail: 'completed sessions' }));
     expect(metrics[2].detail).toBe('Strength');
     expect(metrics[2].value).not.toBe('—');
   });
