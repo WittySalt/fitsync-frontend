@@ -208,7 +208,7 @@ describe('CoachDockComponent — pinned reading', () => {
     render();
 
     expect(element.querySelector('.looking')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Looking at Workout, 21 Sept to 27 Sept · one reading pinned'
+      'Looking at Workout, 21 to 27 Sept · one reading pinned'
     );
   });
 

@@ -6,7 +6,7 @@ import { CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.
 import { CoachTraceComponent } from './coach-trace.component';
 import { ReadingQuestion, questionsFor } from './insight/reading-questions';
 import { ReadingSegment, readingSegments, withoutCitations } from './insight/reading-text';
-import { shortDate } from './insight/slope-chart.geometry';
+import { dateRange } from './insight/slope-chart.geometry';
 import { RecommendationCardComponent } from './recommendation-card.component';
 
 /**
@@ -762,18 +762,14 @@ export class CoachDockComponent {
   }
 
   /**
-   * The page and the days a pinned reading describes, for example "Workout, 21 Sept to 27 Sept".
+   * The page and the days a pinned reading describes, for example "Workout, 21 to 27 Sept".
    * A reading describes the last full week until the current one has enough sessions, so the
    * surface's own label, which says "this week", would name the wrong days.
    */
   protected pinnedLabel(reading: CoachReading): string {
     const page = reading.surface.charAt(0) + reading.surface.slice(1).toLowerCase();
-    const from = reading.periodStart ? shortDate(reading.periodStart) : '';
-    const to = reading.periodEnd ? shortDate(reading.periodEnd) : '';
-    if (!from || !to) {
-      return page;
-    }
-    return from === to ? `${page}, ${from}` : `${page}, ${from} to ${to}`;
+    const days = dateRange(reading.periodStart, reading.periodEnd);
+    return days ? `${page}, ${days}` : page;
   }
 
   protected chipLabel(fact: CoachReading['facts'][number]): string {

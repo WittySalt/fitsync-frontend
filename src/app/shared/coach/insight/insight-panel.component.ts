@@ -7,7 +7,7 @@ import { CoachReading, ReadingSurface } from '../../../core/coach/coach.models';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { InsightReadState } from './insight-read-state';
 import { readingSegments } from './reading-text';
-import { shortDate } from './slope-chart.geometry';
+import { dateRange, shortDate } from './slope-chart.geometry';
 import { SlopeChartComponent } from './slope-chart.component';
 
 /** The clock, as a token, so that tests can fix the time the panel calls "now". */
@@ -95,6 +95,9 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     const age = reading.generatedAt ? ageLabel(reading.generatedAt, this.now()) : '';
     return age ? `Coach model · ${age}` : 'Coach model';
   });
+
+  /** The days the reading describes, shown beside its title, for example "21 to 27 Sept". */
+  readonly periodRange = computed(() => dateRange(this.result()?.periodStart ?? null, this.result()?.periodEnd ?? null));
 
   readonly periodLabel = computed(() => {
     const result = this.result();
