@@ -33,7 +33,6 @@ interface TrainingMetric {
   label: string;
   value: string;
   detail: string;
-  tone: 'green' | 'blue' | 'orange';
 }
 
 interface ExercisePickerState {
@@ -162,13 +161,12 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly metrics = computed<TrainingMetric[]>(() => {
     const latest = this.lastCompletedSession();
     return [
-      { label: 'Sessions logged', value: String(this.completedSessionCount()), detail: 'completed all time', tone: 'green' },
-      { label: 'Last 7 days', value: String(this.weekCompletedCount()), detail: 'completed sessions', tone: 'blue' },
+      { label: 'Sessions logged', value: String(this.completedSessionCount()), detail: 'completed all time' },
+      { label: 'Last 7 days', value: String(this.weekCompletedCount()), detail: 'completed sessions' },
       {
         label: 'Last session',
         value: latest ? this.formatDate(latest.completedAt || latest.startedAt) : '—',
-        detail: latest ? this.formatLabel(latest.workoutType) : 'none yet',
-        tone: 'orange'
+        detail: latest ? this.formatLabel(latest.workoutType) : 'none yet'
       }
     ];
   });
