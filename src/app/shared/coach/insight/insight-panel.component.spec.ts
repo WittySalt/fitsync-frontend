@@ -2,8 +2,10 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { Subject, of, throwError } from 'rxjs';
 
 import { CoachApiService } from '../../../core/coach/coach-api.service';
-import { CoachReading } from '../../../core/coach/coach.models';
+import { CoachReading, ReadingSurface } from '../../../core/coach/coach.models';
 import { CoachStore } from '../../../core/coach/coach.store';
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { NutritionInsightsPage, ProgressInsight } from '../../../core/fitsync.models';
 import { INSIGHT_NOW, InsightPanelComponent, READING_POLL_LIMIT, READING_POLL_MS, ageLabel } from './insight-panel.component';
 import { InsightReadState } from './insight-read-state';
 
@@ -30,6 +32,66 @@ const ready: CoachReading = {
   lifts: [{ exerciseName: 'Dumbbell Bench Press', fromKg: 20, fromDate: '2026-09-13', toKg: 22.5, toDate: '2026-09-25' }]
 };
 
+const nutritionReady: CoachReading = {
+  ...ready,
+  surface: 'NUTRITION',
+  readingId: 'b7d1e0c455aa1290',
+  period: 'PREVIOUS_WEEK',
+  facts: [
+    { number: 1, key: 'PROTEIN_PER_DAY', label: 'Protein per day', value: '159', unit: 'g', numericValue: 159, note: 'Target 155 g', detail: '' },
+    { number: 2, key: 'PROTEIN_BREAKFAST', label: 'Protein at breakfast', value: '27', unit: 'g', numericValue: 27, note: '17%', detail: '' },
+    { number: 3, key: 'PROTEIN_LUNCH_DINNER', label: 'Protein at lunch and dinner', value: '99', unit: 'g', numericValue: 99, note: '62%', detail: '' },
+    { number: 4, key: 'CALORIES_PER_DAY', label: 'Calories per day', value: '2,240', unit: 'kcal', numericValue: 2240, note: '', detail: '' }
+  ],
+  reading: { ...ready.reading!, headline: 'Most of your protein comes after midday.' },
+  lifts: []
+};
+
+const progressReady: CoachReading = {
+  ...ready,
+  surface: 'PROGRESS',
+  readingId: 'c3a9f0d211bb7745',
+  period: 'LAST_28_DAYS',
+  periodStart: '2026-09-04',
+  periodEnd: '2026-10-01',
+  facts: [
+    { number: 1, key: 'WEIGHT', label: 'Weight', value: '71.1', unit: 'kg', numericValue: 71.1, note: '', detail: '' },
+    { number: 2, key: 'WEEKLY_RATE', label: 'Weekly rate', value: '-0.4', unit: 'kg', numericValue: -0.4, note: '', detail: '' },
+    { number: 3, key: 'GOAL', label: 'Goal', value: '68', unit: 'kg', numericValue: 68, note: '', detail: '' },
+    { number: 4, key: 'CALORIES_PER_DAY', label: 'Calories per day', value: '2,240', unit: 'kcal', numericValue: 2240, note: '', detail: '' }
+  ],
+  reading: { ...ready.reading!, headline: 'At this pace you reach 68 kg early.' },
+  lifts: []
+};
+
+const mealPage: NutritionInsightsPage = {
+  period: 'PREVIOUS_WEEK',
+  periodStart: '2026-09-21',
+  periodEnd: '2026-09-27',
+  daysLogged: 6,
+  proteinPerDayGrams: 159,
+  proteinTargetGrams: 155,
+  proteinByMeal: [
+    { mealType: 'BREAKFAST', label: 'Breakfast', gramsPerDay: 27 },
+    { mealType: 'LUNCH', label: 'Lunch', gramsPerDay: 54 },
+    { mealType: 'DINNER', label: 'Dinner', gramsPerDay: 45 }
+  ]
+};
+
+const weightInsight: ProgressInsight = {
+  referenceDate: '2026-10-01',
+  weightKg: 71.1,
+  measuredOn: '2026-10-01',
+  weeklyRateKg: -0.4,
+  goalWeightKg: 68,
+  goalDate: '2026-11-25',
+  projectedDate: '2026-10-25',
+  series: [
+    { date: '2026-09-13', weightKg: 72.5 },
+    { date: '2026-10-01', weightKg: 71.1 }
+  ]
+};
+
 const resting: CoachReading = { ...ready, status: 'RESTING', reading: null };
 const writing: CoachReading = { ...ready, status: 'WRITING', reading: null };
 const empty: CoachReading = { ...ready, status: 'EMPTY', readingId: null, facts: [], reading: null, lifts: [] };
@@ -38,12 +100,13 @@ describe('InsightPanelComponent', () => {
   let fixture: ComponentFixture<InsightPanelComponent>;
   let element: HTMLElement;
   let api: jasmine.SpyObj<CoachApiService>;
-  let store: { askAboutReading: jasmine.Spy };
+  let data: jasmine.SpyObj<FitSyncDataService>;
+  let store: { askAboutReading: jasmine.Spy; offerReading: jasmine.Spy };
   let readState: jasmine.SpyObj<InsightReadState>;
 
-  function render(): void {
+  function render(surface: ReadingSurface = 'WORKOUT'): void {
     fixture = TestBed.createComponent(InsightPanelComponent);
-    fixture.componentRef.setInput('surface', 'WORKOUT');
+    fixture.componentRef.setInput('surface', surface);
     fixture.componentRef.setInput('timezone', 'Asia/Singapore');
     fixture.detectChanges();
     element = fixture.nativeElement as HTMLElement;
@@ -56,7 +119,10 @@ describe('InsightPanelComponent', () => {
   beforeEach(async () => {
     api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['getReading']);
     api.getReading.and.returnValue(of(ready));
-    store = { askAboutReading: jasmine.createSpy('askAboutReading') };
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getNutritionInsightsPage', 'getProgressInsight']);
+    data.getNutritionInsightsPage.and.returnValue(of(mealPage));
+    data.getProgressInsight.and.returnValue(of(weightInsight));
+    store = { askAboutReading: jasmine.createSpy('askAboutReading'), offerReading: jasmine.createSpy('offerReading') };
     readState = jasmine.createSpyObj<InsightReadState>('InsightReadState', ['wasRead', 'markRead']);
     readState.wasRead.and.returnValue(false);
 
@@ -64,6 +130,7 @@ describe('InsightPanelComponent', () => {
       imports: [InsightPanelComponent],
       providers: [
         { provide: CoachApiService, useValue: api },
+        { provide: FitSyncDataService, useValue: data },
         { provide: CoachStore, useValue: store },
         { provide: InsightReadState, useValue: readState },
         { provide: INSIGHT_NOW, useValue: () => new Date('2026-09-28T15:22:00Z') }
@@ -219,6 +286,139 @@ describe('InsightPanelComponent', () => {
     tick(READING_POLL_MS * 3);
     expect(api.getReading).toHaveBeenCalledTimes(1);
   }));
+
+  it('does not ask for chart figures on the workout page', () => {
+    render();
+    expect(data.getNutritionInsightsPage).not.toHaveBeenCalled();
+    expect(data.getProgressInsight).not.toHaveBeenCalled();
+  });
+
+  describe('on the nutrition page', () => {
+    beforeEach(() => api.getReading.and.returnValue(of(nutritionReady)));
+
+    it('loads its own reading and draws the facts and the meal chart', () => {
+      render('NUTRITION');
+      expect(api.getReading).toHaveBeenCalledOnceWith('NUTRITION', 'Asia/Singapore');
+      expect(data.getNutritionInsightsPage).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(text('.reading-headline')).toBe('Most of your protein comes after midday.');
+      expect(element.querySelectorAll('.fact').length).toBe(4);
+      expect(element.querySelectorAll('app-meal-bars rect.bar').length).toBe(3);
+      expect(element.querySelector('app-slope-chart')).toBeNull();
+    });
+
+    it('lets the lunch and dinner bars stand out when the reading is about their share', () => {
+      render('NUTRITION');
+      const quiet = Array.from(element.querySelectorAll('app-meal-bars rect.bar')).map((bar) => bar.classList.contains('quiet'));
+      expect(quiet).toEqual([true, false, false]);
+    });
+
+    it('draws every bar the same when the reading is not about lunch and dinner', () => {
+      api.getReading.and.returnValue(of({ ...nutritionReady, facts: nutritionReady.facts.filter((fact) => fact.key !== 'PROTEIN_LUNCH_DINNER') }));
+      render('NUTRITION');
+      expect(element.querySelectorAll('app-meal-bars rect.bar.quiet').length).toBe(0);
+    });
+
+    it('keeps the reading without a chart when the chart request fails', () => {
+      data.getNutritionInsightsPage.and.returnValue(throwError(() => new Error('offline')));
+      render('NUTRITION');
+      expect(text('.reading-headline')).toBe('Most of your protein comes after midday.');
+      expect(element.querySelector('app-meal-bars')).toBeNull();
+      expect(element.querySelector('.panel')).not.toBeNull();
+    });
+
+    it('keeps the reading without a chart when there is no meal to draw', () => {
+      data.getNutritionInsightsPage.and.returnValue(of({ ...mealPage, proteinByMeal: [] }));
+      render('NUTRITION');
+      expect(element.querySelector('app-meal-bars')).toBeNull();
+      expect(text('.reading-headline')).toBe('Most of your protein comes after midday.');
+    });
+
+    it('pins the reading together with its surface', () => {
+      render('NUTRITION');
+      (element.querySelector('.reading-actions button') as HTMLButtonElement).click();
+      expect(store.askAboutReading).toHaveBeenCalledOnceWith(nutritionReady);
+    });
+  });
+
+  describe('on the progress page', () => {
+    beforeEach(() => api.getReading.and.returnValue(of(progressReady)));
+
+    it('loads its own reading and draws the facts and the weight chart', () => {
+      render('PROGRESS');
+      expect(api.getReading).toHaveBeenCalledOnceWith('PROGRESS', 'Asia/Singapore');
+      expect(data.getProgressInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(element.querySelectorAll('.fact').length).toBe(4);
+      expect(element.querySelector('app-weight-projection svg polyline.series')).not.toBeNull();
+    });
+
+    it('writes the 28 days as one range', () => {
+      render('PROGRESS');
+      expect(text('.eyebrow-period')).toBe('4 Sept to 1 Oct');
+    });
+
+    it('keeps the reading without a chart when the chart request fails', () => {
+      data.getProgressInsight.and.returnValue(throwError(() => new Error('offline')));
+      render('PROGRESS');
+      expect(text('.reading-headline')).toBe('At this pace you reach 68 kg early.');
+      expect(element.querySelector('app-weight-projection')).toBeNull();
+    });
+
+    it('keeps the reading without a chart when the series has fewer than two weights', () => {
+      data.getProgressInsight.and.returnValue(of({ ...weightInsight, series: [{ date: '2026-10-01', weightKg: 71.1 }] }));
+      render('PROGRESS');
+      expect(element.querySelector('app-weight-projection')).toBeNull();
+      expect(element.querySelector('.panel')).not.toBeNull();
+    });
+  });
+
+  it('remembers what was read separately for each surface', () => {
+    api.getReading.and.returnValue(of(nutritionReady));
+    render('NUTRITION');
+    expect(readState.wasRead).toHaveBeenCalledWith('NUTRITION', 'b7d1e0c455aa1290:MODEL');
+    fixture.destroy();
+    expect(readState.markRead).toHaveBeenCalledOnceWith('NUTRITION', 'b7d1e0c455aa1290:MODEL');
+
+    readState.markRead.calls.reset();
+    api.getReading.and.returnValue(of(progressReady));
+    render('PROGRESS');
+    fixture.destroy();
+    expect(readState.markRead).toHaveBeenCalledOnceWith('PROGRESS', 'c3a9f0d211bb7745:MODEL');
+  });
+
+  it('offers a ready reading to the coach panel, on every surface', () => {
+    render();
+    expect(store.offerReading).toHaveBeenCalledOnceWith(ready);
+
+    store.offerReading.calls.reset();
+    api.getReading.and.returnValue(of(progressReady));
+    render('PROGRESS');
+    expect(store.offerReading).toHaveBeenCalledOnceWith(progressReady);
+  });
+
+  it('offers nothing when the reading is resting, empty or failed', () => {
+    for (const outcome of [of(resting), of(empty), throwError(() => new Error('offline'))]) {
+      store.offerReading.calls.reset();
+      api.getReading.and.returnValue(outcome);
+      render();
+      expect(store.offerReading).toHaveBeenCalledOnceWith(null);
+    }
+  });
+
+  it('withdraws the offer while the reading is being written and offers it when it arrives', fakeAsync(() => {
+    api.getReading.and.returnValues(of(writing), of(ready));
+    render();
+    expect(store.offerReading).toHaveBeenCalledOnceWith(null);
+
+    tick(READING_POLL_MS);
+    expect(store.offerReading).toHaveBeenCalledWith(ready);
+  }));
+
+  it('withdraws the offer when the user leaves the page', () => {
+    render();
+    store.offerReading.calls.reset();
+    fixture.destroy();
+    expect(store.offerReading).toHaveBeenCalledOnceWith(null);
+  });
 
   it('shows the working on request, with the period and each fact in full', () => {
     render();

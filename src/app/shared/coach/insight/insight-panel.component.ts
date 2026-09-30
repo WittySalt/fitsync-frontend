@@ -1,14 +1,18 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subscription, timer } from 'rxjs';
+import { Subscription, catchError, of, timer } from 'rxjs';
 
 import { CoachApiService } from '../../../core/coach/coach-api.service';
 import { CoachReading, ReadingSurface } from '../../../core/coach/coach.models';
 import { CoachStore } from '../../../core/coach/coach.store';
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { NutritionInsightsPage, ProgressInsight } from '../../../core/fitsync.models';
 import { InsightReadState } from './insight-read-state';
 import { readingSegments } from './reading-text';
+import { MealBarsComponent } from './meal-bars.component';
 import { dateRange, shortDate } from './slope-chart.geometry';
 import { SlopeChartComponent } from './slope-chart.component';
+import { WeightProjectionComponent } from './weight-projection.component';
 
 /** The clock, as a token, so that tests can fix the time the panel calls "now". */
 export const INSIGHT_NOW = new InjectionToken<() => Date>('INSIGHT_NOW', {
@@ -32,13 +36,14 @@ type PanelView = 'loading' | 'hidden' | 'reading' | 'folded' | 'writing' | 'rest
 @Component({
   selector: 'app-insight-panel',
   standalone: true,
-  imports: [SlopeChartComponent],
+  imports: [SlopeChartComponent, MealBarsComponent, WeightProjectionComponent],
   templateUrl: './insight-panel.component.html',
   styleUrl: './insight-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InsightPanelComponent implements OnInit, OnDestroy {
   private readonly api = inject(CoachApiService);
+  private readonly data = inject(FitSyncDataService);
   private readonly coachStore = inject(CoachStore);
   private readonly readState = inject(InsightReadState);
   private readonly now = inject(INSIGHT_NOW);
@@ -52,9 +57,14 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   readonly result = signal<CoachReading | null>(null);
   readonly folded = signal(false);
   readonly workingShown = signal(false);
+  /** The figures behind the Nutrition chart. They come from their own request, and without them the reading has no chart. */
+  readonly meals = signal<NutritionInsightsPage | null>(null);
+  /** The figures behind the Progress chart, with the same rule. */
+  readonly weight = signal<ProgressInsight | null>(null);
 
   private attempts = 0;
   private request: Subscription | null = null;
+  private chartRequest: Subscription | null = null;
   private wait: Subscription | null = null;
   // The reading counts as read once it has been on screen unfolded. It is recorded when the user
   // folds it or leaves the page, so that it stays open for the whole of the first visit.
@@ -77,6 +87,8 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   readonly facts = computed(() => this.result()?.facts ?? []);
   readonly lifts = computed(() => this.result()?.lifts ?? []);
   readonly headline = computed(() => this.result()?.reading?.headline ?? '');
+  /** The reading names the lunch-and-dinner share, so the meal chart lets those two bars stand out. */
+  readonly lunchAndDinnerLed = computed(() => this.facts().some((fact) => fact.key === 'PROTEIN_LUNCH_DINNER'));
 
   readonly segments = computed(() => {
     const result = this.result();
@@ -118,6 +130,7 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.rememberIfRead();
+    this.coachStore.offerReading(null);
   }
 
   fold(): void {
@@ -157,6 +170,7 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
         error: () => {
           this.failed.set(true);
           this.loading.set(false);
+          this.coachStore.offerReading(null);
         }
       });
   }
@@ -169,7 +183,12 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     this.result.set(stillWriting && this.attempts >= READING_POLL_LIMIT ? { ...reading, status: 'RESTING' } : reading);
     this.loading.set(false);
 
+    // The coach panel lists the reading only while this panel has one on show.
+    const shown = this.result();
+    this.coachStore.offerReading(shown && shown.status === 'READY' && shown.reading && shown.facts.length ? shown : null);
+
     if (reading.status === 'READY' && reading.reading) {
+      this.loadChart();
       const alreadyRead = this.readState.wasRead(reading.surface, readKey(reading));
       this.folded.set(alreadyRead);
       this.shownUnfolded = !alreadyRead;
@@ -180,6 +199,29 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
       this.wait = timer(READING_POLL_MS)
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(() => this.load());
+    }
+  }
+
+  /**
+   * Loads the figures for the surface's chart. A request that fails leaves the reading as it is
+   * without a chart: the chart is an addition to the reading and never a reason to hide it.
+   */
+  private loadChart(): void {
+    const surface = this.surface();
+    if (surface === 'WORKOUT' || this.chartRequest) {
+      return;
+    }
+    const timezone = this.timezone() || deviceTimezone();
+    if (surface === 'NUTRITION') {
+      this.chartRequest = this.data
+        .getNutritionInsightsPage(timezone)
+        .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+        .subscribe((page) => this.meals.set(page && page.proteinByMeal.length ? page : null));
+    } else {
+      this.chartRequest = this.data
+        .getProgressInsight(timezone)
+        .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+        .subscribe((insight) => this.weight.set(insight && insight.series.length >= 2 ? insight : null));
     }
   }
 

@@ -1,4 +1,5 @@
 import { CoachApiService } from '../../core/coach/coach-api.service';
+import { CoachReading } from '../../core/coach/coach.models';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -22,9 +23,24 @@ import { Goal } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { ProgressPage } from './progress.page';
 
-// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
-// renders without a request that these specs never asked for.
-const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
+// The page carries an insight panel. Its store is real; only the wire is stubbed. The reading is
+// empty, so the panel takes no space and the specs about the page itself are not disturbed.
+const emptyReading: CoachReading = {
+  surface: 'PROGRESS',
+  status: 'EMPTY',
+  readingId: null,
+  period: 'NONE',
+  periodStart: null,
+  periodEnd: null,
+  facts: [],
+  reading: null,
+  lifts: []
+};
+const coachApiStub = {
+  listRecommendations: () => of([]),
+  refreshRecommendations: () => of(undefined),
+  getReading: jasmine.createSpy('getReading').and.returnValue(of(emptyReading))
+};
 
 describe('ProgressPage', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -212,7 +228,7 @@ describe('ProgressPage', () => {
     await TestBed.configureTestingModule({
       imports: [ProgressPage],
       providers: [
-        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
+        // The page carries an insight panel, whose store reaches HttpClient through the API client.
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: CoachApiService, useValue: coachApiStub },
@@ -223,6 +239,16 @@ describe('ProgressPage', () => {
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
+  });
+
+  it('mounts the insight panel for progress in place of the old coach block', () => {
+    const fixture = TestBed.createComponent(ProgressPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelectorAll('app-insight-panel').length).toBe(1);
+    expect(compiled.querySelector('app-coach-anchor')).toBeNull();
+    expect(coachApiStub.getReading).toHaveBeenCalledWith('PROGRESS', jasmine.any(String));
   });
 
   it('defaults to the Overview tab: hub header and tabs, no body or goals detail', () => {

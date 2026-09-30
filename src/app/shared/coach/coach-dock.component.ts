@@ -1,13 +1,30 @@
-import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, DestroyRef, ElementRef, HostListener, InjectionToken, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
 import { CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
 import { CoachTraceComponent } from './coach-trace.component';
-import { ReadingQuestion, questionsFor } from './insight/reading-questions';
+import { questionsFor } from './insight/reading-questions';
 import { ReadingSegment, readingSegments, withoutCitations } from './insight/reading-text';
 import { dateRange } from './insight/slope-chart.geometry';
 import { RecommendationCardComponent } from './recommendation-card.component';
+
+/** The browser's `matchMedia`, injectable so a test can decide whether the sidebar is showing. */
+export const MATCH_MEDIA = new InjectionToken<(query: string) => MediaQueryList | null>('MATCH_MEDIA', {
+  providedIn: 'root',
+  factory: () => (query: string) => (typeof window.matchMedia === 'function' ? window.matchMedia(query) : null)
+});
+
+/** The shell shows its sidebar, and with it the coach entry, above this width. */
+const SIDEBAR_QUERY = '(min-width: 861px)';
+
+/** One suggested question, from a pinned reading or from the page the user is on. */
+interface DockSuggestion {
+  text: string;
+  /** True when the question builds a session, which takes the drafting path. */
+  draft: boolean;
+}
 
 /**
  * The coach, docked to the right edge and always mounted.
@@ -17,21 +34,25 @@ import { RecommendationCardComponent } from './recommendation-card.component';
  * itself: the launcher and Ctrl/Cmd+K are the only ways in, and Escape or the close button the
  * ways out.
  *
- * The header says what the coach is looking at, the feed shows this surface's insights first, and
- * the thread shows each turn with its trace. While a turn runs, the steps the coach is taking
+ * The header says what the coach is looking at. The first screen offers the page's reading, at most
+ * three questions and the input, and the older insight cards wait in a collapsed row. The thread
+ * shows each turn with its trace. While a turn runs, the steps the coach is taking
  * appear one by one from the progress stream, then the persisted answer replaces them.
  */
 @Component({
   selector: 'app-coach-dock',
-  imports: [RouterLink, RecommendationCardComponent, CoachTraceComponent],
+  imports: [RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent],
   template: `
     @if (!store.dockOpen()) {
-      <button type="button" class="launch" (click)="store.open()" aria-label="Open the coach (Ctrl+K)">
-        <span class="mark" aria-hidden="true">C</span>
-        <span>Coach</span>
-      </button>
+      @if (!sidebarVisible()) {
+        <button type="button" class="launch" (click)="store.open()" aria-label="Open the coach (Ctrl+K)">
+          <span class="mark" aria-hidden="true">C</span>
+          <span>Coach</span>
+        </button>
+      }
     } @else {
-      <aside class="dock" aria-label="Coach" role="complementary">
+      @let empty = !store.turns().length && !store.pendingQuestion();
+      <aside class="dock dock-wide" aria-label="Coach" role="complementary">
         <div class="dock-head">
           <div class="dock-title">
             <span class="mark" aria-hidden="true">C</span>
@@ -70,31 +91,35 @@ import { RecommendationCardComponent } from './recommendation-card.component';
                 }
               </div>
             </section>
-
-            @if (!store.turns().length && !store.pendingQuestion()) {
-              <div class="follow-ups">
-                <span class="follow-heading">Questions that follow from it</span>
-                @for (q of questions(); track q.text) {
-                  <button type="button" class="follow-q" (click)="askFollowUp(q)" [disabled]="store.status() === 'answering'">
-                    <span>{{ q.text }}</span>
-                    @if (q.makesDraft) {
-                      <span class="draft-pill">Makes a draft</span>
-                    }
-                    <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M9 6l6 6-6 6"></path>
-                    </svg>
-                  </button>
-                }
-              </div>
-            }
+          } @else if (empty && store.availableReading(); as reading) {
+            <button type="button" class="reading-row" (click)="store.askAboutReading(reading)">
+              <span class="reading-text">
+                <span class="reading-label">Reading</span>
+                <span class="reading-headline">{{ pinnedHeadline(reading) }}</span>
+              </span>
+              <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 6l6 6-6 6"></path>
+              </svg>
+            </button>
           }
 
-          @if (!store.pinnedReading() && !store.turns().length && !store.pendingQuestion()) {
-            @for (rec of store.orderedRecommendations(); track rec.type) {
-              <app-recommendation-card [recommendation]="rec" (ask)="askAbout($event)" />
-            }
-            @if (store.recommendationsLoadedAt() && !store.recommendations().length) {
-              <p class="empty">No insights yet. Log a workout or a meal and the rules will have something to say.</p>
+          @if (empty) {
+            <ng-container [ngTemplateOutlet]="suggestionList" />
+            @if (!store.pinnedReading() && store.orderedRecommendations().length) {
+              <section class="earlier">
+                <button type="button" class="earlier-toggle" [attr.aria-expanded]="earlierOpen()" (click)="earlierOpen.set(!earlierOpen())">
+                  <span class="earlier-title">Earlier notes</span>
+                  <span class="earlier-count">{{ store.orderedRecommendations().length }}</span>
+                  <svg class="chevron" [class.open]="earlierOpen()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6"></path>
+                  </svg>
+                </button>
+                @if (earlierOpen()) {
+                  @for (rec of store.orderedRecommendations(); track rec.type) {
+                    <app-recommendation-card [recommendation]="rec" (ask)="askAbout($event)" />
+                  }
+                }
+              </section>
             }
           }
 
@@ -151,13 +176,9 @@ import { RecommendationCardComponent } from './recommendation-card.component';
           @if (store.status() === 'unavailable') {
             <p class="envelope">The coach's model is switched off right now. The insights above are computed locally and are still current.</p>
           }
-          <div class="suggs">
-            @for (s of store.surface().suggestions; track s.text) {
-              <button type="button" class="sugg" [class.gen]="s.generative" (click)="send(s.text)" [disabled]="store.status() === 'answering'">
-                {{ s.text }}
-              </button>
-            }
-          </div>
+          @if (!empty) {
+            <ng-container [ngTemplateOutlet]="suggestionList" />
+          }
           <form class="composer" (submit)="submit($event)">
             <input
               #input
@@ -178,6 +199,22 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         </div>
       </aside>
     }
+
+    <ng-template #suggestionList>
+      <div class="suggs">
+        @for (s of suggestions(); track s.text) {
+          <button type="button" class="sugg" (click)="pick(s)" [disabled]="store.status() === 'answering'">
+            <span class="sugg-text">{{ s.text }}</span>
+            @if (s.draft) {
+              <span class="draft-pill">Makes a draft</span>
+            }
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 6l6 6-6 6"></path>
+            </svg>
+          </button>
+        }
+      </div>
+    </ng-template>
   `,
   styles: [
     `
@@ -223,6 +260,7 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         color: var(--text-primary);
         border-radius: var(--radius-full);
         padding: 9px 14px 9px 11px;
+        min-height: 44px;
         cursor: pointer;
         box-shadow: var(--shadow-md);
         font-size: var(--text-sm);
@@ -233,7 +271,7 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         top: 0;
         right: 0;
         bottom: 0;
-        width: min(380px, 100vw);
+        width: min(420px, 100vw);
         z-index: var(--z-overlay);
         display: flex;
         flex-direction: column;
@@ -259,7 +297,7 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         }
       }
       .dock-head {
-        padding: 13px 14px 11px;
+        padding: 6px 14px 11px;
         border-bottom: 1px solid var(--border);
         background: var(--surface);
       }
@@ -280,7 +318,9 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         color: var(--text-muted);
         font-size: var(--text-xs);
         font-weight: var(--fw-semibold);
-        padding: 3px 6px;
+        padding: 0 10px;
+        min-width: 44px;
+        min-height: 44px;
         border-radius: var(--radius-sm);
       }
       .tgl.close {
@@ -292,7 +332,8 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         color: var(--text-primary);
       }
       .looking {
-        margin: 9px 0 0;
+        margin: 0;
+        overflow-wrap: anywhere;
         font-size: var(--text-xs);
         color: var(--text-muted);
       }
@@ -398,48 +439,48 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         font-variant-numeric: tabular-nums;
         overflow-wrap: anywhere;
       }
-      .follow-ups {
+      .reading-row {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 60px;
+        padding: 14px 14px 14px 16px;
+        border: 0;
+        border-radius: 18px;
+        background: linear-gradient(145deg, var(--slate-900) 0%, var(--slate-900) 62%, var(--green-900) 100%);
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+      }
+      .reading-text {
+        flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
       }
-      .follow-heading {
+      .reading-label {
         font-size: 12px;
         font-weight: var(--fw-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--text-muted);
+        color: var(--green-400);
       }
-      .follow-q {
-        min-height: 52px;
-        box-sizing: border-box;
-        padding: 10px 14px;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        background: var(--surface);
-        color: var(--text-primary);
-        font: inherit;
-        font-size: 15px;
-        font-weight: var(--fw-medium);
-        text-align: left;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-      }
-      .follow-q:hover:not(:disabled) {
-        border-color: var(--accent);
-      }
-      .follow-q:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .follow-q span:first-child {
-        flex: 1;
-        min-width: 0;
+      .reading-headline {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 17px;
+        line-height: 1.3;
+        color: var(--white);
+        text-wrap: balance;
         overflow-wrap: anywhere;
       }
-      .follow-q .chevron {
+      .reading-row .chevron {
+        flex: none;
+        color: var(--slate-300);
+      }
+      .chevron {
         flex: none;
         color: var(--text-muted);
       }
@@ -510,8 +551,10 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         overflow-wrap: anywhere;
       }
       .turn-a.warn {
-        border-left: 3px solid var(--amber-500);
+        background: var(--surface-sunken);
+        border-color: var(--border-strong);
         color: var(--text-secondary);
+        overflow-wrap: anywhere;
       }
       .turn-a.live {
         display: flex;
@@ -576,8 +619,8 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         display: flex;
         flex-direction: column;
         gap: 6px;
-        background: color-mix(in srgb, var(--amber-500) 12%, var(--surface));
-        border: 1px solid color-mix(in srgb, var(--amber-500) 40%, var(--border));
+        background: var(--surface-sunken);
+        border: 1px solid var(--border-strong);
         border-radius: var(--radius-lg);
         padding: 11px 12px;
         font-size: var(--text-sm);
@@ -585,6 +628,10 @@ import { RecommendationCardComponent } from './recommendation-card.component';
       }
       .draft-link b {
         color: var(--text-primary);
+        overflow-wrap: anywhere;
+      }
+      .draft-link span {
+        overflow-wrap: anywhere;
       }
       .draft-link .button {
         align-self: flex-start;
@@ -598,33 +645,84 @@ import { RecommendationCardComponent } from './recommendation-card.component';
       }
       .suggs {
         display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        margin-bottom: 9px;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .dock-foot .suggs {
+        margin-bottom: 10px;
       }
       .sugg {
-        font-size: var(--text-xs);
-        font-weight: var(--fw-medium);
-        line-height: 1.25;
-        text-align: left;
-        color: var(--text-secondary);
-        background: var(--surface-sunken);
+        min-height: 52px;
+        box-sizing: border-box;
+        padding: 10px 14px;
         border: 1px solid var(--border);
-        border-radius: var(--radius-full);
-        padding: 6px 10px;
+        border-radius: 14px;
+        background: var(--surface);
+        color: var(--text-primary);
+        font: inherit;
+        font-size: 15px;
+        font-weight: var(--fw-medium);
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
         cursor: pointer;
       }
       .sugg:hover:not(:disabled) {
         border-color: var(--accent);
-        color: var(--accent-text);
-      }
-      .sugg.gen {
-        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-        color: var(--accent-text);
       }
       .sugg:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+      }
+      .sugg-text {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .earlier {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .earlier-toggle {
+        min-height: 44px;
+        box-sizing: border-box;
+        padding: 0 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-sunken);
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: var(--text-sm);
+        font-weight: var(--fw-semibold);
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+      }
+      .earlier-title {
+        flex: 1;
+        min-width: 0;
+      }
+      .earlier-count {
+        min-width: 22px;
+        height: 22px;
+        box-sizing: border-box;
+        padding: 0 7px;
+        border-radius: var(--radius-full);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-size: 11px;
+        font-weight: var(--fw-bold);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .earlier-toggle .chevron.open {
+        transform: rotate(90deg);
       }
       .composer {
         display: flex;
@@ -638,6 +736,8 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         background: var(--surface-sunken);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
+        min-height: 44px;
+        box-sizing: border-box;
         padding: 9px 10px;
       }
       .composer input:focus-visible {
@@ -651,6 +751,8 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         color: var(--text-on-accent);
         font-size: var(--text-sm);
         font-weight: var(--fw-semibold);
+        min-height: 44px;
+        min-width: 56px;
         padding: 10px 13px;
         cursor: pointer;
       }
@@ -665,7 +767,9 @@ import { RecommendationCardComponent } from './recommendation-card.component';
         margin: 8px 0 0;
       }
       .pinned-release:focus-visible,
-      .follow-q:focus-visible {
+      .reading-row:focus-visible,
+      .earlier-toggle:focus-visible,
+      .sugg:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
       }
@@ -678,8 +782,11 @@ import { RecommendationCardComponent } from './recommendation-card.component';
           border-top: 1px solid var(--border);
           border-radius: var(--radius-xl) var(--radius-xl) 0 0;
         }
+      }
+      /* Below the sidebar breakpoint the bottom navigation is on screen, so the launcher rides above it. */
+      @media (max-width: 860px) {
         .launch {
-          bottom: 76px;
+          bottom: 88px;
         }
       }
     `
@@ -688,11 +795,23 @@ import { RecommendationCardComponent } from './recommendation-card.component';
 export class CoachDockComponent {
   protected readonly store = inject(CoachStore);
   protected readonly draft = signal('');
+  /** Whether the first screen's row of earlier insight cards is open. */
+  protected readonly earlierOpen = signal(false);
+
+  /** True while the shell's sidebar is showing, which carries the coach entry in place of the floating button. */
+  protected readonly sidebarVisible = signal(false);
 
   @ViewChild('feed') private feed?: ElementRef<HTMLDivElement>;
   @ViewChild('input') private input?: ElementRef<HTMLInputElement>;
 
   constructor() {
+    const query = inject(MATCH_MEDIA)(SIDEBAR_QUERY);
+    if (query) {
+      this.sidebarVisible.set(query.matches);
+      const onChange = (event: MediaQueryListEvent): void => this.sidebarVisible.set(event.matches);
+      query.addEventListener?.('change', onChange);
+      inject(DestroyRef).onDestroy(() => query.removeEventListener?.('change', onChange));
+    }
     // A card's "Ask about this" lands here: pre-fill, never send.
     effect(() => {
       const prefill = this.store.composerPrefill();
@@ -741,19 +860,31 @@ export class CoachDockComponent {
     this.store.askAbout(recommendation);
   }
 
-  /** The questions that follow from the pinned reading, or none when nothing is pinned. */
-  protected readonly questions = computed<ReadingQuestion[]>(() => {
+  /**
+   * The one list of questions, at most three: those that follow from the pinned reading when there
+   * is one, otherwise the page's own.
+   */
+  protected readonly suggestions = computed<DockSuggestion[]>(() => {
     const reading = this.store.pinnedReading();
-    return reading ? questionsFor(reading) : [];
+    if (reading) {
+      return questionsFor(reading)
+        .slice(0, 3)
+        .map((q) => ({ text: q.text, draft: q.makesDraft }));
+    }
+    return this.store
+      .surface()
+      .suggestions.slice(0, 3)
+      .map((s) => ({ text: s.text, draft: s.generative }));
   });
 
-  /** A follow-up question: the drafting path for one that builds a session, the chat loop otherwise. */
-  protected askFollowUp(question: ReadingQuestion): void {
-    if (question.makesDraft) {
-      this.store.buildSession(question.text);
+  /** A suggestion: the drafting path for one that builds a session, the chat loop otherwise. */
+  protected pick(suggestion: DockSuggestion): void {
+    if (suggestion.draft) {
+      this.store.buildSession(suggestion.text);
     } else {
-      this.store.ask(question.text);
+      this.store.ask(suggestion.text);
     }
+    this.draft.set('');
   }
 
   /** The pinned card's headline, or a fallback for a reading that is facts only. */

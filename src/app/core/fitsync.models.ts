@@ -840,3 +840,38 @@ export interface QuickAddMealValue {
   sugarGrams?: number | null;
   sodiumMg?: number | null;
 }
+
+/** Protein eaten at one kind of meal on an average day of the period. */
+export interface ProteinByMeal {
+  mealType: string;
+  label: string;
+  gramsPerDay: number;
+}
+
+/** The nutrition figures behind the meal chart in the nutrition reading. */
+export interface NutritionInsightsPage {
+  period: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  daysLogged: number | null;
+  proteinPerDayGrams: number | null;
+  proteinTargetGrams: number | null;
+  proteinByMeal: ProteinByMeal[];
+}
+
+export interface WeightSeriesPoint {
+  date: string;
+  weightKg: number;
+}
+
+/** The weight figures behind the projection chart in the progress reading. */
+export interface ProgressInsight {
+  referenceDate: string | null;
+  weightKg: number | null;
+  measuredOn: string | null;
+  weeklyRateKg: number | null;
+  goalWeightKg: number | null;
+  goalDate: string | null;
+  projectedDate: string | null;
+  series: WeightSeriesPoint[];
+}

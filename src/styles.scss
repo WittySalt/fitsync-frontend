@@ -684,7 +684,8 @@ a:focus-visible {
 
   .body-snapshot {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+    // Side by side only while each half has room; the sidebar leaves less than the window shows.
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: 18px;
   }
 
@@ -705,6 +706,7 @@ a:focus-visible {
       margin: 0;
       font-size: var(--text-4xl);
       line-height: var(--lh-tight);
+      overflow-wrap: anywhere;
     }
 
     p {

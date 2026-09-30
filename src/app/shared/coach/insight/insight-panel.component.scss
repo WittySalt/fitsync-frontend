@@ -333,7 +333,8 @@
 
 .fact-text {
   flex: 1 1 0;
-  min-width: 0;
+  // A long note gives way before the label is squeezed into a column of single words.
+  min-width: 7rem;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -364,7 +365,7 @@
 }
 
 .fact-note {
-  flex: none;
+  flex: 0 1 auto;
   max-width: 45%;
   font-size: 12px;
   font-weight: var(--fw-semibold);

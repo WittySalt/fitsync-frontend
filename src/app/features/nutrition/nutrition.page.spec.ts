@@ -1,4 +1,5 @@
 import { CoachApiService } from '../../core/coach/coach-api.service';
+import { CoachReading } from '../../core/coach/coach.models';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -34,9 +35,24 @@ function summary(overrides: Partial<NutritionSummary> = {}): NutritionSummary {
   };
 }
 
-// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
-// renders without a request that these specs never asked for.
-const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
+// The page carries an insight panel. Its store is real; only the wire is stubbed. The reading is
+// empty, so the panel takes no space and the specs about the page itself are not disturbed.
+const emptyReading: CoachReading = {
+  surface: 'NUTRITION',
+  status: 'EMPTY',
+  readingId: null,
+  period: 'NONE',
+  periodStart: null,
+  periodEnd: null,
+  facts: [],
+  reading: null,
+  lifts: []
+};
+const coachApiStub = {
+  listRecommendations: () => of([]),
+  refreshRecommendations: () => of(undefined),
+  getReading: jasmine.createSpy('getReading').and.returnValue(of(emptyReading))
+};
 
 describe('NutritionPage', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
@@ -73,7 +89,7 @@ describe('NutritionPage', () => {
     await TestBed.configureTestingModule({
       imports: [NutritionPage],
       providers: [
-        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
+        // The page carries an insight panel, whose store reaches HttpClient through the API client.
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: CoachApiService, useValue: coachApiStub },
@@ -82,6 +98,17 @@ describe('NutritionPage', () => {
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
+  });
+
+  it('mounts the insight panel for nutrition in place of the old coach block', () => {
+    dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
+    const fixture = TestBed.createComponent(NutritionPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelectorAll('app-insight-panel').length).toBe(1);
+    expect(compiled.querySelector('app-coach-anchor')).toBeNull();
+    expect(coachApiStub.getReading).toHaveBeenCalledWith('NUTRITION', jasmine.any(String));
   });
 
   it('shows logged totals and target setup guidance when daily targets are missing', () => {

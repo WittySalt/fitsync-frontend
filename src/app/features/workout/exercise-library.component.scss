@@ -19,8 +19,17 @@
   gap: 12px;
 }
 
+// The filters wrap onto as many rows as the card's width needs, and the search box spans two.
 .filter-panel {
-  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+
+  label {
+    min-width: 0;
+  }
+
+  label:first-child {
+    grid-column: span 2;
+  }
 }
 
 .editor-panel {
