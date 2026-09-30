@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, si
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
+import { CoachContextService } from '../../../core/coach/coach-context.service';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { DayInsight, DayKind, TodayInsight, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession } from '../../../core/fitsync.models';
@@ -32,6 +33,7 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
 export class CoachBriefComponent implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly coachStore = inject(CoachStore);
+  private readonly coachContext = inject(CoachContextService);
   private readonly router = inject(Router);
   private readonly now = inject(BRIEF_NOW);
 
@@ -229,7 +231,10 @@ export class CoachBriefComponent implements OnInit {
     });
 
     this.dataService.getWeeklyTrainingInsight(this.timezone()).subscribe({
-      next: (insight) => this.insight.set(insight),
+      next: (insight) => {
+        this.insight.set(insight);
+        this.coachContext.setTodayKind(insight.today?.kind ?? null);
+      },
       error: () => this.insight.set(null)
     });
 

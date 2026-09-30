@@ -83,7 +83,8 @@ describe('SessionDetailComponent', () => {
         equipment: [],
         difficulties: [],
         workoutTypes: ['STRENGTH', 'CARDIO'],
-        goalFocuses: []
+        goalFocuses: [],
+        sportActivities: []
       })
     );
     dataService.getExercises.and.returnValue(

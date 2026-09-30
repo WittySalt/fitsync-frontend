@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseDetail, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -440,6 +440,35 @@ describe('FitSyncDataService', () => {
     expect(seed?.value.focusAreas).toEqual(['FULL_BODY', 'MOBILITY']);
     expect(seed?.hasExistingBodyBaseline).toBeTrue();
     expect(seed?.hasExistingNutritionBaseline).toBeTrue();
+  });
+
+  it('sends the weekly workout days, or null when the user decides later', () => {
+    service.saveOnboarding(baseOnboarding).subscribe();
+    const counted = httpTesting.expectOne('/api/v1/users/me/onboarding');
+    expect(counted.request.body.weeklyWorkoutDays).toBe(4);
+    counted.flush({});
+
+    service.saveOnboarding({ ...baseOnboarding, weeklyWorkoutDays: null }).subscribe();
+    const later = httpTesting.expectOne('/api/v1/users/me/onboarding');
+    expect(later.request.body.weeklyWorkoutDays).toBeNull();
+    later.flush({});
+  });
+
+  it('seeds the weekly workout days as null for a user who decided later, and leaves the default for a new one', () => {
+    let seed: OnboardingSeed | undefined;
+    service.getOnboardingSeed().subscribe((value) => (seed = value));
+    httpTesting.expectOne('/api/v1/users/me').flush({
+      profile: { displayName: 'Wang Xu', onboardingCompleted: true },
+      preferences: { training: { weeklyWorkoutDays: null, fitnessLevel: '200002' } }
+    });
+    expect(seed?.value.weeklyWorkoutDays).toBeNull();
+
+    service.getOnboardingSeed().subscribe((value) => (seed = value));
+    httpTesting.expectOne('/api/v1/users/me').flush({
+      profile: { displayName: 'New User', onboardingCompleted: false },
+      preferences: { training: { weeklyWorkoutDays: null } }
+    });
+    expect('weeklyWorkoutDays' in (seed?.value ?? {})).toBeFalse();
   });
 
   it('maps dashboard data from the analytics dashboard endpoint', () => {
@@ -2049,6 +2078,109 @@ describe('FitSyncDataService', () => {
     updateRequest.flush({ planId: 'plan-1', name: 'Plan', exercises: [] });
   });
 
+  it('maps the days of a plan, its sessions a week, and defaults both for a plan without a week', () => {
+    let result: WorkoutPlan[] | undefined;
+    service.getWorkoutPlans('ACTIVE').subscribe((value) => (result = value));
+
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/workouts/plans')
+      .flush({
+        content: [
+          {
+            planId: 'week',
+            name: 'Recomp',
+            sessionsPerWeek: 3,
+            exercises: [],
+            days: [
+              {
+                planDayId: 'day-1',
+                dayOfWeek: 1,
+                kind: 'STRENGTH',
+                title: 'Full body',
+                sportActivity: null,
+                sportLabel: null,
+                estimatedDurationMinutes: 50,
+                exercises: [{ exerciseId: 'exercise-1', exerciseNameSnapshot: 'Back squat', sequence: 1, targetWeightKg: '60.5', setTargets: [] }]
+              },
+              {
+                planDayId: 'day-6',
+                dayOfWeek: 6,
+                kind: 'SPORT',
+                title: 'Badminton',
+                sportActivity: 'BADMINTON',
+                sportLabel: 'Badminton',
+                estimatedDurationMinutes: 60,
+                exercises: []
+              },
+              { planDayId: 'day-7', dayOfWeek: 7, kind: 'UNKNOWN', title: null }
+            ]
+          },
+          { planId: 'flat', name: 'Flat', exercises: [] }
+        ]
+      });
+
+    const week = result?.[0];
+    expect(week?.sessionsPerWeek).toBe(3);
+    expect(week?.days?.length).toBe(3);
+    expect(week?.days?.[0]).toEqual(
+      jasmine.objectContaining({
+        planDayId: 'day-1',
+        dayOfWeek: 1,
+        kind: 'STRENGTH',
+        title: 'Full body',
+        sportActivity: null,
+        estimatedDurationMinutes: 50
+      })
+    );
+    expect(week?.days?.[0].exercises[0].targetWeightKg).toBe(60.5);
+    expect(week?.days?.[1]).toEqual(
+      jasmine.objectContaining({ kind: 'SPORT', sportActivity: 'BADMINTON', sportLabel: 'Badminton', exercises: [] })
+    );
+    expect(week?.days?.[2]).toEqual(jasmine.objectContaining({ kind: 'STRENGTH', title: '', estimatedDurationMinutes: null }));
+    expect(result?.[1].days).toEqual([]);
+    expect(result?.[1].sessionsPerWeek).toBeNull();
+  });
+
+  it('sends the days of a plan as they are and refuses nothing itself', () => {
+    const payload = {
+      name: 'Week',
+      description: '',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'BEGINNER',
+      estimatedDurationMinutes: 45,
+      exercises: [],
+      days: [
+        { planDayId: 'day-1', dayOfWeek: 1, kind: 'STRENGTH' as const, title: 'Push', sportActivity: null, estimatedDurationMinutes: 40, exercises: [] },
+        { dayOfWeek: 6, kind: 'SPORT' as const, title: 'Tennis', sportActivity: 'TENNIS', estimatedDurationMinutes: null, exercises: [] }
+      ]
+    };
+
+    service.createWorkoutPlan(payload).subscribe();
+    const createRequest = httpTesting.expectOne('/api/v1/workouts/plans');
+    expect(createRequest.request.body).toEqual(payload);
+    createRequest.flush({ planId: 'plan-1', name: 'Week', exercises: [], sessionsPerWeek: 2, days: [] });
+
+    service.updateWorkoutPlan('plan-1', payload).subscribe();
+    const updateRequest = httpTesting.expectOne('/api/v1/workouts/plans/plan-1');
+    expect(updateRequest.request.body).toEqual(payload);
+    updateRequest.flush({ planId: 'plan-1', name: 'Week', exercises: [] });
+  });
+
+  it('maps the sport activities of the exercise metadata and defaults them to none', () => {
+    let result: ExerciseMetadata | null | undefined;
+    service.getExerciseMetadata().subscribe((value) => (result = value));
+    httpTesting.expectOne('/api/v1/workouts/exercises/metadata').flush({
+      exerciseTypes: [],
+      sportActivities: [{ code: 'BADMINTON', label: 'Badminton', effort: 'MODERATE', measure: 'TIME' }]
+    });
+    expect(result?.sportActivities).toEqual([{ code: 'BADMINTON', label: 'Badminton', effort: 'MODERATE', measure: 'TIME' }]);
+
+    service.getExerciseMetadata().subscribe((value) => (result = value));
+    httpTesting.expectOne('/api/v1/workouts/exercises/metadata').flush({ exerciseTypes: [] });
+    expect(result?.sportActivities).toEqual([]);
+  });
+
   it('activates, archives, and starts a workout plan', () => {
     let started: WorkoutSessionDetail | undefined;
 
@@ -2219,6 +2351,65 @@ describe('FitSyncDataService', () => {
       status: 'CANCELLED',
       startedAt: '2026-06-20T02:00:00Z',
       exercises: []
+    });
+  });
+
+  describe('plan days', () => {
+    it('maps the days of a weekly plan with their exercises', () => {
+      let result: WorkoutPlan | null | undefined;
+      service.getActivePlan().subscribe((value) => (result = value));
+
+      httpTesting.expectOne('/api/v1/workouts/plans/active').flush({
+        planId: 'plan-week',
+        name: 'Week plan',
+        sessionsPerWeek: 2,
+        exercises: [],
+        days: [
+          {
+            planDayId: 'day-1',
+            dayOfWeek: 1,
+            kind: 'STRENGTH',
+            title: 'Full body',
+            estimatedDurationMinutes: 50,
+            exercises: [{ exerciseNameSnapshot: 'Goblet squat', sequence: 1, targetSets: 3, targetReps: 12, targetWeightKg: '18.0' }]
+          },
+          { planDayId: 'day-4', dayOfWeek: 4, kind: 'SPORT', title: 'Game', sportActivity: 'BADMINTON', sportLabel: 'Badminton' }
+        ]
+      });
+
+      expect(result?.sessionsPerWeek).toBe(2);
+      expect(result?.days?.length).toBe(2);
+      expect(result?.days?.[0]).toEqual(
+        jasmine.objectContaining({ planDayId: 'day-1', dayOfWeek: 1, kind: 'STRENGTH', title: 'Full body', estimatedDurationMinutes: 50 })
+      );
+      expect(result?.days?.[0].exercises[0]).toEqual(jasmine.objectContaining({ exerciseNameSnapshot: 'Goblet squat', targetWeightKg: 18 }));
+      expect(result?.days?.[1]).toEqual(
+        jasmine.objectContaining({ sportActivity: 'BADMINTON', sportLabel: 'Badminton', estimatedDurationMinutes: null, exercises: [] })
+      );
+    });
+
+    it('gives an empty list of days for a plan from an older backend', () => {
+      let result: WorkoutPlan | null | undefined;
+      service.getActivePlan().subscribe((value) => (result = value));
+
+      httpTesting.expectOne('/api/v1/workouts/plans/active').flush({ planId: 'plan-old', name: 'Old plan', exercises: [] });
+
+      expect(result?.days).toEqual([]);
+      expect(result?.sessionsPerWeek).toBeNull();
+    });
+
+    it('drops a day without an id and reads an unknown kind as strength', () => {
+      let result: WorkoutPlan | null | undefined;
+      service.getActivePlan().subscribe((value) => (result = value));
+
+      httpTesting.expectOne('/api/v1/workouts/plans/active').flush({
+        planId: 'plan-odd',
+        name: 'Odd plan',
+        days: [{ dayOfWeek: 2, kind: 'CARDIO' }, { planDayId: 'day-x', dayOfWeek: 'soon', kind: 'YOGA' }, null]
+      });
+
+      expect(result?.days?.length).toBe(1);
+      expect(result?.days?.[0]).toEqual(jasmine.objectContaining({ planDayId: 'day-x', dayOfWeek: 0, kind: 'STRENGTH', title: '' }));
     });
   });
 

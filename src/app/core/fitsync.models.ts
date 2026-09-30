@@ -25,7 +25,7 @@ export interface OnboardingFormValue {
   targetWeightLb: number | null;
   weeklyPaceKg: number | null;
   activityLevel: string;
-  weeklyWorkoutDays: number;
+  weeklyWorkoutDays: number | null;
   fitnessLevel: string;
   trainingLocation: string;
   preferredDurationMinutes: number | null;
@@ -291,6 +291,15 @@ export interface ExerciseMetadata {
   difficulties: string[];
   workoutTypes: string[];
   goalFocuses: string[];
+  /** The sports a plan day can be set to; empty when the backend does not list them. */
+  sportActivities: SportActivityOption[];
+}
+
+export interface SportActivityOption {
+  code: string;
+  label: string;
+  effort: string;
+  measure: string;
 }
 
 export interface ExerciseSearchOptions {
@@ -430,8 +439,28 @@ export interface WorkoutPlan {
   status: string;
   exerciseCount: number;
   exercises: WorkoutPlanExercise[];
+  /** The week laid out day by day. Empty for a plan that only has a flat exercise list. */
+  days?: WorkoutPlanDay[];
+  /** Number of training days in the week; null for a plan without a weekly layout. */
+  sessionsPerWeek?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+}
+
+/** The four kinds a plan day can have. A day that is not listed is a rest day. */
+export type PlanDayKind = SessionKindCode;
+
+/** One training day of a plan's week. A sport day names its activity and carries no exercises. */
+export interface WorkoutPlanDay {
+  planDayId: string;
+  /** 1 for Monday through 7 for Sunday. */
+  dayOfWeek: number;
+  kind: SessionKindCode;
+  title: string;
+  sportActivity: string | null;
+  sportLabel: string | null;
+  estimatedDurationMinutes: number | null;
+  exercises: WorkoutPlanExercise[];
 }
 
 export interface WorkoutPlanExercise {
@@ -488,6 +517,16 @@ export interface WorkoutPlanExerciseSetTargetInput {
   restSeconds: number | null;
 }
 
+export interface WorkoutPlanDayRequest {
+  planDayId?: string | null;
+  dayOfWeek: number;
+  kind: PlanDayKind;
+  title: string;
+  sportActivity?: string | null;
+  estimatedDurationMinutes?: number | null;
+  exercises: WorkoutPlanExerciseInput[];
+}
+
 export interface WorkoutPlanRequest {
   name: string;
   description: string;
@@ -496,6 +535,8 @@ export interface WorkoutPlanRequest {
   difficulty: string;
   estimatedDurationMinutes: number | null;
   exercises: WorkoutPlanExerciseInput[];
+  /** A week of days. When present the top-level exercises must be empty. */
+  days?: WorkoutPlanDayRequest[];
 }
 
 export type MuscleGroupCode = 'FULL_BODY' | 'CHEST' | 'BACK' | 'SHOULDERS' | 'ARMS' | 'CORE' | 'GLUTES' | 'LEGS' | 'CARDIO';

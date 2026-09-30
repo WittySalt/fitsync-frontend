@@ -277,13 +277,23 @@
                 </select>
               </label>
 
-              <label>
-                Weekly workout days
-                <input type="number" formControlName="weeklyWorkoutDays" min="1" max="7" />
-                @if (isInvalid('weeklyWorkoutDays')) {
-                  <span class="field-error">Choose 1 to 7 days.</span>
-                }
-              </label>
+              <div class="weekly-days">
+                <label>
+                  Weekly workout days
+                  <input type="number" formControlName="weeklyWorkoutDays" min="1" max="7" />
+                  @if (isInvalid('weeklyWorkoutDays')) {
+                    <span class="field-error">Choose 1 to 7 days.</span>
+                  }
+                </label>
+                <label class="toggle-row">
+                  <input
+                    type="checkbox"
+                    [checked]="weeklyDaysUndecided()"
+                    (change)="setWeeklyDaysLater($any($event.target).checked)"
+                  />
+                  <span>Decide later</span>
+                </label>
+              </div>
 
               <label>
                 Session duration (min)
@@ -486,7 +496,7 @@
                 @if (projection().projectedDate && projection().weekCount) {
                   <p>Projected {{ projection().projectedDate }} (+{{ projection().weekCount }} weeks).</p>
                 } @else {
-                  <p>Activity-focused plan with maintenance calories and {{ form.controls.weeklyWorkoutDays.value }} workout days per week.</p>
+                  <p>Activity-focused plan with maintenance calories and {{ form.controls.weeklyWorkoutDays.value === null ? 'a weekly workout count to be decided' : form.controls.weeklyWorkoutDays.value + ' workout days per week' }}.</p>
                 }
                 <p>{{ form.controls.trainingLocation.value }} / {{ form.controls.fitnessLevel.value }} / {{ form.controls.intensityPreference.value }}</p>
               </div>

@@ -2,14 +2,32 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { CoachApiService } from '../../core/coach/coach-api.service';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { of, Subject, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
-import { Exercise, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, WorkoutSessionQuery } from '../../core/fitsync.models';
+import { FormBuilder } from '@angular/forms';
+import { CoachContextService } from '../../core/coach/coach-context.service';
+import {
+  DayInsight,
+  Exercise,
+  TodayInsight,
+  UserGoal,
+  WeeklyTrainingInsight,
+  WorkoutPlan,
+  WorkoutPlanDay,
+  WorkoutPlanExercise,
+  WorkoutSession,
+  WorkoutSessionDetail,
+  WorkoutSessionQuery
+} from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
+import { createExerciseGroup } from './plan-exercise-form';
+import { applyDayKind } from './plan-week-form';
 import { LiveStartCardComponent } from './live-start-card.component';
+import { PlanExerciseRowsComponent } from './plan-exercise-rows.component';
 import { TodayOverviewComponent } from './today-overview.component';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 
@@ -75,6 +93,85 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
   };
 }
 
+function planExercise(overrides: Partial<WorkoutPlanExercise> = {}): WorkoutPlanExercise {
+  return {
+    exerciseId: 'exercise-1',
+    exerciseNameSnapshot: 'Back squat',
+    sequence: 1,
+    targetSets: 3,
+    targetReps: 8,
+    targetWeightKg: 60,
+    targetDurationSeconds: null,
+    targetDistanceKm: null,
+    restSeconds: 90,
+    notes: '',
+    setTargets: [],
+    ...overrides
+  };
+}
+
+function planDay(overrides: Partial<WorkoutPlanDay> = {}): WorkoutPlanDay {
+  return {
+    planDayId: 'day-1',
+    dayOfWeek: 1,
+    kind: 'STRENGTH',
+    title: 'Full body',
+    sportActivity: null,
+    sportLabel: null,
+    estimatedDurationMinutes: 50,
+    exercises: [planExercise()],
+    ...overrides
+  };
+}
+
+function weeklyInsight(overrides: Partial<WeeklyTrainingInsight> = {}): WeeklyTrainingInsight {
+  return {
+    timezone: 'Asia/Singapore',
+    referenceDate: '2026-09-30',
+    weekStart: '2026-09-28',
+    weekEnd: '2026-10-04',
+    completedSessions: 0,
+    totalMinutes: 0,
+    previousWeekCompletedSessions: 0,
+    previousWeekTotalMinutes: 0,
+    muscleGroups: [],
+    volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+    days: null,
+    today: null,
+    nextTraining: null,
+    ...overrides
+  };
+}
+
+function todayInsight(overrides: Partial<TodayInsight> = {}): TodayInsight {
+  return {
+    date: '2026-09-30',
+    kind: 'STRENGTH',
+    label: 'Strength',
+    source: 'PLAN',
+    planDayId: 'day-strength',
+    title: 'Full body',
+    estimatedMinutes: 50,
+    moves: 1,
+    lastOfKind: null,
+    carriedOver: [],
+    ...overrides
+  };
+}
+
+function goal(overrides: Partial<UserGoal> = {}): UserGoal {
+  return {
+    goalId: 'goal-1',
+    goalType: 'WORKOUT_FREQUENCY',
+    targetValue: 3,
+    targetUnit: 'sessions/week',
+    targetDate: null,
+    status: 'ACTIVE',
+    notes: null,
+    ...overrides
+  };
+}
+
 // The page carries the coach's insight panel. Only the wire is stubbed, and the reading request
 // fails, so the panel takes no space and these specs stay about the page.
 const coachApiStub = {
@@ -82,6 +179,10 @@ const coachApiStub = {
   refreshRecommendations: () => of(undefined),
   getReading: () => throwError(() => new Error('not under test'))
 };
+
+function rows(fixture: ComponentFixture<WorkoutPage>): PlanExerciseRowsComponent {
+  return fixture.debugElement.query(By.directive(PlanExerciseRowsComponent)).componentInstance;
+}
 
 describe('WorkoutPage', () => {
   let component: WorkoutPage;
@@ -93,6 +194,7 @@ describe('WorkoutPage', () => {
       'getWorkoutSessionPage',
       'searchExercisesPage',
       'getActivePlan',
+      'getWeeklyTrainingInsight',
       'saveWorkoutSession',
       'createWorkoutPlan',
       'updateWorkoutPlan',
@@ -106,6 +208,8 @@ describe('WorkoutPage', () => {
       'cancelSession',
       'getExercise',
       'getExerciseMetadata',
+      'getGoals',
+      'upsertGoal',
       'createExercise',
       'updateExercise',
       'archiveExercise',
@@ -123,6 +227,7 @@ describe('WorkoutPage', () => {
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     dataService.searchExercisesPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
     dataService.getActivePlan.and.returnValue(of(null));
+    dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight()));
     dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
     dataService.createWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
     dataService.updateWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
@@ -141,9 +246,15 @@ describe('WorkoutPage', () => {
         equipment: ['BARBELL'],
         difficulties: ['INTERMEDIATE'],
         workoutTypes: ['STRENGTH'],
-        goalFocuses: ['STRENGTH']
+        goalFocuses: ['STRENGTH'],
+        sportActivities: [
+          { code: 'BADMINTON', label: 'Badminton', effort: 'MODERATE', measure: 'TIME' },
+          { code: 'TENNIS', label: 'Tennis', effort: 'MODERATE', measure: 'TIME' }
+        ]
       })
     );
+    dataService.getGoals.and.returnValue(of([]));
+    dataService.upsertGoal.and.returnValue(of(goal({ targetValue: 4 })));
     dataService.createExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.updateExercise.and.returnValue(of(exercise({ custom: true })));
     dataService.archiveExercise.and.returnValue(of(void 0));
@@ -373,10 +484,10 @@ describe('WorkoutPage', () => {
     fixture.detectChanges();
 
     const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
-    today.startPlan.emit(active);
+    today.startPlan.emit({ plan: active, planDayId: null });
     fixture.detectChanges();
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
     expect(fixture.componentInstance.guidedPlayerSession()?.sessionId).toBe('session-today');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
@@ -411,9 +522,196 @@ describe('WorkoutPage', () => {
     today.startExercise.emit(active.exercises[0]);
     fixture.detectChanges();
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
     expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-2');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
+  });
+
+  describe('the Today card and the weekly insight', () => {
+    const dayPlan = () =>
+      plan({
+        planId: 'plan-days',
+        name: 'Week plan',
+        status: 'ACTIVE',
+        days: [
+          {
+            planDayId: 'day-strength',
+            dayOfWeek: 3,
+            kind: 'STRENGTH',
+            title: 'Full body',
+            sportActivity: null,
+            sportLabel: null,
+            estimatedDurationMinutes: 50,
+            exercises: [
+              {
+                planExerciseId: 'pe-1',
+                exerciseId: 'exercise-9',
+                exerciseNameSnapshot: 'Goblet squat',
+                sequence: 1,
+                targetSets: 3,
+                targetReps: 12,
+                targetWeightKg: 18,
+                targetDurationSeconds: null,
+                targetDistanceKm: null,
+                restSeconds: 75,
+                notes: '',
+                setTargets: []
+              }
+            ]
+          }
+        ]
+      });
+
+    function todayCard(fixture: ComponentFixture<WorkoutPage>): TodayOverviewComponent {
+      return fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
+    }
+
+    it('passes today, the next training day and the timezone to the card', () => {
+      const insight = weeklyInsight({
+        today: todayInsight(),
+        nextTraining: { date: '2026-10-01', kind: 'CARDIO', label: 'Cardio', title: 'Run', estimatedMinutes: 35 }
+      });
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(insight));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const card = todayCard(fixture);
+
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith(fixture.componentInstance.timezone);
+      expect(card.today()).toEqual(insight.today);
+      expect(card.nextTraining()).toEqual(insight.nextTraining);
+      expect(card.timezone()).toBe(fixture.componentInstance.timezone);
+    });
+
+    it('passes the entry of today in the week to the card', () => {
+      const entry: DayInsight = {
+        date: '2026-09-30',
+        dayOfWeek: 3,
+        kind: 'STRENGTH',
+        label: 'Strength',
+        source: 'DONE',
+        minutes: 50,
+        sessions: [],
+        planned: null
+      };
+      const other: DayInsight = { ...entry, date: '2026-09-29', minutes: 20 };
+      dataService.getWeeklyTrainingInsight.and.returnValue(
+        of(weeklyInsight({ today: todayInsight({ source: 'DONE' }), days: [other, entry] }))
+      );
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(todayCard(fixture).todayDay()).toEqual(entry);
+    });
+
+    it('tells the coach what kind of day today is', () => {
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight({ kind: 'CARDIO' }) })));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(TestBed.inject(CoachContextService).todayKind()).toBe('CARDIO');
+    });
+
+    it('starts the plan day the card names, in the page timezone', () => {
+      const active = dayPlan();
+      dataService.getActivePlan.and.returnValue(of(active));
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight() })));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      todayCard(fixture).startPlan.emit({ plan: active, planDayId: 'day-strength' });
+      fixture.detectChanges();
+
+      expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-days', {
+        planDayId: 'day-strength',
+        timezone: fixture.componentInstance.timezone
+      });
+      expect(fixture.componentInstance.guidedPlayerSession()).not.toBeNull();
+    });
+
+    it('starts the day a pressed move belongs to', () => {
+      const active = dayPlan();
+      dataService.getActivePlan.and.returnValue(of(active));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      todayCard(fixture).startExercise.emit(active.days![0].exercises[0]);
+
+      expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-days', {
+        planDayId: 'day-strength',
+        timezone: fixture.componentInstance.timezone
+      });
+      expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-9');
+    });
+
+    it('keeps working when the insight request fails', () => {
+      const active = plan({ planId: 'plan-plain', name: 'Plain plan', status: 'ACTIVE' });
+      dataService.getActivePlan.and.returnValue(of(active));
+      dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('insight down')));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const card = todayCard(fixture);
+
+      expect(card.today()).toBeNull();
+      expect(card.nextTraining()).toBeNull();
+      expect(card.todayDay()).toBeNull();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('app-today-overview h2')?.textContent).toContain('Plain plan');
+
+      root.querySelector<HTMLButtonElement>('app-today-overview .action-primary')?.click();
+      expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-plain', {
+        planDayId: null,
+        timezone: fixture.componentInstance.timezone
+      });
+    });
+
+    it('refreshes the insight after the sessions change', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      dataService.getWeeklyTrainingInsight.calls.reset();
+
+      fixture.componentInstance.handlePastWorkoutLogged();
+
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the past workout form, set to the kind, when the card asks to log manually', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+
+      todayCard(fixture).logManually.emit('CARDIO');
+      expect(startCard.pastWorkoutOpen()).toBeTrue();
+      expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('CARDIO');
+
+      todayCard(fixture).logManually.emit('SPORT');
+      expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('CUSTOM');
+    });
+
+    it('opens the named session in History when the card asks to open a session', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      todayCard(fixture).openSession.emit({ sessionId: 'session-running', status: 'IN_PROGRESS' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedTab()).toBe('history');
+      expect(fixture.componentInstance.filterStatus()).toBe('IN_PROGRESS');
+      expect(fixture.componentInstance.selectedSessionId()).toBe('session-running');
+    });
+
+    it('opens History without a selection when the insight names no session', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      todayCard(fixture).openSession.emit({ sessionId: null, status: 'COMPLETED' });
+
+      expect(fixture.componentInstance.selectedTab()).toBe('history');
+      expect(fixture.componentInstance.selectedSessionId()).toBeNull();
+    });
   });
 
   it('refreshes sessions when the nested past workout flow finishes', () => {
@@ -623,8 +921,8 @@ describe('WorkoutPage', () => {
     staleSearch.complete();
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.exercisePickerState(0).query).toBe('press');
-    expect(fixture.componentInstance.exercisePickerState(0).results).toEqual([]);
+    expect(rows(fixture).pickerState(0).query).toBe('press');
+    expect(rows(fixture).pickerState(0).results).toEqual([]);
 
     tick(275);
     fixture.detectChanges();
@@ -678,15 +976,15 @@ describe('WorkoutPage', () => {
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
-    expect(fixture.componentInstance.exercisePickerState(0).open).toBeFalse();
+    expect(rows(fixture).pickerState(0).open).toBeFalse();
 
     input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     fixture.detectChanges();
-    expect(fixture.componentInstance.exercisePickerState(0).open).toBeTrue();
+    expect(rows(fixture).pickerState(0).open).toBeTrue();
 
     input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     fixture.detectChanges();
-    expect(fixture.componentInstance.exercisePickerState(0).open).toBeFalse();
+    expect(rows(fixture).pickerState(0).open).toBeFalse();
   });
 
   it('keeps an empty typeahead picker stable when arrowing through no results', () => {
@@ -694,11 +992,11 @@ describe('WorkoutPage', () => {
     fixture.componentInstance.selectedTab.set('plans');
     fixture.detectChanges();
 
-    fixture.componentInstance.openExercisePicker(0);
-    fixture.componentInstance.handleExercisePickerKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }), 0);
+    rows(fixture).openPicker(0);
+    rows(fixture).handleKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }), 0);
 
-    expect(fixture.componentInstance.exercisePickerState(0).activeIndex).toBe(-1);
-    expect(fixture.componentInstance.exercisePickerState(99).open).toBeFalse();
+    expect(rows(fixture).pickerState(0).activeIndex).toBe(-1);
+    expect(rows(fixture).pickerState(99).open).toBeFalse();
   });
 
   it('does not select a typeahead result without an exercise id', () => {
@@ -706,10 +1004,10 @@ describe('WorkoutPage', () => {
     fixture.componentInstance.selectedTab.set('plans');
     fixture.detectChanges();
 
-    fixture.componentInstance.selectExerciseResult(0, exercise({ exerciseId: undefined }));
+    rows(fixture).selectResult(0, exercise({ exerciseId: undefined }));
 
     expect(fixture.componentInstance.planExercises.at(0).value.exerciseId).toBe('');
-    expect(fixture.componentInstance.exerciseHint(exercise({ primaryMuscleGroup: '', equipment: '' }))).toBe('');
+    expect(rows(fixture).exerciseHint(exercise({ primaryMuscleGroup: '', equipment: '' }))).toBe('');
   });
 
   it('keeps exercise picker state aligned when removing plan rows', () => {
@@ -718,12 +1016,12 @@ describe('WorkoutPage', () => {
     fixture.detectChanges();
 
     fixture.componentInstance.addPlanExercise();
-    fixture.componentInstance.setExerciseSearchQuery(0, 'squat');
-    fixture.componentInstance.setExerciseSearchQuery(1, 'press');
+    rows(fixture).setSearchQuery(0, 'squat');
+    rows(fixture).setSearchQuery(1, 'press');
 
     fixture.componentInstance.removePlanExercise(0);
 
-    expect(fixture.componentInstance.exercisePickerState(0).query).toBe('press');
+    expect(rows(fixture).pickerState(0).query).toBe('press');
   });
 
   it('closes the plan exercise picker and marks exerciseId touched on blur', () => {
@@ -735,12 +1033,12 @@ describe('WorkoutPage', () => {
     input!.dispatchEvent(new Event('focus'));
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.exercisePickerState(0).open).toBeTrue();
+    expect(rows(fixture).pickerState(0).open).toBeTrue();
 
     input!.dispatchEvent(new Event('blur'));
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.exercisePickerState(0).open).toBeFalse();
+    expect(rows(fixture).pickerState(0).open).toBeFalse();
     expect(fixture.componentInstance.planExercises.at(0).get('exerciseId')?.touched).toBeTrue();
   });
 
@@ -1089,7 +1387,7 @@ describe('WorkoutPage', () => {
 
     component.activePlan.set(active);
     component.planMutations.set(new Set(['plan-guided']));
-    component.handleTodayStart(active);
+    component.handleTodayStart({ plan: active, planDayId: null });
 
     expect(dataService.startWorkoutPlan).not.toHaveBeenCalled();
 
@@ -1162,5 +1460,392 @@ describe('WorkoutPage', () => {
     expect(component.formatDate(null)).toBe('\u2014');
     expect(component.formatDate('not-a-date')).toBe('\u2014');
     expect(component.metrics()[2].detail).toBe('Strength');
+  });
+
+  it('saves a new plan as one list with exactly the request it always sent', () => {
+    component.planForm.patchValue({
+      name: 'Strength base',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'INTERMEDIATE',
+      estimatedDurationMinutes: 50
+    });
+    component.planExercises.at(0).patchValue({
+      exerciseId: 'exercise-1',
+      targetSets: 3,
+      targetReps: 8,
+      targetWeightKg: 60,
+      restSeconds: 120,
+      notes: 'Controlled'
+    });
+
+    component.savePlan();
+
+    expect(dataService.createWorkoutPlan).toHaveBeenCalledWith({
+      name: 'Strength base',
+      description: '',
+      goalFocus: 'STRENGTH',
+      workoutType: 'STRENGTH',
+      difficulty: 'INTERMEDIATE',
+      estimatedDurationMinutes: 50,
+      exercises: [
+        {
+          exerciseId: 'exercise-1',
+          sequence: 1,
+          targetSets: 3,
+          targetReps: 8,
+          targetWeightKg: 60,
+          targetDurationSeconds: null,
+          targetDistanceKm: null,
+          restSeconds: 120,
+          notes: 'Controlled',
+          setTargets: []
+        }
+      ]
+    });
+    expect(component.planMode()).toBe('list');
+  });
+
+  it('moves the typed exercises into a Monday strength day named after the plan when switching to a week', () => {
+    component.planForm.patchValue({ name: 'Recomp' });
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1', exerciseName: 'Back squat' });
+    component.addPlanExercise();
+
+    component.setPlanMode('week');
+
+    const monday = component.planWeek.at(0);
+    expect(component.planMode()).toBe('week');
+    expect(monday.controls.kind.value).toBe('STRENGTH');
+    expect(monday.controls.title.value).toBe('Recomp');
+    expect(monday.controls.exercises.length).toBe(1);
+    expect(monday.controls.exercises.at(0).controls.exerciseId.value).toBe('exercise-1');
+    expect(component.planExercises.length).toBe(0);
+    expect(component.planWeek.controls.slice(1).every((day) => day.controls.kind.value === 'REST')).toBeTrue();
+    expect(dataService.getExerciseMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the week editor with the sport list once a week is chosen', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-plan-week-editor')).toBeNull();
+
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[aria-label="Plan layout"] button')
+    );
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual(['One list', 'A week']);
+    buttons[1].click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-plan-week-editor')).not.toBeNull();
+    expect(fixture.componentInstance.sportActivities().map((sport) => sport.code)).toEqual(['BADMINTON', 'TENNIS']);
+  });
+
+  it('saves a week as days with an empty exercise list and keeps the ids of days from the server', () => {
+    component.editPlan(
+      plan({
+        planId: 'plan-week',
+        days: [
+          planDay({
+            planDayId: 'day-mon',
+            dayOfWeek: 1,
+            exercises: [planExercise({ sequence: 4 }), planExercise({ exerciseId: 'exercise-2', sequence: 9 })]
+          }),
+          planDay({
+            planDayId: 'day-sat',
+            dayOfWeek: 6,
+            kind: 'SPORT',
+            title: 'Badminton',
+            sportActivity: 'BADMINTON',
+            sportLabel: 'Badminton',
+            estimatedDurationMinutes: 60,
+            exercises: []
+          })
+        ]
+      })
+    );
+    const wednesday = component.planWeek.at(2);
+    wednesday.controls.title.setValue('Stretch');
+    wednesday.controls.exercises.push(createExerciseGroup(TestBed.inject(FormBuilder)));
+    wednesday.controls.exercises.at(0).patchValue({
+      exerciseId: 'exercise-3',
+      exerciseName: 'Cat cow',
+      exerciseType: 'MOBILITY',
+      targetDurationSeconds: 45
+    });
+    applyDayKind(wednesday, 'MOBILITY');
+
+    component.savePlan();
+
+    const [id, request] = dataService.updateWorkoutPlan.calls.mostRecent().args;
+    expect(id).toBe('plan-week');
+    expect(request.exercises).toEqual([]);
+    expect(request.days?.map((day) => day.dayOfWeek)).toEqual([1, 3, 6]);
+    expect(request.days?.[0]).toEqual(
+      jasmine.objectContaining({ planDayId: 'day-mon', kind: 'STRENGTH', title: 'Full body', estimatedDurationMinutes: 50 })
+    );
+    expect(request.days?.[0].exercises.map((row) => [row.exerciseId, row.sequence])).toEqual([
+      ['exercise-1', 1],
+      ['exercise-2', 2]
+    ]);
+    expect('planDayId' in (request.days?.[1] ?? {})).toBeFalse();
+    expect(request.days?.[1]).toEqual(
+      jasmine.objectContaining({ kind: 'MOBILITY', sportActivity: null, estimatedDurationMinutes: null })
+    );
+    expect(request.days?.[1].exercises[0]).toEqual(
+      jasmine.objectContaining({ sequence: 1, targetSets: null, targetDurationSeconds: 45 })
+    );
+    expect(request.days?.[2]).toEqual(
+      jasmine.objectContaining({
+        planDayId: 'day-sat',
+        kind: 'SPORT',
+        sportActivity: 'BADMINTON',
+        estimatedDurationMinutes: 60,
+        exercises: []
+      })
+    );
+  });
+
+  it('blocks saving a week with an unfinished day and selects that day', () => {
+    const toast = TestBed.inject(ToastService);
+    spyOn(toast, 'error');
+    component.planForm.patchValue({ name: 'Week', estimatedDurationMinutes: 45 });
+    component.setPlanMode('week');
+    component.planWeek.at(0).controls.title.setValue('Push');
+    applyDayKind(component.planWeek.at(3), 'CARDIO');
+
+    component.savePlan();
+
+    expect(dataService.createWorkoutPlan).not.toHaveBeenCalled();
+    expect(component.selectedPlanDay()).toBe(0);
+    expect(toast.error).toHaveBeenCalledWith('Complete this day before saving the week.');
+
+    component.planWeek.at(0).controls.exercises.push(createExerciseGroup(TestBed.inject(FormBuilder)));
+    component.savePlan();
+    expect(component.selectedPlanDay()).toBe(0);
+    component.planWeek.at(0).controls.exercises.at(0).controls.exerciseId.setValue('exercise-1');
+    component.savePlan();
+    expect(component.selectedPlanDay()).toBe(3);
+    expect(dataService.createWorkoutPlan).not.toHaveBeenCalled();
+  });
+
+  it('refuses a week without a training day', () => {
+    const toast = TestBed.inject(ToastService);
+    spyOn(toast, 'error');
+    component.planForm.patchValue({ name: 'Empty week' });
+    component.setPlanMode('week');
+    applyDayKind(component.planWeek.at(0), 'REST');
+
+    component.savePlan();
+
+    expect(dataService.createWorkoutPlan).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('Plan at least one training day before saving the week.');
+  });
+
+  it('opens a plan that has a week in week mode', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    fixture.componentInstance.editPlan(
+      plan({
+        planId: 'plan-week',
+        days: [planDay({ dayOfWeek: 2, title: 'Tuesday lift' }), planDay({ planDayId: 'day-5', dayOfWeek: 5, title: 'Friday lift' })]
+      })
+    );
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.planMode()).toBe('week');
+    expect(fixture.componentInstance.selectedPlanDay()).toBe(1);
+    expect(fixture.componentInstance.planExercises.length).toBe(0);
+    expect(fixture.nativeElement.querySelector('app-plan-week-editor')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.day-heading')?.textContent).toContain('Tuesday');
+  });
+
+  it('merges the days into one list in day order when switching back, after a confirmation', () => {
+    component.editPlan(
+      plan({
+        planId: 'plan-week',
+        days: [
+          planDay({ dayOfWeek: 5, exercises: [planExercise({ exerciseId: 'friday-1' })] }),
+          planDay({
+            planDayId: 'day-1',
+            dayOfWeek: 1,
+            exercises: [planExercise({ exerciseId: 'monday-1' }), planExercise({ exerciseId: 'monday-2' })]
+          })
+        ]
+      })
+    );
+    const confirm = spyOn(window, 'confirm').and.returnValue(false);
+
+    component.setPlanMode('list');
+    expect(confirm).toHaveBeenCalled();
+    expect(component.planMode()).toBe('week');
+
+    confirm.and.returnValue(true);
+    component.setPlanMode('list');
+
+    expect(component.planMode()).toBe('list');
+    expect(component.planExercises.controls.map((group) => group.controls.exerciseId.value)).toEqual([
+      'monday-1',
+      'monday-2',
+      'friday-1'
+    ]);
+    expect(component.planWeek.controls.every((day) => day.controls.kind.value === 'REST')).toBeTrue();
+
+    component.planForm.patchValue({ name: 'Merged' });
+    component.savePlan();
+    const request = dataService.updateWorkoutPlan.calls.mostRecent().args[1];
+    expect(request.days).toBeUndefined();
+    expect(request.exercises.map((row) => row.sequence)).toEqual([1, 2, 3]);
+  });
+
+  it('switches back to one list without asking when the week holds nothing', () => {
+    const confirm = spyOn(window, 'confirm');
+    component.setPlanMode('week');
+    applyDayKind(component.planWeek.at(0), 'REST');
+
+    component.setPlanMode('list');
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(component.planMode()).toBe('list');
+    expect(component.planExercises.length).toBe(1);
+  });
+
+  it('summarises a plan with a week on its card in place of the exercise count', () => {
+    dataService.getWorkoutPlans.and.returnValue(
+      of([
+        plan({
+          planId: 'week',
+          name: 'Weekly',
+          days: [planDay({ dayOfWeek: 1 }), planDay({ dayOfWeek: 4, kind: 'CARDIO', title: 'Run' })],
+          sessionsPerWeek: 2
+        }),
+        plan({ planId: 'flat', name: 'Flat', exerciseCount: 5 })
+      ])
+    );
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+
+    const cards = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.plan-card'));
+    const summary = cards[0].querySelector('app-plan-week-summary') as HTMLElement;
+    expect(summary.textContent).toContain('2 sessions a week');
+    expect(summary.querySelectorAll('.tile').length).toBe(7);
+    expect(summary.querySelectorAll('.tile.training').length).toBe(2);
+    expect(cards[0].textContent).not.toContain('exercises');
+    expect(cards[1].querySelector('app-plan-week-summary')).toBeNull();
+    expect(cards[1].textContent).toContain('5 exercises');
+  });
+
+  describe('weekly goal prompt', () => {
+    let toast: ToastService;
+
+    beforeEach(() => {
+      toast = TestBed.inject(ToastService);
+      spyOn(toast, 'success');
+      spyOn(toast, 'error');
+    });
+
+    function activateWeekPlan(sessionsPerWeek: number | null): void {
+      dataService.activateWorkoutPlan.and.returnValue(
+        of(plan({ status: 'ACTIVE', sessionsPerWeek, days: sessionsPerWeek ? [planDay()] : [] }))
+      );
+      component.activatePlan(plan({ planId: 'plan-1', status: 'DRAFT' }));
+    }
+
+    it('offers the session count of the plan when there is no weekly goal', () => {
+      activateWeekPlan(4);
+
+      expect(component.weeklyGoalOffer()).toEqual({ sessions: 4, existing: null });
+    });
+
+    it('offers it when the goal differs, and stays quiet when the goal already matches', () => {
+      dataService.getGoals.and.returnValue(of([goal({ targetValue: 3 })]));
+      activateWeekPlan(4);
+      expect(component.weeklyGoalOffer()?.sessions).toBe(4);
+
+      dataService.getGoals.and.returnValue(of([goal({ targetValue: 4 })]));
+      activateWeekPlan(4);
+      expect(component.weeklyGoalOffer()).toBeNull();
+    });
+
+    it('does not ask about a plan without a week', () => {
+      activateWeekPlan(null);
+
+      expect(dataService.getGoals).not.toHaveBeenCalled();
+      expect(component.weeklyGoalOffer()).toBeNull();
+    });
+
+    it('offers it after a template was activated', () => {
+      component.handleTemplateActivated(plan({ sessionsPerWeek: 5 }));
+
+      expect(component.weeklyGoalOffer()?.sessions).toBe(5);
+    });
+
+    it('renders the prompt with its two actions', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.componentInstance.selectedTab.set('plans');
+      fixture.componentInstance.weeklyGoalOffer.set({ sessions: 4, existing: null });
+      fixture.detectChanges();
+
+      const prompt = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.goal-offer')!;
+      expect(prompt.querySelector('p')?.textContent).toBe('This plan has 4 sessions a week.');
+      expect(Array.from(prompt.querySelectorAll('button')).map((button) => button.textContent?.trim())).toEqual([
+        'Make 4 my weekly goal',
+        'Not now'
+      ]);
+    });
+
+    it('saves the goal keeping the existing target date, and confirms', () => {
+      dataService.getGoals.and.returnValue(
+        of([goal({ targetValue: 3, targetDate: '2026-12-31', notes: 'Keep going' })])
+      );
+      activateWeekPlan(4);
+
+      component.acceptWeeklyGoalOffer();
+
+      expect(dataService.upsertGoal).toHaveBeenCalledWith('WORKOUT_FREQUENCY', {
+        targetValue: 4,
+        targetUnit: 'sessions/week',
+        targetDate: '2026-12-31',
+        status: 'ACTIVE',
+        notes: 'Keep going'
+      });
+      expect(toast.success).toHaveBeenCalledWith('Weekly goal saved.');
+      expect(component.weeklyGoalOffer()).toBeNull();
+      expect(component.weeklyGoalSaving()).toBeFalse();
+    });
+
+    it('uses no target date for a first weekly goal', () => {
+      activateWeekPlan(4);
+
+      component.acceptWeeklyGoalOffer();
+
+      expect(dataService.upsertGoal.calls.mostRecent().args[1]).toEqual(
+        jasmine.objectContaining({ targetDate: null, notes: null })
+      );
+    });
+
+    it('keeps the prompt and shows the error toast when saving fails', () => {
+      dataService.upsertGoal.and.returnValue(throwError(() => new Error('goal failed')));
+      activateWeekPlan(4);
+
+      component.acceptWeeklyGoalOffer();
+
+      expect(toast.error).toHaveBeenCalledWith('Unable to save the weekly goal. Please retry.');
+      expect(component.weeklyGoalOffer()?.sessions).toBe(4);
+      expect(component.weeklyGoalSaving()).toBeFalse();
+    });
+
+    it('dismisses the prompt for that activation only', () => {
+      activateWeekPlan(4);
+
+      component.dismissWeeklyGoalOffer();
+      expect(component.weeklyGoalOffer()).toBeNull();
+
+      activateWeekPlan(6);
+      expect(component.weeklyGoalOffer()?.sessions).toBe(6);
+    });
   });
 });

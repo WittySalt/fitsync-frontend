@@ -67,7 +67,9 @@ import {
   WorkoutExport,
   WorkoutExerciseLogInput,
   WorkoutExerciseSetInput,
+  PlanDayKind,
   WorkoutPlan,
+  WorkoutPlanDay,
   WorkoutPlanRequest,
   WorkoutPlanStatus,
   WorkoutSession,
@@ -445,6 +447,19 @@ interface BackendWorkoutPlan {
   exerciseCount?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  exercises?: BackendWorkoutPlanExercise[] | null;
+  days?: BackendWorkoutPlanDay[] | null;
+  sessionsPerWeek?: number | null;
+}
+
+interface BackendWorkoutPlanDay {
+  planDayId?: string | null;
+  dayOfWeek?: number | null;
+  kind?: string | null;
+  title?: string | null;
+  sportActivity?: string | null;
+  sportLabel?: string | null;
+  estimatedDurationMinutes?: number | null;
   exercises?: BackendWorkoutPlanExercise[] | null;
 }
 
@@ -1223,7 +1238,8 @@ export class FitSyncDataService {
         equipment: metadata.equipment ?? [],
         difficulties: metadata.difficulties ?? [],
         workoutTypes: metadata.workoutTypes ?? [],
-        goalFocuses: metadata.goalFocuses ?? []
+        goalFocuses: metadata.goalFocuses ?? [],
+        sportActivities: metadata.sportActivities ?? []
       })),
       catchError(() => of(null))
     );
@@ -1955,6 +1971,10 @@ export class FitSyncDataService {
   ): void {
     if (training?.weeklyWorkoutDays != null) {
       value.weeklyWorkoutDays = training.weeklyWorkoutDays;
+    } else if (training?.weeklyWorkoutDays === null && this.hasTrainingBaseline(training)) {
+      // A user who onboarded with "Decide later" has a saved baseline and no number; the form
+      // should show that choice instead of the default of four days.
+      value.weeklyWorkoutDays = null;
     }
     const fitnessLevel = this.normalizeEnum(training?.fitnessLevel, {
       '200001': 'BEGINNER',
@@ -2394,9 +2414,31 @@ export class FitSyncDataService {
       status: plan.status ?? 'ACTIVE',
       exerciseCount: plan.exerciseCount ?? exercises.length,
       exercises,
+      days: this.mapWorkoutPlanDays(plan.days),
+      sessionsPerWeek: safeInsightNumberOrNull(plan.sessionsPerWeek),
       createdAt: plan.createdAt ?? null,
       updatedAt: plan.updatedAt ?? null
     };
+  }
+
+  /** A day without an id cannot be started or matched against the weekly insight, so it is dropped
+   *  rather than shown half-usable. An older backend sends no days and yields an empty list. */
+  private mapWorkoutPlanDays(days: BackendWorkoutPlanDay[] | null | undefined): WorkoutPlanDay[] {
+    if (!Array.isArray(days)) {
+      return [];
+    }
+    return days
+      .filter((day): day is BackendWorkoutPlanDay & { planDayId: string } => typeof day?.planDayId === 'string' && day.planDayId !== '')
+      .map((day) => ({
+        planDayId: day.planDayId,
+        dayOfWeek: safeInsightNumber(day.dayOfWeek),
+        kind: mapSessionKind(day.kind),
+        title: day.title ?? '',
+        sportActivity: day.sportActivity ?? null,
+        sportLabel: day.sportLabel ?? null,
+        estimatedDurationMinutes: safeInsightNumberOrNull(day.estimatedDurationMinutes),
+        exercises: (day.exercises ?? []).map((exercise) => this.mapWorkoutPlanExercise(exercise))
+      }));
   }
 
   private mapWorkoutPlanExercise(exercise: BackendWorkoutPlanExercise) {
