@@ -688,7 +688,44 @@ describe('WorkoutPage', () => {
       expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('CARDIO');
 
       todayCard(fixture).logManually.emit('SPORT');
+      expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('SPORTS');
+      expect(startCard.pastWorkoutForm.controls.sportActivity.value).toBe('');
+
+      todayCard(fixture).logManually.emit('OPEN');
       expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('CUSTOM');
+    });
+
+    it('preselects the sport named by the plan of today', () => {
+      const entry: DayInsight = {
+        date: '2026-09-30',
+        dayOfWeek: 3,
+        kind: 'SPORT',
+        label: 'Sport',
+        source: 'PLAN',
+        minutes: null,
+        sessions: [],
+        planned: {
+          planDayId: 'day-sport',
+          kind: 'SPORT',
+          title: 'Badminton',
+          sportActivity: 'BADMINTON',
+          estimatedMinutes: 60,
+          moves: null,
+          fulfilled: false
+        }
+      };
+      dataService.getWeeklyTrainingInsight.and.returnValue(
+        of(weeklyInsight({ today: todayInsight({ kind: 'SPORT' }), days: [entry] }))
+      );
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+
+      todayCard(fixture).logManually.emit('SPORT');
+
+      expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('SPORTS');
+      expect(startCard.pastWorkoutForm.controls.sportActivity.value).toBe('BADMINTON');
     });
 
     it('opens the named session in History when the card asks to open a session', () => {
@@ -1108,6 +1145,25 @@ describe('WorkoutPage', () => {
     const rowText = (fixture.nativeElement as HTMLElement).querySelector('.history-row')?.textContent ?? '';
     expect(rowText).toContain('—');
     expect(rowText).not.toContain('0 min');
+  });
+
+  it('shows the sport label and the distance in a history row', () => {
+    dataService.getWorkoutSessionPage.and.returnValue(
+      of(
+        sessionPage([
+          session({ sessionId: 'session-1', name: 'Cycling', workoutType: 'SPORTS', sportLabel: 'Cycling', distanceKm: 24.5, status: 'COMPLETED' })
+        ])
+      )
+    );
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    fixture.componentInstance.selectedTab.set('history');
+    fixture.detectChanges();
+
+    const rowText = (fixture.nativeElement as HTMLElement).querySelector('.history-row')?.textContent ?? '';
+    expect(rowText).toContain('24.5 km');
+    expect(rowText).not.toContain('Sports');
   });
 
   it('shows a filter-aware empty state and keeps the filter bar reachable when empty', () => {

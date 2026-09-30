@@ -55,6 +55,7 @@ import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from '
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { sessionDurationLabel } from './workout-session.util';
+import { formatKm } from '../dashboard/brief/brief-duration';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
 interface TrainingMetric {
@@ -515,9 +516,14 @@ export class WorkoutPage implements OnInit {
     if (!card) {
       return;
     }
-    // The card's own list has no sport type, so a sport day is logged as a custom workout.
-    const workoutType = kind === 'STRENGTH' || kind === 'CARDIO' || kind === 'MOBILITY' ? kind : 'CUSTOM';
+    const workoutType = kind === 'SPORT' ? 'SPORTS' : kind === 'STRENGTH' || kind === 'CARDIO' || kind === 'MOBILITY' ? kind : 'CUSTOM';
     card.pastWorkoutForm.controls.workoutType.setValue(workoutType);
+    if (kind === 'SPORT') {
+      // Today's plan names the sport, or a session already logged today does when the plan does not.
+      const day = this.todayDay();
+      const sport = day?.planned?.sportActivity ?? day?.sessions.find((session) => session.sportActivity)?.sportActivity;
+      card.pastWorkoutForm.controls.sportActivity.setValue(sport ?? '');
+    }
     card.pastWorkoutOpen.set(true);
     if (typeof queueMicrotask === 'function' && typeof document !== 'undefined') {
       queueMicrotask(() => document.querySelector('#past-workout-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -701,6 +707,10 @@ export class WorkoutPage implements OnInit {
 
   formatDuration(session: WorkoutSession): string {
     return sessionDurationLabel(session);
+  }
+
+  formatDistance(km: number | null | undefined): string {
+    return formatKm(km);
   }
 
   private loadPlans(): void {

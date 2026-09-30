@@ -3,7 +3,7 @@ import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { WorkoutSessionDetail } from '../../core/fitsync.models';
+import { ExerciseMetadata, SportActivityOption, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { LiveStartCardComponent } from './live-start-card.component';
 import { WorkoutLiveService } from './workout-live.service';
@@ -30,6 +30,23 @@ function detail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDe
   };
 }
 
+const SPORTS: SportActivityOption[] = [
+  { code: 'BADMINTON', label: 'Badminton', effort: 'MODERATE', measure: 'TIME' },
+  { code: 'CYCLING', label: 'Cycling', effort: 'MODERATE', measure: 'TIME_AND_DISTANCE' }
+];
+
+function metadata(sportActivities: SportActivityOption[] = SPORTS): ExerciseMetadata {
+  return {
+    exerciseTypes: [],
+    muscleGroups: [],
+    equipment: [],
+    difficulties: [],
+    workoutTypes: [],
+    goalFocuses: [],
+    sportActivities
+  };
+}
+
 describe('LiveStartCardComponent', () => {
   let fixture: ComponentFixture<LiveStartCardComponent>;
   let component: LiveStartCardComponent;
@@ -40,12 +57,14 @@ describe('LiveStartCardComponent', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startAdHocSession',
-      'saveWorkoutSession'
+      'saveWorkoutSession',
+      'getExerciseMetadata'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
 
     dataService.startAdHocSession.and.returnValue(of(detail()));
     dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
+    dataService.getExerciseMetadata.and.returnValue(of(metadata()));
 
     await TestBed.configureTestingModule({
       imports: [LiveStartCardComponent],
@@ -165,5 +184,180 @@ describe('LiveStartCardComponent', () => {
     component.startWorkout();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to start a workout. Please retry.');
+  });
+
+  describe('the past workout form by how the session is measured', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const field = (name: string) => root().querySelector(`#past-workout-form [formcontrolname="${name}"]`);
+    const distanceField = () => field('distanceKm') as HTMLInputElement | null;
+    const lastRequest = () => dataService.saveWorkoutSession.calls.mostRecent().args[0];
+
+    function openPast(values: Record<string, unknown> = {}): void {
+      component.pastWorkoutOpen.set(true);
+      component.pastWorkoutForm.patchValue(values);
+      fixture.detectChanges();
+    }
+
+    function submit(): void {
+      fixture.debugElement.query(By.css('#past-workout-form')).triggerEventHandler('ngSubmit');
+      fixture.detectChanges();
+    }
+
+    it('lists Sport after Mobility for a past workout only', () => {
+      openPast();
+
+      const options = Array.from(root().querySelectorAll<HTMLOptionElement>('#past-workout-form select[formcontrolname="workoutType"] option'));
+      expect(options.map((option) => option.textContent?.trim())).toEqual(['Strength', 'Cardio', 'Hiit', 'Mobility', 'Sport', 'Custom']);
+      expect(component.workoutTypes).not.toContain('SPORTS');
+    });
+
+    it('shows the sport select with its required error and hides the name controls', () => {
+      openPast({ workoutType: 'SPORTS' });
+
+      expect(field('sportActivity')).not.toBeNull();
+      expect(field('name')).toBeNull();
+      expect(Array.from(field('sportActivity')!.querySelectorAll('option')).map((option) => option.textContent?.trim())).toEqual([
+        'Choose a sport',
+        'Badminton',
+        'Cycling'
+      ]);
+
+      submit();
+
+      expect(root().querySelector('.field-error')?.textContent).toContain('Choose a sport.');
+      expect(dataService.saveWorkoutSession).not.toHaveBeenCalled();
+    });
+
+    it('shows the distance field for cardio only, with its range error', () => {
+      openPast({ workoutType: 'STRENGTH' });
+      expect(distanceField()).toBeNull();
+
+      component.pastWorkoutForm.patchValue({ workoutType: 'CARDIO' });
+      fixture.detectChanges();
+      expect(distanceField()).not.toBeNull();
+      expect(distanceField()?.step).toBe('0.01');
+
+      component.pastWorkoutForm.patchValue({ distanceKm: 1200 });
+      component.pastWorkoutForm.controls.distanceKm.markAsTouched();
+      fixture.detectChanges();
+      expect(root().textContent).toContain('Enter a distance from 0 to 1000 km.');
+
+      component.pastWorkoutForm.patchValue({ distanceKm: -1 });
+      fixture.detectChanges();
+      expect(root().textContent).toContain('Enter a distance from 0 to 1000 km.');
+    });
+
+    it('shows the distance field for a time-and-distance sport and hides it for a time sport', () => {
+      openPast({ workoutType: 'SPORTS', sportActivity: 'CYCLING' });
+      expect(distanceField()).not.toBeNull();
+
+      component.pastWorkoutForm.patchValue({ sportActivity: 'BADMINTON' });
+      fixture.detectChanges();
+      expect(distanceField()).toBeNull();
+    });
+
+    it('clears the distance when its field is hidden', () => {
+      openPast({ workoutType: 'CARDIO', distanceKm: 5 });
+
+      component.pastWorkoutForm.patchValue({ workoutType: 'STRENGTH' });
+      expect(component.pastWorkoutForm.controls.distanceKm.value).toBeNull();
+
+      component.pastWorkoutForm.patchValue({ workoutType: 'SPORTS', sportActivity: 'CYCLING' });
+      component.pastWorkoutForm.patchValue({ distanceKm: 20 });
+      component.pastWorkoutForm.patchValue({ sportActivity: 'BADMINTON' });
+      expect(component.pastWorkoutForm.controls.distanceKm.value).toBeNull();
+    });
+
+    it('sends a strength session without the new keys', () => {
+      openPast({ name: 'Evening Strength', workoutType: 'STRENGTH', notes: '' });
+
+      submit();
+
+      expect(lastRequest()).toEqual({
+        name: 'Evening Strength',
+        workoutType: 'STRENGTH',
+        durationMinutes: 45,
+        caloriesBurned: 350,
+        perceivedExertion: 7,
+        notes: ''
+      });
+      expect(JSON.stringify(lastRequest())).toBe(
+        '{"name":"Evening Strength","workoutType":"STRENGTH","durationMinutes":45,"caloriesBurned":350,"perceivedExertion":7,"notes":""}'
+      );
+    });
+
+    it('sends cardio with a distance, and without one when it is left empty', () => {
+      openPast({ name: 'Quick Cardio', workoutType: 'CARDIO', distanceKm: 5.755 });
+      submit();
+      expect(lastRequest()).toEqual(jasmine.objectContaining({ workoutType: 'CARDIO', distanceKm: 5.76 }));
+
+      openPast({ name: 'Quick Cardio', workoutType: 'CARDIO', distanceKm: null });
+      submit();
+      expect('distanceKm' in lastRequest()).toBeFalse();
+      expect('sportActivity' in lastRequest()).toBeFalse();
+    });
+
+    it('sends badminton named after the sport, with no distance', () => {
+      openPast({ workoutType: 'SPORTS', sportActivity: 'BADMINTON', durationMinutes: 60 });
+
+      submit();
+
+      expect(lastRequest()).toEqual({
+        name: 'Badminton',
+        workoutType: 'SPORTS',
+        sportActivity: 'BADMINTON',
+        durationMinutes: 60,
+        caloriesBurned: 350,
+        perceivedExertion: 7,
+        notes: ''
+      });
+      expect('distanceKm' in lastRequest()).toBeFalse();
+    });
+
+    it('sends cycling with its distance', () => {
+      openPast({ workoutType: 'SPORTS', sportActivity: 'CYCLING' });
+      component.pastWorkoutForm.patchValue({ distanceKm: 32.5 });
+
+      submit();
+
+      expect(lastRequest()).toEqual(
+        jasmine.objectContaining({ name: 'Cycling', workoutType: 'SPORTS', sportActivity: 'CYCLING', distanceKm: 32.5 })
+      );
+    });
+
+    it('resets the sport and distance after saving', () => {
+      openPast({ workoutType: 'SPORTS', sportActivity: 'CYCLING' });
+      component.pastWorkoutForm.patchValue({ distanceKm: 32.5 });
+
+      submit();
+
+      const form = component.pastWorkoutForm.getRawValue();
+      expect(form.workoutType).toBe('STRENGTH');
+      expect(form.sportActivity).toBe('');
+      expect(form.distanceKm).toBeNull();
+      expect(component.pastWorkoutOpen()).toBeFalse();
+    });
+
+    it('offers one disabled option and blocks saving when the sports cannot be loaded', () => {
+      dataService.getExerciseMetadata.and.returnValue(of(null));
+      openPast({ workoutType: 'SPORTS' });
+
+      const options = Array.from(field('sportActivity')!.querySelectorAll('option'));
+      expect(options.map((option) => option.textContent?.trim())).toEqual(['Sports could not be loaded']);
+      expect(options[0].disabled).toBeTrue();
+
+      submit();
+
+      expect(dataService.saveWorkoutSession).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('Sports could not be loaded. Try again in a moment.');
+    });
+
+    it('asks for the sports once and reuses them', () => {
+      openPast({ workoutType: 'SPORTS' });
+      component.pastWorkoutForm.patchValue({ workoutType: 'STRENGTH' });
+      component.pastWorkoutForm.patchValue({ workoutType: 'SPORTS' });
+
+      expect(dataService.getExerciseMetadata).toHaveBeenCalledTimes(1);
+    });
   });
 });

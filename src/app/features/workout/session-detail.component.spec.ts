@@ -125,6 +125,28 @@ describe('SessionDetailComponent', () => {
     }).compileComponents();
   });
 
+  it('shows the distance and the sport label of a sport session', () => {
+    dataService.getSession.and.returnValue(
+      of(detail({ workoutType: 'SPORTS', sportActivity: 'CYCLING', sportLabel: 'Cycling', distanceKm: 24.5 }))
+    );
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).querySelector('.detail-grid')?.textContent ?? '';
+    expect(text).toContain('Cycling');
+    expect(text).toContain('24.5 km');
+    expect(text).not.toContain('Sports');
+  });
+
+  it('shows no distance for a session without one', () => {
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.detail-grid')?.textContent).not.toContain('Distance');
+  });
+
   it('sends completedAt and preserves session timing and exercises when editing details', () => {
     const fixture = TestBed.createComponent(SessionDetailComponent);
     fixture.componentInstance.sessionId = 'session-1';

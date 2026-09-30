@@ -1187,6 +1187,21 @@ describe('FitSyncDataService', () => {
     expect(result?.sessions.length).toBe(1);
   });
 
+  it('carries the kind, sport and distance of a listed session', () => {
+    let result: { sessions: WorkoutSession[] } | undefined;
+    service.getWorkoutSessionPage(20).subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/sessions').flush({
+      content: [
+        { name: 'Cycling', workoutType: 'SPORTS', status: 'COMPLETED', kind: 'SPORT', sportActivity: 'CYCLING', sportLabel: 'Cycling', distanceKm: '24.5' },
+        { name: 'Lower body', workoutType: 'STRENGTH', status: 'COMPLETED' }
+      ]
+    });
+
+    expect(result?.sessions[0]).toEqual(jasmine.objectContaining({ kind: 'SPORT', sportActivity: 'CYCLING', sportLabel: 'Cycling', distanceKm: 24.5 }));
+    expect(result?.sessions[1]).toEqual(jasmine.objectContaining({ kind: null, sportLabel: null, distanceKm: null }));
+  });
+
   it('lists workout sessions in a from/to range with the backend-safe page size', () => {
     let result: WorkoutSession[] | undefined;
     service
@@ -2442,6 +2457,28 @@ describe('FitSyncDataService', () => {
     expect(request.request.body.durationMinutes).toBe(60);
     expect(typeof request.request.body.startedAt).toBe('string');
     expect(typeof request.request.body.completedAt).toBe('string');
+    expect('sportActivity' in request.request.body).toBeFalse();
+    expect('distanceKm' in request.request.body).toBeFalse();
+    request.flush({});
+  });
+
+  it('sends the sport and distance of a logged session only when given', () => {
+    service
+      .saveWorkoutSession({
+        name: 'Cycling',
+        workoutType: 'SPORTS',
+        durationMinutes: 60,
+        caloriesBurned: 400,
+        perceivedExertion: 6,
+        notes: '',
+        sportActivity: 'CYCLING',
+        distanceKm: 24.5
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect(request.request.body.sportActivity).toBe('CYCLING');
+    expect(request.request.body.distanceKm).toBe(24.5);
     request.flush({});
   });
 });
