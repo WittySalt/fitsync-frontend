@@ -634,7 +634,7 @@ describe('TodayCardComponent', () => {
       openGoals();
 
       const rows = Array.from(el().querySelectorAll('#today-panel-goals .goal')).map((row) => spaced(row));
-      expect(rows).toEqual(['Weight 71.1 of 68 kg by 29 Nov 2026', 'Protein 86 of 140 g by 29 Nov 2026']);
+      expect(rows).toEqual(['Weight 71.1 kg, goal 68 kg by 29 Nov 2026', 'Protein 86 of 140 g by 29 Nov 2026']);
       const fills = Array.from(el().querySelectorAll<HTMLElement>('#today-panel-goals .bar span')).map((bar) => bar.style.width);
       expect(fills).toEqual(['31%', '100%']);
     });

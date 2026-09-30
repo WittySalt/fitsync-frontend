@@ -58,7 +58,7 @@ describe('goal labels', () => {
   });
 
   it('writes current of target with the unit', () => {
-    expect(goalFigure(goal())).toBe('71.1 of 68 kg');
+    expect(goalFigure(goal())).toBe('71.1 kg, goal 68 kg');
     expect(goalFigure(goal({ goalType: 'CALORIES', targetUnit: 'kcal', targetValue: 2000, currentValue: 1900 }))).toBe('1,900 of 2,000 kcal');
   });
 

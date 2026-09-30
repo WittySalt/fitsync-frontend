@@ -73,8 +73,9 @@ function goalUnit(goal: Goal): string {
   }
 }
 
-/** "71.1 of 68 kg". Without a current value only the target is written, and without a target the
- *  goal says so. */
+/** "1,900 of 2,000 kcal". A weight is not an amount out of a total, so it is written
+ *  "71.1 kg, goal 68 kg". Without a current value only the target is written, and without a target
+ *  the goal says so. */
 export function goalFigure(goal: Goal): string {
   if (!(goal.targetValue > 0)) {
     return 'No target set';
@@ -82,6 +83,9 @@ export function goalFigure(goal: Goal): string {
   const unit = goalUnit(goal);
   const target = oneDecimal(goal.targetValue);
   const current = goal.currentValue != null && Number.isFinite(goal.currentValue) ? oneDecimal(goal.currentValue) : '';
+  if (goal.goalType === 'WEIGHT' && current) {
+    return unit ? `${current} ${unit}, goal ${target} ${unit}` : `${current}, goal ${target}`;
+  }
   const figure = current ? `${current} of ${target}` : target;
   return unit ? `${figure} ${unit}` : figure;
 }
