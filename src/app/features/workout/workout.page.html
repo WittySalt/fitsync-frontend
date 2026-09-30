@@ -290,7 +290,7 @@
                 <strong>{{ session.name }}</strong>
                 <small>{{ session.sportLabel || formatLabel(session.workoutType) }} - {{ formatDate(session.completedAt || session.startedAt) }}</small>
               </div>
-              <span>{{ formatDuration(session) }}@if (session.distanceKm != null) { - {{ formatDistance(session.distanceKm) }}}</span>
+              <span>{{ formatDuration(session) }}@if (session.distanceKm != null) { · {{ formatDistance(session.distanceKm) }}}</span>
               <span>{{ formatLabel(session.status) }}</span>
             </button>
           }

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { AdminShellComponent } from './admin-shell.component';
 
 @Component({ template: '<p class="stub">page</p>' })
@@ -10,11 +11,14 @@ class StubPage {}
 describe('AdminShellComponent', () => {
   let fixture: ComponentFixture<AdminShellComponent>;
   let router: Router;
+  let authService: jasmine.SpyObj<AuthService>;
 
   beforeEach(async () => {
+    authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout']);
     await TestBed.configureTestingModule({
       imports: [AdminShellComponent],
       providers: [
+        { provide: AuthService, useValue: authService },
         provideRouter([
           { path: 'admin/coach-quality', component: StubPage },
           { path: 'admin/catalogue', component: StubPage },
@@ -67,12 +71,15 @@ describe('AdminShellComponent', () => {
     expect(element.querySelector('.links a[aria-current="page"]')?.textContent?.trim()).toBe('Events');
   });
 
-  it('links back to the member app', async () => {
+  it('offers signing out and no way into the member app', async () => {
     const element = await openAt('/admin/coach-quality');
 
-    const back = element.querySelector<HTMLAnchorElement>('a.back');
-    expect(back?.textContent?.trim()).toBe('Back to the app');
-    expect(back?.getAttribute('href')).toBe('/dashboard');
+    const signOut = element.querySelector<HTMLButtonElement>('button.back');
+    expect(signOut?.textContent?.trim()).toBe('Sign out');
+    expect(element.querySelector('a[href="/dashboard"]')).toBeNull();
+
+    signOut?.click();
+    expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
   it('names the area and renders the page in the main area', async () => {

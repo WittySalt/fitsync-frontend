@@ -112,7 +112,11 @@
 }
 
 .back {
+  width: 100%;
   border: 1px solid var(--slate-700);
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
   color: var(--slate-200);
   font-weight: var(--fw-semibold);
 

@@ -3,7 +3,7 @@ import { ActivatedRouteSnapshot, Router, RouterStateSnapshot, UrlTree } from '@a
 import { Observable, Subject, of, throwError } from 'rxjs';
 
 import { AccountDataService, AccountUserResponse } from '../account-data.service';
-import { adminGuard } from './auth.guard';
+import { adminGuard, authGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('adminGuard', () => {
@@ -75,5 +75,54 @@ describe('adminGuard', () => {
     accountDataService.getCurrentUser.and.returnValue(throwError(() => new Error('down')));
 
     expect(router.serializeUrl(result() as UrlTree)).toBe('/auth/login');
+  });
+});
+
+describe('authGuard', () => {
+  let authService: { ensureSession: jasmine.Spy; isAdmin: jasmine.Spy };
+  let router: Router;
+
+  function result(profile: { onboardingCompleted: boolean } | null): boolean | UrlTree | undefined {
+    const accountDataService = {
+      getCurrentUser: jasmine.createSpy('getCurrentUser').and.returnValue(of({ userId: 'u1', profile } as AccountUserResponse))
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: AccountDataService, useValue: accountDataService }
+      ]
+    });
+    router = TestBed.inject(Router);
+    let value: boolean | UrlTree | undefined;
+    (
+      TestBed.runInInjectionContext(() =>
+        authGuard({} as ActivatedRouteSnapshot, { url: '/dashboard' } as RouterStateSnapshot)
+      ) as Observable<boolean | UrlTree>
+    ).subscribe((next) => (value = next));
+    return value;
+  }
+
+  beforeEach(() => {
+    authService = { ensureSession: jasmine.createSpy('ensureSession').and.returnValue(of(true)), isAdmin: jasmine.createSpy('isAdmin') };
+  });
+
+  it('sends an administrator to the admin console, whatever the onboarding state', () => {
+    authService.isAdmin.and.returnValue(true);
+
+    const tree = result(null) as UrlTree;
+    expect(router.serializeUrl(tree)).toBe('/admin');
+  });
+
+  it('lets a member who finished onboarding through', () => {
+    authService.isAdmin.and.returnValue(false);
+
+    expect(result({ onboardingCompleted: true })).toBeTrue();
+  });
+
+  it('sends a member who has not finished onboarding to it', () => {
+    authService.isAdmin.and.returnValue(false);
+
+    const tree = result({ onboardingCompleted: false }) as UrlTree;
+    expect(router.serializeUrl(tree)).toBe('/onboarding');
   });
 });

@@ -66,7 +66,7 @@ const mockWorkoutSummary: AnalyticsWorkoutSummaryResponse = {
   totalWorkoutMinutes: 3690,
   totalCaloriesBurned: 24000,
   totalExerciseCount: 420,
-  averageDuration: 45,
+  averageDurationMinutes: 45.4,
   activeStreakDays: 7
 };
 

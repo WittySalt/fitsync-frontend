@@ -45,6 +45,8 @@ select {
 
 .page-grid {
   display: grid;
+  // A wide child must scroll or wrap inside itself, never widen the page past the window.
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   max-width: 1180px;
   margin: 0 auto;
@@ -607,16 +609,22 @@ a:focus-visible {
 
 .history-filter-bar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(5, minmax(132px, 1fr));
+  // The filters wrap onto as many rows as the card's width needs, and the search box spans two.
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 
   label {
     display: grid;
     gap: 6px;
+    min-width: 0;
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: var(--fw-semibold);
+  }
+
+  label:first-child {
+    grid-column: span 2;
   }
 }
 
