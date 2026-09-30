@@ -1,5 +1,5 @@
-import { WorkoutSession } from '../../../core/fitsync.models';
-import { buildWeek, completedSessionCount, weekRange } from './brief-week';
+import { DayInsight, WorkoutSession } from '../../../core/fitsync.models';
+import { buildWeek, buildWeekFromInsight, completedSessionCount, weekRange } from './brief-week';
 
 const TZ = 'Asia/Singapore';
 
@@ -43,7 +43,7 @@ describe('buildWeek', () => {
     const monday = week.find((day) => day.dateKey === '2026-09-21')!;
     expect(monday.state).toBe('trained');
     expect(monday.minutes).toBe(50);
-    expect(monday.kind).toBe('strength');
+    expect(monday.kind).toBe('STRENGTH');
   });
 
   it('marks a past day with no session as rest', () => {
@@ -95,7 +95,7 @@ describe('buildWeek', () => {
       now,
       TZ
     );
-    expect(cardioOnly.find((day) => day.dateKey === '2026-09-24')!.kind).toBe('cardio');
+    expect(cardioOnly.find((day) => day.dateKey === '2026-09-24')!.kind).toBe('CARDIO');
 
     const mixed = buildWeek(
       [
@@ -105,7 +105,7 @@ describe('buildWeek', () => {
       now,
       TZ
     );
-    expect(mixed.find((day) => day.dateKey === '2026-09-24')!.kind).toBe('strength');
+    expect(mixed.find((day) => day.dateKey === '2026-09-24')!.kind).toBe('STRENGTH');
   });
 
   it('ignores sessions that are not COMPLETED', () => {
@@ -148,5 +148,130 @@ describe('completedSessionCount', () => {
       session({ completedAt: '2026-09-14T10:00:00Z', startedAt: '2026-09-14T09:00:00Z' })
     ];
     expect(completedSessionCount(sessions, now, TZ)).toBe(2);
+  });
+});
+
+describe('buildWeekFromInsight', () => {
+  const WEEK_KEYS = ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27'];
+  const TODAY_KEY = '2026-09-25'; // Friday, the middle of the week fixture
+
+  function dayInsight(date: string, overrides: Partial<DayInsight> = {}): DayInsight {
+    return {
+      date,
+      dayOfWeek: WEEK_KEYS.indexOf(date) + 1,
+      kind: 'OPEN',
+      label: '',
+      source: 'NONE',
+      minutes: null,
+      sessions: [],
+      planned: null,
+      ...overrides
+    };
+  }
+
+  function weekOf(byDate: Record<string, Partial<DayInsight>>): DayInsight[] {
+    return WEEK_KEYS.map((key) => dayInsight(key, byDate[key] ?? {}));
+  }
+
+  it('marks a whole week of NONE-source days as rest before today, open today, upcoming after', () => {
+    const week = buildWeekFromInsight(weekOf({}), TODAY_KEY);
+    expect(week.map((day) => day.state)).toEqual([
+      'rest', 'rest', 'rest', 'rest', 'today-open', 'upcoming', 'upcoming'
+    ]);
+    // A day with no data at all (kind OPEN, source NONE) is quieter than a day the coach knows to
+    // be a rest day: its caption is left blank, not "rest".
+    expect(week.every((day) => day.kind === 'OPEN')).toBe(true);
+  });
+
+  it('keeps a past day that is reported as rest without a source free of a kind', () => {
+    const week = buildWeekFromInsight(weekOf({ '2026-09-21': { kind: 'REST', label: 'Rest', source: 'NONE' } }), TODAY_KEY);
+    const monday = week.find((day) => day.dateKey === '2026-09-21')!;
+    expect(monday.state).toBe('rest');
+    expect(monday.kind).toBe('OPEN');
+  });
+
+  it('keeps a rest day that comes from the plan or a habit as rest', () => {
+    const week = buildWeekFromInsight(weekOf({ '2026-09-21': { kind: 'REST', label: 'Rest', source: 'HABIT' } }), TODAY_KEY);
+    expect(week.find((day) => day.dateKey === '2026-09-21')!.kind).toBe('REST');
+  });
+
+  it('marks a fulfilled plan day as trained, keeping its minutes and kind', () => {
+    const week = buildWeekFromInsight(
+      weekOf({
+        '2026-09-21': {
+          kind: 'STRENGTH',
+          label: 'Strength',
+          source: 'DONE',
+          minutes: 50,
+          planned: { planDayId: 'pd-1', kind: 'STRENGTH', title: 'Full body', sportActivity: null, estimatedMinutes: 50, moves: 4, fulfilled: true }
+        }
+      }),
+      TODAY_KEY
+    );
+    const monday = week.find((day) => day.dateKey === '2026-09-21')!;
+    expect(monday.state).toBe('trained');
+    expect(monday.minutes).toBe(50);
+    expect(monday.kind).toBe('STRENGTH');
+    expect(monday.planned).toBe(false);
+  });
+
+  it('draws a past day that was scheduled but never done as a quiet rest day, not a missed one', () => {
+    const week = buildWeekFromInsight(
+      weekOf({
+        '2026-09-22': {
+          kind: 'CARDIO',
+          label: 'Cardio',
+          source: 'PLAN',
+          planned: { planDayId: 'pd-2', kind: 'CARDIO', title: 'Treadmill run', sportActivity: null, estimatedMinutes: 35, moves: null, fulfilled: false }
+        }
+      }),
+      TODAY_KEY
+    );
+    const tuesday = week.find((day) => day.dateKey === '2026-09-22')!;
+    expect(tuesday.state).toBe('rest');
+    expect(tuesday.planned).toBe(false);
+  });
+
+  it('marks a later scheduled or habitual training day as upcoming and planned', () => {
+    const week = buildWeekFromInsight(
+      weekOf({
+        '2026-09-26': { kind: 'SPORT', label: 'Badminton', source: 'PLAN' },
+        '2026-09-27': { kind: 'STRENGTH', label: 'Strength', source: 'HABIT' }
+      }),
+      TODAY_KEY
+    );
+    const saturday = week.find((day) => day.dateKey === '2026-09-26')!;
+    const sunday = week.find((day) => day.dateKey === '2026-09-27')!;
+    expect(saturday.state).toBe('upcoming');
+    expect(saturday.planned).toBe(true);
+    expect(saturday.label).toBe('Badminton');
+    expect(sunday.state).toBe('upcoming');
+    expect(sunday.planned).toBe(true);
+  });
+
+  const TODAY_KINDS: Array<{ kind: DayInsight['kind']; label: string }> = [
+    { kind: 'STRENGTH', label: 'Strength' },
+    { kind: 'CARDIO', label: 'Cardio' },
+    { kind: 'MOBILITY', label: 'Mobility' },
+    { kind: 'SPORT', label: 'Badminton' },
+    { kind: 'REST', label: 'Rest' },
+    { kind: 'OPEN', label: '' }
+  ];
+
+  for (const { kind, label } of TODAY_KINDS) {
+    it(`marks today as today-open for a ${kind} day that has not been trained yet`, () => {
+      const week = buildWeekFromInsight(weekOf({ [TODAY_KEY]: { kind, label, source: 'PLAN' } }), TODAY_KEY);
+      const today = week.find((day) => day.dateKey === TODAY_KEY)!;
+      expect(today.state).toBe('today-open');
+      expect(today.kind).toBe(kind);
+      expect(today.label).toBe(label);
+    });
+  }
+
+  it('marks today as today-trained once its source is DONE', () => {
+    const week = buildWeekFromInsight(weekOf({ [TODAY_KEY]: { kind: 'CARDIO', label: 'Cardio', source: 'DONE', minutes: 35 } }), TODAY_KEY);
+    const today = week.find((day) => day.dateKey === TODAY_KEY)!;
+    expect(today.state).toBe('today-trained');
+    expect(today.minutes).toBe(35);
   });
 });

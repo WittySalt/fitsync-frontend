@@ -1297,6 +1297,177 @@ describe('FitSyncDataService', () => {
     expect(error).toBeTruthy();
   });
 
+  it('leaves days, today and nextTraining null when the response has none of the day-kinds fields', () => {
+    let result: WeeklyTrainingInsight | undefined;
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 0,
+      totalMinutes: 0,
+      previousWeekCompletedSessions: 0,
+      previousWeekTotalMinutes: 0,
+      muscleGroups: [],
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 }
+    });
+
+    expect(result?.days).toBeNull();
+    expect(result?.today).toBeNull();
+    expect(result?.nextTraining).toBeNull();
+  });
+
+  it('maps a full set of day-kinds fields, including a session, a planned day, and today\'s carried-over day', () => {
+    let result: WeeklyTrainingInsight | undefined;
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+
+    const oneDay = (date: string, overrides: Record<string, unknown> = {}) => ({
+      date,
+      dayOfWeek: 1,
+      kind: 'STRENGTH',
+      label: 'Strength',
+      source: 'DONE',
+      minutes: 50,
+      sessions: [
+        { sessionId: 's1', kind: 'STRENGTH', label: 'Strength', sportActivity: null, status: 'COMPLETED', minutes: 50, distanceKm: null, planDayId: 'pd-1' }
+      ],
+      planned: { planDayId: 'pd-1', kind: 'STRENGTH', title: 'Full body', sportActivity: null, estimatedMinutes: 50, moves: 4, fulfilled: true },
+      ...overrides
+    });
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 0,
+      totalMinutes: 0,
+      previousWeekCompletedSessions: 0,
+      previousWeekTotalMinutes: 0,
+      muscleGroups: [],
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+      days: [
+        oneDay('2026-09-21'),
+        oneDay('2026-09-22'),
+        oneDay('2026-09-23'),
+        oneDay('2026-09-24'),
+        oneDay('2026-09-25'),
+        oneDay('2026-09-26'),
+        oneDay('2026-09-27', { kind: 'REST', label: 'Rest', source: 'PLAN', minutes: null, sessions: [], planned: null })
+      ],
+      today: {
+        date: '2026-09-27',
+        kind: 'REST',
+        label: 'Rest',
+        source: 'PLAN',
+        planDayId: null,
+        title: null,
+        estimatedMinutes: null,
+        moves: null,
+        lastOfKind: null,
+        carriedOver: [{ planDayId: 'pd-9', dayOfWeek: 1, kind: 'STRENGTH', title: 'Full body', estimatedMinutes: 50 }]
+      },
+      nextTraining: { date: '2026-10-01', kind: 'CARDIO', label: 'Cardio', title: 'Treadmill run', estimatedMinutes: 35 }
+    });
+
+    expect(result?.days?.length).toBe(7);
+    expect(result?.days?.[0].sessions[0].sessionId).toBe('s1');
+    expect(result?.days?.[0].planned?.fulfilled).toBe(true);
+    expect(result?.today?.kind).toBe('REST');
+    expect(result?.today?.carriedOver.length).toBe(1);
+    expect(result?.today?.carriedOver[0].title).toBe('Full body');
+    expect(result?.nextTraining?.title).toBe('Treadmill run');
+  });
+
+  it('drops a malformed days array (not exactly seven entries) to null', () => {
+    let result: WeeklyTrainingInsight | undefined;
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+
+    const shortDay = { date: '2026-09-21', dayOfWeek: 1, kind: 'STRENGTH', label: 'Strength', source: 'DONE', minutes: 50, sessions: [], planned: null };
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 0,
+      totalMinutes: 0,
+      previousWeekCompletedSessions: 0,
+      previousWeekTotalMinutes: 0,
+      muscleGroups: [],
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+      days: [shortDay, shortDay, shortDay, shortDay, shortDay, shortDay]
+    });
+
+    expect(result?.days).toBeNull();
+  });
+
+  it('falls back an unrecognised day kind to OPEN and an unrecognised source to NONE', () => {
+    let result: WeeklyTrainingInsight | undefined;
+    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+
+    const day = (overrides: Record<string, unknown>) => ({
+      date: '2026-09-21',
+      dayOfWeek: 1,
+      kind: 'STRENGTH',
+      label: 'Strength',
+      source: 'DONE',
+      minutes: 50,
+      sessions: [],
+      planned: null,
+      ...overrides
+    });
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 0,
+      totalMinutes: 0,
+      previousWeekCompletedSessions: 0,
+      previousWeekTotalMinutes: 0,
+      muscleGroups: [],
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+      days: [
+        day({ date: '2026-09-21', kind: 'HIIT', source: 'DONE' }),
+        day({ date: '2026-09-22', source: 'SOMETHING_NEW' }),
+        day({ date: '2026-09-23' }),
+        day({ date: '2026-09-24' }),
+        day({ date: '2026-09-25' }),
+        day({ date: '2026-09-26' }),
+        day({ date: '2026-09-27' })
+      ]
+    });
+
+    expect(result?.days?.[0].kind).toBe('OPEN');
+    expect(result?.days?.[1].source).toBe('NONE');
+  });
+
+  it('starts a workout plan with the given plan day id and timezone as query params', () => {
+    service.startWorkoutPlan('plan-1', { planDayId: 'pd-2', timezone: 'Asia/Singapore' }).subscribe();
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/plans/plan-1/start' &&
+        req.params.get('planDayId') === 'pd-2' &&
+        req.params.get('timezone') === 'Asia/Singapore'
+    );
+    expect(request.request.method).toBe('POST');
+    request.flush({
+      sessionId: 'session-1',
+      planId: 'plan-1',
+      name: 'Plan',
+      workoutType: 'STRENGTH',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-06-20T02:00:00Z',
+      exerciseCount: 1,
+      exercises: []
+    });
+  });
+
   it('lists exercises from the paginated catalog endpoint', () => {
     let result: Exercise[] | undefined;
     service.getExercises('squat').subscribe((value) => (result = value));

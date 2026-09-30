@@ -34,6 +34,9 @@ function insight(overrides: Partial<WeeklyTrainingInsight>): WeeklyTrainingInsig
       thisWeekSessionsWithVolume: 0,
       previousWeekSessionsWithVolume: 0
     },
+    days: null,
+    today: null,
+    nextTraining: null,
     ...overrides
   };
 }
@@ -401,5 +404,100 @@ describe('dailyObservations - overall shape', () => {
       volume: { thisWeekKg: 2000, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 2 }
     });
     expect(dailyObservations(fixture, now, TZ).length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("dailyObservations - today's kind", () => {
+  const now = new Date('2026-09-27T00:10:00Z');
+
+  function today(overrides: Partial<NonNullable<WeeklyTrainingInsight['today']>>): WeeklyTrainingInsight['today'] {
+    return {
+      date: '2026-09-27',
+      kind: 'STRENGTH',
+      label: 'Strength',
+      source: 'PLAN',
+      planDayId: null,
+      title: null,
+      estimatedMinutes: null,
+      moves: null,
+      lastOfKind: null,
+      carriedOver: [],
+      ...overrides
+    };
+  }
+
+  it('leads with a cardio last-run fact and pace note when today is cardio', () => {
+    const fixture = insight({
+      referenceDate: '2026-09-27',
+      today: today({
+        kind: 'CARDIO',
+        label: 'Cardio',
+        lastOfKind: { date: '2026-09-23', minutes: 35, distanceKm: 5.75, paceSecondsPerKm: 365 }
+      })
+    });
+    const [first] = dailyObservations(fixture, now, TZ);
+    expect(first.id).toBe('today-kind');
+    expect(first.dayKind).toBe('CARDIO');
+    expect(first.fact).toBe('Your last run was 5.75 km in 35 min.');
+    expect(first.note).toBe('That is 6:05 per km.');
+  });
+
+  it('leads with a mobility last-session fact and date note when today is mobility', () => {
+    const fixture = insight({
+      referenceDate: '2026-09-27',
+      today: today({
+        kind: 'MOBILITY',
+        label: 'Mobility',
+        lastOfKind: { date: '2026-09-23', minutes: 20, distanceKm: null, paceSecondsPerKm: null }
+      })
+    });
+    const [first] = dailyObservations(fixture, now, TZ);
+    expect(first.id).toBe('today-kind');
+    expect(first.dayKind).toBe('MOBILITY');
+    expect(first.fact).toBe('Your last mobility session was 20 min.');
+    expect(first.note).toBe('It was on Wednesday 23 Sept.');
+  });
+
+  it('leads with the sport activity by name when today is a sport day', () => {
+    const fixture = insight({
+      referenceDate: '2026-09-27',
+      today: today({
+        kind: 'SPORT',
+        label: 'Badminton',
+        lastOfKind: { date: '2026-09-20', minutes: 45, distanceKm: null, paceSecondsPerKm: null }
+      })
+    });
+    const [first] = dailyObservations(fixture, now, TZ);
+    expect(first.id).toBe('today-kind');
+    expect(first.dayKind).toBe('SPORT');
+    expect(first.fact).toBe('Your last badminton was 45 min.');
+    expect(first.note).toBe('It was on Sunday 20 Sept.');
+  });
+
+  it('adds nothing for a strength day', () => {
+    const fixture = insight({
+      referenceDate: '2026-09-27',
+      today: today({ kind: 'STRENGTH', label: 'Strength', lastOfKind: { date: '2026-09-23', minutes: 50, distanceKm: null, paceSecondsPerKm: null } })
+    });
+    expect(dailyObservations(fixture, now, TZ).some((o) => o.id === 'today-kind')).toBe(false);
+  });
+
+  it('adds nothing for a rest day, leaving the existing yesterday-facing observations as they are', () => {
+    const fixture = insight({
+      referenceDate: '2026-09-27',
+      today: today({ kind: 'REST', label: 'Rest', source: 'PLAN' }),
+      muscleGroups: [group({ muscleGroup: 'CORE', inActivePlan: true, lastTrainedOn: '2026-09-26', consecutiveSessions: 8, trainedYesterday: true })]
+    });
+    const result = dailyObservations(fixture, now, TZ);
+    expect(result.some((o) => o.id === 'today-kind')).toBe(false);
+    expect(result.some((o) => o.id === 'streak')).toBe(true);
+  });
+
+  it('adds nothing when today is missing or its kind has no last-time record', () => {
+    const noToday = insight({ referenceDate: '2026-09-27', today: null });
+    expect(dailyObservations(noToday, now, TZ).some((o) => o.id === 'today-kind')).toBe(false);
+
+    const noLastOfKind = insight({ referenceDate: '2026-09-27', today: today({ kind: 'CARDIO', label: 'Cardio' }) });
+    expect(dailyObservations(noLastOfKind, now, TZ).some((o) => o.id === 'today-kind')).toBe(false);
   });
 });

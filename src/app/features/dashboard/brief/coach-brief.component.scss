@@ -21,6 +21,8 @@
   --brief-solid: var(--slate-900);
   --brief-solid-hover: var(--slate-800);
   --brief-solid-ink: var(--white);
+  --brief-planned-border: var(--slate-300);
+  --brief-planned-ink: var(--slate-500);
 }
 
 @mixin dark-ink {
@@ -36,6 +38,8 @@
   --brief-solid: var(--slate-100);
   --brief-solid-hover: var(--white);
   --brief-solid-ink: var(--slate-900);
+  --brief-planned-border: var(--border-strong);
+  --brief-planned-ink: var(--text-secondary);
 }
 
 :host-context([data-theme='dark']) {
@@ -269,6 +273,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   color: var(--white);
 
   &.trained {
@@ -280,12 +285,24 @@
     background: var(--brief-tint);
     border: 1.5px dashed var(--green-600);
   }
+
+  // A later day the plan or a habit schedules, but that has not happened yet: a quiet white tile
+  // rather than the solid green of a day already trained.
+  &.planned {
+    background: var(--surface);
+    border: 1.5px solid var(--brief-planned-border);
+    color: var(--brief-planned-ink);
+  }
 }
 
 .today-text {
   font-size: 12px;
   font-weight: var(--fw-bold);
   color: var(--brief-tint-ink);
+}
+
+.today-kind-glyph {
+  color: var(--green-800);
 }
 
 // The dark panel keeps its own colours in both themes, as the board's two dark surfaces do.

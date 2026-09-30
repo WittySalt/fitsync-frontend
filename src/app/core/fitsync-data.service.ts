@@ -37,11 +37,21 @@ import {
   MealDraft,
   MealItemDraft,
   MealTemplate,
+  CarriedOverDay,
+  DayInsight,
+  DayKind,
+  DaySessionInsight,
+  DaySource,
+  LastOfKind,
   MealTemplateItem,
   MealFormValue,
   MuscleGroupCode,
   MuscleGroupInsight,
+  NextTraining,
+  PlannedDay,
   QuickAddMealValue,
+  SessionKindCode,
+  TodayInsight,
   WorkoutSessionFormValue,
   Meal,
   NutritionSummary,
@@ -153,6 +163,153 @@ function mapMuscleGroupInsight(entry: Partial<MuscleGroupInsight> | null | undef
     lastTrainedOn: entry.lastTrainedOn ?? null,
     consecutiveSessions: safeInsightNumber(entry.consecutiveSessions),
     exerciseNames: entry.exerciseNames ?? []
+  };
+}
+
+/** Coerces an optional backend measurement to a finite number or null, unlike
+ *  safeInsightNumber(), which defaults a missing count to zero. A missing minutes or distance
+ *  value means "not recorded", not "zero", so it must stay null. */
+function safeInsightNumberOrNull(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+const DAY_KINDS: DayKind[] = ['STRENGTH', 'CARDIO', 'MOBILITY', 'SPORT', 'REST', 'OPEN'];
+const DAY_SOURCES: DaySource[] = ['DONE', 'IN_PROGRESS', 'PLAN', 'HABIT', 'NONE'];
+const SESSION_KIND_CODES: SessionKindCode[] = ['STRENGTH', 'CARDIO', 'MOBILITY', 'SPORT'];
+
+/** An unrecognised day kind (a backend rollout ahead of the frontend, or a malformed payload)
+ *  falls back to OPEN, the same "nothing to say yet" state the brief already knows how to draw. */
+function mapDayKind(value: DayKind | string | null | undefined): DayKind {
+  return DAY_KINDS.includes(value as DayKind) ? (value as DayKind) : 'OPEN';
+}
+
+/** An unrecognised source falls back to NONE, so the day it describes reads as undetermined
+ *  rather than crashing the mapping or inventing a source the backend never sent. */
+function mapDaySource(value: DaySource | string | null | undefined): DaySource {
+  return DAY_SOURCES.includes(value as DaySource) ? (value as DaySource) : 'NONE';
+}
+
+/** A session, planned day, or carried-over day is always one of the four training kinds; an
+ *  unrecognised value falls back to STRENGTH rather than leaving the field undefined. */
+function mapSessionKind(value: SessionKindCode | string | null | undefined): SessionKindCode {
+  return SESSION_KIND_CODES.includes(value as SessionKindCode) ? (value as SessionKindCode) : 'STRENGTH';
+}
+
+function mapDaySessionInsight(entry: Partial<DaySessionInsight> | null | undefined): DaySessionInsight | null {
+  if (!entry || typeof entry.sessionId !== 'string' || !entry.sessionId) {
+    return null;
+  }
+  return {
+    sessionId: entry.sessionId,
+    kind: mapSessionKind(entry.kind),
+    label: entry.label ?? '',
+    sportActivity: entry.sportActivity ?? null,
+    status: entry.status ?? '',
+    minutes: safeInsightNumberOrNull(entry.minutes),
+    distanceKm: safeInsightNumberOrNull(entry.distanceKm),
+    planDayId: entry.planDayId ?? null
+  };
+}
+
+function mapPlannedDay(entry: Partial<PlannedDay> | null | undefined): PlannedDay | null {
+  if (!entry || typeof entry.planDayId !== 'string' || !entry.planDayId) {
+    return null;
+  }
+  return {
+    planDayId: entry.planDayId,
+    kind: mapSessionKind(entry.kind),
+    title: entry.title ?? '',
+    sportActivity: entry.sportActivity ?? null,
+    estimatedMinutes: safeInsightNumberOrNull(entry.estimatedMinutes),
+    moves: safeInsightNumberOrNull(entry.moves),
+    fulfilled: entry.fulfilled === true
+  };
+}
+
+function mapDayInsight(entry: Partial<DayInsight> | null | undefined): DayInsight | null {
+  if (!entry || typeof entry.date !== 'string' || !entry.date) {
+    return null;
+  }
+  return {
+    date: entry.date,
+    dayOfWeek: safeInsightNumber(entry.dayOfWeek),
+    kind: mapDayKind(entry.kind),
+    label: entry.label ?? '',
+    source: mapDaySource(entry.source),
+    minutes: safeInsightNumberOrNull(entry.minutes),
+    sessions: (entry.sessions ?? [])
+      .map((session) => mapDaySessionInsight(session))
+      .filter((session): session is DaySessionInsight => session !== null),
+    planned: mapPlannedDay(entry.planned)
+  };
+}
+
+/** Accepts the week's seven days only as a complete set. A short or malformed array cannot be
+ *  matched up against the seven-day week strip, so the whole field becomes null and every reader
+ *  falls back to the sessions-only week it already knows how to build. */
+function mapDays(days: Partial<DayInsight>[] | null | undefined): DayInsight[] | null {
+  if (!Array.isArray(days) || days.length !== 7) {
+    return null;
+  }
+  const mapped = days.map((day) => mapDayInsight(day)).filter((day): day is DayInsight => day !== null);
+  return mapped.length === 7 ? mapped : null;
+}
+
+function mapLastOfKind(entry: Partial<LastOfKind> | null | undefined): LastOfKind | null {
+  if (!entry || typeof entry.date !== 'string' || !entry.date) {
+    return null;
+  }
+  return {
+    date: entry.date,
+    minutes: safeInsightNumberOrNull(entry.minutes),
+    distanceKm: safeInsightNumberOrNull(entry.distanceKm),
+    paceSecondsPerKm: safeInsightNumberOrNull(entry.paceSecondsPerKm)
+  };
+}
+
+function mapCarriedOverDay(entry: Partial<CarriedOverDay> | null | undefined): CarriedOverDay | null {
+  if (!entry || typeof entry.planDayId !== 'string' || !entry.planDayId) {
+    return null;
+  }
+  return {
+    planDayId: entry.planDayId,
+    dayOfWeek: safeInsightNumber(entry.dayOfWeek),
+    kind: mapSessionKind(entry.kind),
+    title: entry.title ?? '',
+    estimatedMinutes: safeInsightNumberOrNull(entry.estimatedMinutes)
+  };
+}
+
+function mapTodayInsight(entry: Partial<TodayInsight> | null | undefined): TodayInsight | null {
+  if (!entry || typeof entry.date !== 'string' || !entry.date) {
+    return null;
+  }
+  return {
+    date: entry.date,
+    kind: mapDayKind(entry.kind),
+    label: entry.label ?? '',
+    source: mapDaySource(entry.source),
+    planDayId: entry.planDayId ?? null,
+    title: entry.title ?? null,
+    estimatedMinutes: safeInsightNumberOrNull(entry.estimatedMinutes),
+    moves: safeInsightNumberOrNull(entry.moves),
+    lastOfKind: mapLastOfKind(entry.lastOfKind),
+    carriedOver: (entry.carriedOver ?? [])
+      .map((day) => mapCarriedOverDay(day))
+      .filter((day): day is CarriedOverDay => day !== null)
+  };
+}
+
+function mapNextTraining(entry: Partial<NextTraining> | null | undefined): NextTraining | null {
+  if (!entry || typeof entry.date !== 'string' || !entry.date) {
+    return null;
+  }
+  return {
+    date: entry.date,
+    kind: mapDayKind(entry.kind),
+    label: entry.label ?? '',
+    title: entry.title ?? '',
+    estimatedMinutes: safeInsightNumberOrNull(entry.estimatedMinutes)
   };
 }
 
@@ -730,9 +887,20 @@ export class FitSyncDataService {
     return this.http.delete<void>(`${this.apiBaseUrl}/workouts/plans/${planId}`);
   }
 
-  startWorkoutPlan(planId: string): Observable<WorkoutSessionDetail> {
+  /** Starts a plan's next session. When the row for today knows which plan day it is starting
+   *  (for example, a day carried over from earlier in the week), it passes that day's id and the
+   *  user's timezone so the backend starts that specific day rather than guessing from today's
+   *  date. Both are optional so every existing caller, which starts "today's" day, is unaffected. */
+  startWorkoutPlan(planId: string, options?: { planDayId?: string | null; timezone?: string }): Observable<WorkoutSessionDetail> {
+    let params = new HttpParams();
+    if (options?.planDayId) {
+      params = params.set('planDayId', options.planDayId);
+    }
+    if (options?.timezone) {
+      params = params.set('timezone', options.timezone);
+    }
     return this.http
-      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/plans/${planId}/start`, {})
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/plans/${planId}/start`, {}, { params })
       .pipe(
         map((session) => {
           const mapped = this.mapWorkoutSessionDetail(session);
@@ -895,7 +1063,10 @@ export class FitSyncDataService {
             weekBeforePreviousKg: safeInsightNumber(response.volume?.weekBeforePreviousKg),
             thisWeekSessionsWithVolume: safeInsightNumber(response.volume?.thisWeekSessionsWithVolume),
             previousWeekSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSessionsWithVolume)
-          }
+          },
+          days: mapDays(response.days),
+          today: mapTodayInsight(response.today),
+          nextTraining: mapNextTraining(response.nextTraining)
         }))
       );
   }
