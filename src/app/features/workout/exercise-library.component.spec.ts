@@ -13,7 +13,8 @@ const metadata: ExerciseMetadata = {
   equipment: ['BARBELL', 'DUMBBELL'],
   difficulties: ['BEGINNER', 'INTERMEDIATE'],
   workoutTypes: ['STRENGTH'],
-  goalFocuses: ['STRENGTH']
+  goalFocuses: ['STRENGTH'],
+  sportActivities: []
 };
 
 function exercise(overrides: Partial<Exercise> = {}): Exercise {

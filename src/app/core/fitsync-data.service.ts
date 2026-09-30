@@ -67,6 +67,7 @@ import {
   WorkoutExport,
   WorkoutExerciseLogInput,
   WorkoutExerciseSetInput,
+  PlanDayKind,
   WorkoutPlan,
   WorkoutPlanDay,
   WorkoutPlanRequest,
@@ -1237,7 +1238,8 @@ export class FitSyncDataService {
         equipment: metadata.equipment ?? [],
         difficulties: metadata.difficulties ?? [],
         workoutTypes: metadata.workoutTypes ?? [],
-        goalFocuses: metadata.goalFocuses ?? []
+        goalFocuses: metadata.goalFocuses ?? [],
+        sportActivities: metadata.sportActivities ?? []
       })),
       catchError(() => of(null))
     );
@@ -1969,6 +1971,10 @@ export class FitSyncDataService {
   ): void {
     if (training?.weeklyWorkoutDays != null) {
       value.weeklyWorkoutDays = training.weeklyWorkoutDays;
+    } else if (training?.weeklyWorkoutDays === null && this.hasTrainingBaseline(training)) {
+      // A user who onboarded with "Decide later" has a saved baseline and no number; the form
+      // should show that choice instead of the default of four days.
+      value.weeklyWorkoutDays = null;
     }
     const fitnessLevel = this.normalizeEnum(training?.fitnessLevel, {
       '200001': 'BEGINNER',

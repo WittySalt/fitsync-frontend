@@ -26,6 +26,18 @@
     <button id="workout-tab-library" [class.active]="selectedTab() === 'library'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'library'" aria-controls="workout-panel-library" (click)="selectedTab.set('library')">Library</button>
   </div>
 
+  @if (weeklyGoalOffer(); as offer) {
+    <div class="goal-offer" role="status">
+      <p>This plan has {{ offer.sessions }} {{ offer.sessions === 1 ? 'session' : 'sessions' }} a week.</p>
+      <div class="goal-offer-actions">
+        <button class="button primary" type="button" [disabled]="weeklyGoalSaving()" (click)="acceptWeeklyGoalOffer()">
+          {{ weeklyGoalSaving() ? 'Saving...' : 'Make ' + offer.sessions + ' my weekly goal' }}
+        </button>
+        <button class="button secondary" type="button" [disabled]="weeklyGoalSaving()" (click)="dismissWeeklyGoalOffer()">Not now</button>
+      </div>
+    </div>
+  }
+
   @if (selectedTab() === 'overview') {
     <div id="workout-panel-overview" role="tabpanel" aria-labelledby="workout-tab-overview" class="overview-panel">
       @if (guidedPlayerSession(); as playerSession) {
@@ -118,107 +130,28 @@
           </label>
         </div>
 
-        <div class="plan-blueprint" formArrayName="exercises">
+        <div class="plan-blueprint">
           <div class="plan-card-header">
-            <span class="card-label">Exercise blueprint</span>
-            <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
-          </div>
-          @for (group of planExercises.controls; track $index; let rowIndex = $index) {
-            <div class="exercise-row" [formGroupName]="rowIndex">
-              @if (exercisePickerState(rowIndex); as picker) {
-                <label class="exercise-picker-label">
-                  Exercise
-                  <div class="exercise-typeahead">
-                    <input
-                      #exerciseSearch
-                      type="text"
-                      autocomplete="off"
-                      role="combobox"
-                      aria-autocomplete="list"
-                      [value]="picker.inputValue"
-                      [attr.aria-expanded]="picker.open"
-                      [attr.aria-controls]="exerciseListboxId(rowIndex)"
-                      [attr.aria-activedescendant]="activeExerciseOptionId(rowIndex)"
-                      [attr.aria-invalid]="group.get('exerciseId')?.invalid && group.get('exerciseId')?.touched"
-                      placeholder="Search exercises"
-                      (focus)="openExercisePicker(rowIndex)"
-                      (blur)="markExercisePickerTouched(rowIndex); closeExercisePicker(rowIndex)"
-                      (input)="setExerciseSearchQuery(rowIndex, exerciseSearch.value)"
-                      (keydown)="handleExercisePickerKeydown($event, rowIndex)"
-                    />
-                    @if (picker.open) {
-                      <div
-                        class="exercise-typeahead-panel"
-                        [id]="exerciseListboxId(rowIndex)"
-                        role="listbox"
-                        [attr.aria-label]="'Exercise search results for row ' + (rowIndex + 1)"
-                      >
-                        @if (picker.loading) {
-                          <output class="typeahead-status" aria-live="polite">Searching exercises...</output>
-                        } @else if (picker.error) {
-                          <output class="typeahead-status error" aria-live="assertive">{{ picker.error }}</output>
-                        } @else if (picker.results.length) {
-                          @for (exercise of picker.results; track exercise.exerciseId ?? exercise.name; let optionIndex = $index) {
-                            @if (exercise.exerciseId) {
-                              <div
-                                class="typeahead-option"
-                                [id]="exerciseOptionId(rowIndex, optionIndex)"
-                                role="option"
-                                tabindex="-1"
-                                [class.active]="picker.activeIndex === optionIndex"
-                                [attr.aria-selected]="picker.activeIndex === optionIndex"
-                                (mousedown)="$event.preventDefault()"
-                                (click)="selectExerciseResult(rowIndex, exercise)"
-                                (keydown.enter)="selectExerciseResult(rowIndex, exercise)"
-                                (keydown.space)="selectExerciseResult(rowIndex, exercise)"
-                              >
-                                <strong>{{ exercise.name }}</strong>
-                                <small>{{ exerciseHint(exercise) }}</small>
-                              </div>
-                            }
-                          }
-                        } @else if (picker.query) {
-                          <output class="typeahead-status" aria-live="polite">No exercises found.</output>
-                        } @else {
-                          <output class="typeahead-status">Type to search exercises.</output>
-                        }
-                      </div>
-                    }
-                  </div>
-                  @if (group.get('exerciseId')?.invalid && group.get('exerciseId')?.touched) {
-                    <span class="field-error">Choose an exercise.</span>
-                  }
-                </label>
+            <span class="card-label">{{ planMode() === 'week' ? 'Weekly plan' : 'Exercise blueprint' }}</span>
+            <div class="blueprint-actions">
+              <div class="segmented" role="group" aria-label="Plan layout">
+                <button type="button" [class.active]="planMode() === 'list'" [attr.aria-pressed]="planMode() === 'list'" (click)="setPlanMode('list')">One list</button>
+                <button type="button" [class.active]="planMode() === 'week'" [attr.aria-pressed]="planMode() === 'week'" (click)="setPlanMode('week')">A week</button>
+              </div>
+              @if (planMode() === 'list') {
+                <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
               }
-              @if (isTimedRow(rowIndex)) {
-                <label>
-                  Duration sec
-                  <input formControlName="targetDurationSeconds" type="number" min="0" inputmode="numeric" placeholder="e.g. 60" />
-                </label>
-              } @else {
-                <label>
-                  Sets
-                  <input formControlName="targetSets" type="number" min="0" inputmode="numeric" />
-                </label>
-                <label>
-                  Reps
-                  <input formControlName="targetReps" type="number" min="0" inputmode="numeric" />
-                </label>
-                <label>
-                  Weight kg
-                  <input formControlName="targetWeightKg" type="number" min="0" step="0.5" inputmode="decimal" />
-                </label>
-              }
-              <label>
-                Rest sec
-                <input formControlName="restSeconds" type="number" min="0" inputmode="numeric" />
-              </label>
-              <label class="wide">
-                Notes
-                <input formControlName="notes" type="text" maxlength="300" autocomplete="off" />
-              </label>
-              <button class="button secondary" type="button" (click)="removePlanExercise(rowIndex)">Remove</button>
             </div>
+          </div>
+          @if (planMode() === 'week') {
+            <app-plan-week-editor
+              [week]="planWeek"
+              [planName]="planForm.controls.name.value ?? ''"
+              [sportActivities]="sportActivities()"
+              [(selectedDay)]="selectedPlanDay"
+            />
+          } @else {
+            <app-plan-exercise-rows [rows]="planExercises" (removeRow)="removePlanExercise($event)" />
           }
         </div>
 
@@ -252,7 +185,11 @@
             <article class="plan-card">
               <div class="plan-card-header">
                 <span class="card-label">{{ formatLabel(plan.status) }}</span>
-                <span>{{ plan.exerciseCount }} exercises</span>
+                @if (plan.days?.length) {
+                  <app-plan-week-summary [days]="plan.days ?? []" [sessions]="plan.sessionsPerWeek ?? plan.days?.length ?? 0" />
+                } @else {
+                  <span>{{ plan.exerciseCount }} exercises</span>
+                }
               </div>
               <h2>{{ plan.name }}</h2>
               <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>

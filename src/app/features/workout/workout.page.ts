@@ -1,20 +1,19 @@
 import { ActivatedRoute } from '@angular/router';
-import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap } from 'rxjs';
 
 import { CoachContextService } from '../../core/coach/coach-context.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
   DayInsight,
   DayKind,
-  Exercise,
   NextTraining,
+  SportActivityOption,
   TodayInsight,
+  UserGoal,
   WeeklyTrainingInsight,
   WorkoutPlan,
   WorkoutPlanExercise,
-  WorkoutPlanExerciseInput,
   WorkoutPlanRequest,
   WorkoutPlanStatus,
   WorkoutSession,
@@ -28,6 +27,29 @@ import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveStartCardComponent } from './live-start-card.component';
 import { LiveTrackerComponent } from './live-tracker.component';
 import { LiveTrackerGoal, LiveTrackerStartEvent } from './live-tracker.models';
+import {
+  createExerciseArray,
+  createExerciseGroup,
+  exerciseGroupsToInputs,
+  ExerciseGroup,
+  fillExerciseGroup,
+  isBlankExerciseGroup,
+  resetExerciseGroup
+} from './plan-exercise-form';
+import { PlanExerciseRowsComponent } from './plan-exercise-rows.component';
+import { PlanWeekEditorComponent } from './plan-week-editor.component';
+import { PlanWeekSummaryComponent } from './plan-week-summary.component';
+import {
+  applyDayKind,
+  buildWeekRequest,
+  createWeek,
+  fillWeek,
+  firstInvalidDay,
+  MAX_DAY_TITLE_LENGTH,
+  resetWeek,
+  trainingDayCount,
+  weekMoves
+} from './plan-week-form';
 import { SessionDetailComponent } from './session-detail.component';
 import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
@@ -41,20 +63,12 @@ interface TrainingMetric {
   detail: string;
 }
 
-interface ExercisePickerState {
-  inputValue: string;
-  query: string;
-  results: Exercise[];
-  loading: boolean;
-  error: string | null;
-  open: boolean;
-  activeIndex: number;
-  exerciseType: string | null;
-}
+type PlanMode = 'list' | 'week';
 
-interface ExerciseSearchRequest {
-  index: number;
-  query: string;
+/** The offer to make an activated plan's weekly session count the user's weekly goal. */
+interface WeeklyGoalOffer {
+  sessions: number;
+  existing: UserGoal | null;
 }
 
 type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
@@ -63,6 +77,9 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   selector: 'app-workout-page',
   imports: [InsightPanelComponent, 
     ReactiveFormsModule,
+    PlanExerciseRowsComponent,
+    PlanWeekEditorComponent,
+    PlanWeekSummaryComponent,
     StatePanelComponent,
     ExercisePlayerComponent,
     LiveStartCardComponent,
@@ -75,7 +92,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
-export class WorkoutPage implements OnInit, OnDestroy {
+export class WorkoutPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
@@ -83,7 +100,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private readonly workoutLive = inject(WorkoutLiveService);
   private readonly coachContext = inject(CoachContextService);
   private readonly liveStartCard = viewChild(LiveStartCardComponent);
-  private readonly exerciseSearchTerms = new Subject<ExerciseSearchRequest>();
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
@@ -96,7 +112,11 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly activePlan = signal<WorkoutPlan | null>(null);
   readonly loading = signal(true);
   readonly planError = signal<string | null>(null);
-  readonly exercisePickerStates = signal<Record<number, ExercisePickerState>>({});
+  readonly planMode = signal<PlanMode>('list');
+  readonly selectedPlanDay = signal(0);
+  readonly sportActivities = signal<SportActivityOption[]>([]);
+  readonly weeklyGoalOffer = signal<WeeklyGoalOffer | null>(null);
+  readonly weeklyGoalSaving = signal(false);
   readonly planStatus = signal<WorkoutPlanStatus | null>('ACTIVE');
   readonly editingPlanId = signal<string | null>(null);
   readonly savingPlan = signal(false);
@@ -120,8 +140,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
-  // Exercise types whose plan targets are time-based (a duration) rather than sets×reps.
-  readonly timedExerciseTypes = new Set(['CARDIO', 'MOBILITY']);
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
   readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
   // The weekly insight says what kind of day today is. It stays null when the request fails, and
@@ -145,36 +163,14 @@ export class WorkoutPage implements OnInit, OnDestroy {
     workoutType: ['STRENGTH', Validators.required],
     difficulty: ['BEGINNER', Validators.required],
     estimatedDurationMinutes: [45, [Validators.required, Validators.min(1)]],
-    exercises: this.fb.array([this.createExerciseGroup()])
+    exercises: createExerciseArray(this.fb)
   });
 
-  private readonly exerciseSearchSubscription = this.exerciseSearchTerms.pipe(
-    debounceTime(275),
-    distinctUntilChanged((previous, current) => previous.index === current.index && previous.query === current.query),
-    switchMap(({ index, query }) =>
-      this.dataService.searchExercisesPage({ q: query, page: 0, size: 20 }).pipe(
-        map((page) => ({ index, query, results: page.items, error: null as string | null })),
-        catchError(() => of({
-          index,
-          query,
-          results: [] as Exercise[],
-          error: 'Unable to search exercises. Please retry.'
-        }))
-      )
-    )
-  ).subscribe(({ index, query, results, error }) => {
-    const current = this.exercisePickerStates()[index];
-    if (!current || current.query !== query) {
-      return;
-    }
-    this.setExercisePickerState(index, {
-      results,
-      error,
-      loading: false,
-      open: true,
-      activeIndex: results.length ? 0 : -1
-    });
-  });
+  // The week of a plan that has one. It lives beside the form rather than inside it, so a plan
+  // saved as one list never depends on it.
+  readonly planWeek = createWeek(this.fb);
+  private sportActivitiesRequested = false;
+  private weeklyGoalRequest = 0;
 
   readonly metrics = computed<TrainingMetric[]>(() => {
     const latest = this.lastCompletedSession();
@@ -215,12 +211,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
     if (status && (this.historyStatusOptions as readonly string[]).includes(status)) {
       this.filterStatus.set(status);
     }
-    this.ensureExercisePickerStates();
     this.load();
-  }
-
-  ngOnDestroy(): void {
-    this.exerciseSearchSubscription.unsubscribe();
   }
 
   load(): void {
@@ -229,8 +220,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.loadActivePlan();
   }
 
-  get planExercises(): FormArray {
-    return this.planForm.get('exercises') as FormArray;
+  get planExercises(): FormArray<ExerciseGroup> {
+    return this.planForm.controls.exercises;
   }
 
   setHistorySearch(value: string): void {
@@ -292,26 +283,26 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   addPlanExercise(): void {
-    this.planExercises.push(this.createExerciseGroup());
-    this.setExercisePickerState(this.planExercises.length - 1, this.emptyExercisePickerState());
+    this.planExercises.push(createExerciseGroup(this.fb));
   }
 
   removePlanExercise(index: number): void {
     if (this.planExercises.length <= 1) {
-      this.planExercises.at(0).reset({
-        exerciseId: '',
-        targetSets: 3,
-        targetReps: 8,
-        targetDurationSeconds: null,
-        targetWeightKg: null,
-        restSeconds: 90,
-        notes: ''
-      });
-      this.setExercisePickerState(0, this.emptyExercisePickerState());
+      resetExerciseGroup(this.planExercises.at(0));
       return;
     }
     this.planExercises.removeAt(index);
-    this.reindexExercisePickerStates(index);
+  }
+
+  setPlanMode(mode: PlanMode): void {
+    if (mode === this.planMode()) {
+      return;
+    }
+    if (mode === 'week') {
+      this.moveListIntoWeek();
+    } else {
+      this.mergeWeekIntoList();
+    }
   }
 
   editPlan(plan: WorkoutPlan): void {
@@ -331,29 +322,20 @@ export class WorkoutPage implements OnInit, OnDestroy {
     });
 
     this.planExercises.clear();
-    this.exercisePickerStates.set({});
+    resetWeek(this.planWeek);
+    if (plan.days?.length) {
+      fillWeek(this.fb, this.planWeek, plan.days);
+      this.planMode.set('week');
+      this.selectedPlanDay.set(Math.max(0, this.planWeek.controls.findIndex((day) => day.controls.kind.value !== 'REST')));
+      this.ensureSportActivities();
+      return;
+    }
+    this.planMode.set('list');
     const exercises = plan.exercises.length ? plan.exercises : [null];
-    exercises.forEach((exercise, index) => {
-      const group = this.createExerciseGroup();
+    exercises.forEach((exercise) => {
+      const group = createExerciseGroup(this.fb);
       if (exercise) {
-        group.patchValue({
-          exerciseId: exercise.exerciseId ?? '',
-          targetSets: exercise.targetSets ?? 0,
-          targetReps: exercise.targetReps ?? 0,
-          targetDurationSeconds: exercise.targetDurationSeconds ?? null,
-          targetWeightKg: exercise.targetWeightKg,
-          restSeconds: exercise.restSeconds ?? 0,
-          notes: exercise.notes
-        });
-        this.setExercisePickerState(index, {
-          ...this.emptyExercisePickerState(),
-          inputValue: exercise.exerciseNameSnapshot || '',
-          // Existing plans don't carry the exercise type; infer "timed" from a
-          // saved duration target so the row shows the right inputs on edit.
-          exerciseType: (exercise.targetDurationSeconds ?? 0) > 0 ? 'CARDIO' : 'STRENGTH'
-        });
-      } else {
-        this.setExercisePickerState(index, this.emptyExercisePickerState());
+        fillExerciseGroup(group, exercise);
       }
       this.planExercises.push(group);
     });
@@ -366,14 +348,29 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   savePlan(): void {
     this.planForm.markAllAsTouched();
+    const week = this.planMode() === 'week';
 
     if (this.planForm.invalid) {
-      this.toast.error('Choose at least one exercise and complete the required plan fields.');
+      this.toast.error(week ? 'Complete the required plan fields.' : 'Choose at least one exercise and complete the required plan fields.');
       return;
     }
 
+    if (week) {
+      this.planWeek.markAllAsTouched();
+      const invalidDay = firstInvalidDay(this.planWeek);
+      if (invalidDay >= 0) {
+        this.selectedPlanDay.set(invalidDay);
+        this.toast.error('Complete this day before saving the week.');
+        return;
+      }
+      if (trainingDayCount(this.planWeek) === 0) {
+        this.toast.error('Plan at least one training day before saving the week.');
+        return;
+      }
+    }
+
     const request = this.buildPlanRequest();
-    if (!request.exercises.length) {
+    if (!week && !request.exercises.length) {
       this.toast.error('Choose at least one exercise before saving the plan.');
       return;
     }
@@ -408,11 +405,12 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
     this.setPlanMutating(plan.planId, true);
     this.dataService.activateWorkoutPlan(plan.planId).subscribe({
-      next: () => {
+      next: (activated) => {
         this.toast.success('Plan activated.');
         this.planStatus.set('ACTIVE');
         this.loadPlans();
         this.loadActivePlan();
+        this.offerWeeklyGoal(activated);
       },
       error: () => {
         this.toast.error('Unable to activate plan. Please retry.');
@@ -580,123 +578,44 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.planStatus.set('ACTIVE');
     this.loadPlans();
     this.loadActivePlan();
+    this.offerWeeklyGoal(plan);
+  }
+
+  dismissWeeklyGoalOffer(): void {
+    this.weeklyGoalRequest++;
+    this.weeklyGoalOffer.set(null);
+  }
+
+  acceptWeeklyGoalOffer(): void {
+    const offer = this.weeklyGoalOffer();
+    if (!offer || this.weeklyGoalSaving()) {
+      return;
+    }
+
+    this.weeklyGoalSaving.set(true);
+    this.dataService
+      .upsertGoal('WORKOUT_FREQUENCY', {
+        targetValue: offer.sessions,
+        targetUnit: 'sessions/week',
+        targetDate: offer.existing?.targetDate ?? null,
+        status: 'ACTIVE',
+        notes: offer.existing?.notes ?? null
+      })
+      .subscribe({
+        next: () => {
+          this.toast.success('Weekly goal saved.');
+          this.weeklyGoalOffer.set(null);
+        },
+        error: () => {
+          this.toast.error('Unable to save the weekly goal. Please retry.');
+          this.weeklyGoalSaving.set(false);
+        },
+        complete: () => this.weeklyGoalSaving.set(false)
+      });
   }
 
   browsePlans(): void {
     this.selectedTab.set('plans');
-  }
-
-  exercisePickerState(index: number): ExercisePickerState {
-    return this.exercisePickerStates()[index] ?? this.emptyExercisePickerState();
-  }
-
-  // A plan row is "timed" once a CARDIO/MOBILITY exercise is chosen — then the
-  // form shows a single Duration target instead of Sets & Reps.
-  isTimedRow(index: number): boolean {
-    const type = this.exercisePickerState(index).exerciseType;
-    return !!type && this.timedExerciseTypes.has(type);
-  }
-
-  setExerciseSearchQuery(index: number, value: string): void {
-    const query = value.trim();
-    this.planExercises.at(index)?.get('exerciseId')?.setValue('');
-    this.setExercisePickerState(index, {
-      inputValue: value,
-      query,
-      results: [],
-      error: null,
-      loading: Boolean(query),
-      open: true,
-      activeIndex: -1
-    });
-    if (query) {
-      this.exerciseSearchTerms.next({ index, query });
-    }
-  }
-
-  openExercisePicker(index: number): void {
-    this.ensureExercisePickerState(index);
-    this.setExercisePickerState(index, { open: true });
-  }
-
-  closeExercisePicker(index: number): void {
-    this.setExercisePickerState(index, { open: false, activeIndex: -1 });
-  }
-
-  markExercisePickerTouched(index: number): void {
-    this.planExercises.at(index)?.get('exerciseId')?.markAsTouched();
-  }
-
-  handleExercisePickerKeydown(event: KeyboardEvent, index: number): void {
-    const state = this.exercisePickerState(index);
-    if (event.key === 'Escape') {
-      this.closeExercisePicker(index);
-      return;
-    }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      this.moveExercisePickerActive(index, 1);
-      return;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      this.moveExercisePickerActive(index, -1);
-      return;
-    }
-    if (event.key === 'Enter' && state.open && state.activeIndex >= 0) {
-      event.preventDefault();
-      const exercise = state.results[state.activeIndex];
-      if (exercise) {
-        this.selectExerciseResult(index, exercise);
-      }
-    }
-  }
-
-  selectExerciseResult(index: number, exercise: Exercise): void {
-    if (!exercise.exerciseId) {
-      return;
-    }
-    const control = this.planExercises.at(index)?.get('exerciseId');
-    control?.setValue(exercise.exerciseId);
-    control?.markAsDirty();
-    control?.markAsTouched();
-    // Give a timed exercise a sensible default duration so the field isn't blank.
-    if (this.timedExerciseTypes.has(exercise.exerciseType)) {
-      const durationControl = this.planExercises.at(index)?.get('targetDurationSeconds');
-      if (!durationControl?.value) {
-        durationControl?.setValue(60);
-      }
-    }
-    this.setExercisePickerState(index, {
-      inputValue: exercise.name,
-      query: '',
-      results: [exercise],
-      error: null,
-      loading: false,
-      open: false,
-      activeIndex: -1,
-      exerciseType: exercise.exerciseType
-    });
-  }
-
-  exerciseHint(exercise: Exercise): string {
-    return [exercise.primaryMuscleGroup, exercise.equipment]
-      .filter(Boolean)
-      .map((value) => this.formatLabel(value))
-      .join(' / ');
-  }
-
-  exerciseListboxId(index: number): string {
-    return `plan-exercise-results-${index}`;
-  }
-
-  exerciseOptionId(rowIndex: number, optionIndex: number): string {
-    return `plan-exercise-option-${rowIndex}-${optionIndex}`;
-  }
-
-  activeExerciseOptionId(index: number): string | null {
-    const state = this.exercisePickerState(index);
-    return state.open && state.activeIndex >= 0 ? this.exerciseOptionId(index, state.activeIndex) : null;
   }
 
   openSessionDetail(session: WorkoutSession): void {
@@ -883,47 +802,21 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.dataService.getActivePlan().subscribe((plan) => this.activePlan.set(plan));
   }
 
-  private createExerciseGroup() {
-    return this.fb.group({
-      exerciseId: ['', Validators.required],
-      targetSets: [3, [Validators.min(0)]],
-      targetReps: [8, [Validators.min(0)]],
-      targetDurationSeconds: [null as number | null, [Validators.min(0)]],
-      targetWeightKg: [null as number | null, [Validators.min(0)]],
-      restSeconds: [90, [Validators.min(0)]],
-      notes: ['', Validators.maxLength(300)]
-    });
-  }
-
   private buildPlanRequest(): WorkoutPlanRequest {
     const raw = this.planForm.getRawValue();
-    const exercises: WorkoutPlanExerciseInput[] = raw.exercises
-      .filter((exercise): exercise is typeof exercise & { exerciseId: string } => Boolean(exercise.exerciseId))
-      .map((exercise, index) => {
-        const timed = this.isTimedRow(index);
-        return {
-          exerciseId: exercise.exerciseId,
-          sequence: index + 1,
-          targetSets: timed ? null : this.optionalNumber(exercise.targetSets),
-          targetReps: timed ? null : this.optionalNumber(exercise.targetReps),
-          targetWeightKg: timed ? null : this.optionalNumber(exercise.targetWeightKg),
-          targetDurationSeconds: timed ? this.optionalNumber(exercise.targetDurationSeconds) : null,
-          targetDistanceKm: null,
-          restSeconds: this.optionalNumber(exercise.restSeconds),
-          notes: exercise.notes ?? '',
-          setTargets: []
-        };
-      });
-
-    return {
+    const request: WorkoutPlanRequest = {
       name: raw.name ?? '',
       description: raw.description ?? '',
       goalFocus: raw.goalFocus ?? 'GENERAL_FITNESS',
       workoutType: raw.workoutType ?? 'STRENGTH',
       difficulty: raw.difficulty ?? 'BEGINNER',
       estimatedDurationMinutes: this.optionalNumber(raw.estimatedDurationMinutes),
-      exercises
+      exercises: exerciseGroupsToInputs(this.planExercises.controls)
     };
+    // A plan with a week keeps every exercise inside its days, and the server refuses both.
+    return this.planMode() === 'week'
+      ? { ...request, exercises: [], days: buildWeekRequest(this.planWeek) }
+      : request;
   }
 
   private resetPlanForm(): void {
@@ -936,8 +829,72 @@ export class WorkoutPage implements OnInit, OnDestroy {
       estimatedDurationMinutes: 45
     });
     this.planExercises.clear();
-    this.planExercises.push(this.createExerciseGroup());
-    this.exercisePickerStates.set({ 0: this.emptyExercisePickerState() });
+    this.planExercises.push(createExerciseGroup(this.fb));
+    resetWeek(this.planWeek);
+    this.selectedPlanDay.set(0);
+    this.planMode.set('list');
+  }
+
+  // Choosing "A week" carries what is already typed into Monday, so nothing is lost by trying it.
+  private moveListIntoWeek(): void {
+    const monday = this.planWeek.at(0);
+    const moved = this.planExercises.controls.filter((group) => !isBlankExerciseGroup(group));
+    this.planExercises.clear();
+    resetWeek(this.planWeek);
+    monday.controls.title.setValue((this.planForm.controls.name.value ?? '').trim().slice(0, MAX_DAY_TITLE_LENGTH));
+    moved.forEach((group) => monday.controls.exercises.push(group));
+    applyDayKind(monday, 'STRENGTH');
+    this.selectedPlanDay.set(0);
+    this.planMode.set('week');
+    this.ensureSportActivities();
+  }
+
+  private mergeWeekIntoList(): void {
+    const hasStructure = trainingDayCount(this.planWeek) > 0;
+    if (hasStructure && !window.confirm('Turn the week into one list? Days, titles and rest days are dropped, and every move is kept in order.')) {
+      return;
+    }
+    const moved = weekMoves(this.planWeek);
+    resetWeek(this.planWeek);
+    this.planExercises.clear();
+    (moved.length ? moved : [createExerciseGroup(this.fb)]).forEach((group) => this.planExercises.push(group));
+    this.selectedPlanDay.set(0);
+    this.planMode.set('list');
+  }
+
+  private ensureSportActivities(): void {
+    if (this.sportActivitiesRequested) {
+      return;
+    }
+    this.sportActivitiesRequested = true;
+    this.dataService.getExerciseMetadata().subscribe((metadata) => {
+      this.sportActivities.set(metadata?.sportActivities ?? []);
+      if (!metadata) {
+        // Try again the next time a week is opened; the sport select is empty until it loads.
+        this.sportActivitiesRequested = false;
+      }
+    });
+  }
+
+  // Asks whether the weekly goal should follow a plan that was just activated. Nothing is asked for
+  // a plan without a week, or when the goal already says the same number.
+  private offerWeeklyGoal(plan: WorkoutPlan): void {
+    const request = ++this.weeklyGoalRequest;
+    this.weeklyGoalOffer.set(null);
+    const sessions = plan.sessionsPerWeek;
+    if (!sessions) {
+      return;
+    }
+    this.dataService.getGoals().subscribe((goals) => {
+      if (request !== this.weeklyGoalRequest) {
+        return;
+      }
+      const existing = goals.find((goal) => goal.goalType === 'WORKOUT_FREQUENCY') ?? null;
+      if (existing?.status === 'ACTIVE' && existing.targetValue === sessions) {
+        return;
+      }
+      this.weeklyGoalOffer.set({ sessions, existing });
+    });
   }
 
   private optionalNumber(value: unknown): number | null {
@@ -957,65 +914,5 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   private toDurationFilter(value: string): HistoryDurationFilter {
     return value === 'lt30' || value === '30to60' || value === 'gt60' ? value : '';
-  }
-
-  private emptyExercisePickerState(): ExercisePickerState {
-    return {
-      inputValue: '',
-      query: '',
-      results: [],
-      loading: false,
-      error: null,
-      open: false,
-      activeIndex: -1,
-      exerciseType: null
-    };
-  }
-
-  private ensureExercisePickerStates(): void {
-    this.planExercises.controls.forEach((_, index) => this.ensureExercisePickerState(index));
-  }
-
-  private ensureExercisePickerState(index: number): void {
-    if (!this.exercisePickerStates()[index]) {
-      this.setExercisePickerState(index, this.emptyExercisePickerState());
-    }
-  }
-
-  private setExercisePickerState(index: number, patch: Partial<ExercisePickerState>): void {
-    this.exercisePickerStates.update((states) => ({
-      ...states,
-      [index]: {
-        ...this.emptyExercisePickerState(),
-        ...states[index],
-        ...patch
-      }
-    }));
-  }
-
-  private moveExercisePickerActive(index: number, delta: number): void {
-    const state = this.exercisePickerState(index);
-    if (!state.open) {
-      this.setExercisePickerState(index, { open: true });
-      return;
-    }
-    if (!state.results.length) {
-      return;
-    }
-    const nextIndex = (state.activeIndex + delta + state.results.length) % state.results.length;
-    this.setExercisePickerState(index, { activeIndex: nextIndex });
-  }
-
-  private reindexExercisePickerStates(removedIndex: number): void {
-    const nextStates: Record<number, ExercisePickerState> = {};
-    Object.entries(this.exercisePickerStates()).forEach(([key, state]) => {
-      const index = Number(key);
-      if (index < removedIndex) {
-        nextStates[index] = state;
-      } else if (index > removedIndex) {
-        nextStates[index - 1] = state;
-      }
-    });
-    this.exercisePickerStates.set(nextStates);
   }
 }

@@ -1,0 +1,109 @@
+<section class="week-card" aria-labelledby="plan-week-heading">
+  <div class="week-head">
+    <div class="week-title">
+      <span class="week-eyebrow">{{ planName().trim() || 'New plan' }}</span>
+      <h3 id="plan-week-heading">Your week</h3>
+    </div>
+    <div class="week-chips">
+      <span class="chip">{{ sessionCount() }} {{ sessionCount() === 1 ? 'session' : 'sessions' }}</span>
+      <span class="chip">{{ restCount() }} {{ restCount() === 1 ? 'rest day' : 'rest days' }}</span>
+      @if (totalTime()) {
+        <span class="chip">{{ totalTime() }}</span>
+      }
+    </div>
+  </div>
+
+  <div class="strip" role="group" aria-label="Days of the week">
+    @for (view of views(); track $index; let dayIndex = $index) {
+      <button
+        type="button"
+        class="day"
+        [class.selected]="dayIndex === selectedDay()"
+        [attr.aria-pressed]="dayIndex === selectedDay()"
+        [attr.aria-label]="view.label"
+        (click)="selectDay(dayIndex)"
+      >
+        <span class="day-eyebrow">{{ view.abbr }}</span>
+        <span class="day-tile" [class.rest]="view.kind === 'REST'">
+          <app-plan-day-glyph [kind]="view.kind" [size]="22" />
+        </span>
+        <strong class="day-title">{{ view.title }}</strong>
+        <span class="day-meta">{{ view.meta }}</span>
+      </button>
+    }
+  </div>
+</section>
+
+@if (selectedGroup(); as day) {
+  <section class="day-card" [formGroup]="day" [attr.aria-label]="weekdayNames[selectedDay()]">
+    <h3 class="day-heading">{{ weekdayNames[selectedDay()] }}</h3>
+
+    <div class="kinds" role="group" aria-label="Kind of day">
+      @for (choice of choices; track choice) {
+        <button
+          type="button"
+          class="kind"
+          [attr.aria-pressed]="selectedKind() === choice"
+          (click)="chooseKind(choice)"
+        >
+          <app-plan-day-glyph [kind]="choice" [size]="18" />
+          <span>{{ choiceLabels[choice] }}</span>
+        </button>
+      }
+    </div>
+
+    @if (selectedKind() !== 'REST') {
+      <div class="fields">
+        <div class="field title-field">
+          <label for="plan-day-title">Title</label>
+          <input id="plan-day-title" type="text" formControlName="title" [attr.maxlength]="maxTitleLength" autocomplete="off" />
+          @if (day.touched && day.hasError('titleRequired')) {
+            <span class="field-error">Add a title.</span>
+          }
+        </div>
+        <div class="field minutes-field">
+          <label for="plan-day-minutes">Minutes</label>
+          <input id="plan-day-minutes" type="number" formControlName="minutes" inputmode="numeric" />
+          @if (day.touched && day.hasError('minutesRange')) {
+            <span class="field-error">Use 1 to {{ maxMinutes }}.</span>
+          }
+        </div>
+      </div>
+
+      @if (selectedKind() === 'SPORT') {
+        <div class="field sport-field">
+          <label for="plan-day-sport">Sport</label>
+          <select id="plan-day-sport" (change)="chooseSport($any($event.target).value)" (blur)="day.controls.sportActivity.markAsTouched()">
+            <option value="" [selected]="!day.controls.sportActivity.value">Choose a sport</option>
+            @for (activity of sportActivities(); track activity.code) {
+              <option [value]="activity.code" [selected]="isSelectedSport(activity.code)">{{ activity.label }}</option>
+            }
+          </select>
+          @if (day.touched && day.hasError('sportRequired')) {
+            <span class="field-error">Choose a sport.</span>
+          }
+        </div>
+      } @else {
+        <div class="moves">
+          <span class="moves-eyebrow">Moves</span>
+          <app-plan-exercise-rows [rows]="day.controls.exercises" (removeRow)="removeMove($event)" />
+          @if (day.touched && day.hasError('noMoves')) {
+            <span class="field-error">Add at least one move.</span>
+          }
+          <button
+            type="button"
+            class="add-move"
+            [disabled]="day.controls.exercises.length >= maxMoves"
+            (click)="addMove()"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14"></path>
+              <path d="M5 12h14"></path>
+            </svg>
+            <span>Add a move</span>
+          </button>
+        </div>
+      }
+    }
+  </section>
+}

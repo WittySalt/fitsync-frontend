@@ -14,6 +14,15 @@ import {
 } from './onboarding-projection';
 
 type PreferredUnits = 'METRIC' | 'IMPERIAL';
+
+/** The weekly frequency may be left open (null), and otherwise has to be a whole number of days from one to seven. */
+const weeklyDaysValidator: ValidatorFn = (control) => {
+  const value = control.value;
+  if (value === null) {
+    return null;
+  }
+  return Number.isInteger(value) && value >= 1 && value <= 7 ? null : { weeklyDays: true };
+};
 type ControlName =
   | 'primaryGoal'
   | 'displayName'
@@ -167,7 +176,7 @@ export class OnboardingPage implements OnInit {
     targetWeightLb: [null as number | null],
     weeklyPaceKg: [0.5 as number | null],
     activityLevel: ['MODERATELY_ACTIVE', Validators.required],
-    weeklyWorkoutDays: [4, [Validators.required, Validators.min(1), Validators.max(7)]],
+    weeklyWorkoutDays: [4 as number | null, [weeklyDaysValidator]],
     fitnessLevel: ['BEGINNER', Validators.required],
     trainingLocation: ['MIXED', Validators.required],
     preferredDurationMinutes: [45 as number | null, [Validators.required, Validators.min(5), Validators.max(240)]],
@@ -349,6 +358,20 @@ export class OnboardingPage implements OnInit {
     this.error.set(null);
   }
 
+  /** True while the user has chosen to leave the weekly training frequency open. */
+  weeklyDaysUndecided(): boolean {
+    return this.form.controls.weeklyWorkoutDays.value === null;
+  }
+
+  setWeeklyDaysLater(later: boolean): void {
+    const control = this.form.controls.weeklyWorkoutDays;
+    // Coming back from "Decide later" restores the number the plan defaults to for a fresh form.
+    control.setValue(later ? null : 4);
+    control.markAsDirty();
+    this.error.set(null);
+    this.refreshProjection(false);
+  }
+
   isChoiceSelected(controlName: 'trainingLocation' | 'fitnessLevel' | 'intensityPreference', value: string): boolean {
     return this.form.controls[controlName].value === value;
   }
@@ -399,12 +422,17 @@ export class OnboardingPage implements OnInit {
     );
   }
 
+  private weeklyDaysChip(): string {
+    const days = this.form.controls.weeklyWorkoutDays.value;
+    return days === null ? 'Days to be decided' : `${days} days/week`;
+  }
+
   planChips(): string[] {
     const chips: string[] = [];
     const location = this.optionLabel(this.trainingLocationOptions, this.form.controls.trainingLocation.value);
     const level = this.optionLabel(this.fitnessLevelOptions, this.form.controls.fitnessLevel.value);
     const intensity = this.optionLabel(this.intensityOptions, this.form.controls.intensityPreference.value);
-    chips.push(location, level, `${this.form.controls.weeklyWorkoutDays.value ?? 0} days/week`, `${this.form.controls.preferredDurationMinutes.value ?? 0} min`, intensity);
+    chips.push(location, level, this.weeklyDaysChip(), `${this.form.controls.preferredDurationMinutes.value ?? 0} min`, intensity);
 
     const equipment = this.form.controls.equipmentInventory.value ?? [];
     if (equipment.length) {
@@ -678,7 +706,7 @@ export class OnboardingPage implements OnInit {
       targetWeightLb: raw.targetWeightLb,
       weeklyPaceKg: raw.weeklyPaceKg,
       activityLevel: raw.activityLevel ?? 'MODERATELY_ACTIVE',
-      weeklyWorkoutDays: raw.weeklyWorkoutDays ?? 0,
+      weeklyWorkoutDays: raw.weeklyWorkoutDays,
       fitnessLevel: raw.fitnessLevel ?? 'BEGINNER',
       trainingLocation: raw.trainingLocation ?? 'MIXED',
       preferredDurationMinutes: raw.preferredDurationMinutes,
