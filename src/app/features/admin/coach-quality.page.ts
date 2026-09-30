@@ -37,7 +37,7 @@ interface RuleRow {
 @Component({
   selector: 'app-coach-quality-page',
   templateUrl: './coach-quality.page.html',
-  styleUrl: './coach-quality.page.scss'
+  styleUrls: ['./admin-page.scss', './coach-quality.page.scss']
 })
 export class CoachQualityPage {
   private readonly api = inject(AdminApiService);

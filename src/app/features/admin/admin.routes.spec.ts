@@ -16,7 +16,11 @@ describe('admin routes', () => {
   beforeEach(async () => {
     const authService = { ensureSession: () => of(true), isAdmin: () => true };
     const accountDataService = { getCurrentUser: () => of({ userId: 'u1', role: 'ADMIN' } as AccountUserResponse) };
-    const adminApi = { getCoachQuality: () => of(toCoachQuality({})) };
+    const adminApi = {
+      getCoachQuality: () => of(toCoachQuality({})),
+      getExerciseSummary: () => of({ total: 0, byType: [] }),
+      getOutboxPending: () => of({ pending: 0, oldestCreatedAt: null })
+    };
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
@@ -44,7 +48,7 @@ describe('admin routes', () => {
     expect(TestBed.inject(Title).getTitle()).toBe('FitSync Admin · Coach quality');
   });
 
-  it('shows the same placeholder for the pages that are not built yet', async () => {
+  it('loads the catalogue, user data and events pages with their titles', async () => {
     const pages: [string, string][] = [
       ['/admin/catalogue', 'Catalogue'],
       ['/admin/users', 'User data'],
@@ -55,7 +59,6 @@ describe('admin routes', () => {
       await harness.navigateByUrl(url);
       const main = harness.routeNativeElement?.querySelector('main');
       expect(main?.querySelector('h1')?.textContent).toBe(heading);
-      expect(main?.textContent).toContain('This page is being built.');
       expect(TestBed.inject(Title).getTitle()).toBe(`FitSync Admin · ${heading}`);
     }
   });

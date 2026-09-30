@@ -1,0 +1,49 @@
+.table-scroll table {
+  min-width: 760px;
+
+  .num {
+    width: 96px;
+  }
+
+  .oldest {
+    width: 112px;
+    text-align: right;
+  }
+
+  th.oldest {
+    text-align: right;
+  }
+
+  .action {
+    width: 420px;
+    padding-left: 24px;
+    white-space: normal;
+  }
+
+  tbody td.action {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .failed {
+    color: var(--text-secondary);
+    text-align: right;
+  }
+}
+
+.bar {
+  display: inline-block;
+  width: 56px;
+  height: 14px;
+  border-radius: 7px;
+  vertical-align: middle;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

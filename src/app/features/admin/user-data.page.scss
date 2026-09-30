@@ -1,0 +1,148 @@
+.search {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+
+  label {
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
+  input {
+    box-sizing: border-box;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    background: var(--surface);
+    font: inherit;
+    font-size: 15px;
+  }
+
+  input:focus-visible {
+    outline: 0;
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.search .field {
+  flex: 1 1 auto;
+}
+
+.date-field {
+  max-width: 220px;
+}
+
+.find {
+  flex: none;
+  min-width: 88px;
+  height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  &:focus-visible {
+    outline: 0;
+    box-shadow: var(--shadow-focus);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+}
+
+// The line is always present so that a screen reader announces the text when it appears.
+.message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  dt {
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+  }
+
+  dd.mono {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 13px;
+  }
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .search {
+    flex-wrap: wrap;
+  }
+
+  .find {
+    width: 100%;
+  }
+
+  .date-field {
+    max-width: none;
+  }
+
+  .field-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding: 8px 0;
+  }
+}
