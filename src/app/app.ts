@@ -16,7 +16,7 @@ import { ToastOutletComponent } from './shared/toast-outlet.component';
 })
 export class App implements OnInit {
   protected readonly router = inject(Router);
-  private readonly authService = inject(AuthService);
+  protected readonly authService = inject(AuthService);
   private readonly accountDataService = inject(AccountDataService);
   protected readonly themeService = inject(ThemeService);
 
@@ -34,6 +34,11 @@ export class App implements OnInit {
 
   protected isAuthRoute(): boolean {
     return this.router.url.startsWith('/auth') || this.router.url.startsWith('/logout');
+  }
+
+  /** The admin area brings its own layout, so the member navigation and coach dock stay out of it. */
+  protected isAdminRoute(): boolean {
+    return /^\/admin(?:[/?#]|$)/.test(this.router.url);
   }
 
   ngOnInit(): void {

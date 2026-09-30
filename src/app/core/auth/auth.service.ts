@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
 import {
@@ -9,6 +9,7 @@ import {
   SOCIAL_SIGN_IN_ENABLED,
   SocialProvider
 } from './auth.config';
+import { normalizeRole, roleFromAccessToken, UserRole } from './jwt-role';
 
 interface CognitoAttribute {
   Name: string;
@@ -40,6 +41,15 @@ export class AuthService {
 
   readonly authError = signal<string | null>(null);
 
+  // The current-user response is the trusted source for the role. The role claim of the stored
+  // application token covers the moment before that response has arrived, on a reload for example.
+  private readonly tokenRole = signal<UserRole | null>(roleFromAccessToken(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)));
+  private readonly userRole = signal<UserRole | null>(null);
+
+  /** The signed-in user's role, or null while it is unknown. It decides what the UI shows, never what is allowed. */
+  readonly role = computed(() => this.userRole() ?? this.tokenRole());
+  readonly isAdmin = computed(() => this.role() === 'ADMIN');
+
   /** Whether federated Google/Apple sign-in is wired up (see AUTH-SOCIAL-SIGNIN.md). */
   readonly socialSignInEnabled = SOCIAL_SIGN_IN_ENABLED;
 
@@ -53,6 +63,11 @@ export class AuthService {
       return;
     }
     window.location.assign(buildSocialAuthorizeUrl(this.config, provider));
+  }
+
+  /** Records the role from the current-user response; a response without a role keeps the token's claim. */
+  setUserRole(role: string | null | undefined): void {
+    this.userRole.set(normalizeRole(role));
   }
 
   isAuthenticated(): boolean {
@@ -273,11 +288,13 @@ export class AuthService {
 
   private storeBootstrapToken(auth: BootstrapAuthResponse): void {
     localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, auth.accessToken);
+    this.tokenRole.set(roleFromAccessToken(auth.accessToken));
     localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(this.jwtExpiresAt(auth.accessToken) ?? Date.now() + 2 * 60 * 60 * 1000));
   }
 
   private clearSession(): void {
     this.sessionBootstrap$ = undefined;
+    this.userRole.set(null);
     this.clearLocalAccessToken();
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoAccessToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoIdToken);
@@ -285,6 +302,7 @@ export class AuthService {
   }
 
   private clearLocalAccessToken(): void {
+    this.tokenRole.set(null);
     localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.idToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
