@@ -421,4 +421,104 @@ describe('OnboardingPage', () => {
     expect(toast.error).toHaveBeenCalledWith('Save failed');
     expect(component.submitting()).toBeFalse();
   });
+
+  describe('weekly workout days', () => {
+    function decideLaterCheckbox(target: ComponentFixture<OnboardingPage> = fixture): HTMLInputElement {
+      const checkbox = Array.from((target.nativeElement as HTMLElement).querySelectorAll<HTMLLabelElement>('.weekly-days .toggle-row'))
+        .find((row) => row.textContent?.trim() === 'Decide later')
+        ?.querySelector('input');
+      if (!checkbox) {
+        throw new Error('The Decide later control is missing.');
+      }
+      return checkbox;
+    }
+
+    it('offers Decide later beside the number on the training step', () => {
+      component.currentStep.set(3);
+      fixture.detectChanges();
+
+      const checkbox = decideLaterCheckbox();
+      expect(checkbox.type).toBe('checkbox');
+      expect(checkbox.checked).toBeFalse();
+      expect(component.form.controls.weeklyWorkoutDays.value).toBe(4);
+    });
+
+    it('makes the value null and the step valid when Decide later is chosen', () => {
+      component.currentStep.set(3);
+      fixture.detectChanges();
+
+      decideLaterCheckbox().click();
+      fixture.detectChanges();
+
+      expect(component.form.controls.weeklyWorkoutDays.value).toBeNull();
+      expect(component.form.controls.weeklyWorkoutDays.valid).toBeTrue();
+      expect(component.weeklyDaysUndecided()).toBeTrue();
+      expect(decideLaterCheckbox().checked).toBeTrue();
+
+      component.nextStep();
+      expect(component.currentStep()).toBe(4);
+    });
+
+    it('goes back to a number when Decide later is cleared, and when a number is typed', () => {
+      component.currentStep.set(3);
+      component.setWeeklyDaysLater(true);
+      fixture.detectChanges();
+
+      decideLaterCheckbox().click();
+      fixture.detectChanges();
+      expect(component.form.controls.weeklyWorkoutDays.value).toBe(4);
+
+      component.setWeeklyDaysLater(true);
+      component.form.controls.weeklyWorkoutDays.setValue(6);
+      fixture.detectChanges();
+      expect(component.weeklyDaysUndecided()).toBeFalse();
+      expect(decideLaterCheckbox().checked).toBeFalse();
+    });
+
+    it('still asks for one to seven days when a number is given', () => {
+      const control = component.form.controls.weeklyWorkoutDays;
+
+      [1, 7].forEach((days) => {
+        control.setValue(days);
+        expect(control.valid).toBeTrue();
+      });
+      [0, 8, 2.5].forEach((days) => {
+        control.setValue(days);
+        expect(control.invalid).toBeTrue();
+      });
+    });
+
+    it('sends null when the user decides later', () => {
+      spyOn(router, 'navigateByUrl').and.resolveTo(true);
+      fillValidOnboarding(component);
+      component.setWeeklyDaysLater(true);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).toHaveBeenCalledWith(jasmine.objectContaining({ weeklyWorkoutDays: null }));
+    });
+
+    it('still sends the number when one is chosen', () => {
+      spyOn(router, 'navigateByUrl').and.resolveTo(true);
+      fillValidOnboarding(component);
+      component.form.controls.weeklyWorkoutDays.setValue(5);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).toHaveBeenCalledWith(jasmine.objectContaining({ weeklyWorkoutDays: 5 }));
+    });
+
+    it('shows Decide later for a returning user whose stored value is null', () => {
+      dataService.getOnboardingSeed.and.returnValue(
+        of({ ...emptySeed(), value: { weeklyWorkoutDays: null }, hasExistingTrainingBaseline: true })
+      );
+      const returning = TestBed.createComponent(OnboardingPage);
+      returning.componentInstance.currentStep.set(3);
+      returning.detectChanges();
+
+      expect(returning.componentInstance.form.controls.weeklyWorkoutDays.value).toBeNull();
+      expect(decideLaterCheckbox(returning).checked).toBeTrue();
+      expect(returning.componentInstance.planChips()).toContain('Days to be decided');
+    });
+  });
 });

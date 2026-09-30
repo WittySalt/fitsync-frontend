@@ -1,0 +1,96 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+.exercise-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(190px, 1.2fr) repeat(4, minmax(86px, 0.5fr)) minmax(160px, 1fr) auto;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 9px 11px;
+}
+
+.exercise-typeahead {
+  position: relative;
+}
+
+.exercise-typeahead-panel {
+  position: absolute;
+  z-index: 5;
+  inset: 100% 0 auto;
+  display: grid;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.typeahead-option {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+
+  small {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  &:hover,
+  &.active {
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  }
+}
+
+.typeahead-status {
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.typeahead-status.error {
+  color: var(--danger);
+}
+
+@media (max-width: 640px) {
+  .exercise-row {
+    grid-template-columns: 1fr;
+  }
+
+  .wide {
+    grid-column: auto;
+  }
+}

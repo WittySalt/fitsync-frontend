@@ -63,13 +63,44 @@
     gap: 16px;
   }
 
+  .blueprint-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .goal-offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+
+    p {
+      margin: 0;
+      font-size: var(--text-sm);
+      font-weight: var(--fw-bold);
+    }
+  }
+
+  .goal-offer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .plan-toolbar {
     display: flex;
     justify-content: flex-start;
   }
 
-  .form-grid,
-  .exercise-row {
+  .form-grid {
     display: grid;
     gap: 12px;
   }
@@ -78,76 +109,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .exercise-row {
-    grid-template-columns: minmax(190px, 1.2fr) repeat(4, minmax(86px, 0.5fr)) minmax(160px, 1fr) auto;
-    align-items: end;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-  }
-
-  .form-grid label,
-  .exercise-row label {
-    display: grid;
-    gap: 6px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-weight: var(--fw-semibold);
-  }
-
-  .form-grid .wide,
-  .exercise-row .wide {
+  .form-grid .wide {
     grid-column: span 2;
-  }
-
-  .exercise-typeahead {
-    position: relative;
-  }
-
-  .exercise-typeahead-panel {
-    position: absolute;
-    z-index: 5;
-    inset: 100% 0 auto;
-    display: grid;
-    max-height: 240px;
-    overflow: auto;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    box-shadow: var(--shadow-md);
-  }
-
-  .typeahead-option {
-    display: grid;
-    gap: 3px;
-    width: 100%;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text-primary);
-    cursor: pointer;
-    text-align: left;
-
-    small {
-      color: var(--text-secondary);
-      font-size: 12px;
-    }
-
-    &:hover,
-    &.active {
-      background: color-mix(in srgb, var(--accent) 12%, var(--surface));
-    }
-  }
-
-  .typeahead-status {
-    padding: 10px 12px;
-    color: var(--text-secondary);
-    font-size: 13px;
-  }
-
-  .typeahead-status.error,
-  .field-error {
-    color: var(--danger);
   }
 
   input,
@@ -246,8 +209,7 @@
 @media (max-width: 640px) {
   .workout-page {
     .history-row,
-    .form-grid,
-    .exercise-row {
+    .form-grid {
       grid-template-columns: 1fr;
     }
 
@@ -259,8 +221,7 @@
       width: 100%;
     }
 
-    .form-grid .wide,
-    .exercise-row .wide {
+    .form-grid .wide {
       grid-column: auto;
     }
   }
