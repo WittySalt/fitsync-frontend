@@ -1,0 +1,28 @@
+@if (hasMeasurement()) {
+  <div class="headline">
+    <strong class="weight">{{ weightText() }}</strong>
+    @if (weighed()) {
+      <span class="when">{{ weighed() }}</span>
+    }
+  </div>
+
+  @if (change()) {
+    <p class="change">{{ change() }}</p>
+  }
+
+  @if (figures().length) {
+    <dl class="figures">
+      @for (figure of figures(); track figure.label) {
+        <div>
+          <dt>{{ figure.label }}</dt>
+          <dd>{{ figure.value }}</dd>
+        </div>
+      }
+    </dl>
+  }
+
+  <a class="action quiet" routerLink="/body">All measurements</a>
+} @else {
+  <p class="nothing">No measurement yet</p>
+  <a class="action primary" routerLink="/body">Record a measurement</a>
+}

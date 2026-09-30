@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsApiService } from './analytics-api.service';
+import { AnalyticsAchievementsResponse } from './analytics.models';
 
 describe('AnalyticsApiService', () => {
   let service: AnalyticsApiService;
@@ -87,6 +88,55 @@ describe('AnalyticsApiService', () => {
     service.getNutritionSummary('2026-06-01', '2026-06-22').subscribe();
 
     expectRangeRequest('/api/v1/analytics/nutrition/summary');
+  });
+
+  it('loads the achievements and keeps what the server sent', () => {
+    let result: AnalyticsAchievementsResponse | undefined;
+    service.getAchievements().subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/analytics/achievements');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      achievements: [
+        { code: 'FIRST_WORKOUT', title: 'First workout', unlocked: true, unlockedAt: '2026-08-20T03:00:00Z', progress: 1 },
+        { code: 'WORKOUTS_50', title: '50 workouts', unlocked: false, unlockedAt: null, progress: 0.66 }
+      ]
+    });
+
+    expect(result?.achievements).toEqual([
+      { code: 'FIRST_WORKOUT', title: 'First workout', unlocked: true, unlockedAt: '2026-08-20T03:00:00Z', progress: 1 },
+      { code: 'WORKOUTS_50', title: '50 workouts', unlocked: false, unlockedAt: null, progress: 0.66 }
+    ]);
+  });
+
+  it('treats a missing achievements list as empty', () => {
+    let result: AnalyticsAchievementsResponse | undefined;
+    service.getAchievements().subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/analytics/achievements').flush({});
+
+    expect(result?.achievements).toEqual([]);
+  });
+
+  it('defaults a missing progress to zero, clamps it into 0 to 1 and drops entries without a code', () => {
+    let result: AnalyticsAchievementsResponse | undefined;
+    service.getAchievements().subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/analytics/achievements').flush({
+      achievements: [
+        { code: 'STREAK_7', title: 'Streak', unlocked: false },
+        { code: 'STREAK_30', unlocked: false, progress: 4 },
+        { code: 'PR_FIRST', title: 'Record', unlocked: false, progress: -2 },
+        { title: 'No code', progress: 0.5 }
+      ]
+    });
+
+    expect(result?.achievements.map((entry) => [entry.code, entry.progress, entry.unlockedAt])).toEqual([
+      ['STREAK_7', 0, null],
+      ['STREAK_30', 1, null],
+      ['PR_FIRST', 0, null]
+    ]);
+    expect(result?.achievements[1].title).toBe('STREAK_30');
   });
 
   it('loads period comparison by period', () => {

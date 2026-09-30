@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, UsualMeal } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -873,8 +873,74 @@ describe('FitSyncDataService', () => {
     const request = httpTesting.expectOne('/api/v1/nutrition/meals/m1/copy');
     expect(request.request.method).toBe('POST');
     expect(request.request.body.mealType).toBe('LUNCH');
+    expect(typeof request.request.body.consumedAt).toBe('string');
     request.flush({});
     expect(ok).toBeTrue();
+  });
+
+  it('copies a meal at a chosen instant when one is given', () => {
+    service.copyMeal('m1', 'BREAKFAST', '2026-10-01T23:30:00.000Z').subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/meals/m1/copy');
+    expect(request.request.body).toEqual({ mealType: 'BREAKFAST', consumedAt: '2026-10-01T23:30:00.000Z' });
+    request.flush({});
+  });
+
+  it('fetches the usual meals for the timezone and maps them defensively', () => {
+    let result: UsualMeal[] | undefined;
+    service.getUsualMeals('Asia/Singapore').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals/usual');
+    expect(request.request.params.get('timezone')).toBe('Asia/Singapore');
+    request.flush({
+      timezone: 'Asia/Singapore',
+      windowDays: 14,
+      meals: [
+        {
+          mealType: 'BREAKFAST',
+          label: 'Breakfast',
+          usualTime: '07:30',
+          mealsInWindow: 5,
+          occurrences: 4,
+          sourceMealId: 'm9',
+          totalCalories: 499,
+          totalProteinGrams: 30,
+          totalCarbsGrams: 60,
+          totalFatGrams: 14,
+          items: [{ name: 'Oats', calories: 228, proteinGrams: 8, categoryCode: 'GRAINS' }, { calories: 10 }]
+        },
+        { mealType: 'LUNCH', label: 'Lunch', usualTime: '25:99', sourceMealId: null, totalCalories: null, items: [] },
+        { mealType: 'DINNER', usualTime: 'soon' }
+      ]
+    });
+
+    expect(result?.length).toBe(3);
+    expect(result?.[0]).toEqual({
+      mealType: 'BREAKFAST',
+      label: 'Breakfast',
+      usualTime: '07:30',
+      sourceMealId: 'm9',
+      totalCalories: 499,
+      totalProteinGrams: 30,
+      totalCarbsGrams: 60,
+      totalFatGrams: 14,
+      items: [
+        { name: 'Oats', calories: 228, proteinGrams: 8, categoryCode: 'GRAINS' },
+        { name: '', calories: 10, proteinGrams: null, categoryCode: null }
+      ]
+    });
+    expect(result?.[1].usualTime).toBeNull();
+    expect(result?.[1].sourceMealId).toBeNull();
+    expect(result?.[2]).toEqual(jasmine.objectContaining({ usualTime: null, totalCalories: null, items: [] }));
+  });
+
+  it('reads a missing list of usual meals as empty', () => {
+    let result: UsualMeal[] | undefined;
+    service.getUsualMeals('Asia/Singapore').subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals/usual').flush({});
+
+    expect(result).toEqual([]);
   });
 
   it('looks up a food by barcode and maps full macros', () => {
@@ -1139,6 +1205,52 @@ describe('FitSyncDataService', () => {
     expect(result?.length).toBe(1);
     expect(result?.[0].mealType).toBe('LUNCH');
     expect(result?.[0].totalCalories).toBe(640);
+  });
+
+  it('fetches the meals of one local day with their macros and foods, to the end of the day', () => {
+    let result: DayMeal[] | undefined;
+    service.getMealsForDay(new Date(2026, 8, 30, 14, 5)).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals');
+    expect(new Date(request.request.params.get('from') ?? '').getTime()).toBe(new Date(2026, 8, 30, 0, 0, 0, 0).getTime());
+    expect(new Date(request.request.params.get('to') ?? '').getTime()).toBe(new Date(2026, 9, 1, 0, 0, 0, 0).getTime() - 1);
+    request.flush([
+      {
+        mealId: 'm1',
+        mealType: 'BREAKFAST',
+        consumedAt: '2026-09-30T00:10:00Z',
+        totalCalories: 453,
+        totalProteinGrams: 27.5,
+        totalCarbsGrams: 60,
+        totalFatGrams: 12,
+        items: [{ foodName: 'Oats', calories: 228, proteinGrams: 8 }, { calories: 10 }]
+      }
+    ]);
+
+    expect(result).toEqual([
+      {
+        mealId: 'm1',
+        mealType: 'BREAKFAST',
+        consumedAt: '2026-09-30T00:10:00Z',
+        totalCalories: 453,
+        totalProteinGrams: 27.5,
+        totalCarbsGrams: 60,
+        totalFatGrams: 12,
+        items: [
+          { name: 'Oats', calories: 228, proteinGrams: 8 },
+          { name: '', calories: 10, proteinGrams: 0 }
+        ]
+      }
+    ]);
+  });
+
+  it('lets a failed day-meals request through so the card can offer a retry', () => {
+    let failed = false;
+    service.getMealsForDay().subscribe({ error: () => (failed = true) });
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals').flush('nope', { status: 500, statusText: 'Server Error' });
+
+    expect(failed).toBeTrue();
   });
 
   it('lists workout sessions from the paginated sessions endpoint', () => {

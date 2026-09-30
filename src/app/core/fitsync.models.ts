@@ -396,6 +396,9 @@ export interface BodyMetric {
   /** ISO date of the measurement. Null when the reading carries no date of its own; the caption
    *  is then omitted rather than filled with an unrelated timestamp. */
   measuredAt: string | null;
+  /** Change in weight over the last 30 days in kilograms, negative when the person lost weight.
+   *  Null when the analytics snapshot has no earlier reading to compare with. */
+  weightChange30dKg?: number | null;
 }
 
 export interface Goal {
@@ -841,6 +844,25 @@ export interface QuickAddMealValue {
   sodiumMg?: number | null;
 }
 
+/** One food inside a logged meal, as the meals list returns it. */
+export interface DayMealItem {
+  name: string;
+  calories: number;
+  proteinGrams: number;
+}
+
+/** A meal logged on one day with the macros and foods the summary `Meal` leaves out. */
+export interface DayMeal {
+  mealId: string;
+  mealType: string;
+  consumedAt: string;
+  totalCalories: number;
+  totalProteinGrams: number;
+  totalCarbsGrams: number;
+  totalFatGrams: number;
+  items: DayMealItem[];
+}
+
 /** Protein eaten at one kind of meal on an average day of the period. */
 export interface ProteinByMeal {
   mealType: string;
@@ -874,4 +896,30 @@ export interface ProgressInsight {
   goalDate: string | null;
   projectedDate: string | null;
   series: WeightSeriesPoint[];
+}
+
+/** One food of a usual meal. The category code is what the food cards may draw an icon from. */
+export interface UsualMealItem {
+  name: string;
+  calories: number | null;
+  proteinGrams: number | null;
+  categoryCode: string | null;
+}
+
+/**
+ * The meal a person usually has at one kind of meal, from the last two weeks. When no
+ * combination came back often enough the source meal and the figures are null and the list of
+ * foods is empty, while the usual time may still be known.
+ */
+export interface UsualMeal {
+  mealType: string;
+  label: string;
+  /** The usual clock time as "HH:mm", or null when the backend gave none that can be read. */
+  usualTime: string | null;
+  sourceMealId: string | null;
+  totalCalories: number | null;
+  totalProteinGrams: number | null;
+  totalCarbsGrams: number | null;
+  totalFatGrams: number | null;
+  items: UsualMealItem[];
 }

@@ -56,6 +56,7 @@ import {
   SessionKindCode,
   TodayInsight,
   WorkoutSessionFormValue,
+  DayMeal,
   Meal,
   NutritionSummary,
   OnboardingFormValue,
@@ -81,7 +82,8 @@ import {
   WorkoutSessionQuery,
   UpdateExerciseRequest,
   WeeklyTrainingInsight,
-  WeightSeriesPoint
+  WeightSeriesPoint,
+  UsualMeal
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -697,6 +699,41 @@ interface BackendDailyNutritionSummary {
   fiberTargetMet?: boolean | null;
   sugarWithinLimit?: boolean | null;
   sodiumWithinLimit?: boolean | null;
+}
+
+interface BackendDayMeal {
+  mealId?: string;
+  mealType?: string;
+  consumedAt?: string;
+  totalCalories?: number;
+  totalProteinGrams?: number;
+  totalCarbsGrams?: number;
+  totalFatGrams?: number;
+  items?: { foodName?: string; calories?: number; proteinGrams?: number }[];
+}
+
+interface BackendUsualMeals {
+  meals?: {
+    mealType?: string;
+    label?: string;
+    usualTime?: string | null;
+    sourceMealId?: string | null;
+    totalCalories?: number | null;
+    totalProteinGrams?: number | null;
+    totalCarbsGrams?: number | null;
+    totalFatGrams?: number | null;
+    items?: { name?: string; calories?: number | null; proteinGrams?: number | null; categoryCode?: string | null }[];
+  }[];
+}
+
+/** A number from the wire, or null when it is missing or not finite. */
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** The clock time as "HH:mm" when it is a real time of day, otherwise null. */
+function clockTimeOrNull(value: unknown): string | null {
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -1525,6 +1562,39 @@ export class FitSyncDataService {
       );
   }
 
+  /**
+   * Every meal logged on the device-local calendar day of `day`, with macros and foods. Unlike
+   * getTodayMeals it lets a failure through, because the Today card shows a retry for it, and it
+   * runs to the end of the day so a meal logged ahead of time is not dropped.
+   */
+  getMealsForDay(day = new Date()): Observable<DayMeal[]> {
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const params = new HttpParams()
+      .set('from', start.toISOString())
+      .set('to', new Date(end.getTime() - 1).toISOString());
+    return this.http.get<BackendDayMeal[]>(`${this.apiBaseUrl}/nutrition/meals`, { params }).pipe(
+      map((meals) =>
+        meals.map((meal) => ({
+          mealId: meal.mealId ?? '',
+          mealType: meal.mealType ?? '',
+          consumedAt: meal.consumedAt ?? '',
+          totalCalories: Number(meal.totalCalories ?? 0),
+          totalProteinGrams: Number(meal.totalProteinGrams ?? 0),
+          totalCarbsGrams: Number(meal.totalCarbsGrams ?? 0),
+          totalFatGrams: Number(meal.totalFatGrams ?? 0),
+          items: (meal.items ?? []).map((item) => ({
+            name: item.foodName ?? '',
+            calories: Number(item.calories ?? 0),
+            proteinGrams: Number(item.proteinGrams ?? 0)
+          }))
+        }))
+      )
+    );
+  }
+
   getDailyNutritionSummary(date = new Date(), timezone = this.getLocalTimezone()): Observable<NutritionSummary> {
     const params = new HttpParams()
       .set('date', this.toDateParam(date))
@@ -1714,10 +1784,39 @@ export class FitSyncDataService {
       .pipe(map(() => ({ ok: true as const })));
   }
 
-  copyMeal(mealId: string, mealType: string): Observable<{ ok: true }> {
+  /** Copies a meal. Without `consumedAt` the body carries only the meal type, as before; with it
+   *  the copy is logged at that instant, which may lie ahead of now. */
+  copyMeal(mealId: string, mealType: string, consumedAt?: string): Observable<{ ok: true }> {
+    // The server requires the moment of the copy, so a call without one means now.
+    const body = { mealType, consumedAt: consumedAt ?? new Date().toISOString() };
     return this.http
-      .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, { mealType })
+      .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, body)
       .pipe(map(() => ({ ok: true as const })));
+  }
+
+  /** The meals a person usually has, from the last fourteen days, one entry per meal type. */
+  getUsualMeals(timezone = this.getLocalTimezone()): Observable<UsualMeal[]> {
+    const params = new HttpParams().set('timezone', timezone);
+    return this.http.get<BackendUsualMeals>(`${this.apiBaseUrl}/nutrition/meals/usual`, { params }).pipe(
+      map((response) =>
+        (response?.meals ?? []).map((meal) => ({
+          mealType: meal.mealType ?? '',
+          label: meal.label ?? '',
+          usualTime: clockTimeOrNull(meal.usualTime),
+          sourceMealId: meal.sourceMealId || null,
+          totalCalories: finiteOrNull(meal.totalCalories),
+          totalProteinGrams: finiteOrNull(meal.totalProteinGrams),
+          totalCarbsGrams: finiteOrNull(meal.totalCarbsGrams),
+          totalFatGrams: finiteOrNull(meal.totalFatGrams),
+          items: (meal.items ?? []).map((item) => ({
+            name: item.name ?? '',
+            calories: finiteOrNull(item.calories),
+            proteinGrams: finiteOrNull(item.proteinGrams),
+            categoryCode: item.categoryCode || null
+          }))
+        }))
+      )
+    );
   }
 
   getFoodByBarcode(barcode: string): Observable<LoggedFood | null> {
@@ -2346,7 +2445,8 @@ export class FitSyncDataService {
       weightKg: body.latestWeightKg ?? 0,
       bodyFatRate: body.latestBodyFatRate ?? 0,
       bmi: body.bmi ?? 0,
-      measuredAt: body.measuredOn ?? null
+      measuredAt: body.measuredOn ?? null,
+      weightChange30dKg: body.weightChange30d ?? null
     };
   }
 
