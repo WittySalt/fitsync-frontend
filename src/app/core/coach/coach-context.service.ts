@@ -1,8 +1,9 @@
-import { Injectable, Injector, computed, inject } from '@angular/core';
+import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
+import { DayKind } from '../fitsync.models';
 import { CoachSurfaceCode } from './coach.models';
 
 /** The part of the app the coach is currently looking at. */
@@ -51,7 +52,17 @@ export class CoachContextService {
     { initialValue: this.router.url, injector: this.injector }
   );
 
-  readonly surface = computed<Surface>(() => surfaceFor(this.url()));
+  private readonly kindOfToday = signal<DayKind | null>(null);
+
+  /** What kind of day today is, or null while the weekly insight has not said. */
+  readonly todayKind = this.kindOfToday.asReadonly();
+
+  readonly surface = computed<Surface>(() => surfaceFor(this.url(), this.kindOfToday()));
+
+  /** Set by the pages that load the weekly insight, so the suggested questions can follow it. */
+  setTodayKind(kind: DayKind | null): void {
+    this.kindOfToday.set(kind);
+  }
 }
 
 const SURFACES: Record<SurfaceId, Surface> = {
@@ -130,7 +141,33 @@ const SURFACES: Record<SurfaceId, Surface> = {
   }
 };
 
-export function surfaceFor(url: string): Surface {
+const BUILD_SESSION: SuggestedQuestion = { text: 'Build me a session for today', generative: true };
+const WEEK_QUESTION: SuggestedQuestion = { text: 'How is my week going?', generative: false };
+const YESTERDAY_QUESTION: SuggestedQuestion = { text: 'What did I train yesterday?', generative: false };
+
+/**
+ * The questions worth asking depend on what today is for: a runner wants last time's distance, not
+ * a lifting prompt. A rest day offers no session to build, since the coach never pushes. Open and
+ * unknown days keep each surface's own questions.
+ */
+const SUGGESTIONS_BY_TODAY_KIND: Partial<Record<DayKind, SuggestedQuestion[]>> = {
+  STRENGTH: [{ text: 'What should I lift today?', generative: false }, BUILD_SESSION, WEEK_QUESTION],
+  CARDIO: [{ text: 'How far did I run last time?', generative: false }, BUILD_SESSION, WEEK_QUESTION],
+  MOBILITY: [{ text: 'How long was my last mobility session?', generative: false }, BUILD_SESSION, WEEK_QUESTION],
+  SPORT: [{ text: 'How long did I play last time?', generative: false }, WEEK_QUESTION, YESTERDAY_QUESTION],
+  REST: [YESTERDAY_QUESTION, WEEK_QUESTION, { text: 'When is my next session?', generative: false }]
+};
+
+function withTodayKind(surface: Surface, kind: DayKind | null): Surface {
+  const suggestions = kind && (surface.id === 'dashboard' || surface.id === 'workout') ? SUGGESTIONS_BY_TODAY_KIND[kind] : undefined;
+  return suggestions ? { ...surface, suggestions } : surface;
+}
+
+export function surfaceFor(url: string, todayKind: DayKind | null = null): Surface {
+  return withTodayKind(surfaceForUrl(url), todayKind);
+}
+
+function surfaceForUrl(url: string): Surface {
   const path = url.split('?')[0].split('#')[0];
   if (path.startsWith('/dashboard') || path === '/' || path === '') {
     return SURFACES.dashboard;

@@ -2222,6 +2222,65 @@ describe('FitSyncDataService', () => {
     });
   });
 
+  describe('plan days', () => {
+    it('maps the days of a weekly plan with their exercises', () => {
+      let result: WorkoutPlan | null | undefined;
+      service.getActivePlan().subscribe((value) => (result = value));
+
+      httpTesting.expectOne('/api/v1/workouts/plans/active').flush({
+        planId: 'plan-week',
+        name: 'Week plan',
+        sessionsPerWeek: 2,
+        exercises: [],
+        days: [
+          {
+            planDayId: 'day-1',
+            dayOfWeek: 1,
+            kind: 'STRENGTH',
+            title: 'Full body',
+            estimatedDurationMinutes: 50,
+            exercises: [{ exerciseNameSnapshot: 'Goblet squat', sequence: 1, targetSets: 3, targetReps: 12, targetWeightKg: '18.0' }]
+          },
+          { planDayId: 'day-4', dayOfWeek: 4, kind: 'SPORT', title: 'Game', sportActivity: 'BADMINTON', sportLabel: 'Badminton' }
+        ]
+      });
+
+      expect(result?.sessionsPerWeek).toBe(2);
+      expect(result?.days?.length).toBe(2);
+      expect(result?.days?.[0]).toEqual(
+        jasmine.objectContaining({ planDayId: 'day-1', dayOfWeek: 1, kind: 'STRENGTH', title: 'Full body', estimatedDurationMinutes: 50 })
+      );
+      expect(result?.days?.[0].exercises[0]).toEqual(jasmine.objectContaining({ exerciseNameSnapshot: 'Goblet squat', targetWeightKg: 18 }));
+      expect(result?.days?.[1]).toEqual(
+        jasmine.objectContaining({ sportActivity: 'BADMINTON', sportLabel: 'Badminton', estimatedDurationMinutes: null, exercises: [] })
+      );
+    });
+
+    it('gives an empty list of days for a plan from an older backend', () => {
+      let result: WorkoutPlan | null | undefined;
+      service.getActivePlan().subscribe((value) => (result = value));
+
+      httpTesting.expectOne('/api/v1/workouts/plans/active').flush({ planId: 'plan-old', name: 'Old plan', exercises: [] });
+
+      expect(result?.days).toEqual([]);
+      expect(result?.sessionsPerWeek).toBeNull();
+    });
+
+    it('drops a day without an id and reads an unknown kind as strength', () => {
+      let result: WorkoutPlan | null | undefined;
+      service.getActivePlan().subscribe((value) => (result = value));
+
+      httpTesting.expectOne('/api/v1/workouts/plans/active').flush({
+        planId: 'plan-odd',
+        name: 'Odd plan',
+        days: [{ dayOfWeek: 2, kind: 'CARDIO' }, { planDayId: 'day-x', dayOfWeek: 'soon', kind: 'YOGA' }, null]
+      });
+
+      expect(result?.days?.length).toBe(1);
+      expect(result?.days?.[0]).toEqual(jasmine.objectContaining({ planDayId: 'day-x', dayOfWeek: 0, kind: 'STRENGTH', title: '' }));
+    });
+  });
+
   it('returns a null active plan when none is set', () => {
     let result: WorkoutPlan | null | undefined = undefined;
     service.getActivePlan().subscribe((value) => (result = value));

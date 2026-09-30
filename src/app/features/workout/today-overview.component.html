@@ -1,72 +1,105 @@
-<section class="today-overview" aria-label="Guided workout today">
-  @if (activePlan; as plan) {
-    <article class="today-hero">
-      <div class="hero-top">
-        <div class="hero-copy">
-          <span class="hero-eyebrow">Today · {{ formatLabel(plan.goalFocus) }}</span>
-          <h2>{{ plan.name }}</h2>
-          <div class="hero-chips" aria-label="Plan summary">
-            <span class="hero-chip">{{ formatLabel(plan.difficulty) }}</span>
-            <span class="hero-chip">{{ plan.estimatedDurationMinutes }} min</span>
-            <span class="hero-chip">{{ sortedExercises().length }} {{ sortedExercises().length === 1 ? 'move' : 'moves' }}</span>
-          </div>
-        </div>
-        <button class="hero-start" type="button" [disabled]="starting || !plan.planId" (click)="startToday()">
-          {{ starting ? 'Starting...' : 'Start today\'s session' }}
-        </button>
-      </div>
-
-      @if (sortedExercises().length) {
-        <div class="hero-steps">
-          @for (exercise of sortedExercises(); track exerciseKey(exercise)) {
-            <button
-              class="hero-step"
-              type="button"
-              [attr.aria-label]="'Start guided player at ' + exercise.exerciseNameSnapshot"
-              (click)="startFromExercise(exercise)"
-            >
-              @if (thumbnailFor(exercise); as thumbnail) {
-                <img [src]="thumbnail" alt="" loading="lazy" />
-              } @else {
-                <span class="step-index">{{ exercise.sequence }}</span>
-              }
-              <div class="step-copy">
-                <strong>{{ exercise.exerciseNameSnapshot }}</strong>
-                <small>{{ exerciseTarget(exercise) }}</small>
-                @if (exercise.notes) {
-                  <em>{{ exercise.notes }}</em>
+<section class="today-overview">
+  @let c = card();
+  <article class="today-card" [attr.aria-label]="c.ariaLabel">
+    <div class="card-main">
+      <header class="card-head">
+        <span class="kind-tile" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            @for (part of glyph(); track $index) {
+              @switch (part.tag) {
+                @case ('path') {
+                  <path [attr.d]="part.d"></path>
                 }
-              </div>
-              <span class="step-go" aria-hidden="true">›</span>
-            </button>
-          }
+                @case ('circle') {
+                  <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
+                }
+                @case ('rect') {
+                  <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
+                }
+              }
+            }
+          </svg>
+        </span>
+        <div class="card-titles">
+          <span class="eyebrow">{{ c.eyebrow }}</span>
+          <h2>{{ c.title }}</h2>
         </div>
-      } @else {
-        <p class="hero-empty-copy">This active plan has no exercises yet. Open Plans to add movements before starting.</p>
+      </header>
+
+      @if (c.chips.length) {
+        <ul class="chips" aria-label="Session summary">
+          @for (chip of c.chips; track $index) {
+            <li class="chip">{{ chip }}</li>
+          }
+        </ul>
       }
 
-      <footer class="hero-context">
-        @if (latestSession(); as session) {
-          <span>Last session</span>
-          <strong>{{ session.name }}</strong>
-          <span>{{ formatLabel(session.workoutType) }} · {{ formatDate(session.completedAt || session.startedAt) }}</span>
-        } @else {
-          <span>Your first completed session will show up here — today is a good day to start.</span>
+      @if (c.rows.length) {
+        <ul class="moves">
+          @for (exercise of c.rows; track exerciseKey(exercise); let index = $index) {
+            <li>
+              <button
+                class="move"
+                type="button"
+                [attr.aria-label]="'Start guided player at ' + exercise.exerciseNameSnapshot"
+                (click)="startFromExercise(exercise)"
+              >
+                <span class="move-index" aria-hidden="true">{{ index + 1 }}</span>
+                <span class="move-copy">
+                  <strong>{{ exercise.exerciseNameSnapshot }}</strong>
+                  <small>{{ exerciseTarget(exercise) }}</small>
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+        @if (c.moreCount > 0) {
+          <p class="more">and {{ c.moreCount }} more</p>
         }
-      </footer>
-    </article>
-  } @else {
-    <article class="today-hero setup">
-      <div class="hero-top">
-        <div class="hero-copy">
-          <span class="hero-eyebrow">Coach setup</span>
-          <h2>Pick a plan for today</h2>
-          <p class="hero-sub">Choose a starter template, activate it, and FitSync will make it your guided workout.</p>
-        </div>
-        <button class="hero-ghost" type="button" (click)="browsePlans.emit()">Browse all plans</button>
-      </div>
-    </article>
+      }
 
+      @if (c.body) {
+        <p class="lede">{{ c.body }}</p>
+      }
+    </div>
+
+    <div class="card-foot">
+      @if (c.primary || c.secondary || c.link) {
+        <div class="actions">
+          @if (c.primary; as primary) {
+            <button class="action-primary" type="button" [disabled]="isDisabled(primary)" (click)="run(primary.action)">
+              <span>{{ buttonLabel(primary) }}</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14"></path>
+                <path d="M13 6l6 6-6 6"></path>
+              </svg>
+            </button>
+          }
+          @if (c.secondary; as secondary) {
+            <button class="action-secondary" type="button" (click)="run(secondary.action)">{{ secondary.label }}</button>
+          }
+          @if (c.link; as link) {
+            <a class="action-link" href="/workout" (click)="run(link.action, $event)">{{ link.label }}</a>
+          }
+        </div>
+      }
+
+      <div class="last-session">
+        <span class="last-label">Last session</span>
+        @if (latestSession(); as session) {
+          <strong>{{ session.name }}</strong>
+          @if (lastSessionDetail()) {
+            <span>{{ lastSessionDetail() }}</span>
+          }
+        } @else {
+          <strong>None yet</strong>
+          <span>Your first session will show here</span>
+        }
+      </div>
+    </div>
+  </article>
+
+  @if (c.showTemplates) {
     <app-plan-templates (planActivated)="templateActivated.emit($event)" />
   }
 </section>

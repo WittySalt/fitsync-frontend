@@ -49,8 +49,10 @@ export class WorkoutLiveService {
     this.destroyRef.onDestroy(() => this.stopTimer());
   }
 
-  startFromPlan(planId: string): Observable<WorkoutSessionDetail> {
-    return this.dataService.startWorkoutPlan(planId).pipe(tap((session) => this.begin(session)));
+  /** Starts a plan, optionally a specific day of it, in the user's timezone. */
+  startFromPlan(planId: string, options?: { planDayId?: string | null; timezone?: string }): Observable<WorkoutSessionDetail> {
+    const started = options ? this.dataService.startWorkoutPlan(planId, options) : this.dataService.startWorkoutPlan(planId);
+    return started.pipe(tap((session) => this.begin(session)));
   }
 
   startAdHoc(input: StartAdHocSessionInput): Observable<WorkoutSessionDetail> {

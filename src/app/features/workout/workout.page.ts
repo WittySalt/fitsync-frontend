@@ -1,11 +1,17 @@
 import { ActivatedRoute } from '@angular/router';
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap } from 'rxjs';
 
+import { CoachContextService } from '../../core/coach/coach-context.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
+  DayInsight,
+  DayKind,
   Exercise,
+  NextTraining,
+  TodayInsight,
+  WeeklyTrainingInsight,
   WorkoutPlan,
   WorkoutPlanExercise,
   WorkoutPlanExerciseInput,
@@ -23,7 +29,7 @@ import { LiveStartCardComponent } from './live-start-card.component';
 import { LiveTrackerComponent } from './live-tracker.component';
 import { LiveTrackerGoal, LiveTrackerStartEvent } from './live-tracker.models';
 import { SessionDetailComponent } from './session-detail.component';
-import { TodayOverviewComponent } from './today-overview.component';
+import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { sessionDurationLabel } from './workout-session.util';
@@ -75,6 +81,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   private readonly workoutLive = inject(WorkoutLiveService);
+  private readonly coachContext = inject(CoachContextService);
+  private readonly liveStartCard = viewChild(LiveStartCardComponent);
   private readonly exerciseSearchTerms = new Subject<ExerciseSearchRequest>();
 
   readonly plans = signal<WorkoutPlan[]>([]);
@@ -115,6 +123,16 @@ export class WorkoutPage implements OnInit, OnDestroy {
   // Exercise types whose plan targets are time-based (a duration) rather than sets×reps.
   readonly timedExerciseTypes = new Set(['CARDIO', 'MOBILITY']);
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
+  // The weekly insight says what kind of day today is. It stays null when the request fails, and
+  // the Today card then falls back to the plain active plan.
+  readonly insight = signal<WeeklyTrainingInsight | null>(null);
+  readonly todayInsight = computed<TodayInsight | null>(() => this.insight()?.today ?? null);
+  readonly nextTraining = computed<NextTraining | null>(() => this.insight()?.nextTraining ?? null);
+  readonly todayDay = computed<DayInsight | null>(() => {
+    const today = this.todayInsight();
+    return today ? (this.insight()?.days?.find((day) => day.date === today.date) ?? null) : null;
+  });
   readonly todayStarting = computed(() => {
     const planId = this.activePlan()?.planId;
     return Boolean(planId && this.planMutations().has(planId));
@@ -475,8 +493,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.loadSessions();
   }
 
-  handleTodayStart(plan: WorkoutPlan): void {
-    this.startGuidedPlan(plan, null);
+  handleTodayStart(event: TodayStartEvent): void {
+    this.startGuidedPlan(event.plan, null, event.planDayId);
   }
 
   handleTodayExerciseStart(exercise: WorkoutPlanExercise): void {
@@ -484,17 +502,50 @@ export class WorkoutPage implements OnInit, OnDestroy {
     if (!plan) {
       return;
     }
-    this.startGuidedPlan(plan, exercise.exerciseId);
+    // A row belongs to one day of the plan, and that day is the one to start. A plan without a
+    // weekly layout has no days, and the backend then picks today's on its own.
+    const day = plan.days?.find((entry) =>
+      entry.exercises.some((item) => item === exercise || (!!item.planExerciseId && item.planExerciseId === exercise.planExerciseId))
+    );
+    this.startGuidedPlan(plan, exercise.exerciseId, day?.planDayId ?? null);
   }
 
-  private startGuidedPlan(plan: WorkoutPlan, initialExerciseId: string | null): void {
+  /** The Today card has no session to start (a habit day, or a sport that is logged afterwards),
+   *  so it hands over to the past-workout form of the quick start card beside it. */
+  handleTodayLogManually(kind: DayKind): void {
+    const card = this.liveStartCard();
+    if (!card) {
+      return;
+    }
+    // The card's own list has no sport type, so a sport day is logged as a custom workout.
+    const workoutType = kind === 'STRENGTH' || kind === 'CARDIO' || kind === 'MOBILITY' ? kind : 'CUSTOM';
+    card.pastWorkoutForm.controls.workoutType.setValue(workoutType);
+    card.pastWorkoutOpen.set(true);
+    if (typeof queueMicrotask === 'function' && typeof document !== 'undefined') {
+      queueMicrotask(() => document.querySelector('#past-workout-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    }
+  }
+
+  /** Continue and See the session both open the session in History, where it can be resumed,
+   *  finished or read. The list shows the status the session has, so that status is selected. */
+  handleTodayOpenSession(event: TodayOpenSessionEvent): void {
+    if (this.filterStatus() !== event.status) {
+      this.setFilterStatus(event.status);
+    }
+    this.selectedTab.set('history');
+    if (event.sessionId) {
+      this.selectedSessionId.set(event.sessionId);
+    }
+  }
+
+  private startGuidedPlan(plan: WorkoutPlan, initialExerciseId: string | null, planDayId: string | null): void {
     if (!plan.planId || this.isPlanMutating(plan)) {
       return;
     }
 
     this.setPlanMutating(plan.planId, true);
     this.guidedInitialExerciseId.set(initialExerciseId);
-    this.workoutLive.startFromPlan(plan.planId).subscribe({
+    this.workoutLive.startFromPlan(plan.planId, { planDayId, timezone: this.timezone }).subscribe({
       next: (session) => {
         this.toast.success('Workout session started.');
         this.guidedPlayerSession.set(session);
@@ -752,6 +803,18 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private loadSessions(): void {
     this.loadHistory();
     this.loadMetrics();
+    this.loadInsight();
+  }
+
+  private loadInsight(): void {
+    this.dataService.getWeeklyTrainingInsight(this.timezone).subscribe({
+      next: (insight) => {
+        this.insight.set(insight);
+        this.coachContext.setTodayKind(insight.today?.kind ?? null);
+      },
+      // The card shows the plain plan without the insight, so a failure is not worth a toast.
+      error: () => this.insight.set(null)
+    });
   }
 
   private loadHistory(): void {
