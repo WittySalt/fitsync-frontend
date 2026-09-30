@@ -1,36 +1,51 @@
 import { provideHttpClient } from '@angular/common/http';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, ExerciseDetail, WorkoutPlan, WorkoutSession } from '../../core/fitsync.models';
+import {
+  DayInsight,
+  DayKind,
+  NextTraining,
+  TodayInsight,
+  WorkoutPlan,
+  WorkoutPlanDay,
+  WorkoutPlanExercise,
+  WorkoutSession
+} from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { PlanTemplatesComponent } from './plan-templates.component';
 import { TodayOverviewComponent } from './today-overview.component';
 
-function exercise(overrides: Partial<Exercise> = {}): Exercise {
+function move(sequence: number, name: string, overrides: Partial<WorkoutPlanExercise> = {}): WorkoutPlanExercise {
   return {
-    exerciseId: 'exercise-1',
-    code: 'BODYWEIGHT_SQUAT',
-    name: 'Bodyweight squat',
-    description: '',
-    exerciseType: 'STRENGTH',
-    primaryMuscleGroup: 'QUADS',
-    equipment: 'BODYWEIGHT',
-    difficulty: 'BEGINNER',
-    status: 'ACTIVE',
-    custom: false,
+    planExerciseId: `pe-${name}`,
+    exerciseId: `exercise-${sequence}`,
+    exerciseNameSnapshot: name,
+    sequence,
+    targetSets: 3,
+    targetReps: 10,
+    targetWeightKg: null,
+    targetDurationSeconds: null,
+    targetDistanceKm: null,
+    restSeconds: 75,
+    notes: '',
+    setTargets: [],
     ...overrides
   };
 }
 
-function exerciseDetail(overrides: Partial<ExerciseDetail> = {}): ExerciseDetail {
+function planDay(planDayId: string, kind: WorkoutPlanDay['kind'], exercises: WorkoutPlanExercise[], title = 'Day'): WorkoutPlanDay {
   return {
-    ...exercise(),
-    images: [],
-    imageUrls: [],
-    instructions: [],
-    secondaryMuscleGroups: [],
-    ...overrides
+    planDayId,
+    dayOfWeek: 1,
+    kind,
+    title,
+    sportActivity: null,
+    sportLabel: null,
+    estimatedDurationMinutes: 40,
+    exercises
   };
 }
 
@@ -41,40 +56,34 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
     description: '',
     goalFocus: 'STRENGTH',
     workoutType: 'STRENGTH',
-    difficulty: 'INTERMEDIATE',
+    difficulty: 'BEGINNER',
     estimatedDurationMinutes: 45,
     status: 'ACTIVE',
     exerciseCount: 2,
-    exercises: [
-      {
-        planExerciseId: 'pe-1',
-        exerciseId: 'exercise-1',
-        exerciseNameSnapshot: 'Back squat',
-        sequence: 2,
-        targetSets: 4,
-        targetReps: 6,
-        targetWeightKg: 80,
-        targetDurationSeconds: null,
-        targetDistanceKm: null,
-        restSeconds: 120,
-        notes: 'Keep two reps in reserve.',
-        setTargets: []
-      },
-      {
-        planExerciseId: 'pe-2',
-        exerciseId: 'exercise-2',
-        exerciseNameSnapshot: 'Push up',
-        sequence: 1,
-        targetSets: 3,
-        targetReps: 10,
-        targetWeightKg: null,
-        targetDurationSeconds: null,
-        targetDistanceKm: null,
-        restSeconds: 75,
-        notes: '',
-        setTargets: []
-      }
+    exercises: [move(2, 'Back squat', { targetSets: 4, targetReps: 6, targetWeightKg: 80, restSeconds: 120 }), move(1, 'Push up')],
+    days: [
+      planDay('d-strength', 'STRENGTH', [
+        move(2, 'Bent-over row', { targetWeightKg: 20 }),
+        move(1, 'Dumbbell bench press', { targetWeightKg: 22.5 }),
+        move(3, 'Goblet squat', { targetReps: 12, targetWeightKg: 18 }),
+        move(4, 'Plank hold', { targetReps: null, targetDurationSeconds: 45, restSeconds: 45 })
+      ]),
+      planDay('d-cardio', 'CARDIO', [
+        move(1, 'Treadmill run', { targetSets: null, targetReps: null, targetDurationSeconds: 2100, targetDistanceKm: 5, restSeconds: null }),
+        move(2, 'Plank hold', { targetReps: null, targetDurationSeconds: 45, restSeconds: 45 })
+      ]),
+      planDay('d-mobility', 'MOBILITY', [
+        move(1, 'Cat stretch'),
+        move(2, "Child's pose"),
+        move(3, 'Hamstring stretch'),
+        move(4, 'Hip opener'),
+        move(5, 'Neck roll')
+      ]),
+      planDay('d-mobility-short', 'MOBILITY', [move(1, 'Cat stretch'), move(2, "Child's pose")]),
+      planDay('d-sport', 'SPORT', []),
+      planDay('d-monday', 'STRENGTH', [move(1, 'Monday squat')], 'Full body')
     ],
+    sessionsPerWeek: 4,
     ...overrides
   };
 }
@@ -94,172 +103,618 @@ function session(overrides: Partial<WorkoutSession> = {}): WorkoutSession {
   };
 }
 
+function today(overrides: Partial<TodayInsight> = {}): TodayInsight {
+  return {
+    date: '2026-09-30',
+    kind: 'STRENGTH',
+    label: 'Strength',
+    source: 'PLAN',
+    planDayId: 'd-strength',
+    title: 'Full body',
+    estimatedMinutes: 50,
+    moves: 4,
+    lastOfKind: null,
+    carriedOver: [],
+    ...overrides
+  };
+}
+
+function next(overrides: Partial<NextTraining> = {}): NextTraining {
+  return { date: '2026-10-01', kind: 'CARDIO', label: 'Cardio', title: 'Treadmill run', estimatedMinutes: 35, ...overrides };
+}
+
+function dayEntry(overrides: Partial<DayInsight> = {}): DayInsight {
+  return {
+    date: '2026-09-30',
+    dayOfWeek: 3,
+    kind: 'STRENGTH',
+    label: 'Strength',
+    source: 'DONE',
+    minutes: 50,
+    sessions: [],
+    planned: null,
+    ...overrides
+  };
+}
+
 describe('TodayOverviewComponent', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let toast: jasmine.SpyObj<ToastService>;
+  let fixture: ComponentFixture<TodayOverviewComponent>;
+  let component: TodayOverviewComponent;
+
+  function render(inputs: Record<string, unknown> = {}): HTMLElement {
+    const defaults: Record<string, unknown> = { activePlan: plan(), sessions: [] };
+    for (const [name, value] of Object.entries({ ...defaults, ...inputs })) {
+      fixture.componentRef.setInput(name, value);
+    }
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  const text = (root: HTMLElement, selector: string) => root.querySelector(selector)?.textContent?.trim() ?? null;
+  const all = (root: HTMLElement, selector: string) => [...root.querySelectorAll(selector)].map((el) => el.textContent?.trim() ?? '');
+  const rows = (root: HTMLElement) => all(root, '.move-copy strong');
+  const chips = (root: HTMLElement) => all(root, '.chip');
 
   beforeEach(async () => {
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
-      'getExercises',
-      'getExercise',
-      'createWorkoutPlan',
-      'activateWorkoutPlan'
-    ]);
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getExercises', 'getExercise', 'createWorkoutPlan', 'activateWorkoutPlan']);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
-    dataService.getExercises.and.returnValue(of([exercise()]));
+    dataService.getExercises.and.returnValue(of([]));
     dataService.getExercise.and.returnValue(of(null));
     dataService.createWorkoutPlan.and.returnValue(of(plan()));
     dataService.activateWorkoutPlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
 
     await TestBed.configureTestingModule({
       imports: [TodayOverviewComponent],
-      providers: [
-        provideHttpClient(),
-        { provide: FitSyncDataService, useValue: dataService },
-        { provide: ToastService, useValue: toast }
-      ]
+      providers: [provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }, { provide: ToastService, useValue: toast }]
     }).compileComponents();
+
+    fixture = TestBed.createComponent(TodayOverviewComponent);
+    component = fixture.componentInstance;
   });
 
-  it('formats a duration-only target as a hold instead of "x -"', () => {
-    const fixture = TestBed.createComponent(TodayOverviewComponent);
-    const component = fixture.componentInstance;
-    const summary = component.exerciseTarget({
-      ...plan().exercises[0],
-      targetSets: 3,
-      targetReps: null,
-      targetWeightKg: null,
-      targetDurationSeconds: 45
+  describe('target formatting', () => {
+    it('formats sets, reps, weight and rest with the design separators', () => {
+      expect(component.exerciseTarget(move(1, 'Bench', { targetWeightKg: 22.5 }))).toBe('3 × 10 · 22.5 kg · 75 s rest');
     });
-    expect(summary).toContain('3 x 45 sec hold');
-    expect(summary).not.toContain('x -');
-  });
 
-  it('formats reps-with-duration and sets-only targets', () => {
-    const component = TestBed.createComponent(TodayOverviewComponent).componentInstance;
-    const repsDuration = component.exerciseTarget({
-      ...plan().exercises[0],
-      targetSets: 3,
-      targetReps: 10,
-      targetWeightKg: null,
-      targetDurationSeconds: 30,
-      restSeconds: 0
+    it('formats a duration-only target without a dangling dash', () => {
+      const summary = component.exerciseTarget(move(1, 'Plank', { targetReps: null, targetDurationSeconds: 45, restSeconds: 45 }));
+      expect(summary).toBe('3 × 45 s · 45 s rest');
+      expect(summary).not.toContain('-');
     });
-    expect(repsDuration).toContain('3 x 10');
-    expect(repsDuration).toContain('30 sec');
 
-    const setsOnly = component.exerciseTarget({
-      ...plan().exercises[0],
-      targetSets: 4,
-      targetReps: null,
-      targetWeightKg: null,
-      targetDurationSeconds: null,
-      restSeconds: 0
+    it('formats reps with a duration, a distance and sets only', () => {
+      expect(component.exerciseTarget(move(1, 'A', { targetDurationSeconds: 30, restSeconds: 0 }))).toBe('3 × 10 · 30 s');
+      expect(component.exerciseTarget(move(1, 'B', { targetSets: 4, targetReps: null, restSeconds: 0 }))).toBe('4 sets');
+      expect(component.exerciseTarget(move(1, 'C', { targetSets: null, targetReps: null, targetDistanceKm: 5.75, restSeconds: null }))).toBe('5.75 km');
     });
-    expect(setsOnly).toContain('4 sets');
+
+    it('names a movement without targets', () => {
+      expect(component.exerciseTarget(move(1, 'D', { targetSets: null, targetReps: null, restSeconds: null }))).toBe('Guided movement');
+    });
   });
 
-  it('renders active plan details and emits start from the CTA', () => {
-    const fixture = TestBed.createComponent(TodayOverviewComponent);
-    const component = fixture.componentInstance;
-    spyOn(component.startPlan, 'emit');
-    fixture.componentRef.setInput('activePlan', plan());
-    fixture.componentRef.setInput('sessions', [session()]);
-    fixture.detectChanges();
+  describe('forms by the kind of day', () => {
+    it('shows a strength day with its moves, chips and both actions', () => {
+      const root = render({ today: today() });
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector<HTMLButtonElement>('.hero-start')?.click();
+      expect(text(root, '.eyebrow')).toBe('Today · Strength');
+      expect(text(root, 'h2')).toBe('Full body');
+      expect(chips(root)).toEqual(['4 moves', '50 min', 'Beginner']);
+      expect(rows(root)).toEqual(['Dumbbell bench press', 'Bent-over row', 'Goblet squat', 'Plank hold']);
+      expect(all(root, '.move-copy small')[0]).toBe('3 × 10 · 22.5 kg · 75 s rest');
+      expect(text(root, '.action-primary')).toBe('Start session');
+      expect(text(root, '.action-link')).toBe('Train something else');
+      expect(root.querySelector('.action-secondary')).toBeNull();
+    });
 
-    expect(compiled.textContent).toContain('Strength base');
-    expect(compiled.textContent).toContain('Push up');
-    expect(compiled.textContent).toContain('Back squat');
-    expect(compiled.textContent).toContain('Last lift');
-    expect(component.startPlan.emit).toHaveBeenCalledWith(plan());
+    it('shows a cardio day with last time distance and pace', () => {
+      const root = render({
+        today: today({
+          kind: 'CARDIO',
+          label: 'Cardio',
+          planDayId: 'd-cardio',
+          title: 'Treadmill run',
+          estimatedMinutes: 35,
+          lastOfKind: { date: '2026-09-27', minutes: 35, distanceKm: 5.75, paceSecondsPerKm: 365 }
+        })
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Today · Cardio');
+      expect(text(root, 'h2')).toBe('Treadmill run');
+      expect(chips(root)).toEqual(['35 min', '5.75 km last time', '6:05 per km']);
+      expect(rows(root)).toEqual(['Treadmill run', 'Plank hold']);
+      expect(all(root, '.move-copy small')[0]).toBe('5 km · 35 min');
+      expect(text(root, '.action-link')).toBe('Train something else');
+    });
+
+    it('shows a mobility day with three moves and a quiet line for the rest', () => {
+      const root = render({
+        today: today({ kind: 'MOBILITY', label: 'Mobility', planDayId: 'd-mobility', title: 'Morning stretch', estimatedMinutes: 20, moves: 5 })
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Today · Mobility');
+      expect(chips(root)).toEqual(['5 moves', '20 min']);
+      expect(rows(root)).toEqual(['Cat stretch', "Child's pose", 'Hamstring stretch']);
+      expect(text(root, '.more')).toBe('and 2 more');
+    });
+
+    it('leaves the quiet line out when a mobility day has three moves or fewer', () => {
+      const root = render({
+        today: today({ kind: 'MOBILITY', label: 'Mobility', planDayId: 'd-mobility-short', title: 'Short stretch', moves: 2 })
+      });
+
+      expect(rows(root).length).toBe(2);
+      expect(root.querySelector('.more')).toBeNull();
+    });
+
+    it('shows a sport day by the sport name, with a log-afterwards button and no moves', () => {
+      const root = render({
+        today: today({
+          kind: 'SPORT',
+          label: 'Badminton',
+          planDayId: 'd-sport',
+          title: 'Saturday game',
+          estimatedMinutes: 90,
+          moves: null,
+          lastOfKind: { date: '2026-09-26', minutes: 60, distanceKm: null, paceSecondsPerKm: null }
+        })
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Today · Sport');
+      expect(text(root, 'h2')).toBe('Badminton');
+      expect(chips(root)).toEqual(['1 h last time']);
+      expect(root.querySelector('.moves')).toBeNull();
+      expect(text(root, '.action-primary')).toBe('Start session');
+      expect(text(root, '.action-secondary')).toBe('Log it afterwards');
+      expect(root.querySelector('.action-link')).toBeNull();
+    });
+
+    it('shows the planned length on a sport day nobody has played yet', () => {
+      const root = render({
+        today: today({ kind: 'SPORT', label: 'Badminton', planDayId: 'd-sport', estimatedMinutes: 90, moves: null })
+      });
+
+      expect(chips(root)).toEqual(['1 h 30 min']);
+    });
+
+    it('shows a habit day as the usual kind, from the last time', () => {
+      const root = render({
+        activePlan: null,
+        today: today({
+          kind: 'CARDIO',
+          label: 'Cardio',
+          source: 'HABIT',
+          planDayId: null,
+          title: null,
+          estimatedMinutes: null,
+          moves: null,
+          lastOfKind: { date: '2026-09-27', minutes: 35, distanceKm: 5.75, paceSecondsPerKm: 365 }
+        })
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Your usual · Cardio');
+      expect(text(root, 'h2')).toBe('Cardio');
+      expect(chips(root)).toEqual(['5.75 km last time', '35 min last time']);
+      expect(root.querySelector('.moves')).toBeNull();
+      expect(text(root, '.action-primary')).toBe('Start session');
+      expect(text(root, '.action-link')).toBe('Train something else');
+    });
+
+    it('shows a session in progress with only Continue', () => {
+      const root = render({ today: today({ source: 'IN_PROGRESS' }) });
+
+      expect(text(root, '.eyebrow')).toBe('In progress');
+      expect(text(root, 'h2')).toBe('Full body');
+      expect(root.querySelector('.chips')).toBeNull();
+      expect(root.querySelector('.moves')).toBeNull();
+      expect(text(root, '.action-primary')).toBe('Continue');
+      expect(root.querySelector('.action-link')).toBeNull();
+    });
+
+    it('shows a finished strength day with its minutes and a link to the session', () => {
+      const root = render({ today: today({ source: 'DONE' }), todayDay: dayEntry({ minutes: 50 }) });
+
+      expect(text(root, '.eyebrow')).toBe('Done today');
+      expect(chips(root)).toEqual(['50 min']);
+      expect(root.querySelector('.action-primary')).toBeNull();
+      expect(text(root, '.action-link')).toBe('See the session');
+    });
+
+    it('adds distance and pace to a finished cardio day when the day entry has them', () => {
+      const root = render({
+        today: today({ kind: 'CARDIO', label: 'Cardio', source: 'DONE', title: null }),
+        todayDay: dayEntry({
+          kind: 'CARDIO',
+          minutes: 35,
+          sessions: [
+            { sessionId: 's-1', kind: 'CARDIO', label: 'Cardio', sportActivity: null, status: 'COMPLETED', minutes: 35, distanceKm: 6, planDayId: null }
+          ]
+        })
+      });
+
+      expect(text(root, 'h2')).toBe('Cardio');
+      expect(chips(root)).toEqual(['35 min', '6 km', '5:50 per km']);
+    });
+
+    it('keeps a finished cardio day to its minutes when the day entry has no distance', () => {
+      const root = render({
+        today: today({ kind: 'CARDIO', label: 'Cardio', source: 'DONE' }),
+        todayDay: dayEntry({ kind: 'CARDIO', minutes: 35 })
+      });
+
+      expect(chips(root)).toEqual(['35 min']);
+    });
+
+    it('shows a rest day with the next training day and no start button', () => {
+      const root = render({
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
+        nextTraining: next()
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Today · Rest');
+      expect(text(root, 'h2')).toBe('Rest day');
+      expect(chips(root)).toEqual(['Next is Thursday, cardio']);
+      expect(root.querySelector('.action-primary')).toBeNull();
+      expect(root.querySelector('button.action-secondary')).toBeNull();
+      expect(text(root, '.action-link')).toBe('Train today');
+    });
+
+    it('names a sport in lower case on the next-training chip', () => {
+      const root = render({
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
+        nextTraining: next({ date: '2026-10-03', kind: 'SPORT', label: 'Badminton' })
+      });
+
+      expect(chips(root)).toEqual(['Next is Saturday, badminton']);
+    });
+
+    it('offers the earlier open day on a rest day', () => {
+      const root = render({
+        today: today({
+          kind: 'REST',
+          label: 'Rest',
+          planDayId: null,
+          carriedOver: [{ planDayId: 'd-monday', dayOfWeek: 1, kind: 'STRENGTH', title: 'Full body', estimatedMinutes: 50 }]
+        })
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Still open from Monday');
+      expect(text(root, 'h2')).toBe('Full body');
+      expect(chips(root)).toEqual(['50 min']);
+      expect(rows(root)).toEqual(['Monday squat']);
+      expect(text(root, '.action-primary')).toBe('Start session');
+      expect(text(root, '.action-link')).toBe('Train something else');
+    });
+
+    it('offers the earlier open day on an open day too, and leaves the rows out when the plan lacks it', () => {
+      const root = render({
+        today: today({
+          kind: 'OPEN',
+          label: 'Today',
+          planDayId: null,
+          carriedOver: [{ planDayId: 'd-gone', dayOfWeek: 2, kind: 'CARDIO', title: 'Treadmill run', estimatedMinutes: null }]
+        })
+      });
+
+      expect(text(root, '.eyebrow')).toBe('Still open from Tuesday');
+      expect(root.querySelector('.chips')).toBeNull();
+      expect(root.querySelector('.moves')).toBeNull();
+    });
+
+    it('guides an open day without an active plan to the templates', () => {
+      const root = render({ activePlan: null, today: today({ kind: 'OPEN', label: 'Today', source: 'NONE', planDayId: null }) });
+
+      expect(text(root, '.eyebrow')).toBe('No plan yet');
+      expect(text(root, 'h2')).toBe('Pick a plan for today');
+      expect(text(root, '.lede')).toBe('A plan says what each day of the week is for.');
+      expect(text(root, '.action-primary')).toBe('Browse plans');
+      expect(root.querySelector('app-plan-templates')).not.toBeNull();
+    });
+
+    it('shows the plain plan on an open day with an active plan', () => {
+      const root = render({ today: today({ kind: 'OPEN', label: 'Today', source: 'NONE', planDayId: null }) });
+
+      expect(text(root, '.eyebrow')).toBe('Today');
+      expect(text(root, 'h2')).toBe('Strength base');
+      expect(rows(root)).toEqual(['Push up', 'Back squat']);
+      expect(text(root, '.action-primary')).toBe('Start session');
+      expect(root.querySelector('app-plan-templates')).toBeNull();
+    });
   });
 
-  it('uses the latest completed session for recent context', () => {
-    const fixture = TestBed.createComponent(TodayOverviewComponent);
-    const component = fixture.componentInstance;
-    fixture.componentRef.setInput('activePlan', plan());
-    fixture.componentRef.setInput('sessions', [
-      session({
-        sessionId: 'completed',
-        name: 'Completed lift',
+  describe('without the weekly insight', () => {
+    it('falls back to the plan, its moves and Start session', () => {
+      const root = render({ today: null });
+
+      expect(text(root, '.eyebrow')).toBe('Today');
+      expect(text(root, 'h2')).toBe('Strength base');
+      expect(chips(root)).toEqual(['2 moves', '45 min', 'Beginner']);
+      expect(rows(root)).toEqual(['Push up', 'Back squat']);
+      expect(text(root, '.action-primary')).toBe('Start session');
+    });
+
+    it('guides to the templates when there is no plan either', () => {
+      const root = render({ activePlan: null, today: null });
+
+      expect(text(root, '.eyebrow')).toBe('No plan yet');
+      expect(root.querySelector('app-plan-templates')).not.toBeNull();
+    });
+
+    it('is never blank when the plan has no exercises', () => {
+      const root = render({ activePlan: plan({ exercises: [], days: [] }), today: null });
+
+      expect(text(root, 'h2')).toBe('Strength base');
+      expect(chips(root)).toEqual(['45 min', 'Beginner']);
+      expect(root.querySelector('.moves')).toBeNull();
+    });
+  });
+
+  describe('missing parts', () => {
+    it('leaves out the rows when the plan has no day with the insight id', () => {
+      const root = render({ today: today({ planDayId: 'd-unknown' }) });
+
+      expect(root.querySelector('.moves')).toBeNull();
+      expect(text(root, 'h2')).toBe('Full body');
+    });
+
+    it('drops chips whose values are missing, with no separators left behind', () => {
+      const root = render({
+        activePlan: plan({ difficulty: '' }),
+        today: today({ estimatedMinutes: null, moves: null, planDayId: 'd-unknown' })
+      });
+
+      expect(root.querySelector('.chips')).toBeNull();
+    });
+
+    it('never prints null, undefined or NaN', () => {
+      const bare = today({
+        kind: 'CARDIO',
+        title: null,
+        estimatedMinutes: null,
+        moves: null,
+        planDayId: null,
+        lastOfKind: { date: '2026-09-27', minutes: null, distanceKm: null, paceSecondsPerKm: null }
+      });
+      for (const insight of [bare, today({ source: 'DONE', title: null }), today({ kind: 'REST', planDayId: null })]) {
+        const content = render({ today: insight, nextTraining: next({ date: 'nonsense' }), todayDay: null, sessions: [session({ startedAt: '', completedAt: '', durationMinutes: 0 })] }).textContent ?? '';
+        expect(content).not.toMatch(/null|undefined|NaN/);
+      }
+    });
+
+    it('skips the next-training chip when its date cannot be read', () => {
+      const root = render({ today: today({ kind: 'REST', planDayId: null }), nextTraining: next({ date: 'nonsense' }) });
+
+      expect(root.querySelector('.chips')).toBeNull();
+    });
+  });
+
+  describe('last session footer', () => {
+    it('shows the latest completed session with its day and length', () => {
+      const root = render({
+        today: today(),
+        timezone: 'Asia/Singapore',
+        sessions: [
+          session({ name: 'Older', completedAt: '2026-09-27T11:00:00Z', startedAt: '2026-09-27T10:00:00Z' }),
+          session({ sessionId: 's-2', name: 'Cardio, treadmill', startedAt: '2026-10-01T10:00:00Z', completedAt: '2026-10-01T10:35:00Z', durationMinutes: 35 }),
+          session({ sessionId: 's-3', name: 'Cancelled draft', status: 'CANCELLED', startedAt: '2026-10-02T10:00:00Z', completedAt: '2026-10-02T11:00:00Z' }),
+          session({ sessionId: 's-4', name: 'Still running', status: 'IN_PROGRESS', startedAt: '2026-10-03T10:00:00Z', completedAt: '' })
+        ]
+      });
+
+      expect(text(root, '.last-label')).toBe('Last session');
+      expect(text(root, '.last-session strong')).toBe('Cardio, treadmill');
+      expect(text(root, '.last-session span:last-child')).toMatch(/^Thursday 1 Oct · 35 min$/);
+      expect(root.textContent).not.toContain('Cancelled draft');
+      expect(root.textContent).not.toContain('Still running');
+    });
+
+    it('reads the day in the given timezone', () => {
+      const late = session({ startedAt: '2026-09-30T22:00:00Z', completedAt: '2026-09-30T23:00:00Z' });
+
+      expect(text(render({ today: today(), timezone: 'Asia/Singapore', sessions: [late] }), '.last-session span:last-child')).toContain('Thursday 1 Oct');
+      expect(text(render({ today: today(), timezone: 'UTC', sessions: [late] }), '.last-session span:last-child')).toMatch(/Wednesday 30 Sep/);
+    });
+
+    it('still renders with an unknown timezone name', () => {
+      const root = render({ today: today(), timezone: 'Not/AZone', sessions: [session()] });
+
+      expect(text(root, '.last-session strong')).toBe('Last lift');
+    });
+
+    it('says none yet when there is no completed session', () => {
+      const root = render({ today: today(), sessions: [] });
+
+      expect(text(root, '.last-session strong')).toBe('None yet');
+      expect(text(root, '.last-session span:last-child')).toBe('Your first session will show here');
+    });
+  });
+
+  describe('outputs', () => {
+    it('starts the plan with the plan day of a planned day', () => {
+      const emit = spyOn(component.startPlan, 'emit');
+      const active = plan();
+      const root = render({ activePlan: active, today: today() });
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith({ plan: active, planDayId: 'd-strength' });
+    });
+
+    it('starts the carried-over day', () => {
+      const emit = spyOn(component.startPlan, 'emit');
+      const active = plan();
+      const root = render({
+        activePlan: active,
+        today: today({
+          kind: 'REST',
+          planDayId: null,
+          carriedOver: [{ planDayId: 'd-monday', dayOfWeek: 1, kind: 'STRENGTH', title: 'Full body', estimatedMinutes: 50 }]
+        })
+      });
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith({ plan: active, planDayId: 'd-monday' });
+    });
+
+    it('starts the plain plan without a plan day', () => {
+      const emit = spyOn(component.startPlan, 'emit');
+      const active = plan();
+      const root = render({ activePlan: active, today: null });
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith({ plan: active, planDayId: null });
+    });
+
+    it('does not start a plan that has no id, and disables the button while starting', () => {
+      const emit = spyOn(component.startPlan, 'emit');
+      const root = render({ activePlan: plan({ planId: null }), today: null });
+      expect(root.querySelector<HTMLButtonElement>('.action-primary')?.disabled).toBeTrue();
+      component.run('start');
+      expect(emit).not.toHaveBeenCalled();
+
+      const busy = render({ activePlan: plan(), today: null, starting: true });
+      const button = busy.querySelector<HTMLButtonElement>('.action-primary');
+      expect(button?.disabled).toBeTrue();
+      expect(button?.textContent).toContain('Starting…');
+    });
+
+    it('asks for a manual log with the kind on a habit day', () => {
+      const emit = spyOn(component.logManually, 'emit');
+      const startPlan = spyOn(component.startPlan, 'emit');
+      const root = render({ today: today({ kind: 'CARDIO', source: 'HABIT', planDayId: null }) });
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith('CARDIO');
+      expect(startPlan).not.toHaveBeenCalled();
+    });
+
+    it('asks for a manual log with the kind when a sport is logged afterwards', () => {
+      const emit = spyOn(component.logManually, 'emit');
+      const root = render({ today: today({ kind: 'SPORT', label: 'Badminton', planDayId: 'd-sport' }) });
+
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith('SPORT');
+    });
+
+    it('browses plans from the links and from the no-plan button', () => {
+      const emit = spyOn(component.browsePlans, 'emit');
+      const kinds: TodayInsight[] = [today(), today({ kind: 'REST', planDayId: null })];
+      for (const insight of kinds) {
+        render({ today: insight }).querySelector<HTMLAnchorElement>('.action-link')?.click();
+      }
+      render({ activePlan: null, today: null }).querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not follow the fallback href of a link', () => {
+      const root = render({ today: today() });
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+      root.querySelector('.action-link')?.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBeTrue();
+    });
+
+    it('opens the running session with Continue', () => {
+      const emit = spyOn(component.openSession, 'emit');
+      const root = render({
+        today: today({ source: 'IN_PROGRESS' }),
+        todayDay: dayEntry({
+          source: 'IN_PROGRESS',
+          sessions: [
+            { sessionId: 's-run', kind: 'STRENGTH', label: 'Strength', sportActivity: null, status: 'IN_PROGRESS', minutes: null, distanceKm: null, planDayId: null }
+          ]
+        })
+      });
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith({ sessionId: 's-run', status: 'IN_PROGRESS' });
+    });
+
+    it('opens the longest finished session with See the session', () => {
+      const emit = spyOn(component.openSession, 'emit');
+      const finished = (sessionId: string, minutes: number) => ({
+        sessionId,
+        kind: 'STRENGTH' as const,
+        label: 'Strength',
+        sportActivity: null,
         status: 'COMPLETED',
-        completedAt: '2026-06-18T11:00:00Z',
-        startedAt: '2026-06-18T10:00:00Z'
-      }),
-      session({
-        sessionId: 'cancelled',
-        name: 'Cancelled draft',
-        status: 'CANCELLED',
-        completedAt: '2026-06-19T11:00:00Z',
-        startedAt: '2026-06-19T10:00:00Z'
-      }),
-      session({
-        sessionId: 'in-progress',
-        name: 'In-progress zombie',
-        status: 'IN_PROGRESS',
-        completedAt: '',
-        startedAt: '2026-06-20T10:00:00Z',
-        durationMinutes: 0
-      })
-    ]);
+        minutes,
+        distanceKm: null,
+        planDayId: null
+      });
+      const root = render({
+        today: today({ source: 'DONE' }),
+        todayDay: dayEntry({ sessions: [finished('short', 10), finished('long', 50)] })
+      });
 
-    fixture.detectChanges();
+      root.querySelector<HTMLAnchorElement>('.action-link')?.click();
 
-    expect(component.latestSession()?.sessionId).toBe('completed');
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Completed lift');
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Cancelled draft');
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('In-progress zombie');
+      expect(emit).toHaveBeenCalledOnceWith({ sessionId: 'long', status: 'COMPLETED' });
+    });
+
+    it('opens without a session id when the insight names none', () => {
+      const emit = spyOn(component.openSession, 'emit');
+      const root = render({ today: today({ source: 'IN_PROGRESS' }), todayDay: null });
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith({ sessionId: null, status: 'IN_PROGRESS' });
+    });
+
+    it('emits the exercise when a move row is pressed', () => {
+      const emit = spyOn(component.startExercise, 'emit');
+      const active = plan();
+      const root = render({ activePlan: active, today: today() });
+
+      root.querySelector<HTMLButtonElement>('.move')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith(active.days![0].exercises[1]);
+    });
+
+    it('forwards the plan a template activates', () => {
+      const emit = spyOn(component.templateActivated, 'emit');
+      render({ activePlan: null, today: null });
+      const activated = plan();
+
+      fixture.debugElement.query(By.directive(PlanTemplatesComponent)).componentInstance.planActivated.emit(activated);
+
+      expect(emit).toHaveBeenCalledWith(activated);
+    });
   });
 
-  it('emits the selected exercise when a movement card is opened', () => {
-    const fixture = TestBed.createComponent(TodayOverviewComponent);
-    const component = fixture.componentInstance;
-    const activePlan = plan();
-    spyOn(component.startExercise, 'emit');
-    fixture.componentRef.setInput('activePlan', activePlan);
-    fixture.componentRef.setInput('sessions', []);
-    fixture.detectChanges();
+  describe('accessibility', () => {
+    const kinds: Array<[DayKind, string]> = [
+      ['STRENGTH', "Today's workout, Strength"],
+      ['CARDIO', "Today's workout, Cardio"],
+      ['MOBILITY', "Today's workout, Mobility"],
+      ['SPORT', "Today's workout, Sport"]
+    ];
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.hero-step')?.click();
+    for (const [kind, label] of kinds) {
+      it(`names the ${kind} card`, () => {
+        const root = render({ today: today({ kind, planDayId: 'd-strength' }) });
 
-    expect(component.startExercise.emit).toHaveBeenCalledWith(activePlan.exercises[1]);
-  });
-
-  it('shows catalog thumbnails when available and numbered badges otherwise', () => {
-    // The thumbnail now rides on the plan itself. The component used to fetch every exercise's full
-    // detail to read one URL, which was one request per plan exercise.
-    const withThumbnail = plan();
-    const squat = withThumbnail.exercises.find((exercise) => exercise.exerciseId === 'exercise-1');
-    if (squat) {
-      squat.primaryImageUrl = 'http://media.local/back-squat.png';
+        expect(root.querySelector('.today-card')?.getAttribute('aria-label')).toBe(label);
+      });
     }
-    const fixture = TestBed.createComponent(TodayOverviewComponent);
-    fixture.componentRef.setInput('activePlan', withThumbnail);
-    fixture.componentRef.setInput('sessions', []);
-    fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const steps = [...compiled.querySelectorAll('.hero-step')];
-    // Sequence 1 = Push up (no media -> numbered badge), sequence 2 = Back squat (thumbnail).
-    expect(steps[0].querySelector('.step-index')?.textContent?.trim()).toBe('1');
-    expect(steps[1].querySelector('img')?.getAttribute('src')).toBe('http://media.local/back-squat.png');
-  });
+    it('uses real buttons and links, and hides the decorative glyph', () => {
+      const root = render({ today: today() });
 
-  it('shows the template gallery and browse plans action when no active plan exists', () => {
-    const fixture = TestBed.createComponent(TodayOverviewComponent);
-    const component = fixture.componentInstance;
-    spyOn(component.browsePlans, 'emit');
-    fixture.componentRef.setInput('activePlan', null);
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector<HTMLButtonElement>('.hero-ghost')?.click();
-
-    expect(compiled.textContent).toContain('Pick a plan for today');
-    expect(compiled.querySelector('app-plan-templates')).not.toBeNull();
-    expect(component.browsePlans.emit).toHaveBeenCalled();
+      expect(root.querySelector('.action-primary')?.tagName).toBe('BUTTON');
+      expect(root.querySelector('.action-primary')?.getAttribute('type')).toBe('button');
+      expect(root.querySelector('.action-link')?.tagName).toBe('A');
+      expect(root.querySelector('.kind-tile')?.getAttribute('aria-hidden')).toBe('true');
+    });
   });
 });

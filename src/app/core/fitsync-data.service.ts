@@ -2414,28 +2414,31 @@ export class FitSyncDataService {
       status: plan.status ?? 'ACTIVE',
       exerciseCount: plan.exerciseCount ?? exercises.length,
       exercises,
-      days: (plan.days ?? []).map((day) => this.mapWorkoutPlanDay(day)),
-      sessionsPerWeek: plan.sessionsPerWeek ?? null,
+      days: this.mapWorkoutPlanDays(plan.days),
+      sessionsPerWeek: safeInsightNumberOrNull(plan.sessionsPerWeek),
       createdAt: plan.createdAt ?? null,
       updatedAt: plan.updatedAt ?? null
     };
   }
 
-  private mapWorkoutPlanDay(day: BackendWorkoutPlanDay): WorkoutPlanDay {
-    return {
-      planDayId: day.planDayId ?? null,
-      dayOfWeek: day.dayOfWeek ?? 1,
-      kind: this.toPlanDayKind(day.kind),
-      title: day.title ?? '',
-      sportActivity: day.sportActivity ?? null,
-      sportLabel: day.sportLabel ?? null,
-      estimatedDurationMinutes: day.estimatedDurationMinutes ?? null,
-      exercises: (day.exercises ?? []).map((exercise) => this.mapWorkoutPlanExercise(exercise))
-    };
-  }
-
-  private toPlanDayKind(kind: string | null | undefined): PlanDayKind {
-    return kind === 'CARDIO' || kind === 'MOBILITY' || kind === 'SPORT' ? kind : 'STRENGTH';
+  /** A day without an id cannot be started or matched against the weekly insight, so it is dropped
+   *  rather than shown half-usable. An older backend sends no days and yields an empty list. */
+  private mapWorkoutPlanDays(days: BackendWorkoutPlanDay[] | null | undefined): WorkoutPlanDay[] {
+    if (!Array.isArray(days)) {
+      return [];
+    }
+    return days
+      .filter((day): day is BackendWorkoutPlanDay & { planDayId: string } => typeof day?.planDayId === 'string' && day.planDayId !== '')
+      .map((day) => ({
+        planDayId: day.planDayId,
+        dayOfWeek: safeInsightNumber(day.dayOfWeek),
+        kind: mapSessionKind(day.kind),
+        title: day.title ?? '',
+        sportActivity: day.sportActivity ?? null,
+        sportLabel: day.sportLabel ?? null,
+        estimatedDurationMinutes: safeInsightNumberOrNull(day.estimatedDurationMinutes),
+        exercises: (day.exercises ?? []).map((exercise) => this.mapWorkoutPlanExercise(exercise))
+      }));
   }
 
   private mapWorkoutPlanExercise(exercise: BackendWorkoutPlanExercise) {

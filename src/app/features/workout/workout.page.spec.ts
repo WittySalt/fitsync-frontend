@@ -9,9 +9,13 @@ import { of, Subject, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutPage } from './workout.page';
 import { FormBuilder } from '@angular/forms';
+import { CoachContextService } from '../../core/coach/coach-context.service';
 import {
+  DayInsight,
   Exercise,
+  TodayInsight,
   UserGoal,
+  WeeklyTrainingInsight,
   WorkoutPlan,
   WorkoutPlanDay,
   WorkoutPlanExercise,
@@ -120,6 +124,41 @@ function planDay(overrides: Partial<WorkoutPlanDay> = {}): WorkoutPlanDay {
   };
 }
 
+function weeklyInsight(overrides: Partial<WeeklyTrainingInsight> = {}): WeeklyTrainingInsight {
+  return {
+    timezone: 'Asia/Singapore',
+    referenceDate: '2026-09-30',
+    weekStart: '2026-09-28',
+    weekEnd: '2026-10-04',
+    completedSessions: 0,
+    totalMinutes: 0,
+    previousWeekCompletedSessions: 0,
+    previousWeekTotalMinutes: 0,
+    muscleGroups: [],
+    volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+    days: null,
+    today: null,
+    nextTraining: null,
+    ...overrides
+  };
+}
+
+function todayInsight(overrides: Partial<TodayInsight> = {}): TodayInsight {
+  return {
+    date: '2026-09-30',
+    kind: 'STRENGTH',
+    label: 'Strength',
+    source: 'PLAN',
+    planDayId: 'day-strength',
+    title: 'Full body',
+    estimatedMinutes: 50,
+    moves: 1,
+    lastOfKind: null,
+    carriedOver: [],
+    ...overrides
+  };
+}
+
 function goal(overrides: Partial<UserGoal> = {}): UserGoal {
   return {
     goalId: 'goal-1',
@@ -155,6 +194,7 @@ describe('WorkoutPage', () => {
       'getWorkoutSessionPage',
       'searchExercisesPage',
       'getActivePlan',
+      'getWeeklyTrainingInsight',
       'saveWorkoutSession',
       'createWorkoutPlan',
       'updateWorkoutPlan',
@@ -187,6 +227,7 @@ describe('WorkoutPage', () => {
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     dataService.searchExercisesPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
     dataService.getActivePlan.and.returnValue(of(null));
+    dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight()));
     dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
     dataService.createWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
     dataService.updateWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
@@ -443,10 +484,10 @@ describe('WorkoutPage', () => {
     fixture.detectChanges();
 
     const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
-    today.startPlan.emit(active);
+    today.startPlan.emit({ plan: active, planDayId: null });
     fixture.detectChanges();
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
     expect(fixture.componentInstance.guidedPlayerSession()?.sessionId).toBe('session-today');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
@@ -481,9 +522,196 @@ describe('WorkoutPage', () => {
     today.startExercise.emit(active.exercises[0]);
     fixture.detectChanges();
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today');
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
     expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-2');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
+  });
+
+  describe('the Today card and the weekly insight', () => {
+    const dayPlan = () =>
+      plan({
+        planId: 'plan-days',
+        name: 'Week plan',
+        status: 'ACTIVE',
+        days: [
+          {
+            planDayId: 'day-strength',
+            dayOfWeek: 3,
+            kind: 'STRENGTH',
+            title: 'Full body',
+            sportActivity: null,
+            sportLabel: null,
+            estimatedDurationMinutes: 50,
+            exercises: [
+              {
+                planExerciseId: 'pe-1',
+                exerciseId: 'exercise-9',
+                exerciseNameSnapshot: 'Goblet squat',
+                sequence: 1,
+                targetSets: 3,
+                targetReps: 12,
+                targetWeightKg: 18,
+                targetDurationSeconds: null,
+                targetDistanceKm: null,
+                restSeconds: 75,
+                notes: '',
+                setTargets: []
+              }
+            ]
+          }
+        ]
+      });
+
+    function todayCard(fixture: ComponentFixture<WorkoutPage>): TodayOverviewComponent {
+      return fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
+    }
+
+    it('passes today, the next training day and the timezone to the card', () => {
+      const insight = weeklyInsight({
+        today: todayInsight(),
+        nextTraining: { date: '2026-10-01', kind: 'CARDIO', label: 'Cardio', title: 'Run', estimatedMinutes: 35 }
+      });
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(insight));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const card = todayCard(fixture);
+
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith(fixture.componentInstance.timezone);
+      expect(card.today()).toEqual(insight.today);
+      expect(card.nextTraining()).toEqual(insight.nextTraining);
+      expect(card.timezone()).toBe(fixture.componentInstance.timezone);
+    });
+
+    it('passes the entry of today in the week to the card', () => {
+      const entry: DayInsight = {
+        date: '2026-09-30',
+        dayOfWeek: 3,
+        kind: 'STRENGTH',
+        label: 'Strength',
+        source: 'DONE',
+        minutes: 50,
+        sessions: [],
+        planned: null
+      };
+      const other: DayInsight = { ...entry, date: '2026-09-29', minutes: 20 };
+      dataService.getWeeklyTrainingInsight.and.returnValue(
+        of(weeklyInsight({ today: todayInsight({ source: 'DONE' }), days: [other, entry] }))
+      );
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(todayCard(fixture).todayDay()).toEqual(entry);
+    });
+
+    it('tells the coach what kind of day today is', () => {
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight({ kind: 'CARDIO' }) })));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(TestBed.inject(CoachContextService).todayKind()).toBe('CARDIO');
+    });
+
+    it('starts the plan day the card names, in the page timezone', () => {
+      const active = dayPlan();
+      dataService.getActivePlan.and.returnValue(of(active));
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight() })));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      todayCard(fixture).startPlan.emit({ plan: active, planDayId: 'day-strength' });
+      fixture.detectChanges();
+
+      expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-days', {
+        planDayId: 'day-strength',
+        timezone: fixture.componentInstance.timezone
+      });
+      expect(fixture.componentInstance.guidedPlayerSession()).not.toBeNull();
+    });
+
+    it('starts the day a pressed move belongs to', () => {
+      const active = dayPlan();
+      dataService.getActivePlan.and.returnValue(of(active));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      todayCard(fixture).startExercise.emit(active.days![0].exercises[0]);
+
+      expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-days', {
+        planDayId: 'day-strength',
+        timezone: fixture.componentInstance.timezone
+      });
+      expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-9');
+    });
+
+    it('keeps working when the insight request fails', () => {
+      const active = plan({ planId: 'plan-plain', name: 'Plain plan', status: 'ACTIVE' });
+      dataService.getActivePlan.and.returnValue(of(active));
+      dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('insight down')));
+
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const card = todayCard(fixture);
+
+      expect(card.today()).toBeNull();
+      expect(card.nextTraining()).toBeNull();
+      expect(card.todayDay()).toBeNull();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('app-today-overview h2')?.textContent).toContain('Plain plan');
+
+      root.querySelector<HTMLButtonElement>('app-today-overview .action-primary')?.click();
+      expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-plain', {
+        planDayId: null,
+        timezone: fixture.componentInstance.timezone
+      });
+    });
+
+    it('refreshes the insight after the sessions change', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      dataService.getWeeklyTrainingInsight.calls.reset();
+
+      fixture.componentInstance.handlePastWorkoutLogged();
+
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the past workout form, set to the kind, when the card asks to log manually', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+
+      todayCard(fixture).logManually.emit('CARDIO');
+      expect(startCard.pastWorkoutOpen()).toBeTrue();
+      expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('CARDIO');
+
+      todayCard(fixture).logManually.emit('SPORT');
+      expect(startCard.pastWorkoutForm.controls.workoutType.value).toBe('CUSTOM');
+    });
+
+    it('opens the named session in History when the card asks to open a session', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      todayCard(fixture).openSession.emit({ sessionId: 'session-running', status: 'IN_PROGRESS' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedTab()).toBe('history');
+      expect(fixture.componentInstance.filterStatus()).toBe('IN_PROGRESS');
+      expect(fixture.componentInstance.selectedSessionId()).toBe('session-running');
+    });
+
+    it('opens History without a selection when the insight names no session', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      todayCard(fixture).openSession.emit({ sessionId: null, status: 'COMPLETED' });
+
+      expect(fixture.componentInstance.selectedTab()).toBe('history');
+      expect(fixture.componentInstance.selectedSessionId()).toBeNull();
+    });
   });
 
   it('refreshes sessions when the nested past workout flow finishes', () => {
@@ -1159,7 +1387,7 @@ describe('WorkoutPage', () => {
 
     component.activePlan.set(active);
     component.planMutations.set(new Set(['plan-guided']));
-    component.handleTodayStart(active);
+    component.handleTodayStart({ plan: active, planDayId: null });
 
     expect(dataService.startWorkoutPlan).not.toHaveBeenCalled();
 

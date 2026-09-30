@@ -439,9 +439,9 @@ export interface WorkoutPlan {
   status: string;
   exerciseCount: number;
   exercises: WorkoutPlanExercise[];
-  /** The plan's week, Monday first; empty for a plan that is one flat list of exercises. */
+  /** The week laid out day by day. Empty for a plan that only has a flat exercise list. */
   days?: WorkoutPlanDay[];
-  /** Number of training days in the week, or null for a plan without one. */
+  /** Number of training days in the week; null for a plan without a weekly layout. */
   sessionsPerWeek?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -450,11 +450,12 @@ export interface WorkoutPlan {
 /** The four kinds a plan day can have. A day that is not listed is a rest day. */
 export type PlanDayKind = SessionKindCode;
 
+/** One training day of a plan's week. A sport day names its activity and carries no exercises. */
 export interface WorkoutPlanDay {
-  planDayId: string | null;
-  /** 1 is Monday and 7 is Sunday. */
+  planDayId: string;
+  /** 1 for Monday through 7 for Sunday. */
   dayOfWeek: number;
-  kind: PlanDayKind;
+  kind: SessionKindCode;
   title: string;
   sportActivity: string | null;
   sportLabel: string | null;

@@ -518,7 +518,7 @@ describe('PlanWeekEditorComponent', () => {
     });
 
     it('trims the title and leaves out the id of a day that is new', () => {
-      render([savedDay({ dayOfWeek: 2, planDayId: null, title: '  Push  ' })]);
+      render([savedDay({ dayOfWeek: 2, planDayId: '', title: '  Push  ' })]);
 
       const days = buildWeekRequest(week);
 

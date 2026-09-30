@@ -1,6 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, shareReplay } from 'rxjs';
+import { Observable, forkJoin, map, shareReplay, tap } from 'rxjs';
+
+import { AuthService } from './auth/auth.service';
 
 export type ActivityLevel = 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'ATHLETE';
 export type Gender = 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY';
@@ -207,12 +209,14 @@ export interface ListBodyMetricsOptions {
 @Injectable({ providedIn: 'root' })
 export class AccountDataService {
   private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
   private readonly apiBaseUrl = '/api/v1';
   private currentUser$?: Observable<AccountUserResponse>;
   private profileSummary$?: Observable<AccountSummary>;
 
   getCurrentUser(): Observable<AccountUserResponse> {
     this.currentUser$ ??= this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`).pipe(
+      tap((user) => this.authService.setUserRole(user.role)),
       shareReplay({ bufferSize: 1, refCount: false })
     );
     return this.currentUser$;
