@@ -1,0 +1,70 @@
+@if (!hidden()) {
+  <div class="today-row">
+    <div class="today-row-main">
+      <span class="today-tile">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          @for (part of glyph(); track $index) {
+            @switch (part.tag) {
+              @case ('path') {
+                <path [attr.d]="part.d"></path>
+              }
+              @case ('circle') {
+                <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
+              }
+              @case ('rect') {
+                <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
+              }
+            }
+          }
+        </svg>
+      </span>
+      <div class="today-row-info">
+        <span class="today-row-label">{{ view().eyebrow }}</span>
+        <span class="today-row-name">{{ view().title }}</span>
+        @if (view().meta) {
+          <span class="today-row-meta">{{ view().meta }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="today-row-actions">
+      @switch (view().action) {
+        @case ('start') {
+          <button type="button" class="today-row-button" [disabled]="starting()" (click)="onStart()">
+            <span>{{ starting() ? 'Starting…' : 'Start session' }}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14"></path>
+              <path d="M13 6l6 6-6 6"></path>
+            </svg>
+          </button>
+        }
+        @case ('continue') {
+          <button type="button" class="today-row-button" (click)="onContinue()">
+            <span>Continue</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14"></path>
+              <path d="M13 6l6 6-6 6"></path>
+            </svg>
+          </button>
+        }
+      }
+      @switch (view().link) {
+        @case ('trainElsewhere') {
+          <a href="/workout" class="today-row-link" (click)="onLinkClick($event)">Train something else</a>
+        }
+        @case ('seeSession') {
+          <a href="/workout" class="today-row-link" (click)="onLinkClick($event)">See the session</a>
+        }
+        @case ('trainToday') {
+          <a href="/workout" class="today-row-link" (click)="onLinkClick($event)">Train today</a>
+        }
+        @case ('browsePlans') {
+          <a href="/workout" class="today-row-link" (click)="onLinkClick($event)">Browse plans</a>
+        }
+      }
+    </div>
+  </div>
+  @if (startError(); as message) {
+    <p class="today-row-error" role="alert">{{ message }}</p>
+  }
+}

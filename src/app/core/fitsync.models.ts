@@ -529,6 +529,94 @@ export interface WeeklyTrainingInsight {
   previousWeekTotalMinutes: number;
   muscleGroups: MuscleGroupInsight[];
   volume: WeeklyVolume;
+  // The three fields below arrive once the day-kinds backend work ships. Until then the response
+  // carries none of them, and every reader of this interface must treat that as a valid, quiet
+  // fallback rather than an error.
+  days: DayInsight[] | null;
+  today: TodayInsight | null;
+  nextTraining: NextTraining | null;
+}
+
+/** The four kinds of training day, plus the two states a day can be in without one. */
+export type DayKind = 'STRENGTH' | 'CARDIO' | 'MOBILITY' | 'SPORT' | 'REST' | 'OPEN';
+
+/** Where a day's kind came from, in the order the backend prefers them. */
+export type DaySource = 'DONE' | 'IN_PROGRESS' | 'PLAN' | 'HABIT' | 'NONE';
+
+/** The four kinds a single session, planned day, or carried-over day can take (never REST or OPEN,
+ *  since those describe a day with no training, not a training entry itself). */
+export type SessionKindCode = 'STRENGTH' | 'CARDIO' | 'MOBILITY' | 'SPORT';
+
+export interface DaySessionInsight {
+  sessionId: string;
+  kind: SessionKindCode;
+  label: string;
+  sportActivity: string | null;
+  status: string;
+  minutes: number | null;
+  distanceKm: number | null;
+  planDayId: string | null;
+}
+
+/** What the active plan schedules for a day, whether or not it has been done yet. */
+export interface PlannedDay {
+  planDayId: string;
+  kind: SessionKindCode;
+  title: string;
+  sportActivity: string | null;
+  estimatedMinutes: number | null;
+  moves: number | null;
+  fulfilled: boolean;
+}
+
+export interface DayInsight {
+  date: string;
+  dayOfWeek: number;
+  kind: DayKind;
+  label: string;
+  source: DaySource;
+  minutes: number | null;
+  sessions: DaySessionInsight[];
+  planned: PlannedDay | null;
+}
+
+/** The most recent earlier session of today's kind, used for the "last time" comparisons. */
+export interface LastOfKind {
+  date: string;
+  minutes: number | null;
+  distanceKm: number | null;
+  paceSecondsPerKm: number | null;
+}
+
+/** A plan day from earlier this week that is still open, offered back on a rest or open today. */
+export interface CarriedOverDay {
+  planDayId: string;
+  dayOfWeek: number;
+  kind: SessionKindCode;
+  title: string;
+  estimatedMinutes: number | null;
+}
+
+export interface TodayInsight {
+  date: string;
+  kind: DayKind;
+  label: string;
+  source: DaySource;
+  planDayId: string | null;
+  title: string | null;
+  estimatedMinutes: number | null;
+  moves: number | null;
+  lastOfKind: LastOfKind | null;
+  carriedOver: CarriedOverDay[];
+}
+
+/** The next day, after today, that has a scheduled or habitual training kind. */
+export interface NextTraining {
+  date: string;
+  kind: DayKind;
+  label: string;
+  title: string;
+  estimatedMinutes: number | null;
 }
 
 export interface FoodSearchResult {

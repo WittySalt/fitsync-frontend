@@ -31,7 +31,10 @@ function insight(muscleGroups: MuscleGroupInsight[]): WeeklyTrainingInsight {
       weekBeforePreviousKg: 0,
       thisWeekSessionsWithVolume: 0,
       previousWeekSessionsWithVolume: 0
-    }
+    },
+    days: null,
+    today: null,
+    nextTraining: null
   };
 }
 

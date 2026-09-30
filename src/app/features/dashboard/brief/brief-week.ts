@@ -1,11 +1,18 @@
-import { WorkoutSession } from '../../../core/fitsync.models';
+import { DayInsight, DayKind, WorkoutSession } from '../../../core/fitsync.models';
+import { isTrainingDayKind } from './day-kind-icons';
 
 export interface BriefDay {
   dateKey: string;
   weekday: string;
   state: 'trained' | 'rest' | 'today-open' | 'today-trained' | 'upcoming';
   minutes: number | null;
-  kind: 'strength' | 'cardio' | null;
+  kind: DayKind | null;
+  /** The day's own label from the weekly insight (e.g. "Strength", "Badminton", "Rest"), used for
+   *  today's caption. Null when the day was built from sessions alone, with no insight to draw on. */
+  label: string | null;
+  /** True for a later day the active plan or habit schedules a training kind for, but that has
+   *  not happened yet. Drawn as its own "planned" tile rather than a plain upcoming day. */
+  planned: boolean;
 }
 
 export interface BriefWeekRange {
@@ -124,7 +131,49 @@ export function buildWeek(sessions: WorkoutSession[], now: Date, timezone: strin
       weekday: WEEKDAY_LABELS[index],
       state,
       minutes: entry?.minutes ?? null,
-      kind: entry?.hasSessions ? (entry.allCardio ? 'cardio' : 'strength') : null
+      kind: entry?.hasSessions ? (entry.allCardio ? 'CARDIO' : 'STRENGTH') : null,
+      label: null,
+      planned: false
+    };
+  });
+}
+
+/** Builds the week strip straight from the weekly insight's seven `days`, once the day-kinds
+ *  backend fields are present. This replaces buildWeek() for that request; buildWeek() itself is
+ *  unchanged and stays as the fallback for as long as the insight has no `days`. */
+export function buildWeekFromInsight(days: DayInsight[], todayKey: string): BriefDay[] {
+  return days.map((day) => {
+    const isToday = day.date === todayKey;
+    const isPast = day.date < todayKey;
+    const isLater = day.date > todayKey;
+
+    let state: BriefDay['state'];
+    let planned = false;
+
+    if (day.source === 'DONE') {
+      state = isToday ? 'today-trained' : 'trained';
+    } else if (isToday) {
+      state = 'today-open';
+    } else if (isLater && isTrainingDayKind(day.kind) && (day.source === 'PLAN' || day.source === 'HABIT')) {
+      state = 'upcoming';
+      planned = true;
+    } else {
+      // A past day that was scheduled but never done is drawn as a quiet rest day, not a missed
+      // one: the coach does not point at what was not done. A later day that carries no schedule
+      // stays upcoming with nothing to say about it yet.
+      state = isPast ? 'rest' : 'upcoming';
+    }
+
+    return {
+      dateKey: day.date,
+      weekday: WEEKDAY_LABELS[mondayFirstWeekdayIndex(day.date)],
+      state,
+      minutes: day.minutes,
+      // A past day that nothing is known about is reported as rest with no source. Calling it
+      // rest would claim a decision the user never made, so it is kept as a day without a kind.
+      kind: day.source === 'NONE' && day.kind === 'REST' ? 'OPEN' : day.kind,
+      label: day.label,
+      planned
     };
   });
 }

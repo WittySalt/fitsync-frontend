@@ -1,9 +1,9 @@
-import { MuscleGroupCode, MuscleGroupInsight, WeeklyTrainingInsight } from '../../../core/fitsync.models';
-import { formatDuration } from './brief-duration';
+import { DayKind, MuscleGroupCode, MuscleGroupInsight, WeeklyTrainingInsight } from '../../../core/fitsync.models';
+import { formatDuration, formatKm, formatPace } from './brief-duration';
 import { numberWord } from './brief-copy';
 import { joinLabels, muscleLabel } from './brief-muscles';
 
-export type ObservationIcon = 'rest' | 'streak' | 'volume' | 'week';
+export type ObservationIcon = 'rest' | 'streak' | 'volume' | 'week' | 'day-kind';
 
 export interface BriefObservation {
   id: string;
@@ -14,6 +14,9 @@ export interface BriefObservation {
    *  Set for the rested (first group of the chosen set, backend order) and streak (that group)
    *  rules; null for volume and week-so-far, which are not about any one muscle group. */
   muscle: MuscleGroupCode | null;
+  /** The day kind this observation illustrates, drawn with the day-kind glyph set instead of a
+   *  muscle glyph. Set only for the observation that follows today's kind; null everywhere else. */
+  dayKind?: DayKind | null;
 }
 
 /** Muscle groups whose name is a plural noun, so a sentence about one of them alone still takes
@@ -58,6 +61,13 @@ function daysBetweenKeys(fromKey: string, toKey: string): number {
 /** Full weekday name for a YYYY-MM-DD key, read from the calendar date itself. */
 function weekdayFull(key: string): string {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(asUtcDate(key));
+}
+
+/** "Tuesday 23 Sep", read from a YYYY-MM-DD key: the weekday and day-month the coach uses when
+ *  pointing at a specific past session rather than just naming how long ago it was. */
+function weekdayDateLabel(key: string): string {
+  const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(asUtcDate(key));
+  return `${weekdayFull(key)} ${dayMonth}`;
 }
 
 interface RestedGroupsPick {
@@ -230,10 +240,45 @@ function weekSoFarObservation(insight: WeeklyTrainingInsight): BriefObservation 
   return { id: 'week', icon: 'week', fact, note, muscle: null };
 }
 
+/** The observation that follows today's own kind, when the weekly insight carries the day-kinds
+ *  fields. It only speaks about a kind whose comparison is meaningful (cardio's distance and
+ *  pace, a mobility or sport session's duration) and only when a last-time record exists; a
+ *  strength day, an open day, or a rest day (which keeps the existing yesterday-facing
+ *  observations instead) contribute nothing here. */
+function todayKindObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
+  const today = insight.today;
+  const last = today?.lastOfKind;
+  if (!today || !last || last.minutes == null) {
+    return null;
+  }
+
+  if (today.kind === 'CARDIO' && last.distanceKm != null && last.paceSecondsPerKm != null) {
+    const fact = `Your last run was ${formatKm(last.distanceKm)} in ${formatDuration(last.minutes)}.`;
+    const note = `That is ${formatPace(last.paceSecondsPerKm)} per km.`;
+    return { id: 'today-kind', icon: 'day-kind', fact, note, muscle: null, dayKind: 'CARDIO' };
+  }
+
+  if (today.kind === 'MOBILITY') {
+    const fact = `Your last mobility session was ${formatDuration(last.minutes)}.`;
+    const note = `It was on ${weekdayDateLabel(last.date)}.`;
+    return { id: 'today-kind', icon: 'day-kind', fact, note, muscle: null, dayKind: 'MOBILITY' };
+  }
+
+  if (today.kind === 'SPORT') {
+    const label = today.label.toLowerCase();
+    const fact = `Your last ${label} was ${formatDuration(last.minutes)}.`;
+    const note = `It was on ${weekdayDateLabel(last.date)}.`;
+    return { id: 'today-kind', icon: 'day-kind', fact, note, muscle: null, dayKind: 'SPORT' };
+  }
+
+  return null;
+}
+
 /** Builds up to three coach observations from the weekly training insight, in fixed rule order
- *  (rested groups, streak, volume, then week-so-far as a filler), skipping any rule whose
- *  condition is not met. The coach never gives advice, so every sentence here is a plain fact
- *  about what happened, not a suggestion about what to do next. */
+ *  (today's own kind first when the day-kinds fields are present, then rested groups, streak,
+ *  volume, and week-so-far as a filler), skipping any rule whose condition is not met. The coach
+ *  never gives advice, so every sentence here is a plain fact about what happened, not a
+ *  suggestion about what to do next. */
 export function dailyObservations(insight: WeeklyTrainingInsight, _now: Date, _timezone: string): BriefObservation[] {
   // The clock and the timezone are accepted so that every brief function is called the same way.
   // All dates here come from the insight's reference date, which the server worked out in the
@@ -244,6 +289,11 @@ export function dailyObservations(insight: WeeklyTrainingInsight, _now: Date, _t
   }
 
   const observations: BriefObservation[] = [];
+
+  const todayKind = todayKindObservation(insight);
+  if (todayKind) {
+    observations.push(todayKind);
+  }
 
   const rested = restedObservation(insight);
   if (rested) {

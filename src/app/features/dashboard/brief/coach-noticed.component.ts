@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 import { BriefObservation } from './brief-observations';
+import { DAY_KIND_GLYPHS } from './day-kind-icons';
 import { GlyphShape, MUSCLE_GLYPHS } from './muscle-icons';
 
 const TREND: GlyphShape[] = [
@@ -32,6 +33,9 @@ export class CoachNoticedComponent {
   readonly observations = input.required<BriefObservation[]>();
 
   glyph(observation: BriefObservation): GlyphShape[] {
+    if (observation.dayKind) {
+      return DAY_KIND_GLYPHS[observation.dayKind];
+    }
     if (observation.muscle) {
       return MUSCLE_GLYPHS[observation.muscle];
     }

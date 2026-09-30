@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
-import { MuscleGroupCode, UserGoal, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
+import { DayInsight, MuscleGroupCode, NextTraining, TodayInsight, UserGoal, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
 import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
 
@@ -84,7 +84,10 @@ const weeklyInsight: WeeklyTrainingInsight = {
     group('LEGS', 2, true, '2026-09-25'),
     group('CARDIO', 2, false, '2026-09-26', 1)
   ],
-  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1 }
+  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1 },
+  days: null,
+  today: null,
+  nextTraining: null
 };
 
 describe('CoachBriefComponent', () => {
@@ -340,4 +343,132 @@ describe('CoachBriefComponent', () => {
   function pageText(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
+});
+
+describe('CoachBriefComponent - day-kinds fields', () => {
+  let fixture: ComponentFixture<CoachBriefComponent>;
+  let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let coachStore: jasmine.SpyObj<CoachStore>;
+
+  const WEEK_KEYS = ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27'];
+
+  function dayInsight(date: string, overrides: Partial<DayInsight> = {}): DayInsight {
+    return {
+      date,
+      dayOfWeek: WEEK_KEYS.indexOf(date) + 1,
+      kind: 'OPEN',
+      label: '',
+      source: 'NONE',
+      minutes: null,
+      sessions: [],
+      planned: null,
+      ...overrides
+    };
+  }
+
+  function setup(insight: WeeklyTrainingInsight, target: number | null): void {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
+    fixture = TestBed.createComponent(CoachBriefComponent);
+    fixture.componentRef.setInput('firstName', 'Ruixian');
+    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    fixture.componentRef.setInput('caloriesTarget', null);
+    dataService.getGoals.and.returnValue(
+      of(target != null ? [{ goalId: 'goal-1', goalType: 'WORKOUT_FREQUENCY', targetValue: target, targetUnit: 'sessions/week', targetDate: '2026-09-27', status: 'ACTIVE', notes: null }] : [])
+    );
+    dataService.getWeeklyTrainingInsight.and.returnValue(of(insight));
+    fixture.detectChanges();
+  }
+
+  beforeEach(async () => {
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
+      'getWorkoutSessionsInRange',
+      'getGoals',
+      'getActivePlan',
+      'getWeeklyTrainingInsight',
+      'startWorkoutPlan'
+    ]);
+    dataService.getWorkoutSessionsInRange.and.returnValue(of([]));
+    dataService.getActivePlan.and.returnValue(of(null));
+    coachStore = jasmine.createSpyObj<CoachStore>('CoachStore', ['open', 'ask']);
+
+    await TestBed.configureTestingModule({
+      imports: [CoachBriefComponent],
+      providers: [
+        provideRouter([]),
+        { provide: FitSyncDataService, useValue: dataService },
+        { provide: CoachStore, useValue: coachStore },
+        { provide: BRIEF_NOW, useValue: () => NOW }
+      ]
+    }).compileComponents();
+  });
+
+  function baseInsight(days: DayInsight[] | null, today: TodayInsight | null, nextTraining: NextTraining | null = null): WeeklyTrainingInsight {
+    return {
+      timezone: 'Asia/Singapore',
+      referenceDate: '2026-09-27',
+      weekStart: '2026-09-21',
+      weekEnd: '2026-09-27',
+      completedSessions: 0,
+      totalMinutes: 0,
+      previousWeekCompletedSessions: 0,
+      previousWeekTotalMinutes: 0,
+      muscleGroups: [],
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+      days,
+      today,
+      nextTraining
+    };
+  }
+
+  it('keeps every existing behaviour when the insight has no day-kinds fields', () => {
+    setup(baseInsight(null, null, null), 4);
+
+    expect(fixture.componentInstance.showTodayRow()).toBe(false);
+    expect(fixture.nativeElement.querySelector('app-today-row')).toBeNull();
+  });
+
+  it('draws the row for today and the week strip from the insight once it carries day-kinds fields', () => {
+    const days = WEEK_KEYS.map((key) => dayInsight(key, key === '2026-09-27' ? { kind: 'REST', label: 'Rest', source: 'PLAN' } : {}));
+    const today: TodayInsight = {
+      date: '2026-09-27',
+      kind: 'REST',
+      label: 'Rest',
+      source: 'PLAN',
+      planDayId: null,
+      title: null,
+      estimatedMinutes: null,
+      moves: null,
+      lastOfKind: null,
+      carriedOver: []
+    };
+    setup(baseInsight(days, today), 6);
+
+    expect(fixture.componentInstance.showTodayRow()).toBe(true);
+    expect(fixture.nativeElement.querySelector('app-today-row')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.next-session-row')).toBeNull();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Rest today');
+    const captions = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.day-caption')).map((el) => el.textContent?.trim());
+    expect(captions[6]).toBe('Rest');
+  });
+
+  it('passes restToday through to the headline for a rest day that has not met its goal', () => {
+    const days = WEEK_KEYS.map((key) => dayInsight(key, key === '2026-09-27' ? { kind: 'REST', label: 'Rest', source: 'PLAN' } : {}));
+    const today: TodayInsight = {
+      date: '2026-09-27',
+      kind: 'REST',
+      label: 'Rest',
+      source: 'PLAN',
+      planDayId: null,
+      title: null,
+      estimatedMinutes: null,
+      moves: null,
+      lastOfKind: null,
+      carriedOver: []
+    };
+    setup(baseInsight(days, today), 6);
+
+    expect(fixture.componentInstance.headline().lines[0]).toBe('Rest day.');
+  });
 });
