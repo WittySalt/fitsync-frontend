@@ -4,7 +4,9 @@
   grid-template-columns: 248px minmax(0, 1fr);
   background: var(--bg);
   max-width: 100vw;
-  overflow-x: hidden;
+  // Clipping keeps the page from scrolling sideways without making the shell a scroll container,
+  // which would stop the sidebar from staying in view.
+  overflow-x: clip;
 }
 
 .sidebar {
