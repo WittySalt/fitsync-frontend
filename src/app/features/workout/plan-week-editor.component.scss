@@ -81,7 +81,7 @@ h3 {
 // width, which the page's sidebar makes much narrower than the window.
 .strip {
   display: grid;
-  grid-template-columns: repeat(7, minmax(132px, 1fr));
+  grid-template-columns: repeat(7, minmax(148px, 1fr));
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
@@ -89,7 +89,7 @@ h3 {
 
 .day {
   box-sizing: border-box;
-  height: 168px;
+  height: 184px;
   min-width: 0;
   padding: 16px;
   display: flex;
@@ -150,6 +150,7 @@ h3 {
 .day-meta {
   color: var(--text-secondary);
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .kinds {
