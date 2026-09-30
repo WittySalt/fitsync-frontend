@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { authGuard } from './core/auth/auth.guard';
+import { adminGuard, authGuard } from './core/auth/auth.guard';
 import { AuthCallbackPage } from './features/auth/auth-callback.page';
 import { LoginPage } from './features/auth/login.page';
 import { LogoutCallbackPage } from './features/auth/logout-callback.page';
@@ -74,6 +74,39 @@ export const routes: Routes = [
     loadComponent: () => import('./features/settings/settings.page').then((module) => module.SettingsPage),
     canActivate: [authGuard],
     title: 'FitSync Settings'
+  },
+  {
+    // The admin area is a layout of its own. The guard only spares members a page that would show them
+    // errors; the server refuses a member on every admin call.
+    path: 'admin',
+    loadComponent: () => import('./features/admin/admin-shell.component').then((module) => module.AdminShellComponent),
+    canActivate: [adminGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'coach-quality' },
+      {
+        path: 'coach-quality',
+        loadComponent: () => import('./features/admin/coach-quality.page').then((module) => module.CoachQualityPage),
+        title: 'FitSync Admin · Coach quality'
+      },
+      {
+        path: 'catalogue',
+        loadComponent: () => import('./features/admin/admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
+        data: { heading: 'Catalogue' },
+        title: 'FitSync Admin · Catalogue'
+      },
+      {
+        path: 'users',
+        loadComponent: () => import('./features/admin/admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
+        data: { heading: 'User data' },
+        title: 'FitSync Admin · User data'
+      },
+      {
+        path: 'events',
+        loadComponent: () => import('./features/admin/admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
+        data: { heading: 'Events' },
+        title: 'FitSync Admin · Events'
+      }
+    ]
   },
   { path: '**', redirectTo: 'dashboard' }
 ];

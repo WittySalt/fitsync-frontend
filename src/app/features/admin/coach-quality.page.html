@@ -1,0 +1,199 @@
+<header class="page-head">
+  <div class="page-title">
+    <h1>Coach quality</h1>
+    <p>Counts and rule names only. No question, answer or user appears on this page.</p>
+  </div>
+  <div class="period" role="group" aria-label="Period">
+    @for (period of periods; track period.days) {
+      <button type="button" [attr.aria-pressed]="days() === period.days" (click)="selectPeriod(period.days)">{{ period.label }}</button>
+    }
+  </div>
+</header>
+
+@switch (state().kind) {
+  @case ('loading') {
+    <div class="skeleton-page" role="status" aria-live="polite" aria-label="Loading the coach quality numbers">
+      <div class="tiles">
+        @for (tile of skeletonTiles; track tile) {
+          <div class="tile skeleton"></div>
+        }
+      </div>
+      <div class="row row-pair">
+        <div class="panel skeleton tall"></div>
+        <div class="panel skeleton tall"></div>
+      </div>
+      <div class="row row-triple">
+        <div class="panel skeleton short"></div>
+        <div class="panel skeleton short"></div>
+        <div class="panel skeleton short"></div>
+      </div>
+    </div>
+  }
+  @case ('error') {
+    <section class="panel error-panel" role="alert">
+      @if (forbidden()) {
+        <p>This page is for administrators.</p>
+      } @else {
+        <p>The numbers could not be loaded.</p>
+        <button class="retry" type="button" (click)="retry()">Try again</button>
+      }
+    </section>
+  }
+  @case ('ready') {
+    <div class="tiles">
+      @for (tile of tiles(); track tile.key) {
+        <div class="tile">
+          <div class="tile-label">
+            <span class="swatch" [attr.data-kind]="tile.key"></span>
+            <span>{{ tile.label }}</span>
+          </div>
+          <div class="tile-value">
+            <strong>{{ tile.value }}</strong>
+            <span>{{ tile.caption }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="row row-pair">
+      <section class="panel" aria-labelledby="answers-by-day">
+        <div class="panel-head">
+          <h2 id="answers-by-day">Answers by day</h2>
+          <span class="note">{{ chartRange() }}</span>
+        </div>
+        @if (hasAnswers()) {
+          <div class="strip" role="img" tabindex="0" [attr.aria-label]="chartAlt()">
+            @for (bar of bars(); track bar.date) {
+              <div class="day">
+                <span class="day-total">{{ bar.total }}</span>
+                <div class="bar">
+                  @for (segment of bar.segments; track segment.kind) {
+                    <span class="segment" [attr.data-kind]="segment.kind" [style.height.px]="segment.heightPx"></span>
+                  }
+                </div>
+                <span class="day-label">{{ bar.showLabel ? bar.label : '' }}</span>
+              </div>
+            }
+          </div>
+          <ul class="legend">
+            <li><span class="swatch" data-kind="passed"></span>Passed</li>
+            <li><span class="swatch" data-kind="rejected"></span>Rejected</li>
+            <li><span class="swatch" data-kind="refused"></span>Refused</li>
+            <li><span class="swatch" data-kind="unavailable"></span>Model unavailable</li>
+          </ul>
+        } @else {
+          <p class="empty">No answers in this period.</p>
+        }
+      </section>
+
+      <section class="panel" aria-labelledby="why-rejected">
+        <div class="panel-head">
+          <h2 id="why-rejected">Why answers were rejected</h2>
+          <span class="note">{{ rulesNote() }}</span>
+        </div>
+        @for (row of rejectedRules(); track row.rule) {
+          <div class="rule-row">
+            <code [attr.title]="row.rule">{{ row.rule }}</code>
+            <span class="rule-track"><span class="rule-fill" [style.width.%]="row.widthPercent"></span></span>
+            <span class="rule-count">{{ row.count }}</span>
+          </div>
+        } @empty {
+          <p class="empty">None in this period.</p>
+        }
+        <hr />
+        <h3>Why the coach refused</h3>
+        @for (row of refusedRules(); track row.rule) {
+          <div class="rule-row">
+            <code [attr.title]="row.rule">{{ row.rule }}</code>
+            <span class="rule-track"><span class="rule-fill" [style.width.%]="row.widthPercent"></span></span>
+            <span class="rule-count">{{ row.count }}</span>
+          </div>
+        } @empty {
+          <p class="empty">None in this period.</p>
+        }
+      </section>
+    </div>
+
+    <div class="row row-triple">
+      <section class="panel" aria-labelledby="time-to-answer">
+        <div class="panel-head">
+          <h2 id="time-to-answer">Time to answer</h2>
+          <span class="note">Passed only</span>
+        </div>
+        @if (hasPassed()) {
+          <div class="latency">
+            <div>
+              <span class="note">Median</span>
+              <strong>{{ median() }}</strong>
+            </div>
+            <div>
+              <span class="note">95th percentile</span>
+              <strong>{{ p95() }}</strong>
+            </div>
+          </div>
+        }
+        <p class="note">{{ passedLine() }}</p>
+      </section>
+
+      <section class="panel" aria-labelledby="tool-calls">
+        <div class="panel-head">
+          <h2 id="tool-calls">Tool calls</h2>
+          <span class="note">{{ toolsNote() }}</span>
+        </div>
+        @if (tools().length > 0) {
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Tool</th>
+                <th scope="col" class="num">Calls</th>
+                <th scope="col" class="num">Failed</th>
+                <th scope="col" class="num">Median</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (tool of tools(); track tool.tool) {
+                <tr>
+                  <th scope="row" [attr.title]="tool.tool">{{ tool.tool }}</th>
+                  <td class="num">{{ tool.calls }}</td>
+                  <td class="num">{{ tool.failed }}</td>
+                  <td class="num">{{ toolMedian(tool.medianMs) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="empty">No tool calls in this period.</p>
+        }
+      </section>
+
+      <section class="panel" aria-labelledby="readings-on-pages">
+        <div class="panel-head">
+          <h2 id="readings-on-pages">Readings on pages</h2>
+          <span class="note">{{ readingsNote() }}</span>
+        </div>
+        @if (readings().length > 0) {
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Page and writer</th>
+                <th scope="col" class="num">Accepted</th>
+                <th scope="col" class="num">Rejected</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of readings(); track row.label) {
+                <tr>
+                  <th scope="row" [attr.title]="row.label">{{ row.label }}</th>
+                  <td class="num">{{ row.accepted }}</td>
+                  <td class="num">{{ row.rejected }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="empty">No readings in this period.</p>
+        }
+      </section>
+    </div>
+  }
+}

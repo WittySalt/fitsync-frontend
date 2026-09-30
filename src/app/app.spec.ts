@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import { App } from './app';
@@ -27,7 +27,8 @@ describe('App', () => {
     document.documentElement.removeAttribute('data-theme');
     spyOn(window, 'matchMedia').and.returnValue({ matches: false } as MediaQueryList);
 
-    authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout', 'ensureSession']);
+    authService = jasmine.createSpyObj<AuthService>('AuthService', ['logout', 'ensureSession', 'isAdmin']);
+    authService.isAdmin.and.returnValue(false);
     authService.ensureSession.and.returnValue(of(true));
     accountDataService = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['getProfileSummary']);
     accountDataService.getProfileSummary.and.returnValue(of(accountSummary));
@@ -98,5 +99,45 @@ describe('App', () => {
     fixture.detectChanges();
 
     expect(themeButton?.getAttribute('aria-label')).toBe('Switch to light theme');
+  });
+
+  function openAccountMenu(fixture: ComponentFixture<App>): HTMLElement {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    compiled.querySelector<HTMLButtonElement>('.account-button')?.click();
+    fixture.detectChanges();
+    return compiled;
+  }
+
+  it('offers the admin area in the account menu to an administrator', () => {
+    authService.isAdmin.and.returnValue(true);
+    const compiled = openAccountMenu(TestBed.createComponent(App));
+
+    const adminLink = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.account-popover a')).find(
+      (link) => link.textContent?.trim() === 'Admin'
+    );
+    expect(adminLink?.getAttribute('href')).toBe('/admin');
+  });
+
+  it('keeps the admin item out of the DOM for a member', () => {
+    const compiled = openAccountMenu(TestBed.createComponent(App));
+
+    expect(compiled.querySelector('.account-popover')).not.toBeNull();
+    expect(compiled.querySelector('.account-popover a[href="/admin"]')).toBeNull();
+    expect(compiled.querySelector('.account-popover')?.textContent).not.toContain('Admin');
+  });
+
+  it('leaves the member navigation and coach dock out of the admin area', async () => {
+    const router = TestBed.inject(Router);
+    router.resetConfig([{ path: 'admin', children: [] }]);
+    await router.navigateByUrl('/admin');
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.app-shell')).toBeNull();
+    expect(compiled.querySelector('.nav-list')).toBeNull();
+    expect(compiled.querySelector('.bottom-nav')).toBeNull();
+    expect(compiled.querySelector('app-coach-dock')).toBeNull();
   });
 });

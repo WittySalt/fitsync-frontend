@@ -32,3 +32,27 @@ export const authGuard: CanActivateFn = (_route, state): Observable<boolean | Ur
     })
   );
 };
+
+/**
+ * Keeps the admin area to administrators as a convenience for the interface. It waits for the
+ * current-user response so that a reload on an admin page does not bounce an admin, but the
+ * server refuses a member on every admin call whatever this guard decided.
+ */
+export const adminGuard: CanActivateFn = (): Observable<boolean | UrlTree> => {
+  const authService = inject(AuthService);
+  const accountDataService = inject(AccountDataService);
+  const router = inject(Router);
+
+  return authService.ensureSession().pipe(
+    switchMap((authenticated) => {
+      if (!authenticated) {
+        return of(router.createUrlTree(['/auth/login']));
+      }
+
+      return accountDataService.getCurrentUser().pipe(
+        map(() => (authService.isAdmin() ? true : router.createUrlTree(['/dashboard']))),
+        catchError(() => of(router.createUrlTree(['/auth/login'])))
+      );
+    })
+  );
+};

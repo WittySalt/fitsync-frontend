@@ -1,4 +1,4 @@
-@if (isAuthRoute()) {
+@if (isAuthRoute() || isAdminRoute()) {
   <router-outlet />
 } @else {
 <div class="app-shell">
@@ -83,6 +83,10 @@
               <a role="menuitem" routerLink="/settings" fragment="personal" (click)="closeAccountMenu()">Personal settings</a>
               <a role="menuitem" routerLink="/settings" fragment="security" (click)="closeAccountMenu()">Security settings</a>
               <a role="menuitem" routerLink="/settings" fragment="notifications" (click)="closeAccountMenu()">Notifications</a>
+
+              @if (authService.isAdmin()) {
+                <a role="menuitem" routerLink="/admin" (click)="closeAccountMenu()">Admin</a>
+              }
 
               <button role="menuitem" type="button" class="logout-row" (click)="logout()">Sign out</button>
             </div>

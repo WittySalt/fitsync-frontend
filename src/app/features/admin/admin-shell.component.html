@@ -1,0 +1,63 @@
+<div class="admin-shell">
+  <nav class="admin-nav" aria-label="Admin">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6Z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      </span>
+      <div class="brand-text">
+        <strong>FitSync</strong>
+        <span>Admin</span>
+      </div>
+    </div>
+
+    <div class="links">
+      <a routerLink="/admin/coach-quality" routerLinkActive="active" ariaCurrentWhenActive="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M4 20V10" />
+          <path d="M10 20V4" />
+          <path d="M16 20v-7" />
+          <path d="M22 20H2" />
+        </svg>
+        <span>Coach quality</span>
+      </a>
+      <a routerLink="/admin/catalogue" routerLinkActive="active" ariaCurrentWhenActive="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" />
+          <path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20" />
+        </svg>
+        <span>Catalogue</span>
+      </a>
+      <a routerLink="/admin/users" routerLinkActive="active" ariaCurrentWhenActive="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+        </svg>
+        <span>User data</span>
+      </a>
+      <a routerLink="/admin/events" routerLinkActive="active" ariaCurrentWhenActive="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M4 6h16" />
+          <path d="M4 12h16" />
+          <path d="M4 18h10" />
+          <circle cx="19" cy="18" r="2" />
+        </svg>
+        <span>Events</span>
+      </a>
+    </div>
+
+    <a class="back" routerLink="/dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M19 12H5" />
+        <path d="M11 6l-6 6 6 6" />
+      </svg>
+      <span>Back to the app</span>
+    </a>
+  </nav>
+
+  <main class="admin-main">
+    <router-outlet />
+  </main>
+</div>
