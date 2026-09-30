@@ -77,11 +77,14 @@ h3 {
 }
 
 // Seven equal columns while there is room. Below that the strip scrolls sideways and keeps the
-// size of its buttons, so a day never gets squeezed into a sliver.
+// size of its buttons, so a day never gets squeezed into a sliver. The room is the card's own
+// width, which the page's sidebar makes much narrower than the window.
 .strip {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(132px, 1fr));
   gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .day {
@@ -254,16 +257,6 @@ h3 {
 
 .add-move:disabled {
   opacity: 0.6;
-}
-
-@media (max-width: 900px) {
-  .strip {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: 132px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
 }
 
 @media (max-width: 640px) {

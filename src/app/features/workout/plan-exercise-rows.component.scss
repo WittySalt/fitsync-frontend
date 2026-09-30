@@ -1,6 +1,10 @@
+// The rows lay themselves out by the width they are given, which inside a day of the week is far
+// narrower than the window.
 :host {
   display: grid;
   gap: 16px;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .exercise-row {
@@ -85,12 +89,24 @@ input {
   color: var(--danger);
 }
 
-@media (max-width: 640px) {
+@container (max-width: 860px) {
   .exercise-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .exercise-picker-label,
   .wide {
-    grid-column: auto;
+    grid-column: 1 / -1;
+  }
+
+  .exercise-row > .button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@container (max-width: 420px) {
+  .exercise-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
