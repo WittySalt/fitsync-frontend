@@ -404,6 +404,23 @@ describe('CoachStore — pinned reading', () => {
     expect(store.pinnedReading()).toBeNull();
   });
 
+  it('holds an offered reading without pinning it or opening the dock', () => {
+    store.offerReading(workoutReading);
+
+    expect(store.availableReading()).toBe(workoutReading);
+    expect(store.pinnedReading()).toBeNull();
+    expect(store.dockOpen()).toBeFalse();
+  });
+
+  it('drops an offered reading when the surface moves to another page', () => {
+    store.offerReading(workoutReading);
+
+    surface.set(nutritionSurface);
+    TestBed.inject(ApplicationRef).tick();
+
+    expect(store.availableReading()).toBeNull();
+  });
+
   it('keeps the pin but forgets which turns were cited when a new thread starts', () => {
     store.askAboutReading(workoutReading);
     store.ask('Should my core get a day off?');

@@ -1,5 +1,3 @@
-import { CoachApiService } from '../../core/coach/coach-api.service';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
@@ -70,26 +68,19 @@ const mockWorkoutSummary: AnalyticsWorkoutSummaryResponse = {
   activeStreakDays: 7
 };
 
-// The page carries a coach anchor. Its store is real; only the wire is stubbed, so the anchor
-// renders without a request that these specs never asked for.
-const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
-
 describe('ProfilePage', () => {
   let component: ProfilePage;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
 
   beforeEach(() => {
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard']);
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard', 'getGoals']);
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getWorkoutSummary']);
     dataService.getDashboard.and.returnValue(of(mockDashboard));
+    dataService.getGoals.and.returnValue(of([]));
     analyticsApi.getWorkoutSummary.and.returnValue(of(mockWorkoutSummary));
     TestBed.configureTestingModule({
       providers: [
-        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CoachApiService, useValue: coachApiStub },
         provideHttpClient(),
         provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
@@ -99,6 +90,15 @@ describe('ProfilePage', () => {
     component = TestBed.createComponent(ProfilePage).componentInstance;
     component.data.set(mockDashboard);
     component.workoutSummary.set(mockWorkoutSummary);
+  });
+
+  it('shows no coach block, because the page has no insight to read', () => {
+    const fixture = TestBed.createComponent(ProfilePage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-coach-anchor')).toBeNull();
+    expect(compiled.querySelector('app-insight-panel')).toBeNull();
   });
 
   it('derives initials from the display name', () => {

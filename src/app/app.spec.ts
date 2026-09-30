@@ -7,6 +7,7 @@ import { of } from 'rxjs';
 import { App } from './app';
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
+import { CoachStore } from './core/coach/coach.store';
 import { ThemeService } from './core/theme/theme.service';
 
 describe('App', () => {
@@ -115,6 +116,36 @@ describe('App', () => {
     expect(compiled.querySelector('.account-popover')).not.toBeNull();
     expect(compiled.querySelector('.account-popover a[href="/admin"]')).toBeNull();
     expect(compiled.querySelector('.account-popover')?.textContent).not.toContain('Admin');
+  });
+
+  describe('coach entry in the sidebar', () => {
+    it('sits after the navigation and names itself, with the key hint on its right', () => {
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+      const sidebar = (fixture.nativeElement as HTMLElement).querySelector('aside.sidebar') as HTMLElement;
+      const entry = sidebar.querySelector<HTMLButtonElement>('.coach-entry');
+
+      expect(entry).not.toBeNull();
+      expect(entry?.querySelector('.coach-entry-label')?.textContent?.trim()).toBe('Ask your coach');
+      expect(entry?.querySelector('.coach-entry-keys')?.textContent?.trim()).toBe('Ctrl K');
+      expect(sidebar.lastElementChild).toBe(entry);
+    });
+
+    it('opens the coach panel and reflects it in aria-expanded', () => {
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      const entry = compiled.querySelector<HTMLButtonElement>('.coach-entry') as HTMLButtonElement;
+      expect(entry.getAttribute('aria-expanded')).toBe('false');
+      expect(compiled.querySelector('aside.dock')).toBeNull();
+
+      entry.click();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(CoachStore).dockOpen()).toBeTrue();
+      expect(entry.getAttribute('aria-expanded')).toBe('true');
+      expect(compiled.querySelector('aside.dock')).not.toBeNull();
+    });
   });
 
   it('leaves the member navigation and coach dock out of the admin area', async () => {

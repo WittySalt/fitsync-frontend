@@ -47,6 +47,9 @@ import {
   MealFormValue,
   MuscleGroupCode,
   MuscleGroupInsight,
+  NutritionInsightsPage,
+  ProgressInsight,
+  ProteinByMeal,
   NextTraining,
   PlannedDay,
   QuickAddMealValue,
@@ -78,7 +81,8 @@ import {
   WorkoutSessionPage,
   WorkoutSessionQuery,
   UpdateExerciseRequest,
-  WeeklyTrainingInsight
+  WeeklyTrainingInsight,
+  WeightSeriesPoint
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -140,6 +144,14 @@ function goalEvaluationTime(goal: Goal): number {
 
   const timestamp = Date.parse(goal.lastEvaluatedAt);
   return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null;
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 const MUSCLE_GROUP_CODES: MuscleGroupCode[] = [
@@ -1104,6 +1116,51 @@ export class FitSyncDataService {
       return 10;
     }
     return Math.min(Math.max(parsed, 1), 100);
+  }
+
+  /** The protein-by-meal figures that draw the chart in the nutrition reading. Errors propagate so
+   *  that the reading can be shown without its chart. */
+  getNutritionInsightsPage(timezone: string): Observable<NutritionInsightsPage> {
+    const params = new HttpParams().set('timezone', timezone);
+    return this.http.get<Partial<NutritionInsightsPage>>(`${this.apiBaseUrl}/nutrition/insights/page`, { params }).pipe(
+      map((response) => ({
+        period: response.period ?? '',
+        periodStart: textOrNull(response.periodStart),
+        periodEnd: textOrNull(response.periodEnd),
+        daysLogged: numberOrNull(response.daysLogged),
+        proteinPerDayGrams: numberOrNull(response.proteinPerDayGrams),
+        proteinTargetGrams: numberOrNull(response.proteinTargetGrams),
+        proteinByMeal: (response.proteinByMeal ?? [])
+          .map((entry): ProteinByMeal | null => {
+            const grams = numberOrNull(entry?.gramsPerDay);
+            return entry && grams !== null ? { mealType: entry.mealType ?? '', label: entry.label ?? '', gramsPerDay: grams } : null;
+          })
+          .filter((entry): entry is ProteinByMeal => entry !== null)
+      }))
+    );
+  }
+
+  /** The weight series and goal projection that draw the chart in the progress reading. Errors
+   *  propagate so that the reading can be shown without its chart. */
+  getProgressInsight(timezone: string): Observable<ProgressInsight> {
+    const params = new HttpParams().set('timezone', timezone);
+    return this.http.get<Partial<ProgressInsight>>(`${this.apiBaseUrl}/users/me/insights/progress`, { params }).pipe(
+      map((response) => ({
+        referenceDate: textOrNull(response.referenceDate),
+        weightKg: numberOrNull(response.weightKg),
+        measuredOn: textOrNull(response.measuredOn),
+        weeklyRateKg: numberOrNull(response.weeklyRateKg),
+        goalWeightKg: numberOrNull(response.goalWeightKg),
+        goalDate: textOrNull(response.goalDate),
+        projectedDate: textOrNull(response.projectedDate),
+        series: (response.series ?? [])
+          .map((point): WeightSeriesPoint | null => {
+            const weight = numberOrNull(point?.weightKg);
+            return point && typeof point.date === 'string' && weight !== null ? { date: point.date, weightKg: weight } : null;
+          })
+          .filter((point): point is WeightSeriesPoint => point !== null)
+      }))
+    );
   }
 
   getGoals(): Observable<UserGoal[]> {

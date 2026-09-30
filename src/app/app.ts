@@ -5,6 +5,7 @@ import { filter } from 'rxjs';
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
 import { ThemeService } from './core/theme/theme.service';
+import { CoachStore } from './core/coach/coach.store';
 import { CoachDockComponent } from './shared/coach/coach-dock.component';
 import { ToastOutletComponent } from './shared/toast-outlet.component';
 
@@ -19,6 +20,7 @@ export class App implements OnInit {
   protected readonly authService = inject(AuthService);
   private readonly accountDataService = inject(AccountDataService);
   protected readonly themeService = inject(ThemeService);
+  protected readonly coach = inject(CoachStore);
 
   protected readonly accountMenuOpen = signal(false);
   protected readonly account = signal<AccountSummary | null>(null);

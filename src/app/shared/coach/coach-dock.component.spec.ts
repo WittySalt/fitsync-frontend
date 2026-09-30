@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { Surface } from '../../core/coach/coach-context.service';
 import { CoachReading, CoachThreadDetail, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStatus, CoachStore, LiveStep } from '../../core/coach/coach.store';
-import { CoachDockComponent, isBuildRequest } from './coach-dock.component';
+import { CoachDockComponent, MATCH_MEDIA, isBuildRequest } from './coach-dock.component';
 
 /**
  * Which messages take the drafting path rather than the chat loop.
@@ -78,6 +78,7 @@ class FakeCoachStore {
   latestDraft = signal<SessionDraftView | null>(null);
   composerPrefill = signal<string | null>(null);
   pinnedReading = signal<CoachReading | null>(null);
+  availableReading = signal<CoachReading | null>(null);
   citedTurns = signal<ReadonlyMap<string, CoachReading>>(new Map());
   surface = signal<Surface>(WORKOUT_SURFACE);
 
@@ -94,6 +95,7 @@ class FakeCoachStore {
   ask = jasmine.createSpy('ask');
   buildSession = jasmine.createSpy('buildSession');
   askAbout = jasmine.createSpy('askAbout');
+  askAboutReading = jasmine.createSpy('askAboutReading').and.callFake((reading: CoachReading) => this.pinnedReading.set(reading));
   letGoOfReading = jasmine.createSpy('letGoOfReading').and.callFake(() => this.pinnedReading.set(null));
 }
 
@@ -171,9 +173,9 @@ describe('CoachDockComponent — pinned reading', () => {
     store.pinnedReading.set(PINNED_READING);
     render();
 
-    const buttons = Array.from(element.querySelectorAll('.follow-q')) as HTMLButtonElement[];
+    const buttons = Array.from(element.querySelectorAll('.sugg')) as HTMLButtonElement[];
     // Two candidates apply (day-off, next-lift) plus the build question, capped at three.
-    expect(buttons.map((b) => b.querySelector('span:first-child')?.textContent?.trim())).toEqual([
+    expect(buttons.map((b) => b.querySelector('.sugg-text')?.textContent?.trim())).toEqual([
       'Should my core get a day off?',
       'What should I lift next time?',
       'Build a session for today'
@@ -196,10 +198,13 @@ describe('CoachDockComponent — pinned reading', () => {
     expect(element.querySelector('app-recommendation-card')).toBeNull();
   });
 
-  it('shows the recommendation cards again once nothing is pinned', () => {
+  it('keeps the recommendation cards behind the earlier notes row once nothing is pinned', () => {
     store.recommendations.set([{ type: 'WEEKLY_ADHERENCE', source: 'RULE', facts: {}, narrative: 'w', generatedAt: '', expiresAt: null }]);
     render();
 
+    expect(element.querySelector('app-recommendation-card')).toBeNull();
+    (element.querySelector('.earlier-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
     expect(element.querySelector('app-recommendation-card')).not.toBeNull();
   });
 
@@ -244,5 +249,203 @@ describe('CoachDockComponent — pinned reading', () => {
 
     expect(element.querySelector('.cite-badge')).toBeNull();
     expect(element.querySelector('.turn-a p')?.textContent?.trim()).toBe('This mentions fact in passing.');
+  });
+});
+
+/** Two older insight cards, for the first-screen tests below. */
+const WEEKLY_NOTE: Recommendation = { type: 'WEEKLY_ADHERENCE', source: 'RULE', facts: {}, narrative: 'w', generatedAt: '', expiresAt: null };
+const STREAK_NOTE: Recommendation = { type: 'STREAK_NUDGE', source: 'RULE', facts: {}, narrative: 's', generatedAt: '', expiresAt: null };
+
+/** The panel as it first opens: its width, the order of what it shows, and the questions it offers. */
+describe('CoachDockComponent — first screen', () => {
+  let fixture: ComponentFixture<CoachDockComponent>;
+  let element: HTMLElement;
+  let store: FakeCoachStore;
+  let sidebar: boolean;
+
+  function render(): void {
+    fixture = TestBed.createComponent(CoachDockComponent);
+    fixture.detectChanges();
+    element = fixture.nativeElement as HTMLElement;
+  }
+
+  function text(selector: string): string[] {
+    return Array.from(element.querySelectorAll(selector)).map((n) => n.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+  }
+
+  function follows(first: Element | null, second: Element | null): boolean {
+    return !!first && !!second && (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  }
+
+  beforeEach(async () => {
+    store = new FakeCoachStore();
+    sidebar = false;
+    await TestBed.configureTestingModule({
+      imports: [CoachDockComponent],
+      providers: [
+        provideRouter([]),
+        { provide: CoachStore, useValue: store },
+        { provide: MATCH_MEDIA, useValue: () => ({ matches: sidebar, addEventListener: () => undefined, removeEventListener: () => undefined }) }
+      ]
+    }).compileComponents();
+  });
+
+  it('opens at the wide panel width', () => {
+    render();
+
+    expect(element.querySelector('aside.dock')?.classList).toContain('dock-wide');
+  });
+
+  it('lists the context line, the reading, the suggestions and the input in that order', () => {
+    store.availableReading.set(PINNED_READING);
+    render();
+
+    const looking = element.querySelector('.looking');
+    const reading = element.querySelector('.reading-row');
+    const suggestions = element.querySelector('.suggs');
+    const composer = element.querySelector('.composer');
+    expect(follows(looking, reading)).withContext('reading after context').toBeTrue();
+    expect(follows(reading, suggestions)).withContext('suggestions after reading').toBeTrue();
+    expect(follows(suggestions, composer)).withContext('input after suggestions').toBeTrue();
+    expect(element.querySelector('.reading-headline')?.textContent?.trim()).toBe('Your sessions held steady.');
+  });
+
+  it('pins the reading when its row is pressed', () => {
+    store.availableReading.set(PINNED_READING);
+    render();
+
+    (element.querySelector('.reading-row') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(store.askAboutReading).toHaveBeenCalledWith(PINNED_READING);
+    expect(element.querySelector('.reading-row')).toBeNull();
+    expect(element.querySelector('.pinned')).not.toBeNull();
+  });
+
+  it('shows no reading row when the page has no reading to offer', () => {
+    render();
+
+    expect(element.querySelector('.reading-row')).toBeNull();
+  });
+
+  it('shows the suggestions once before a question and once after the answer', () => {
+    render();
+    expect(text('.sugg-text')).toEqual(['Should I train today?']);
+
+    store.thread.set({
+      thread: { threadId: 't1', title: null, turnCount: 1, lastActiveAt: '', createdAt: '' },
+      turns: [turn({ content: 'Yes.' })]
+    });
+    fixture.detectChanges();
+
+    expect(text('.sugg-text')).toEqual(['Should I train today?']);
+    expect(element.querySelectorAll('.suggs').length).toBe(1);
+  });
+
+  it('offers at most three suggestions', () => {
+    store.surface.set({
+      ...WORKOUT_SURFACE,
+      suggestions: ['a', 'b', 'c', 'd'].map((question) => ({ text: question, generative: false }))
+    });
+    render();
+
+    expect(text('.sugg-text')).toEqual(['a', 'b', 'c']);
+  });
+
+  it('sends a plain suggestion to the chat loop and a generative one to drafting', () => {
+    store.surface.set({
+      ...WORKOUT_SURFACE,
+      suggestions: [
+        { text: 'Should I train today?', generative: false },
+        { text: 'Build me a session for today', generative: true }
+      ]
+    });
+    render();
+
+    const buttons = Array.from(element.querySelectorAll('.sugg')) as HTMLButtonElement[];
+    buttons[0].click();
+    buttons[1].click();
+
+    expect(store.ask).toHaveBeenCalledWith('Should I train today?');
+    expect(store.buildSession).toHaveBeenCalledWith('Build me a session for today');
+  });
+
+  it('keeps the earlier notes collapsed at first, with their count, and opens them on a click', () => {
+    store.recommendations.set([WEEKLY_NOTE, STREAK_NOTE]);
+    render();
+
+    const toggle = element.querySelector('.earlier-toggle') as HTMLButtonElement;
+    expect(toggle.textContent).toContain('Earlier notes');
+    expect(element.querySelector('.earlier-count')?.textContent?.trim()).toBe('2');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(element.querySelectorAll('app-recommendation-card').length).toBe(0);
+
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(element.querySelectorAll('app-recommendation-card').length).toBe(2);
+  });
+
+  it('puts the earlier notes after the suggestions', () => {
+    store.recommendations.set([WEEKLY_NOTE]);
+    render();
+
+    expect(follows(element.querySelector('.suggs'), element.querySelector('.earlier'))).toBeTrue();
+  });
+
+  it('has no earlier notes row when there are no notes', () => {
+    render();
+
+    expect(element.querySelector('.earlier')).toBeNull();
+  });
+
+  it('has no earlier notes row once the conversation has begun', () => {
+    store.recommendations.set([WEEKLY_NOTE]);
+    store.thread.set({
+      thread: { threadId: 't1', title: null, turnCount: 1, lastActiveAt: '', createdAt: '' },
+      turns: [turn({ content: 'Yes.' })]
+    });
+    render();
+
+    expect(element.querySelector('.earlier')).toBeNull();
+  });
+
+  it('draws the floating button when the sidebar is not showing', () => {
+    render();
+
+    store.dockOpen.set(false);
+    fixture.detectChanges();
+
+    expect(element.querySelector('.launch')).not.toBeNull();
+  });
+
+  it('leaves the floating button out when the sidebar is showing', () => {
+    sidebar = true;
+    render();
+
+    store.dockOpen.set(false);
+    fixture.detectChanges();
+
+    expect(element.querySelector('.launch')).toBeNull();
+  });
+
+  it('opens the panel from the floating button', () => {
+    render();
+    store.dockOpen.set(false);
+    fixture.detectChanges();
+
+    (element.querySelector('.launch') as HTMLButtonElement).click();
+
+    expect(store.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggles the panel on Ctrl+K whatever the width', () => {
+    sidebar = true;
+    render();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+
+    expect(store.toggle).toHaveBeenCalledTimes(1);
   });
 });

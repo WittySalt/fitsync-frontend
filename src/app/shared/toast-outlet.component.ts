@@ -38,6 +38,14 @@ import { ToastService } from '../core/toast/toast.service';
         pointer-events: none;
       }
 
+      /* Below the sidebar breakpoint the bottom navigation and the floating coach button are on
+         screen, so the stack sits above them. */
+      @media (max-width: 860px) {
+        .toast-stack {
+          bottom: 144px;
+        }
+      }
+
       .toast {
         display: flex;
         align-items: center;

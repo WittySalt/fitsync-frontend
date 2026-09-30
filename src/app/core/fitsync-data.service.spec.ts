@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -1279,6 +1279,92 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].name).toBe('Cardio');
     expect(result?.[0].workoutType).toBe('CARDIO');
     expect(result?.[0].durationMinutes).toBe(60);
+  });
+
+  it('requests the nutrition insight page with the timezone and keeps the protein by meal in order', () => {
+    let result: NutritionInsightsPage | undefined;
+    service.getNutritionInsightsPage('Asia/Singapore').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/nutrition/insights/page' && req.params.get('timezone') === 'Asia/Singapore'
+    );
+    request.flush({
+      period: 'PREVIOUS_WEEK',
+      periodStart: '2026-09-21',
+      periodEnd: '2026-09-27',
+      daysLogged: 6,
+      proteinPerDayGrams: 159,
+      proteinTargetGrams: 155,
+      proteinByMeal: [
+        { mealType: 'BREAKFAST', label: 'Breakfast', gramsPerDay: 27.4 },
+        { mealType: 'LUNCH', label: 'Lunch', gramsPerDay: 54 }
+      ]
+    });
+
+    expect(result?.daysLogged).toBe(6);
+    expect(result?.proteinByMeal.map((meal) => meal.label)).toEqual(['Breakfast', 'Lunch']);
+    expect(result?.proteinByMeal[0].gramsPerDay).toBe(27.4);
+  });
+
+  it('maps a nutrition insight page with missing fields to an empty list and null numbers', () => {
+    let result: NutritionInsightsPage | undefined;
+    service.getNutritionInsightsPage('UTC').subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/insights/page').flush({
+      proteinByMeal: [{ mealType: 'LUNCH', label: 'Lunch' }, null]
+    });
+
+    expect(result?.proteinByMeal).toEqual([]);
+    expect(result?.daysLogged).toBeNull();
+    expect(result?.proteinTargetGrams).toBeNull();
+    expect(result?.periodStart).toBeNull();
+  });
+
+  it('lets a failed nutrition insight request propagate', () => {
+    let failed = false;
+    service.getNutritionInsightsPage('UTC').subscribe({ error: () => (failed = true) });
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/insights/page').flush('no', { status: 500, statusText: 'Server Error' });
+    expect(failed).toBeTrue();
+  });
+
+  it('requests the progress insight with the timezone and keeps the weight series', () => {
+    let result: ProgressInsight | undefined;
+    service.getProgressInsight('Asia/Singapore').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/users/me/insights/progress' && req.params.get('timezone') === 'Asia/Singapore'
+    );
+    request.flush({
+      referenceDate: '2026-10-01',
+      weightKg: 71.1,
+      measuredOn: '2026-10-01',
+      weeklyRateKg: -0.4,
+      goalWeightKg: 68,
+      goalDate: '2026-11-25',
+      projectedDate: '2026-10-25',
+      series: [
+        { date: '2026-09-13', weightKg: 72.5 },
+        { date: '2026-10-01', weightKg: 71.1 }
+      ]
+    });
+
+    expect(result?.goalWeightKg).toBe(68);
+    expect(result?.projectedDate).toBe('2026-10-25');
+    expect(result?.series.length).toBe(2);
+  });
+
+  it('maps a progress insight with missing fields to an empty series and null numbers', () => {
+    let result: ProgressInsight | undefined;
+    service.getProgressInsight('UTC').subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({
+      series: [{ date: '2026-09-13' }, { weightKg: 70 }, { date: '2026-09-14', weightKg: 'heavy' }]
+    });
+
+    expect(result?.series).toEqual([]);
+    expect(result?.weightKg).toBeNull();
+    expect(result?.goalWeightKg).toBeNull();
+    expect(result?.projectedDate).toBeNull();
   });
 
   it('requests the weekly training insight with timezone and, when given, date', () => {

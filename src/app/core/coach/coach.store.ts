@@ -93,9 +93,28 @@ export class CoachStore {
     this.pinnedReading.set(null);
   }
 
+  /**
+   * The reading the current page has on show, offered by the page's insight panel so the dock can
+   * list it on its first screen. Unlike the pinned reading it is not the subject of anything yet:
+   * pressing it in the dock pins it.
+   */
+  readonly availableReading = signal<CoachReading | null>(null);
+
+  offerReading(reading: CoachReading | null): void {
+    this.availableReading.set(reading);
+  }
+
   readonly surface = this.context.surface;
 
   constructor() {
+    // An offered reading is about one page, so it goes when the page does.
+    effect(() => {
+      const reading = this.availableReading();
+      if (reading && this.surface().code !== reading.surface) {
+        this.availableReading.set(null);
+      }
+    });
+
     // Moving to a page about something else drops the pin: a reading pinned from the workout page
     // has nothing to say about the nutrition page, and carrying it across would ground the coach's
     // next answer in the wrong week's facts.

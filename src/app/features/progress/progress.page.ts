@@ -18,7 +18,7 @@ import { BodyPage } from '../body/body.page';
 import { ActivityHeatmapComponent } from './activity-heatmap.component';
 import { AnalyticsComparisonCardComponent } from './analytics-comparison-card.component';
 import { AnalyticsTrendChartsComponent } from './analytics-trend-charts.component';
-import { CoachAnchorComponent } from '../../shared/coach/coach-anchor.component';
+import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
 interface GoalOption {
   value: string;
@@ -29,7 +29,8 @@ type ProgressTab = 'overview' | 'body' | 'goals';
 
 @Component({
   selector: 'app-progress-page',
-  imports: [CoachAnchorComponent, 
+  imports: [
+    InsightPanelComponent,
     ActivityHeatmapComponent,
     AnalyticsComparisonCardComponent,
     AnalyticsTrendChartsComponent,
