@@ -53,6 +53,26 @@ function beatRecordQuestion(facts: ReadingFact[]): ReadingQuestion | null {
   return { text: named ? `What would beat my ${fact.label}?` : 'What would beat this record?', makesDraft: false };
 }
 
+/** A breakfast question, from a fact about the protein eaten at breakfast. */
+function breakfastQuestion(facts: ReadingFact[]): ReadingQuestion | null {
+  return facts.some((f) => f.key === 'PROTEIN_BREAKFAST') ? { text: 'What did I eat for breakfast last week?', makesDraft: false } : null;
+}
+
+/** A target question, from the fact about the protein eaten per day. */
+function proteinTargetQuestion(facts: ReadingFact[]): ReadingQuestion | null {
+  return facts.some((f) => f.key === 'PROTEIN_PER_DAY') ? { text: 'How does my protein compare with my target?', makesDraft: false } : null;
+}
+
+/** A weight question, from the fact about the weekly rate of change. */
+function weightMovedQuestion(facts: ReadingFact[]): ReadingQuestion | null {
+  return facts.some((f) => f.key === 'WEEKLY_RATE') ? { text: 'How has my weight moved this month?', makesDraft: false } : null;
+}
+
+/** A goal-date question, from the fact about the goal weight. */
+function goalDateQuestion(facts: ReadingFact[]): ReadingQuestion | null {
+  return facts.some((f) => f.key === 'GOAL') ? { text: 'When do I reach my goal at this rate?', makesDraft: false } : null;
+}
+
 /**
  * The follow-up questions offered under a pinned reading.
  *
@@ -62,7 +82,15 @@ function beatRecordQuestion(facts: ReadingFact[]): ReadingQuestion | null {
  * fourth, because it is the one question the user can act on without asking the coach anything.
  */
 export function questionsFor(reading: CoachReading): ReadingQuestion[] {
-  const candidates = [dayOffQuestion(reading.facts), nextLiftQuestion(reading.facts), beatRecordQuestion(reading.facts)].filter(
+  const candidates = [
+    dayOffQuestion(reading.facts),
+    nextLiftQuestion(reading.facts),
+    beatRecordQuestion(reading.facts),
+    breakfastQuestion(reading.facts),
+    proteinTargetQuestion(reading.facts),
+    weightMovedQuestion(reading.facts),
+    goalDateQuestion(reading.facts)
+  ].filter(
     (question): question is ReadingQuestion => question !== null
   );
 

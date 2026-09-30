@@ -68,6 +68,12 @@
             @if (lifts().length) {
               <app-slope-chart [lifts]="lifts()" />
             }
+            @if (meals(); as page) {
+              <app-meal-bars [meals]="page.proteinByMeal" [emphasiseLunchAndDinner]="lunchAndDinnerLed()" />
+            }
+            @if (weight(); as insight) {
+              <app-weight-projection [insight]="insight" />
+            }
 
             <div class="reading-actions">
               <button type="button" class="light-button" (click)="askAboutThis()">

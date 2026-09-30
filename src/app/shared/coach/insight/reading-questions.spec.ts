@@ -95,4 +95,28 @@ describe('questionsFor', () => {
     const questions = questionsFor({ ...reading([fact({ key: 'RECORD' })]), surface: 'OTHER' as never });
     expect(questions).toEqual([{ text: 'What would beat this record?', makesDraft: false }]);
   });
+
+  it('offers the questions of the nutrition and progress readings, none of which makes a draft', () => {
+    const cases: [string, string, CoachReading['surface']][] = [
+      ['PROTEIN_BREAKFAST', 'What did I eat for breakfast last week?', 'NUTRITION'],
+      ['PROTEIN_PER_DAY', 'How does my protein compare with my target?', 'NUTRITION'],
+      ['WEEKLY_RATE', 'How has my weight moved this month?', 'PROGRESS'],
+      ['GOAL', 'When do I reach my goal at this rate?', 'PROGRESS']
+    ];
+    for (const [key, text, surface] of cases) {
+      const questions = questionsFor({ ...reading([fact({ key })]), surface });
+      expect(questions).withContext(key).toEqual([{ text, makesDraft: false }]);
+    }
+  });
+
+  it('offers no build question on the nutrition surface and asks only what the facts support', () => {
+    const questions = questionsFor({
+      ...reading([fact({ key: 'PROTEIN_BREAKFAST' }), fact({ key: 'PROTEIN_PER_DAY' }), fact({ key: 'CALORIES_PER_DAY' })]),
+      surface: 'NUTRITION'
+    });
+    expect(questions.map((question) => question.text)).toEqual([
+      'What did I eat for breakfast last week?',
+      'How does my protein compare with my target?'
+    ]);
+  });
 });

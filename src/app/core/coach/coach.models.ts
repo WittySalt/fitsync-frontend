@@ -164,7 +164,7 @@ export function tierLabel(tier: number | null | undefined): string {
 }
 
 /** Which page a reading belongs to. Only the Workout page has one so far. */
-export type ReadingSurface = 'WORKOUT';
+export type ReadingSurface = 'WORKOUT' | 'NUTRITION' | 'PROGRESS';
 
 /**
  * Where a reading stands. READY carries a reading. WRITING means the model is at work and the
@@ -204,7 +204,7 @@ export interface CoachReading {
   surface: ReadingSurface;
   status: ReadingStatus;
   readingId: string | null;
-  period: 'THIS_WEEK' | 'PREVIOUS_WEEK' | 'NONE';
+  period: 'THIS_WEEK' | 'PREVIOUS_WEEK' | 'LAST_28_DAYS' | 'NONE';
   periodStart: string | null;
   periodEnd: string | null;
   facts: ReadingFact[];
