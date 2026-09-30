@@ -23,6 +23,23 @@
         </a>
       }
     </nav>
+
+    <button
+      class="coach-entry"
+      type="button"
+      aria-keyshortcuts="Control+K Meta+K"
+      [attr.aria-expanded]="coach.dockOpen()"
+      (click)="coach.toggle()"
+    >
+      <span class="coach-entry-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9Z" />
+          <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" />
+        </svg>
+      </span>
+      <span class="coach-entry-label">Ask your coach</span>
+      <kbd class="coach-entry-keys" aria-hidden="true">Ctrl K</kbd>
+    </button>
   </aside>
 
   <main class="content-frame">
