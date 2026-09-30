@@ -238,9 +238,28 @@
   }
 }
 
+// Five tiles do not divide into three columns. The total takes a row of its own and the four
+// outcomes share the next, and the two tables get the full width so that no name is cut short.
 @media (max-width: 1100px) {
   .tiles {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+
+    > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .tile {
+    padding-inline: 14px;
+  }
+
+  .tile-label {
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .row-triple {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
