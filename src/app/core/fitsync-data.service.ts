@@ -1612,7 +1612,9 @@ export class FitSyncDataService {
         caloriesBurned: value.caloriesBurned,
         perceivedExertion: value.perceivedExertion,
         notes: value.notes || null,
-        exercises: []
+        exercises: [],
+        ...(value.sportActivity ? { sportActivity: value.sportActivity } : {}),
+        ...(value.distanceKm != null ? { distanceKm: value.distanceKm } : {})
       })
       .pipe(map(() => ({ ok: true as const })));
   }
@@ -2095,7 +2097,11 @@ export class FitSyncDataService {
       durationMinutes: session.durationMinutes ?? null,
       caloriesBurned: session.caloriesBurned ?? null,
       completedAt: session.completedAt ?? '',
-      exerciseCount: session.exerciseCount ?? 0
+      exerciseCount: session.exerciseCount ?? 0,
+      kind: session.kind ?? null,
+      sportActivity: session.sportActivity ?? null,
+      sportLabel: session.sportLabel ?? null,
+      distanceKm: this.numericValue(session.distanceKm)
     };
   }
 

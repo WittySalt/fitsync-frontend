@@ -93,6 +93,11 @@ export interface WorkoutSession {
   caloriesBurned: number | null;
   completedAt: string;
   exerciseCount: number;
+  /** Set when the backend classifies the session; a sport session also names its activity. */
+  kind?: string | null;
+  sportActivity?: string | null;
+  sportLabel?: string | null;
+  distanceKm?: number | null;
 }
 
 export interface WorkoutSessionPage {
@@ -120,6 +125,9 @@ export interface WorkoutSessionFormValue {
   caloriesBurned: number;
   perceivedExertion: number | null;
   notes: string;
+  /** Required by the backend for a SPORTS session and sent for no other type. */
+  sportActivity?: string;
+  distanceKm?: number;
 }
 
 export interface StartAdHocSessionInput {
@@ -206,6 +214,8 @@ export interface UpsertWorkoutSessionRequest {
   perceivedExertion: number | null;
   notes: string | null;
   exercises: WorkoutExerciseLogInput[];
+  sportActivity?: string | null;
+  distanceKm?: number | null;
 }
 
 export interface WorkoutExport {

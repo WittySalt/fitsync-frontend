@@ -19,6 +19,7 @@ import {
   WorkoutExerciseSetLog,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
+import { formatKm } from '../dashboard/brief/brief-duration';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
@@ -331,6 +332,10 @@ export class SessionDetailComponent implements OnInit, OnChanges {
 
   formatDuration(session: WorkoutSessionDetail): string {
     return sessionDurationLabel(session);
+  }
+
+  formatDistance(km: number | null | undefined): string {
+    return formatKm(km);
   }
 
   formatCalories(value: number | null | undefined): string {

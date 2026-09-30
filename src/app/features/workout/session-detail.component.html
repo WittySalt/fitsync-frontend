@@ -199,7 +199,7 @@
     <dl class="detail-grid">
       <div>
         <dt>Type</dt>
-        <dd>{{ formatLabel(detail.workoutType) }}</dd>
+        <dd>{{ detail.sportLabel || formatLabel(detail.workoutType) }}</dd>
       </div>
       <div>
         <dt>Status</dt>
@@ -217,6 +217,12 @@
         <dt>Duration</dt>
         <dd>{{ formatDuration(detail) }}</dd>
       </div>
+      @if (detail.distanceKm != null) {
+        <div>
+          <dt>Distance</dt>
+          <dd>{{ formatDistance(detail.distanceKm) }}</dd>
+        </div>
+      }
       <div>
         <dt>Calories</dt>
         <dd>{{ formatCalories(detail.caloriesBurned) }}</dd>

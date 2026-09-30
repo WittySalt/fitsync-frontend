@@ -1,8 +1,10 @@
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Output, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { SportActivityOption, WorkoutSessionFormValue } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { LiveTrackerGoal, LiveTrackerStartEvent } from './live-tracker.models';
 import { WorkoutLiveService } from './workout-live.service';
@@ -11,6 +13,8 @@ type StartMode = 'FREE' | 'GOAL';
 type GoalType = 'MINUTES' | 'CALORIES';
 
 const CUSTOM_NAME = 'Custom…';
+const SPORTS_TYPE = 'SPORTS';
+const DISTANCE_MEASURE = 'TIME_AND_DISTANCE';
 type SessionNameValue = { name: string; customName: string };
 
 @Component({
@@ -34,6 +38,8 @@ export class LiveStartCardComponent {
   readonly savingPastWorkout = signal(false);
 
   readonly workoutTypes = ['STRENGTH', 'CARDIO', 'HIIT', 'MOBILITY', 'CUSTOM'];
+  // The live tracker cannot start a sport session, so only the past workout form offers the type.
+  readonly pastWorkoutTypes = ['STRENGTH', 'CARDIO', 'HIIT', 'MOBILITY', SPORTS_TYPE, 'CUSTOM'];
   readonly namePresets = [
     'Morning Strength',
     'Evening Strength',
@@ -66,10 +72,42 @@ export class LiveStartCardComponent {
       durationMinutes: [45, [Validators.required, Validators.min(1), Validators.max(600)]],
       caloriesBurned: [350, [Validators.required, Validators.min(0), Validators.max(5000)]],
       perceivedExertion: [7, [Validators.min(1), Validators.max(10)]],
-      notes: ['', Validators.maxLength(300)]
+      notes: ['', Validators.maxLength(300)],
+      sportActivity: [''],
+      distanceKm: [null as number | null, [Validators.min(0), Validators.max(1000)]]
     },
-    { validators: customNameRequiredValidator }
+    { validators: pastWorkoutValidator }
   );
+
+  readonly sportActivities = signal<SportActivityOption[]>([]);
+  readonly sportsLoadFailed = signal(false);
+  private sportsRequested = false;
+
+  // Reactive form values are not signals, so the fields that decide what the form shows are mirrored.
+  private readonly pastType = toSignal(this.pastWorkoutForm.controls.workoutType.valueChanges, {
+    initialValue: this.pastWorkoutForm.controls.workoutType.value
+  });
+  private readonly pastSportCode = toSignal(this.pastWorkoutForm.controls.sportActivity.valueChanges, {
+    initialValue: this.pastWorkoutForm.controls.sportActivity.value
+  });
+
+  readonly isSportSession = computed(() => this.pastType() === SPORTS_TYPE);
+  readonly chosenSport = computed(() => this.sportActivities().find((sport) => sport.code === this.pastSportCode()) ?? null);
+  readonly showDistance = computed(
+    () => this.pastType() === 'CARDIO' || (this.isSportSession() && this.chosenSport()?.measure === DISTANCE_MEASURE)
+  );
+
+  constructor() {
+    this.pastWorkoutForm.controls.workoutType.valueChanges.pipe(takeUntilDestroyed()).subscribe((type) => {
+      if (type === SPORTS_TYPE) {
+        this.loadSports();
+      }
+      this.clearHiddenDistance();
+    });
+    this.pastWorkoutForm.controls.sportActivity.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.clearHiddenDistance());
+  }
 
   selectMode(mode: StartMode): void {
     this.startMode.set(mode);
@@ -103,20 +141,21 @@ export class LiveStartCardComponent {
 
   savePastWorkout(): void {
     this.pastWorkoutForm.markAllAsTouched();
+    if (this.isSportSession() && this.sportsLoadFailed()) {
+      this.toast.error('Sports could not be loaded. Try again in a moment.');
+      return;
+    }
     if (this.pastWorkoutForm.invalid || this.savingPastWorkout()) {
+      return;
+    }
+    // A preselected sport is only known by its code until the list has arrived.
+    if (this.isSportSession() && !this.chosenSport()) {
+      this.toast.error('Sports are still loading. Try again in a moment.');
       return;
     }
 
     this.savingPastWorkout.set(true);
-    const raw = this.pastWorkoutForm.getRawValue();
-    this.dataService.saveWorkoutSession({
-      name: this.resolveSessionName(raw),
-      workoutType: raw.workoutType,
-      durationMinutes: raw.durationMinutes,
-      caloriesBurned: raw.caloriesBurned,
-      perceivedExertion: raw.perceivedExertion,
-      notes: raw.notes
-    })
+    this.dataService.saveWorkoutSession(this.buildPastWorkout())
       .pipe(finalize(() => this.savingPastWorkout.set(false)))
       .subscribe({
         next: () => {
@@ -128,7 +167,9 @@ export class LiveStartCardComponent {
             durationMinutes: 45,
             caloriesBurned: 350,
             perceivedExertion: 7,
-            notes: ''
+            notes: '',
+            sportActivity: '',
+            distanceKm: null
           });
           this.toast.success('Workout logged.');
           this.backfilled.emit();
@@ -156,6 +197,64 @@ export class LiveStartCardComponent {
     return form.controls.customName.touched && form.controls.customName.hasError('maxlength');
   }
 
+  sportInvalid(): boolean {
+    return this.pastWorkoutForm.controls.sportActivity.touched && this.pastWorkoutForm.hasError('sportRequired');
+  }
+
+  distanceInvalid(): boolean {
+    const control = this.pastWorkoutForm.controls.distanceKm;
+    return control.touched && (control.hasError('min') || control.hasError('max'));
+  }
+
+  typeLabel(type: string): string {
+    return type === SPORTS_TYPE ? 'Sport' : this.formatLabel(type);
+  }
+
+  private loadSports(): void {
+    if (this.sportsRequested && !this.sportsLoadFailed()) {
+      return;
+    }
+    this.sportsRequested = true;
+    this.sportsLoadFailed.set(false);
+    this.dataService.getExerciseMetadata().subscribe((metadata) => {
+      const sports = metadata?.sportActivities ?? [];
+      this.sportActivities.set(sports);
+      const code = this.pastWorkoutForm.controls.sportActivity.value;
+      if (code && !sports.some((sport) => sport.code === code)) {
+        this.pastWorkoutForm.controls.sportActivity.setValue('');
+      }
+      this.sportsLoadFailed.set(sports.length === 0);
+      this.clearHiddenDistance();
+    });
+  }
+
+  private clearHiddenDistance(): void {
+    const distance = this.pastWorkoutForm.controls.distanceKm;
+    if (!this.showDistance() && distance.value !== null) {
+      distance.setValue(null);
+    }
+  }
+
+  private buildPastWorkout(): WorkoutSessionFormValue {
+    const raw = this.pastWorkoutForm.getRawValue();
+    const sport = this.isSportSession() ? this.chosenSport() : null;
+    const request: WorkoutSessionFormValue = {
+      name: sport ? sport.label : this.resolveSessionName(raw),
+      workoutType: raw.workoutType,
+      durationMinutes: raw.durationMinutes,
+      caloriesBurned: raw.caloriesBurned,
+      perceivedExertion: raw.perceivedExertion,
+      notes: raw.notes
+    };
+    if (sport) {
+      request.sportActivity = sport.code;
+    }
+    if (this.showDistance() && raw.distanceKm !== null) {
+      request.distanceKm = Math.round(raw.distanceKm * 100) / 100;
+    }
+    return request;
+  }
+
   private buildGoal(): LiveTrackerGoal | null {
     if (this.startMode() !== 'GOAL') {
       return null;
@@ -176,4 +275,12 @@ function customNameRequiredValidator(control: AbstractControl): ValidationErrors
   const name = control.get('name')?.value;
   const customName = String(control.get('customName')?.value ?? '').trim();
   return name === CUSTOM_NAME && !customName ? { customNameRequired: true } : null;
+}
+
+// A sport session is named after its sport, so the name controls only matter for the other types.
+function pastWorkoutValidator(control: AbstractControl): ValidationErrors | null {
+  if (control.get('workoutType')?.value === SPORTS_TYPE) {
+    return control.get('sportActivity')?.value ? null : { sportRequired: true };
+  }
+  return customNameRequiredValidator(control);
 }

@@ -91,35 +91,64 @@
 
   @if (pastWorkoutOpen()) {
     <form id="past-workout-form" class="past-workout-form" [formGroup]="pastWorkoutForm" (ngSubmit)="savePastWorkout()">
-      <label>
-        Workout name
-        <select formControlName="name">
-          @for (preset of namePresets; track preset) {
-            <option [value]="preset">{{ preset }}</option>
+      @if (!isSportSession()) {
+        <label>
+          Workout name
+          <select formControlName="name">
+            @for (preset of namePresets; track preset) {
+              <option [value]="preset">{{ preset }}</option>
+            }
+          </select>
+          @if (isCustomNameSelected(pastWorkoutForm.controls.name.value)) {
+            <input formControlName="customName" maxlength="120" placeholder="Name this past workout" autocomplete="off" />
+            @if (customNameInvalid(pastWorkoutForm)) {
+              <span class="field-error">Enter a custom workout name.</span>
+            } @else if (customNameTooLong(pastWorkoutForm)) {
+              <span class="field-error">Keep the custom name under 120 characters.</span>
+            }
           }
-        </select>
-        @if (isCustomNameSelected(pastWorkoutForm.controls.name.value)) {
-          <input formControlName="customName" maxlength="120" placeholder="Name this past workout" autocomplete="off" />
-          @if (customNameInvalid(pastWorkoutForm)) {
-            <span class="field-error">Enter a custom workout name.</span>
-          } @else if (customNameTooLong(pastWorkoutForm)) {
-            <span class="field-error">Keep the custom name under 120 characters.</span>
-          }
-        }
-      </label>
+        </label>
+      }
       <div class="form-grid">
         <label>
           Type
           <select formControlName="workoutType">
-            @for (type of workoutTypes; track type) {
-              <option [value]="type">{{ formatLabel(type) }}</option>
+            @for (type of pastWorkoutTypes; track type) {
+              <option [value]="type">{{ typeLabel(type) }}</option>
             }
           </select>
         </label>
+        @if (isSportSession()) {
+          <label>
+            Sport
+            <select formControlName="sportActivity">
+              @if (sportsLoadFailed()) {
+                <option value="" disabled>Sports could not be loaded</option>
+              } @else {
+                <option value="">Choose a sport</option>
+                @for (sport of sportActivities(); track sport.code) {
+                  <option [value]="sport.code">{{ sport.label }}</option>
+                }
+              }
+            </select>
+            @if (sportInvalid()) {
+              <span class="field-error">Choose a sport.</span>
+            }
+          </label>
+        }
         <label>
           Duration (min)
           <input type="number" formControlName="durationMinutes" min="1" max="600" />
         </label>
+        @if (showDistance()) {
+          <label>
+            Distance (km)
+            <input type="number" formControlName="distanceKm" min="0" max="1000" step="0.01" inputmode="decimal" />
+            @if (distanceInvalid()) {
+              <span class="field-error">Enter a distance from 0 to 1000 km.</span>
+            }
+          </label>
+        }
         <label>
           Calories
           <input type="number" formControlName="caloriesBurned" min="0" max="5000" />
