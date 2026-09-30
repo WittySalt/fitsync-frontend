@@ -90,20 +90,17 @@ export const routes: Routes = [
       },
       {
         path: 'catalogue',
-        loadComponent: () => import('./features/admin/admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
-        data: { heading: 'Catalogue' },
+        loadComponent: () => import('./features/admin/catalogue.page').then((module) => module.CataloguePage),
         title: 'FitSync Admin · Catalogue'
       },
       {
         path: 'users',
-        loadComponent: () => import('./features/admin/admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
-        data: { heading: 'User data' },
+        loadComponent: () => import('./features/admin/user-data.page').then((module) => module.UserDataPage),
         title: 'FitSync Admin · User data'
       },
       {
         path: 'events',
-        loadComponent: () => import('./features/admin/admin-placeholder.page').then((module) => module.AdminPlaceholderPage),
-        data: { heading: 'Events' },
+        loadComponent: () => import('./features/admin/events.page').then((module) => module.EventsPage),
         title: 'FitSync Admin · Events'
       }
     ]

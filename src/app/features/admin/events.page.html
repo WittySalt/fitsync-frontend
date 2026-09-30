@@ -1,0 +1,62 @@
+<header class="page-head">
+  <div class="page-title">
+    <h1>Events</h1>
+  </div>
+  @if (!forbidden()) {
+    <button class="retry" type="button" [disabled]="loading()" [attr.aria-busy]="loading()" (click)="refresh()">Refresh</button>
+  }
+</header>
+
+@if (forbidden()) {
+  <section class="panel error-panel" role="alert">
+    <p>This page is for administrators.</p>
+  </section>
+} @else {
+  <section class="panel" aria-labelledby="waiting-heading">
+    <div class="panel-head">
+      <h2 id="waiting-heading">Events waiting to be sent</h2>
+    </div>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="waiting-heading" [attr.aria-busy]="loading()">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Service</th>
+            <th scope="col" class="num">Waiting</th>
+            <th scope="col" class="oldest">Oldest</th>
+            <th scope="col" class="action"><span class="visually-hidden">Action</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.service) {
+            <tr>
+              <th scope="row">{{ row.name }}</th>
+              @switch (row.state) {
+                @case ('loading') {
+                  <td class="num"><span class="skeleton bar" aria-hidden="true"></span></td>
+                  <td class="oldest"><span class="skeleton bar" aria-hidden="true"></span></td>
+                  <td class="action"></td>
+                }
+                @case ('error') {
+                  <td class="failed" colspan="2">Could not be read</td>
+                  <td class="action">
+                    <button class="retry" type="button" [attr.aria-label]="'Try again: ' + row.name" (click)="retry(row.service)">Try again</button>
+                  </td>
+                }
+                @default {
+                  <td class="num">{{ row.waiting }}</td>
+                  <td class="oldest" [attr.title]="row.oldestTitle">{{ row.oldest }}</td>
+                  <td class="action">
+                    <div class="action-row">
+                      <app-admin-confirm-button label="Publish" [busy]="row.publish.busy()" (confirmed)="publish(row)" />
+                      <app-admin-action-status [result]="row.publish.result()" />
+                    </div>
+                  </td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}

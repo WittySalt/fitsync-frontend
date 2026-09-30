@@ -1,0 +1,63 @@
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.import-skeleton {
+  height: 140px;
+}
+
+.types-skeleton {
+  height: 320px;
+}
+
+.table-scroll table {
+  min-width: 440px;
+
+  .num {
+    width: 104px;
+  }
+}
+
+.share {
+  width: 200px;
+}
+
+.share-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.share-track {
+  flex: 1 1 auto;
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-sunken);
+}
+
+.share-fill {
+  border-radius: 5px;
+  background: var(--text-primary);
+}
+
+.share-percent {
+  width: 40px;
+  text-align: right;
+}
+
+@media (max-width: 1100px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

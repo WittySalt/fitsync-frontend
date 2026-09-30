@@ -1,0 +1,96 @@
+<header class="page-head">
+  <div class="page-title">
+    <h1>User data</h1>
+  </div>
+</header>
+
+@if (forbidden()) {
+  <section class="panel error-panel" role="alert">
+    <p>This page is for administrators.</p>
+  </section>
+} @else {
+  <section class="panel" aria-labelledby="find-heading">
+    <div class="panel-head">
+      <h2 id="find-heading">Find a user</h2>
+    </div>
+    <form class="search" novalidate (submit)="submit($event)">
+      <div class="field">
+        <label for="admin-user-email">Email</label>
+        <input
+          #emailInput
+          id="admin-user-email"
+          name="email"
+          type="email"
+          required
+          autocomplete="off"
+          spellcheck="false"
+          [maxLength]="emailMaxLength"
+          [value]="email()"
+          [attr.aria-invalid]="lookupMessage() !== null && lookup().kind !== 'failed'"
+          [attr.aria-describedby]="lookupMessage() ? 'admin-user-email-message' : null"
+          (input)="changeEmail(emailInput.value)"
+        />
+      </div>
+      <button class="find" type="submit" [disabled]="searching()" [attr.aria-busy]="searching()">Find</button>
+    </form>
+    <p class="message" id="admin-user-email-message" role="alert">{{ lookupMessage() }}</p>
+
+    @if (user()) {
+      <hr />
+      <dl class="fields">
+        @for (field of fields(); track field.label) {
+          <div class="field-row">
+            <dt>{{ field.label }}</dt>
+            <dd [class.mono]="field.mono">{{ field.value }}</dd>
+          </div>
+        }
+      </dl>
+    }
+  </section>
+
+  @if (user(); as found) {
+    <section class="panel" aria-labelledby="rebuild-heading">
+      <div class="panel-head">
+        <h2 id="rebuild-heading">Rebuild analytics</h2>
+      </div>
+      <div class="field date-field">
+        <label for="admin-rebuild-date">Date</label>
+        <input id="admin-rebuild-date" name="date" type="date" [max]="today" [value]="date()" (input)="changeDate(dateInput.value)" #dateInput />
+      </div>
+      <div class="action-list">
+        <div class="action-row">
+          <app-admin-confirm-button label="Rebuild dashboard" [busy]="dashboard.busy()" (confirmed)="rebuildDashboard(found)" />
+          <app-admin-action-status [result]="dashboard.result()" />
+        </div>
+        <div class="action-row">
+          <app-admin-confirm-button
+            label="Rebuild nutrition for this date"
+            [busy]="nutrition.busy()"
+            [disabled]="!dateValid()"
+            (confirmed)="rebuildNutrition(found)"
+          />
+          <app-admin-action-status [result]="nutrition.result()" />
+        </div>
+        <div class="action-row">
+          <app-admin-confirm-button
+            label="Rebuild workouts for this date"
+            [busy]="workouts.busy()"
+            [disabled]="!dateValid()"
+            (confirmed)="rebuildWorkouts(found)"
+          />
+          <app-admin-action-status [result]="workouts.result()" />
+        </div>
+      </div>
+    </section>
+  }
+
+  <section class="panel" aria-labelledby="goals-heading">
+    <div class="panel-head">
+      <h2 id="goals-heading">Goals</h2>
+    </div>
+    <div class="action-row">
+      <app-admin-confirm-button label="Reconcile goals for all users" [busy]="goals.busy()" (confirmed)="reconcileGoals()" />
+      <app-admin-action-status [result]="goals.result()" />
+    </div>
+  </section>
+}

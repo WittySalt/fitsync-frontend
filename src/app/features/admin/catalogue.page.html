@@ -1,0 +1,86 @@
+<header class="page-head">
+  <div class="page-title">
+    <h1>Catalogue</h1>
+  </div>
+</header>
+
+@switch (state().kind) {
+  @case ('loading') {
+    <div class="skeleton-page" role="status" aria-live="polite" aria-label="Loading the catalogue numbers">
+      <div class="row">
+        <div class="column">
+          <div class="tile skeleton"></div>
+          <div class="panel skeleton import-skeleton"></div>
+        </div>
+        <div class="panel skeleton types-skeleton"></div>
+      </div>
+    </div>
+  }
+  @case ('error') {
+    <section class="panel error-panel" role="alert">
+      @if (forbidden()) {
+        <p>This page is for administrators.</p>
+      } @else {
+        <p>The catalogue numbers could not be loaded.</p>
+        <button class="retry" type="button" (click)="retry()">Try again</button>
+      }
+    </section>
+  }
+  @case ('ready') {
+    <div class="row">
+      <div class="column">
+        <div class="tile">
+          <div class="tile-label"><span>Exercises</span></div>
+          <div class="tile-value">
+            <strong>{{ total() }}</strong>
+          </div>
+        </div>
+
+        <section class="panel" aria-labelledby="import-heading">
+          <div class="panel-head">
+            <h2 id="import-heading">Import the catalogue</h2>
+          </div>
+          <div class="action-row">
+            <app-admin-confirm-button label="Import" [busy]="importing.busy()" (confirmed)="runImport()" />
+            <app-admin-action-status [result]="importing.result()" />
+          </div>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="types-heading">
+        <div class="panel-head">
+          <h2 id="types-heading">By type</h2>
+        </div>
+        @if (rows().length > 0) {
+          <div class="table-scroll" tabindex="0" role="region" aria-labelledby="types-heading">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col" class="num">Exercises</th>
+                  <th scope="col" class="share">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of rows(); track row.type) {
+                  <tr>
+                    <th scope="row" [attr.title]="row.label">{{ row.label }}</th>
+                    <td class="num">{{ row.count }}</td>
+                    <td class="share">
+                      <span class="share-cell">
+                        <span class="share-track"><span class="share-fill" [style.width.%]="row.widthPercent"></span></span>
+                        <span class="share-percent">{{ row.percent }}%</span>
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="empty">The catalogue is empty.</p>
+        }
+      </section>
+    </div>
+  }
+}
