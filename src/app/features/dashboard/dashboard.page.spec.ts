@@ -130,8 +130,16 @@ describe('DashboardPage', () => {
     dataService.getActivePlan.and.returnValue(of(null));
     // The brief treats a failed insight as no insight, which keeps these page tests about the page.
     dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('not under test')));
-    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getActivityCalendar']);
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', [
+      'getActivityCalendar',
+      'getAchievements',
+      'getSummaryCompare'
+    ]);
     analyticsApi.getActivityCalendar.and.returnValue(of(activityCalendar));
+    // The Earned section loads on its own (see earned.component.spec.ts); these page specs only
+    // need it to settle quietly, so its requests fail and it shows its own failed state.
+    analyticsApi.getAchievements.and.returnValue(throwError(() => new Error('not under test')));
+    analyticsApi.getSummaryCompare.and.returnValue(throwError(() => new Error('not under test')));
 
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
@@ -403,6 +411,17 @@ describe('DashboardPage', () => {
     expect(compiled.querySelector('.metrics-grid')).toBeNull();
     expect(compiled.textContent).not.toContain('Latest Meal');
     expect(compiled.textContent).not.toContain('Latest body metric');
+  });
+
+  it('mounts the Earned section directly after the Today card and before the remaining cards', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const today = compiled.querySelector('app-today-card');
+    const earned = today?.nextElementSibling;
+    expect(earned?.tagName.toLowerCase()).toBe('app-earned');
+    expect(earned?.nextElementSibling?.classList).toContain('card-row');
+    expect(analyticsApi.getAchievements).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the heatmap, the last 7 days and the latest workout together in one row of three', () => {

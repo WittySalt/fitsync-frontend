@@ -186,3 +186,17 @@ export interface AnalyticsActivityCalendarResponse {
   to: string;
   days: AnalyticsActivityDay[];
 }
+
+export interface AnalyticsAchievement {
+  code: string;
+  title: string;
+  unlocked: boolean;
+  /** ISO instant the badge was earned, or null while it is still locked. */
+  unlockedAt: string | null;
+  /** How close the badge is to unlocking, from 0 to 1. */
+  progress: number;
+}
+
+export interface AnalyticsAchievementsResponse {
+  achievements: AnalyticsAchievement[];
+}

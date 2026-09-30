@@ -7,11 +7,12 @@ import { ActivityHeatmapComponent } from '../progress/activity-heatmap.component
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { caloriesLabel, sessionDurationLabel } from '../workout/workout-session.util';
 import { CoachBriefComponent } from './brief/coach-brief.component';
+import { EarnedComponent } from './earned/earned.component';
 import { TodayCardComponent } from './today/today-card.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [CoachBriefComponent, ActivityHeatmapComponent, RouterLink, StatePanelComponent, TodayCardComponent],
+  imports: [CoachBriefComponent, EarnedComponent, ActivityHeatmapComponent, RouterLink, StatePanelComponent, TodayCardComponent],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss'
 })

@@ -32,6 +32,8 @@
       (retryNutrition)="loadNutrition()"
     />
 
+    <app-earned [timezone]="dashboard.profile.timezone" />
+
     <div class="card-row">
       <section class="card-row-grid">
         <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
