@@ -53,6 +53,7 @@ import {
   SessionKindCode,
   TodayInsight,
   WorkoutSessionFormValue,
+  DayMeal,
   Meal,
   NutritionSummary,
   OnboardingFormValue,
@@ -685,6 +686,17 @@ interface BackendDailyNutritionSummary {
   fiberTargetMet?: boolean | null;
   sugarWithinLimit?: boolean | null;
   sodiumWithinLimit?: boolean | null;
+}
+
+interface BackendDayMeal {
+  mealId?: string;
+  mealType?: string;
+  consumedAt?: string;
+  totalCalories?: number;
+  totalProteinGrams?: number;
+  totalCarbsGrams?: number;
+  totalFatGrams?: number;
+  items?: { foodName?: string; calories?: number; proteinGrams?: number }[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -1466,6 +1478,39 @@ export class FitSyncDataService {
         map((meals) => meals.map((meal) => this.mapMeal(meal)).filter((meal): meal is Meal => meal !== null)),
         catchError(() => of([] as Meal[]))
       );
+  }
+
+  /**
+   * Every meal logged on the device-local calendar day of `day`, with macros and foods. Unlike
+   * getTodayMeals it lets a failure through, because the Today card shows a retry for it, and it
+   * runs to the end of the day so a meal logged ahead of time is not dropped.
+   */
+  getMealsForDay(day = new Date()): Observable<DayMeal[]> {
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const params = new HttpParams()
+      .set('from', start.toISOString())
+      .set('to', new Date(end.getTime() - 1).toISOString());
+    return this.http.get<BackendDayMeal[]>(`${this.apiBaseUrl}/nutrition/meals`, { params }).pipe(
+      map((meals) =>
+        meals.map((meal) => ({
+          mealId: meal.mealId ?? '',
+          mealType: meal.mealType ?? '',
+          consumedAt: meal.consumedAt ?? '',
+          totalCalories: Number(meal.totalCalories ?? 0),
+          totalProteinGrams: Number(meal.totalProteinGrams ?? 0),
+          totalCarbsGrams: Number(meal.totalCarbsGrams ?? 0),
+          totalFatGrams: Number(meal.totalFatGrams ?? 0),
+          items: (meal.items ?? []).map((item) => ({
+            name: item.foodName ?? '',
+            calories: Number(item.calories ?? 0),
+            proteinGrams: Number(item.proteinGrams ?? 0)
+          }))
+        }))
+      )
+    );
   }
 
   getDailyNutritionSummary(date = new Date(), timezone = this.getLocalTimezone()): Observable<NutritionSummary> {
@@ -2289,7 +2334,8 @@ export class FitSyncDataService {
       weightKg: body.latestWeightKg ?? 0,
       bodyFatRate: body.latestBodyFatRate ?? 0,
       bmi: body.bmi ?? 0,
-      measuredAt: body.measuredOn ?? null
+      measuredAt: body.measuredOn ?? null,
+      weightChange30dKg: body.weightChange30d ?? null
     };
   }
 

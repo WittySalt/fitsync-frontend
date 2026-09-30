@@ -24,144 +24,66 @@
       [caloriesTarget]="nutritionSummary()?.targetCalories ?? null"
     />
 
-    <section class="metrics-grid">
-      <a class="metric-card calories" routerLink="/nutrition" aria-label="Open nutrition dashboard">
-        <app-progress-ring label="Calories" [value]="caloriePercent()" />
-        <div>
-          <span>Calories</span>
-          @if (hasCalorieData()) {
-            <strong>{{ nutritionSummary()?.totalCalories ?? 0 }} / {{ nutritionSummary()?.targetCalories ?? 'No target' }}</strong>
-            <small>{{ (nutritionSummary()?.totalCalories ?? 0) > 0 ? 'Logged today' : 'No calories logged yet' }}</small>
-          } @else {
-            <strong>No nutrition yet</strong>
-            <small>Log your first meal to start today's summary</small>
-          }
-        </div>
-      </a>
+    <app-today-card
+      [dashboard]="dashboard"
+      [nutrition]="nutritionSummary()"
+      [nutritionFailed]="nutritionFailed()"
+      (retryDashboard)="load()"
+      (retryNutrition)="loadNutrition()"
+    />
 
-      <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
-        <div>
-          <span>This month</span>
-          <strong>Workout consistency</strong>
-          <app-activity-heatmap variant="compact" [timezone]="dashboard.profile.timezone" />
-        </div>
-      </a>
-
-      <a class="metric-card streak" routerLink="/workout" aria-label="Open workouts">
-        <span class="metric-icon">ST</span>
-        <div>
-          @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
-            <span>Active streak</span>
-            <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
-            <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min in 7 days</small>
-          } @else {
-            <span>Last 7 days</span>
-            <strong>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min</strong>
-            <small>Start a workout to build a streak</small>
-          }
-        </div>
-      </a>
-
-      <a class="metric-card body" routerLink="/body" aria-label="Open body metrics">
-        <span class="metric-icon">kg</span>
-        <div>
-          <span>Latest body metric</span>
-          @if (dashboard.latestBodyMetric) {
-            <strong>
-              {{ dashboard.latestBodyMetric.weightKg ? dashboard.latestBodyMetric.weightKg + ' kg' : 'Weight not recorded' }}
-              -
-              {{ dashboard.latestBodyMetric.bmi ? 'BMI ' + dashboard.latestBodyMetric.bmi : 'BMI not available' }}
-            </strong>
-            <small>{{ metricDateLabel(dashboard.latestBodyMetric.measuredAt) }}</small>
-          } @else {
-            <strong>No metric yet</strong>
-            <small>Record weight to start trends</small>
-          }
-        </div>
-      </a>
-    </section>
-
-    <section class="activity-grid">
-      @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
-        <a class="summary-card activity-link-card" routerLink="/workout" aria-label="Open latest workout">
-          <span class="card-label">Latest Workout</span>
-          <h3>{{ dashboard.latestWorkout.name }}</h3>
-          <p>{{ dashboard.latestWorkout.workoutType }} · {{ workoutDurationLabel(dashboard.latestWorkout) }}</p>
-          <dl>
-            <div>
-              <dt>Calories</dt>
-              <dd>{{ workoutCaloriesLabel(dashboard.latestWorkout) }}</dd>
-            </div>
-            <div>
-              <dt>Exercises</dt>
-              <dd>{{ dashboard.latestWorkout.exerciseCount }}</dd>
-            </div>
-          </dl>
-        </a>
-      } @else {
-        <article class="summary-card">
-          <span class="card-label">Latest Workout</span>
-          <div class="empty-workout-state">
-            <strong>No completed workout yet</strong>
-            <p>Start one to build your weekly training summary.</p>
-            <a routerLink="/workout" class="button workout">Start Workout</a>
+    <div class="card-row">
+      <section class="card-row-grid">
+        <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
+          <div>
+            <span>This month</span>
+            <strong>Workout consistency</strong>
+            <app-activity-heatmap variant="compact" [timezone]="dashboard.profile.timezone" />
           </div>
-        </article>
-      }
-
-      @if (dashboard.latestMeal) {
-        <a class="summary-card activity-link-card" routerLink="/nutrition" aria-label="Open latest meal">
-          <span class="card-label">Latest Meal</span>
-          <h3>{{ dashboard.latestMeal.name }}</h3>
-          <p>{{ dashboard.latestMeal.mealType }} · {{ mealDateLabel(dashboard.latestMeal.consumedAt) }}</p>
-          <dl>
-            <div>
-              <dt>Calories</dt>
-              <dd>{{ dashboard.latestMeal.totalCalories }}</dd>
-            </div>
-            <div>
-              <dt>Protein</dt>
-              <dd>{{ dashboard.latestMeal.totalProteinGrams }}g</dd>
-            </div>
-          </dl>
         </a>
-      } @else {
-        <article class="summary-card">
-          <span class="card-label">Latest Meal</span>
-          <app-state-panel title="No meal yet" message="Log your first meal for today's summary." />
-        </article>
-      }
-    </section>
 
-    <section class="summary-card goals-card">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Goals</span>
-          <h2>Active targets</h2>
-        </div>
-        <a routerLink="/me" fragment="goal-lifecycle" class="text-link">Manage</a>
-      </div>
+        <a class="metric-card streak" routerLink="/workout" aria-label="Open workouts">
+          <span class="metric-icon">ST</span>
+          <div>
+            @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
+              <span>Active streak</span>
+              <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
+              <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min in 7 days</small>
+            } @else {
+              <span>Last 7 days</span>
+              <strong>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min</strong>
+              <small>Start a workout to build a streak</small>
+            }
+          </div>
+        </a>
 
-      @if (dashboard.goals.length) {
-        <div class="goal-list">
-          @for (goal of dashboard.goals; track goal.goalType) {
-            <div class="goal-row">
+        @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
+          <a class="summary-card activity-link-card" routerLink="/workout" aria-label="Open latest workout">
+            <span class="card-label">Latest Workout</span>
+            <h3>{{ dashboard.latestWorkout.name }}</h3>
+            <p>{{ dashboard.latestWorkout.workoutType }} · {{ workoutDurationLabel(dashboard.latestWorkout) }}</p>
+            <dl>
               <div>
-                <strong>
-                  {{ goalLabel(goal) }}
-                  <span class="goal-amount">{{ goalAmountLabel(goal) }}</span>
-                </strong>
-                <span>{{ goalSummaryLabel(goal) }}</span>
+                <dt>Calories</dt>
+                <dd>{{ workoutCaloriesLabel(dashboard.latestWorkout) }}</dd>
               </div>
-              <div class="progress-track" aria-hidden="true">
-                <span [style.width.%]="goalProgress(goal.progressRatio)"></span>
+              <div>
+                <dt>Exercises</dt>
+                <dd>{{ dashboard.latestWorkout.exerciseCount }}</dd>
               </div>
+            </dl>
+          </a>
+        } @else {
+          <article class="summary-card">
+            <span class="card-label">Latest Workout</span>
+            <div class="empty-workout-state">
+              <strong>No completed workout yet</strong>
+              <p>Start one to build your weekly training summary.</p>
+              <a routerLink="/workout" class="button workout">Start Workout</a>
             </div>
-          }
-        </div>
-      } @else {
-        <app-state-panel title="No active goals" message="Set one measurable target to personalize FitSync." />
-      }
-    </section>
+          </article>
+        }
+      </section>
+    </div>
   }
 </div>

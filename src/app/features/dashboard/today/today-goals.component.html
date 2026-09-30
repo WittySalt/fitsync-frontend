@@ -1,0 +1,22 @@
+@if (rows().length) {
+  <ul class="goals">
+    @for (row of rows(); track row.key) {
+      <li class="goal">
+        <div class="goal-line">
+          <strong class="goal-name">{{ row.name }}</strong>
+          <span class="goal-figure">{{ row.figure }}</span>
+        </div>
+        <div class="bar" role="img" [attr.aria-label]="row.name + ', ' + row.percent + ' percent'">
+          <span [style.width.%]="row.percent"></span>
+        </div>
+        @if (row.due) {
+          <span class="goal-due">{{ row.due }}</span>
+        }
+      </li>
+    }
+  </ul>
+  <a class="action quiet" routerLink="/me" fragment="goal-lifecycle">Manage</a>
+} @else {
+  <p class="nothing">No goals yet</p>
+  <a class="action primary" routerLink="/me" fragment="goal-lifecycle">Add a goal</a>
+}

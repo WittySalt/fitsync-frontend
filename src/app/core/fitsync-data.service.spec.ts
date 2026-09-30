@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
-import { Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
+import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, OnboardingFormValue, OnboardingSeed, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -1139,6 +1139,52 @@ describe('FitSyncDataService', () => {
     expect(result?.length).toBe(1);
     expect(result?.[0].mealType).toBe('LUNCH');
     expect(result?.[0].totalCalories).toBe(640);
+  });
+
+  it('fetches the meals of one local day with their macros and foods, to the end of the day', () => {
+    let result: DayMeal[] | undefined;
+    service.getMealsForDay(new Date(2026, 8, 30, 14, 5)).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals');
+    expect(new Date(request.request.params.get('from') ?? '').getTime()).toBe(new Date(2026, 8, 30, 0, 0, 0, 0).getTime());
+    expect(new Date(request.request.params.get('to') ?? '').getTime()).toBe(new Date(2026, 9, 1, 0, 0, 0, 0).getTime() - 1);
+    request.flush([
+      {
+        mealId: 'm1',
+        mealType: 'BREAKFAST',
+        consumedAt: '2026-09-30T00:10:00Z',
+        totalCalories: 453,
+        totalProteinGrams: 27.5,
+        totalCarbsGrams: 60,
+        totalFatGrams: 12,
+        items: [{ foodName: 'Oats', calories: 228, proteinGrams: 8 }, { calories: 10 }]
+      }
+    ]);
+
+    expect(result).toEqual([
+      {
+        mealId: 'm1',
+        mealType: 'BREAKFAST',
+        consumedAt: '2026-09-30T00:10:00Z',
+        totalCalories: 453,
+        totalProteinGrams: 27.5,
+        totalCarbsGrams: 60,
+        totalFatGrams: 12,
+        items: [
+          { name: 'Oats', calories: 228, proteinGrams: 8 },
+          { name: '', calories: 10, proteinGrams: 0 }
+        ]
+      }
+    ]);
+  });
+
+  it('lets a failed day-meals request through so the card can offer a retry', () => {
+    let failed = false;
+    service.getMealsForDay().subscribe({ error: () => (failed = true) });
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals').flush('nope', { status: 500, statusText: 'Server Error' });
+
+    expect(failed).toBeTrue();
   });
 
   it('lists workout sessions from the paginated sessions endpoint', () => {

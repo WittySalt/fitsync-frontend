@@ -1,0 +1,101 @@
+<section class="today" aria-labelledby="today-title">
+  <header class="head">
+    <h2 class="eyebrow" id="today-title">Today</h2>
+    <div class="tabs" role="tablist" aria-label="What the Today card shows">
+      @for (tab of tabs; track tab.key; let index = $index) {
+        <button
+          #tabButton
+          type="button"
+          role="tab"
+          class="tab"
+          [id]="'today-tab-' + tab.key"
+          [class.selected]="activeTab() === tab.key"
+          [attr.aria-selected]="activeTab() === tab.key"
+          [attr.aria-controls]="'today-panel-' + tab.key"
+          [attr.tabindex]="activeTab() === tab.key ? 0 : -1"
+          (click)="select(tab.key)"
+          (keydown)="onTabKeydown($event, index)"
+        >
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="skeleton panel-skeleton" aria-hidden="true"></div>
+  } @else {
+    <div
+      class="panels"
+      (pointerdown)="onPointerDown($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerCancel()"
+    >
+      <div
+        class="panel"
+        id="today-panel-food"
+        role="tabpanel"
+        aria-labelledby="today-tab-food"
+        [hidden]="activeTab() !== 'food'"
+        [attr.aria-busy]="foodLoading() && !foodFailed()"
+      >
+        @if (foodFailed()) {
+          <div class="failed">
+            <p>This could not be loaded.</p>
+            <button type="button" class="retry" (click)="retryFood()">Try again</button>
+          </div>
+        } @else if (foodLoading()) {
+          <div class="skeleton panel-skeleton" aria-hidden="true"></div>
+        } @else {
+          @if (nutrition(); as summary) {
+            <app-today-food [nutrition]="summary" [meals]="foodMeals()" [now]="now()" />
+          }
+        }
+      </div>
+
+      <div
+        class="panel"
+        id="today-panel-body"
+        role="tabpanel"
+        aria-labelledby="today-tab-body"
+        [hidden]="activeTab() !== 'body'"
+        [attr.aria-busy]="dashboardLoading() && !dashboardFailed()"
+      >
+        @if (dashboardFailed()) {
+          <div class="failed">
+            <p>This could not be loaded.</p>
+            <button type="button" class="retry" (click)="retryDashboard.emit()">Try again</button>
+          </div>
+        } @else if (dashboardLoading()) {
+          <div class="skeleton panel-skeleton" aria-hidden="true"></div>
+        } @else {
+          @if (dashboard(); as data) {
+            <app-today-body [metric]="data.latestBodyMetric" [now]="now()" />
+          }
+        }
+      </div>
+
+      <div
+        class="panel"
+        id="today-panel-goals"
+        role="tabpanel"
+        aria-labelledby="today-tab-goals"
+        [hidden]="activeTab() !== 'goals'"
+        [attr.aria-busy]="dashboardLoading() && !dashboardFailed()"
+      >
+        @if (dashboardFailed()) {
+          <div class="failed">
+            <p>This could not be loaded.</p>
+            <button type="button" class="retry" (click)="retryDashboard.emit()">Try again</button>
+          </div>
+        } @else if (dashboardLoading()) {
+          <div class="skeleton panel-skeleton" aria-hidden="true"></div>
+        } @else {
+          @if (dashboard(); as data) {
+            <app-today-goals [goals]="data.goals" />
+          }
+        }
+      </div>
+    </div>
+  }
+</section>

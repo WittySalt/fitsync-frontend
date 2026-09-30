@@ -116,10 +116,12 @@ describe('DashboardPage', () => {
       'getWorkoutSessionsInRange',
       'getGoals',
       'getActivePlan',
-      'getWeeklyTrainingInsight'
+      'getWeeklyTrainingInsight',
+      'getMealsForDay'
     ]);
     dataService.getDashboard.and.returnValue(of(dashboardData));
     dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    dataService.getMealsForDay.and.returnValue(of([]));
     // The coach brief loads independently of the rest of the dashboard; these specs are not
     // about the brief itself (see coach-brief.component.spec.ts), so it is given a quiet,
     // empty week and no active plan unless a test says otherwise.
@@ -161,14 +163,12 @@ describe('DashboardPage', () => {
     expect(text).toContain('Active streak');
     expect(text).toContain('7 days');
     expect(text).toContain('7 workouts · 300 min in 7 days');
-    expect(text).toContain('On track · 95% complete · by 31 Aug 2026');
     expect(text).toContain('Today');
-    expect(text).toContain('3 days ago');
     expect(text).not.toContain('2026-06-24T00:05:00.512709Z');
     expect(text).not.toContain('2026-06-21T12:30:00Z');
     expect(goalRowText().length).toBe(1);
-    expect(goalRowText()[0]).toContain('Calories 2,000 kcal');
-    expect(goalRowText()[0]).toContain('On track · 95% complete · by 31 Aug 2026');
+    expect(goalRowText()[0]).toContain('Calories 1,900 of 2,000 kcal');
+    expect(goalRowText()[0]).toContain('by 31 Aug 2026');
     expect(text).not.toContain('Complete setup');
   });
 
@@ -266,9 +266,9 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const text = pageText();
-    expect(text).toContain('No nutrition yet');
+    expect(text).toContain('No measurement yet');
+    expect(text).toContain('No goals yet');
     expect(text).toContain('Workout consistency');
-    expect(text).toContain('No metric yet');
     expect(text).toContain('Complete setup');
     expect(text).not.toContain('NaN');
   });
@@ -304,13 +304,11 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.calories')?.getAttribute('href')).toBe('/nutrition');
     expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.streak')?.getAttribute('href')).toBe('/workout');
-    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.body')?.getAttribute('href')).toBe('/body');
     expect(compiled.querySelector<HTMLAnchorElement>('.heatmap-metric')?.getAttribute('href')).toBe('/progress');
 
     const activityLinks = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.activity-link-card'));
-    expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout', '/nutrition']);
+    expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout']);
   });
 
   it('renders missing latest workout duration and calories without fake zeroes', () => {
@@ -338,11 +336,11 @@ describe('DashboardPage', () => {
     expect(latestWorkoutCard).not.toContain('0 min');
   });
 
-  it('links the goals card to goal management', () => {
+  it('links the Goals tab to goal management', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector<HTMLAnchorElement>('.goals-card .text-link')?.getAttribute('href')).toBe('/me#goal-lifecycle');
+    expect(compiled.querySelector<HTMLAnchorElement>('app-today-goals a')?.getAttribute('href')).toBe('/me#goal-lifecycle');
   });
 
   it('renders the coach brief in place of the old hero panel, with the profile passed through', () => {
@@ -355,7 +353,7 @@ describe('DashboardPage', () => {
     expect(fixture.nativeElement.querySelector('app-coach-anchor')).toBeNull();
   });
 
-  it('renders protein goal progress from the active goal source without the daily nutrition target', () => {
+  it('renders the protein goal row from the active goal and the Food budget from the daily summary', () => {
     dataService.getDashboard.and.returnValue(
       of({
         ...dashboardData,
@@ -386,42 +384,49 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const text = pageText();
-    expect(goalRowText()[0]).toContain('Protein 140 g');
-    expect(goalRowText()[0]).toContain('On track · 100% complete · by 31 Aug 2026');
+    expect(goalRowText()[0]).toContain('Protein 140 of 140 g');
+    expect(goalRowText()[0]).toContain('by 31 Aug 2026');
+    // The goal row keeps the goal's own 140 g. The budget bar on the Food tab is the daily summary's.
+    expect(text).toContain('7 of 155 g');
     expect(text).not.toContain('155g');
-    expect(text).not.toContain('155 g');
   });
 
-  it('formats relative dates and fallback dates without exposing raw ISO timestamps', () => {
+  it('places the Today card directly below the brief and drops the four cards it replaces', () => {
     fixture.detectChanges();
-    const component = fixture.componentInstance;
 
-    expect(component.metricDateLabel(null)).toBe('');
-    expect(component.metricDateLabel('2026-06-23T20:00:00+08:00')).toBe('Yesterday');
-    expect(component.metricDateLabel('2026-06-20T08:00:00+08:00')).toBe('4 days ago');
-    expect(component.metricDateLabel('2024-12-31T16:00:00Z')).toBe('1 Jan 2025');
-    expect(component.metricDateLabel('not-a-date')).toBe('not-a-date');
-    expect(component.metricDateLabel('2026-99-99T99:99:99Z')).toBe('Recently');
+    const compiled = fixture.nativeElement as HTMLElement;
+    const brief = compiled.querySelector('app-coach-brief');
+    expect(brief?.nextElementSibling?.tagName.toLowerCase()).toBe('app-today-card');
+    expect(compiled.querySelector('.metric-card.calories')).toBeNull();
+    expect(compiled.querySelector('.metric-card.body')).toBeNull();
+    expect(compiled.querySelector('.goals-card')).toBeNull();
+    expect(compiled.querySelector('.metrics-grid')).toBeNull();
+    expect(compiled.textContent).not.toContain('Latest Meal');
+    expect(compiled.textContent).not.toContain('Latest body metric');
   });
 
-  it('formats goal labels and target amounts for default units and missing targets', () => {
+  it('keeps the heatmap, the last 7 days and the latest workout together in one row of three', () => {
     fixture.detectChanges();
-    const component = fixture.componentInstance;
 
-    expect(component.goalLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY' })).toBe('Workout Frequency');
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'PROTEIN', targetUnit: '', currentValue: 130, targetValue: 140 })).toBe('140 g');
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WEIGHT', targetUnit: '', currentValue: 77.25, targetValue: 75 })).toBe('75 kg');
-    expect(
-      component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'WORKOUT_FREQUENCY', targetUnit: '', currentValue: 3, targetValue: 4 })
-    ).toBe('4 workouts/week');
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: null, targetValue: 0 })).toBe(
-      'No target set'
-    );
-    expect(component.goalAmountLabel({ ...dashboardData.goals[0], goalType: 'STEPS', targetUnit: '', currentValue: 2000, targetValue: 0 })).toBe(
-      'No target set'
-    );
-    expect(component.goalDateLabel({ ...dashboardData.goals[0], targetDate: '2026-08-31' })).toBe('by 31 Aug 2026');
-    expect(component.goalDateLabel({ ...dashboardData.goals[0], targetDate: '' })).toBe('No target date');
+    const row = (fixture.nativeElement as HTMLElement).querySelector('.card-row-grid');
+    expect(row?.children.length).toBe(3);
+    expect(row?.querySelector('.heatmap-metric')).toBeTruthy();
+    expect(row?.querySelector('.metric-card.streak')).toBeTruthy();
+    expect(row?.textContent).toContain('Latest Workout');
+  });
+
+  it('reloads the nutrition summary from the card without reloading the whole page', () => {
+    dataService.getDailyNutritionSummary.and.returnValue(throwError(() => new Error('down')));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.nutritionFailed()).toBeTrue();
+
+    dataService.getDashboard.calls.reset();
+    dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    fixture.componentInstance.loadNutrition();
+
+    expect(fixture.componentInstance.nutritionFailed()).toBeFalse();
+    expect(fixture.componentInstance.nutritionSummary()).toEqual(dashboardData.nutrition);
+    expect(dataService.getDashboard).not.toHaveBeenCalled();
   });
 
   it('renders the dashboard error state', () => {
@@ -450,18 +455,9 @@ describe('DashboardPage', () => {
 
     fixture.detectChanges();
 
-    // Outside the "N days ago" window, so the absolute format runs — the branch that used to
-    // append the wrong year.
     const text = pageText();
     expect(text).not.toContain('2001');
-    expect(text).toContain('20 May');
-  });
-
-  it('hands back an already-formatted string untouched instead of reparsing it', () => {
-    const page = fixture.componentInstance;
-
-    expect(page.metricDateLabel('5 Jul')).toBe('5 Jul');
-    expect(page.metricDateLabel('5 Jul')).not.toContain('2001');
+    expect(text).toContain('Weighed 20 May');
   });
 
   it('renders a goal past its target date as overdue and drops the progress claim', () => {
@@ -489,17 +485,25 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const rows = goalRowText();
-    expect(rows[0]).toContain('Overdue');
-    expect(rows[0]).toContain('was due');
-    expect(rows[0]).not.toContain('On track');
+    expect(rows[0]).toContain('was due 31 May 2026');
+    expect(rows[0]).not.toContain('by 31 May');
     expect(rows[0])
       .withContext('claiming progress against a deadline that has passed is the defect')
       .not.toContain('% complete');
   });
 
   function goalRowText(): string[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.goal-row')).map((row) =>
-      (row.textContent ?? '').replace(/\s+/g, ' ').trim()
-    );
+    // Angular drops the whitespace between elements, so neighbouring texts are joined with a space.
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('app-today-goals .goal')).map((row) => {
+      const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+      const parts: string[] = [];
+      for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+        const value = (text.textContent ?? '').replace(/\s+/g, ' ').trim();
+        if (value) {
+          parts.push(value);
+        }
+      }
+      return parts.join(' ');
+    });
   }
 });

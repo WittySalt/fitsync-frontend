@@ -1,16 +1,15 @@
 .dashboard-page {
-  .metrics-grid,
-  .activity-grid {
+  // The row is a query container so its cards stack by the room the sidebar leaves. Three cards
+  // either share one row or stack, because two and one would leave a card on its own.
+  .card-row {
+    min-width: 0;
+    container-type: inline-size;
+  }
+
+  .card-row-grid {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
-  }
-
-  .metrics-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .activity-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .metric-card {
@@ -108,34 +107,6 @@
     }
   }
 
-  .goal-list {
-    display: grid;
-    gap: 16px;
-  }
-
-  .goal-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 180px;
-    align-items: center;
-    gap: 16px;
-
-    span {
-      display: block;
-      margin-top: 4px;
-      color: var(--text-secondary);
-      font-size: 13px;
-    }
-  }
-
-  .goal-row .goal-amount {
-    display: inline;
-    margin: 0 0 0 8px;
-    color: var(--text-primary);
-    font-size: 14px;
-    font-weight: var(--fw-semibold);
-    white-space: nowrap;
-  }
-
   .empty-workout-state {
     display: grid;
     gap: 10px;
@@ -157,39 +128,9 @@
   }
 }
 
-// The sidebar takes 248 px of the window above 860 px, so four cards in a row only fit a wide
-// window. Below that the cards pair up, and a phone gets one column.
-@media (max-width: 1399px) {
-  .dashboard-page .metrics-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+// Each of the three cards keeps at least 260 px, which takes two 16 px gaps and 812 px in all.
+@container (min-width: 812px) {
+  .dashboard-page .card-row-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-
-@media (max-width: 960px) {
-  .dashboard-page .activity-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  .dashboard-page .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard-page {
-    .goal-row {
-      grid-template-columns: 1fr;
-      display: grid;
-      gap: 10px;
-    }
-
-    .goal-row .goal-amount {
-      display: block;
-      margin: 4px 0 0;
-      white-space: normal;
-    }
-  }
-}
-

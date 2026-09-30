@@ -396,6 +396,9 @@ export interface BodyMetric {
   /** ISO date of the measurement. Null when the reading carries no date of its own; the caption
    *  is then omitted rather than filled with an unrelated timestamp. */
   measuredAt: string | null;
+  /** Change in weight over the last 30 days in kilograms, negative when the person lost weight.
+   *  Null when the analytics snapshot has no earlier reading to compare with. */
+  weightChange30dKg?: number | null;
 }
 
 export interface Goal {
@@ -839,4 +842,23 @@ export interface QuickAddMealValue {
   fiberGrams?: number | null;
   sugarGrams?: number | null;
   sodiumMg?: number | null;
+}
+
+/** One food inside a logged meal, as the meals list returns it. */
+export interface DayMealItem {
+  name: string;
+  calories: number;
+  proteinGrams: number;
+}
+
+/** A meal logged on one day with the macros and foods the summary `Meal` leaves out. */
+export interface DayMeal {
+  mealId: string;
+  mealType: string;
+  consumedAt: string;
+  totalCalories: number;
+  totalProteinGrams: number;
+  totalCarbsGrams: number;
+  totalFatGrams: number;
+  items: DayMealItem[];
 }

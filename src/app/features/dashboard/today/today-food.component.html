@@ -1,0 +1,101 @@
+<div class="budget">
+  <div class="budget-line">
+    <span class="budget-name">Calories</span>
+    <span class="budget-figure">
+      {{ caloriesFigure() }}
+      @if (caloriesTarget() == null) {
+        <a class="quiet-link" routerLink="/nutrition">Set a target</a>
+      }
+    </span>
+  </div>
+  <div class="bar" role="img" [attr.aria-label]="caloriesFigure()">
+    <span [style.width.%]="caloriesFill()"></span>
+  </div>
+</div>
+
+<div class="budget">
+  <div class="budget-line">
+    <span class="budget-name">Protein</span>
+    <span class="budget-figure">
+      {{ proteinFigure() }}
+      @if (proteinTarget() == null) {
+        <a class="quiet-link" routerLink="/nutrition">Set a target</a>
+      }
+    </span>
+  </div>
+  <div class="bar" role="img" [attr.aria-label]="proteinFigure() + ' protein'">
+    <span [style.width.%]="proteinFill()"></span>
+  </div>
+</div>
+
+<div class="slots" role="tablist" aria-label="Meals today">
+  @for (slot of definitions; track slot.key; let index = $index) {
+    <button
+      #slotButton
+      type="button"
+      role="tab"
+      class="slot"
+      [id]="'today-slot-' + slot.key"
+      [class.selected]="selected() === slot.key"
+      [attr.aria-selected]="selected() === slot.key"
+      aria-controls="today-slot-panel"
+      [attr.tabindex]="selected() === slot.key ? 0 : -1"
+      (click)="pick(slot.key)"
+      (keydown)="onKeydown($event, index)"
+    >
+      <span class="slot-name">{{ slot.label }}</span>
+      @if (summaries()[slot.key].logged) {
+        <span class="slot-state">
+          <span class="slot-kcal">{{ wholeNumber(summaries()[slot.key].calories) }} kcal</span>
+          <svg class="slot-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+          <span class="sr-only">logged</span>
+        </span>
+      } @else {
+        <span class="slot-state">
+          <span class="slot-dash" aria-hidden="true">&ndash;</span>
+          <span class="sr-only">not logged</span>
+        </span>
+      }
+    </button>
+  }
+</div>
+
+<div class="meal" id="today-slot-panel" role="tabpanel" [attr.aria-labelledby]="'today-slot-' + selected()">
+  @if (current().logged) {
+    <div class="meal-head">
+      <span class="meal-kcal"><strong>{{ wholeNumber(current().calories) }}</strong> kcal</span>
+      @if (share() !== null) {
+        <span class="meal-share">{{ share() }}% of today's target</span>
+      }
+    </div>
+
+    @if (macroShares(); as shares) {
+      <div class="macro-bar" role="img" [attr.aria-label]="macroLabel()">
+        <span class="protein" [style.width.%]="shares.protein"></span>
+        <span class="carbs" [style.width.%]="shares.carbs"></span>
+        <span class="fat" [style.width.%]="shares.fat"></span>
+      </div>
+      <ul class="legend">
+        <li><i class="protein"></i>Protein <strong>{{ wholeNumber(current().proteinGrams) }} g</strong></li>
+        <li><i class="carbs"></i>Carbs <strong>{{ wholeNumber(current().carbsGrams) }} g</strong></li>
+        <li><i class="fat"></i>Fat <strong>{{ wholeNumber(current().fatGrams) }} g</strong></li>
+      </ul>
+    }
+
+    @if (current().foods.length) {
+      <ul class="foods">
+        @for (item of current().foods; track $index) {
+          <li class="food">
+            <strong>{{ item.name || 'Food' }}</strong>
+            <span>{{ foodLine(item) }}</span>
+          </li>
+        }
+      </ul>
+    }
+
+    <a class="action quiet" routerLink="/nutrition">Edit this meal</a>
+  } @else {
+    <p class="nothing">Nothing logged</p>
+    <a class="action primary" routerLink="/nutrition">Log {{ selectedDefinition().noun }}</a>
+  }
+</div>
