@@ -49,7 +49,7 @@
             </article>
             <article>
               <span>Average session</span>
-              <strong>{{ summary.averageDuration || 0 }} min</strong>
+              <strong>{{ (summary.averageDurationMinutes || 0) | number: '1.0-0' }} min</strong>
             </article>
             <article>
               <span>Calories burned</span>

@@ -450,7 +450,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Rest today');
     const captions = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.day-caption')).map((el) => el.textContent?.trim());
-    expect(captions[6]).toBe('Rest');
+    expect(captions[6]).toBe('rest');
   });
 
   it('passes restToday through to the headline for a rest day that has not met its goal', () => {

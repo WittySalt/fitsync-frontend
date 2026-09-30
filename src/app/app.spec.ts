@@ -109,17 +109,7 @@ describe('App', () => {
     return compiled;
   }
 
-  it('offers the admin area in the account menu to an administrator', () => {
-    authService.isAdmin.and.returnValue(true);
-    const compiled = openAccountMenu(TestBed.createComponent(App));
-
-    const adminLink = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.account-popover a')).find(
-      (link) => link.textContent?.trim() === 'Admin'
-    );
-    expect(adminLink?.getAttribute('href')).toBe('/admin');
-  });
-
-  it('keeps the admin item out of the DOM for a member', () => {
+  it('has no way into the admin area from the member account menu', () => {
     const compiled = openAccountMenu(TestBed.createComponent(App));
 
     expect(compiled.querySelector('.account-popover')).not.toBeNull();

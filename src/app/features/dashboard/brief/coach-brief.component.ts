@@ -328,7 +328,11 @@ export class CoachBriefComponent implements OnInit {
           // No day-kind data available: the sessions-only week always called this "open".
           return 'open';
         }
-        return day.kind === 'OPEN' ? 'open' : (day.label ?? '');
+        if (day.kind === 'OPEN') {
+          return 'open';
+        }
+        // The other captions of the strip are lower case, and a rest day today matches them.
+        return day.kind === 'REST' ? 'rest' : (day.label ?? '');
       case 'rest':
         // A day the coach knows to be a rest day still reads "rest"; a day with no data at all
         // (kind OPEN) is quieter and says nothing, rather than guessing at a rest that may not be.

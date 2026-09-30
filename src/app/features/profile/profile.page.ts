@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -20,7 +21,7 @@ interface ActivityItem {
 
 @Component({
   selector: 'app-profile-page',
-  imports: [CoachAnchorComponent, RouterLink, StatePanelComponent, GoalLifecycleComponent],
+  imports: [CoachAnchorComponent, DecimalPipe, RouterLink, StatePanelComponent, GoalLifecycleComponent],
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.scss'
 })

@@ -18,6 +18,11 @@ export const authGuard: CanActivateFn = (_route, state): Observable<boolean | Ur
 
       return accountDataService.getCurrentUser().pipe(
         map((user) => {
+          // An administrator's account is for the admin console only and has no member pages.
+          if (authService.isAdmin()) {
+            return router.createUrlTree(['/admin']);
+          }
+
           const onboardingCompleted = user.profile?.onboardingCompleted ?? false;
           const onboardingRoute = state.url.startsWith('/onboarding');
 

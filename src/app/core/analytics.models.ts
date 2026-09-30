@@ -123,7 +123,7 @@ export interface AnalyticsWorkoutSummaryResponse {
   totalWorkoutMinutes: number;
   totalCaloriesBurned: number;
   totalExerciseCount: number;
-  averageDuration: number;
+  averageDurationMinutes: number;
   activeStreakDays: number;
 }
 
