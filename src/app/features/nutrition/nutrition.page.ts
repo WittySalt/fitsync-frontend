@@ -1,5 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, Injector, OnInit, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Meal, NutritionSummary } from '../../core/fitsync.models';
@@ -18,6 +18,9 @@ interface NutritionCheck {
   detail: string;
 }
 
+/** The meal types a deep link may preselect in the meal builder. */
+const LINKABLE_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+
 @Component({
   selector: 'app-nutrition-page',
   imports: [InsightPanelComponent, RouterLink, StatePanelComponent, MealBuilderComponent],
@@ -27,6 +30,11 @@ interface NutritionCheck {
 export class NutritionPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly builder = viewChild(MealBuilderComponent);
+  // The meal type a link asked for, held until the builder exists to take it.
+  private pendingMealType: string | null = null;
 
   readonly nutritionSummary = signal<NutritionSummary | null>(null);
   readonly todayMeals = signal<Meal[]>([]);
@@ -112,6 +120,24 @@ export class NutritionPage implements OnInit {
       this.nutritionCheck('Sodium', nutrition.totalSodiumMg, nutrition.sodiumLimitMg, 'mg', nutrition.sodiumWithinLimit, 'limit')
     ].filter((check): check is NutritionCheck => check !== null);
   });
+
+  constructor() {
+    // The link is read once. Only a known meal type opens the log tab; anything else is ignored.
+    const requested = (this.route.snapshot.queryParamMap.get('log') ?? '').toUpperCase();
+    if (LINKABLE_MEAL_TYPES.includes(requested)) {
+      this.pendingMealType = requested;
+      this.selectedTab.set('log');
+    }
+    effect(() => {
+      const builder = this.builder();
+      if (builder && this.pendingMealType !== null) {
+        const mealType = this.pendingMealType;
+        this.pendingMealType = null;
+        // Set after the builder has rendered, so the form does not change under a view that was already checked.
+        untracked(() => afterNextRender(() => builder.setMealType(mealType), { injector: this.injector }));
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.load();

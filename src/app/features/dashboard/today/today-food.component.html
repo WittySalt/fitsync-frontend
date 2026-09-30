@@ -43,7 +43,13 @@
       (click)="pick(slot.key)"
       (keydown)="onKeydown($event, index)"
     >
-      <span class="slot-name">{{ slot.label }}</span>
+      <span class="slot-head">
+        <span class="slot-name">{{ slot.label }}</span>
+        @if (dueSlot() === slot.key) {
+          <i class="slot-dot" aria-hidden="true"></i>
+          <span class="sr-only">(time to eat)</span>
+        }
+      </span>
       @if (summaries()[slot.key].logged) {
         <span class="slot-state">
           <span class="slot-kcal">{{ wholeNumber(summaries()[slot.key].calories) }} kcal</span>
@@ -62,6 +68,9 @@
 
 <div class="meal" id="today-slot-panel" role="tabpanel" [attr.aria-labelledby]="'today-slot-' + selected()">
   @if (current().logged) {
+    @if (ahead()) {
+      <span class="ahead">Logged ahead</span>
+    }
     <div class="meal-head">
       <span class="meal-kcal"><strong>{{ wholeNumber(current().calories) }}</strong> kcal</span>
       @if (share() !== null) {
@@ -94,8 +103,35 @@
     }
 
     <a class="action quiet" routerLink="/nutrition">Edit this meal</a>
+  } @else if (combination(); as usualMeal) {
+    <span class="eyebrow">Your usual {{ selectedDefinition().noun }}</span>
+    @if (usualFigure()) {
+      <p class="usual-figure">{{ usualFigure() }}</p>
+    }
+    @if (usualMeal.items.length) {
+      <ul class="foods">
+        @for (item of usualMeal.items; track $index) {
+          <li class="food">
+            <strong>{{ item.name || 'Food' }}</strong>
+            @if (foodLine(item)) {
+              <span>{{ foodLine(item) }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+    <div class="actions">
+      <button type="button" class="action primary" [disabled]="busy()" [attr.aria-busy]="busy()" (click)="logNow()">
+        Log it now
+      </button>
+      @if (usualTimeIsAhead()) {
+        <button type="button" class="action quiet" [disabled]="busy()" [attr.aria-busy]="busy()" (click)="logAtUsualTime()">
+          Log for {{ usualTime() }}
+        </button>
+      }
+    </div>
   } @else {
     <p class="nothing">Nothing logged</p>
-    <a class="action primary" routerLink="/nutrition">Log {{ selectedDefinition().noun }}</a>
+    <a class="action primary" [routerLink]="['/nutrition']" [queryParams]="{ log: selected() }">Log {{ selectedDefinition().noun }}</a>
   }
 </div>

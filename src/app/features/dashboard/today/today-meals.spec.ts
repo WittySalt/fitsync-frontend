@@ -1,12 +1,20 @@
-import { DayMeal } from '../../../core/fitsync.models';
+import { DayMeal, UsualMeal } from '../../../core/fitsync.models';
 import {
   budgetFigure,
+  clockMinutes,
   defaultMealSlot,
+  dueMealSlot,
   fillPercent,
+  loggedAhead,
   macroEnergyShares,
   percentOfTarget,
   slotForMealType,
+  slotUsualMinutes,
+  slotUsualTime,
   summariseSlots,
+  todayAt,
+  usualCombination,
+  usualTimeAhead,
   wholeNumber
 } from './today-meals';
 
@@ -167,5 +175,96 @@ describe('percent and figure helpers', () => {
     expect(budgetFigure(86, 140, 'g')).toBe('86 of 140 g');
     expect(budgetFigure(1420, null, 'kcal')).toBe('1,420 kcal');
     expect(budgetFigure(0, 0, 'g')).toBe('0 g');
+  });
+});
+
+function usual(mealType: string, usualTime: string | null, sourceMealId: string | null = 'src'): UsualMeal {
+  return {
+    mealType,
+    label: mealType,
+    usualTime,
+    sourceMealId,
+    totalCalories: 400,
+    totalProteinGrams: 20,
+    totalCarbsGrams: 50,
+    totalFatGrams: 10,
+    items: []
+  };
+}
+
+describe('usual times', () => {
+  it('reads an HH:mm time and rejects anything else', () => {
+    expect(clockMinutes('07:30')).toBe(450);
+    expect(clockMinutes('24:00')).toBeNull();
+    expect(clockMinutes('7:30')).toBeNull();
+    expect(clockMinutes(null)).toBeNull();
+  });
+
+  it('takes the usual time of a slot and falls back to the default', () => {
+    const meals = [usual('BREAKFAST', '09:00'), usual('LUNCH', 'late')];
+
+    expect(slotUsualMinutes(meals, 'BREAKFAST')).toBe(9 * 60);
+    expect(slotUsualMinutes(meals, 'LUNCH')).toBe(12 * 60 + 30);
+    expect(slotUsualMinutes(meals, 'DINNER')).toBe(19 * 60);
+    expect(slotUsualMinutes(meals, 'SNACK')).toBeNull();
+    expect(slotUsualTime(meals, 'LUNCH')).toBeNull();
+  });
+
+  it('counts supper as dinner but prefers a dinner entry over it', () => {
+    expect(slotUsualMinutes([usual('SUPPER', '20:00')], 'DINNER')).toBe(20 * 60);
+    expect(slotUsualMinutes([usual('SUPPER', '20:00'), usual('DINNER', '18:30')], 'DINNER')).toBe(18 * 60 + 30);
+  });
+
+  it('opens the window an hour before the usual time and closes it ninety minutes after', () => {
+    const meals = [usual('BREAKFAST', '10:00')];
+
+    expect(dueMealSlot([], at(8, 59), meals)).toBeNull();
+    expect(dueMealSlot([], at(9, 0), meals)).toBe('BREAKFAST');
+    expect(dueMealSlot([], at(11, 29), meals)).toBe('BREAKFAST');
+    // Lunch opens at 11:30 by default, so the breakfast window has to be checked by name.
+    expect(dueMealSlot([], at(11, 31), meals)).not.toBe('BREAKFAST');
+  });
+
+  it('opens lunch from a usual lunch time that the default window would miss', () => {
+    expect(defaultMealSlot([], at(10, 30), [usual('LUNCH', '11:00')])).toBe('LUNCH');
+    expect(defaultMealSlot([], at(10, 30))).toBe('BREAKFAST');
+  });
+
+  it('uses the defaults when there are no usual meals', () => {
+    expect(dueMealSlot([], at(12, 0))).toBe('LUNCH');
+    expect(dueMealSlot([], at(18, 0), [])).toBe('DINNER');
+  });
+
+  it('never makes snack due, even with a usual snack time', () => {
+    expect(dueMealSlot([], at(15, 0), [usual('SNACK', '15:00')])).toBeNull();
+    expect(defaultMealSlot([], at(15, 0), [usual('SNACK', '15:00')])).toBe('BREAKFAST');
+  });
+
+  it('does not make a meal due once it is logged', () => {
+    expect(dueMealSlot([meal('LUNCH', 12, 500)], at(12, 40))).toBeNull();
+  });
+
+  it('names a combination only when a source meal exists', () => {
+    expect(usualCombination([usual('LUNCH', '12:00', null)], 'LUNCH')).toBeNull();
+    expect(usualCombination([usual('LUNCH', '12:00')], 'LUNCH')?.sourceMealId).toBe('src');
+  });
+
+  it('says whether a usual time is still ahead', () => {
+    expect(usualTimeAhead('12:30', at(12, 29))).toBeTrue();
+    expect(usualTimeAhead('12:30', at(12, 30))).toBeFalse();
+    expect(usualTimeAhead(null, at(8, 0))).toBeFalse();
+  });
+
+  it('builds today at the usual time in the local zone', () => {
+    expect(todayAt('07:30', at(15, 12))?.getTime()).toBe(at(7, 30).getTime());
+    expect(todayAt('bad', at(15, 12))).toBeNull();
+  });
+
+  it('finds a meal logged for a moment that has not come', () => {
+    const ahead = [meal('LUNCH', 12, 500, { consumedAt: at(12, 30).toISOString() })];
+
+    expect(loggedAhead(ahead, 'LUNCH', at(9, 0))).toBeTrue();
+    expect(loggedAhead(ahead, 'LUNCH', at(13, 0))).toBeFalse();
+    expect(loggedAhead(ahead, 'DINNER', at(9, 0))).toBeFalse();
   });
 });

@@ -82,7 +82,8 @@ import {
   WorkoutSessionQuery,
   UpdateExerciseRequest,
   WeeklyTrainingInsight,
-  WeightSeriesPoint
+  WeightSeriesPoint,
+  UsualMeal
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -709,6 +710,30 @@ interface BackendDayMeal {
   totalCarbsGrams?: number;
   totalFatGrams?: number;
   items?: { foodName?: string; calories?: number; proteinGrams?: number }[];
+}
+
+interface BackendUsualMeals {
+  meals?: {
+    mealType?: string;
+    label?: string;
+    usualTime?: string | null;
+    sourceMealId?: string | null;
+    totalCalories?: number | null;
+    totalProteinGrams?: number | null;
+    totalCarbsGrams?: number | null;
+    totalFatGrams?: number | null;
+    items?: { name?: string; calories?: number | null; proteinGrams?: number | null; categoryCode?: string | null }[];
+  }[];
+}
+
+/** A number from the wire, or null when it is missing or not finite. */
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** The clock time as "HH:mm" when it is a real time of day, otherwise null. */
+function clockTimeOrNull(value: unknown): string | null {
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -1759,10 +1784,39 @@ export class FitSyncDataService {
       .pipe(map(() => ({ ok: true as const })));
   }
 
-  copyMeal(mealId: string, mealType: string): Observable<{ ok: true }> {
+  /** Copies a meal. Without `consumedAt` the body carries only the meal type, as before; with it
+   *  the copy is logged at that instant, which may lie ahead of now. */
+  copyMeal(mealId: string, mealType: string, consumedAt?: string): Observable<{ ok: true }> {
+    // The server requires the moment of the copy, so a call without one means now.
+    const body = { mealType, consumedAt: consumedAt ?? new Date().toISOString() };
     return this.http
-      .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, { mealType })
+      .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, body)
       .pipe(map(() => ({ ok: true as const })));
+  }
+
+  /** The meals a person usually has, from the last fourteen days, one entry per meal type. */
+  getUsualMeals(timezone = this.getLocalTimezone()): Observable<UsualMeal[]> {
+    const params = new HttpParams().set('timezone', timezone);
+    return this.http.get<BackendUsualMeals>(`${this.apiBaseUrl}/nutrition/meals/usual`, { params }).pipe(
+      map((response) =>
+        (response?.meals ?? []).map((meal) => ({
+          mealType: meal.mealType ?? '',
+          label: meal.label ?? '',
+          usualTime: clockTimeOrNull(meal.usualTime),
+          sourceMealId: meal.sourceMealId || null,
+          totalCalories: finiteOrNull(meal.totalCalories),
+          totalProteinGrams: finiteOrNull(meal.totalProteinGrams),
+          totalCarbsGrams: finiteOrNull(meal.totalCarbsGrams),
+          totalFatGrams: finiteOrNull(meal.totalFatGrams),
+          items: (meal.items ?? []).map((item) => ({
+            name: item.name ?? '',
+            calories: finiteOrNull(item.calories),
+            proteinGrams: finiteOrNull(item.proteinGrams),
+            categoryCode: item.categoryCode || null
+          }))
+        }))
+      )
+    );
   }
 
   getFoodByBarcode(barcode: string): Observable<LoggedFood | null> {

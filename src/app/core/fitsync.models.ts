@@ -897,3 +897,29 @@ export interface ProgressInsight {
   projectedDate: string | null;
   series: WeightSeriesPoint[];
 }
+
+/** One food of a usual meal. The category code is what the food cards may draw an icon from. */
+export interface UsualMealItem {
+  name: string;
+  calories: number | null;
+  proteinGrams: number | null;
+  categoryCode: string | null;
+}
+
+/**
+ * The meal a person usually has at one kind of meal, from the last two weeks. When no
+ * combination came back often enough the source meal and the figures are null and the list of
+ * foods is empty, while the usual time may still be known.
+ */
+export interface UsualMeal {
+  mealType: string;
+  label: string;
+  /** The usual clock time as "HH:mm", or null when the backend gave none that can be read. */
+  usualTime: string | null;
+  sourceMealId: string | null;
+  totalCalories: number | null;
+  totalProteinGrams: number | null;
+  totalCarbsGrams: number | null;
+  totalFatGrams: number | null;
+  items: UsualMealItem[];
+}

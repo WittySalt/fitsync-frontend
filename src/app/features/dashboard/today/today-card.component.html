@@ -48,7 +48,14 @@
           <div class="skeleton panel-skeleton" aria-hidden="true"></div>
         } @else {
           @if (nutrition(); as summary) {
-            <app-today-food [nutrition]="summary" [meals]="foodMeals()" [now]="now()" />
+            <app-today-food
+              [nutrition]="summary"
+              [meals]="foodMeals()"
+              [now]="now()"
+              [usual]="usualMeals()"
+              [busy]="logging()"
+              (logUsual)="logUsual($event)"
+            />
           }
         }
       </div>

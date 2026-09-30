@@ -2,13 +2,15 @@ import { CoachApiService } from '../../core/coach/coach-api.service';
 import { CoachReading } from '../../core/coach/coach.models';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { NutritionSummary } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { MealBuilderComponent } from './meal-builder.component';
 import { NutritionPage } from './nutrition.page';
 
 function summary(overrides: Partial<NutritionSummary> = {}): NutritionSummary {
@@ -93,11 +95,53 @@ describe('NutritionPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: CoachApiService, useValue: coachApiStub },
-        provideRouter([]),
+        provideRouter([{ path: '**', children: [] }]),
         { provide: FitSyncDataService, useValue: dataService },
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
+  });
+
+  describe('deep link to the log tab', () => {
+    async function open(query: string): Promise<ComponentFixture<NutritionPage>> {
+      dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
+      await TestBed.inject(Router).navigateByUrl(`/nutrition${query}`);
+      const fixture = TestBed.createComponent(NutritionPage);
+      fixture.detectChanges();
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function builderMealType(fixture: ComponentFixture<NutritionPage>): string | undefined {
+      const builder = fixture.debugElement.query(By.directive(MealBuilderComponent));
+      return builder?.componentInstance.mealForm.controls.mealType.value;
+    }
+
+    it('opens the log tab with the requested meal type chosen', async () => {
+      const fixture = await open('?log=LUNCH');
+
+      expect(fixture.componentInstance.selectedTab()).toBe('log');
+      expect(builderMealType(fixture)).toBe('LUNCH');
+    });
+
+    it('takes the meal type whatever its case', async () => {
+      const fixture = await open('?log=breakfast');
+
+      expect(builderMealType(fixture)).toBe('BREAKFAST');
+    });
+
+    it('ignores a value that is not a known meal type', async () => {
+      const fixture = await open('?log=FASTING');
+
+      expect(fixture.componentInstance.selectedTab()).toBe('today');
+      expect(builderMealType(fixture)).toBeUndefined();
+    });
+
+    it('stays on the today tab without the parameter', async () => {
+      const fixture = await open('');
+
+      expect(fixture.componentInstance.selectedTab()).toBe('today');
+    });
   });
 
   it('mounts the insight panel for nutrition in place of the old coach block', () => {

@@ -176,7 +176,8 @@ describe('DashboardPage', () => {
     expect(text).not.toContain('2026-06-21T12:30:00Z');
     expect(goalRowText().length).toBe(1);
     expect(goalRowText()[0]).toContain('Calories 1,900 of 2,000 kcal');
-    expect(goalRowText()[0]).toContain('by 31 Aug 2026');
+    // A daily amount carries no date, whatever the goal record holds.
+    expect(goalRowText()[0]).not.toContain('by 31 Aug 2026');
     expect(text).not.toContain('Complete setup');
   });
 
@@ -393,7 +394,7 @@ describe('DashboardPage', () => {
 
     const text = pageText();
     expect(goalRowText()[0]).toContain('Protein 140 of 140 g');
-    expect(goalRowText()[0]).toContain('by 31 Aug 2026');
+    expect(goalRowText()[0]).not.toContain('by 31 Aug 2026');
     // The goal row keeps the goal's own 140 g. The budget bar on the Food tab is the daily summary's.
     expect(text).toContain('7 of 155 g');
     expect(text).not.toContain('155g');
@@ -504,7 +505,7 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const rows = goalRowText();
-    expect(rows[0]).toContain('was due 31 May 2026');
+    expect(rows[0]).not.toContain('was due 31 May 2026');
     expect(rows[0]).not.toContain('by 31 May');
     expect(rows[0])
       .withContext('claiming progress against a deadline that has passed is the defect')

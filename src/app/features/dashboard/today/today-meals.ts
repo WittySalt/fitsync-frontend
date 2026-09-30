@@ -1,4 +1,4 @@
-import { DayMeal, DayMealItem } from '../../../core/fitsync.models';
+import { DayMeal, DayMealItem, UsualMeal } from '../../../core/fitsync.models';
 
 export type MealSlot = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
 
@@ -69,12 +69,64 @@ export function summariseSlots(meals: DayMeal[]): Record<MealSlot, SlotSummary> 
   return summaries;
 }
 
+/** Minutes after midnight for an "HH:mm" clock time, or null when it is not a real time of day. */
+export function clockMinutes(time: string | null | undefined): number | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time ?? '');
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+/** The usual meals that belong to a slot, the one typed exactly like the slot first. */
+function usualMealsOfSlot(usual: UsualMeal[], slot: MealSlot): UsualMeal[] {
+  return usual
+    .filter((meal) => slotForMealType(meal.mealType) === slot)
+    .sort((a, b) => Number(b.mealType.toUpperCase() === slot) - Number(a.mealType.toUpperCase() === slot));
+}
+
+/** The usual time of a slot in minutes after midnight: the one learned from the last two weeks
+ *  when there is one, otherwise the built-in default. Snack has no usual time. */
+export function slotUsualMinutes(usual: UsualMeal[], slot: MealSlot): number | null {
+  const learned = usualMealsOfSlot(usual, slot)
+    .map((meal) => clockMinutes(meal.usualTime))
+    .find((minutes) => minutes !== null);
+  return learned ?? MEAL_SLOTS.find((definition) => definition.key === slot)?.usualMinutes ?? null;
+}
+
+/** The usual time of a slot as given by the usual meals, or null when they give none. */
+export function slotUsualTime(usual: UsualMeal[], slot: MealSlot): string | null {
+  return usualMealsOfSlot(usual, slot).find((meal) => clockMinutes(meal.usualTime) !== null)?.usualTime ?? null;
+}
+
+/** The usual combination of a slot, or null when none occurred often enough to name one. */
+export function usualCombination(usual: UsualMeal[], slot: MealSlot): UsualMeal | null {
+  return usualMealsOfSlot(usual, slot).find((meal) => meal.sourceMealId !== null) ?? null;
+}
+
+/**
+ * The slot whose usual window holds the current time and that has no meal logged today, or null.
+ * Snack has no window and is never due by itself.
+ */
+export function dueMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = []): MealSlot | null {
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const logged = new Set(meals.map((meal) => slotForMealType(meal.mealType)));
+  const due = MEAL_SLOTS.find((definition) => {
+    const usualMinutes = slotUsualMinutes(usual, definition.key);
+    return (
+      definition.key !== 'SNACK' &&
+      usualMinutes !== null &&
+      !logged.has(definition.key) &&
+      minutes >= usualMinutes - WINDOW_BEFORE_MINUTES &&
+      minutes <= usualMinutes + WINDOW_AFTER_MINUTES
+    );
+  });
+  return due?.key ?? null;
+}
+
 /**
  * The slot the card opens on: the slot of the latest meal logged today, otherwise the slot whose
  * usual window holds the current time, otherwise breakfast. Snack has no window and is never
  * opened by the card itself.
  */
-export function defaultMealSlot(meals: DayMeal[], now: Date): MealSlot {
+export function defaultMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = []): MealSlot {
   let latest: DayMeal | null = null;
   let latestTime = Number.NEGATIVE_INFINITY;
   for (const meal of meals) {
@@ -89,15 +141,31 @@ export function defaultMealSlot(meals: DayMeal[], now: Date): MealSlot {
   if (latest !== null) {
     return slotForMealType(latest.mealType);
   }
+  return dueMealSlot(meals, now, usual) ?? 'BREAKFAST';
+}
 
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const due = MEAL_SLOTS.find(
-    (definition) =>
-      definition.usualMinutes !== null &&
-      minutes >= definition.usualMinutes - WINDOW_BEFORE_MINUTES &&
-      minutes <= definition.usualMinutes + WINDOW_AFTER_MINUTES
+/** True when the usual time of the day, "HH:mm", is still to come at the given moment. */
+export function usualTimeAhead(time: string | null | undefined, now: Date): boolean {
+  const minutes = clockMinutes(time);
+  return minutes !== null && minutes > now.getHours() * 60 + now.getMinutes();
+}
+
+/** The given "HH:mm" on the calendar day of `now`, in the local zone, or null for a bad time. */
+export function todayAt(time: string | null | undefined, now: Date): Date | null {
+  const minutes = clockMinutes(time);
+  if (minutes === null) {
+    return null;
+  }
+  const moment = new Date(now);
+  moment.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return moment;
+}
+
+/** True when a meal of the slot was logged for a moment that has not come yet. */
+export function loggedAhead(meals: DayMeal[], slot: MealSlot, now: Date): boolean {
+  return meals.some(
+    (meal) => slotForMealType(meal.mealType) === slot && new Date(meal.consumedAt).getTime() > now.getTime()
   );
-  return due?.key ?? 'BREAKFAST';
 }
 
 export interface MacroShares {

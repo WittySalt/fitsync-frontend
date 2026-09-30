@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { Goal } from '../../../core/fitsync.models';
 import { goalDueLabel, goalFigure, goalName, goalPercent } from './today-format';
 
+const DAILY_GOAL_TYPES = new Set(['CALORIES', 'PROTEIN', 'CARBS', 'FAT']);
+
 interface GoalRow {
   key: string;
   name: string;
@@ -27,7 +29,8 @@ export class TodayGoalsComponent {
       key: goal.goalId ?? goal.goalType,
       name: goalName(goal),
       figure: goalFigure(goal),
-      due: goalDueLabel(goal),
+      // A daily amount has no date to reach it by, whatever date the goal happens to carry.
+      due: DAILY_GOAL_TYPES.has(goal.goalType) ? '' : goalDueLabel(goal),
       percent: goalPercent(goal)
     }))
   );
