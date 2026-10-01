@@ -1,0 +1,50 @@
+// The chart sits on the dark panel, which keeps its colours in both themes.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+  font-family: var(--font-sans);
+}
+
+.ring,
+.axis {
+  fill: none;
+  stroke: var(--slate-700);
+  stroke-width: 1;
+}
+
+.shape {
+  fill: var(--green-500);
+  fill-opacity: 0.28;
+  stroke: var(--green-400);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.dot {
+  fill: var(--white);
+}
+
+.name {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--white);
+}
+
+.count {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--green-400);
+}
+
+.bar {
+  fill: var(--green-500);
+}

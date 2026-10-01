@@ -14,7 +14,7 @@
   />
 } @else {
   <section class="brief" aria-label="Today's brief from your coach">
-    <div class="brief-top">
+    <div class="brief-top" [class.month-view]="view() === 'month'">
       <div class="brief-left">
         <div class="brief-header">
           <div class="header-row">
@@ -128,7 +128,7 @@
             </div>
           }
         } @else {
-          <app-month-panel />
+          <app-month-panel [weeklyTarget]="weeklyTarget()" />
         }
       </div>
     </div>

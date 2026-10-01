@@ -2,10 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Observable, Subject, of, throwError } from 'rxjs';
 
 import { AccountDataService } from '../../../../core/account-data.service';
+import { AnalyticsApiService } from '../../../../core/analytics-api.service';
 import { FitSyncDataService } from '../../../../core/fitsync-data.service';
 import { MonthlyTrainingInsight } from '../../../../core/fitsync.models';
 import { MonthCalendarComponent } from './month-calendar.component';
-import { monthInsight, weighIn } from './month-fixtures.spec';
+import { analyticsStub, monthInsight, weighIn } from './month-fixtures.spec';
 import { MonthViewState } from './month-view.state';
 
 describe('MonthCalendarComponent', () => {
@@ -46,7 +47,8 @@ describe('MonthCalendarComponent', () => {
       providers: [
         MonthViewState,
         { provide: FitSyncDataService, useValue: data },
-        { provide: AccountDataService, useValue: accounts }
+        { provide: AccountDataService, useValue: accounts },
+        { provide: AnalyticsApiService, useValue: analyticsStub() }
       ]
     });
   });

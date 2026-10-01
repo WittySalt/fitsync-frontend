@@ -100,6 +100,11 @@ export function shiftMonth(month: string, delta: number): string {
   return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}`;
 }
 
+/** The name of a month without the year, such as "September". */
+export function monthNameOf(month: string): string {
+  return MONTH_NAMES[parseMonth(month).monthIndex] ?? '';
+}
+
 export function monthTitle(month: string): string {
   const { year, monthIndex } = parseMonth(month);
   return `${MONTH_NAMES[monthIndex] ?? ''} ${year}`;

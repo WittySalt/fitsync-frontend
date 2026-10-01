@@ -2,9 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { AccountDataService } from '../../../../core/account-data.service';
+import { AnalyticsApiService } from '../../../../core/analytics-api.service';
 import { FitSyncDataService } from '../../../../core/fitsync-data.service';
 import { MonthlyTrainingInsight } from '../../../../core/fitsync.models';
-import { monthInsight } from './month-fixtures.spec';
+import { analyticsStub, monthInsight } from './month-fixtures.spec';
 import { MonthNavComponent } from './month-nav.component';
 import { MonthViewState } from './month-view.state';
 
@@ -45,7 +46,8 @@ describe('MonthNavComponent', () => {
       providers: [
         MonthViewState,
         { provide: FitSyncDataService, useValue: data },
-        { provide: AccountDataService, useValue: accounts }
+        { provide: AccountDataService, useValue: accounts },
+        { provide: AnalyticsApiService, useValue: analyticsStub() }
       ]
     });
   });

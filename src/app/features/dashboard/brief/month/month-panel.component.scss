@@ -1,11 +1,13 @@
 // The panel around this body is dark in both themes, so these colours are fixed rather than taken
-// from the brief's tokens.
+// from the brief's tokens. The layout follows the width of the panel itself, which is a narrow
+// column beside the calendar or the full width of the brief below it.
 :host {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  container-type: inline-size;
 }
 
 .head {
@@ -27,32 +29,75 @@
   color: var(--slate-300);
 }
 
-.totals {
-  flex: 1;
+.charts {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px 24px;
+  padding: 12px 12px 14px;
+  border: 1px solid var(--slate-700);
+  border-radius: 14px;
+}
+
+.chart {
+  min-width: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-around;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--slate-300);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.total {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
+.skeleton-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
 }
 
-.number {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 48px;
-  line-height: 1;
-  color: var(--white);
-  font-variant-numeric: lining-nums tabular-nums;
+.block {
+  display: block;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.caption {
-  font-size: 14px;
-  color: var(--slate-300);
+.block-figure {
+  height: 46px;
+}
+
+// These heights are those of the charts and of the three observations once the month has loaded,
+// so the panel does not change height when the answer arrives.
+.block-charts {
+  height: 412px;
+  border-radius: 14px;
+}
+
+.block-notes {
+  height: 163px;
+}
+
+@container (min-width: 640px) {
+  .skeleton-figures {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .block-charts {
+    height: 218px;
+  }
+
+  .charts {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+  }
 }

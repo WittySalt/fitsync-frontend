@@ -85,7 +85,11 @@
   min-width: 0;
   // The week view and the month view fill the same height, so what lies below does not move when
   // the switch is pressed.
-  min-height: 640px;
+  min-height: var(--top-min, 640px);
+}
+
+.brief-top.month-view {
+  --top-min: 880px;
 }
 
 .brief-left {

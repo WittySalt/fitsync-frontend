@@ -80,12 +80,16 @@ import {
   WorkoutSessionDetail,
   WorkoutSessionPage,
   WorkoutSessionQuery,
+  MonthDayInsight,
+  MonthMuscleInsight,
+  MonthTotals,
+  MonthWeekInsight,
+  MonthlyTrainingInsight,
   UpdateExerciseRequest,
   WeeklyTrainingInsight,
   WeightSeriesPoint,
   UsualMeal
 } from './fitsync.models';
-import { MonthDayInsight, MonthMuscleInsight, MonthTotals, MonthWeekInsight, MonthlyTrainingInsight } from './fitsync.models';
 
 export interface DashboardData {
   profile: UserProfile;

@@ -4,15 +4,37 @@
     <span class="since">{{ line }}</span>
   }
 </div>
-@if (totals(); as figures) {
-  <div class="totals">
-    <div class="total">
-      <span class="number">{{ figures.sessions }}</span>
-      <span class="caption">{{ figures.sessionsLabel }}</span>
+@if (status() === 'loading') {
+  <div class="loading" role="status" aria-busy="true" aria-label="Loading the month">
+    <div class="skeleton-figures">
+      @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+        <span class="block block-figure"></span>
+      }
     </div>
-    <div class="total">
-      <span class="number">{{ figures.duration }}</span>
-      <span class="caption">trained</span>
-    </div>
+    <span class="block block-charts"></span>
+    <span class="block block-notes"></span>
   </div>
+} @else if (insight(); as month) {
+  <app-month-figures [figures]="figures()" />
+  @if (hasTraining()) {
+    @if (month.muscles.length || month.weeks.length) {
+      <div class="charts">
+        @if (month.muscles.length) {
+          <section class="chart" aria-labelledby="month-chart-muscles">
+            <h3 id="month-chart-muscles" class="chart-title">By muscle group</h3>
+            <app-month-radar [muscles]="month.muscles" />
+          </section>
+        }
+        @if (month.weeks.length) {
+          <section class="chart" aria-labelledby="month-chart-weeks">
+            <h3 id="month-chart-weeks" class="chart-title">By week</h3>
+            <app-month-week-bars [weeks]="month.weeks" [monthStart]="month.monthStart" [month]="month.month" />
+          </section>
+        }
+      </div>
+    }
+    @if (observations().length) {
+      <app-month-noticed [observations]="observations()" />
+    }
+  }
 }

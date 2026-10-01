@@ -4,11 +4,12 @@ import { of, throwError } from 'rxjs';
 
 import { CoachStore } from '../../../core/coach/coach.store';
 import { AccountDataService } from '../../../core/account-data.service';
+import { AnalyticsApiService } from '../../../core/analytics-api.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { DayInsight, MuscleGroupCode, NextTraining, TodayInsight, UserGoal, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
 import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
-import { monthInsight } from './month/month-fixtures.spec';
+import { analyticsStub, monthInsight, septemberInsight } from './month/month-fixtures.spec';
 import { FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
 
 const NOW = new Date('2026-09-27T00:10:00Z'); // Sunday 08:10 in Asia/Singapore
@@ -97,6 +98,7 @@ describe('CoachBriefComponent', () => {
   let fixture: ComponentFixture<CoachBriefComponent>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let accountData: jasmine.SpyObj<AccountDataService>;
+  let analytics: jasmine.SpyObj<AnalyticsApiService>;
   let coachStore: jasmine.SpyObj<CoachStore>;
   let router: Router;
 
@@ -120,6 +122,7 @@ describe('CoachBriefComponent', () => {
       'startWorkoutPlan'
     ]);
     dataService.getMonthlyTrainingInsight.and.returnValue(of(monthInsight()));
+    analytics = analyticsStub();
     accountData = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['listBodyMetrics']);
     accountData.listBodyMetrics.and.returnValue(of([]));
     dataService.getWorkoutSessionsInRange.and.returnValue(of(fourCompletedSessions));
@@ -154,6 +157,7 @@ describe('CoachBriefComponent', () => {
         provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
         { provide: AccountDataService, useValue: accountData },
+        { provide: AnalyticsApiService, useValue: analytics },
         { provide: CoachStore, useValue: coachStore },
         { provide: BRIEF_NOW, useValue: () => NOW }
       ]
@@ -219,8 +223,20 @@ describe('CoachBriefComponent', () => {
       expect(element.querySelector('.week-strip')).toBeNull();
       expect(element.querySelector('app-coach-noticed')).toBeNull();
       expect(element.querySelector('app-muscle-wheel')).toBeNull();
-      expect(element.querySelector('.brief-panel app-month-panel .title')?.textContent?.trim()).toBe('September 2026');
+      expect(element.querySelector('.brief-panel app-month-panel .head .title')?.textContent?.trim()).toBe('September so far');
+      expect(element.querySelector('.brief-top')?.classList).toContain('month-view');
       expect(element.querySelector('.brief-panel .panel-title')).toBeNull();
+    });
+
+    it('gives the month panel the weekly goal, so it can count the weeks on goal, and asks for the badges once', () => {
+      dataService.getMonthlyTrainingInsight.and.returnValue(of(septemberInsight()));
+      setup();
+      press('Month');
+      press('Week');
+      press('Month');
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('[data-figure="weeks"]')?.getAttribute('aria-label')).toBe('3 of 3 full weeks on goal');
+      expect(analytics.getAchievements).toHaveBeenCalledTimes(1);
     });
 
     it('keeps the headline and everything below the row while the month shows', () => {
