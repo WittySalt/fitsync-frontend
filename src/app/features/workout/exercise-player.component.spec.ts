@@ -1290,7 +1290,7 @@ describe('ExercisePlayerComponent', () => {
         completeAndPass(player);
 
         expect(textOf(player, 'app-player-rest .what .kicker')).toBe('Next');
-        expect(textOf(player, 'app-player-rest .line')).toBe('Set 2 of 3 · 10 reps · 20 kg');
+        expect(textOf(player, 'app-player-rest .line')).toBe('Set 2 of 3');
         expect(root(player).querySelector('app-player-rest .name')).toBeNull();
         expect(textOf(player, 'app-player-rest .said')).toBe('Five sets left in this workout.');
         expect(root(player).querySelector('app-player-rest [role="img"]')?.getAttribute('aria-label')).toBe('Rest, 0:29 left');
@@ -1355,6 +1355,18 @@ describe('ExercisePlayerComponent', () => {
         expect(player.componentInstance.stage()).toBe('countdown');
         expect(textOf(player, 'app-player-timer-stage .figure')).toBe('3');
         expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 1 of 3 · 10 reps · 20 kg');
+        settle();
+      }));
+
+      it('names the values chosen in Ready on the countdown, not the plan target', fakeAsync(() => {
+        const player = mountStrength();
+        button(player, '[aria-label="Less reps"]').click();
+        button(player, '[aria-label="More weight"]').click();
+        player.detectChanges();
+        button(player, '.start-set').click();
+        player.detectChanges();
+
+        expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 1 of 3 · 9 reps · 22.5 kg');
         settle();
       }));
 

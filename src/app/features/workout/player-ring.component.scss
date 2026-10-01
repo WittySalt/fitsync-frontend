@@ -46,6 +46,11 @@ circle {
     stroke: var(--slate-500);
   }
 
+  // A round cap draws a dot even at zero length, so an empty ring hides its arc.
+  &.empty {
+    stroke-opacity: 0;
+  }
+
   // A rest that was lengthened grows its arc back with an ease instead of a second of linear travel.
   .grow & {
     transition-duration: var(--motion-slow, 300ms), var(--motion-base, 220ms);

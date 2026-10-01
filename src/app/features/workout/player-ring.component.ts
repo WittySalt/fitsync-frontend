@@ -35,7 +35,7 @@ const FIGURE_WIDTH_BUDGET = 0.95;
         @if (sweep()) {
           <circle class="arc sweeping" [class.a]="!flipped()" [class.b]="flipped()" cx="50" cy="50" r="45" pathLength="100"></circle>
         } @else {
-          <circle class="arc" [class.slate]="tone() === 'slate'" cx="50" cy="50" r="45" pathLength="100"
+          <circle class="arc" [class.slate]="tone() === 'slate'" [class.empty]="share() <= 0" cx="50" cy="50" r="45" pathLength="100"
             [attr.stroke-dasharray]="dash()"></circle>
         }
       </svg>

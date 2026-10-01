@@ -397,6 +397,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   /** "Set 3 of 3 · 10 reps · 20 kg", the line that says what comes next. */
   readonly upNextLine = computed(() => this.setLine(this.upNext()));
+  /** The rest names the next set; its values are on the steppers beside it when it can be changed there. */
+  readonly restLine = computed(() => {
+    const up = this.upNext();
+    return up && this.nextValues() ? `Set ${up.setNumber} of ${up.total}` : this.upNextLine();
+  });
   /** The line under the set list on a set of reps: what is next, and the rest before it. */
   readonly nextLine = computed(() => {
     const up = this.upNext();
@@ -472,11 +477,20 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return restCoachLine(this.currentLog(), open, this.openSetCount());
   });
   /** The countdown and the timer name the set that is about to start. */
-  readonly timedLine = computed(() => this.setLine({
-    setNumber: this.currentSetNumber(),
-    total: this.targetSets(),
-    target: this.currentTarget()
-  }));
+  readonly timedLine = computed(() => {
+    const target = this.currentTarget();
+    return this.setLine({
+      setNumber: this.currentSetNumber(),
+      total: this.targetSets(),
+      // The values chosen for the set, so the countdown says what is about to be done.
+      target: target && {
+        ...target,
+        reps: this.hasRepsStepper() ? this.repsValue() : target.reps,
+        weightKg: this.hasWeightStepper() ? this.weightValue() : target.weightKg,
+        durationSeconds: this.isTimedTarget() ? this.durationValue() : target.durationSeconds
+      }
+    });
+  });
   readonly timedFigure = computed(() => this.formatClock(this.workGuideRemainingSeconds()));
   readonly timedLabel = computed(() => `${this.formatClock(this.workGuideRemainingSeconds())} left`);
   /** How long the counted set has lasted, as mm:ss. */

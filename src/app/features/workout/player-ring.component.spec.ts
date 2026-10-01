@@ -76,4 +76,28 @@ describe('PlayerRingComponent', () => {
     expect(parseFloat(getComputedStyle(target).fontSize)).toBeCloseTo(parseFloat(getComputedStyle(count).fontSize) * 0.55, 0);
     expect(getComputedStyle(count).fontVariantNumeric).toContain('tabular-nums');
   });
+
+  it('hides the arc of an empty ring, so the round cap leaves no dot', () => {
+    mount(140, '0 / 10', '0:00');
+    fixture.componentRef.setInput('share', 0);
+    fixture.detectChanges();
+    const arc = root().querySelector('.arc') as SVGCircleElement;
+    expect(getComputedStyle(arc).strokeOpacity).toBe('0');
+
+    fixture.componentRef.setInput('share', 0.1);
+    fixture.detectChanges();
+    expect(getComputedStyle(arc).strokeOpacity).toBe('1');
+    root().remove();
+  });
+
+  it('draws a check and one ripple for a set that was just done', () => {
+    mount(140, '', '');
+    fixture.componentRef.setInput('done', true);
+    fixture.detectChanges();
+
+    expect(root().querySelector('.check path')).not.toBeNull();
+    expect(root().querySelector('.ripple')).not.toBeNull();
+    expect(root().querySelector('.figure')).toBeNull();
+    root().remove();
+  });
 });
