@@ -10,7 +10,7 @@
   </svg>
 </ng-template>
 
-<ul class="legend" aria-label="Legend">
+<ul class="legend" [class.picked]="group()" aria-label="Legend">
   @if (group()) {
     <li>
       <span class="swatch swatch-kind"><ng-container [ngTemplateOutlet]="glyph" [ngTemplateOutletContext]="{ $implicit: groupGlyph() }" /></span>

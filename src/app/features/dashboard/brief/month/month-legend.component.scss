@@ -67,6 +67,11 @@
     font-size: 12px;
   }
 
+  // The two entries of a picked muscle group are longer than the kinds, so they pair up.
+  .legend.picked {
+    grid-template-columns: repeat(2, auto);
+  }
+
   .before-item {
     grid-column: 1 / -1;
   }
