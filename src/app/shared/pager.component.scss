@@ -1,0 +1,181 @@
+:host {
+  display: block;
+  container-type: inline-size;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.summary,
+.pages,
+.size,
+.jump {
+  display: flex;
+  align-items: center;
+}
+
+.summary {
+  gap: 16px;
+}
+
+.total {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.size,
+.jump {
+  gap: 8px;
+}
+
+select,
+input {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+input {
+  width: 56px;
+}
+
+.pages {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+ol {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: var(--text-muted);
+    cursor: default;
+  }
+}
+
+.step {
+  padding: 0 10px;
+}
+
+.number {
+  min-width: 32px;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+
+  &.current,
+  &.current:hover:not(:disabled) {
+    background: var(--accent-subtle);
+    color: var(--accent-text);
+  }
+}
+
+.gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+  color: var(--text-muted);
+}
+
+.jump {
+  margin-left: 12px;
+}
+
+/* Narrow: the numbers get their own centred row, the steps and the jump box sit under them. */
+@container (max-width: 560px) {
+  .pager {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pages {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "nums nums nums"
+      "prev jump next";
+    row-gap: 8px;
+  }
+
+  ol {
+    grid-area: nums;
+    justify-content: center;
+  }
+
+  .prev {
+    grid-area: prev;
+  }
+
+  .next {
+    grid-area: next;
+  }
+
+  .jump {
+    grid-area: jump;
+    justify-self: center;
+    margin-left: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  select,
+  input,
+  button,
+  .gap {
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .number {
+    min-width: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}

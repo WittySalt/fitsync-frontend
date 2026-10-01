@@ -351,25 +351,19 @@
               </article>
             }
           </div>
-          @if (totalPages() > 1) {
-            <nav class="pagination-bar" aria-label="Exercise catalog pages">
-              <button class="button secondary" type="button" (click)="prevPage()" [disabled]="loading() || page() <= 0">
-                Previous
-              </button>
-              <label class="page-size">
-                Per page
-                <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
-                  <option [value]="10">10</option>
-                  <option [value]="20">20</option>
-                  <option [value]="50">50</option>
-                </select>
-              </label>
-              <span>Page {{ page() + 1 }} / {{ totalPages() }} ({{ totalElements() }} exercises)</span>
-              <button class="button secondary" type="button" (click)="nextPage()" [disabled]="loading() || page() + 1 >= totalPages()">
-                Next
-              </button>
-            </nav>
-          }
+          <app-pager
+            class="catalog-pager"
+            label="Exercise catalog pages"
+            unit="exercises"
+            [page]="page()"
+            [totalPages]="totalPages()"
+            [total]="totalElements()"
+            [pageSize]="pageSize()"
+            [pageSizes]="[10, 20, 50]"
+            [disabled]="loading()"
+            (pageChange)="goToPage($event)"
+            (pageSizeChange)="setPageSize($event)"
+          />
         } @else {
           <app-state-panel title="No exercises" message="Adjust filters or create a custom exercise." />
         }

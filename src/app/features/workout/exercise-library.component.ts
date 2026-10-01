@@ -18,6 +18,7 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
+import { PagerComponent } from '../../shared/pager.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { ExerciseVideoComponent, isAllowedEmbedVideoUrl } from './exercise-video.component';
 
@@ -34,7 +35,7 @@ interface HistoryTrend {
 
 @Component({
   selector: 'app-exercise-library',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, FsChartComponent, StatePanelComponent, ExerciseVideoComponent],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, FsChartComponent, StatePanelComponent, ExerciseVideoComponent, PagerComponent],
   templateUrl: './exercise-library.component.html',
   styleUrl: './exercise-library.component.scss'
 })

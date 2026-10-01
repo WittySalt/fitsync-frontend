@@ -197,21 +197,18 @@
           }
         </ul>
 
-        <nav class="pagination-bar" aria-label="Measurement history pages">
-          <span>Page {{ currentPage() + 1 }} of {{ totalPages() }} - {{ filteredMetrics().length }} measurements</span>
-          <label class="page-size">
-            Per page
-            <select [value]="pageSize()" (change)="setPageSize(+$any($event.target).value)">
-              @for (size of pageSizeOptions; track size) {
-                <option [value]="size">{{ size }}</option>
-              }
-            </select>
-          </label>
-          <div class="pagination-actions">
-            <button class="button secondary" type="button" [disabled]="currentPage() === 0" (click)="previousPage()">Previous</button>
-            <button class="button secondary" type="button" [disabled]="currentPage() >= totalPages() - 1" (click)="nextPage()">Next</button>
-          </div>
-        </nav>
+        <app-pager
+          class="body-pager"
+          label="Measurement history pages"
+          unit="measurements"
+          [page]="currentPage()"
+          [totalPages]="totalPages()"
+          [total]="filteredMetrics().length"
+          [pageSize]="pageSize()"
+          [pageSizes]="pageSizeOptions"
+          (pageChange)="goToPage($event)"
+          (pageSizeChange)="setPageSize($event)"
+        />
       }
     </section>
   }
