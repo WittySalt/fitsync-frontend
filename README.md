@@ -62,6 +62,15 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
+## CI/CD
+
+CI/CD runs on GitHub Actions only:
+
+- `.github/workflows/ci.yml` runs on pull requests and on pushes to `main`/`develop`. It does the typecheck, unit tests with coverage, the production build and a gitleaks secret scan.
+- `.github/workflows/cd.yml` provisions the frontend infrastructure (`infra/terraform/`) and deploys the SPA to S3 + CloudFront. Deploys are started by hand and stay off until the repository variables are set.
+
+See [`.github/CICD-VARIABLES.md`](.github/CICD-VARIABLES.md) for the variables, and [`infra/terraform/RUNBOOK.md`](infra/terraform/RUNBOOK.md) for the infrastructure.
+
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
