@@ -6,7 +6,7 @@ import { of } from 'rxjs';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { Meal } from '../../../core/fitsync.models';
 import { NutritionDiaryService } from './nutrition-diary.service';
-import { item } from './diary-testing';
+import { item } from './diary-testing.spec';
 
 describe('NutritionDiaryService', () => {
   let service: NutritionDiaryService;

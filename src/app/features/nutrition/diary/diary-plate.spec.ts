@@ -1,5 +1,5 @@
 import { badgeNote, fruitVegSentence, groupBadges, plateLegend, plateTotals, plateWedges } from './diary-plate';
-import { item } from './diary-testing';
+import { item } from './diary-testing.spec';
 
 const veg = item({ foodGroup: 'VEG', gramsConsumed: 50 });
 const fruit = item({ foodGroup: 'FRUIT', gramsConsumed: 300 });

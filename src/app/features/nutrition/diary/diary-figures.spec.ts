@@ -1,5 +1,5 @@
 import { amountText, balanceRow, barPercent, budgetFigures, nutrientView, proteinChart, sourceLine, splitNutrients, whole } from './diary-figures';
-import { balanceEntry, nutrientRow } from './diary-testing';
+import { balanceEntry, nutrientRow } from './diary-testing.spec';
 
 describe('number text', () => {
   it('writes whole numbers with separators', () => {

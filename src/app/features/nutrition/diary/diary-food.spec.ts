@@ -1,5 +1,5 @@
 import { foodTags, groupsOf, macroLine, macroSplit, mealParts } from './diary-food';
-import { item, meal } from './diary-testing';
+import { item, meal } from './diary-testing.spec';
 
 describe('foodTags', () => {
   it('tags a protein rich food as high protein', () => {

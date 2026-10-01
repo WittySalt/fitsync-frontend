@@ -1,5 +1,5 @@
 import { dayTiles, weekDots, weekFigures } from './diary-week';
-import { rangeDay } from './diary-testing';
+import { rangeDay } from './diary-testing.spec';
 import { weekOf } from './diary-time';
 
 const TODAY = '2026-10-02'; // a Friday

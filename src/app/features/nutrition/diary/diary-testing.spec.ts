@@ -1,3 +1,6 @@
+import { of } from 'rxjs';
+
+import { NutritionDiaryService } from './nutrition-diary.service';
 import { BalanceEntry, DiaryItem, DiaryMeal, DiarySummary, NutrientRow, RangeDay, WaterDay } from './diary.models';
 
 /** Builders for specs. Each takes only what a spec cares about and fills the rest with plain values. */
@@ -37,7 +40,12 @@ export function item(overrides: Partial<DiaryItem> = {}): DiaryItem {
       sodiumMg: null
     }
   };
-  return { ...base, ...overrides };
+  const merged = { ...base, ...overrides };
+  // The draft follows the item, so a spec that renames a food or changes its kcal gets a matching draft.
+  return {
+    ...merged,
+    draft: { ...base.draft, foodName: merged.foodName, calories: merged.calories, proteinGrams: merged.proteinGrams, ...overrides.draft }
+  };
 }
 
 export function meal(overrides: Partial<DiaryMeal> = {}): DiaryMeal {
@@ -123,4 +131,56 @@ export function nutrientRow(overrides: Partial<NutrientRow> = {}): NutrientRow {
     richestUsualFood: null,
     ...overrides
   };
+}
+
+/** A stand-in for the Diary service with the answers of an empty, quiet day. A spec overrides what it cares about. */
+export function diaryServiceStub(): jasmine.SpyObj<NutritionDiaryService> {
+  const stub = jasmine.createSpyObj<NutritionDiaryService>('NutritionDiaryService', [
+    'getSummary',
+    'getMeals',
+    'getRange',
+    'getWater',
+    'getNutrients',
+    'searchDrinks',
+    'recentDrinks',
+    'frequentDrinks',
+    'getDrinkDetail',
+    'logWater',
+    'deleteWater',
+    'logDrink',
+    'deleteMeal'
+  ]);
+  stub.getSummary.and.returnValue(of(summary()));
+  stub.getMeals.and.returnValue(of([]));
+  stub.getRange.and.returnValue(of([]));
+  stub.getWater.and.returnValue(of(waterDay()));
+  stub.getNutrients.and.returnValue(of({ daysLogged: 0, referenceLabel: null, focusCodes: [], itemsLogged: null, itemsWithoutNutrients: null, nutrients: [] }));
+  stub.searchDrinks.and.returnValue(of([]));
+  stub.recentDrinks.and.returnValue(of([]));
+  stub.frequentDrinks.and.returnValue(of([]));
+  stub.deleteMeal.and.returnValue(of(undefined));
+  stub.deleteWater.and.returnValue(of(undefined));
+  return stub;
+}
+
+/**
+ * The text of an element with a space between the separate pieces of it, the way the pieces read
+ * one after another. textContent alone runs neighbouring elements together.
+ */
+export function spoken(element: Node | null | undefined): string {
+  const parts: string[] = [];
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const piece = node.textContent?.trim();
+      if (piece) {
+        parts.push(piece);
+      }
+    } else {
+      node.childNodes.forEach(walk);
+    }
+  };
+  if (element) {
+    walk(element);
+  }
+  return parts.join(' ');
 }

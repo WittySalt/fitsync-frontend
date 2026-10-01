@@ -1,7 +1,7 @@
 import { FoodServing } from '../../../core/fitsync.models';
 import { DrinkDetail } from './diary.models';
 import { drinkItem, drinkPreview, loggedMoment, progressShares, timelineMarks, waterTotals } from './diary-water';
-import { waterDay } from './diary-testing';
+import { waterDay } from './diary-testing.spec';
 
 function serving(overrides: Partial<FoodServing> = {}): FoodServing {
   return {
