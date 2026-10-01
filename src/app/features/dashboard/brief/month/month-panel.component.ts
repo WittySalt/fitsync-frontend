@@ -1,8 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+
+import { ToastService } from '../../../../core/toast/toast.service';
 
 import { MonthDayComponent } from './month-day.component';
 import { MonthFiguresComponent } from './month-figures.component';
 import { buildFigures, emptyMonthLine, headLine, headTitle } from './month-figures';
+import { MONTH_IMAGE_EXPORT } from './month-image-export';
+import { buildMonthImageModel, monthImageFileName } from './month-image';
 import { MonthMuscleComponent } from './month-muscle.component';
 import { muscleChartTitle } from './month-muscle';
 import { MonthNoticedComponent } from './month-noticed.component';
@@ -25,9 +29,13 @@ import { MonthWeekBarsComponent } from './month-week-bars.component';
 export class MonthPanelComponent {
   protected readonly state = inject(MonthViewState);
   private readonly radar = viewChild(MonthRadarComponent);
+  private readonly imageExport = inject(MONTH_IMAGE_EXPORT);
+  private readonly toast = inject(ToastService);
 
   /** The sessions a week should reach, from the brief's weekly goal. */
   readonly weeklyTarget = input<number | null>(null);
+  /** The name that goes on the saved picture. */
+  readonly personName = input('');
 
   protected readonly selectedDate = computed(() => this.state.selectedDate());
   protected readonly selectedMuscle = computed(() => this.state.selectedMuscle());
@@ -72,6 +80,34 @@ export class MonthPanelComponent {
       ? buildMonthObservations({ insight, weeklyTarget: this.weeklyTarget(), weights: this.state.weights() })
       : [];
   });
+
+  /** True while the picture is being made, so the button cannot be pressed twice. */
+  protected readonly saving = signal(false);
+  /** The button is offered once the month has loaded and holds a session. */
+  protected readonly canSave = computed(() => this.status() === 'ready' && this.hasTraining());
+
+  protected async saveImage(): Promise<void> {
+    const insight = this.insight();
+    if (this.saving() || !insight || !this.canSave()) {
+      return;
+    }
+    this.saving.set(true);
+    try {
+      const model = buildMonthImageModel({
+        insight,
+        figures: this.figures(),
+        observations: this.observations(),
+        personName: this.personName()
+      });
+      const blob = await this.imageExport.make(model);
+      this.imageExport.save(blob, monthImageFileName(insight.month));
+      this.toast.success('Saved to your device.');
+    } catch {
+      this.toast.error('The picture could not be made.');
+    } finally {
+      this.saving.set(false);
+    }
+  }
 
   constructor() {
     // The button that lets go of a muscle group goes away with the lower part, so the focus

@@ -45,6 +45,7 @@
             <span class="headline-accent">{{ headline().lines[1] }}</span>
           </h1>
           <p class="greeting">{{ headline().greeting }}</p>
+          <app-month-line [todayKey]="todayDateKey()" [timezone]="timezone()" [shown]="view() === 'week'" (seeMonth)="seeMonth($event)" />
         </div>
 
         <div class="week-card">
@@ -128,7 +129,7 @@
             </div>
           }
         } @else {
-          <app-month-panel [weeklyTarget]="weeklyTarget()" />
+          <app-month-panel [weeklyTarget]="weeklyTarget()" [personName]="displayName() || firstName()" />
         }
       </div>
     </div>

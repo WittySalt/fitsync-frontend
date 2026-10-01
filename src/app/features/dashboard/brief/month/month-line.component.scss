@@ -1,0 +1,51 @@
+// The host takes no box of its own, so that a line that is not shown leaves no gap in the header
+// it sits in. The colours are the brief's, which reach this component through inheritance.
+:host {
+  display: contents;
+}
+
+.line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 16px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--brief-ink-soft);
+}
+
+// The two buttons stay together: when the line is too narrow for all three parts, they drop to the
+// next row as one.
+.actions {
+  display: inline-flex;
+  gap: 16px;
+  white-space: nowrap;
+}
+
+.link {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  color: var(--brief-tint-ink);
+  cursor: pointer;
+
+  // The text is 20 px tall; this stretches the target to 44 px without moving anything.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}

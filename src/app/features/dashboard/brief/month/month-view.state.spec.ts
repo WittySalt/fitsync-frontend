@@ -178,3 +178,44 @@ describe('MonthViewState selection', () => {
     expect(state.weightByDate().size).toBe(0);
   });
 });
+
+describe('MonthViewState opened on a given month', () => {
+  let state: MonthViewState;
+  let data: jasmine.SpyObj<FitSyncDataService>;
+
+  beforeEach(() => {
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getMonthlyTrainingInsight']);
+    data.getMonthlyTrainingInsight.and.returnValue(of(monthInsight({ month: '2026-09', referenceDate: '2026-10-02' })));
+    const accounts = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['listBodyMetrics']);
+    accounts.listBodyMetrics.and.returnValue(of([]));
+    TestBed.configureTestingModule({
+      providers: [
+        MonthViewState,
+        { provide: FitSyncDataService, useValue: data },
+        { provide: AccountDataService, useValue: accounts },
+        { provide: AnalyticsApiService, useValue: analyticsStub() }
+      ]
+    });
+    state = TestBed.inject(MonthViewState);
+  });
+
+  it('shows the month it was asked for and loads that one', () => {
+    state.open('Asia/Singapore', '2026-10-02', '2026-09');
+    expect(state.month()).toBe('2026-09');
+    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+  });
+
+  it('keeps the limits of the arrows', () => {
+    state.open('Asia/Singapore', '2026-10-02', '2026-09');
+    expect(state.canGoNext()).toBeTrue();
+    expect(state.canGoPrevious()).toBeTrue();
+    state.step(1);
+    expect(state.month()).toBe('2026-10');
+    expect(state.canGoNext()).toBeFalse();
+  });
+
+  it('still opens on the month of today when none is given', () => {
+    state.open('Asia/Singapore', '2026-10-02');
+    expect(state.month()).toBe('2026-10');
+  });
+});

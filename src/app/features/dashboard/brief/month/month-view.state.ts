@@ -79,13 +79,14 @@ export class MonthViewState implements OnDestroy {
   readonly canGoNext = computed(() => this.month() < monthOfDate(this.referenceDate()));
   readonly canGoPrevious = computed(() => this.month() > monthOfDate(this.firstSessionDate() ?? this.referenceDate()));
 
-  /** Opens the view on the month that contains today and loads it. */
-  open(timezone: string, todayKey: string): void {
+  /** Opens the view on the month that contains today, or on the given month (YYYY-MM) when one is
+   *  asked for, and loads it. The arrows keep their limits either way. */
+  open(timezone: string, todayKey: string, month: string = monthOfDate(todayKey)): void {
     this.timezone = timezone;
     this.zone.set(timezone);
     this.openedOn.set(todayKey);
     this.bounds.set(null);
-    this.month.set(monthOfDate(todayKey));
+    this.month.set(month);
     this.load();
     this.loadBadges();
   }
