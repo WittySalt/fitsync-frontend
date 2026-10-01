@@ -1,4 +1,5 @@
 import { DayPeriod } from './brief-time';
+import { usualTimeSentence } from './brief-usual-time';
 
 const NUMBER_WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six',
@@ -57,6 +58,13 @@ export interface BriefHeadlineInput {
   /** Consecutive weeks, ending with the current or the last full week, that met the goal. Nothing
    *  sets this yet; a later change wires it up from streak data. */
   weeksAtGoal?: number | null;
+  /** The time of day the person usually trains, as "HH:mm". Null or absent when none is known. */
+  usualStartTime?: string | null;
+  /** Minutes since local midnight, which the usual time is compared with. */
+  nowMinutes?: number | null;
+  /** Today's session is still ahead: it is not under way and not done. The greeting adds the usual
+   *  time only when this is true. */
+  todayOpen?: boolean;
 }
 
 export interface BriefHeadline {
@@ -180,7 +188,14 @@ export function briefHeadline(input: BriefHeadlineInput): BriefHeadline {
   const prefix = salutationPrefix(period, firstName);
 
   const lines = headlineLines({ completed, target, completedToday, restToday, trainedYesterday, daysSinceLastSession });
-  const greeting = buildGreeting({ prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal });
+  let greeting = buildGreeting({ prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal });
+
+  // The usual time is mentioned only while there is a session to come and plenty of day before it.
+  const sessionOpen = (input.todayOpen ?? false) && !completedToday && !restToday && !targetMet;
+  const usual = sessionOpen ? usualTimeSentence(period, input.usualStartTime ?? null, input.nowMinutes ?? null) : null;
+  if (usual) {
+    greeting = `${greeting} ${usual}`;
+  }
 
   return { lines, greeting };
 }

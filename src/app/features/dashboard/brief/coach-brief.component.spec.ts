@@ -102,13 +102,16 @@ describe('CoachBriefComponent', () => {
   let coachStore: jasmine.SpyObj<CoachStore>;
   let router: Router;
 
-  function setup(): void {
+  function setup(extraInputs: Record<string, unknown> = {}): void {
     router = TestBed.inject(Router);
     spyOn(router, 'navigate').and.resolveTo(true);
     fixture = TestBed.createComponent(CoachBriefComponent);
     fixture.componentRef.setInput('firstName', 'Ruixian');
     fixture.componentRef.setInput('timezone', 'Asia/Singapore');
     fixture.componentRef.setInput('caloriesTarget', 2100);
+    for (const [name, value] of Object.entries(extraInputs)) {
+      fixture.componentRef.setInput(name, value);
+    }
     fixture.detectChanges();
   }
 
@@ -172,6 +175,67 @@ describe('CoachBriefComponent', () => {
     expect(element.querySelectorAll('app-muscle-wheel circle.badge').length).toBe(5);
     expect(element.querySelector('.panel-title')?.textContent?.trim()).toBe('Your plan this week');
     expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith('Asia/Singapore');
+  });
+
+  describe('the focus line under the wheel', () => {
+    const line = (): HTMLElement | null => (fixture.nativeElement as HTMLElement).querySelector('app-focus-line .focus-line');
+
+    it('names the focus groups that have no sector, with a link to the plans', () => {
+      setup({ focusAreas: ['UPPER'] });
+      expect(line()?.querySelector('.focus-text')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+        'Shoulders and arms belong to your upper-body focus and are not in your plan. Add them'
+      );
+      const link = line()?.querySelector<HTMLAnchorElement>('a.focus-link');
+      expect(link?.getAttribute('href')).toBe('/workout?tab=plans');
+    });
+
+    it('stays out when every focus group is on the wheel or no focus was chosen', () => {
+      setup({ focusAreas: ['CORE', 'CARDIO', 'FULL_BODY'] });
+      expect(line()).toBeNull();
+    });
+
+    it('stays out without focus areas', () => {
+      setup();
+      expect(line()).toBeNull();
+    });
+
+    it('stays out when there is no active plan', () => {
+      dataService.getActivePlan.and.returnValue(of(null));
+      setup({ focusAreas: ['UPPER'] });
+      expect(line()).toBeNull();
+    });
+
+    it('stays out in the month view', () => {
+      setup({ focusAreas: ['UPPER'] });
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.switch-tab'))
+        .find((button) => button.textContent?.trim() === 'Month')
+        ?.click();
+      fixture.detectChanges();
+      expect(line()).toBeNull();
+    });
+  });
+
+  describe('the usual training time in the greeting', () => {
+    const greeting = (): string => (fixture.nativeElement as HTMLElement).querySelector('.greeting')?.textContent ?? '';
+
+    it('adds the usual time on a morning with the goal still open', () => {
+      dataService.getGoals.and.returnValue(of([{ ...weeklyFrequencyGoal, targetValue: 6 }]));
+      dataService.getWeeklyTrainingInsight.and.returnValue(of({ ...weeklyInsight, usualStartTime: '18:30' }));
+      setup();
+      expect(greeting()).toContain('You usually train around 18:30, so there is no rush.');
+    });
+
+    it('leaves the greeting alone when the goal is met', () => {
+      dataService.getWeeklyTrainingInsight.and.returnValue(of({ ...weeklyInsight, usualStartTime: '18:30' }));
+      setup();
+      expect(greeting()).not.toContain('usually');
+    });
+
+    it('leaves the greeting alone when the insight carries no usual time', () => {
+      dataService.getGoals.and.returnValue(of([{ ...weeklyFrequencyGoal, targetValue: 6 }]));
+      setup();
+      expect(greeting()).not.toContain('usually');
+    });
   });
 
   describe('week and month switch', () => {

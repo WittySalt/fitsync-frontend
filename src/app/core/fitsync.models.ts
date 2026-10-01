@@ -8,6 +8,9 @@ export interface UserProfile {
   activityLevel: string;
   timezone: string;
   onboardingCompleted: boolean;
+  /** The focus areas chosen at setup, as onboarding names them (UPPER, LOWER, CORE and so on).
+   *  Absent where a profile is built without the preferences. */
+  focusAreas?: string[];
 }
 
 export interface OnboardingFormValue {
@@ -591,6 +594,9 @@ export interface WeeklyTrainingInsight {
   days: DayInsight[] | null;
   today: TodayInsight | null;
   nextTraining: NextTraining | null;
+  /** The time of day the person usually starts training, as the backend sends it ("18:30", 24-hour).
+   *  Null when the records do not show a usual time; absent on a response from before the field. */
+  usualStartTime?: string | null;
 }
 
 /** The four kinds of training day, plus the two states a day can be in without one. */

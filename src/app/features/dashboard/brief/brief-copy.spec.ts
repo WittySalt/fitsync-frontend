@@ -278,3 +278,66 @@ describe('quickQuestions', () => {
     ]);
   });
 });
+
+describe('briefHeadline: the usual training time', () => {
+  const base = {
+    period: 'MORNING' as const,
+    firstName: 'Ruixian',
+    completed: 4,
+    target: 5,
+    daysLeftInWeek: 3,
+    usualStartTime: '18:30',
+    nowMinutes: 8 * 60 + 10,
+    todayOpen: true
+  };
+  const clause = 'You usually train around 18:30, so there is no rush.';
+
+  it('adds the clause as its own sentence on a morning with the session still open', () => {
+    const { greeting } = briefHeadline(base);
+    expect(greeting).toBe(`Good morning, Ruixian. Four sessions in, and the week still has three days for the rest. ${clause}`);
+  });
+
+  it('adds it in the afternoon, and when the week has no goal set', () => {
+    expect(briefHeadline({ ...base, period: 'AFTERNOON', nowMinutes: 13 * 60 }).greeting.endsWith(clause)).toBe(true);
+    expect(briefHeadline({ ...base, target: null }).greeting).toBe(`Good morning, Ruixian. Here is your week so far. ${clause}`);
+  });
+
+  it('adds it on a week that has not started', () => {
+    expect(briefHeadline({ ...base, completed: 0 }).greeting).toBe(
+      `Good morning, Ruixian. The week is open, and your goal is five sessions. ${clause}`
+    );
+  });
+
+  it('adds it when the usual time is exactly one hour away, and not when it is less', () => {
+    const afternoon = { ...base, period: 'AFTERNOON' as const, nowMinutes: 16 * 60 + 59 };
+    expect(briefHeadline({ ...afternoon, usualStartTime: '17:59' }).greeting).toContain('usually train around 17:59');
+    expect(briefHeadline({ ...afternoon, usualStartTime: '17:58' }).greeting).not.toContain('usually');
+  });
+
+  it('leaves the greeting as it was in the evening and at night', () => {
+    expect(briefHeadline({ ...base, period: 'EVENING', nowMinutes: 17 * 60 }).greeting).not.toContain('usually');
+    expect(briefHeadline({ ...base, period: 'NIGHT', nowMinutes: 23 * 60, usualStartTime: '23:59' }).greeting).not.toContain('usually');
+  });
+
+  it('leaves the greeting as it was on a rest day', () => {
+    expect(briefHeadline({ ...base, restToday: true }).greeting).not.toContain('usually');
+  });
+
+  it('leaves the greeting as it was once the goal is met', () => {
+    expect(briefHeadline({ ...base, completed: 5 }).greeting).not.toContain('usually');
+    expect(briefHeadline({ ...base, completed: 6 }).greeting).not.toContain('usually');
+  });
+
+  it('leaves the greeting as it was once today has been trained, or while the session is under way', () => {
+    expect(briefHeadline({ ...base, completedToday: true }).greeting).not.toContain('usually');
+    expect(briefHeadline({ ...base, todayOpen: false }).greeting).not.toContain('usually');
+  });
+
+  it('leaves the greeting as it was with no usual time, a malformed one, or no clock', () => {
+    const plain = briefHeadline({ ...base, usualStartTime: undefined, nowMinutes: undefined, todayOpen: undefined }).greeting;
+    expect(briefHeadline({ ...base, usualStartTime: null }).greeting).toBe(plain);
+    expect(briefHeadline({ ...base, usualStartTime: '6:30 pm' }).greeting).toBe(plain);
+    expect(briefHeadline({ ...base, nowMinutes: null }).greeting).toBe(plain);
+    expect(plain).toBe('Good morning, Ruixian. Four sessions in, and the week still has three days for the rest.');
+  });
+});

@@ -1,4 +1,4 @@
-import { clockLabel, dateLabel, dayPeriodFor, periodLabel } from './brief-time';
+import { clockLabel, dateLabel, dayPeriodFor, minutesOfDay, periodLabel } from './brief-time';
 
 const TZ = 'Asia/Singapore';
 
@@ -66,5 +66,13 @@ describe('dateLabel', () => {
 
   it('does not abbreviate September to "Sep"', () => {
     expect(dateLabel(new Date('2026-09-27T00:10:00Z'), TZ)).not.toContain('Sep ');
+  });
+});
+
+describe('minutesOfDay', () => {
+  it('counts minutes from local midnight in the given timezone', () => {
+    // 00:10 UTC is 08:10 in Singapore.
+    expect(minutesOfDay(new Date('2026-09-27T00:10:00Z'), 'Asia/Singapore')).toBe(8 * 60 + 10);
+    expect(minutesOfDay(new Date('2026-09-27T16:00:00Z'), 'Asia/Singapore')).toBe(0);
   });
 });

@@ -1,0 +1,72 @@
+// This line sits on the brief's dark panel, which keeps its colours in both themes, so the values
+// are the slate and green primitives. It measures its own width, because the panel is narrower
+// than the card and a phone stacks the panel at full width.
+:host {
+  display: block;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.focus-line {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--slate-600);
+}
+
+.focus-badges {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.focus-badge {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--slate-800);
+  border: 1.5px dashed var(--slate-400);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.focus-text {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--slate-200);
+  overflow-wrap: anywhere;
+}
+
+.focus-link {
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--green-400);
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--green-400);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+// Below the width of the panel on a computer the badges would squeeze the sentence into four lines.
+@container (max-width: 359px) {
+  .focus-badges {
+    display: none;
+  }
+}
