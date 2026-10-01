@@ -103,10 +103,13 @@ h2 {
   white-space: nowrap;
 }
 
+// The name sits just above the button in every card, so the three names share one line even
+// though only the first card has a line above its name.
 .card-body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 4px;
   min-width: 0;
 }
