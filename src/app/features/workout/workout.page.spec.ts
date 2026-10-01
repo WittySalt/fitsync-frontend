@@ -24,7 +24,7 @@ import {
   WorkoutSessionQuery
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { createExerciseGroup } from './plan-exercise-form';
+import { createExerciseGroup, exerciseGroupsToInputs } from './plan-exercise-form';
 import { applyDayKind } from './plan-week-form';
 import { LiveStartCardComponent } from './live-start-card.component';
 import { PlanExerciseRowsComponent } from './plan-exercise-rows.component';
@@ -1756,11 +1756,36 @@ describe('WorkoutPage', () => {
           targetDistanceKm: null,
           restSeconds: 120,
           notes: 'Controlled',
-          setTargets: []
+          setTargets: [],
+          tempoSeconds: null
         }
       ]
     });
     expect(component.planMode()).toBe('list');
+  });
+
+  it('sends the tempo of an exercise in tenths of a second, and none for a timed exercise', () => {
+    component.planForm.patchValue({ name: 'Tempo plan', goalFocus: 'STRENGTH', workoutType: 'STRENGTH', difficulty: 'BEGINNER' });
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1', exerciseType: 'STRENGTH', tempoSeconds: 2.54 });
+
+    component.savePlan();
+
+    const request = dataService.createWorkoutPlan.calls.mostRecent().args[0];
+    expect(request.exercises[0].tempoSeconds).toBe(2.5);
+
+    const timed = component.planExercises.at(0);
+    timed.patchValue({ exerciseId: 'exercise-2', exerciseType: 'MOBILITY', targetDurationSeconds: 60, tempoSeconds: 4 });
+    expect(exerciseGroupsToInputs([timed])[0].tempoSeconds).toBeNull();
+  });
+
+  it('does not save a tempo outside one to ten seconds', () => {
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1', tempoSeconds: 12 });
+
+    expect(component.planExercises.at(0).controls.tempoSeconds.invalid).toBeTrue();
+    component.planExercises.at(0).patchValue({ tempoSeconds: 0.5 });
+    expect(component.planExercises.at(0).controls.tempoSeconds.invalid).toBeTrue();
+    component.planExercises.at(0).patchValue({ tempoSeconds: null });
+    expect(component.planExercises.at(0).controls.tempoSeconds.valid).toBeTrue();
   });
 
   it('moves the typed exercises into a Monday strength day named after the plan when switching to a week', () => {

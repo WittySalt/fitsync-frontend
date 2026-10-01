@@ -38,6 +38,12 @@ export const STILL_RUNNING_NOTICE =
 const MIN_SAVED_SECONDS = 60;
 
 const RUN_KEY_PREFIX = 'fitsync.workout.run.';
+/** How the person runs a workout, remembered on this device: follow along, or log each set. */
+const MODE_KEY = 'fitsync.workout.mode';
+/** A counted set that follows along waits this long on its last rep before it is recorded. */
+const LAST_REP_HOLD_MS = 1000;
+/** How long the check of a set that was just done stays before the rest is shown. */
+export const SET_DONE_MS = 1200;
 
 /** Who a set run belongs to: the session, the exercise and the set. */
 export interface SetRunIdentity {
@@ -67,6 +73,10 @@ export interface SetRun extends SetRunIdentity {
   /** A counted set: the reps asked for and the seconds a rep takes, for the ring that guides the pace. */
   targetReps: number;
   tempoSeconds: number;
+  /** Follow along: the set records itself when its reps or its time are reached. */
+  auto: boolean;
+  /** Seconds added with "+5 sec" to a counted set, before it records itself. */
+  extraSeconds: number;
   /** What a recorded timed set carries besides its time. */
   weightKg: number | null;
   distanceKm: number | null;
@@ -126,6 +136,8 @@ function parseRun(raw: string | null): SetRun | null {
     targetSeconds: Math.max(0, numberOr(value['targetSeconds'], 0)),
     targetReps: Math.max(0, numberOr(value['targetReps'], 0)),
     tempoSeconds: Math.max(1, numberOr(value['tempoSeconds'], 3)),
+    auto: value['auto'] === true,
+    extraSeconds: Math.max(0, numberOr(value['extraSeconds'], 0)),
     weightKg: numberOrNull(value['weightKg']),
     distanceKm: numberOrNull(value['distanceKm']),
     restSeconds: numberOrNull(value['restSeconds']),
@@ -175,6 +187,8 @@ export class WorkoutLiveService {
   /** True when the last finish cancelled the workout because no set was logged. The service has
    *  already told the person, so a caller does not add a notice of its own. */
   readonly nothingLoggedCancel = signal(false);
+  /** Follow along (the default) or log each set by hand; the choice is kept on this device. */
+  readonly followAlong = signal(readFollowAlong());
 
   /** The set in progress or the rest after it; null while the next set waits to be started. */
   private readonly runState = signal<SetRun | null>(null);
@@ -327,13 +341,15 @@ export class WorkoutLiveService {
     input: Pick<
       SetRun,
       'kind' | 'targetSeconds' | 'targetReps' | 'tempoSeconds' | 'weightKg' | 'distanceKm' | 'restSeconds' | 'restAfterSeconds'
-    > & SetRunIdentity
+    > & SetRunIdentity & { auto?: boolean }
   ): void {
     const now = Date.now();
     this.autoSaveBlocked = false;
     this.setRun({
       ...input,
+      auto: input.auto ?? false,
       phase: 'active',
+      extraSeconds: 0,
       startedAtMs: now,
       pausedMs: 0,
       pausedAtMs: this.paused() ? now : null,
@@ -342,7 +358,7 @@ export class WorkoutLiveService {
     });
   }
 
-  /** The set was recorded and the rest begins. */
+  /** The set was recorded and the rest begins; the check of the set is shown over its first moment. */
   beginRest(identity: SetRunIdentity, seconds: number): void {
     const previous = this.runState();
     this.setRun({
@@ -355,6 +371,26 @@ export class WorkoutLiveService {
       restEndsAtMs: Date.now() + seconds * 1000,
       restTotalSeconds: seconds
     });
+  }
+
+  /** "+5 sec" during a set: a timed set runs longer, a counted one waits longer before it records itself. */
+  extendRun(seconds: number): void {
+    const run = this.runState();
+    if (run?.phase !== 'active') {
+      return;
+    }
+    this.setRun(run.kind === 'timed'
+      ? { ...run, targetSeconds: run.targetSeconds + seconds }
+      : { ...run, extraSeconds: run.extraSeconds + seconds });
+  }
+
+  setFollowAlong(on: boolean): void {
+    this.followAlong.set(on);
+    try {
+      localStorage.setItem(MODE_KEY, on ? 'follow' : 'log');
+    } catch {
+      // Without storage the choice lasts until the page is reloaded.
+    }
   }
 
   extendRest(seconds: number): void {
@@ -387,11 +423,29 @@ export class WorkoutLiveService {
       this.clearRun();
       return;
     }
+    this.recordRun(run, { reps: null, durationSeconds: elapsed });
+  }
+
+  /**
+   * Records the running counted set with the reps chosen before it started, then starts the rest.
+   * Follow along does it when the reps are reached; "Done" and "Complete set" do it at any moment,
+   * because the person says the reps were done.
+   */
+  finishCountedRun(): void {
+    const run = this.runState();
+    const session = this.session();
+    if (!run || run.kind !== 'counted' || run.phase !== 'active' || this.recording() || !session || session.sessionId !== run.sessionId) {
+      return;
+    }
+    this.recordRun(run, { reps: run.targetReps > 0 ? run.targetReps : null, durationSeconds: null });
+  }
+
+  private recordRun(run: SetRun, values: { reps: number | null; durationSeconds: number | null }): void {
     this.recording.set(true);
     this.recordSet(run.sessionId, run.exerciseLogId, run.setNumber, {
-      reps: null,
+      reps: values.reps,
       weightKg: run.weightKg,
-      durationSeconds: elapsed,
+      durationSeconds: values.durationSeconds,
       distanceKm: run.distanceKm,
       restSeconds: run.restSeconds,
       perceivedExertion: null,
@@ -754,6 +808,8 @@ export class WorkoutLiveService {
       targetSeconds: 0,
       targetReps: 0,
       tempoSeconds: 3,
+      auto: false,
+      extraSeconds: 0,
       weightKg: null,
       distanceKm: null,
       restSeconds: null,
@@ -810,8 +866,14 @@ export class WorkoutLiveService {
       }
       return;
     }
-    if (run.kind === 'timed' && !this.autoSaveBlocked && this.activeMs(run, now) >= run.targetSeconds * 1000) {
+    if (this.autoSaveBlocked) {
+      return;
+    }
+    if (run.kind === 'timed' && this.activeMs(run, now) >= run.targetSeconds * 1000) {
       this.finishTimedRun();
+    } else if (run.kind === 'counted' && run.auto && run.targetReps > 0
+      && this.activeMs(run, now) >= (run.targetReps * run.tempoSeconds + run.extraSeconds) * 1000 + LAST_REP_HOLD_MS) {
+      this.finishCountedRun();
     }
   }
 
@@ -938,6 +1000,15 @@ export class WorkoutLiveService {
       default:
         return 5;
     }
+  }
+}
+
+/** Follow along unless the person chose to log each set on this device. */
+function readFollowAlong(): boolean {
+  try {
+    return localStorage.getItem(MODE_KEY) !== 'log';
+  } catch {
+    return true;
   }
 }
 

@@ -24,8 +24,12 @@ const FIGURE_WIDTH_BUDGET = 0.95;
       [class.still]="reducedMotion()"
       [class.grow]="growing()"
       [class.urgent]="urgent()"
+      [class.done]="done()"
       [style.--fit]="fit()"
     >
+      @if (done()) {
+        <span class="ripple" aria-hidden="true"></span>
+      }
       <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
         <circle class="track" cx="50" cy="50" r="45" pathLength="100"></circle>
         @if (sweep()) {
@@ -36,14 +40,20 @@ const FIGURE_WIDTH_BUDGET = 0.95;
         }
       </svg>
       <div class="centre" aria-hidden="true">
-        <span class="figure" [class.pop]="pop()" [class.pulse]="urgent()" [class.a]="!flipped()" [class.b]="flipped()">
-          @if (pair(); as parts) {
-            {{ parts.count }}<span class="of">&ngsp;/ {{ parts.target }}</span>
-          } @else {
-            {{ centre() }}
-          }
-        </span>
-        <span class="caption">{{ caption() }}</span>
+        @if (done()) {
+          <svg class="check" viewBox="0 0 24 24" focusable="false">
+            <path d="M5 12.5l4.5 4.5L19 7.5" pathLength="100"></path>
+          </svg>
+        } @else {
+          <span class="figure" [class.pop]="pop()" [class.pulse]="urgent()" [class.a]="!flipped()" [class.b]="flipped()">
+            @if (pair(); as parts) {
+              {{ parts.count }}<span class="of">&ngsp;/ {{ parts.target }}</span>
+            } @else {
+              {{ centre() }}
+            }
+          </span>
+          <span class="caption">{{ caption() }}</span>
+        }
       </div>
     </div>
   `,
@@ -63,6 +73,8 @@ export class PlayerRingComponent {
   readonly pop = input(false);
   /** The last seconds: the arc turns a deeper green and the figure pulses. */
   readonly urgent = input(false);
+  /** The set was just done: the ring is full, a check is drawn in it and a ripple goes out once. */
+  readonly done = input(false);
 
   protected readonly growing = signal(false);
   /** Turns over with every new figure, so the pop, the pulse and the sweep start again. */

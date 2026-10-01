@@ -33,5 +33,111 @@
   cursor: pointer;
 }
 
+// Beside the ring of a running set: the weight, then the tempo.
+.ring-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  --ring-size: 140px;
+}
+
+.side-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+
+  .strong {
+    font-size: 15px;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+}
+
+@container (min-width: 720px) {
+  .ring-row {
+    flex-direction: column;
+    gap: 10px;
+    --ring-size: 200px;
+    text-align: center;
+  }
+}
+
+// The set list folded into dots beside "Set 2 of 3".
+.dots {
+  display: inline-flex;
+  gap: 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.dot {
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--slate-300);
+  border-radius: 50%;
+
+  &.done {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  &.current {
+    border: 2px solid var(--accent);
+    background: var(--surface-tint);
+  }
+
+  &.skipped {
+    border-style: dashed;
+  }
+}
+
+.done-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: fade-rise var(--motion-base) var(--motion-ease) 160ms backwards;
+
+  strong {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: 16px;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.buttons.wide {
+  align-self: stretch;
+}
+
+// "Complete set" draws the eye once the count is reached.
+.bounce {
+  animation: bounce 900ms var(--motion-ease) 2;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: translateY(calc(var(--motion-shift) * -0.5));
+  }
+}
+
+@include parts.fade-rise-keyframes;
+@include parts.big-button;
 @include parts.quiet-button;
 @include parts.what-block;

@@ -3,6 +3,7 @@ import { Component, Injector, OnDestroy, OnInit, afterNextRender, computed, inje
 import { ExercisePictureComponent } from './exercise-picture.component';
 import { PlayerRingComponent } from './player-ring.component';
 import { PlayerStageComponent } from './player-stage.component';
+import { SetDot } from './player-targets';
 import { StageExercise } from './stage-exercise';
 import { StepCarouselComponent } from './step-carousel.component';
 
@@ -12,8 +13,11 @@ export const COUNTDOWN_SECONDS = 3;
 export const COUNTDOWN_GO_MS = 400;
 
 /**
- * The two screens that put a ring in the middle of a set. "countdown" counts three, two, one and
- * "Go" before the set starts and can be skipped; "timed" is the set itself, a ring that empties.
+ * The screens that put a ring beside the picture while a set is under way. "countdown" counts
+ * three, two, one and "Go" before the set starts and can be skipped; "timed" is a timed set, a ring
+ * that empties; "counting" is a set of reps, a ring that fills at the tempo; "done" draws a check
+ * when the set was recorded. Following along, a running set offers "+5 sec" and "Done"; logging by
+ * hand, it offers the button that records it.
  */
 @Component({
   selector: 'app-player-timer-stage',
@@ -24,7 +28,7 @@ export const COUNTDOWN_GO_MS = 400;
 export class PlayerTimerStageComponent implements OnInit, OnDestroy {
   private readonly injector = inject(Injector);
 
-  readonly mode = input.required<'countdown' | 'timed'>();
+  readonly mode = input.required<'countdown' | 'timed' | 'counting' | 'done'>();
   readonly exercise = input.required<StageExercise>();
   readonly kicker = input('');
   readonly line = input('');
@@ -40,12 +44,26 @@ export class PlayerTimerStageComponent implements OnInit, OnDestroy {
   readonly canStop = input(false);
   /** Whole seconds left in the set, so the ring can warn in the last three. */
   readonly secondsLeft = input<number | null>(null);
+  /** The sets of the exercise as dots, beside the line under the name. */
+  readonly dots = input<readonly SetDot[]>([]);
+  /** Lines beside the ring: the weight first, then the tempo. */
+  readonly sideLines = input<readonly string[]>([]);
+  /** Following along: "+5 sec" and "Done" instead of the button that records the set. */
+  readonly follow = input(false);
+  /** A set of reps reached its count, so "Complete set" draws the eye. */
+  readonly reached = input(false);
+  readonly busy = input(false);
+  /** The set that was just recorded: "Set 2 done", and its values. */
+  readonly doneTitle = input('');
+  readonly doneLine = input('');
 
   /** The countdown reached zero, or the person skipped it. */
   readonly started = output<void>();
   /** Each figure of the countdown, once, for the status announcer of the screen. */
   readonly announce = output<string>();
-  readonly stop = output<void>();
+  /** "Done", "Stop and save" or "Complete set": the set is recorded now. */
+  readonly finishNow = output<void>();
+  readonly addTime = output<void>();
   readonly howTo = output<void>();
   readonly imageFailed = output<void>();
 
@@ -54,6 +72,9 @@ export class PlayerTimerStageComponent implements OnInit, OnDestroy {
   protected readonly countdownShare = computed(() => this.remaining() / COUNTDOWN_SECONDS);
   protected readonly countdownLabel = computed(() => (this.going() ? 'Go' : `Starting in ${this.remaining()} seconds`));
   protected readonly urgent = computed(() => {
+    if (this.mode() === 'counting') {
+      return this.reached();
+    }
     const left = this.secondsLeft();
     return left !== null && left > 0 && left <= 3;
   });

@@ -10,7 +10,7 @@
 .exercise-row {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(190px, 1.2fr) repeat(4, minmax(86px, 0.5fr)) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(190px, 1.2fr) repeat(5, minmax(86px, 0.5fr)) minmax(160px, 1fr) auto;
   align-items: end;
   padding: 14px;
   border: 1px solid var(--border);

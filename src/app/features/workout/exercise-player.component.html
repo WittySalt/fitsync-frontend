@@ -14,7 +14,7 @@
 
       @if (currentLog(); as log) {
         <div class="stage-wrap" [class.reduced-motion]="prefersReducedMotion">
-          <app-player-cue [done]="setCompleteCue()" [next]="restCompleteCue()" [reducedMotion]="prefersReducedMotion" />
+          <app-player-cue [next]="restCompleteCue()" [reducedMotion]="prefersReducedMotion" />
 
           @switch (stage()) {
             @case ('countdown') {
@@ -23,6 +23,7 @@
                 [exercise]="currentCard()"
                 [kicker]="'Exercise ' + (currentExerciseIndex() + 1) + ' of ' + orderedLogs().length"
                 [line]="timedLine()"
+                [dots]="setDots()"
                 [(stepIndex)]="stepIndex"
                 [(reading)]="readAloud"
                 [reducedMotion]="prefersReducedMotion"
@@ -38,7 +39,10 @@
                 mode="timed"
                 [exercise]="currentCard()"
                 [kicker]="'Exercise ' + (currentExerciseIndex() + 1) + ' of ' + orderedLogs().length"
-                [line]="timedLine()"
+                [line]="setOfLine()"
+                [dots]="setDots()"
+                [follow]="live.followAlong()"
+                [busy]="saving()"
                 [share]="workGuideShare()"
                 [figure]="timedFigure()"
                 [caption]="live.paused() ? 'Paused' : 'Left'"
@@ -49,7 +53,52 @@
                 [(reading)]="readAloud"
                 [reducedMotion]="prefersReducedMotion"
                 [holdSteps]="holdSteps()"
-                (stop)="stopGuidedSet()"
+                (finishNow)="finishSetNow()"
+                (addTime)="addSetSeconds()"
+                (howTo)="openGuide()"
+                (imageFailed)="onMediaError()"
+              />
+            }
+            @case ('counting') {
+              <app-player-timer-stage
+                mode="counting"
+                [exercise]="currentCard()"
+                [kicker]="'Exercise ' + (currentExerciseIndex() + 1) + ' of ' + orderedLogs().length"
+                [line]="setOfLine()"
+                [dots]="setDots()"
+                [follow]="live.followAlong()"
+                [busy]="saving()"
+                [canStop]="true"
+                [reached]="ringFull()"
+                [share]="ringShare()"
+                [figure]="ringTarget() > 0 ? ringReps() + ' / ' + ringTarget() : setClock()"
+                [caption]="live.paused() ? 'Paused' : (ringTarget() > 0 ? setClock() : 'Set time')"
+                [label]="ringLabel()"
+                [sideLines]="countingLines()"
+                [(stepIndex)]="stepIndex"
+                [(reading)]="readAloud"
+                [reducedMotion]="prefersReducedMotion"
+                [holdSteps]="holdSteps()"
+                (finishNow)="finishSetNow()"
+                (addTime)="addSetSeconds()"
+                (howTo)="openGuide()"
+                (imageFailed)="onMediaError()"
+              />
+            }
+            @case ('done') {
+              @let done = doneSet();
+              <app-player-timer-stage
+                mode="done"
+                [exercise]="currentCard()"
+                [kicker]="'Exercise ' + (currentExerciseIndex() + 1) + ' of ' + orderedLogs().length"
+                [line]="setOfLine()"
+                [dots]="setDots()"
+                [doneTitle]="'Set ' + (done?.setNumber ?? currentSetNumber()) + ' done'"
+                [doneLine]="done?.line ?? ''"
+                [(stepIndex)]="stepIndex"
+                [(reading)]="readAloud"
+                [reducedMotion]="prefersReducedMotion"
+                [holdSteps]="true"
                 (howTo)="openGuide()"
                 (imageFailed)="onMediaError()"
               />
@@ -64,12 +113,20 @@
                 [line]="upNextLine()"
                 [coachLine]="coachLine()"
                 [secondsLeft]="restRemainingSeconds()"
+                [justDone]="justDoneLine()"
+                [canEdit]="live.canWrite() && !saving()"
+                [nextValues]="nextValues()"
+                [(nextReps)]="nextReps"
+                [(nextWeight)]="nextWeight"
+                [(nextDuration)]="nextDuration"
+                [autoLine]="autoLine()"
                 [(stepIndex)]="stepIndex"
                 [(reading)]="readAloud"
                 [reducedMotion]="prefersReducedMotion"
                 [holdSteps]="holdSteps()"
                 (addTime)="addRestSeconds()"
                 (skip)="skipRest()"
+                (editDone)="editJustDone()"
                 (ask)="askCoach()"
                 (howTo)="openGuide()"
                 (imageFailed)="onRestImageFailed()"
@@ -117,26 +174,8 @@
                   @if (!isTimedTarget() && nextLine()) {
                     <p class="next-line"><span class="eyebrow">Next</span>&ngsp;<span class="next-text">{{ nextLine() }}</span></p>
                   }
-                  <div class="turn" [class.sized]="hasRepsStepper() || isTimedTarget()">
-                    @if (setActive()) {
-                      <div class="running">
-                        @if (ringTarget() > 0) {
-                          <app-player-ring
-                            [share]="ringShare()"
-                            [centre]="ringReps() + ' / ' + ringTarget()"
-                            [caption]="setClock()"
-                            [label]="ringLabel()"
-                            [urgent]="ringFull()"
-                            [reducedMotion]="prefersReducedMotion"
-                          />
-                        } @else {
-                          <p class="set-clock" role="timer" aria-label="Set time">Set time {{ setClock() }}</p>
-                        }
-                        @if (activeWeightLine()) {
-                          <p class="at-weight">{{ activeWeightLine() }}</p>
-                        }
-                      </div>
-                    } @else if (hasRepsStepper() || isTimedTarget()) {
+                  <div class="turn">
+                    @if (hasRepsStepper() || isTimedTarget()) {
                       <div class="ready">
                         <span class="eyebrow">This set</span>
                         <app-player-set-values
@@ -150,6 +189,20 @@
                       </div>
                     }
                   </div>
+                  @if (hasRepsStepper() || isTimedTarget()) {
+                    <div class="mode" role="group" aria-label="How to run this workout">
+                      <button type="button" [attr.aria-pressed]="live.followAlong()" (click)="setFollowAlong(true)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M5 12a7 7 0 0 1 12-4.9M17 3v4.5h-4.5M19 12a7 7 0 0 1-12 4.9M7 21v-4.5h4.5"></path>
+                        </svg>
+                        Follow along
+                      </button>
+                      <button type="button" [attr.aria-pressed]="!live.followAlong()" (click)="setFollowAlong(false)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                        Log myself
+                      </button>
+                    </div>
+                  }
                   <div class="actions">
                     @if (isTimedTarget()) {
                       <button
@@ -171,15 +224,13 @@
                       </button>
                     } @else {
                       <button
-                        class="big"
-                        [class.start-set]="!setActive()"
-                        [class.complete-set]="setActive()"
+                        class="big start-set"
                         type="button"
                         data-primary
                         [disabled]="saving() || !live.canWrite() || allTargetsComplete()"
-                        (click)="onPrimary()"
+                        (click)="startSet()"
                       >
-                        {{ setActive() ? (saving() ? 'Saving...' : 'Complete set') : 'Start set' }}
+                        Start set
                       </button>
                     }
                     <button

@@ -718,6 +718,62 @@ describe('WorkoutLiveService', () => {
       service.reset();
     }));
 
+    it('records a counted set that follows along once its reps are reached, while the screen is away', fakeAsync(() => {
+      dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));
+      const events: string[] = [];
+      service.runEvents.subscribe((event) => events.push(event.kind));
+      service.startRun(counted({ targetReps: 4, tempoSeconds: 2, auto: true }));
+      service.minimise();
+
+      tick(8_000);
+      expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+      tick(1_000);
+
+      expect(dataService.upsertSessionSet).toHaveBeenCalledOnceWith(
+        'session-live',
+        'log-1',
+        1,
+        jasmine.objectContaining({ reps: 4, weightKg: 16, durationSeconds: null, restSeconds: 30 })
+      );
+      expect(service.run()?.phase).toBe('rest');
+      expect(events).toEqual(['recorded']);
+      service.reset();
+    }));
+
+    it('adds +5 sec to a timed set as time, and to a counted set as a wait before it records itself', fakeAsync(() => {
+      service.startRun(timed({ targetSeconds: 10 }));
+      service.extendRun(5);
+      expect(service.run()?.targetSeconds).toBe(15);
+      expect(service.runRemainingSeconds()).toBe(15);
+      service.clearRun();
+
+      dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));
+      service.startRun(counted({ targetReps: 2, tempoSeconds: 2, auto: true }));
+      service.extendRun(5);
+      tick(9_000);
+      expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+      tick(1_000);
+      expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+      service.reset();
+    }));
+
+    it('keeps the follow along choice of a stored set through a reload', () => {
+      service.startRun(counted({ auto: true }));
+
+      expect(JSON.parse(stored() ?? '{}').auto).toBeTrue();
+      service.reset();
+    });
+
+    it('remembers follow along or log myself on this device, and starts with follow along', () => {
+      localStorage.removeItem('fitsync.workout.mode');
+      expect(TestBed.runInInjectionContext(() => new WorkoutLiveService()).followAlong()).toBeTrue();
+
+      service.setFollowAlong(false);
+      expect(localStorage.getItem('fitsync.workout.mode')).toBe('log');
+      expect(TestBed.runInInjectionContext(() => new WorkoutLiveService()).followAlong()).toBeFalse();
+      localStorage.removeItem('fitsync.workout.mode');
+    });
+
     it('records a timed set that reaches zero while the screen is away, once, and starts the rest', fakeAsync(() => {
       dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));
       const events: string[] = [];

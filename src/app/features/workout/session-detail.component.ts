@@ -507,6 +507,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       averageHeartRate: exercise.averageHeartRate,
       maxHeartRate: exercise.maxHeartRate,
       notes: exercise.notes || null,
+      tempoSeconds: exercise.tempoSeconds ?? null,
       sets: exercise.sets.map((set) => ({
         setNumber: set.setNumber,
         reps: set.reps,
@@ -543,6 +544,8 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       averageHeartRate: exercise.controls.averageHeartRate.value,
       maxHeartRate: exercise.controls.maxHeartRate.value,
       notes: exercise.controls.notes.value?.trim() || null,
+      // The tempo is not edited here; an exercise keeps the one the workout started with.
+      tempoSeconds: this.session()?.exercises.find((log) => log.exerciseId === exercise.controls.exerciseId.value)?.tempoSeconds ?? null,
       sets
     };
   }

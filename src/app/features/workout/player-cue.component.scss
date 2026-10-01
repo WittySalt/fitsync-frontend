@@ -3,7 +3,6 @@
   display: contents;
 }
 
-.set-complete-badge,
 .next-set-cue {
   position: absolute;
   top: 0;
@@ -21,37 +20,8 @@
   box-shadow: var(--shadow-sm);
 }
 
-.set-complete-badge span {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-full);
-  color: var(--text-on-accent);
-  background: var(--accent);
-}
-
-.set-complete-badge:not(.still) {
-  animation: badge-pop 1000ms ease-out;
-}
-
 .next-set-cue:not(.still) {
   animation: next-set-in 800ms ease-out;
-}
-
-@keyframes badge-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.75);
-  }
-  35% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 @keyframes next-set-in {

@@ -15,33 +15,76 @@
     <div class="what">
       <span class="kicker">{{ kicker() }}</span>
       <strong class="name">{{ exercise().name }}</strong>
-      <span class="line">{{ line() }}</span>
+      <span class="line">
+        {{ line() }}
+        @if (dots().length) {
+          <span class="dots" aria-hidden="true">
+            @for (dot of dots(); track $index) {
+              <span [class]="'dot ' + dot"></span>
+            }
+          </span>
+        }
+      </span>
     </div>
-    @if (mode() === 'countdown') {
-      <button type="button" class="ring-tap" tabindex="-1" aria-hidden="true" (click)="skip()">
-        <app-player-ring
-          [share]="going() ? 1 : countdownShare()"
-          [centre]="going() ? 'Go' : '' + remaining()"
-          [caption]="going() ? '' : 'Get ready'"
-          [label]="countdownLabel()"
-          [sweep]="!going()"
-          [pop]="true"
-          [reducedMotion]="reducedMotion()"
-        />
-      </button>
-      <button type="button" class="quiet text" data-primary (click)="skip()">Start now</button>
-    } @else {
-      <app-player-ring
-        [share]="share()"
-        [centre]="figure()"
-        [caption]="caption()"
-        [label]="label()"
-        [urgent]="urgent()"
-        [reducedMotion]="reducedMotion()"
-      />
-      <div class="buttons">
-        <button type="button" class="quiet" data-primary [disabled]="!canStop()" (click)="stop.emit()">Stop and save</button>
-      </div>
+    @switch (mode()) {
+      @case ('countdown') {
+        <button type="button" class="ring-tap" tabindex="-1" aria-hidden="true" (click)="skip()">
+          <app-player-ring
+            [share]="going() ? 1 : countdownShare()"
+            [centre]="going() ? 'Go' : '' + remaining()"
+            [caption]="going() ? '' : 'Get ready'"
+            [label]="countdownLabel()"
+            [sweep]="!going()"
+            [pop]="true"
+            [reducedMotion]="reducedMotion()"
+          />
+        </button>
+        <button type="button" class="quiet text" data-primary (click)="skip()">Start now</button>
+      }
+      @case ('done') {
+        <app-player-ring [share]="1" centre="" [label]="doneTitle()" [done]="true" [reducedMotion]="reducedMotion()" />
+        <div class="done-text">
+          <strong>{{ doneTitle() }}</strong>
+          @if (doneLine()) {
+            <span>{{ doneLine() }}</span>
+          }
+        </div>
+      }
+      @default {
+        <div class="ring-row">
+          <app-player-ring
+            [share]="share()"
+            [centre]="figure()"
+            [caption]="caption()"
+            [label]="label()"
+            [urgent]="urgent()"
+            [reducedMotion]="reducedMotion()"
+          />
+          @if (sideLines().length) {
+            <div class="side-lines">
+              @for (text of sideLines(); track $index) {
+                <span [class.strong]="$first">{{ text }}</span>
+              }
+            </div>
+          }
+        </div>
+        @if (follow()) {
+          <div class="buttons">
+            <button type="button" class="quiet" [disabled]="busy()" (click)="addTime.emit()">+5 sec</button>
+            <button type="button" class="quiet" data-primary [disabled]="busy() || !canStop()" (click)="finishNow.emit()">Done</button>
+          </div>
+        } @else if (mode() === 'counting') {
+          <div class="buttons wide">
+            <button type="button" class="big complete-set" data-primary [class.bounce]="reached()" [disabled]="busy()" (click)="finishNow.emit()">
+              {{ busy() ? 'Saving...' : 'Complete set' }}
+            </button>
+          </div>
+        } @else {
+          <div class="buttons">
+            <button type="button" class="quiet" data-primary [disabled]="busy() || !canStop()" (click)="finishNow.emit()">Stop and save</button>
+          </div>
+        }
+      }
     }
   </div>
   <app-step-carousel

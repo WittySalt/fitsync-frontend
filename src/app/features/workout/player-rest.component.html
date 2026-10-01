@@ -17,13 +17,39 @@
       <button type="button" class="quiet" (click)="addTime.emit()">+15 sec</button>
       <button type="button" class="quiet" data-primary (click)="skip.emit()">Skip rest</button>
     </div>
-    <div class="what">
+    @if (justDone()) {
+      <button type="button" class="just-done" [disabled]="!canEdit()" [attr.aria-label]="'Just done, ' + justDone() + '. Edit'" (click)="editDone.emit()">
+        <span class="tick" aria-hidden="true"></span>
+        <span class="done-text">
+          <span class="kicker">Just done</span>
+          <span class="done-line">{{ justDone() }}</span>
+        </span>
+        <svg class="pencil" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 20h4L19 9l-4-4L4 16v4z"></path>
+          <path d="M13.5 6.5l4 4"></path>
+        </svg>
+      </button>
+    }
+    <div class="what" [class.next-block]="nextValues()">
       <span class="kicker">{{ kicker() }}</span>
       @if (nextName()) {
         <strong class="name">{{ nextName() }}</strong>
       }
       <span class="line">{{ line() }}</span>
+      @if (nextValues(); as values) {
+        <app-player-set-values
+          [timed]="values.timed"
+          [hasReps]="values.hasReps"
+          [hasWeight]="values.hasWeight"
+          [(reps)]="nextReps"
+          [(weight)]="nextWeight"
+          [(duration)]="nextDuration"
+        />
+      }
     </div>
+    @if (autoLine()) {
+      <p class="auto-line">{{ autoLine() }}</p>
+    }
   </div>
   <app-step-carousel
     slot="steps"

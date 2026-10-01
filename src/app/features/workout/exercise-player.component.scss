@@ -121,43 +121,66 @@
   }
 }
 
-.set-clock,
-.at-weight {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-// Before a set the person decides (Ready); while it runs the ring takes the same place (Active). Both
-// have the same height, so the button under them does not move when the set starts.
+// Before a set the person decides its values (Ready); the running set has its own screen.
 .turn:empty {
   display: none;
 }
 
-.turn.sized {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 200px;
-  --ring-size: 160px;
-}
-
-.ready,
-.running {
+.ready {
   display: flex;
   flex-direction: column;
   gap: 10px;
   animation: fade-rise var(--motion-base) var(--motion-ease);
 }
 
-.running {
-  align-items: center;
-}
-
 .ready .eyebrow {
   color: var(--text-secondary);
+}
+
+// Follow along or log each set: two halves of one control, the chosen one outlined in green.
+.mode {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--surface-sunken);
+
+  button {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: var(--fw-bold);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color var(--motion-quick) var(--motion-ease),
+      border-color var(--motion-quick) var(--motion-ease);
+
+    &[aria-pressed='true'] {
+      border-color: var(--accent);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
 }
 
 .actions {
@@ -169,42 +192,9 @@
   margin-top: auto;
 }
 
-.big {
-  flex: 1 1 100%;
-  min-height: 56px;
-  padding: 0 24px;
-  border: 0;
-  border-radius: 16px;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font: inherit;
-  font-size: 17px;
-  font-weight: var(--fw-bold);
-  cursor: pointer;
-  transition:
-    background-color var(--motion-quick) var(--motion-ease),
-    transform var(--motion-quick) var(--motion-ease);
-
-  &:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(var(--motion-scale));
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
+@include parts.big-button;
 
 @container (min-width: 720px) {
-  .turn.sized {
-    min-height: 220px;
-    --ring-size: 180px;
-  }
-
   .actions {
     justify-content: flex-start;
     gap: 6px 16px;

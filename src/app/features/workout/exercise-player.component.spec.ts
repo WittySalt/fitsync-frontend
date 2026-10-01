@@ -12,14 +12,15 @@ import {
 import { CoachStore } from '../../core/coach/coach.store';
 import { ToastService } from '../../core/toast/toast.service';
 import { SpeechService } from './speech.service';
-import { ExercisePlayerComponent } from './exercise-player.component';
-import { WorkoutLiveService } from './workout-live.service';
+import { SET_DONE_MS, WorkoutLiveService } from './workout-live.service';
 import { WorkoutCelebrationComponent } from './workout-celebration.component';
 import { COUNTDOWN_GO_MS } from './player-timer-stage.component';
+import { ExercisePlayerComponent } from './exercise-player.component';
 
 /**
- * Completes the current set the way a person does: a counted set is started, its countdown is
- * skipped, and "Complete set" is pressed. A timed set has its own quiet "Complete set" button.
+ * Completes the current set the way a person who logs each set does: a counted set is started, its
+ * countdown is skipped, and "Complete set" is pressed. A timed set has its own quiet "Complete set"
+ * button. The tests run in that mode unless they turn follow along on.
  */
 function completeSet(host: ComponentFixture<ExercisePlayerComponent>): void {
   const root = host.nativeElement as HTMLElement;
@@ -33,9 +34,18 @@ function completeSet(host: ComponentFixture<ExercisePlayerComponent>): void {
   root.querySelector<HTMLButtonElement>('.complete-set')?.click();
 }
 
+/** Completes the set and lets the check that follows it pass, so the next screen is on show. */
+function completeAndPass(host: ComponentFixture<ExercisePlayerComponent>): void {
+  completeSet(host);
+  host.detectChanges();
+  tick(SET_DONE_MS);
+  host.detectChanges();
+}
+
 function clearStoredRuns(): void {
   try {
     sessionStorage.clear();
+    localStorage.removeItem('fitsync.workout.mode');
   } catch {
     // Storage may be missing; the tests then have nothing to clear.
   }
@@ -259,6 +269,7 @@ describe('ExercisePlayerComponent', () => {
     }).compileComponents();
 
     live = TestBed.inject(WorkoutLiveService);
+    live.followAlong.set(false);
     fixture = TestBed.createComponent(ExercisePlayerComponent);
     fixture.componentRef.setInput('session', detail());
     fixture.componentRef.setInput('activePlan', plan());
@@ -405,30 +416,33 @@ describe('ExercisePlayerComponent', () => {
     );
   });
 
-  it('shows a short Done cue when a set is saved', fakeAsync(() => {
+  it('draws a check with the values of the set that was saved, then shows the rest', fakeAsync(() => {
     completeSet(fixture);
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.setCompleteCue()).toBeTrue();
-    expect(fixture.nativeElement.textContent).toContain('Done');
-    expect(fixture.nativeElement.textContent).toContain('Set complete');
+    const root = fixture.nativeElement as HTMLElement;
+    expect(fixture.componentInstance.stage()).toBe('done');
+    expect(root.querySelector('app-player-ring .check')).not.toBeNull();
+    expect(root.querySelector('.done-text')?.textContent).toContain('Set 1 done');
+    expect(root.querySelector('.done-text')?.textContent).toContain('10 × 20 kg');
+    expect(root.querySelector('.status-announcer')?.textContent).toContain('Set 1 done, 10 × 20 kg');
 
-    tick(1_000);
+    tick(SET_DONE_MS);
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.setCompleteCue()).toBeFalse();
-
-    tick(800);
+    expect(fixture.componentInstance.stage()).not.toBe('done');
     settle();
   }));
 
-  it('shows the rest countdown after completing a set', () => {
+  it('starts the rest under the check after completing a set', fakeAsync(() => {
     completeSet(fixture);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Rest');
-    expect(fixture.nativeElement.textContent).toContain('0:01');
-  });
+    expect(fixture.componentInstance.stage()).toBe('done');
+    expect(live.run()?.phase).toBe('rest');
+    expect(fixture.componentInstance.restRemainingSeconds()).toBe(1);
+    settle();
+  }));
 
   it('does not record a set automatically before the guide is started', fakeAsync(() => {
     tick(10_000);
@@ -444,7 +458,7 @@ describe('ExercisePlayerComponent', () => {
           ...plan().exercises[0],
           targetReps: null,
           targetDurationSeconds: 2,
-          restSeconds: 1
+          restSeconds: 5
         },
         plan().exercises[1]
       ]
@@ -453,17 +467,18 @@ describe('ExercisePlayerComponent', () => {
     timed.componentInstance.startGuidedSet();
     tick(2_000);
     timed.detectChanges();
+    tick(SET_DONE_MS);
+    timed.detectChanges();
 
     expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
       'session-live',
       'log-1',
       1,
-      jasmine.objectContaining({ reps: null, durationSeconds: 2, restSeconds: 1 })
+      jasmine.objectContaining({ reps: null, durationSeconds: 2, restSeconds: 5 })
     );
     expect(timed.nativeElement.textContent).toContain('Rest');
 
-    tick(1_000);
-    tick(800);
+    tick(5_000);
     settle();
   }));
 
@@ -1272,18 +1287,17 @@ describe('ExercisePlayerComponent', () => {
       it('shows the rest with the next set of the same exercise and a line of fact from the coach', fakeAsync(() => {
         const player = mountStrength();
 
-        completeSet(player);
-        player.detectChanges();
+        completeAndPass(player);
 
-        expect(textOf(player, 'app-player-rest .kicker')).toBe('Next');
+        expect(textOf(player, 'app-player-rest .what .kicker')).toBe('Next');
         expect(textOf(player, 'app-player-rest .line')).toBe('Set 2 of 3 · 10 reps · 20 kg');
         expect(root(player).querySelector('app-player-rest .name')).toBeNull();
         expect(textOf(player, 'app-player-rest .said')).toBe('Five sets left in this workout.');
-        expect(root(player).querySelector('app-player-rest [role="img"]')?.getAttribute('aria-label')).toBe('Rest, 0:30 left');
+        expect(root(player).querySelector('app-player-rest [role="img"]')?.getAttribute('aria-label')).toBe('Rest, 0:29 left');
 
         buttonByText(player, '+15 sec').click();
         player.detectChanges();
-        expect(player.componentInstance.restRemainingSeconds()).toBe(45);
+        expect(player.componentInstance.restRemainingSeconds()).toBe(44);
 
         buttonByText(player, 'Skip rest').click();
         player.detectChanges();
@@ -1298,15 +1312,14 @@ describe('ExercisePlayerComponent', () => {
           : exerciseDetail()));
         const player = mountStrength();
         for (let set = 1; set <= 2; set++) {
-          completeSet(player);
+          completeAndPass(player);
           player.componentInstance.skipRest();
           player.detectChanges();
         }
 
-        completeSet(player);
-        player.detectChanges();
+        completeAndPass(player);
 
-        expect(textOf(player, 'app-player-rest .kicker')).toBe('Next · exercise 2 of 2');
+        expect(textOf(player, 'app-player-rest .what .kicker')).toBe('Next · exercise 2 of 2');
         expect(textOf(player, 'app-player-rest .name')).toBe('Goblet Squat');
         expect(textOf(player, 'app-player-rest .line')).toBe('Set 1 of 3 · 12 reps · 16 kg');
         expect(textOf(player, 'app-player-rest .said')).toBe('Three sets of bench press done, at 20 kg.');
@@ -1365,12 +1378,12 @@ describe('ExercisePlayerComponent', () => {
         tick(COUNTDOWN_GO_MS);
         player.detectChanges();
 
-        expect(player.componentInstance.stage()).toBe('set');
+        expect(player.componentInstance.stage()).toBe('counting');
         expect(player.componentInstance.setActive()).toBeTrue();
         expect(textOf(player, '.complete-set')).toBe('Complete set');
-        expect(root(player).querySelector('.running app-player-ring')).not.toBeNull();
+        expect(root(player).querySelector('app-player-timer-stage app-player-ring')).not.toBeNull();
         expect(root(player).querySelectorAll('app-player-stepper').length).toBe(0);
-        expect(textOf(player, '.at-weight')).toBe('at 20 kg');
+        expect(textOf(player, '.side-lines .strong')).toBe('at 20 kg');
         expect(document.activeElement).toBe(button(player, '.complete-set'));
         player.componentInstance.skipCurrentSet();
         settle();
@@ -1404,8 +1417,8 @@ describe('ExercisePlayerComponent', () => {
         buttonByText(player, 'Start now').click();
         player.detectChanges();
 
-        const centre = () => textOf(player, '.running .figure');
-        const caption = () => textOf(player, '.running .caption');
+        const centre = () => textOf(player, 'app-player-timer-stage .figure');
+        const caption = () => textOf(player, 'app-player-timer-stage .caption');
         expect(centre()).toBe('0 / 10');
         expect(caption()).toBe('0:00');
 
@@ -1413,12 +1426,12 @@ describe('ExercisePlayerComponent', () => {
         player.detectChanges();
         expect(centre()).toBe('2 / 10');
         expect(caption()).toBe('0:07');
-        expect(root(player).querySelector('.running [role="img"]')?.getAttribute('aria-label')).toBe('2 of 10 reps, set time 0:07');
+        expect(root(player).querySelector('app-player-timer-stage [role="img"]')?.getAttribute('aria-label')).toBe('2 of 10 reps, set time 0:07');
 
         tick(23_000);
         player.detectChanges();
         expect(centre()).toBe('10 / 10');
-        expect(root(player).querySelector('.running .ring.urgent')).not.toBeNull();
+        expect(root(player).querySelector('app-player-timer-stage .ring.urgent')).not.toBeNull();
 
         tick(30_000);
         player.detectChanges();
@@ -1452,8 +1465,8 @@ describe('ExercisePlayerComponent', () => {
         tick(30_000);
         player.detectChanges();
 
-        expect(textOf(player, '.running .figure')).toBe('8 / 8');
-        expect(textOf(player, '.at-weight')).toBe('at 22.5 kg');
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('8 / 8');
+        expect(textOf(player, '.side-lines .strong')).toBe('at 22.5 kg');
         expect(player.componentInstance.live.run()?.targetReps).toBe(8);
         expect(root(player).querySelector('app-player-stepper')).toBeNull();
 
@@ -1488,8 +1501,8 @@ describe('ExercisePlayerComponent', () => {
         again.componentRef.setInput('activePlan', weeklyPlan());
         again.detectChanges();
 
-        expect(textOf(again, '.running .figure')).toBe('3 / 11');
-        expect(textOf(again, '.at-weight')).toBe('at 22.5 kg');
+        expect(textOf(again, 'app-player-timer-stage .figure')).toBe('3 / 11');
+        expect(textOf(again, '.side-lines .strong')).toBe('at 22.5 kg');
         button(again, '.complete-set').click();
         expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
           'session-live',
@@ -1526,6 +1539,188 @@ describe('ExercisePlayerComponent', () => {
         player.componentInstance.skipRest();
         settle();
       }));
+
+      describe('following along', () => {
+        function mountFollowing(session = strengthSession()): ComponentFixture<ExercisePlayerComponent> {
+          followWrites(session);
+          const player = mount(session, weeklyPlan());
+          live.followAlong.set(true);
+          player.detectChanges();
+          return player;
+        }
+
+        function startNow(player: ComponentFixture<ExercisePlayerComponent>): void {
+          button(player, '.start-set').click();
+          player.detectChanges();
+          buttonByText(player, 'Start now').click();
+          player.detectChanges();
+        }
+
+        const rest = (player: ComponentFixture<ExercisePlayerComponent>) =>
+          root(player).querySelector('app-player-rest') as HTMLElement;
+
+        it('offers the two ways on Ready, and remembers the one chosen on this device', () => {
+          const player = mountFollowing();
+
+          const pressed = () => textOf(player, '.mode button[aria-pressed="true"]');
+          expect(pressed()).toBe('Follow along');
+
+          buttonByText(player, 'Log myself').click();
+          player.detectChanges();
+
+          expect(pressed()).toBe('Log myself');
+          expect(live.followAlong()).toBeFalse();
+          expect(localStorage.getItem('fitsync.workout.mode')).toBe('log');
+        });
+
+        it('records a set of reps by itself at the tempo, draws the check, then rests', fakeAsync(() => {
+          const player = mountFollowing();
+          startNow(player);
+
+          expect(player.componentInstance.stage()).toBe('counting');
+          expect(buttonByText(player, '+5 sec')).toBeDefined();
+          expect(buttonByText(player, 'Done')).toBeDefined();
+          expect(root(player).querySelector('.complete-set')).toBeNull();
+          expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 1 of 3');
+          expect(Array.from(root(player).querySelectorAll('app-player-timer-stage .what .dot')).map((dot) => dot.className.replace('dot', '').trim()))
+            .toEqual(['current', 'open', 'open']);
+
+          tick(30_000);
+          player.detectChanges();
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('10 / 10');
+          expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+
+          tick(1_000);
+          player.detectChanges();
+          expect(dataService.upsertSessionSet).toHaveBeenCalledOnceWith(
+            'session-live',
+            'log-1',
+            1,
+            jasmine.objectContaining({ reps: 10, weightKg: 20, restSeconds: 30 })
+          );
+          expect(player.componentInstance.stage()).toBe('done');
+          expect(textOf(player, '.done-text strong')).toBe('Set 1 done');
+          expect(textOf(player, '.done-text span')).toBe('10 × 20 kg');
+
+          tick(SET_DONE_MS);
+          player.detectChanges();
+          expect(player.componentInstance.stage()).toBe('rest');
+          expect(textOf(player, '.just-done .done-line')).toBe('Set 1 · 10 × 20 kg');
+          expect(textOf(player, '.auto-line')).toBe('Set 2 starts by itself after the rest');
+          player.componentInstance.skipRest();
+          player.componentInstance.skipCurrentSet();
+          settle();
+        }));
+
+        it('counts the next set of the same exercise in by itself, with the values chosen in the rest', fakeAsync(() => {
+          const player = mountFollowing();
+          startNow(player);
+          tick(31_000);
+          tick(SET_DONE_MS);
+          player.detectChanges();
+
+          const values = () => Array.from(rest(player).querySelectorAll('app-player-stepper .value')).map((node) => node.textContent?.trim());
+          expect(values()).toEqual(['10', '20']);
+          rest(player).querySelector<HTMLButtonElement>('[aria-label="Less reps"]')?.click();
+          rest(player).querySelector<HTMLButtonElement>('[aria-label="More weight"]')?.click();
+          player.detectChanges();
+          expect(values()).toEqual(['9', '22.5']);
+
+          tick(30_000);
+          player.detectChanges();
+          expect(player.componentInstance.currentSetNumber()).toBe(2);
+          expect(player.componentInstance.stage()).toBe('countdown');
+
+          tick(3_000 + COUNTDOWN_GO_MS);
+          player.detectChanges();
+          expect(player.componentInstance.stage()).toBe('counting');
+          expect(live.run()?.targetReps).toBe(9);
+          expect(live.run()?.weightKg).toBe(22.5);
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0 / 9');
+          player.componentInstance.skipCurrentSet();
+          settle();
+        }));
+
+        it('holds the set five more seconds with +5 sec, and records it at once with Done', fakeAsync(() => {
+          const player = mountFollowing();
+          startNow(player);
+          tick(29_000);
+          buttonByText(player, '+5 sec').click();
+          tick(5_000);
+          expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+          tick(2_000);
+          expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+          tick(SET_DONE_MS);
+          player.detectChanges();
+          player.componentInstance.skipRest();
+          player.detectChanges();
+          tick(3_000 + COUNTDOWN_GO_MS);
+          player.detectChanges();
+
+          expect(player.componentInstance.stage()).toBe('counting');
+          tick(4_000);
+          buttonByText(player, 'Done').click();
+          expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(2);
+          expect(dataService.upsertSessionSet.calls.mostRecent().args[2]).toBe(2);
+          expect(dataService.upsertSessionSet.calls.mostRecent().args[3]).toEqual(jasmine.objectContaining({ reps: 10, weightKg: 20 }));
+          tick(SET_DONE_MS);
+          player.componentInstance.skipRest();
+          player.componentInstance.skipCurrentSet();
+          settle();
+        }));
+
+        it('opens the set that was just done from the rest, to correct it', fakeAsync(() => {
+          const player = mountFollowing();
+          startNow(player);
+          tick(31_000);
+          tick(SET_DONE_MS);
+          player.detectChanges();
+
+          button(player, '.just-done').click();
+          player.detectChanges();
+
+          expect(textOf(player, 'app-workout-modal h2')).toBe('Edit set 1');
+          player.componentInstance.closeSetEditor();
+          player.componentInstance.skipRest();
+          player.componentInstance.skipCurrentSet();
+          settle();
+        }));
+
+        it('waits on the Ready screen of a new exercise instead of counting it in', fakeAsync(() => {
+          const player = mountFollowing();
+          player.componentInstance.currentSetNumber.set(3);
+          player.detectChanges();
+          startNow(player);
+          tick(31_000);
+          tick(SET_DONE_MS);
+          player.detectChanges();
+
+          expect(textOf(player, 'app-player-rest .what .name')).toBe('Goblet Squat');
+          expect(rest(player).querySelector('app-player-stepper')).toBeNull();
+          expect(rest(player).querySelector('.auto-line')).toBeNull();
+
+          tick(30_000);
+          player.detectChanges();
+          expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+          expect(player.componentInstance.stage()).toBe('set');
+          expect(textOf(player, '.start-set')).toBe('Start set');
+          settle();
+        }));
+
+        it('counts at the tempo the workout carries from its plan', fakeAsync(() => {
+          const session = strengthSession();
+          session.exercises[0] = { ...session.exercises[0], tempoSeconds: 2 };
+          const player = mountFollowing(session);
+          startNow(player);
+          tick(4_000);
+          player.detectChanges();
+
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('2 / 10');
+          expect(Array.from(root(player).querySelectorAll('.side-lines span')).map((line) => line.textContent?.trim())).toEqual(['at 20 kg', '2 sec a rep']);
+          player.componentInstance.skipCurrentSet();
+          settle();
+        }));
+      });
 
       describe('correcting a set afterwards', () => {
         /** Bench press with set 1 done at 10 x 20 kg and set 2 skipped. */
@@ -1642,7 +1837,8 @@ describe('ExercisePlayerComponent', () => {
         tick(8000);
         player.detectChanges();
 
-        expect(textOf(player, '.running .figure')).toBe('2 / 10');
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('2 / 10');
+        expect(textOf(player, '.side-lines span:last-child')).toBe('4 sec a rep');
         player.componentInstance.skipCurrentSet();
         settle();
       }));
@@ -1660,8 +1856,9 @@ describe('ExercisePlayerComponent', () => {
         tick(5000);
         player.detectChanges();
 
-        expect(root(player).querySelector('.running app-player-ring')).toBeNull();
-        expect(textOf(player, '.set-clock')).toBe('Set time 0:05');
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0:05');
+        expect(textOf(player, 'app-player-timer-stage .caption')).toBe('Set time');
+        expect(root(player).querySelector('.side-lines')).toBeNull();
         player.componentInstance.skipCurrentSet();
         settle();
       }));
@@ -1733,6 +1930,8 @@ describe('ExercisePlayerComponent', () => {
           1,
           jasmine.objectContaining({ reps: null, durationSeconds: 45, restSeconds: 30 })
         );
+        expect(player.componentInstance.stage()).toBe('done');
+        tick(SET_DONE_MS);
         expect(player.componentInstance.stage()).toBe('rest');
         player.componentInstance.skipRest();
         settle();
@@ -1741,11 +1940,10 @@ describe('ExercisePlayerComponent', () => {
       it('shows the next timed set ready when a rest ends, with no countdown, and the primary button has focus', fakeAsync(() => {
         const player = mountPlank();
 
-        completeSet(player);
-        player.detectChanges();
+        completeAndPass(player);
         expect(player.componentInstance.stage()).toBe('rest');
 
-        tick(30_000);
+        tick(30_000 - SET_DONE_MS);
         player.detectChanges();
         player.detectChanges();
 
@@ -1771,7 +1969,7 @@ describe('ExercisePlayerComponent', () => {
         expect(textOf(player, '.start-set')).toBe('Start set');
         expect(root(player).querySelector('app-player-timer-stage')).toBeNull();
 
-        completeSet(player);
+        completeAndPass(player);
         player.componentInstance.skipRest();
         player.detectChanges();
 
@@ -1889,8 +2087,7 @@ describe('ExercisePlayerComponent', () => {
           buttonByText(player, 'Keep going').click();
           player.detectChanges();
 
-          completeSet(player);
-          player.detectChanges();
+          completeAndPass(player);
 
           expect(textOf(player, 'app-player-rest .said')).toBe('Eight sets left in this workout.');
           buttonByText(player, 'Finish').click();
@@ -2021,8 +2218,8 @@ describe('ExercisePlayerComponent', () => {
           const again = reopen();
 
           expect(again.componentInstance.setActive()).toBeTrue();
-          expect(textOf(again, '.running .figure')).toBe('5 / 10');
-          expect(textOf(again, '.running .caption')).toBe('0:15');
+          expect(textOf(again, 'app-player-timer-stage .figure')).toBe('5 / 10');
+          expect(textOf(again, 'app-player-timer-stage .caption')).toBe('0:15');
           expect(textOf(again, '.complete-set')).toBe('Complete set');
           again.componentInstance.skipCurrentSet();
           settle();
@@ -2120,10 +2317,12 @@ describe('ExercisePlayerComponent', () => {
           button(player, '.complete-set').click();
           player.detectChanges();
           expect(sessionStorage.getItem(key)).toBeNull();
+          tick(SET_DONE_MS);
+          player.detectChanges();
 
           startCounted(player);
           expect(sessionStorage.getItem(key)).not.toBeNull();
-          button(player, '.skip-set').click();
+          player.componentInstance.skipCurrentSet();
           player.detectChanges();
           expect(sessionStorage.getItem(key)).toBeNull();
           settle();

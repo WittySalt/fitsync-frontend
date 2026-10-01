@@ -68,6 +68,39 @@
   }
 }
 
+// The filled green button of the one thing to do next.
+@mixin big-button {
+  .big {
+    flex: 1 1 100%;
+    min-height: 56px;
+    padding: 0 24px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--accent);
+    color: var(--text-on-accent);
+    font: inherit;
+    font-size: 17px;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+    transition:
+      background-color var(--motion-quick) var(--motion-ease),
+      transform var(--motion-quick) var(--motion-ease);
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(var(--motion-scale));
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
 @mixin quiet-button {
   .quiet {
     display: inline-flex;

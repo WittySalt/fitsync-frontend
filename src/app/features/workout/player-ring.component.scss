@@ -149,3 +149,56 @@ circle {
     animation: none;
   }
 }
+
+// A set that was just done: a full ring, a check drawn into it and one ripple going out.
+.done .arc {
+  stroke-dasharray: 100 100;
+}
+
+.check {
+  width: 44%;
+  height: 44%;
+  overflow: visible;
+  transform: none;
+
+  path {
+    fill: none;
+    stroke: var(--green-800);
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 100;
+    animation: draw-check var(--motion-slow, 300ms) var(--motion-ease, ease-out) 120ms backwards;
+  }
+}
+
+.ripple {
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--green-200);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ripple-out 900ms ease-out;
+}
+
+.still .check path,
+.still .ripple {
+  animation: none;
+}
+
+@keyframes draw-check {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes ripple-out {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}

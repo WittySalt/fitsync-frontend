@@ -10,6 +10,9 @@ export interface SetTarget {
 }
 
 /** One set of an exercise as the player sees it: the target, and what was logged against it. */
+/** One set as a dot in the folded set list beside the name while a set runs. */
+export type SetDot = 'done' | 'skipped' | 'current' | 'open';
+
 export interface PlayerSet {
   setNumber: number;
   target: SetTarget | null;
@@ -115,6 +118,29 @@ function isSkipped(row: WorkoutExerciseSetLog): boolean {
  * A set that is still to do: neither done nor skipped. The server answers a skipped set with
  * logged false, so "not logged" alone would take a skipped set for the next one.
  */
+/** Seconds a rep takes when a plan sets no tempo: 4 for mobility, 2.5 for cardio and sport, 3 otherwise. */
+export function defaultTempoSeconds(exerciseType: string | null | undefined): number {
+  switch (exerciseType) {
+    case 'MOBILITY':
+      return 4;
+    case 'CARDIO':
+    case 'SPORT':
+      return 2.5;
+    default:
+      return 3;
+  }
+}
+
+/** The tempo of an exercise in a workout: the workout's own copy, then the plan's, then the default of its kind. */
+export function resolveTempoSeconds(
+  log: { tempoSeconds?: number | null } | null,
+  planExercise: { tempoSeconds?: number | null } | null,
+  exerciseType: string | null | undefined
+): number {
+  const own = log?.tempoSeconds ?? planExercise?.tempoSeconds ?? null;
+  return typeof own === 'number' && Number.isFinite(own) && own > 0 ? own : defaultTempoSeconds(exerciseType);
+}
+
 export function isOpenSet(row: Pick<WorkoutExerciseSetLog, 'logged' | 'status'>): boolean {
   return !row.logged && row.status !== 'SKIPPED';
 }

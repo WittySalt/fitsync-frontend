@@ -16,6 +16,7 @@ export function createExerciseGroup(fb: FormBuilder) {
     targetDurationSeconds: [null as number | null, [Validators.min(0)]],
     targetWeightKg: [null as number | null, [Validators.min(0)]],
     restSeconds: [90 as number | null, [Validators.min(0)]],
+    tempoSeconds: [null as number | null, [Validators.min(TEMPO_MIN_SECONDS), Validators.max(TEMPO_MAX_SECONDS)]],
     notes: ['', Validators.maxLength(300)],
     exerciseName: [''],
     exerciseType: [null as string | null]
@@ -23,6 +24,10 @@ export function createExerciseGroup(fb: FormBuilder) {
 }
 
 export type ExerciseGroup = ReturnType<typeof createExerciseGroup>;
+
+/** The tempo a plan may set, in seconds a rep; the server keeps tenths between these. */
+export const TEMPO_MIN_SECONDS = 1;
+export const TEMPO_MAX_SECONDS = 10;
 
 // Exercise types whose plan targets are time-based (a duration) rather than sets by reps.
 export const TIMED_EXERCISE_TYPES: ReadonlySet<string> = new Set(['CARDIO', 'MOBILITY']);
@@ -39,6 +44,7 @@ export function resetExerciseGroup(group: ExerciseGroup): void {
     targetDurationSeconds: null,
     targetWeightKg: null,
     restSeconds: 90,
+    tempoSeconds: null,
     notes: '',
     exerciseName: '',
     exerciseType: null
@@ -54,6 +60,7 @@ export function fillExerciseGroup(group: ExerciseGroup, exercise: WorkoutPlanExe
     targetDurationSeconds: exercise.targetDurationSeconds ?? null,
     targetWeightKg: exercise.targetWeightKg,
     restSeconds: exercise.restSeconds ?? 0,
+    tempoSeconds: exercise.tempoSeconds ?? null,
     notes: exercise.notes,
     exerciseName: exercise.exerciseNameSnapshot || '',
     // Saved plans don't carry the exercise type; infer "timed" from a saved duration target so
@@ -77,6 +84,15 @@ function optionalNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** A tempo in tenths of a second, or null when the box is empty or holds something else. */
+function tempoInput(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const parsed = optionalNumber(value);
+  return parsed === null ? null : Math.round(parsed * 10) / 10;
+}
+
 /** The request rows for the chosen exercises, numbered from one in the order given. */
 export function exerciseGroupsToInputs(groups: readonly ExerciseGroup[]): WorkoutPlanExerciseInput[] {
   return groups
@@ -94,7 +110,8 @@ export function exerciseGroupsToInputs(groups: readonly ExerciseGroup[]): Workou
         targetDistanceKm: null,
         restSeconds: optionalNumber(exercise.restSeconds),
         notes: exercise.notes ?? '',
-        setTargets: []
+        setTargets: [],
+        tempoSeconds: timed ? null : tempoInput(exercise.tempoSeconds)
       };
     });
 }

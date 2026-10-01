@@ -32,7 +32,6 @@ import { ExercisePictureComponent } from './exercise-picture.component';
 import { PlayerConfirmComponent } from './player-confirm.component';
 import { PlayerCueComponent } from './player-cue.component';
 import { PlayerFooterComponent } from './player-footer.component';
-import { PlayerRingComponent } from './player-ring.component';
 import { PlayerRestComponent } from './player-rest.component';
 import { PlayerSetListComponent } from './player-set-list.component';
 import { PlayerStageComponent } from './player-stage.component';
@@ -46,6 +45,8 @@ import {
   formatTargetDuration,
   isOpenSet,
   resolveExerciseSets,
+  resolveTempoSeconds,
+  SetDot,
   targetLine,
   valuesLine
 } from './player-targets';
@@ -56,13 +57,25 @@ import { StageExercise } from './stage-exercise';
 import { StepCarouselComponent } from './step-carousel.component';
 import { fullGuideSteps, guideSteps } from './guide-steps';
 import { WorkoutCelebrationComponent, WorkoutCelebrationSummary } from './workout-celebration.component';
-import { WorkoutLiveService } from './workout-live.service';
+import { SET_DONE_MS, WorkoutLiveService } from './workout-live.service';
 import { WorkoutModalComponent } from './workout-modal.component';
 
 /** Container width from which the guide opens in a dialog and the screen has two columns. */
 const WIDE_PLAYER_PX = 720;
 
-type PlayerStage = 'set' | 'countdown' | 'timed' | 'rest';
+type PlayerStage = 'set' | 'countdown' | 'timed' | 'counting' | 'done' | 'rest';
+
+/** What "+5 sec" adds to a running set. */
+const EXTRA_SECONDS = 5;
+
+/** The values chosen during a rest for the set that follows it, carried into that set. */
+interface CarriedValues {
+  exerciseLogId: string;
+  setNumber: number;
+  reps: number;
+  weight: number;
+  duration: number;
+}
 
 /** What the guide shows of one exercise. */
 interface GuideSubject {
@@ -99,7 +112,6 @@ interface UpNext {
     PlayerStageComponent,
     PlayerTimerStageComponent,
     PlayerRestComponent,
-    PlayerRingComponent,
     PlayerFooterComponent,
     PlayerConfirmComponent,
     PlayerCueComponent,
@@ -142,7 +154,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly currentDetail = signal<ExerciseDetail | null>(null);
   readonly detailsById = signal<ReadonlyMap<string, ExerciseDetail | null>>(new Map());
   readonly countdownActive = signal(false);
-  readonly setCompleteCue = signal(false);
   readonly restCompleteCue = signal(false);
   readonly showCelebration = signal(false);
   readonly celebrationSummary = signal<WorkoutCelebrationSummary | null>(null);
@@ -165,12 +176,18 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly repsValue = signal(0);
   readonly weightValue = signal(0);
   readonly durationValue = signal(0);
+  /** What the rest offers for the next set of the same exercise; it begins at that set's target. */
+  readonly nextReps = signal(0);
+  readonly nextWeight = signal(0);
+  readonly nextDuration = signal(0);
+  /** The check of the set that was just recorded: its number and its values. */
+  readonly doneSet = signal<{ setNumber: number; line: string } | null>(null);
 
   private mediaTimerId: ReturnType<typeof setInterval> | null = null;
-  private setCueTimerId: ReturnType<typeof setTimeout> | null = null;
+  private doneTimerId: ReturnType<typeof setTimeout> | null = null;
+  private carried: CarriedValues | null = null;
   private restCueTimerId: ReturnType<typeof setTimeout> | null = null;
   private readonly activePlanRevision = signal(0);
-  private readonly defaultTempoSecondsPerRep = 3;
   private readonly detailCache = new Map<string, ExerciseDetail | null>();
   private readonly detailPending = new Set<string>();
   private currentMediaExerciseId = '';
@@ -237,10 +254,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   /** The ring of a counted set: the reps it has reached at the tempo of the exercise. */
   readonly ringReps = computed(() => (this.setActive() ? this.live.runReps() : 0));
   readonly ringTarget = computed(() => this.runHere()?.targetReps ?? 0);
-  /** The weight chosen before the set, as the one quiet line of the running set. */
-  readonly activeWeightLine = computed(() => {
+  /** Beside the ring of a running set of reps: "at 20 kg", then "3 sec a rep". */
+  readonly countingLines = computed(() => {
     const weight = this.runHere()?.weightKg ?? 0;
-    return weight > 0 ? `at ${Math.round(weight * 100) / 100} kg` : '';
+    const lines = weight > 0 ? [`at ${Math.round(weight * 100) / 100} kg`] : [];
+    return this.ringTarget() > 0 ? [...lines, this.tempoLine()] : lines;
   });
   readonly ringFull = computed(() => this.ringTarget() > 0 && this.ringReps() >= this.ringTarget());
   readonly ringShare = computed(() => (this.ringTarget() > 0 ? this.ringReps() / this.ringTarget() : 0));
@@ -263,7 +281,29 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   );
   readonly targetSets = computed(() => Math.max(1, this.currentSets().length));
   readonly isTimedTarget = computed(() => (this.currentTarget()?.durationSeconds ?? 0) > 0);
-  readonly currentTempoSecondsPerRep = computed(() => this.tempoForExerciseType(this.currentDetail()?.exerciseType));
+  /** The tempo of the exercise: the workout's own copy, then the plan's, then the default of its kind. */
+  readonly currentTempoSecondsPerRep = computed(() =>
+    resolveTempoSeconds(this.currentLog(), this.currentPlanExercise(), this.currentDetail()?.exerciseType)
+  );
+  /** "3 sec a rep", under the ring of a counted set. */
+  readonly tempoLine = computed(() => {
+    const tempo = this.runHere()?.tempoSeconds ?? this.currentTempoSecondsPerRep();
+    return `${Math.round(tempo * 10) / 10} sec a rep`;
+  });
+  /** The sets of the exercise as dots, for the line beside the name while a set runs. */
+  readonly setDots = computed<SetDot[]>(() =>
+    this.currentSets().map((set) => {
+      if (set.skipped) {
+        return 'skipped';
+      }
+      if (set.logged) {
+        return 'done';
+      }
+      return set.setNumber === this.currentSetNumber() ? 'current' : 'open';
+    })
+  );
+  /** "Set 2 of 3", the words beside the dots. */
+  readonly setOfLine = computed(() => `Set ${this.currentSetNumber()} of ${this.targetSets()}`);
   readonly targetWorkSeconds = computed(() => {
     const target = this.currentTarget();
     if (!target) {
@@ -309,13 +349,19 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   });
 
   readonly stage = computed<PlayerStage>(() => {
+    if (this.doneSet()) {
+      return 'done';
+    }
     if (this.restRemainingSeconds() > 0) {
       return 'rest';
     }
     if (this.countdownActive()) {
       return 'countdown';
     }
-    return this.workGuideActive() ? 'timed' : 'set';
+    if (this.workGuideActive()) {
+      return 'timed';
+    }
+    return this.setActive() ? 'counting' : 'set';
   });
 
   readonly hasRepsStepper = computed(() => (this.currentTarget()?.reps ?? 0) > 0);
@@ -363,6 +409,30 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return rest > 0 ? `${text}, after ${formatTargetDuration(rest)} of rest` : text;
   });
   readonly restShowsNext = computed(() => this.upNext()?.kind === 'exercise');
+  /** The set that was just done, as the rest shows it: "Set 2 · 10 × 20 kg". */
+  readonly justDoneLine = computed(() => {
+    const set = this.currentSets().find((candidate) => candidate.setNumber === this.currentSetNumber());
+    const values = valuesLine(set?.logged ?? null);
+    return set?.logged ? [`Set ${set.setNumber}`, values].filter(Boolean).join(' \u00b7 ') : '';
+  });
+  /** The steppers the rest offers for the next set, when it is a set of the same exercise. */
+  readonly nextValues = computed(() => {
+    const up = this.upNext();
+    if (up?.kind !== 'set' || !up.target) {
+      return null;
+    }
+    const timed = (up.target.durationSeconds ?? 0) > 0;
+    const hasReps = !timed && (up.target.reps ?? 0) > 0;
+    const hasWeight = hasReps && (up.target.weightKg ?? 0) > 0;
+    return timed || hasReps ? { timed, hasReps, hasWeight } : null;
+  });
+  /** Follow along says once, at the foot of the rest, that the next set starts by itself. */
+  readonly autoLine = computed(() => {
+    const up = this.upNext();
+    return this.live.followAlong() && up?.kind === 'set' && this.nextValues()
+      ? `Set ${up.setNumber} starts by itself after the rest`
+      : '';
+  });
 
   readonly currentSubject = computed(() =>
     this.subjectFor(this.currentLog(), this.currentDetail(), this.currentMediaUrl())
@@ -422,14 +492,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private readonly runEventsSubscription = this.live.runEvents.pipe(takeUntilDestroyed()).subscribe((event) => {
     if (event.kind === 'recorded') {
       this.stopReading();
-      this.triggerSetCompleteCue();
-      if (!event.restStarted) {
-        this.advanceTarget();
-      }
+      this.showSetDone(!event.restStarted);
       return;
     }
     this.triggerRestCompleteCue();
-    this.advanceTarget();
+    this.moveOnAfterRest();
   });
 
   private readonly detailEffect = effect(() => {
@@ -472,9 +539,29 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.stepperKey();
     untracked(() => {
       const target = this.currentTarget();
-      this.repsValue.set(target?.reps ?? 0);
-      this.weightValue.set(target?.weightKg ?? 0);
-      this.durationValue.set(target?.durationSeconds ?? 0);
+      const carried = this.carried;
+      this.carried = null;
+      const here = carried?.exerciseLogId === this.currentLog()?.exerciseLogId && carried?.setNumber === this.currentSetNumber();
+      this.repsValue.set(here ? carried.reps : (target?.reps ?? 0));
+      this.weightValue.set(here ? carried.weight : (target?.weightKg ?? 0));
+      this.durationValue.set(here ? carried.duration : (target?.durationSeconds ?? 0));
+    });
+  });
+
+  /** The rest's steppers start from the target of the set that follows it. */
+  private readonly nextStepperKey = computed(() => {
+    const up = this.upNext();
+    return this.stage() === 'rest' && up?.kind === 'set' ? `${up.log.exerciseLogId}|${up.setNumber}` : '';
+  });
+  private readonly nextStepperEffect = effect(() => {
+    const key = this.nextStepperKey();
+    untracked(() => {
+      const target = key ? this.upNext()?.target ?? null : null;
+      if (target) {
+        this.nextReps.set(target.reps ?? 0);
+        this.nextWeight.set(target.weightKg ?? 0);
+        this.nextDuration.set(target.durationSeconds ?? 0);
+      }
     });
   });
 
@@ -546,18 +633,19 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    // A running set records what was chosen before it started; a set that is not running (the
-    // quiet "Complete set" of a timed set) records what the steppers show.
-    const run = this.setActive() ? this.runHere() : null;
+    // A running set records what was chosen before it started, through the live service, which
+    // also starts the rest. A set that is not running (the quiet "Complete set" of a timed set)
+    // records what the steppers show.
+    if (this.setActive()) {
+      this.restCompleteCue.set(false);
+      this.live.finishCountedRun();
+      return;
+    }
     this.restCompleteCue.set(false);
     this.savingSet.set(true);
     this.live.recordSet(session.sessionId, log.exerciseLogId, setNumber, {
-      reps: run
-        ? (run.targetReps > 0 ? run.targetReps : (target?.reps ?? null))
-        : (this.hasRepsStepper() ? this.repsValue() : (target?.reps ?? null)),
-      weightKg: run
-        ? (run.weightKg ?? target?.weightKg ?? null)
-        : (this.hasWeightStepper() ? this.weightValue() : (target?.weightKg ?? null)),
+      reps: this.hasRepsStepper() ? this.repsValue() : (target?.reps ?? null),
+      weightKg: this.hasWeightStepper() ? this.weightValue() : (target?.weightKg ?? null),
       durationSeconds: this.isTimedTarget() ? this.durationValue() : (target?.durationSeconds ?? null),
       distanceKm: target?.distanceKm ?? null,
       restSeconds: target?.restSeconds ?? null,
@@ -566,8 +654,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     }).subscribe({
       next: () => {
         this.stopReading();
-        this.triggerSetCompleteCue();
-        this.beginRestOrAdvance(target?.restSeconds ?? 0);
+        const resting = this.beginRestOrAdvance(target?.restSeconds ?? 0);
+        this.showSetDone(!resting, setNumber);
       },
       error: () => {
         this.toast.error('Unable to save this set. Please retry.');
@@ -729,11 +817,37 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       targetSeconds: timed ? seconds : 0,
       targetReps: timed ? 0 : reps,
       tempoSeconds: this.currentTempoSecondsPerRep(),
+      auto: this.live.followAlong(),
       weightKg: weight,
       distanceKm: target?.distanceKm ?? null,
       restSeconds: target?.restSeconds ?? null,
       restAfterSeconds: this.isLastTarget() ? 0 : (target?.restSeconds ?? 0)
     });
+  }
+
+  /** "+5 sec" during a set. */
+  addSetSeconds(): void {
+    if (this.workGuideActive() || this.setActive()) {
+      this.live.extendRun(EXTRA_SECONDS);
+    }
+  }
+
+  /** "Done" during a set: a timed set keeps the time it ran, a counted one the reps chosen for it. */
+  finishSetNow(): void {
+    if (this.workGuideActive()) {
+      this.live.finishTimedRun();
+    } else if (this.setActive()) {
+      this.live.finishCountedRun();
+    }
+  }
+
+  setFollowAlong(on: boolean): void {
+    this.live.setFollowAlong(on);
+  }
+
+  /** "Just done" on the rest: the set that was just recorded opens in the editor. */
+  editJustDone(): void {
+    this.openSetEditor(this.currentSetNumber());
   }
 
   /** "Stop and save" on a timed set: what has run so far is recorded. */
@@ -750,7 +864,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     }
     this.live.clearRun();
     this.restCompleteCue.set(false);
-    this.advanceTarget();
+    this.moveOnAfterRest();
   }
 
   addRestSeconds(): void {
@@ -986,13 +1100,13 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return planned?.images?.[0] ?? planned?.animationUrl ?? log.images?.[0] ?? log.animationUrl ?? null;
   }
 
-  private beginRestOrAdvance(restSeconds: number): void {
+  /** Starts the rest after a recorded set and says whether one began; without one the set is left as it is. */
+  private beginRestOrAdvance(restSeconds: number): boolean {
     const session = this.live.session();
     const log = this.currentLog();
     if (restSeconds <= 0 || this.isLastTarget() || !session?.sessionId || !log) {
       this.live.clearRun();
-      this.advanceTarget();
-      return;
+      return false;
     }
     // The rest is the live service's: it counts down by the wall clock and ends on its own.
     this.live.beginRest(
@@ -1004,6 +1118,66 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       },
       restSeconds
     );
+    return true;
+  }
+
+  /**
+   * The check of the set that was just recorded, shown before the rest. Without a rest the screen
+   * moves to the next set under the check, and follow along counts it in once the check is gone.
+   */
+  private showSetDone(advance: boolean, setNumber = this.currentSetNumber()): void {
+    const set = this.currentSets().find((candidate) => candidate.setNumber === setNumber);
+    const line = valuesLine(set?.logged ?? null);
+    this.liveAnnouncement.set(line ? `Set ${setNumber} done, ${line}` : `Set ${setNumber} done`);
+    this.doneSet.set({ setNumber, line });
+    const exerciseIndex = this.currentExerciseIndex();
+    if (advance) {
+      this.advanceTarget();
+    }
+    if (this.doneTimerId) {
+      clearTimeout(this.doneTimerId);
+    }
+    this.doneTimerId = setTimeout(() => {
+      this.doneTimerId = null;
+      this.doneSet.set(null);
+      if (advance) {
+        this.followOn(exerciseIndex);
+      }
+    }, SET_DONE_MS);
+  }
+
+  /**
+   * The rest is over, by the clock or by "Skip rest": the values chosen for the next set go with
+   * it, and follow along counts it in when it is a set of the same exercise. A new exercise waits
+   * on its Ready screen, so the person can set up.
+   */
+  private moveOnAfterRest(): void {
+    const up = this.upNext();
+    if (up?.kind === 'set' && this.nextValues()) {
+      this.carried = {
+        exerciseLogId: up.log.exerciseLogId,
+        setNumber: up.setNumber,
+        reps: this.nextReps(),
+        weight: this.nextWeight(),
+        duration: this.nextDuration()
+      };
+    }
+    const exerciseIndex = this.currentExerciseIndex();
+    this.advanceTarget();
+    this.followOn(exerciseIndex);
+  }
+
+  /** Follow along: the next set of the same exercise starts with its countdown. */
+  private followOn(exerciseIndex: number): void {
+    if (
+      this.live.followAlong()
+      && !this.live.paused()
+      && this.currentExerciseIndex() === exerciseIndex
+      && !this.allTargetsComplete()
+      && (this.hasRepsStepper() || this.isTimedTarget())
+    ) {
+      this.startSet();
+    }
   }
 
   private loadExerciseDetail(exerciseId: string | null): void {
@@ -1095,19 +1269,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return Math.max(0, ...passed) + 1;
   }
 
-  private tempoForExerciseType(exerciseType: string | null | undefined): number {
-    switch (exerciseType) {
-      case 'MOBILITY':
-        return 4;
-      case 'CARDIO':
-      case 'SPORT':
-        return 2.5;
-      case 'STRENGTH':
-      default:
-        return this.defaultTempoSecondsPerRep;
-    }
-  }
-
   private initialExerciseIndex(): number {
     if (!this.initialExerciseId) {
       return this.allDoneOnOpen ? Math.max(0, this.orderedLogs().length - 1) : 0;
@@ -1183,18 +1344,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     }
   }
 
-  private triggerSetCompleteCue(): void {
-    this.setCompleteCue.set(true);
-    this.liveAnnouncement.set('Set complete');
-    if (this.setCueTimerId) {
-      clearTimeout(this.setCueTimerId);
-    }
-    this.setCueTimerId = setTimeout(() => {
-      this.setCompleteCue.set(false);
-      this.setCueTimerId = null;
-    }, 1000);
-  }
-
   private triggerRestCompleteCue(): void {
     this.restCompleteCue.set(true);
     this.liveAnnouncement.set('Rest over - next set');
@@ -1228,9 +1377,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   private clearCueTimers(): void {
-    if (this.setCueTimerId) {
-      clearTimeout(this.setCueTimerId);
-      this.setCueTimerId = null;
+    if (this.doneTimerId) {
+      clearTimeout(this.doneTimerId);
+      this.doneTimerId = null;
     }
     if (this.restCueTimerId) {
       clearTimeout(this.restCueTimerId);
