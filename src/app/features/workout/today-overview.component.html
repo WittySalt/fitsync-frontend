@@ -27,11 +27,7 @@
       </header>
 
       @if (c.chips.length) {
-        <ul class="chips" aria-label="Session summary">
-          @for (chip of c.chips; track $index) {
-            <li class="chip">{{ chip }}</li>
-          }
-        </ul>
+        <p class="info" aria-label="Session summary">{{ c.chips.join(' \u00b7 ') }}</p>
       }
 
       @if (c.habit; as habit) {
@@ -75,26 +71,23 @@
 
     <div class="card-foot">
       @if (c.primary || c.secondary || c.link) {
-        <div class="actions">
+        <div class="actions" [class.equal]="c.quiet">
           @if (c.primary; as primary) {
-            <button class="action-primary" type="button" [disabled]="isDisabled(primary)" (click)="run(primary.action)">
-              <span class="action-copy">
-                <span>{{ buttonLabel(primary) }}</span>
-                @if (primary.note) {
-                  <small class="action-note">{{ primary.note }}</small>
-                }
-              </span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14"></path>
-                <path d="M13 6l6 6-6 6"></path>
-              </svg>
+            <button
+              class="action-primary"
+              [class.quiet]="c.quiet"
+              type="button"
+              [disabled]="isDisabled(primary)"
+              (click)="run(primary.action)"
+            >
+              {{ buttonLabel(primary) }}
             </button>
           }
           @if (c.secondary; as secondary) {
             <button class="action-secondary" type="button" (click)="run(secondary.action)">{{ secondary.label }}</button>
           }
           @if (c.link; as link) {
-            <a class="action-link" href="/workout" (click)="run(link.action, $event)">{{ link.label }}</a>
+            <a class="action-secondary" href="/workout" (click)="run(link.action, $event)">{{ link.label }}</a>
           }
         </div>
       }
@@ -102,7 +95,7 @@
       <div class="last-session">
         <span class="last-label">Last session</span>
         @if (latestSession(); as session) {
-          <strong>{{ session.name }}</strong>
+          <strong>{{ lastTitle(session) }}</strong>
           @if (lastSessionDetail()) {
             <span>{{ lastSessionDetail() }}</span>
           }
