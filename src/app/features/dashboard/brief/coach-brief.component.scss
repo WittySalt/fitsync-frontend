@@ -83,6 +83,9 @@
   align-items: stretch;
   gap: 40px;
   min-width: 0;
+  // The week view and the month view fill the same height, so what lies below does not move when
+  // the switch is pressed.
+  min-height: 640px;
 }
 
 .brief-left {
@@ -205,6 +208,7 @@
 }
 
 .switch-tab {
+  position: relative;
   height: 28px;
   box-sizing: border-box;
   padding: 0 14px;
@@ -223,6 +227,13 @@
     color: var(--brief-tint-ink);
     border-color: var(--brief-tint-line);
     font-weight: var(--fw-bold);
+  }
+
+  // The tab is 28 px tall; this stretches its target to 44 px.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -8px 0;
   }
 
   &:disabled {
@@ -551,6 +562,7 @@ app-muscle-wheel {
   .brief-top {
     flex-direction: column;
     gap: 24px;
+    min-height: 0;
   }
 
   .brief-panel {

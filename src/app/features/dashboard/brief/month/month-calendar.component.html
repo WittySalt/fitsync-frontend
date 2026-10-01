@@ -1,0 +1,124 @@
+<div class="calendar">
+  <div class="weekdays" aria-hidden="true">
+    @for (initial of initials; track $index) {
+      <span>{{ initial }}</span>
+    }
+  </div>
+
+  @if (state.status() === 'error') {
+    <div class="state" role="alert">
+      <p class="state-text">This month could not be loaded.</p>
+      <button type="button" class="retry" (click)="state.load()">Try again</button>
+    </div>
+  } @else {
+    <div class="grid" role="group" [class]="'grid rows-' + grid().rows.length" [attr.aria-label]="gridLabel()" [attr.aria-busy]="loading()">
+      @for (row of grid().rows; track $index) {
+        <div class="row" [class.current]="row.current">
+          @for (cell of row.cells; track $index) {
+            @if (cell === null) {
+              <span class="cell blank" aria-hidden="true"></span>
+            } @else if (loading()) {
+              <span class="cell skeleton" aria-hidden="true"></span>
+            } @else {
+              <button
+                type="button"
+                class="cell"
+                [class.trained]="cell.state === 'trained'"
+                [class.empty]="cell.state === 'empty'"
+                [class.future]="cell.state === 'future'"
+                [class.before]="cell.state === 'before'"
+                [class.today]="cell.today"
+                [attr.data-date]="cell.dateKey"
+                [attr.aria-label]="cell.ariaLabel"
+                [tabindex]="cell.dateKey === tabbableDate() ? 0 : -1"
+                (click)="select(cell.dateKey)"
+                (focus)="onFocus(cell.dateKey)"
+                (keydown)="onKeydown($event, cell.dateKey)"
+              >
+                <span class="num" aria-hidden="true">{{ cell.day }}</span>
+                @if (cell.weighIn || cell.record) {
+                  <span class="marks" aria-hidden="true">
+                    @if (cell.weighIn) {
+                      <svg class="mark mark-weigh-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+                        <path d="M8.5 9a5 5 0 0 1 7 0"></path>
+                        <path d="M12 9.5l1.5-2"></path>
+                      </svg>
+                    }
+                    @if (cell.record) {
+                      <svg class="mark mark-record" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 4h8v6a4 4 0 0 1-8 0Z"></path>
+                        <path d="M8 6H5a3 3 0 0 0 3 4"></path>
+                        <path d="M16 6h3a3 3 0 0 1-3 4"></path>
+                        <path d="M12 14v4"></path>
+                        <path d="M8.5 20h7"></path>
+                      </svg>
+                    }
+                  </span>
+                }
+                @if (cell.kind; as kind) {
+                  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    @for (part of glyphFor(kind); track $index) {
+                      @switch (part.tag) {
+                        @case ('path') { <path [attr.d]="part.d"></path> }
+                        @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                        @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+                      }
+                    }
+                  </svg>
+                }
+              </button>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <ul class="legend" aria-label="Legend">
+    @for (item of legendKinds; track item.kind) {
+      <li>
+        <span class="swatch swatch-kind">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            @for (part of glyphFor(item.kind); track $index) {
+              @switch (part.tag) {
+                @case ('path') { <path [attr.d]="part.d"></path> }
+                @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+              }
+            }
+          </svg>
+        </span>
+        {{ item.label }}
+      </li>
+    }
+    <li>
+      <span class="swatch swatch-mark">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+          <path d="M8.5 9a5 5 0 0 1 7 0"></path>
+          <path d="M12 9.5l1.5-2"></path>
+        </svg>
+      </span>
+      Weigh-in
+    </li>
+    <li>
+      <span class="swatch swatch-mark">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 4h8v6a4 4 0 0 1-8 0Z"></path>
+          <path d="M8 6H5a3 3 0 0 0 3 4"></path>
+          <path d="M16 6h3a3 3 0 0 1-3 4"></path>
+          <path d="M12 14v4"></path>
+          <path d="M8.5 20h7"></path>
+        </svg>
+      </span>
+      Record
+    </li>
+    @if (grid().hasBefore) {
+      <li class="before-item">
+        <span class="swatch swatch-before"></span>
+        Before you joined
+      </li>
+    }
+  </ul>
+</div>

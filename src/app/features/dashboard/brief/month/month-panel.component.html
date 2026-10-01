@@ -1,0 +1,18 @@
+<div class="head">
+  <span class="title">{{ title() }}</span>
+  @if (since(); as line) {
+    <span class="since">{{ line }}</span>
+  }
+</div>
+@if (totals(); as figures) {
+  <div class="totals">
+    <div class="total">
+      <span class="number">{{ figures.sessions }}</span>
+      <span class="caption">{{ figures.sessionsLabel }}</span>
+    </div>
+    <div class="total">
+      <span class="number">{{ figures.duration }}</span>
+      <span class="caption">trained</span>
+    </div>
+  </div>
+}

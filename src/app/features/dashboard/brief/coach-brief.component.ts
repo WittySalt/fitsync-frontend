@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
@@ -16,6 +16,10 @@ import { BriefDay, buildWeek, buildWeekFromInsight, completedSessionCount, weekR
 import { CoachNoticedComponent } from './coach-noticed.component';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from './day-kind-icons';
 import { GlyphShape } from './muscle-icons';
+import { MonthCalendarComponent } from './month/month-calendar.component';
+import { MonthNavComponent } from './month/month-nav.component';
+import { MonthPanelComponent } from './month/month-panel.component';
+import { MonthViewState } from './month/month-view.state';
 import { MuscleWheelComponent } from './muscle-wheel.component';
 import { TodayRowComponent } from './today-row.component';
 
@@ -25,7 +29,19 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
 @Component({
   selector: 'app-coach-brief',
   standalone: true,
-  imports: [CoachNoticedComponent, FormsModule, MuscleWheelComponent, RouterLink, StatePanelComponent, TodayRowComponent],
+  imports: [
+    CoachNoticedComponent,
+    FormsModule,
+    MonthCalendarComponent,
+    MonthNavComponent,
+    MonthPanelComponent,
+    MuscleWheelComponent,
+    RouterLink,
+    StatePanelComponent,
+    TodayRowComponent
+  ],
+  // One month view state for the three pieces of the month view, discarded with the brief.
+  providers: [MonthViewState],
   templateUrl: './coach-brief.component.html',
   styleUrl: './coach-brief.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -36,12 +52,16 @@ export class CoachBriefComponent implements OnInit {
   private readonly coachContext = inject(CoachContextService);
   private readonly router = inject(Router);
   private readonly now = inject(BRIEF_NOW);
+  private readonly injector = inject(Injector);
 
   // Signal inputs, so the copy follows a value that arrives after the first render. The calorie
   // target does exactly that, because the page loads the nutrition summary on its own request.
   readonly firstName = input.required<string>();
   readonly timezone = input.required<string>();
   readonly caloriesTarget = input<number | null>(null);
+
+  // The brief always opens in the week view: it is about today, so the choice is not remembered.
+  readonly view = signal<'week' | 'month'>('week');
 
   readonly loading = signal(true);
   readonly loadError = signal(false);
@@ -342,6 +362,17 @@ export class CoachBriefComponent implements OnInit {
       default:
         return '';
     }
+  }
+
+  showView(view: 'week' | 'month'): void {
+    if (view === this.view()) {
+      return;
+    }
+    if (view === 'month') {
+      // Looked up on first use, so a brief that never shows the month never builds its requests.
+      this.injector.get(MonthViewState).open(this.timezone(), this.todayDateKey());
+    }
+    this.view.set(view);
   }
 
   /** True for a training kind, used by the template to decide whether the strip draws a glyph. */

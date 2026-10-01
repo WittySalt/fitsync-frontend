@@ -85,6 +85,7 @@ import {
   WeightSeriesPoint,
   UsualMeal
 } from './fitsync.models';
+import { MonthDayInsight, MonthMuscleInsight, MonthTotals, MonthWeekInsight, MonthlyTrainingInsight } from './fitsync.models';
 
 export interface DashboardData {
   profile: UserProfile;
@@ -2820,4 +2821,86 @@ export class FitSyncDataService {
       children: (category.children ?? []).map((child) => this.mapFoodCategory(child))
     };
   }
+
+  /** Loads the coach's month rollup (the days trained, the weeks, the totals and the muscle
+   *  counts) for one calendar month in the given IANA timezone. Errors are left to propagate so the
+   *  month view can show its own error state instead of an empty month. */
+  getMonthlyTrainingInsight(month: string, timezone: string): Observable<MonthlyTrainingInsight> {
+    const params = new HttpParams().set('month', month).set('timezone', timezone);
+    return this.http
+      .get<Partial<MonthlyTrainingInsight>>(`${this.apiBaseUrl}/workouts/insights/monthly`, { params })
+      .pipe(map((response) => mapMonthlyTrainingInsight(response, month, timezone)));
+  }
+}
+
+function mapMonthDay(entry: Partial<MonthDayInsight> | null | undefined): MonthDayInsight | null {
+  if (!entry || typeof entry.date !== 'string' || !entry.date) {
+    return null;
+  }
+  return {
+    date: entry.date,
+    kind: mapDayKind(entry.kind),
+    label: entry.label ?? '',
+    sessions: safeInsightNumber(entry.sessions),
+    minutes: safeInsightNumber(entry.minutes),
+    muscles: Array.isArray(entry.muscles) ? entry.muscles.filter((muscle) => typeof muscle === 'string') : [],
+    record: entry.record === true
+  };
+}
+
+function mapMonthWeek(entry: Partial<MonthWeekInsight> | null | undefined): MonthWeekInsight | null {
+  if (!entry || typeof entry.weekStart !== 'string' || !entry.weekStart) {
+    return null;
+  }
+  return {
+    weekStart: entry.weekStart,
+    weekEnd: entry.weekEnd ?? '',
+    sessions: safeInsightNumber(entry.sessions),
+    minutes: safeInsightNumber(entry.minutes),
+    strengthSessions: safeInsightNumber(entry.strengthSessions),
+    cardioSessions: safeInsightNumber(entry.cardioSessions),
+    mobilitySessions: safeInsightNumber(entry.mobilitySessions),
+    sportSessions: safeInsightNumber(entry.sportSessions),
+    complete: entry.complete === true
+  };
+}
+
+function mapMonthTotals(entry: Partial<MonthTotals> | null | undefined): MonthTotals {
+  return {
+    sessions: safeInsightNumber(entry?.sessions),
+    minutes: safeInsightNumber(entry?.minutes),
+    records: safeInsightNumber(entry?.records),
+    longestStreakDays: safeInsightNumber(entry?.longestStreakDays)
+  };
+}
+
+function mapMonthMuscle(entry: Partial<MonthMuscleInsight> | null | undefined): MonthMuscleInsight | null {
+  if (!entry || typeof entry.group !== 'string' || !entry.group) {
+    return null;
+  }
+  return { group: entry.group, label: entry.label ?? entry.group, sessions: safeInsightNumber(entry.sessions) };
+}
+
+/** Maps the monthly response defensively: a missing list is empty, a missing number is zero, an
+ *  unknown day kind reads as OPEN, and the previous month stays null when the backend sends none. */
+function mapMonthlyTrainingInsight(
+  response: Partial<MonthlyTrainingInsight>,
+  month: string,
+  timezone: string
+): MonthlyTrainingInsight {
+  return {
+    timezone: response.timezone ?? timezone,
+    month: response.month ?? month,
+    monthStart: response.monthStart ?? '',
+    monthEnd: response.monthEnd ?? '',
+    referenceDate: response.referenceDate ?? '',
+    firstSessionDate: response.firstSessionDate ?? null,
+    days: (response.days ?? []).map((day) => mapMonthDay(day)).filter((day): day is MonthDayInsight => day !== null),
+    weeks: (response.weeks ?? []).map((week) => mapMonthWeek(week)).filter((week): week is MonthWeekInsight => week !== null),
+    totals: mapMonthTotals(response.totals),
+    previousTotals: response.previousTotals ? mapMonthTotals(response.previousTotals) : null,
+    muscles: (response.muscles ?? [])
+      .map((muscle) => mapMonthMuscle(muscle))
+      .filter((muscle): muscle is MonthMuscleInsight => muscle !== null)
+  };
 }

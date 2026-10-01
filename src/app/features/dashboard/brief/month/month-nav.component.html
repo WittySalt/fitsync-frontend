@@ -1,0 +1,13 @@
+<div class="nav">
+  <button type="button" class="arrow" aria-label="Previous month" [disabled]="!state.canGoPrevious()" (click)="state.step(-1)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M15 6l-6 6 6 6"></path>
+    </svg>
+  </button>
+  <span class="title" aria-live="polite">{{ title() }}</span>
+  <button type="button" class="arrow" aria-label="Next month" [disabled]="!state.canGoNext()" (click)="state.step(1)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 6l6 6-6 6"></path>
+    </svg>
+  </button>
+</div>

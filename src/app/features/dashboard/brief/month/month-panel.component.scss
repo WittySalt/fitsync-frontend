@@ -1,0 +1,58 @@
+// The panel around this body is dark in both themes, so these colours are fixed rather than taken
+// from the brief's tokens.
+:host {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green-400);
+}
+
+.since {
+  font-size: 14px;
+  color: var(--slate-300);
+}
+
+.totals {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 16px;
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.number {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 48px;
+  line-height: 1;
+  color: var(--white);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.caption {
+  font-size: 14px;
+  color: var(--slate-300);
+}

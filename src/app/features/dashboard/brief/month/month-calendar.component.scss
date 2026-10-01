@@ -1,0 +1,291 @@
+// The colours come from the brief's own tokens, which the calendar inherits, so the dark theme
+// needs no rules of its own here.
+:host {
+  display: block;
+  min-width: 0;
+  // The grid is 273 px tall in a month of five rows: five cells of 45 px and four gaps of 12 px.
+  --grid-height: 273px;
+}
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.weekdays,
+.row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weekdays span {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.4;
+  text-align: center;
+  color: var(--brief-ink-quiet);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  --cell-height: 45px;
+
+  // Six rows of 36 px take the same height as five rows of 45 px, so the gap between the rows
+  // gives up a little (11.4 px) rather than the grid growing.
+  &.rows-6 {
+    --cell-height: 36px;
+    gap: calc((var(--grid-height) - 6 * var(--cell-height)) / 5);
+  }
+}
+
+.row {
+  height: var(--cell-height);
+
+  &.current {
+    background: var(--accent-subtle);
+    box-shadow: 0 0 0 5px var(--accent-subtle);
+    border-radius: 12px;
+  }
+}
+
+.cell {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--cell-height);
+  padding: 0 0 5px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--brief-ink-quiet);
+  font: inherit;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  &.blank {
+    pointer-events: none;
+  }
+}
+
+button.cell {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:hover:not(.trained) {
+    border-color: var(--brief-line);
+  }
+}
+
+.cell.skeleton {
+  min-height: 0;
+  border-color: transparent;
+}
+
+.cell.empty {
+  background: var(--brief-tile);
+  border-color: var(--brief-tile);
+}
+
+// A date still to come is quieter than an empty one: no fill, a dashed edge, softer ink.
+.cell.future {
+  background: var(--surface);
+  border: 1.5px dashed var(--brief-planned-border);
+  color: var(--brief-planned-ink);
+}
+
+// A date before the first session is blank, with no edge at all.
+.cell.before {
+  color: var(--brief-planned-ink);
+}
+
+.cell.today {
+  background: var(--brief-tint);
+  border: 1.5px dashed var(--green-600);
+  color: var(--brief-tint-ink);
+}
+
+.cell.trained {
+  background: var(--green-600);
+  border: 1.5px solid var(--green-600);
+  color: var(--white);
+}
+
+.num {
+  position: absolute;
+  top: 5px;
+  left: 8px;
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.marks {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+}
+
+.mark {
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+
+.glyph {
+  display: block;
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.rows-6 {
+  .cell {
+    padding-bottom: 3px;
+  }
+
+  .num,
+  .marks {
+    top: 3px;
+  }
+
+  .num {
+    font-size: 10px;
+  }
+
+  .glyph {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.state {
+  box-sizing: border-box;
+  min-height: var(--grid-height);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--brief-well);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.state-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--brief-ink-soft);
+}
+
+.retry {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 18px;
+  border: 1px solid var(--brief-line);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--brief-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+// The four kinds make the first row and the two marks follow; the seventh item, when it appears,
+// joins them on the second row, so the legend keeps two rows at the width of the brief's side by
+// side layout.
+.legend {
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: start;
+  gap: 8px 20px;
+  font-size: 13px;
+  color: var(--brief-ink-soft);
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+}
+
+.swatch {
+  flex: none;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swatch-kind {
+  background: var(--green-600);
+  color: var(--white);
+}
+
+.swatch-mark {
+  background: var(--surface);
+  border: 1px solid var(--brief-line);
+  color: var(--brief-ink-soft);
+}
+
+.swatch-before {
+  background: var(--surface);
+  border: 1.5px solid var(--brief-tile);
+}
+
+@container (max-width: 560px) {
+  .weekdays,
+  .row {
+    gap: 4px;
+  }
+
+  .num {
+    left: 4px;
+    font-size: 10px;
+  }
+
+  .marks {
+    right: 3px;
+    gap: 1px;
+  }
+
+  .legend {
+    grid-template-columns: repeat(3, auto);
+    column-gap: 14px;
+    font-size: 12px;
+  }
+
+  .before-item {
+    grid-column: 1 / -1;
+  }
+}
