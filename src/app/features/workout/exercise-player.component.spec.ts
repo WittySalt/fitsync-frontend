@@ -308,13 +308,13 @@ describe('ExercisePlayerComponent', () => {
     expect(fixture.nativeElement.querySelector('app-workout-modal')).toBeNull();
   });
 
-  it('makes the confirming Discard a filled red button and keeps Keep going green', () => {
+  it('makes the confirming Discard a filled red button and keeps Keep going outlined', () => {
     fixture.componentInstance.confirm.set('discard');
     fixture.detectChanges();
 
     const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-workout-modal button'));
     expect(buttons.find((button) => button.textContent?.trim() === 'Discard')?.classList.contains('danger-solid')).toBeTrue();
-    expect(buttons.find((button) => button.textContent?.trim() === 'Keep going')?.classList.contains('primary')).toBeTrue();
+    expect(buttons.find((button) => button.textContent?.trim() === 'Keep going')?.classList.contains('secondary')).toBeTrue();
   });
 
   it('makes Finish and save the filled green action of the finish question, and Discard workout a red text action', () => {

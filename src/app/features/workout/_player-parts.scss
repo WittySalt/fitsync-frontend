@@ -44,26 +44,26 @@
 }
 
 // Destructive actions use the danger colour of the app: red text with a red outline on hover and
-// focus, or a filled red button with white text.
+// focus, or a filled red button with white text. The darker red keeps both above 4.5:1 on white.
 @mixin danger-actions {
   .danger-text {
-    color: var(--danger);
+    color: var(--danger-hover);
 
     &:hover:not(:disabled),
     &:focus-visible {
-      outline: 1.5px solid var(--danger);
+      outline: 1.5px solid var(--danger-hover);
       outline-offset: -1.5px;
     }
   }
 
   .danger-solid {
-    border-color: var(--danger);
-    background: var(--danger);
+    border-color: var(--danger-hover);
+    background: var(--danger-hover);
     color: var(--white);
 
     &:hover:not(:disabled) {
-      border-color: var(--danger-hover);
-      background: var(--danger-hover);
+      border-color: color-mix(in srgb, var(--danger-hover) 82%, black);
+      background: color-mix(in srgb, var(--danger-hover) 82%, black);
     }
   }
 }

@@ -23,7 +23,7 @@ import { WorkoutModalComponent } from './workout-modal.component';
         <p class="ask">It will not be saved.</p>
         <div class="choices">
           <button class="button danger-solid" type="button" [disabled]="ending()" (click)="discard.emit()">Discard</button>
-          <button class="button primary" type="button" (click)="keepGoing.emit()">Keep going</button>
+          <button class="button secondary" type="button" (click)="keepGoing.emit()">Keep going</button>
         </div>
       }
     </app-workout-modal>

@@ -76,11 +76,11 @@ svg {
 
     // Discarding is the one red action: red text, and a red outline on hover and focus.
     &.danger {
-      color: var(--danger);
+      color: var(--danger-hover);
 
       &:hover:not(:disabled),
       &:focus-visible {
-        outline: 1.5px solid var(--danger);
+        outline: 1.5px solid var(--danger-hover);
         outline-offset: -1.5px;
       }
     }
