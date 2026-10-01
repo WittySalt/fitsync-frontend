@@ -1,0 +1,75 @@
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.rest-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.what {
+  align-self: stretch;
+}
+
+.coach {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 2px 4px 2px 12px;
+  border: 1px solid var(--green-200);
+  border-radius: 12px;
+  background: var(--surface-tint);
+  text-align: left;
+}
+
+.mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+}
+
+.said {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--green-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.ask {
+  flex: none;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--green-800);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+@include parts.quiet-button;
+@include parts.what-block;

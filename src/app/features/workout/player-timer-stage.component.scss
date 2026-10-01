@@ -1,0 +1,27 @@
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.timer-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.what {
+  align-self: stretch;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+@include parts.quiet-button;
+@include parts.what-block;

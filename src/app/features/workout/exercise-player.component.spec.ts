@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, flush, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 
@@ -9,10 +9,18 @@ import {
   WorkoutPlan,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
+import { CoachStore } from '../../core/coach/coach.store';
 import { ToastService } from '../../core/toast/toast.service';
+import { SpeechService } from './speech.service';
 import { ExercisePlayerComponent } from './exercise-player.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutCelebrationComponent } from './workout-celebration.component';
+
+/** Lets the timers that a test leaves behind (the step carousel, the cues) run out before it ends. */
+function settle(): void {
+  discardPeriodicTasks();
+  flush();
+}
 
 function detail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
   return {
@@ -154,6 +162,8 @@ describe('ExercisePlayerComponent', () => {
   let fixture: ComponentFixture<ExercisePlayerComponent>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let toast: jasmine.SpyObj<ToastService>;
+  let coach: jasmine.SpyObj<CoachStore>;
+  let speech: { available: boolean; speak: jasmine.Spy; cancel: jasmine.Spy };
   let live: WorkoutLiveService;
 
   beforeEach(async () => {
@@ -166,6 +176,8 @@ describe('ExercisePlayerComponent', () => {
       'cancelSession'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
+    coach = jasmine.createSpyObj<CoachStore>('CoachStore', ['open', 'ask']);
+    speech = { available: true, speak: jasmine.createSpy('speak'), cancel: jasmine.createSpy('cancel') };
 
     dataService.upsertSessionSet.and.returnValue(of(detail({
       exercises: [
@@ -214,7 +226,9 @@ describe('ExercisePlayerComponent', () => {
       providers: [
         WorkoutLiveService,
         { provide: FitSyncDataService, useValue: dataService },
-        { provide: ToastService, useValue: toast }
+        { provide: ToastService, useValue: toast },
+        { provide: CoachStore, useValue: coach },
+        { provide: SpeechService, useValue: speech }
       ]
     }).compileComponents();
 
@@ -248,17 +262,35 @@ describe('ExercisePlayerComponent', () => {
       ]
     }));
 
-    const steps = fixture.componentInstance.guidanceInstructions();
-    expect(steps.length).toBe(1);
-    expect(steps[0].text).toBe('Hinge at the hips and lower the bar.');
+    const steps = fixture.componentInstance.currentSubject().steps;
+    expect(steps).toEqual(['Hinge at the hips and lower the bar.']);
   });
 
-  it('does not abort when the confirmation is dismissed', () => {
-    spyOn(window, 'confirm').and.returnValue(false);
+  it('asks once before discarding, and Keep going leaves the workout alone', () => {
+    fixture.componentInstance.confirm.set('discard');
+    fixture.detectChanges();
+    const dialog = fixture.nativeElement.querySelector('app-workout-modal') as HTMLElement;
+    expect(dialog.textContent).toContain('Discard this workout?');
 
-    fixture.componentInstance.abort();
+    Array.from(dialog.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Keep going'))?.click();
+    fixture.detectChanges();
 
     expect(dataService.cancelSession).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('app-workout-modal')).toBeNull();
+  });
+
+  it('discards through the live service once the dialog is answered', () => {
+    const cancelled = jasmine.createSpy('cancelled');
+    fixture.componentInstance.cancelled.subscribe(cancelled);
+    fixture.componentInstance.confirm.set('discard');
+    fixture.detectChanges();
+
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-workout-modal button'))
+      .find((button) => button.textContent?.trim() === 'Discard')?.click();
+
+    expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
+    expect(cancelled).toHaveBeenCalled();
   });
 
   it('saves the current set with session, exercise log, set number, and target values', () => {
@@ -286,6 +318,7 @@ describe('ExercisePlayerComponent', () => {
     expect(fixture.componentInstance.setCompleteCue()).toBeFalse();
 
     tick(800);
+    settle();
   }));
 
   it('shows the rest countdown after completing a set', () => {
@@ -300,6 +333,7 @@ describe('ExercisePlayerComponent', () => {
     tick(10_000);
 
     expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+    settle();
   }));
 
   it('auto-completes a timed set at zero and enters rest', fakeAsync(() => {
@@ -329,6 +363,7 @@ describe('ExercisePlayerComponent', () => {
 
     tick(1_000);
     tick(800);
+    settle();
   }));
 
   it('counts reps during tempo guidance and records the target reps when it completes', fakeAsync(() => {
@@ -357,6 +392,7 @@ describe('ExercisePlayerComponent', () => {
       1,
       jasmine.objectContaining({ reps: 2, durationSeconds: 6 })
     );
+    settle();
   }));
 
   it('stops tempo guidance and records only the reached reps', fakeAsync(() => {
@@ -381,6 +417,7 @@ describe('ExercisePlayerComponent', () => {
       1,
       jasmine.objectContaining({ reps: 1, durationSeconds: 3 })
     );
+    settle();
   }));
 
   it('advances to the next exercise after rest finishes', fakeAsync(() => {
@@ -397,17 +434,18 @@ describe('ExercisePlayerComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.restCompleteCue()).toBeFalse();
+    settle();
   }));
 
-  it('labels heart rate as mock and calories as estimated', () => {
+  it('shows no mock heart rate and no calorie estimate', () => {
     live.heartRate.set(128);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('128 bpm mock');
-    expect(fixture.nativeElement.textContent).toContain('kcal estimated');
+    expect(fixture.nativeElement.textContent).not.toContain('bpm');
+    expect(fixture.nativeElement.textContent).not.toContain('kcal');
   });
 
-  it('shows recorded set progress against planned targets in the movement queue', () => {
+  it('shows the sets done in the top strip, with one segment for each exercise', () => {
     const withSetProgress = TestBed.createComponent(ExercisePlayerComponent);
     withSetProgress.componentRef.setInput('session', detail({
       exercises: [
@@ -430,11 +468,9 @@ describe('ExercisePlayerComponent', () => {
     withSetProgress.detectChanges();
 
     const root = withSetProgress.nativeElement as HTMLElement;
-    const texts = (selector: string) =>
-      Array.from(root.querySelectorAll(`.movement-queue .queue-item ${selector}`)).map((node) => node.textContent?.trim());
-
-    expect(texts('small:not(.queue-plan)')).toEqual(['1 / 3 sets', '0 / 3 sets']);
-    expect(texts('.queue-plan')).toEqual(['3 × 10 · 20 kg', '3 × 8']);
+    expect(root.querySelector('.sets')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('1 of 6 sets');
+    expect(root.querySelectorAll('.segment').length).toBe(2);
+    expect(withSetProgress.componentInstance.segments()).toEqual([1 / 3, 0]);
   });
 
   it('starts focused on the requested initial exercise', () => {
@@ -479,6 +515,7 @@ describe('ExercisePlayerComponent', () => {
       .toBe('https://cdn.example.test/goblet-squat/1.jpg');
 
     withFrames.destroy();
+    settle();
   }));
 
   it('keeps single catalog images static', fakeAsync(() => {
@@ -494,6 +531,7 @@ describe('ExercisePlayerComponent', () => {
     expect(withOneFrame.componentInstance.mediaFrames()).toEqual(['https://cdn.example.test/goblet-squat/0.jpg']);
     expect(withOneFrame.componentInstance.mediaFrameIndex()).toBe(0);
     expect(withOneFrame.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/0.jpg');
+    settle();
   }));
 
   it('does not advance animation frames when reduced motion is enabled', fakeAsync(() => {
@@ -522,70 +560,149 @@ describe('ExercisePlayerComponent', () => {
     expect(reducedMotion.componentInstance.mediaFrames().length).toBe(2);
     expect(reducedMotion.componentInstance.mediaFrameIndex()).toBe(0);
     expect(reducedMotion.componentInstance.currentMediaUrl()).toBe('https://cdn.example.test/goblet-squat/0.jpg');
+    settle();
   }));
 
-  it('renders current exercise guidance with description, sorted steps, and metadata', () => {
-    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+  describe('the guide', () => {
+    const asText = (node: HTMLElement) => (node.textContent ?? '').replace(/\s+/g, ' ');
 
-    expect(text).toContain('How to perform');
-    expect(text).toContain('Hold the weight close and keep your chest tall.');
-    expect(text.indexOf('Brace your core before you descend.')).toBeLessThan(text.indexOf('Drive through your feet to stand tall.'));
-    expect(text).toContain('Quads');
-    expect(text).toContain('Glutes');
-    expect(text).toContain('Dumbbells');
-    expect(text).toContain('Beginner');
-  });
+    function setWidth(player: ComponentFixture<ExercisePlayerComponent>, width: number): void {
+      (player.nativeElement as HTMLElement).style.display = 'block';
+      (player.nativeElement as HTMLElement).style.width = `${width}px`;
+    }
 
-  it('renders an optional video guide inside the guidance panel', () => {
-    dataService.getExercise.and.returnValue(of(exerciseDetail({
-      videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
-    })));
-    const withVideo = renderPlayer(plan());
-    withVideo.detectChanges();
+    it('shows the steps of the exercise in the carousel, cut to their first sentence and in order', () => {
+      const carousel = fixture.nativeElement.querySelector('app-step-carousel') as HTMLElement;
 
-    expect(withVideo.nativeElement.textContent).toContain('Watch video');
-    expect(withVideo.nativeElement.querySelector('.guidance-panel app-exercise-video .video-preview')).not.toBeNull();
-  });
+      expect(asText(carousel)).toContain('Brace your core before you descend.');
+      expect(fixture.componentInstance.currentSubject().steps).toEqual([
+        'Brace your core before you descend.',
+        'Drive through your feet to stand tall.'
+      ]);
+    });
 
-  it('updates guidance when the current exercise changes and reuses cached details', fakeAsync(() => {
-    expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
+    it('prefers the short steps of the exercise when it has them', () => {
+      dataService.getExercise.and.returnValue(of(exerciseDetail({ shortSteps: ['Hold the weight at the chest.', 'Sit down between the heels.'] })));
 
-    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
-    tick(1_000);
-    tick(800);
-    fixture.detectChanges();
+      const withShortSteps = renderPlayer(plan());
 
-    let text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
-    expect(text).toContain('Keep a straight line from shoulders to heels.');
-    expect(text).toContain('Lower under control, then press away from the floor.');
-    expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-2').length).toBe(1);
+      expect(withShortSteps.componentInstance.currentSubject().steps).toEqual([
+        'Hold the weight at the chest.',
+        'Sit down between the heels.'
+      ]);
+    });
 
-    fixture.componentInstance.currentExerciseIndex.set(0);
-    fixture.detectChanges();
+    it('opens as a full view with a Back button on a narrow screen, and the workout keeps its place', () => {
+      setWidth(fixture, 360);
+      fixture.debugElement.query(By.css('app-exercise-picture button')).nativeElement.click();
+      fixture.detectChanges();
 
-    text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
-    expect(text).toContain('Hold the weight close and keep your chest tall.');
-    expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
-  }));
+      const root = fixture.nativeElement as HTMLElement;
+      const guide = root.querySelector('app-exercise-guide') as HTMLElement;
+      expect(root.querySelector('app-workout-modal')).toBeNull();
+      expect(guide.querySelector('.bar [aria-label="Back to the set"]')).not.toBeNull();
+      const text = asText(guide);
+      expect(text).toContain('Goblet Squat');
+      expect(text).toContain('Quads');
+      expect(text).toContain('Glutes');
+      expect(text).toContain('Dumbbells');
+      expect(text).toContain('Beginner');
+      expect(text).toContain('Hold the weight close and keep your chest tall.');
+      expect(text.indexOf('Brace your core before you descend.')).toBeLessThan(text.indexOf('Drive through your feet to stand tall.'));
+      expect(text).toContain('Back to set 1');
+      expect(guide.querySelector('li[aria-current="step"]')?.textContent).toContain('Brace your core');
 
-  it('shows an honest guidance empty state when the current exercise has no catalog id', () => {
-    const withoutCatalogId = TestBed.createComponent(ExercisePlayerComponent);
-    withoutCatalogId.componentRef.setInput(
-      'session',
-      detail({
-        exercises: [
-          {
-            ...detail().exercises[0],
-            exerciseId: ''
-          }
-        ]
-      })
-    );
-    withoutCatalogId.componentRef.setInput('activePlan', plan({ exercises: [] }));
-    withoutCatalogId.detectChanges();
+      guide.querySelector<HTMLButtonElement>('.primary')?.click();
+      fixture.detectChanges();
 
-    expect(dataService.getExercise).not.toHaveBeenCalledWith('');
-    expect(withoutCatalogId.nativeElement.textContent).toContain('No guidance available for this movement.');
+      expect(root.querySelector('app-exercise-guide')).toBeNull();
+      expect(fixture.componentInstance.guideOpen()).toBeFalse();
+    });
+
+    it('closes the full view with Escape', () => {
+      setWidth(fixture, 360);
+      fixture.componentInstance.openGuide();
+      fixture.detectChanges();
+
+      const guide = fixture.nativeElement.querySelector('.guide') as HTMLElement;
+      guide.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.guideOpen()).toBeFalse();
+    });
+
+    it('opens in the dialog on a wide screen, and Escape closes it', () => {
+      setWidth(fixture, 960);
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.howto'))[0].click();
+      fixture.detectChanges();
+
+      const dialog = fixture.nativeElement.querySelector('app-workout-modal') as HTMLElement;
+      expect(dialog).not.toBeNull();
+      expect(dialog.querySelector('app-exercise-guide')).not.toBeNull();
+      expect(dialog.querySelector('h2')?.textContent).toContain('Goblet Squat');
+
+      dialog.querySelector('dialog')?.dispatchEvent(new Event('cancel', { cancelable: true }));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('app-workout-modal')).toBeNull();
+    });
+
+    it('renders an optional video guide inside the guide', () => {
+      dataService.getExercise.and.returnValue(of(exerciseDetail({
+        videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
+      })));
+      const withVideo = renderPlayer(plan());
+      setWidth(withVideo, 360);
+      withVideo.componentInstance.openGuide();
+      withVideo.detectChanges();
+
+      expect(withVideo.nativeElement.textContent).toContain('Watch video');
+      expect(withVideo.nativeElement.querySelector('app-exercise-guide app-exercise-video .video-preview')).not.toBeNull();
+    });
+
+    it('follows the exercise when it changes and reuses cached details', fakeAsync(() => {
+      expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
+
+      fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+      tick(1_000);
+      tick(800);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.currentSubject().steps).toEqual(['Lower under control, then press away from the floor.']);
+      expect(asText(fixture.nativeElement.querySelector('app-step-carousel'))).toContain('Lower under control');
+      expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-2').length).toBe(1);
+
+      fixture.componentInstance.currentExerciseIndex.set(0);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.currentSubject().steps[0]).toBe('Brace your core before you descend.');
+      expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
+      settle();
+    }));
+
+    it('says so in the guide when the exercise has no catalog id, and shows no carousel', () => {
+      const withoutCatalogId = TestBed.createComponent(ExercisePlayerComponent);
+      withoutCatalogId.componentRef.setInput(
+        'session',
+        detail({
+          exercises: [
+            {
+              ...detail().exercises[0],
+              exerciseId: ''
+            }
+          ]
+        })
+      );
+      withoutCatalogId.componentRef.setInput('activePlan', plan({ exercises: [] }));
+      withoutCatalogId.detectChanges();
+      setWidth(withoutCatalogId, 360);
+      withoutCatalogId.componentInstance.openGuide();
+      withoutCatalogId.detectChanges();
+
+      expect(dataService.getExercise).not.toHaveBeenCalledWith('');
+      expect(withoutCatalogId.nativeElement.querySelector('app-step-carousel .carousel')).toBeNull();
+      expect(withoutCatalogId.nativeElement.textContent).toContain('No steps are listed for this movement.');
+    });
   });
 
   it('renders the exercise image when media is available', () => {
@@ -836,7 +953,7 @@ describe('ExercisePlayerComponent', () => {
     it('counts the planned sets of the session, and the progress bar follows', () => {
       const player = mount(weeklySession(), weeklyPlan());
 
-      expect(text(player)).toContain('0 of 4 sets done');
+      expect(textOf(player, '.sets')).toBe('0 of 4 sets');
 
       live.setSession(weeklySession({
         exercises: [
@@ -853,15 +970,15 @@ describe('ExercisePlayerComponent', () => {
       }));
       player.detectChanges();
 
-      expect(text(player)).toContain('1 of 4 sets done');
-      expect(player.componentInstance.progressPercent()).toBe(25);
+      expect(textOf(player, '.sets')).toBe('1 of 4 sets');
+      expect(player.componentInstance.segments()).toEqual([1 / 3, 0]);
     });
 
     it('shows the real number of sets and the target of the current set', () => {
       const player = mount(weeklySession(), weeklyPlan());
 
-      expect(textOf(player, '.set-panel strong')).toBe('1 / 3');
-      expect(textOf(player, '.focus-copy p')).toBe('45 sec · 30 sec rest');
+      expect(root(player).querySelectorAll('app-player-set-list li').length).toBe(3);
+      expect(textOf(player, '.target')).toBe('45 sec · 30 sec rest');
       expect(text(player)).not.toContain('Follow the plan target');
     });
 
@@ -871,7 +988,7 @@ describe('ExercisePlayerComponent', () => {
       player.detectChanges();
 
       expect(text(player)).toContain('Start timer');
-      expect(textOf(player, '.focus-copy p')).toBe('30 min · 5.75 km');
+      expect(textOf(player, '.target')).toBe('30 min · 5.75 km');
 
       root(player).querySelector<HTMLButtonElement>('.complete-set')?.click();
 
@@ -908,21 +1025,14 @@ describe('ExercisePlayerComponent', () => {
         .map((item) => item.textContent?.replace(/\s+/g, ' ').trim());
 
       expect(items).toEqual([
-        'Set 1 planned 10 × 20 kg, did 8 × 20 kg ✓',
-        'Set 2 10 × 20 kg ✓',
+        'Set 1 planned 10 × 20 kg, did 8 × 20 kg',
+        'Set 2 10 × 20 kg',
         'Set 3 Skipped',
         'Set 4 10 × 20 kg'
       ]);
       expect(root(player).querySelector('app-player-set-list ol')).not.toBeNull();
-      expect(root(player).querySelector('app-player-set-list [aria-label="Done"]')).not.toBeNull();
-    });
-
-    it('writes the plan of each exercise in the movement queue', () => {
-      const player = mount(weeklySession(), weeklyPlan());
-
-      const lines = Array.from(root(player).querySelectorAll('.queue-plan')).map((node) => node.textContent?.trim());
-
-      expect(lines).toEqual(['3 × 45 sec', '30 min · 5.75 km']);
+      expect(root(player).querySelectorAll('app-player-set-list [aria-label="Done"]').length).toBe(2);
+      expect(root(player).querySelector('app-player-set-list li.current')?.textContent).toContain('Set 4');
     });
 
     it('takes the sets from the plan day of the session when the exercise has no set rows', () => {
@@ -936,16 +1046,16 @@ describe('ExercisePlayerComponent', () => {
       } as unknown as NonNullable<WorkoutPlan['days']>[number];
       const player = mount(detail({ planDayId: 'day-1' }), plan({ exercises: [], days: [day] }));
 
-      expect(text(player)).toContain('0 of 5 sets done');
-      expect(textOf(player, '.set-panel strong')).toBe('1 / 3');
-      expect(textOf(player, '.focus-copy p')).toBe('12 reps · 15 kg · 1 sec rest');
+      expect(textOf(player, '.sets')).toBe('0 of 5 sets');
+      expect(root(player).querySelectorAll('app-player-set-list li').length).toBe(3);
+      expect(textOf(player, '.target')).toBe('12 reps · 15 kg · 1 sec rest');
     });
 
     it('shows no target line and one set when nothing is known', () => {
       const player = mount(detail(), plan({ exercises: [], days: [] }));
 
-      expect(text(player)).toContain('0 of 2 sets done');
-      expect(root(player).querySelector('.focus-copy p')).toBeNull();
+      expect(textOf(player, '.sets')).toBe('0 of 2 sets');
+      expect(root(player).querySelector('.target')).toBeNull();
       expect(text(player)).not.toContain('Follow the plan target');
     });
 
@@ -953,6 +1063,376 @@ describe('ExercisePlayerComponent', () => {
       const player = mount(weeklySession(), weeklyPlan());
 
       expect(textOf(player, '.elapsed')).toBe(live.elapsedLabel());
+    });
+
+    describe('working through the sets', () => {
+      /** Bench press and goblet squat, three sets each, with a rest after every set. */
+      function strengthSession(): WorkoutSessionDetail {
+        const base = detail();
+        return detail({
+          planDayId: 'day-1',
+          exercises: [
+            {
+              ...base.exercises[0],
+              exerciseId: 'ex-bench',
+              exerciseNameSnapshot: 'Bench Press',
+              sets: [1, 2, 3].map((n) => weeklySet(n, { reps: 10, weightKg: 20, restSeconds: 30 }))
+            },
+            {
+              ...base.exercises[1],
+              exerciseId: 'ex-squat',
+              exerciseNameSnapshot: 'Goblet Squat',
+              sets: [1, 2, 3].map((n) => weeklySet(n, { reps: 12, weightKg: 16, restSeconds: 30 }))
+            }
+          ]
+        });
+      }
+
+      /** Answers every write with the workout as the server would hold it afterwards. */
+      function followWrites(start: WorkoutSessionDetail): void {
+        let current = start;
+        dataService.upsertSessionSet.and.callFake((_sessionId, logId, setNumber, input) => {
+          current = {
+            ...current,
+            exercises: current.exercises.map((log) => log.exerciseLogId !== logId
+              ? log
+              : {
+                  ...log,
+                  sets: log.sets.map((row) => row.setNumber !== setNumber
+                    ? row
+                    : {
+                        ...row,
+                        reps: input.reps,
+                        weightKg: input.weightKg,
+                        durationSeconds: input.durationSeconds,
+                        restSeconds: input.restSeconds,
+                        status: input.status ?? 'DONE',
+                        logged: true
+                      })
+                })
+          };
+          return of(current);
+        });
+      }
+
+      const button = (player: ComponentFixture<ExercisePlayerComponent>, selector: string) =>
+        root(player).querySelector<HTMLButtonElement>(selector) as HTMLButtonElement;
+      const buttonByText = (player: ComponentFixture<ExercisePlayerComponent>, label: string) =>
+        Array.from(root(player).querySelectorAll<HTMLButtonElement>('button')).find((candidate) => candidate.textContent?.trim() === label) as HTMLButtonElement;
+
+      function mountStrength(): ComponentFixture<ExercisePlayerComponent> {
+        followWrites(strengthSession());
+        return mount(strengthSession(), weeklyPlan());
+      }
+
+      function mountPlank(): ComponentFixture<ExercisePlayerComponent> {
+        followWrites(weeklySession());
+        return mount(weeklySession(), weeklyPlan());
+      }
+
+      it('says what comes next under the set list, with the rest before it', () => {
+        const player = mountStrength();
+
+        expect(textOf(player, '.next-line')).toBe('Next Set 2 of 3 · 10 reps · 20 kg, after 30 sec of rest');
+      });
+
+      it('names the next exercise on the last set of an exercise', () => {
+        const player = mountStrength();
+        player.componentInstance.currentSetNumber.set(3);
+        player.detectChanges();
+
+        expect(textOf(player, '.next-line')).toBe('Next Goblet Squat · Set 1 of 3 · 12 reps · 16 kg, after 30 sec of rest');
+      });
+
+      it('starts the steppers from the target and saves what was dialled in', () => {
+        const player = mountStrength();
+
+        const values = () => Array.from(root(player).querySelectorAll('app-player-stepper .value')).map((node) => node.textContent?.trim());
+        expect(values()).toEqual(['10', '20']);
+
+        button(player, '[aria-label="More weight"]').click();
+        button(player, '[aria-label="Less reps"]').click();
+        button(player, '[aria-label="Less reps"]').click();
+        player.detectChanges();
+        expect(values()).toEqual(['8', '22.5']);
+
+        button(player, '.complete-set').click();
+
+        expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+          'session-live',
+          'log-1',
+          1,
+          jasmine.objectContaining({ reps: 8, weightKg: 22.5, restSeconds: 30 })
+        );
+      });
+
+      it('shows a time stepper in steps of five seconds for a timed set', () => {
+        const player = mountPlank();
+
+        const value = () => textOf(player, 'app-player-stepper .value');
+        expect(value()).toBe('0:45');
+        button(player, '[aria-label="More time"]').click();
+        player.detectChanges();
+        expect(value()).toBe('0:50');
+
+        button(player, '.complete-set').click();
+
+        expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+          'session-live',
+          'log-1',
+          1,
+          jasmine.objectContaining({ reps: null, durationSeconds: 50 })
+        );
+      });
+
+      it('skips a set through the same endpoint and moves on without a rest', () => {
+        const player = mountStrength();
+
+        button(player, '.skip-set').click();
+        player.detectChanges();
+
+        expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+          'session-live',
+          'log-1',
+          1,
+          jasmine.objectContaining({ status: 'SKIPPED', reps: null, weightKg: null, durationSeconds: null })
+        );
+        expect(player.componentInstance.currentSetNumber()).toBe(2);
+        expect(player.componentInstance.restRemainingSeconds()).toBe(0);
+        expect(root(player).querySelector('app-player-rest')).toBeNull();
+        expect(textOf(player, 'app-player-set-list li:first-child')).toContain('Skipped');
+      });
+
+      it('skips the rest of an exercise from the More menu', () => {
+        const player = mountStrength();
+
+        const more = button(player, '[aria-label="More"]');
+        expect(more.getAttribute('aria-expanded')).toBe('false');
+        more.click();
+        player.detectChanges();
+        expect(more.getAttribute('aria-expanded')).toBe('true');
+
+        buttonByText(player, 'Skip this exercise').click();
+        player.detectChanges();
+
+        const skipped = dataService.upsertSessionSet.calls.allArgs().filter(([, , , input]) => input.status === 'SKIPPED');
+        expect(skipped.map(([, logId, setNumber]) => `${logId}:${setNumber}`)).toEqual(['log-1:1', 'log-1:2', 'log-1:3']);
+        expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+        expect(textOf(player, '.name')).toBe('Goblet Squat');
+        expect(more.getAttribute('aria-expanded')).toBe('false');
+      });
+
+      it('shows the rest with the next set of the same exercise and a line of fact from the coach', fakeAsync(() => {
+        const player = mountStrength();
+
+        button(player, '.complete-set').click();
+        player.detectChanges();
+
+        expect(textOf(player, 'app-player-rest .kicker')).toBe('Next');
+        expect(textOf(player, 'app-player-rest .line')).toBe('Set 2 of 3 · 10 reps · 20 kg');
+        expect(root(player).querySelector('app-player-rest .name')).toBeNull();
+        expect(textOf(player, 'app-player-rest .said')).toBe('Five sets left in this workout.');
+        expect(root(player).querySelector('app-player-rest [role="img"]')?.getAttribute('aria-label')).toBe('Rest, 0:30 left');
+
+        buttonByText(player, '+15 sec').click();
+        player.detectChanges();
+        expect(player.componentInstance.restRemainingSeconds()).toBe(45);
+
+        buttonByText(player, 'Skip rest').click();
+        player.detectChanges();
+        expect(player.componentInstance.currentSetNumber()).toBe(2);
+        expect(root(player).querySelector('app-player-rest')).toBeNull();
+        settle();
+      }));
+
+      it('shows the next exercise with its name and target when the last set of an exercise is done', fakeAsync(() => {
+        dataService.getExercise.and.callFake((exerciseId) => of(exerciseId === 'ex-squat'
+          ? exerciseDetail({ exerciseId: 'ex-squat', name: 'Goblet Squat', shortSteps: ['Sit down between the heels.'] })
+          : exerciseDetail()));
+        const player = mountStrength();
+        for (let set = 1; set <= 2; set++) {
+          button(player, '.complete-set').click();
+          player.componentInstance.skipRest();
+          player.detectChanges();
+        }
+
+        button(player, '.complete-set').click();
+        player.detectChanges();
+
+        expect(textOf(player, 'app-player-rest .kicker')).toBe('Next · exercise 2 of 2');
+        expect(textOf(player, 'app-player-rest .name')).toBe('Goblet Squat');
+        expect(textOf(player, 'app-player-rest .line')).toBe('Set 1 of 3 · 12 reps · 16 kg');
+        expect(textOf(player, 'app-player-rest .said')).toBe('Three sets of bench press done, at 20 kg.');
+        expect(textOf(player, 'app-player-rest app-step-carousel')).toContain('Sit down between the heels.');
+
+        button(player, 'app-player-rest .ask').click();
+
+        expect(coach.open).toHaveBeenCalled();
+        expect(coach.ask).toHaveBeenCalledWith('How did my bench press sets go?');
+        player.componentInstance.skipRest();
+        settle();
+      }));
+
+      it('counts down three, two, one before a timed set, and Start now skips it', fakeAsync(() => {
+        const player = mountPlank();
+
+        button(player, '.start-timer').click();
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('countdown');
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('3');
+        expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 1 of 3 · 45 sec');
+        expect(textOf(player, 'app-player-timer-stage .name')).toBe('Plank');
+
+        tick(1000);
+        player.detectChanges();
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('2');
+
+        buttonByText(player, 'Start now').click();
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('timed');
+        expect(player.componentInstance.workGuideActive()).toBeTrue();
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0:45');
+        settle();
+      }));
+
+      it('starts the timed set itself when the countdown reaches zero, and Stop and save records it', fakeAsync(() => {
+        const player = mountPlank();
+
+        button(player, '.start-timer').click();
+        player.detectChanges();
+        tick(3000);
+        player.detectChanges();
+        expect(player.componentInstance.stage()).toBe('timed');
+
+        tick(10_000);
+        player.detectChanges();
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0:35');
+        expect(root(player).querySelector('app-player-timer-stage [role="img"]')?.getAttribute('aria-label')).toBe('0:35 left');
+
+        buttonByText(player, 'Stop and save').click();
+
+        expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+          'session-live',
+          'log-1',
+          1,
+          jasmine.objectContaining({ durationSeconds: 10 })
+        );
+        player.componentInstance.skipRest();
+        settle();
+      }));
+
+      it('starts the countdown when a rest ends and the next set is timed', fakeAsync(() => {
+        const player = mountPlank();
+
+        button(player, '.complete-set').click();
+        player.detectChanges();
+        expect(player.componentInstance.stage()).toBe('rest');
+
+        tick(30_000);
+        player.detectChanges();
+
+        expect(player.componentInstance.currentSetNumber()).toBe(2);
+        expect(player.componentInstance.stage()).toBe('countdown');
+
+        tick(3000);
+        player.detectChanges();
+        expect(player.componentInstance.stage()).toBe('timed');
+        settle();
+      }));
+
+      it('does not count down before a set of reps', fakeAsync(() => {
+        const player = mountStrength();
+
+        button(player, '.complete-set').click();
+        player.componentInstance.skipRest();
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('set');
+        expect(root(player).querySelector('app-player-timer-stage')).toBeNull();
+        settle();
+      }));
+
+      it('stops reading aloud when the set is completed', () => {
+        const player = mountStrength();
+        player.componentInstance.readAloud.set(true);
+        player.detectChanges();
+
+        button(player, '.complete-set').click();
+
+        expect(speech.cancel).toHaveBeenCalled();
+        expect(player.componentInstance.readAloud()).toBeFalse();
+        player.componentInstance.skipRest();
+      });
+
+      it('stops reading aloud when the screen is minimised', () => {
+        const player = mountStrength();
+        const minimised = jasmine.createSpy('minimise');
+        player.componentInstance.minimise.subscribe(minimised);
+        player.componentInstance.readAloud.set(true);
+        player.detectChanges();
+
+        button(player, '.minimise').click();
+
+        expect(speech.cancel).toHaveBeenCalled();
+        expect(minimised).toHaveBeenCalledTimes(1);
+      });
+
+      it('asks once before finishing with sets open, and Keep going leaves the workout running', () => {
+        const player = mountStrength();
+        spyOn(live, 'finish').and.returnValue(of(detail({ status: 'COMPLETED' })));
+
+        buttonByText(player, 'Finish').click();
+        player.detectChanges();
+
+        const dialog = root(player).querySelector('app-workout-modal') as HTMLElement;
+        expect(dialog.querySelector('h2')?.textContent).toBe('Finish now?');
+        expect(dialog.textContent).toContain('6 sets are still open.');
+        expect(live.finish).not.toHaveBeenCalled();
+
+        buttonByText(player, 'Keep going').click();
+        player.detectChanges();
+        expect(root(player).querySelector('app-workout-modal')).toBeNull();
+        expect(live.finish).not.toHaveBeenCalled();
+
+        buttonByText(player, 'Finish').click();
+        player.detectChanges();
+        buttonByText(player, 'Finish and save').click();
+        expect(live.finish).toHaveBeenCalledTimes(1);
+      });
+
+      it('offers Discard workout in the finish question, and asks again before it discards', () => {
+        const player = mountStrength();
+
+        buttonByText(player, 'Finish').click();
+        player.detectChanges();
+        buttonByText(player, 'Discard workout').click();
+        player.detectChanges();
+
+        expect(root(player).querySelector('app-workout-modal h2')?.textContent).toBe('Discard this workout?');
+        expect(dataService.cancelSession).not.toHaveBeenCalled();
+      });
+
+      it('finishes at once when no set is open', () => {
+        const done = strengthSession();
+        const player = mount({
+          ...done,
+          exercises: done.exercises.map((log) => ({ ...log, sets: log.sets.map((row) => ({ ...row, logged: true })) }))
+        }, weeklyPlan());
+        spyOn(live, 'finish').and.returnValue(of(detail({ status: 'COMPLETED' })));
+
+        buttonByText(player, 'Finish').click();
+
+        expect(root(player).querySelector('app-workout-modal')).toBeNull();
+        expect(live.finish).toHaveBeenCalledTimes(1);
+      });
+
+      it('has no separate Abort button', () => {
+        const player = mountStrength();
+
+        expect(text(player)).not.toContain('Abort');
+      });
     });
   });
 });

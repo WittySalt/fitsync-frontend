@@ -588,6 +588,41 @@ describe('WorkoutPage', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
 
+  it('hides the header, the reading, the figures, the tabs and the goal offer while the exercise screen is open', () => {
+    const active = plan({ planId: 'plan-today', name: 'Today plan', status: 'ACTIVE' });
+    dataService.getActivePlan.and.returnValue(of(active));
+    dataService.startWorkoutPlan.and.returnValue(of(guidedSession({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' })));
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.workout-header')).not.toBeNull();
+    expect(root.querySelector('app-insight-panel')).not.toBeNull();
+    expect(root.querySelector('.metric-strip')).not.toBeNull();
+    expect(root.querySelector('.workout-tabs')).not.toBeNull();
+
+    const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
+    today.startPlan.emit({ plan: active, planDayId: null });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.focusMode()).toBeTrue();
+    expect(root.querySelector('app-exercise-player')).not.toBeNull();
+    expect(root.querySelector('.workout-header')).toBeNull();
+    expect(root.querySelector('app-insight-panel')).toBeNull();
+    expect(root.querySelector('.metric-strip')).toBeNull();
+    expect(root.querySelector('.workout-tabs')).toBeNull();
+    expect(root.querySelector('.goal-offer')).toBeNull();
+
+    fixture.componentInstance.minimiseScreen();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.focusMode()).toBeFalse();
+    expect(root.querySelector('app-exercise-player')).toBeNull();
+    expect(root.querySelector('.workout-header')).not.toBeNull();
+    expect(root.querySelector('app-insight-panel')).not.toBeNull();
+    expect(root.querySelector('.metric-strip')).not.toBeNull();
+    expect(root.querySelector('.workout-tabs')).not.toBeNull();
+  });
+
   it('opens the exercise player at the selected movement from Today', () => {
     const active = plan({
       planId: 'plan-today',

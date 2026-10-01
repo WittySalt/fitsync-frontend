@@ -178,6 +178,19 @@ describe('WorkoutLiveService', () => {
     );
   });
 
+  it('records a skipped set through the same endpoint with the status SKIPPED and no values', () => {
+    service.startFromPlan('plan-1').subscribe();
+
+    service.skipSet('session-live', 'log-1', 3).subscribe();
+
+    expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+      'session-live',
+      'log-1',
+      3,
+      jasmine.objectContaining({ status: 'SKIPPED', reps: null, weightKg: null, durationSeconds: null })
+    );
+  });
+
   it('cancels instead of completing when finished before 60 seconds', fakeAsync(() => {
     service.startFromPlan('plan-1').subscribe();
     tick(59_000);

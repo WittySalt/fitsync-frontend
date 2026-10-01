@@ -1,0 +1,57 @@
+<div class="guide" [class.inline]="inline()">
+  @if (inline()) {
+    <div class="bar">
+      <button #backButton type="button" class="icon" aria-label="Back to the set" (click)="back.emit()">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6"></path></svg>
+      </button>
+      <strong class="title">{{ name() }}</strong>
+      <span class="elapsed">{{ clock() }}</span>
+    </div>
+  }
+  <div class="pic">
+    @if (imageUrl() && !imageBroken()) {
+      <img [src]="imageUrl()" [alt]="alt()" (error)="imageBroken.set(true)" />
+    } @else {
+      <span class="initial" aria-hidden="true">{{ initial() }}</span>
+    }
+  </div>
+  @if (chips().length) {
+    <div class="chips" aria-label="Exercise metadata">
+      @for (chip of chips(); track $index) {
+        <span>{{ chip }}</span>
+      }
+    </div>
+  }
+  @if (steps().length) {
+    <ol class="steps" aria-label="Steps">
+      @for (step of steps(); track $index) {
+        <li [class.on]="$index === currentStep()" [attr.aria-current]="$index === currentStep() ? 'step' : null">
+          <span class="n">{{ $index + 1 }}</span>
+          <span class="text">{{ step }}</span>
+        </li>
+      }
+    </ol>
+  } @else {
+    <p class="empty">No steps are listed for this movement.</p>
+  }
+  @if (description()) {
+    <p class="description">{{ description() }}</p>
+  }
+  @if (videoUrl(); as video) {
+    <details class="video">
+      <summary>Watch video</summary>
+      <app-exercise-video [videoUrl]="video" [title]="name() + ' video guide'" />
+    </details>
+  }
+  <div class="actions">
+    @if (speech.available && steps().length) {
+      <button type="button" class="read" [attr.aria-pressed]="reading()" (click)="toggleReading()">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 9v6h4l5 4V5L8 9Z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 6a8.5 8.5 0 0 1 0 12"></path>
+        </svg>
+        <span>{{ reading() ? 'Reading aloud' : 'Read aloud' }}</span>
+      </button>
+    }
+    <button type="button" class="primary" (click)="back.emit()">{{ backLabel() }}</button>
+  </div>
+</div>

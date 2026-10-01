@@ -290,6 +290,20 @@ export class WorkoutLiveService {
       .pipe(tap((session) => this.setSession(session)));
   }
 
+  /** Records a set as passed over: the same endpoint as a done set, with the status SKIPPED and no values. */
+  skipSet(sessionId: string, exerciseLogId: string, setNumber: number): Observable<WorkoutSessionDetail> {
+    return this.recordSet(sessionId, exerciseLogId, setNumber, {
+      reps: null,
+      weightKg: null,
+      durationSeconds: null,
+      distanceKm: null,
+      restSeconds: null,
+      perceivedExertion: null,
+      notes: null,
+      status: 'SKIPPED'
+    });
+  }
+
   finish(): Observable<WorkoutSessionDetail> {
     const current = this.session();
     const sessionId = current?.sessionId;

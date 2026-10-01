@@ -242,6 +242,8 @@ export interface WorkoutExerciseSetInput {
   restSeconds: number | null;
   perceivedExertion: number | null;
   notes: string | null;
+  /** SKIPPED records a set the person passed over; left out, the set counts as done. */
+  status?: 'SKIPPED';
 }
 
 export interface UpsertWorkoutSessionRequest {
@@ -335,6 +337,8 @@ export interface ExerciseDetail extends Exercise {
   imageUrls: string[];
   instructions: ExerciseInstruction[];
   secondaryMuscleGroups: string[];
+  /** Two to four short steps in order for the exercise screen; empty when the exercise has none. */
+  shortSteps?: string[];
 }
 
 export interface ExerciseMetadata {

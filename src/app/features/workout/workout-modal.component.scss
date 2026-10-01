@@ -11,6 +11,11 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-lg);
 
+  &.wide {
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+  }
+
   &::backdrop {
     background: color-mix(in srgb, var(--slate-900) 60%, transparent);
   }

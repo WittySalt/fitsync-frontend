@@ -1,0 +1,79 @@
+// Pieces the exercise screen repeats: the outlined button, the quiet text button, and the block that
+// says what comes next. A component includes only the ones it uses.
+
+@mixin quiet-button {
+  .quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &.text {
+      padding: 0 8px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--green-800);
+    }
+  }
+}
+
+@mixin what-block {
+  .what {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .kicker {
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--green-800);
+  }
+
+  .name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: var(--fw-semibold);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+  }
+
+  .line {
+    font-size: 17px;
+    font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+
+  @container (min-width: 720px) {
+    .what {
+      align-items: center;
+      text-align: center;
+    }
+
+    .name {
+      font-size: 26px;
+    }
+  }
+}

@@ -144,6 +144,11 @@ describe('WorkoutPage and the workout in progress', () => {
     fixture.debugElement.query(By.directive(ExercisePlayerComponent))?.componentInstance as ExercisePlayerComponent | undefined;
 
   function selectTab(fixture: ComponentFixture<WorkoutPage>, name: string): void {
+    // The tabs are away while the exercise screen is open, so a person puts it away first.
+    if (!root(fixture).querySelector('.workout-tabs')) {
+      player(fixture)?.minimise.emit();
+      fixture.detectChanges();
+    }
     root(fixture).querySelector<HTMLButtonElement>(`#workout-tab-${name}`)?.click();
     fixture.detectChanges();
   }
@@ -258,11 +263,15 @@ describe('WorkoutPage and the workout in progress', () => {
       TestBed.flushEffects();
       expect(fixture.componentInstance.workoutLive.screenOpen()).toBeTrue();
 
-      selectTab(fixture, 'history');
+      // The tabs are hidden while the exercise screen is open, so the tab is changed from code.
+      expect(root(fixture).querySelector('.workout-tabs')).toBeNull();
+      fixture.componentInstance.selectedTab.set('history');
+      fixture.detectChanges();
       TestBed.flushEffects();
       expect(fixture.componentInstance.workoutLive.screenOpen()).toBeFalse();
 
-      selectTab(fixture, 'overview');
+      fixture.componentInstance.selectedTab.set('overview');
+      fixture.detectChanges();
       TestBed.flushEffects();
       expect(player(fixture)).toBeDefined();
       expect(fixture.componentInstance.workoutLive.screenOpen()).toBeTrue();

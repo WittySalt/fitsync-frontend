@@ -1,209 +1,265 @@
 <section class="exercise-player" aria-label="Guided exercise player">
   <p class="status-announcer" aria-live="polite">{{ liveAnnouncement() }}</p>
-  <button class="button secondary minimise" type="button" (click)="minimise.emit()">Minimise</button>
-  <header class="player-topbar">
-    <div>
-      <span class="card-label">Guided session</span>
-      <h2>{{ live.session()?.name || 'Workout in progress' }}</h2>
-    </div>
-    <div class="live-metrics" aria-label="Live workout metrics">
-      <span class="elapsed">{{ live.elapsedLabel() }}</span>
-      <span>{{ live.heartRate() || '--' }} bpm mock</span>
-      <span>{{ live.estimatedCalories() }} kcal estimated</span>
-    </div>
-  </header>
 
-  <div class="progress-track" aria-label="Workout set progress">
-    <span [style.width.%]="progressPercent()"></span>
-  </div>
-  <p class="progress-copy">{{ completedSetCount() }} of {{ totalTargetSets() }} sets done</p>
+  <div [hidden]="guideInline()">
+    <div class="screen">
+      <app-player-top-strip
+        [segments]="segments()"
+        [current]="currentExerciseIndex()"
+        [setsDone]="completedSetCount()"
+        [setsTotal]="totalTargetSets()"
+        [clock]="live.elapsedLabel()"
+        (minimise)="onMinimise()"
+      />
 
-  @if (currentLog(); as log) {
-    <article
-      class="focus-card"
-      [class.resting]="restRemainingSeconds() > 0"
-      [class.set-complete-cue]="setCompleteCue()"
-      [class.rest-complete-cue]="restCompleteCue()"
-      [class.reduced-motion]="prefersReducedMotion"
-    >
-      @if (setCompleteCue()) {
-        <output class="set-complete-badge">
-          <span aria-hidden="true">✓</span>
-          <strong>Done</strong>
-        </output>
-      }
-      @if (restCompleteCue()) {
-        <output class="next-set-cue">Next set ready</output>
-      }
-      <div class="movement-media" aria-label="Exercise movement media">
-        @if (currentMediaUrl(); as mediaUrl) {
-          <img [src]="mediaUrl" [alt]="mediaAlt(log)" (error)="onMediaError()" />
-        } @else {
-          <div class="media-placeholder" aria-hidden="true">
-            <span>{{ mediaInitial(log) }}</span>
-            @if (currentTargetLine()) {
-              <small>{{ currentTargetLine() }}</small>
-            }
-          </div>
-        }
-      </div>
-
-      <div class="focus-copy">
-        <span class="card-label">Exercise {{ currentExerciseIndex() + 1 }} of {{ orderedLogs().length }}</span>
-        <h3>{{ log.exerciseNameSnapshot }}</h3>
-        @if (currentTargetLine()) {
-          <p>{{ currentTargetLine() }}</p>
-        }
-        <app-player-set-list [sets]="currentSets()" [currentSetNumber]="currentSetNumber()" />
-      </div>
-
-      @if (restRemainingSeconds() > 0) {
-        <div class="rest-panel" aria-live="polite">
-          <span>Rest</span>
-          <strong>{{ formatClock(restRemainingSeconds()) }}</strong>
-          <div class="rest-actions">
-            <button class="button secondary" type="button" (click)="skipRest()">Skip</button>
-            <button class="button secondary" type="button" (click)="addRestSeconds()">+15 sec</button>
-          </div>
-        </div>
-      } @else {
-        <div class="set-panel">
-          <span>Current set</span>
-          <strong>{{ currentSetNumber() }} / {{ targetSets() }}</strong>
-          @if (targetWorkSeconds() > 0) {
-            <div class="work-guide" aria-live="polite">
-              <small>{{ workGuideLabel() }}</small>
-              <b>{{ workGuidePrimaryMetric() }}</b>
-              @if (!isTimedTarget()) {
-                <small>{{ tempoSummary() }}</small>
-              }
-              <div class="guide-track" aria-label="Guided set progress">
-                <span [style.width.%]="workGuideProgressPercent()"></span>
-              </div>
-            </div>
-            <div class="guided-actions">
-              @if (workGuideActive()) {
-                <button class="button secondary" type="button" (click)="pauseOrResume()">
-                  {{ live.paused() ? 'Resume guide' : 'Pause guide' }}
-                </button>
-                <button
-                  class="button secondary"
-                  type="button"
-                  [disabled]="savingSet() || workGuideElapsedSeconds() <= 0"
-                  (click)="stopGuidedSet()"
-                >
-                  Stop & save
-                </button>
-              } @else {
-                <button
-                  class="button secondary"
-                  type="button"
-                  [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
-                  (click)="startGuidedSet()"
-                >
-                  Start {{ isTimedTarget() ? 'timer' : 'tempo' }}
-                </button>
-              }
-            </div>
+      @if (currentLog(); as log) {
+        <div class="stage-wrap" [class.reduced-motion]="prefersReducedMotion">
+          @if (setCompleteCue()) {
+            <output class="set-complete-badge">
+              <span aria-hidden="true">✓</span>
+              <strong>Done</strong>
+            </output>
           }
           @if (restCompleteCue()) {
-            <output class="rest-cue">Rest complete. Next set is ready.</output>
+            <output class="next-set-cue">Next set ready</output>
           }
-          <button
-            class="button workout complete-set"
-            type="button"
-            [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
-            (click)="completeCurrentSet()"
-          >
-            {{ savingSet() ? 'Saving...' : 'Complete set' }}
-          </button>
-        </div>
-      }
-    </article>
 
-    <section class="guidance-panel" aria-labelledby="exercise-guidance-title">
-      <button
-        class="guidance-toggle"
-        type="button"
-        [attr.aria-expanded]="guidanceOpen()"
-        aria-controls="exercise-guidance-content"
-        (click)="toggleGuidance()"
-      >
-        <span id="exercise-guidance-title">How to perform</span>
-        <span aria-hidden="true">{{ guidanceOpen() ? 'Hide' : 'Show' }}</span>
-      </button>
-
-      @if (guidanceOpen()) {
-        <div id="exercise-guidance-content" class="guidance-content">
-          @if (detailLoading()) {
-            <output class="guidance-loading">Loading guidance...</output>
-          } @else if (currentDetail(); as detail) {
-            @if (hasGuidance()) {
-              @if (detail.description) {
-                <p>{{ detail.description }}</p>
-              }
-              @if (guidanceInstructions().length) {
-                <ol class="instruction-list">
-                  @for (step of guidanceInstructions(); track step.stepNumber ?? step.text) {
-                    <li>{{ step.text }}</li>
+          @switch (stage()) {
+            @case ('countdown') {
+              <app-player-timer-stage
+                mode="countdown"
+                [exercise]="currentCard()"
+                [kicker]="'Exercise ' + (currentExerciseIndex() + 1) + ' of ' + orderedLogs().length"
+                [line]="timedLine()"
+                [(stepIndex)]="stepIndex"
+                [(reading)]="readAloud"
+                [reducedMotion]="prefersReducedMotion"
+                [holdSteps]="holdSteps()"
+                (started)="onCountdownStarted()"
+                (howTo)="openGuide()"
+                (imageFailed)="onMediaError()"
+              />
+            }
+            @case ('timed') {
+              <app-player-timer-stage
+                mode="timed"
+                [exercise]="currentCard()"
+                [kicker]="'Exercise ' + (currentExerciseIndex() + 1) + ' of ' + orderedLogs().length"
+                [line]="timedLine()"
+                [share]="workGuideShare()"
+                [figure]="timedFigure()"
+                [caption]="isTimedTarget() ? 'Left' : 'Reps'"
+                [label]="timedLabel()"
+                [paused]="live.paused()"
+                [canStop]="!savingSet() && workGuideElapsedSeconds() > 0"
+                [(stepIndex)]="stepIndex"
+                [(reading)]="readAloud"
+                [reducedMotion]="prefersReducedMotion"
+                [holdSteps]="holdSteps()"
+                (pauseToggle)="pauseOrResume()"
+                (stop)="stopGuidedSet()"
+                (howTo)="openGuide()"
+                (imageFailed)="onMediaError()"
+              />
+            }
+            @case ('rest') {
+              <app-player-rest
+                [exercise]="restCard()"
+                [clock]="formatClock(restRemainingSeconds())"
+                [share]="restShare()"
+                [kicker]="restKicker()"
+                [nextName]="restShowsNext() ? (upNext()?.log?.exerciseNameSnapshot ?? '') : ''"
+                [line]="upNextLine()"
+                [coachLine]="coachLine()"
+                [(stepIndex)]="stepIndex"
+                [(reading)]="readAloud"
+                [reducedMotion]="prefersReducedMotion"
+                [holdSteps]="holdSteps()"
+                (addTime)="addRestSeconds()"
+                (skip)="skipRest()"
+                (ask)="askCoach()"
+                (howTo)="openGuide()"
+                (imageFailed)="onRestImageFailed()"
+              />
+            }
+            @default {
+              <app-player-stage [thumb]="true">
+                <app-exercise-picture
+                  slot="pic"
+                  variant="lead"
+                  [url]="currentMediaUrl()"
+                  [alt]="mediaAlt(log)"
+                  [initial]="mediaInitial(log)"
+                  [caption]="currentTargetLine()"
+                  [frames]="currentCard().frameCount"
+                  [frame]="currentCard().frame"
+                  (opened)="openGuide()"
+                  (failed)="onMediaError()"
+                />
+                <div slot="head" class="head">
+                  <span class="eyebrow">Exercise {{ currentExerciseIndex() + 1 }} of {{ orderedLogs().length }}</span>
+                  <h3 class="name">{{ log.exerciseNameSnapshot }}</h3>
+                  @if (currentTargetLine()) {
+                    <p class="target">{{ currentTargetLine() }}</p>
                   }
-                </ol>
-              }
-            } @else {
-              <p class="guidance-empty">No guidance available for this movement.</p>
+                </div>
+                <app-step-carousel
+                  slot="steps"
+                  [steps]="currentSubject().steps"
+                  [(index)]="stepIndex"
+                  [(reading)]="readAloud"
+                  [reducedMotion]="prefersReducedMotion"
+                  [paused]="holdSteps()"
+                  (howTo)="openGuide()"
+                />
+                <div slot="main" class="set-main">
+                  <app-player-set-list [sets]="currentSets()" [currentSetNumber]="currentSetNumber()" />
+                  @if (!isTimedTarget() && nextLine()) {
+                    <p class="next-line"><span class="eyebrow">Next</span>&ngsp;<span class="next-text">{{ nextLine() }}</span></p>
+                  }
+                  @if (isTimedTarget()) {
+                    <div class="steppers single">
+                      <app-player-stepper label="Time" format="clock" [step]="5" [min]="5" [max]="21600" [(value)]="durationValue" />
+                    </div>
+                  } @else if (hasRepsStepper()) {
+                    <div class="steppers" [class.single]="!hasWeightStepper()">
+                      <app-player-stepper label="Reps" [min]="1" [max]="999" [(value)]="repsValue" />
+                      @if (hasWeightStepper()) {
+                        <app-player-stepper label="Weight" unit="kg" [step]="2.5" [max]="1000" [(value)]="weightValue" />
+                      }
+                    </div>
+                  }
+                  <div class="actions">
+                    @if (isTimedTarget()) {
+                      <button
+                        class="big start-timer"
+                        type="button"
+                        [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                        (click)="startTimedSet()"
+                      >
+                        Start timer
+                      </button>
+                      <button
+                        class="quiet complete-set"
+                        type="button"
+                        [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                        (click)="completeCurrentSet()"
+                      >
+                        {{ savingSet() ? 'Saving...' : 'Complete set' }}
+                      </button>
+                    } @else {
+                      <button
+                        class="big complete-set"
+                        type="button"
+                        [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                        (click)="completeCurrentSet()"
+                      >
+                        {{ savingSet() ? 'Saving...' : 'Complete set' }}
+                      </button>
+                      @if (targetWorkSeconds() > 0) {
+                        <button
+                          class="quiet text start-tempo"
+                          type="button"
+                          [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                          (click)="startGuidedSet()"
+                        >
+                          Start tempo
+                        </button>
+                      }
+                    }
+                    <button
+                      class="quiet text skip-set"
+                      type="button"
+                      [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                      (click)="skipCurrentSet()"
+                    >
+                      Skip this set
+                    </button>
+                  </div>
+                </div>
+              </app-player-stage>
             }
-
-            @if (guidanceChips().length) {
-              <div class="guidance-chips" aria-label="Exercise metadata">
-                @for (chip of guidanceChips(); track $index) {
-                  <span>{{ chip }}</span>
-                }
-              </div>
-            }
-            @if (detail.videoUrl) {
-              <details>
-                <summary>Watch video</summary>
-                <app-exercise-video [videoUrl]="detail.videoUrl" [title]="detail.name + ' video guide'" />
-              </details>
-            }
-          } @else {
-            <p class="guidance-empty">No guidance available for this movement.</p>
           }
         </div>
+      } @else {
+        <article class="empty">
+          <h3>No exercises ready</h3>
+          <p>This session does not have plan exercises to guide yet.</p>
+        </article>
       }
-    </section>
 
-    @if (allTargetsComplete()) {
-      <output class="completion-note">All planned sets are done. Finish when your cooldown is complete.</output>
+      @if (allTargetsComplete()) {
+        <output class="completion-note">All planned sets are done. Finish when your cooldown is complete.</output>
+      }
+
+      <app-player-footer
+        [paused]="live.paused()"
+        [busy]="ending()"
+        (pauseToggle)="pauseOrResume()"
+        (finishRequest)="requestFinish()"
+        (skipExercise)="skipCurrentExercise()"
+        (discard)="confirm.set('discard')"
+      />
+    </div>
+  </div>
+
+  @if (guideOpen()) {
+    @let subject = guideSubject();
+    @if (guideAsDialog()) {
+      <app-workout-modal [heading]="subject.name" [wide]="true" (dismissed)="closeGuide()">
+        <app-exercise-guide
+          [name]="subject.name"
+          [imageUrl]="subject.imageUrl"
+          [alt]="subject.alt"
+          [initial]="subject.initial"
+          [chips]="subject.chips"
+          [steps]="subject.steps"
+          [description]="subject.description"
+          [videoUrl]="subject.videoUrl"
+          [currentStep]="stepIndex()"
+          [(reading)]="readAloud"
+          [backLabel]="guideBackLabel()"
+          (back)="closeGuide()"
+        />
+      </app-workout-modal>
+    } @else {
+      <app-exercise-guide
+        [inline]="true"
+        [name]="subject.name"
+        [imageUrl]="subject.imageUrl"
+        [alt]="subject.alt"
+        [initial]="subject.initial"
+        [chips]="subject.chips"
+        [steps]="subject.steps"
+        [description]="subject.description"
+        [videoUrl]="subject.videoUrl"
+        [currentStep]="stepIndex()"
+        [(reading)]="readAloud"
+        [backLabel]="guideBackLabel()"
+        [clock]="live.elapsedLabel()"
+        (back)="closeGuide()"
+      />
     }
-
-    <section class="movement-queue" aria-labelledby="movement-queue-title">
-      <h3 id="movement-queue-title">Movement queue</h3>
-      @for (item of orderedLogs(); track item.exerciseLogId) {
-        <div class="queue-item" [class.active]="item.exerciseLogId === log.exerciseLogId">
-          <span>{{ item.sequence }}</span>
-          <div>
-            <strong>{{ item.exerciseNameSnapshot }}</strong>
-            <small>{{ recordedSetCount(item) }} / {{ plannedSetCount(item) }} sets</small>
-            <small class="queue-plan">{{ queueSummary(item) }}</small>
-          </div>
-        </div>
-      }
-    </section>
-  } @else {
-    <article class="focus-card empty">
-      <h3>No exercises ready</h3>
-      <p>This session does not have plan exercises to guide yet.</p>
-    </article>
   }
 
-  <footer class="player-actions">
-    <button class="button secondary" type="button" (click)="pauseOrResume()">
-      {{ live.paused() ? 'Resume' : 'Pause' }}
-    </button>
-    <button class="button primary" type="button" [disabled]="ending()" (click)="finish()">Finish</button>
-    <button class="button secondary" type="button" [disabled]="ending()" (click)="abort()">Abort</button>
-  </footer>
+  @if (confirm(); as question) {
+    <app-workout-modal [heading]="question === 'finish' ? 'Finish now?' : 'Discard this workout?'" (dismissed)="confirm.set(null)">
+      @if (question === 'finish') {
+        <p class="ask">{{ openSetCount() }} {{ openSetCount() === 1 ? 'set is' : 'sets are' }} still open.</p>
+        <div class="choices">
+          <button class="button primary" type="button" [disabled]="ending()" (click)="finish()">Finish and save</button>
+          <button class="button secondary" type="button" (click)="confirm.set(null)">Keep going</button>
+          <button class="text-button" type="button" (click)="confirm.set('discard')">Discard workout</button>
+        </div>
+      } @else {
+        <p class="ask">It will not be saved.</p>
+        <div class="choices">
+          <button class="button secondary" type="button" [disabled]="ending()" (click)="discard()">Discard</button>
+          <button class="button primary" type="button" (click)="confirm.set(null)">Keep going</button>
+        </div>
+      }
+    </app-workout-modal>
+  }
 
   @if (showCelebration()) {
     @if (celebrationSummary(); as summary) {

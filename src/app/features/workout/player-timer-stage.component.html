@@ -1,0 +1,40 @@
+<app-player-stage [centred]="true">
+  <app-exercise-picture
+    slot="pic"
+    variant="hero"
+    [url]="exercise().imageUrl"
+    [alt]="exercise().alt"
+    [initial]="exercise().initial"
+    [caption]="exercise().caption"
+    [frames]="exercise().frameCount"
+    [frame]="exercise().frame"
+    (opened)="howTo.emit()"
+    (failed)="imageFailed.emit()"
+  />
+  <div slot="main" class="timer-main">
+    <div class="what">
+      <span class="kicker">{{ kicker() }}</span>
+      <strong class="name">{{ exercise().name }}</strong>
+      <span class="line">{{ line() }}</span>
+    </div>
+    @if (mode() === 'countdown') {
+      <app-player-ring [share]="countdownShare()" [centre]="'' + remaining()" caption="Get ready" [label]="countdownLabel()" [reducedMotion]="reducedMotion()" />
+      <button type="button" class="quiet text" (click)="skip()">Start now</button>
+    } @else {
+      <app-player-ring [share]="share()" [centre]="figure()" [caption]="caption()" [label]="label()" [reducedMotion]="reducedMotion()" />
+      <div class="buttons">
+        <button type="button" class="quiet" (click)="pauseToggle.emit()">{{ paused() ? 'Resume' : 'Pause' }}</button>
+        <button type="button" class="quiet" [disabled]="!canStop()" (click)="stop.emit()">Stop and save</button>
+      </div>
+    }
+  </div>
+  <app-step-carousel
+    slot="steps"
+    [steps]="exercise().steps"
+    [(index)]="stepIndex"
+    [(reading)]="reading"
+    [reducedMotion]="reducedMotion()"
+    [paused]="holdSteps()"
+    (howTo)="howTo.emit()"
+  />
+</app-player-stage>

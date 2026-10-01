@@ -1,0 +1,84 @@
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.left {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.more {
+  position: relative;
+  flex: none;
+}
+
+.quiet.icon {
+  width: 44px;
+  padding: 0;
+}
+
+svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: var(--z-dropdown);
+  display: grid;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+
+  button {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: var(--fw-semibold);
+    text-align: left;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--surface-sunken);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+@include parts.quiet-button;
