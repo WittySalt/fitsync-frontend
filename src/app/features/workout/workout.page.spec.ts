@@ -573,6 +573,16 @@ describe('WorkoutPage', () => {
     dataService.getWorkoutSessionPage.calls.reset();
     c.nextHistoryPage();
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(jasmine.objectContaining({ page: 1 }));
+
+    c.goToHistoryPage(3);
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(jasmine.objectContaining({ page: 3 }));
+
+    dataService.getWorkoutSessionPage.calls.reset();
+    c.setHistoryPageSize(13);
+    expect(dataService.getWorkoutSessionPage).not.toHaveBeenCalled();
+    c.setHistoryPageSize(20);
+    expect(c.page()).toBe(0);
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(jasmine.objectContaining({ page: 0, size: 20 }));
   });
 
   it('asks the server for the name search once typing pauses, trimmed and from the first page', fakeAsync(() => {

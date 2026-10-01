@@ -11,6 +11,7 @@ import {
   MetricSource
 } from '../../core/account-data.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { PagerComponent } from '../../shared/pager.component';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 
 type BodyChartMetric = 'weightKg' | 'bodyFatRate' | 'waistCm';
@@ -34,7 +35,7 @@ interface MeasurementCard {
 
 @Component({
   selector: 'app-body-page',
-  imports: [FsChartComponent, ReactiveFormsModule],
+  imports: [FsChartComponent, PagerComponent, ReactiveFormsModule],
   templateUrl: './body.page.html'
 })
 export class BodyPage implements OnInit {
@@ -354,6 +355,10 @@ export class BodyPage implements OnInit {
 
   nextPage(): void {
     this.page.set(Math.min(this.totalPages() - 1, this.currentPage() + 1));
+  }
+
+  goToPage(page: number): void {
+    this.page.set(Math.min(this.totalPages() - 1, Math.max(0, page)));
   }
 
   displayMetric(value: number | null | undefined, unit: string): string {

@@ -653,8 +653,38 @@ a:focus-visible {
   font-weight: var(--fw-semibold);
 }
 
-.history-pagination {
-  margin-top: 12px;
+.history-pager,
+.catalog-pager,
+.body-pager {
+  margin-top: 20px;
+}
+
+.data-tools-disclosure {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.data-tools-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.data-tools-panel {
+  width: 100%;
 }
 
 .page-size {

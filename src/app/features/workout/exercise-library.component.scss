@@ -265,27 +265,6 @@ strong {
   gap: 8px;
 }
 
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.page-size {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  select {
-    width: auto;
-    min-height: 34px;
-    padding: 5px 8px;
-  }
-}
-
 .record-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -461,14 +440,6 @@ strong {
 
   .exercise-item {
     display: grid;
-  }
-
-  .pagination-bar {
-    justify-content: stretch;
-  }
-
-  .pagination-bar .button {
-    flex: 1;
   }
 
   .record-grid {

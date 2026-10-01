@@ -26,6 +26,7 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { PagerComponent } from '../../shared/pager.component';
 import { AutoClosedNoticeComponent } from './auto-closed-notice.component';
 import { dismissAutoClosed, isAutoClosedDismissed } from './auto-closed-dismissal';
 import { ExercisePlayerComponent } from './exercise-player.component';
@@ -81,6 +82,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 @Component({
   selector: 'app-workout-page',
   imports: [InsightPanelComponent,
+    PagerComponent,
     AutoClosedNoticeComponent,
     ReactiveFormsModule,
     NgTemplateOutlet,
@@ -169,7 +171,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly filterDateFrom = signal('');
   readonly filterDateTo = signal('');
   readonly page = signal(0);
-  readonly pageSize = signal(8);
+  readonly pageSize = signal(10);
+  readonly historyPageSizes = [10, 20, 50] as const;
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
@@ -386,6 +389,14 @@ export class WorkoutPage implements OnInit, OnDestroy {
     }
     this.page.set(next);
     this.loadHistory();
+  }
+
+  setHistoryPageSize(size: number): void {
+    if (!(this.historyPageSizes as readonly number[]).includes(size) || size === this.pageSize()) {
+      return;
+    }
+    this.pageSize.set(size);
+    this.reloadHistoryFromFirstPage();
   }
 
   private reloadHistoryFromFirstPage(): void {

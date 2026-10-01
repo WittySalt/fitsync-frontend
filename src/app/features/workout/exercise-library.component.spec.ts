@@ -307,23 +307,37 @@ describe('ExerciseLibraryComponent', () => {
     );
   });
 
-  it('renders total pages and total elements in the pagination bar', () => {
+  it('shows the total, the page size and a button for every page', () => {
+    dataService.searchExercisesPage.and.returnValue(
+      of(pagedExercises([exercise()], { page: 0, totalPages: 3, totalElements: 49 }))
+    );
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    const pager = fixture.nativeElement.querySelector('.catalog-pager') as HTMLElement;
+
+    expect(pager.textContent).toContain('49 exercises');
+    expect(pager.querySelector('select')).not.toBeNull();
+    expect(Array.from(pager.querySelectorAll('.number')).map((button) => button.textContent?.trim())).toEqual(['1', '2', '3']);
+  });
+
+  it('jumps to a page from its number', () => {
     dataService.searchExercisesPage.and.returnValue(
       of(pagedExercises([exercise()], { page: 0, totalPages: 3, totalElements: 49 }))
     );
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Page 1 / 3 (49 exercises)');
-    expect(fixture.nativeElement.textContent).toContain('Per page');
+    (fixture.nativeElement.querySelectorAll('.catalog-pager .number')[2] as HTMLButtonElement).click();
+
+    expect(dataService.searchExercisesPage.calls.mostRecent().args[0]).toEqual(jasmine.objectContaining({ page: 2 }));
   });
 
-  it('hides the pagination bar when there is only one page', () => {
+  it('shows no page buttons when there is only one page', () => {
     dataService.searchExercisesPage.and.returnValue(of(pagedExercises([exercise()], { totalPages: 1 })));
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.catalog-pager .pages')).toBeNull();
   });
 
   it('opens the edit form from the browse list and keeps create hidden', () => {
@@ -1037,7 +1051,7 @@ describe('ExerciseLibraryComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.exercise-detail')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.exercise-list')).toBeNull();
-    expect(fixture.nativeElement.querySelector('.pagination-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.catalog-pager')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Back to library');
 
     fixture.componentInstance.clearSelectedExercise();
@@ -1045,7 +1059,7 @@ describe('ExerciseLibraryComponent', () => {
 
     expect(fixture.componentInstance.page()).toBe(1);
     expect(fixture.nativeElement.querySelector('.exercise-list')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.pagination-bar')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.catalog-pager')).not.toBeNull();
   });
 
   it('renders exercise media, instructions, metadata, records, and history details', () => {

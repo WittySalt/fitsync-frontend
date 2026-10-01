@@ -188,6 +188,15 @@ describe('BodyPage', () => {
     expect(component.pageSize()).toBe(5);
   });
 
+  it('jumps to a page of the measurement history inside the range', () => {
+    const component = fixture.componentInstance;
+
+    component.goToPage(-3);
+    expect(component.currentPage()).toBe(0);
+    component.goToPage(99);
+    expect(component.currentPage()).toBe(component.totalPages() - 1);
+  });
+
   it('creates a new measurement from the raw body-metrics endpoint', () => {
     const component = fixture.componentInstance;
     const measuredAt = '2026-06-19T08:15';

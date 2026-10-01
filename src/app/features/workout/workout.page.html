@@ -388,23 +388,24 @@
             </button>
           }
         </div>
-        @if (historyTotalPages() > 1) {
-          <nav class="pagination-bar history-pagination" aria-label="Workout history pages">
-            <button class="button secondary" type="button" (click)="prevHistoryPage()" [disabled]="page() <= 0">
-              Previous
-            </button>
-            <span>Page {{ page() + 1 }} / {{ historyTotalPages() }} ({{ historyTotal() }} sessions)</span>
-            <button class="button secondary" type="button" (click)="nextHistoryPage()" [disabled]="page() + 1 >= historyTotalPages()">
-              Next
-            </button>
-          </nav>
-        }
+        <app-pager
+          class="history-pager"
+          label="Workout history pages"
+          unit="sessions"
+          [page]="page()"
+          [totalPages]="historyTotalPages()"
+          [total]="historyTotal()"
+          [pageSize]="pageSize()"
+          [pageSizes]="historyPageSizes"
+          (pageChange)="goToHistoryPage($event)"
+          (pageSizeChange)="setHistoryPageSize($event)"
+        />
       } @else {
         <app-state-panel title="No sessions match these filters" message="Try a broader search, status, date range, or workout type." />
       }
       <div class="data-tools-disclosure">
         <button
-          class="button secondary data-tools-toggle"
+          class="data-tools-toggle"
           type="button"
           aria-controls="workout-data-tools"
           [attr.aria-expanded]="dataToolsOpen()"
