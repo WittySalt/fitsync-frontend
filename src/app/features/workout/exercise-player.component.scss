@@ -1,5 +1,6 @@
 :host {
   display: block;
+  container-type: inline-size;
 }
 
 .exercise-player {
@@ -67,6 +68,10 @@
 .focus-copy p,
 .focus-card.empty p {
   color: var(--text-secondary);
+}
+
+.live-metrics .elapsed {
+  font-variant-numeric: tabular-nums;
 }
 
 .live-metrics span {
@@ -159,6 +164,7 @@
 
 .focus-copy {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -210,6 +216,7 @@
 .focus-copy h3 {
   font-size: var(--text-5xl);
   line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .focus-copy p {
@@ -409,11 +416,15 @@
   background: var(--surface-sunken);
 }
 
-@media (max-width: 760px) {
+@container (max-width: 760px) {
   .player-topbar,
   .focus-card,
   .player-actions {
     display: grid;
+  }
+
+  .focus-card {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .live-metrics {

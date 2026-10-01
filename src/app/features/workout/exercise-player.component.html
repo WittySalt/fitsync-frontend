@@ -7,7 +7,7 @@
       <h2>{{ live.session()?.name || 'Workout in progress' }}</h2>
     </div>
     <div class="live-metrics" aria-label="Live workout metrics">
-      <span>{{ formatElapsed(live.elapsedSeconds()) }}</span>
+      <span class="elapsed">{{ live.elapsedLabel() }}</span>
       <span>{{ live.heartRate() || '--' }} bpm mock</span>
       <span>{{ live.estimatedCalories() }} kcal estimated</span>
     </div>
@@ -16,7 +16,7 @@
   <div class="progress-track" aria-label="Workout set progress">
     <span [style.width.%]="progressPercent()"></span>
   </div>
-  <p class="progress-copy">{{ completedSetCount() }} of {{ totalTargetSets() }} planned sets complete</p>
+  <p class="progress-copy">{{ completedSetCount() }} of {{ totalTargetSets() }} sets done</p>
 
   @if (currentLog(); as log) {
     <article
@@ -41,7 +41,9 @@
         } @else {
           <div class="media-placeholder" aria-hidden="true">
             <span>{{ mediaInitial(log) }}</span>
-            <small>{{ targetSummary(currentPlanExercise()) }}</small>
+            @if (currentTargetLine()) {
+              <small>{{ currentTargetLine() }}</small>
+            }
           </div>
         }
       </div>
@@ -49,7 +51,10 @@
       <div class="focus-copy">
         <span class="card-label">Exercise {{ currentExerciseIndex() + 1 }} of {{ orderedLogs().length }}</span>
         <h3>{{ log.exerciseNameSnapshot }}</h3>
-        <p>{{ targetSummary(currentPlanExercise()) }}</p>
+        @if (currentTargetLine()) {
+          <p>{{ currentTargetLine() }}</p>
+        }
+        <app-player-set-list [sets]="currentSets()" [currentSetNumber]="currentSetNumber()" />
       </div>
 
       @if (restRemainingSeconds() > 0) {
@@ -180,6 +185,7 @@
           <div>
             <strong>{{ item.exerciseNameSnapshot }}</strong>
             <small>{{ recordedSetCount(item) }} / {{ plannedSetCount(item) }} sets</small>
+            <small class="queue-plan">{{ queueSummary(item) }}</small>
           </div>
         </div>
       }

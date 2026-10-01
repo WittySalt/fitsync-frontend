@@ -203,6 +203,8 @@ export interface WorkoutExerciseLog {
 export interface WorkoutExerciseSetLog {
   setLogId: string;
   setNumber: number;
+  /** PENDING until the set is done; SKIPPED when the person passed it over. Absent on older answers. */
+  status?: string | null;
   reps: number | null;
   weightKg: number | null;
   durationSeconds: number | null;

@@ -562,6 +562,7 @@ interface BackendWorkoutExerciseLog {
 interface BackendWorkoutExerciseSetLog {
   setLogId?: string | null;
   setNumber?: number | null;
+  status?: string | null;
   reps?: number | null;
   weightKg?: number | string | null;
   durationSeconds?: number | null;
@@ -2426,6 +2427,7 @@ export class FitSyncDataService {
     return {
       setLogId: set.setLogId ?? '',
       setNumber: set.setNumber ?? 1,
+      ...(set.status ? { status: set.status } : {}),
       reps: set.reps ?? null,
       weightKg: this.numericValue(set.weightKg),
       durationSeconds: set.durationSeconds ?? null,
