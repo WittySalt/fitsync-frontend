@@ -1,3 +1,5 @@
+@use './player-parts' as parts;
+
 :host {
   display: block;
   min-width: 0;
@@ -41,6 +43,28 @@
   }
 }
 
+.step {
+  display: block;
+}
+
+// A new step slides in from the right while it fades in; the old one is gone at once.
+.swap {
+  display: block;
+}
+
+@each $turn in a, b {
+  .swap.#{$turn} {
+    animation: step-in-#{$turn} var(--motion-base, 220ms) ease-out;
+  }
+}
+
+@include parts.twin-keyframes(step-in) {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-shift, 12px));
+  }
+}
+
 .foot {
   display: flex;
   flex-wrap: wrap;
@@ -75,7 +99,7 @@
     border-radius: 3px;
     background: var(--border-strong);
     transform: translate(-50%, -50%);
-    transition: width 0.2s ease;
+    transition: width var(--motion-base, 220ms) ease-out;
   }
 
   &.on span {

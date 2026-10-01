@@ -15,6 +15,7 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { activeSessionConflictFrom } from './active-session-conflict';
+import { isOpenSet } from './player-targets';
 
 /** Where the exercise screen opens: the exercise, the set, or the last exercise when all is done. */
 export interface PlayerStart {
@@ -76,6 +77,9 @@ export class WorkoutLiveService {
   /** True when the last finish cancelled the workout because no set was logged. The service has
    *  already told the person, so a caller does not add a notice of its own. */
   readonly nothingLoggedCancel = signal(false);
+  /** The person has just started this workout, so its exercise screen opens with the countdown.
+   *  A workout that is picked up again (a reload, the bar) never has it. */
+  readonly freshStart = signal(false);
 
   private readonly nowMs = signal(Date.now());
   private timerId: ReturnType<typeof setInterval> | null = null;
@@ -101,8 +105,9 @@ export class WorkoutLiveService {
 
   readonly elapsedLabel = computed(() => formatElapsedClock(this.elapsedSeconds()));
 
-  /** The next open set. It follows the sets as they are recorded, and falls back to the server's
-   *  answer for a session whose sets the list does not carry. */
+  /** The next open set: the first one, in exercise and set order, that is neither done nor skipped.
+   *  It follows the sets as they are recorded, and falls back to the server's answer for a session
+   *  whose sets the list does not carry. */
   readonly nextSet = computed<ActiveWorkoutNextSet | null>(() => {
     const session = this.active();
     if (!session) {
@@ -111,7 +116,7 @@ export class WorkoutLiveService {
     const logs = [...session.exercises].sort((a, b) => a.sequence - b.sequence);
     if (logs.some((log) => log.sets.length > 0)) {
       for (const log of logs) {
-        const open = [...log.sets].sort((a, b) => a.setNumber - b.setNumber).find((set) => !set.logged);
+        const open = [...log.sets].sort((a, b) => a.setNumber - b.setNumber).find((set) => isOpenSet(set));
         if (open) {
           return {
             exerciseLogId: log.exerciseLogId,
@@ -202,6 +207,13 @@ export class WorkoutLiveService {
 
   refresh(): void {
     this.loadActive().subscribe();
+  }
+
+  /** The exercise screen asks once whether it opens with the countdown. */
+  consumeFreshStart(): boolean {
+    const fresh = this.freshStart();
+    this.freshStart.set(false);
+    return fresh;
   }
 
   /** Shows the exercise screen: on the next open set, or on the exercise the person picked. */
@@ -360,6 +372,7 @@ export class WorkoutLiveService {
 
   reset(): void {
     this.refreshToken++;
+    this.freshStart.set(false);
     this.stopTimer();
     this.session.set(null);
     this.serverResume.set(null);
@@ -402,6 +415,7 @@ export class WorkoutLiveService {
 
   private afterStart(session: WorkoutSessionDetail): void {
     this.begin(session);
+    this.freshStart.set(true);
     this.refresh();
   }
 

@@ -28,6 +28,8 @@ import {
 import { ToastService } from '../../core/toast/toast.service';
 import { ExerciseGuideComponent } from './exercise-guide.component';
 import { ExercisePictureComponent } from './exercise-picture.component';
+import { PlayerConfirmComponent } from './player-confirm.component';
+import { PlayerCueComponent } from './player-cue.component';
 import { PlayerFooterComponent } from './player-footer.component';
 import { PlayerRestComponent } from './player-rest.component';
 import { PlayerSetListComponent } from './player-set-list.component';
@@ -40,6 +42,7 @@ import {
   SetTarget,
   findPlanExercise,
   formatTargetDuration,
+  isOpenSet,
   resolveExerciseSets,
   targetLine
 } from './player-targets';
@@ -90,6 +93,8 @@ interface UpNext {
     PlayerTimerStageComponent,
     PlayerRestComponent,
     PlayerFooterComponent,
+    PlayerConfirmComponent,
+    PlayerCueComponent,
     PlayerStepperComponent,
     ExercisePictureComponent,
     ExerciseGuideComponent,
@@ -420,6 +425,19 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     untracked(() => this.stepIndex.set(0));
   });
 
+  private lastStage: PlayerStage | null = null;
+  /** After the screen changes, focus goes to the primary button of the new one. */
+  private readonly focusEffect = effect(() => {
+    const stage = this.stage();
+    untracked(() => {
+      const previous = this.lastStage;
+      this.lastStage = stage;
+      if (previous && previous !== stage) {
+        afterNextRender(() => this.focusPrimary(), { injector: this.injector });
+      }
+    });
+  });
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['activePlan']) {
       this.activePlanRevision.update((value) => value + 1);
@@ -444,6 +462,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       this.stopReading();
       this.guideOpen.set(false);
       this.confirm.set(null);
+      if (otherWorkout && this.live.consumeFreshStart() && this.opensOnFirstSet()) {
+        this.countdownActive.set(true);
+      }
     }
   }
 
@@ -540,7 +561,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     });
   }
 
-  /** "Start timer": the three second countdown first, then the set. */
+  /** "Start timer": the countdown first, then the timer. */
   startTimedSet(): void {
     if (!this.canRecordWorkSet() || this.targetWorkSeconds() <= 0) {
       return;
@@ -550,9 +571,12 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.countdownActive.set(true);
   }
 
+  /** The countdown reached zero or was skipped: a timed set starts its timer, any other shows the set. */
   onCountdownStarted(): void {
     this.countdownActive.set(false);
-    this.startGuidedSet();
+    if (this.isTimedTarget()) {
+      this.startGuidedSet();
+    }
   }
 
   startGuidedSet(): void {
@@ -590,7 +614,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.clearRestTimer();
     this.restCompleteCue.set(false);
     this.advanceTarget();
-    this.startCountdownIfTimed();
+    this.startCountdown();
   }
 
   addRestSeconds(): void {
@@ -733,6 +757,18 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return `${minutes}:${remainder.toString().padStart(2, '0')}`;
   }
 
+  /** Only a screen that lost the focus when it was replaced gets it back; the footer and the dialogs keep theirs. */
+  private focusPrimary(): void {
+    if (typeof document === 'undefined' || this.guideOpen()) {
+      return;
+    }
+    const active = document.activeElement;
+    if (active && active !== document.body) {
+      return;
+    }
+    this.host.nativeElement.querySelector<HTMLElement>('.stage-wrap [data-primary]:not(:disabled)')?.focus({ preventScroll: true });
+  }
+
   private stopReading(): void {
     if (this.readAloud()) {
       this.speech.cancel();
@@ -750,8 +786,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   private subjectFor(log: WorkoutExerciseLog | null, detail: ExerciseDetail | null, imageUrl: string | null): GuideSubject {
-    const description = detail?.description?.trim() ?? '';
     const instructions = this.instructionsOf(detail);
+    // The description is the original long text. The short steps replace it, and it is shown
+    // only when the exercise has none.
+    const hasShortSteps = (detail?.shortSteps ?? []).some((step) => typeof step === 'string' && step.trim().length > 0);
+    const description = hasShortSteps ? '' : (detail?.description?.trim() ?? '');
     return {
       name: log?.exerciseNameSnapshot ?? 'Exercise',
       imageUrl,
@@ -823,16 +862,25 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
         this.clearRestTimer(false);
         this.triggerRestCompleteCue();
         this.advanceTarget();
-        this.startCountdownIfTimed();
+        this.startCountdown();
       }
     }, 1000);
   }
 
-  /** When a rest ends and the next set is timed, the countdown starts by itself. */
-  private startCountdownIfTimed(): void {
-    if (!this.allTargetsComplete() && this.isTimedTarget() && this.canRecordWorkSet() && this.targetWorkSeconds() > 0) {
+  /** When a rest ends, a countdown comes before the next set, whatever its kind. */
+  private startCountdown(): void {
+    if (!this.allTargetsComplete() && this.canRecordWorkSet()) {
       this.countdownActive.set(true);
     }
+  }
+
+  /** A workout that was just started opens on its very first set, with nothing done or skipped yet. */
+  private opensOnFirstSet(): boolean {
+    if (this.allDoneOnOpen || this.currentExerciseIndex() !== 0 || !this.live.canWrite()) {
+      return false;
+    }
+    const rows = this.orderedLogs().flatMap((log) => log.sets);
+    return !rows.some((row) => !isOpenSet(row));
   }
 
   private loadExerciseDetail(exerciseId: string | null): void {
@@ -872,21 +920,29 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     });
   }
 
+  /** The next set that is still to do in this exercise, else the next exercise that has one. */
   private advanceTarget(): void {
     this.restRemainingSeconds.set(0);
-    if (this.currentSetNumber() < this.targetSets()) {
-      this.currentSetNumber.update((value) => value + 1);
+    const current = this.currentSetNumber();
+    const next = this.currentSets().find((set) => set.setNumber > current && !set.logged && !set.skipped);
+    if (next) {
+      this.currentSetNumber.set(next.setNumber);
       return;
     }
     this.moveToNextExercise();
   }
 
+  /** Goes to the next exercise that still has an open set; none left means the plan is done. */
   private moveToNextExercise(): void {
     this.restRemainingSeconds.set(0);
-    if (this.currentExerciseIndex() < this.orderedLogs().length - 1) {
-      this.currentExerciseIndex.update((value) => value + 1);
-      this.currentSetNumber.set(this.nextTargetSetNumber(this.currentLog()));
-      return;
+    const logs = this.orderedLogs();
+    for (let index = this.currentExerciseIndex() + 1; index < logs.length; index++) {
+      const sets = this.setsByLog().get(logs[index].exerciseLogId) ?? [];
+      if (sets.some((set) => !set.logged && !set.skipped)) {
+        this.currentExerciseIndex.set(index);
+        this.currentSetNumber.set(this.nextTargetSetNumber(logs[index]));
+        return;
+      }
     }
     this.allTargetsComplete.set(true);
   }
@@ -975,9 +1031,15 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       && this.currentExerciseIndex() >= this.orderedLogs().length - 1;
   }
 
+  /** The first set of the exercise that is neither done nor skipped; past the last one when none is. */
   private nextTargetSetNumber(log: WorkoutExerciseLog | null): number {
-    const logged = log?.sets.filter((set) => set.logged).map((set) => set.setNumber) ?? [];
-    return Math.max(0, ...logged) + 1;
+    const sets = (log && this.setsByLog().get(log.exerciseLogId)) || [];
+    const open = sets.find((set) => !set.logged && !set.skipped);
+    if (open) {
+      return open.setNumber;
+    }
+    const passed = log?.sets.filter((set) => !isOpenSet(set)).map((set) => set.setNumber) ?? [];
+    return Math.max(0, ...passed) + 1;
   }
 
   private workGuideTempoSecondsPerRep(): number {

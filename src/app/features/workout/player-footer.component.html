@@ -29,7 +29,7 @@
     @if (menuOpen()) {
       <div id="player-more-menu" class="menu">
         <button type="button" [disabled]="busy()" (click)="pick('skip')">Skip this exercise</button>
-        <button type="button" [disabled]="busy()" (click)="pick('discard')">Discard workout</button>
+        <button type="button" class="danger" [disabled]="busy()" (click)="pick('discard')">Discard workout</button>
       </div>
     }
   </div>

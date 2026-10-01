@@ -1,5 +1,72 @@
-// Pieces the exercise screen repeats: the outlined button, the quiet text button, and the block that
-// says what comes next. A component includes only the ones it uses.
+// Pieces the exercise screen repeats: the outlined button, the quiet text button, the block that
+// says what comes next, the motion tokens and the red of destructive actions. A component includes
+// only the ones it uses.
+
+// The one place that says how long things move. A host sets them once and everything inside reads
+// them. Reduced motion keeps a plain fade of at most 120 ms and takes every movement out.
+@mixin motion-tokens {
+  --motion-quick: 160ms;
+  --motion-base: 220ms;
+  --motion-slow: 300ms;
+  --motion-ease: ease-out;
+  --motion-shift: 12px;
+  --motion-pop: 0.6;
+  --motion-scale: 0.98;
+
+  @media (prefers-reduced-motion: reduce) {
+    --motion-quick: 0ms;
+    --motion-base: 120ms;
+    --motion-slow: 120ms;
+    --motion-shift: 0px;
+    --motion-pop: 1;
+    --motion-scale: 1;
+  }
+}
+
+// Something that comes in: it fades in while it rises a little.
+@mixin fade-rise-keyframes {
+  @keyframes fade-rise {
+    from {
+      opacity: 0;
+      transform: translateY(var(--motion-shift));
+    }
+  }
+}
+
+// The same keyframes under two names, "name-a" and "name-b". A component flips between the two
+// classes to start an animation again at every change (see flip-on-change.ts).
+@mixin twin-keyframes($name) {
+  @each $turn in a, b {
+    @keyframes #{$name}-#{$turn} {
+      @content;
+    }
+  }
+}
+
+// Destructive actions use the danger colour of the app: red text with a red outline on hover and
+// focus, or a filled red button with white text.
+@mixin danger-actions {
+  .danger-text {
+    color: var(--danger);
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+      outline: 1.5px solid var(--danger);
+      outline-offset: -1.5px;
+    }
+  }
+
+  .danger-solid {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--white);
+
+    &:hover:not(:disabled) {
+      border-color: var(--danger-hover);
+      background: var(--danger-hover);
+    }
+  }
+}
 
 @mixin quiet-button {
   .quiet {

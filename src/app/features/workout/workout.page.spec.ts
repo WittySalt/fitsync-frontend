@@ -387,6 +387,28 @@ describe('WorkoutPage', () => {
     expect(c.lastCompletedSession()?.sessionId).toBe('last');
   });
 
+  it('shows the latest completed session on the Today card when the newest history rows are not completed', () => {
+    dataService.getWorkoutSessionPage.and.callFake((query) => {
+      const q = query as WorkoutSessionQuery;
+      if (q.status === 'COMPLETED' && q.size === 1 && !q.from) {
+        return of(sessionPage([session({ sessionId: 'last', name: 'Pull day', status: 'COMPLETED', completedAt: new Date().toISOString() })], 32));
+      }
+      if (q.from) {
+        return of(sessionPage([], 1));
+      }
+      return of(sessionPage([
+        session({ sessionId: 'c-1', name: 'Cancelled one', status: 'CANCELLED' }),
+        session({ sessionId: 'r-1', name: 'Running one', status: 'IN_PROGRESS' })
+      ]));
+    });
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const last = (fixture.nativeElement as HTMLElement).querySelector('.last-session strong');
+    expect(last?.textContent?.trim()).toBe('Pull day');
+  });
+
   it('requests history from the server with the active filters', () => {
     dataService.getWorkoutSessionPage.calls.reset();
 

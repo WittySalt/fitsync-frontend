@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutExerciseLog, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { WorkoutBarComponent } from './workout-bar.component';
+import { BAR_LEAVE_MS, WorkoutBarComponent } from './workout-bar.component';
 import { WorkoutLiveService } from './workout-live.service';
 
 function log(sets: boolean[]): WorkoutExerciseLog {
@@ -77,6 +77,11 @@ describe('WorkoutBarComponent', () => {
     fixture.detectChanges();
   }
 
+  /** The bar slides down before it is taken out of the page. */
+  const slidDown = async () => {
+    await new Promise((resolve) => setTimeout(resolve, BAR_LEAVE_MS + 60));
+    fixture.detectChanges();
+  };
   const button = (selector: string) => root.querySelector<HTMLButtonElement>(selector);
   const dialog = () => root.querySelector<HTMLDialogElement>('dialog');
   const choice = (label: string) =>
@@ -178,8 +183,34 @@ describe('WorkoutBarComponent', () => {
     live.screenOpen.set(true);
     fixture.detectChanges();
 
-    expect(root.querySelector('.bar')).toBeNull();
     expect(document.documentElement.style.getPropertyValue(SPACE)).toBe('');
+    await slidDown();
+    expect(root.querySelector('.bar')).toBeNull();
+  });
+
+  it('slides down and keeps what it showed while it is taken out, then goes', async () => {
+    await start(754);
+
+    live.setSession(session(754, { status: 'COMPLETED' }));
+    fixture.detectChanges();
+
+    const bar = root.querySelector('.bar');
+    expect(bar?.classList.contains('leaving')).toBeTrue();
+    expect(bar?.querySelector('.name')?.textContent?.trim()).toBe('Leg day');
+    expect(bar?.querySelector<HTMLButtonElement>('.resume')?.tabIndex).toBe(-1);
+
+    await slidDown();
+    expect(root.querySelector('.bar')).toBeNull();
+  });
+
+  it('comes back at once, without the leaving class, when the workout is shown again', async () => {
+    await start(90);
+    live.screenOpen.set(true);
+    fixture.detectChanges();
+    live.screenOpen.set(false);
+    fixture.detectChanges();
+
+    expect(root.querySelector('.bar')?.classList.contains('leaving')).toBeFalse();
   });
 
   it('does not show a workout that has already ended', async () => {
@@ -187,6 +218,7 @@ describe('WorkoutBarComponent', () => {
 
     live.setSession(session(90, { status: 'COMPLETED' }));
     fixture.detectChanges();
+    await slidDown();
 
     expect(root.querySelector('.bar')).toBeNull();
   });
@@ -254,6 +286,7 @@ describe('WorkoutBarComponent', () => {
       expect(toast.success).toHaveBeenCalledWith('Workout completed.');
       expect(dialog()).toBeNull();
       expect(live.session()).toBeNull();
+      await slidDown();
       expect(root.querySelector('.bar')).toBeNull();
     });
 

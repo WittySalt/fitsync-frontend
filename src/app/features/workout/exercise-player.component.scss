@@ -3,8 +3,10 @@
 :host {
   display: block;
   container-type: inline-size;
+  @include parts.motion-tokens;
 }
 
+// The exercise screen rises in when focus mode opens.
 .exercise-player {
   position: relative;
   padding: 20px;
@@ -12,6 +14,14 @@
   border-radius: 24px;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  animation: fade-rise var(--motion-slow) var(--motion-ease);
+}
+
+// Every change of screen (countdown, set, timed set, rest) fades in with a slight slide.
+.stage-wrap > app-player-stage,
+.stage-wrap > app-player-timer-stage,
+.stage-wrap > app-player-rest {
+  animation: fade-rise var(--motion-base) var(--motion-ease);
 }
 
 .screen {
@@ -40,44 +50,6 @@
 
 .stage-wrap {
   position: relative;
-}
-
-.set-complete-badge,
-.next-set-cue {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  color: var(--accent);
-  padding: 8px 12px;
-  font-weight: var(--fw-semibold);
-  box-shadow: var(--shadow-sm);
-}
-
-.set-complete-badge span {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-full);
-  color: var(--text-on-accent);
-  background: var(--accent);
-}
-
-.stage-wrap:not(.reduced-motion) {
-  .set-complete-badge {
-    animation: badgePop 1000ms ease-out;
-  }
-
-  .next-set-cue {
-    animation: nextSetIn 800ms ease-out;
-  }
 }
 
 // The set screen: the heading beside the small picture, then the set list, the steppers and the buttons.
@@ -183,9 +155,16 @@
   font-size: 17px;
   font-weight: var(--fw-bold);
   cursor: pointer;
+  transition:
+    background-color var(--motion-quick) var(--motion-ease),
+    transform var(--motion-quick) var(--motion-ease);
 
   &:hover:not(:disabled) {
     background: var(--accent-hover);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(var(--motion-scale));
   }
 
   &:disabled {
@@ -233,61 +212,5 @@
   }
 }
 
-.ask {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
-.choices {
-  display: grid;
-  gap: 10px;
-
-  .button {
-    min-height: 44px;
-  }
-}
-
-.text-button {
-  min-height: 44px;
-  border: 0;
-  background: transparent;
-  color: var(--green-800);
-  font: inherit;
-  font-weight: var(--fw-semibold);
-  cursor: pointer;
-}
-
-@keyframes badgePop {
-  0% {
-    opacity: 0;
-    transform: scale(0.75);
-  }
-  35% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes nextSetIn {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .set-complete-badge,
-  .next-set-cue {
-    animation: none;
-  }
-}
-
 @include parts.quiet-button;
+@include parts.fade-rise-keyframes;

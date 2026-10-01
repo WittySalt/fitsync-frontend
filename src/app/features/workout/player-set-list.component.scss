@@ -18,20 +18,31 @@ li {
   align-items: center;
   min-height: 44px;
   padding: 6px 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
   color: var(--text-primary);
   font-size: 15px;
+  transition:
+    background-color var(--motion-base, 220ms) ease-out,
+    border-color var(--motion-base, 220ms) ease-out,
+    color var(--motion-base, 220ms) ease-out,
+    opacity var(--motion-base, 220ms) ease-out;
 
   &.done,
   &.skipped {
     color: var(--text-secondary);
   }
 
-  // The set to do now: a green frame and a light green fill, so it is found at a glance.
+  // A skipped set fades to its muted look.
+  &.skipped {
+    opacity: 0.7;
+  }
+
+  // The set to do now: a green frame and a light green fill, so it is found at a glance. The frame
+  // moves to the next row with a short ease when a set is done.
   &.current {
-    border: 1.5px solid var(--accent);
+    border-color: var(--accent);
     background: var(--surface-tint);
     color: var(--text-primary);
     font-weight: var(--fw-bold);
@@ -60,8 +71,19 @@ li {
 .mark {
   display: grid;
   place-items: center;
+  border: 1.5px solid var(--accent);
   background: var(--accent);
   color: var(--text-on-accent);
+
+  // A set that was just done: the circle fills green and the check draws itself in.
+  &.fresh {
+    animation: fill var(--motion-slow, 300ms) ease-out;
+
+    path {
+      stroke-dasharray: 24;
+      animation: draw var(--motion-slow, 300ms) ease-out;
+    }
+  }
 
   svg {
     width: 14px;
@@ -80,4 +102,28 @@ li {
 
 li.current .ring {
   border-color: var(--accent);
+}
+
+@keyframes fill {
+  from {
+    background-color: transparent;
+    color: transparent;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  li {
+    transition: none;
+  }
+
+  .mark.fresh,
+  .mark.fresh path {
+    animation: none;
+  }
 }

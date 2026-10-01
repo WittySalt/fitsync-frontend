@@ -18,13 +18,29 @@
       <span class="line">{{ line() }}</span>
     </div>
     @if (mode() === 'countdown') {
-      <app-player-ring [share]="countdownShare()" [centre]="'' + remaining()" caption="Get ready" [label]="countdownLabel()" [reducedMotion]="reducedMotion()" />
-      <button type="button" class="quiet text" (click)="skip()">Start now</button>
+      <button type="button" class="ring-tap" tabindex="-1" aria-hidden="true" (click)="skip()">
+        <app-player-ring
+          [share]="going() ? 1 : countdownShare()"
+          [centre]="going() ? 'Go' : '' + remaining()"
+          [caption]="going() ? '' : 'Get ready'"
+          [label]="countdownLabel()"
+          [sweep]="!going()"
+          [pop]="true"
+          [reducedMotion]="reducedMotion()"
+        />
+      </button>
+      <button type="button" class="quiet text" data-primary (click)="skip()">Start now</button>
     } @else {
-      <app-player-ring [share]="share()" [centre]="figure()" [caption]="caption()" [label]="label()" [reducedMotion]="reducedMotion()" />
+      <app-player-ring
+        [share]="share()"
+        [centre]="figure()"
+        [caption]="caption()"
+        [label]="label()"
+        [urgent]="urgent()"
+        [reducedMotion]="reducedMotion()"
+      />
       <div class="buttons">
-        <button type="button" class="quiet" (click)="pauseToggle.emit()">{{ paused() ? 'Resume' : 'Pause' }}</button>
-        <button type="button" class="quiet" [disabled]="!canStop()" (click)="stop.emit()">Stop and save</button>
+        <button type="button" class="quiet" data-primary [disabled]="!canStop()" (click)="stop.emit()">Stop and save</button>
       </div>
     }
   </div>

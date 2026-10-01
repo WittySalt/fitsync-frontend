@@ -1,7 +1,7 @@
 <div class="page-grid workout-page">
   <!-- While the exercise screen is open it is the whole page; minimising brings everything back. -->
   @if (!focusMode()) {
-    <header class="page-header workout-header">
+    <header class="page-header workout-header fade-in">
       <div>
         <p class="eyebrow">Workout</p>
         <h1>Train with intent</h1>
@@ -9,9 +9,9 @@
       </div>
     </header>
 
-    <app-insight-panel surface="WORKOUT" />
+    <app-insight-panel class="fade-in" surface="WORKOUT" />
 
-    <section class="metric-strip" aria-label="Training summary">
+    <section class="metric-strip fade-in" aria-label="Training summary">
       @for (metric of metrics(); track metric.label) {
         <article class="training-metric">
           <span>{{ metric.label }}</span>
@@ -21,7 +21,7 @@
       }
     </section>
 
-    <div class="segmented workout-tabs" role="tablist" aria-label="Workout sections">
+    <div class="segmented workout-tabs fade-in" role="tablist" aria-label="Workout sections">
       <button id="workout-tab-overview" [class.active]="selectedTab() === 'overview'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'overview'" aria-controls="workout-panel-overview" (click)="selectedTab.set('overview')">Today</button>
       <button id="workout-tab-plans" [class.active]="selectedTab() === 'plans'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'plans'" aria-controls="workout-panel-plans" (click)="selectedTab.set('plans')">Plans</button>
       <button id="workout-tab-history" [class.active]="selectedTab() === 'history'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'history'" aria-controls="workout-panel-history" (click)="selectedTab.set('history')">History</button>
@@ -73,6 +73,7 @@
         <app-today-overview
           [activePlan]="activePlan()"
           [sessions]="sessions()"
+          [lastCompleted]="lastCompletedSession()"
           [starting]="todayStarting()"
           [today]="todayInsight()"
           [nextTraining]="nextTraining()"

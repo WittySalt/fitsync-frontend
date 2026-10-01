@@ -23,5 +23,15 @@
   gap: 12px;
 }
 
+// A tap on the ring starts the set; the "Start now" button is the same thing for the keyboard.
+.ring-tap {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
 @include parts.quiet-button;
 @include parts.what-block;

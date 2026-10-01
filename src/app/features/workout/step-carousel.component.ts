@@ -1,5 +1,6 @@
 import { Component, OnDestroy, computed, effect, inject, input, model, output, signal, untracked } from '@angular/core';
 
+import { flipOnChange } from './flip-on-change';
 import { SpeechService } from './speech.service';
 import { stepDwellMs } from './step-timing';
 
@@ -38,6 +39,8 @@ export class StepCarouselComponent implements OnDestroy {
   /** The step is announced when a person changes it, never while it turns by itself or is read aloud. */
   protected readonly liveMode = computed(() => (this.autoMoving() || this.speaking() ? 'off' : 'polite'));
   protected readonly current = computed(() => this.steps()[this.index()] ?? '');
+  /** Turns over with every new step, so the slide starts again. */
+  protected readonly flipped = flipOnChange(() => this.current());
 
   constructor() {
     effect(() => {

@@ -37,6 +37,20 @@ describe('rest coach line', () => {
     expect(restCoachLine(log('Bench Press', [set(1, {})]), 2, 1)).toBe('One set left in this workout.');
   });
 
+  it('counts the sets left in words up to twelve, and in digits above', () => {
+    const bench = log('Bench Press', [set(1, {})]);
+    expect(restCoachLine(bench, 3, 9)).toBe('Nine sets left in this workout.');
+    expect(restCoachLine(bench, 3, 11)).toBe('Eleven sets left in this workout.');
+    expect(restCoachLine(bench, 3, 12)).toBe('Twelve sets left in this workout.');
+    expect(restCoachLine(bench, 3, 13)).toBe('13 sets left in this workout.');
+  });
+
+  it('does not take a skipped set for a done one', () => {
+    const skipped = set(3, { logged: false, status: 'SKIPPED' });
+    expect(restCoachLine(log('Bench Press', [set(1, {}), set(2, {}), skipped]), 0, 4))
+      .toBe('Two sets of bench press done, at 20 kg.');
+  });
+
   it('says so when nothing is left, and never gives advice', () => {
     expect(restCoachLine(null, 0, 0)).toBe('Every set of this workout is done.');
   });

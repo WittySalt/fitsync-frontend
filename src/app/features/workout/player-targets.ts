@@ -112,6 +112,14 @@ function isSkipped(row: WorkoutExerciseSetLog): boolean {
 }
 
 /**
+ * A set that is still to do: neither done nor skipped. The server answers a skipped set with
+ * logged false, so "not logged" alone would take a skipped set for the next one.
+ */
+export function isOpenSet(row: Pick<WorkoutExerciseSetLog, 'logged' | 'status'>): boolean {
+  return !row.logged && row.status !== 'SKIPPED';
+}
+
+/**
  * The sets of one exercise with their targets. The session's own set rows come first: the server
  * seeds one row per planned set. An exercise without rows takes its sets from the plan. When
  * neither says anything it is one set without a target.

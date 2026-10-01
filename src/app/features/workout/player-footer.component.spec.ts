@@ -16,6 +16,14 @@ describe('PlayerFooterComponent', () => {
   const named = (label: string) =>
     Array.from(root().querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent?.trim() === label);
 
+  it('shows Discard workout in red, and keeps skipping an exercise quiet', () => {
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[aria-label="More"]')?.click();
+    fixture.detectChanges();
+
+    expect(named('Discard workout')?.classList.contains('danger')).toBeTrue();
+    expect(named('Skip this exercise')?.classList.contains('danger')).toBeFalse();
+  });
+
   it('has Pause and Finish, and no Abort', () => {
     expect(named('Pause')).toBeDefined();
     expect(named('Finish')).toBeDefined();

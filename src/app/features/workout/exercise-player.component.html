@@ -14,15 +14,7 @@
 
       @if (currentLog(); as log) {
         <div class="stage-wrap" [class.reduced-motion]="prefersReducedMotion">
-          @if (setCompleteCue()) {
-            <output class="set-complete-badge">
-              <span aria-hidden="true">✓</span>
-              <strong>Done</strong>
-            </output>
-          }
-          @if (restCompleteCue()) {
-            <output class="next-set-cue">Next set ready</output>
-          }
+          <app-player-cue [done]="setCompleteCue()" [next]="restCompleteCue()" [reducedMotion]="prefersReducedMotion" />
 
           @switch (stage()) {
             @case ('countdown') {
@@ -36,6 +28,7 @@
                 [reducedMotion]="prefersReducedMotion"
                 [holdSteps]="holdSteps()"
                 (started)="onCountdownStarted()"
+                (announce)="liveAnnouncement.set($event)"
                 (howTo)="openGuide()"
                 (imageFailed)="onMediaError()"
               />
@@ -48,15 +41,14 @@
                 [line]="timedLine()"
                 [share]="workGuideShare()"
                 [figure]="timedFigure()"
-                [caption]="isTimedTarget() ? 'Left' : 'Reps'"
+                [caption]="live.paused() ? 'Paused' : (isTimedTarget() ? 'Left' : 'Reps')"
                 [label]="timedLabel()"
-                [paused]="live.paused()"
+                [secondsLeft]="workGuideRemainingSeconds()"
                 [canStop]="!savingSet() && workGuideElapsedSeconds() > 0"
                 [(stepIndex)]="stepIndex"
                 [(reading)]="readAloud"
                 [reducedMotion]="prefersReducedMotion"
                 [holdSteps]="holdSteps()"
-                (pauseToggle)="pauseOrResume()"
                 (stop)="stopGuidedSet()"
                 (howTo)="openGuide()"
                 (imageFailed)="onMediaError()"
@@ -71,6 +63,7 @@
                 [nextName]="restShowsNext() ? (upNext()?.log?.exerciseNameSnapshot ?? '') : ''"
                 [line]="upNextLine()"
                 [coachLine]="coachLine()"
+                [secondsLeft]="restRemainingSeconds()"
                 [(stepIndex)]="stepIndex"
                 [(reading)]="readAloud"
                 [reducedMotion]="prefersReducedMotion"
@@ -113,7 +106,7 @@
                   (howTo)="openGuide()"
                 />
                 <div slot="main" class="set-main">
-                  <app-player-set-list [sets]="currentSets()" [currentSetNumber]="currentSetNumber()" />
+                  <app-player-set-list [sets]="currentSets()" [currentSetNumber]="currentSetNumber()" [scope]="log.exerciseLogId" />
                   @if (!isTimedTarget() && nextLine()) {
                     <p class="next-line"><span class="eyebrow">Next</span>&ngsp;<span class="next-text">{{ nextLine() }}</span></p>
                   }
@@ -134,6 +127,7 @@
                       <button
                         class="big start-timer"
                         type="button"
+                        data-primary
                         [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
                         (click)="startTimedSet()"
                       >
@@ -151,6 +145,7 @@
                       <button
                         class="big complete-set"
                         type="button"
+                        data-primary
                         [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
                         (click)="completeCurrentSet()"
                       >
@@ -243,22 +238,15 @@
   }
 
   @if (confirm(); as question) {
-    <app-workout-modal [heading]="question === 'finish' ? 'Finish now?' : 'Discard this workout?'" (dismissed)="confirm.set(null)">
-      @if (question === 'finish') {
-        <p class="ask">{{ openSetCount() }} {{ openSetCount() === 1 ? 'set is' : 'sets are' }} still open.</p>
-        <div class="choices">
-          <button class="button primary" type="button" [disabled]="ending()" (click)="finish()">Finish and save</button>
-          <button class="button secondary" type="button" (click)="confirm.set(null)">Keep going</button>
-          <button class="text-button" type="button" (click)="confirm.set('discard')">Discard workout</button>
-        </div>
-      } @else {
-        <p class="ask">It will not be saved.</p>
-        <div class="choices">
-          <button class="button secondary" type="button" [disabled]="ending()" (click)="discard()">Discard</button>
-          <button class="button primary" type="button" (click)="confirm.set(null)">Keep going</button>
-        </div>
-      }
-    </app-workout-modal>
+    <app-player-confirm
+      [question]="question"
+      [openSets]="openSetCount()"
+      [ending]="ending()"
+      (finishNow)="finish()"
+      (discard)="discard()"
+      (keepGoing)="confirm.set(null)"
+      (askDiscard)="confirm.set('discard')"
+    />
   }
 
   @if (showCelebration()) {

@@ -1,3 +1,5 @@
+@use './player-parts' as parts;
+
 :host {
   display: block;
   min-width: 0;
@@ -17,6 +19,7 @@
 }
 
 .movement-media {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -27,6 +30,28 @@ img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+
+  // The picture of the exercise before stays underneath while the new one fades in on top.
+  &.before {
+    position: absolute;
+    inset: 0;
+  }
+
+  &.fade {
+    position: relative;
+  }
+}
+
+@each $turn in a, b {
+  img.fade.#{$turn} {
+    animation: picture-in-#{$turn} var(--motion-base, 220ms) ease-out;
+  }
+}
+
+@include parts.twin-keyframes(picture-in) {
+  from {
+    opacity: 0;
+  }
 }
 
 .media-placeholder {

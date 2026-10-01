@@ -7,7 +7,7 @@
       [attr.aria-current]="set.setNumber === currentSetNumber ? 'step' : null"
     >
       @if (set.logged && !set.skipped) {
-        <span class="mark" role="img" aria-label="Done">
+        <span class="mark" [class.fresh]="fresh.has(set.setNumber)" role="img" aria-label="Done">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
         </span>
       } @else {

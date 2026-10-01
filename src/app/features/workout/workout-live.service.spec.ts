@@ -368,6 +368,59 @@ describe('WorkoutLiveService', () => {
     expect(service.currentLabel()).toBe('Push-up \u00b7 set 1 of 2');
   });
 
+  it('does not take a skipped set for the next set', () => {
+    const bench = log([true, false, false]);
+    bench.sets[1].status = 'SKIPPED';
+    service.setSession(session({ exercises: [bench] }));
+
+    expect(service.nextSet()).toEqual(jasmine.objectContaining({ exerciseId: 'exercise-1', setNumber: 3 }));
+    expect(service.currentLabel()).toBe('Goblet squat · set 3 of 3');
+  });
+
+  it('follows the person to the next exercise once every set of one is skipped', () => {
+    const first = log([false, false, false]);
+    first.sets.forEach((row) => (row.status = 'SKIPPED'));
+    const second = log([false, false], { exerciseLogId: 'log-2', exerciseId: 'exercise-2', exerciseNameSnapshot: 'Push-up', sequence: 2 });
+    dataService.getActiveWorkout.and.returnValue(of({ session: session({ exercises: [first, second] }), resume: null }));
+
+    service.refresh();
+
+    expect(service.nextSet()).toEqual(jasmine.objectContaining({ exerciseId: 'exercise-2', setNumber: 1 }));
+    expect(service.playerStart()).toEqual({ exerciseId: 'exercise-2', setNumber: 1, allDone: false });
+  });
+
+  it('is all done when every set is either done or skipped', () => {
+    const only = log([true, false]);
+    only.sets[1].status = 'SKIPPED';
+    service.setSession(session({ exercises: [only] }));
+
+    expect(service.nextSet()).toBeNull();
+    expect(service.currentLabel()).toBe('All sets done');
+  });
+
+  it('marks a workout that was just started, once, and not one that is picked up again', () => {
+    service.startFromPlan('plan-1').subscribe();
+    expect(service.freshStart()).toBeTrue();
+    expect(service.consumeFreshStart()).toBeTrue();
+    expect(service.consumeFreshStart()).toBeFalse();
+
+    dataService.getActiveWorkout.and.returnValue(
+      of({ session: session({ sessionId: 'session-other', exercises: [log([false])] }), resume: null })
+    );
+    service.refresh();
+
+    expect(service.session()?.sessionId).toBe('session-other');
+    expect(service.freshStart()).toBeFalse();
+  });
+
+  it('forgets the fresh start when the workout is reset', () => {
+    service.startFromPlan('plan-1').subscribe();
+
+    service.reset();
+
+    expect(service.freshStart()).toBeFalse();
+  });
+
   it('opens on the last exercise with Finish next when every set is done', () => {
     const exercises = [log([true]), log([true], { exerciseLogId: 'log-2', exerciseId: 'exercise-2', sequence: 2 })];
     dataService.getActiveWorkout.and.returnValue(of({ session: session({ exercises }), resume: null }));

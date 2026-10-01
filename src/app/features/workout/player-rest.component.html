@@ -12,10 +12,10 @@
     (failed)="imageFailed.emit()"
   />
   <div slot="main" class="rest-main">
-    <app-player-ring [share]="share()" [centre]="clock()" caption="Rest" tone="slate" [label]="'Rest, ' + clock() + ' left'" [reducedMotion]="reducedMotion()" />
+    <app-player-ring [share]="share()" [centre]="clock()" caption="Rest" tone="slate" [urgent]="urgent()" [label]="'Rest, ' + clock() + ' left'" [reducedMotion]="reducedMotion()" />
     <div class="buttons">
       <button type="button" class="quiet" (click)="addTime.emit()">+15 sec</button>
-      <button type="button" class="quiet" (click)="skip.emit()">Skip rest</button>
+      <button type="button" class="quiet" data-primary (click)="skip.emit()">Skip rest</button>
     </div>
     <div class="what">
       <span class="kicker">{{ kicker() }}</span>

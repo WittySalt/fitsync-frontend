@@ -1,0 +1,66 @@
+// The host adds no box: the cues sit at the top right of the screen they are placed in.
+:host {
+  display: contents;
+}
+
+.set-complete-badge,
+.next-set-cue {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--accent);
+  padding: 8px 12px;
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.set-complete-badge span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
+.set-complete-badge:not(.still) {
+  animation: badge-pop 1000ms ease-out;
+}
+
+.next-set-cue:not(.still) {
+  animation: next-set-in 800ms ease-out;
+}
+
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes next-set-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

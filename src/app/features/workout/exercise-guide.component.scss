@@ -216,8 +216,17 @@ svg {
   }
 }
 
+// On a phone the guide is a view that slides up inside the exercise screen.
+@keyframes guide-up {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--motion-shift, 12px) * 2));
+  }
+}
+
 .inline {
   min-height: 100%;
+  animation: guide-up var(--motion-base, 220ms) var(--motion-ease, ease-out);
 
   .actions {
     margin-top: auto;

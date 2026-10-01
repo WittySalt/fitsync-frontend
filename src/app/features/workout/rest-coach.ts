@@ -1,10 +1,11 @@
 import { WorkoutExerciseLog } from '../../core/fitsync.models';
 import { formatTargetDuration } from './player-targets';
 
-const WORDS = ['no', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+const WORDS = ['no', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
 
+/** Number words up to twelve, digits above. */
 function count(value: number): string {
-  return value >= 1 && value <= 10 ? WORDS[value] : String(value);
+  return value >= 1 && value < WORDS.length ? WORDS[value] : String(value);
 }
 
 function plural(value: number, noun: string): string {

@@ -1,3 +1,6 @@
+
+@use './player-parts' as parts;
+
 :host {
   display: block;
   flex: none;
@@ -35,15 +38,35 @@ circle {
 .arc {
   stroke: var(--accent);
   stroke-linecap: round;
-  transition: stroke-dasharray 1s linear;
+  transition:
+    stroke-dasharray 1s linear,
+    stroke var(--motion-base, 220ms) ease-out;
 
   &.slate {
     stroke: var(--slate-500);
   }
+
+  // A rest that was lengthened grows its arc back with an ease instead of a second of linear travel.
+  .grow & {
+    transition-duration: var(--motion-slow, 300ms), var(--motion-base, 220ms);
+    transition-timing-function: ease-out;
+  }
+
+  // The last seconds of a timed set: a deeper green.
+  .urgent &:not(.slate) {
+    stroke: var(--green-800);
+  }
+
+  // One full turn for every figure of the countdown.
+  &.sweeping {
+    stroke-dasharray: 100 100;
+  }
 }
 
-.still .arc {
+.still .arc,
+.still .arc.sweeping {
   transition: none;
+  animation: none;
 }
 
 .centre {
@@ -63,6 +86,22 @@ circle {
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
+
+}
+
+// Each figure of the countdown pops in; in the last seconds the figure pulses once a second.
+@each $turn in a, b {
+  .sweeping.#{$turn} {
+    animation: sweep-#{$turn} 1s linear forwards;
+  }
+
+  .figure.pop.#{$turn} {
+    animation: pop-#{$turn} var(--motion-base, 220ms) ease-out;
+  }
+
+  .figure.pulse.#{$turn} {
+    animation: pulse-#{$turn} 1s ease-in-out;
+  }
 }
 
 .caption {
@@ -71,4 +110,35 @@ circle {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
+}
+
+@include parts.twin-keyframes(sweep) {
+  to {
+    stroke-dasharray: 0 100;
+  }
+}
+
+@include parts.twin-keyframes(pop) {
+  from {
+    opacity: 0;
+    transform: scale(var(--motion-pop, 0.6));
+  }
+}
+
+@include parts.twin-keyframes(pulse) {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc,
+  .figure.pulse {
+    transition: none;
+    animation: none;
+  }
+
+  .sweeping {
+    animation: none;
+  }
 }

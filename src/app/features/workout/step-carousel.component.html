@@ -2,7 +2,7 @@
   <div class="carousel" role="group" [attr.aria-label]="'How to, step ' + (index() + 1) + ' of ' + steps().length">
     <div class="body">
       <button type="button" class="text" (click)="tap()">
-        <span class="step" [attr.aria-live]="liveMode()">{{ current() }}</span>
+        <span class="step" [attr.aria-live]="liveMode()"><span class="swap" [class.a]="!flipped()" [class.b]="flipped()">{{ current() }}</span></span>
         @if (steps().length > 1) {
           <span class="sr-only">{{ reducedMotion() || held() ? 'Tap for the next step.' : 'Tap to hold this step.' }}</span>
         }

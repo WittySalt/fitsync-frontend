@@ -15,6 +15,7 @@ import { SpeechService } from './speech.service';
 import { ExercisePlayerComponent } from './exercise-player.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutCelebrationComponent } from './workout-celebration.component';
+import { COUNTDOWN_GO_MS } from './player-timer-stage.component';
 
 /** Lets the timers that a test leaves behind (the step carousel, the cues) run out before it ends. */
 function settle(): void {
@@ -266,6 +267,33 @@ describe('ExercisePlayerComponent', () => {
     expect(steps).toEqual(['Hinge at the hips and lower the bar.']);
   });
 
+  it('keeps the long original instruction out of the guide when the exercise has short steps', () => {
+    fixture.componentInstance.currentDetail.set(exerciseDetail({
+      description: 'Get into a prone position on the floor, supporting your weight on your toes and your forearms.',
+      shortSteps: ['Brace the core.', 'Hold a straight line.']
+    }));
+    fixture.componentInstance.openGuide();
+    fixture.detectChanges();
+
+    const guide = (fixture.nativeElement as HTMLElement).querySelector('app-exercise-guide') as HTMLElement;
+    expect(guide.querySelectorAll('.steps li').length).toBe(2);
+    expect(guide.querySelector('.description')).toBeNull();
+    expect(guide.textContent).not.toContain('prone position');
+  });
+
+  it('shows the original description in the guide only when there are no short steps', () => {
+    fixture.componentInstance.currentDetail.set(exerciseDetail({
+      description: 'Get into a prone position on the floor.',
+      shortSteps: [],
+      instructions: []
+    }));
+    fixture.componentInstance.openGuide();
+    fixture.detectChanges();
+
+    const guide = (fixture.nativeElement as HTMLElement).querySelector('app-exercise-guide') as HTMLElement;
+    expect(guide.querySelector('.description')?.textContent).toContain('prone position');
+  });
+
   it('asks once before discarding, and Keep going leaves the workout alone', () => {
     fixture.componentInstance.confirm.set('discard');
     fixture.detectChanges();
@@ -278,6 +306,25 @@ describe('ExercisePlayerComponent', () => {
 
     expect(dataService.cancelSession).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('app-workout-modal')).toBeNull();
+  });
+
+  it('makes the confirming Discard a filled red button and keeps Keep going green', () => {
+    fixture.componentInstance.confirm.set('discard');
+    fixture.detectChanges();
+
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-workout-modal button'));
+    expect(buttons.find((button) => button.textContent?.trim() === 'Discard')?.classList.contains('danger-solid')).toBeTrue();
+    expect(buttons.find((button) => button.textContent?.trim() === 'Keep going')?.classList.contains('primary')).toBeTrue();
+  });
+
+  it('makes Finish and save the filled green action of the finish question, and Discard workout a red text action', () => {
+    fixture.componentInstance.confirm.set('finish');
+    fixture.detectChanges();
+
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-workout-modal button'));
+    expect(buttons.find((button) => button.textContent?.trim() === 'Finish and save')?.classList.contains('primary')).toBeTrue();
+    expect(buttons.find((button) => button.textContent?.trim() === 'Keep going')?.classList.contains('secondary')).toBeTrue();
+    expect(buttons.find((button) => button.textContent?.trim() === 'Discard workout')?.classList.contains('danger-text')).toBeTrue();
   });
 
   it('discards through the live service once the dialog is answered', () => {
@@ -1107,7 +1154,7 @@ describe('ExercisePlayerComponent', () => {
                         durationSeconds: input.durationSeconds,
                         restSeconds: input.restSeconds,
                         status: input.status ?? 'DONE',
-                        logged: true
+                        logged: (input.status ?? 'DONE') !== 'SKIPPED'
                       })
                 })
           };
@@ -1254,6 +1301,9 @@ describe('ExercisePlayerComponent', () => {
           button(player, '.complete-set').click();
           player.componentInstance.skipRest();
           player.detectChanges();
+          // A rest that ends is followed by the countdown; Start now goes to the set.
+          buttonByText(player, 'Start now').click();
+          player.detectChanges();
         }
 
         button(player, '.complete-set').click();
@@ -1302,7 +1352,7 @@ describe('ExercisePlayerComponent', () => {
 
         button(player, '.start-timer').click();
         player.detectChanges();
-        tick(3000);
+        tick(3000 + COUNTDOWN_GO_MS);
         player.detectChanges();
         expect(player.componentInstance.stage()).toBe('timed');
 
@@ -1323,7 +1373,7 @@ describe('ExercisePlayerComponent', () => {
         settle();
       }));
 
-      it('starts the countdown when a rest ends and the next set is timed', fakeAsync(() => {
+      it('starts the countdown when a rest ends and the next set is timed, then the timer', fakeAsync(() => {
         const player = mountPlank();
 
         button(player, '.complete-set').click();
@@ -1338,21 +1388,146 @@ describe('ExercisePlayerComponent', () => {
 
         tick(3000);
         player.detectChanges();
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('Go');
+        expect(player.componentInstance.stage()).toBe('countdown');
+
+        tick(COUNTDOWN_GO_MS);
+        player.detectChanges();
         expect(player.componentInstance.stage()).toBe('timed');
         settle();
       }));
 
-      it('does not count down before a set of reps', fakeAsync(() => {
+      it('counts down before a set of reps too, and shows the set with its steppers after Go', fakeAsync(() => {
+        const player = mountStrength();
+
+        button(player, '.complete-set').click();
+        player.detectChanges();
+        tick(30_000);
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('countdown');
+        expect(player.componentInstance.currentSetNumber()).toBe(2);
+        expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 2 of 3 · 10 reps · 20 kg');
+        expect(root(player).querySelector('app-player-stepper')).toBeNull();
+
+        tick(3000 + COUNTDOWN_GO_MS);
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('set');
+        expect(root(player).querySelector('app-player-timer-stage')).toBeNull();
+        expect(root(player).querySelectorAll('app-player-stepper').length).toBe(2);
+        expect(button(player, '.complete-set')).not.toBeNull();
+        settle();
+      }));
+
+      it('counts down after Skip rest as well, and a tap on the ring starts the set at once', fakeAsync(() => {
         const player = mountStrength();
 
         button(player, '.complete-set').click();
         player.componentInstance.skipRest();
         player.detectChanges();
+        expect(player.componentInstance.stage()).toBe('countdown');
+
+        button(player, '.ring-tap').click();
+        player.detectChanges();
 
         expect(player.componentInstance.stage()).toBe('set');
-        expect(root(player).querySelector('app-player-timer-stage')).toBeNull();
         settle();
       }));
+
+      describe('the countdown of a workout that was just started', () => {
+        function mountFresh(): ComponentFixture<ExercisePlayerComponent> {
+          followWrites(strengthSession());
+          live.reset();
+          dataService.upsertSessionSet.calls.reset();
+          live.freshStart.set(true);
+          const player = TestBed.createComponent(ExercisePlayerComponent);
+          player.componentRef.setInput('session', strengthSession());
+          player.componentRef.setInput('activePlan', weeklyPlan());
+          player.detectChanges();
+          return player;
+        }
+
+        it('opens on the first set with three, two, one and Go, announcing each figure once', fakeAsync(() => {
+          const player = mountFresh();
+          const announced: string[] = [];
+          const note = () => announced.push(player.componentInstance.liveAnnouncement());
+
+          expect(player.componentInstance.stage()).toBe('countdown');
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('3');
+          expect(textOf(player, 'app-player-timer-stage .name')).toBe('Bench Press');
+          player.detectChanges();
+          note();
+          for (const figure of ['2', '1', 'Go']) {
+            tick(1000);
+            player.detectChanges();
+            expect(textOf(player, 'app-player-timer-stage .figure')).toBe(figure);
+            note();
+          }
+          expect(announced).toEqual(['3', '2', '1', 'Go']);
+          expect(root(player).querySelector('app-player-ring [aria-live]')).toBeNull();
+
+          tick(COUNTDOWN_GO_MS);
+          player.detectChanges();
+          expect(player.componentInstance.stage()).toBe('set');
+          expect(document.activeElement).toBe(button(player, '.complete-set'));
+          settle();
+        }));
+
+        it('can be skipped with Start now', fakeAsync(() => {
+          const player = mountFresh();
+
+          buttonByText(player, 'Start now').click();
+          player.detectChanges();
+
+          expect(player.componentInstance.stage()).toBe('set');
+          settle();
+        }));
+
+        it('asks for the countdown once: a screen opened again at the same place has none', fakeAsync(() => {
+          const first = mountFresh();
+          buttonByText(first, 'Start now').click();
+          first.detectChanges();
+          first.destroy();
+
+          const again = mount(strengthSession(), weeklyPlan());
+
+          expect(again.componentInstance.stage()).toBe('set');
+          settle();
+        }));
+
+        it('does not run when the screen is reopened in the middle of a workout', () => {
+          const session = strengthSession();
+          session.exercises[0].sets[0] = { ...session.exercises[0].sets[0], status: 'DONE', logged: true };
+          live.reset();
+          live.freshStart.set(true);
+          const player = TestBed.createComponent(ExercisePlayerComponent);
+          player.componentRef.setInput('session', session);
+          player.componentRef.setInput('activePlan', weeklyPlan());
+          player.detectChanges();
+
+          expect(player.componentInstance.stage()).toBe('set');
+        });
+
+        it('counts down before the timer of a timed first set, and starts the timer after Go', fakeAsync(() => {
+          followWrites(weeklySession());
+          live.reset();
+          live.freshStart.set(true);
+          const player = TestBed.createComponent(ExercisePlayerComponent);
+          player.componentRef.setInput('session', weeklySession());
+          player.componentRef.setInput('activePlan', weeklyPlan());
+          player.detectChanges();
+          expect(player.componentInstance.stage()).toBe('countdown');
+
+          tick(3000 + COUNTDOWN_GO_MS);
+          player.detectChanges();
+
+          expect(player.componentInstance.stage()).toBe('timed');
+          expect(player.componentInstance.workGuideActive()).toBeTrue();
+          player.componentInstance.stopGuidedSet();
+          settle();
+        }));
+      });
 
       it('stops reading aloud when the set is completed', () => {
         const player = mountStrength();
@@ -1432,6 +1607,149 @@ describe('ExercisePlayerComponent', () => {
         const player = mountStrength();
 
         expect(text(player)).not.toContain('Abort');
+      });
+
+      describe('with three exercises of three sets', () => {
+        function threeSession(): WorkoutSessionDetail {
+          const base = detail();
+          const exercise = (n: number, id: string, name: string) => ({
+            ...base.exercises[0],
+            exerciseLogId: `log-${n}`,
+            exerciseId: id,
+            exerciseNameSnapshot: name,
+            sequence: n,
+            sets: [1, 2, 3].map((set) => weeklySet(set, { reps: 10, weightKg: 20, restSeconds: 30 }))
+          });
+          return detail({ planDayId: 'day-1', exercises: [exercise(1, 'ex-a', 'Bench Press'), exercise(2, 'ex-b', 'Row'), exercise(3, 'ex-c', 'Squat')] });
+        }
+
+        function mountThree(): ComponentFixture<ExercisePlayerComponent> {
+          followWrites(threeSession());
+          return mount(threeSession(), weeklyPlan());
+        }
+
+        it('counts the open sets of the whole workout in the finish question and in the rest line', fakeAsync(() => {
+          const player = mountThree();
+
+          buttonByText(player, 'Finish').click();
+          player.detectChanges();
+          expect(root(player).querySelector('app-workout-modal')?.textContent).toContain('9 sets are still open.');
+          buttonByText(player, 'Keep going').click();
+          player.detectChanges();
+
+          button(player, '.complete-set').click();
+          player.detectChanges();
+
+          expect(textOf(player, 'app-player-rest .said')).toBe('Eight sets left in this workout.');
+          buttonByText(player, 'Finish').click();
+          player.detectChanges();
+          expect(root(player).querySelector('app-workout-modal')?.textContent).toContain('8 sets are still open.');
+          player.componentInstance.skipRest();
+          settle();
+        }));
+
+        it('leaves a skipped set out of the sets still open', () => {
+          const player = mountThree();
+
+          button(player, '.skip-set').click();
+          player.detectChanges();
+          buttonByText(player, 'Finish').click();
+          player.detectChanges();
+
+          expect(root(player).querySelector('app-workout-modal')?.textContent).toContain('8 sets are still open.');
+        });
+
+        it('opens on the first set that is neither done nor skipped when the screen is reopened', () => {
+          const session = threeSession();
+          session.exercises[0].sets[0] = { ...session.exercises[0].sets[0], status: 'DONE', logged: true };
+          session.exercises[0].sets[1] = { ...session.exercises[0].sets[1], status: 'SKIPPED', logged: false };
+
+          const player = mount(session, weeklyPlan());
+
+          expect(player.componentInstance.currentExerciseIndex()).toBe(0);
+          expect(player.componentInstance.currentSetNumber()).toBe(3);
+          expect(textOf(player, 'app-player-set-list li.current')).toContain('Set 3');
+        });
+
+        it('moves past a set that was skipped ahead of the current one', () => {
+          const session = threeSession();
+          session.exercises[0].sets[1] = { ...session.exercises[0].sets[1], status: 'SKIPPED', logged: false };
+          followWrites(session);
+          const player = mount(session, weeklyPlan());
+
+          button(player, '.skip-set').click();
+          player.detectChanges();
+
+          expect(player.componentInstance.currentSetNumber()).toBe(3);
+        });
+
+        it('carries Skip this exercise in the session itself, so a reload lands on the next exercise', () => {
+          const player = mountThree();
+
+          button(player, '[aria-label="More"]').click();
+          player.detectChanges();
+          buttonByText(player, 'Skip this exercise').click();
+          player.detectChanges();
+
+          expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+          expect(live.nextSet()).toEqual(jasmine.objectContaining({ exerciseId: 'ex-b', setNumber: 1 }));
+          expect(live.currentLabel()).toBe('Row \u00b7 set 1 of 3');
+
+          // Reopening from the bar asks the live service where the person is.
+          live.open();
+          const reopened = TestBed.createComponent(ExercisePlayerComponent);
+          reopened.componentRef.setInput('session', live.session());
+          reopened.componentRef.setInput('activePlan', weeklyPlan());
+          reopened.componentRef.setInput('initialExerciseId', live.playerStart().exerciseId);
+          reopened.componentRef.setInput('initialSetNumber', live.nextSet()?.setNumber ?? null);
+          reopened.detectChanges();
+          expect(reopened.componentInstance.currentExerciseIndex()).toBe(1);
+          expect(reopened.componentInstance.currentSetNumber()).toBe(1);
+        });
+
+        it('goes on to the exercise after, not to one whose sets are all skipped already', () => {
+          const session = threeSession();
+          session.exercises[1].sets = session.exercises[1].sets.map((row) => ({ ...row, status: 'SKIPPED', logged: false }));
+          followWrites(session);
+          const player = mount(session, weeklyPlan());
+
+          button(player, '[aria-label="More"]').click();
+          player.detectChanges();
+          buttonByText(player, 'Skip this exercise').click();
+          player.detectChanges();
+
+          expect(player.componentInstance.currentExerciseIndex()).toBe(2);
+        });
+      });
+
+      describe('the one Pause', () => {
+        it('has a single Pause during a timed set, and it holds the set timer too', fakeAsync(() => {
+          const player = mountPlank();
+
+          button(player, '.start-timer').click();
+          player.detectChanges();
+          buttonByText(player, 'Start now').click();
+          player.detectChanges();
+          expect(player.componentInstance.stage()).toBe('timed');
+
+          const pauses = Array.from(root(player).querySelectorAll('button')).filter((candidate) => /^Pause$/.test(candidate.textContent?.trim() ?? ''));
+          expect(pauses.length).toBe(1);
+          expect(root(player).querySelector('app-player-timer-stage')?.textContent).not.toContain('Pause');
+
+          pauses[0].click();
+          tick(5000);
+          player.detectChanges();
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0:45');
+          expect(textOf(player, 'app-player-timer-stage .caption')).toBe('Paused');
+
+          buttonByText(player, 'Resume').click();
+          tick(2000);
+          player.detectChanges();
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0:43');
+          buttonByText(player, 'Stop and save').click();
+          player.componentInstance.skipRest();
+          settle();
+        }));
       });
     });
   });

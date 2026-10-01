@@ -1,4 +1,4 @@
-import { Component, input, model, output } from '@angular/core';
+import { Component, computed, input, model, output } from '@angular/core';
 
 import { ExercisePictureComponent } from './exercise-picture.component';
 import { PlayerRingComponent } from './player-ring.component';
@@ -29,6 +29,13 @@ export class PlayerRestComponent {
   readonly reading = model(false);
   readonly reducedMotion = input(false);
   readonly holdSteps = input(false);
+  /** Whole seconds of rest left, so the figure can pulse in the last three. */
+  readonly secondsLeft = input<number | null>(null);
+
+  protected readonly urgent = computed(() => {
+    const left = this.secondsLeft();
+    return left !== null && left > 0 && left <= 3;
+  });
 
   readonly addTime = output<void>();
   readonly skip = output<void>();
