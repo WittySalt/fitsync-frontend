@@ -100,13 +100,13 @@ describe('earned helpers', () => {
 
   describe('comparisonLine', () => {
     it('reports more, less and the same in whole percent', () => {
-      expect(comparisonLine(170, 120)).toBe('42% more than last week');
-      expect(comparisonLine(100, 120)).toBe('17% less than last week');
-      expect(comparisonLine(120, 120)).toBe('the same as last week');
+      expect(comparisonLine(170, 120)).toBe('42% more than by this day last week');
+      expect(comparisonLine(100, 120)).toBe('17% less than by this day last week');
+      expect(comparisonLine(120, 120)).toBe('the same as by this day last week');
     });
 
     it('calls a change that rounds to zero the same', () => {
-      expect(comparisonLine(1001, 1000)).toBe('the same as last week');
+      expect(comparisonLine(1001, 1000)).toBe('the same as by this day last week');
     });
 
     it('says nothing when last week was empty', () => {

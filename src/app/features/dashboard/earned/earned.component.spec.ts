@@ -84,7 +84,7 @@ describe('EarnedComponent', () => {
     fixture.detectChanges();
 
     expect(root().querySelector('.eyebrow')?.textContent).toBe('Earned');
-    expect(cardText(0)).toBe("This week's training 2 h 50 min 42% more than last week");
+    expect(cardText(0)).toBe("This week's training 2 h 50 min 42% more than by this day last week");
     expect(cardText(1)).toBe('Badges 4 of 9 earned 10 workouts · 20 Aug');
   });
 
@@ -161,12 +161,12 @@ describe('EarnedComponent', () => {
     api.getSummaryCompare.and.returnValue(of(compare(100, 120)));
     second.detectChanges();
     expect(second.nativeElement.textContent).toContain('1 h 40 min');
-    expect(second.nativeElement.textContent).toContain('17% less than last week');
+    expect(second.nativeElement.textContent).toContain('17% less than by this day last week');
 
     const third = TestBed.createComponent(EarnedComponent);
     api.getSummaryCompare.and.returnValue(of(compare(120, 120)));
     third.detectChanges();
-    expect(third.nativeElement.textContent).toContain('the same as last week');
+    expect(third.nativeElement.textContent).toContain('the same as by this day last week');
   });
 
   it('shows 0 of 9 earned with no second line when nothing is earned', () => {
@@ -208,7 +208,7 @@ describe('EarnedComponent', () => {
 
     expect(text('.wall')).toBe('This could not be loaded. Try again');
     expect(items().length).toBe(0);
-    expect(cardText(0)).toBe("This week's training 2 h 50 min 42% more than last week");
+    expect(cardText(0)).toBe("This week's training 2 h 50 min 42% more than by this day last week");
     expect(cardText(1)).not.toContain('0 of 9');
   });
 
