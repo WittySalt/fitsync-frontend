@@ -1,0 +1,66 @@
+// The panel is dark in both themes, so these colours are the fixed slate and green primitives.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+// The three lines of the notices take 163 px, and this takes the same, so nothing below moves.
+.detail {
+  box-sizing: border-box;
+  min-height: 163px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 12px;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--slate-300);
+}
+
+// The button is 24 px tall to press and takes the room of a line of text in the heading.
+.back {
+  flex: none;
+  min-height: 24px;
+  margin: -3px 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  color: var(--green-400);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+.quiet {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--slate-300);
+}

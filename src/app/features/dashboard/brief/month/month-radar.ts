@@ -18,6 +18,14 @@ const LABEL_GAP = 8;
 export const RADAR_LABEL_LINE = 12;
 const RINGS = 4;
 
+/** The area of a label that can be pressed, in the drawing's own units. */
+export interface HitArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface RadarLabel {
   group: string;
   label: string;
@@ -27,6 +35,7 @@ export interface RadarLabel {
   y: number;
   countY: number;
   anchor: 'start' | 'middle' | 'end';
+  hit: HitArea;
 }
 
 export interface RadarGeometry {
@@ -47,7 +56,7 @@ export interface BarsGeometry {
   width: number;
   height: number;
   max: number;
-  rows: { group: string; label: string; count: number; y: number; barWidth: number; labelY: number }[];
+  rows: { group: string; label: string; count: number; y: number; barWidth: number; labelY: number; hit: HitArea }[];
   barX: number;
   barHeight: number;
 }
@@ -79,6 +88,14 @@ function polygon(points: { x: number; y: number }[]): string {
   return points.map((entry) => `${entry.x},${entry.y}`).join(' ');
 }
 
+// The area around a label: a little larger than its two lines of text and never smaller than 40 by
+// 30 units, which the chart at its smallest still draws at more than 24 pixels each way.
+function hitArea(x: number, y: number, label: string, anchor: 'start' | 'middle' | 'end'): HitArea {
+  const width = Math.max(40, Math.ceil(label.length * 6.4) + 8);
+  const left = anchor === 'start' ? x - 4 : anchor === 'end' ? x - width + 4 : x - width / 2;
+  return { x: round(left), y: round(y - 11), width, height: 30 };
+}
+
 /** The drawing of the month's muscle groups, or null when no group was trained. */
 export function buildMuscleChart(muscles: readonly MonthMuscleInsight[]): MuscleChart | null {
   const groups = ordered(muscles);
@@ -104,7 +121,8 @@ export function buildMuscleChart(muscles: readonly MonthMuscleInsight[]): Muscle
         count: group.sessions,
         y: index * 34 + 10,
         labelY: index * 34 + 21,
-        barWidth: round((group.sessions / max) * full)
+        barWidth: round((group.sessions / max) * full),
+        hit: { x: -4, y: index * 34 + 3, width: RADAR_WIDTH + 8, height: 30 }
       }))
     };
   }
@@ -131,6 +149,7 @@ export function buildMuscleChart(muscles: readonly MonthMuscleInsight[]): Muscle
       // A label is two lines, the name and the count under it. Above the centre the pair sits on
       // its anchor, below the centre it hangs under it, and at the sides it is centred on it.
       const y = round(spot.y + (up > 0.3 ? -RADAR_LABEL_LINE - 1 : up < -0.3 ? 9 : -2));
+      const anchor = side > 0.3 ? 'start' : side < -0.3 ? 'end' : 'middle';
       return {
         group: group.group,
         label: group.label,
@@ -138,7 +157,8 @@ export function buildMuscleChart(muscles: readonly MonthMuscleInsight[]): Muscle
         x: spot.x,
         y,
         countY: round(y + RADAR_LABEL_LINE),
-        anchor: side > 0.3 ? 'start' : side < -0.3 ? 'end' : 'middle'
+        anchor,
+        hit: hitArea(spot.x, y, group.label, anchor)
       };
     })
   };

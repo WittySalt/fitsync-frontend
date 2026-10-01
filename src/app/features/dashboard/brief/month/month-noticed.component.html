@@ -1,32 +1,4 @@
 <section class="noticed" aria-labelledby="month-noticed-title">
   <h3 id="month-noticed-title" class="title">What your coach noticed this month</h3>
-  <ul class="list">
-    @for (observation of observations(); track observation.id) {
-      <li class="row">
-        <span class="tile">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            @for (part of observation.glyph; track $index) {
-              @switch (part.tag) {
-                @case ('path') {
-                  <path [attr.d]="part.d"></path>
-                }
-                @case ('circle') {
-                  <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
-                }
-                @case ('rect') {
-                  <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
-                }
-              }
-            }
-          </svg>
-        </span>
-        <div class="text">
-          <strong class="headline">{{ observation.headline }}</strong>
-          @if (observation.note) {
-            <span class="note">{{ observation.note }}</span>
-          }
-        </div>
-      </li>
-    }
-  </ul>
+  <app-month-rows [rows]="observations()" />
 </section>

@@ -1,0 +1,73 @@
+// The colours come from the brief's own tokens, which the legend inherits.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+// The four kinds make the first row and the two marks follow; the seventh item, when it appears,
+// joins them on the second row, so the legend keeps two rows at the width of the brief's side by
+// side layout.
+.legend {
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: start;
+  gap: 8px 20px;
+  font-size: 13px;
+  color: var(--brief-ink-soft);
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+}
+
+.swatch {
+  flex: none;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swatch-kind {
+  background: var(--green-600);
+  color: var(--white);
+}
+
+// The pale days of a picked muscle group, as the calendar draws them.
+.swatch-other {
+  background: var(--surface);
+  border: 1.5px solid var(--green-200);
+  color: var(--green-500);
+}
+
+.swatch-mark {
+  background: var(--surface);
+  border: 1px solid var(--brief-line);
+  color: var(--brief-ink-soft);
+}
+
+.swatch-before {
+  background: var(--surface);
+  border: 1.5px solid var(--brief-tile);
+}
+
+@container (max-width: 560px) {
+  .legend {
+    grid-template-columns: repeat(3, auto);
+    column-gap: 14px;
+    font-size: 12px;
+  }
+
+  .before-item {
+    grid-column: 1 / -1;
+  }
+}

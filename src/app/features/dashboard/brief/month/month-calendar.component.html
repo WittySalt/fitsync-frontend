@@ -28,6 +28,9 @@
                 [class.future]="cell.state === 'future'"
                 [class.before]="cell.state === 'before'"
                 [class.today]="cell.today"
+                [class.faded]="faded().has(cell.dateKey)"
+                [class.selected]="cell.dateKey === state.selectedDate()"
+                [attr.aria-pressed]="cell.dateKey === state.selectedDate()"
                 [attr.data-date]="cell.dateKey"
                 [attr.aria-label]="cell.ariaLabel"
                 [tabindex]="cell.dateKey === tabbableDate() ? 0 : -1"
@@ -75,50 +78,5 @@
     </div>
   }
 
-  <ul class="legend" aria-label="Legend">
-    @for (item of legendKinds; track item.kind) {
-      <li>
-        <span class="swatch swatch-kind">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            @for (part of glyphFor(item.kind); track $index) {
-              @switch (part.tag) {
-                @case ('path') { <path [attr.d]="part.d"></path> }
-                @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
-                @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
-              }
-            }
-          </svg>
-        </span>
-        {{ item.label }}
-      </li>
-    }
-    <li>
-      <span class="swatch swatch-mark">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="4" y="4" width="16" height="16" rx="4"></rect>
-          <path d="M8.5 9a5 5 0 0 1 7 0"></path>
-          <path d="M12 9.5l1.5-2"></path>
-        </svg>
-      </span>
-      Weigh-in
-    </li>
-    <li>
-      <span class="swatch swatch-mark">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M8 4h8v6a4 4 0 0 1-8 0Z"></path>
-          <path d="M8 6H5a3 3 0 0 0 3 4"></path>
-          <path d="M16 6h3a3 3 0 0 1-3 4"></path>
-          <path d="M12 14v4"></path>
-          <path d="M8.5 20h7"></path>
-        </svg>
-      </span>
-      Record
-    </li>
-    @if (grid().hasBefore) {
-      <li class="before-item">
-        <span class="swatch swatch-before"></span>
-        Before you joined
-      </li>
-    }
-  </ul>
+  <app-month-legend [hasBefore]="grid().hasBefore" [group]="state.selectedMuscle()" [groupLabel]="groupLabel()" />
 </div>

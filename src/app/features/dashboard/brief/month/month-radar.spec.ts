@@ -68,6 +68,29 @@ describe('month radar', () => {
     }
   });
 
+  it('gives every label a pressable area of at least 40 by 30 units around its text', () => {
+    const chart = buildMuscleChart([group('SHOULDERS', 'Shoulders', 4), group('CHEST', 'Chest', 3), group('LEGS', 'Legs', 2), group('FULL_BODY', 'Full body', 1)]) as RadarGeometry;
+    for (const label of chart.labels) {
+      expect(label.hit.width).toBeGreaterThanOrEqual(40);
+      expect(label.hit.height).toBeGreaterThanOrEqual(30);
+      // The name sits inside the area, whichever side of the text the label is anchored on.
+      expect(label.hit.x).toBeLessThanOrEqual(label.x);
+      expect(label.hit.x + label.hit.width).toBeGreaterThanOrEqual(label.x);
+      expect(label.hit.y).toBeLessThan(label.y);
+      expect(label.hit.y + label.hit.height).toBeGreaterThan(label.countY);
+    }
+  });
+
+  it('gives every bar row a pressable area that covers the row', () => {
+    const chart = buildMuscleChart([group('BACK', 'Back', 6), group('CHEST', 'Chest', 3)]) as BarsGeometry;
+    for (const row of chart.rows) {
+      expect(row.hit.width).toBeGreaterThanOrEqual(chart.width);
+      expect(row.hit.height).toBeGreaterThanOrEqual(30);
+      expect(row.hit.y).toBeLessThan(row.y);
+      expect(row.hit.y + row.hit.height).toBeGreaterThan(row.y + chart.barHeight);
+    }
+  });
+
   it('draws bars for fewer than three groups', () => {
     const chart = buildMuscleChart([group('BACK', 'Back', 6), group('CHEST', 'Chest', 3)]) as BarsGeometry;
     expect(chart.mode).toBe('bars');

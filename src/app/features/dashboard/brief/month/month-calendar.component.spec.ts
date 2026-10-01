@@ -217,6 +217,108 @@ describe('MonthCalendarComponent', () => {
     expect(state.month()).toBe('2026-09');
   });
 
+  describe('picking a date', () => {
+    it('marks the picked date as pressed with a ring, and no other', () => {
+      open();
+      expect(cell('2026-09-04').getAttribute('aria-pressed')).toBe('false');
+      cell('2026-09-04').click();
+      fixture.detectChanges();
+      expect(state.selectedDate()).toBe('2026-09-04');
+      expect(cell('2026-09-04').getAttribute('aria-pressed')).toBe('true');
+      expect(cell('2026-09-04').classList).toContain('selected');
+      expect(element().querySelectorAll('[aria-pressed="true"]').length).toBe(1);
+    });
+
+    it('moves the pick to another date and lets go of it with a second tap', () => {
+      open();
+      cell('2026-09-04').click();
+      cell('2026-09-05').click();
+      fixture.detectChanges();
+      expect(element().querySelectorAll('.cell.selected').length).toBe(1);
+      expect(cell('2026-09-05').getAttribute('aria-pressed')).toBe('true');
+      cell('2026-09-05').click();
+      fixture.detectChanges();
+      expect(state.selectedDate()).toBeNull();
+      expect(element().querySelectorAll('[aria-pressed="true"]').length).toBe(0);
+    });
+
+    it('can be picked with Enter and Space, which a button turns into a click', () => {
+      open();
+      const target = cell('2026-09-04');
+      target.focus();
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      target.click();
+      fixture.detectChanges();
+      expect(state.selectedDate()).toBe('2026-09-04');
+    });
+
+    it('lets go of the pick when the month changes', () => {
+      open();
+      cell('2026-09-04').click();
+      state.step(-1);
+      fixture.detectChanges();
+      expect(state.selectedDate()).toBeNull();
+    });
+
+    it('gives the focus back to the picked date when asked', () => {
+      open();
+      cell('2026-09-04').click();
+      state.clearSelection(true);
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(cell('2026-09-04'));
+      expect(state.focusTarget()).toBeNull();
+    });
+  });
+
+  describe('picking a muscle group', () => {
+    const chestDays = (): MonthlyTrainingInsight =>
+      monthInsight({
+        days: [
+          { date: '2026-09-03', kind: 'CARDIO', label: 'Cardio', sessions: 1, minutes: 35, muscles: ['CARDIO'], record: true },
+          { date: '2026-09-04', kind: 'STRENGTH', label: 'Strength', sessions: 1, minutes: 50, muscles: ['CHEST', 'ARMS'], record: false },
+          { date: '2026-09-27', kind: 'SPORT', label: 'Badminton', sessions: 1, minutes: 60, muscles: [], record: false }
+        ],
+        muscles: [
+          { group: 'CHEST', label: 'Chest', sessions: 1 },
+          { group: 'CARDIO', label: 'Cardio', sessions: 1 }
+        ]
+      });
+
+    it('keeps the days that trained the group solid and draws the other trained days pale', () => {
+      data.getMonthlyTrainingInsight.and.returnValue(of(chestDays()));
+      open();
+      state.selectMuscle('CHEST');
+      fixture.detectChanges();
+      expect(cell('2026-09-04').classList).not.toContain('faded');
+      expect(cell('2026-09-03').classList).toContain('faded');
+      expect(cell('2026-09-27').classList).toContain('faded');
+      // The empty days are as they were.
+      expect(cell('2026-09-05').classList).not.toContain('faded');
+      expect(element().querySelectorAll('.cell.faded').length).toBe(2);
+    });
+
+    it('draws nothing pale when no group is picked or the pick is let go of', () => {
+      data.getMonthlyTrainingInsight.and.returnValue(of(chestDays()));
+      open();
+      expect(element().querySelectorAll('.cell.faded').length).toBe(0);
+      state.selectMuscle('CHEST');
+      state.selectMuscle('CHEST');
+      fixture.detectChanges();
+      expect(element().querySelectorAll('.cell.faded').length).toBe(0);
+    });
+
+    it('switches the legend to the group, the other sessions and the marks', () => {
+      data.getMonthlyTrainingInsight.and.returnValue(of(chestDays()));
+      open();
+      state.selectMuscle('CHEST');
+      fixture.detectChanges();
+      expect(legendLabels()).toEqual(['Trained chest', 'Other sessions', 'Weigh-in', 'Record']);
+      state.selectMuscle('CHEST');
+      fixture.detectChanges();
+      expect(legendLabels()).toEqual(['Strength', 'Cardio', 'Mobility', 'Sport', 'Weigh-in', 'Record']);
+    });
+  });
+
   describe('states', () => {
     it('keeps the size of the grid with skeleton cells while the month loads', () => {
       const pending = new Subject<MonthlyTrainingInsight>();

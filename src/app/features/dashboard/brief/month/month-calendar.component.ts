@@ -1,15 +1,12 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, output, signal, untracked } from '@angular/core';
 
 import { DayKind } from '../../../../core/fitsync.models';
+import { isTrainingDayKind } from '../day-kind-icons';
 import { DAY_KIND_GLYPHS } from '../day-kind-icons';
 import { GlyphShape } from '../muscle-icons';
+import { MonthLegendComponent } from './month-legend.component';
 import { WEEKDAY_INITIALS, buildMonthGrid, daysInMonth, monthTitle, weekdayIndex } from './month-grid';
 import { MonthViewState } from './month-view.state';
-
-interface LegendKind {
-  kind: DayKind;
-  label: string;
-}
 
 /**
  * The month's calendar: a header of weekday initials, one button for each date, and the legend.
@@ -19,6 +16,7 @@ interface LegendKind {
 @Component({
   selector: 'app-month-calendar',
   standalone: true,
+  imports: [MonthLegendComponent],
   templateUrl: './month-calendar.component.html',
   styleUrl: './month-calendar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -30,12 +28,6 @@ export class MonthCalendarComponent {
   readonly daySelected = output<string>();
 
   protected readonly initials = WEEKDAY_INITIALS;
-  protected readonly legendKinds: LegendKind[] = [
-    { kind: 'STRENGTH', label: 'Strength' },
-    { kind: 'CARDIO', label: 'Cardio' },
-    { kind: 'MOBILITY', label: 'Mobility' },
-    { kind: 'SPORT', label: 'Sport' }
-  ];
 
   protected readonly grid = computed(() =>
     buildMonthGrid({
@@ -46,6 +38,16 @@ export class MonthCalendarComponent {
       firstSessionDate: this.state.firstSessionDate()
     })
   );
+  // While a muscle group is picked, the trained days that did not train it are drawn pale.
+  protected readonly faded = computed<ReadonlySet<string>>(() => {
+    const group = this.state.selectedMuscle();
+    const days = this.state.insight()?.days ?? [];
+    return new Set(group ? days.filter((day) => isTrainingDayKind(day.kind) && !day.muscles.includes(group)).map((day) => day.date) : []);
+  });
+  protected readonly groupLabel = computed(() => {
+    const group = this.state.selectedMuscle();
+    return this.state.insight()?.muscles.find((muscle) => muscle.group === group)?.label ?? '';
+  });
   protected readonly loading = computed(() => this.state.status() === 'loading');
   protected readonly gridLabel = computed(() => monthTitle(this.state.month()));
 
@@ -62,12 +64,27 @@ export class MonthCalendarComponent {
     return reference.startsWith(month) ? reference : `${month}-01`;
   });
 
+  constructor() {
+    // The button that lets go of a date goes away with the lower part of the panel, so the focus
+    // returns to the date that was picked.
+    effect(() => {
+      const target = this.state.focusTarget();
+      if (target?.kind === 'day') {
+        untracked(() => {
+          this.host.nativeElement.querySelector<HTMLButtonElement>(`[data-date="${target.key}"]`)?.focus();
+          this.state.focusTarget.set(null);
+        });
+      }
+    });
+  }
+
   protected glyphFor(kind: DayKind): GlyphShape[] {
     return DAY_KIND_GLYPHS[kind];
   }
 
   protected select(dateKey: string): void {
     this.focusedDate.set(dateKey);
+    this.state.selectDay(dateKey);
     this.daySelected.emit(dateKey);
   }
 

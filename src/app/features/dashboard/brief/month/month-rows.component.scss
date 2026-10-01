@@ -1,0 +1,76 @@
+// The panel is dark in both themes, so these colours are the fixed slate and green primitives.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tile {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--green-500);
+  color: var(--slate-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.headline {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--white);
+}
+
+.note {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--slate-300);
+}
+
+// A line to come keeps the height of two lines of text, so the panel does not move when it arrives.
+.pending {
+  min-height: 38px;
+
+  .tile {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .text {
+    gap: 6px;
+  }
+
+  .bar {
+    display: block;
+    height: 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+
+    &.short {
+      width: 60%;
+    }
+  }
+}

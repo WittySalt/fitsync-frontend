@@ -1,4 +1,4 @@
-import { badgesInMonth, buildFigures, fullWeeks, headLine, headTitle, MonthFigure } from './month-figures';
+import { badgesInMonth, buildFigures, emptyMonthLine, fullWeeks, headLine, headTitle, MonthFigure } from './month-figures';
 import { monthInsight, septemberInsight } from './month-fixtures.spec';
 
 function figureOf(figures: MonthFigure[], id: MonthFigure['id']): MonthFigure {
@@ -150,6 +150,23 @@ describe('month figures', () => {
       expect(headLine('2026-01', '2025-11-03', true)).toBe('Arrows compare with December.');
       expect(headLine('2026-08', '2026-08-03', false)).toBe('Since you joined on 3 August.');
       expect(headLine('2026-09', null, false)).toBeNull();
+    });
+  });
+
+  describe('a month without a session', () => {
+    it('is just beginning in the first seven days of the month that holds the reference date', () => {
+      expect(emptyMonthLine('2026-10', '2026-10-01')).toBe('October is just beginning.');
+      expect(emptyMonthLine('2026-10', '2026-10-07')).toBe('October is just beginning.');
+    });
+
+    it('has nothing yet from the eighth day of that month on', () => {
+      expect(emptyMonthLine('2026-10', '2026-10-08')).toBe('Nothing logged in October yet.');
+      expect(emptyMonthLine('2026-09', '2026-09-27')).toBe('Nothing logged in September yet.');
+    });
+
+    it('has nothing, without a yet, in a month that has passed', () => {
+      expect(emptyMonthLine('2026-08', '2026-10-01')).toBe('Nothing logged in August.');
+      expect(emptyMonthLine('2025-12', '2026-01-03')).toBe('Nothing logged in December.');
     });
   });
 });
