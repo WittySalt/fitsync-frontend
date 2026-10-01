@@ -1,0 +1,101 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.stage {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'pic' 'head' 'main' 'steps' 'extra';
+}
+
+.stage.thumb {
+  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-areas: 'pic head' 'steps steps' 'main main';
+  align-items: center;
+}
+
+.lead,
+.side {
+  display: contents;
+}
+
+.pic {
+  grid-area: pic;
+  min-width: 0;
+}
+
+.head {
+  grid-area: head;
+  min-width: 0;
+}
+
+.main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.steps {
+  grid-area: steps;
+  min-width: 0;
+}
+
+.extra {
+  grid-area: extra;
+  min-width: 0;
+}
+
+.extra:empty,
+.head:empty {
+  display: none;
+}
+
+@container (min-width: 720px) {
+  .stage,
+  .stage.thumb {
+    display: flex;
+    align-items: stretch;
+    gap: 32px;
+  }
+
+  .stage.centred {
+    align-items: center;
+  }
+
+  .lead {
+    display: flex;
+    flex: 0 0 min(40%, 400px);
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .side {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .stage.centred .side {
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    text-align: center;
+  }
+
+  .main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .stage.centred .main {
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 22px;
+  }
+}

@@ -24,7 +24,7 @@ import {
   WorkoutSessionQuery
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { createExerciseGroup } from './plan-exercise-form';
+import { createExerciseGroup, exerciseGroupsToInputs } from './plan-exercise-form';
 import { applyDayKind } from './plan-week-form';
 import { LiveStartCardComponent } from './live-start-card.component';
 import { PlanExerciseRowsComponent } from './plan-exercise-rows.component';
@@ -387,6 +387,28 @@ describe('WorkoutPage', () => {
     expect(c.lastCompletedSession()?.sessionId).toBe('last');
   });
 
+  it('shows the latest completed session on the Today card when the newest history rows are not completed', () => {
+    dataService.getWorkoutSessionPage.and.callFake((query) => {
+      const q = query as WorkoutSessionQuery;
+      if (q.status === 'COMPLETED' && q.size === 1 && !q.from) {
+        return of(sessionPage([session({ sessionId: 'last', name: 'Pull day', status: 'COMPLETED', completedAt: new Date().toISOString() })], 32));
+      }
+      if (q.from) {
+        return of(sessionPage([], 1));
+      }
+      return of(sessionPage([
+        session({ sessionId: 'c-1', name: 'Cancelled one', status: 'CANCELLED' }),
+        session({ sessionId: 'r-1', name: 'Running one', status: 'IN_PROGRESS' })
+      ]));
+    });
+
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+
+    const last = (fixture.nativeElement as HTMLElement).querySelector('.last-session strong');
+    expect(last?.textContent?.trim()).toBe('Pull day');
+  });
+
   it('requests history from the server with the active filters', () => {
     dataService.getWorkoutSessionPage.calls.reset();
 
@@ -586,6 +608,41 @@ describe('WorkoutPage', () => {
     expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
     expect(fixture.componentInstance.guidedPlayerSession()?.sessionId).toBe('session-today');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
+  });
+
+  it('hides the header, the reading, the figures, the tabs and the goal offer while the exercise screen is open', () => {
+    const active = plan({ planId: 'plan-today', name: 'Today plan', status: 'ACTIVE' });
+    dataService.getActivePlan.and.returnValue(of(active));
+    dataService.startWorkoutPlan.and.returnValue(of(guidedSession({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' })));
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.workout-header')).not.toBeNull();
+    expect(root.querySelector('app-insight-panel')).not.toBeNull();
+    expect(root.querySelector('.metric-strip')).not.toBeNull();
+    expect(root.querySelector('.workout-tabs')).not.toBeNull();
+
+    const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
+    today.startPlan.emit({ plan: active, planDayId: null });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.focusMode()).toBeTrue();
+    expect(root.querySelector('app-exercise-player')).not.toBeNull();
+    expect(root.querySelector('.workout-header')).toBeNull();
+    expect(root.querySelector('app-insight-panel')).toBeNull();
+    expect(root.querySelector('.metric-strip')).toBeNull();
+    expect(root.querySelector('.workout-tabs')).toBeNull();
+    expect(root.querySelector('.goal-offer')).toBeNull();
+
+    fixture.componentInstance.minimiseScreen();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.focusMode()).toBeFalse();
+    expect(root.querySelector('app-exercise-player')).toBeNull();
+    expect(root.querySelector('.workout-header')).not.toBeNull();
+    expect(root.querySelector('app-insight-panel')).not.toBeNull();
+    expect(root.querySelector('.metric-strip')).not.toBeNull();
+    expect(root.querySelector('.workout-tabs')).not.toBeNull();
   });
 
   it('opens the exercise player at the selected movement from Today', () => {
@@ -1699,11 +1756,36 @@ describe('WorkoutPage', () => {
           targetDistanceKm: null,
           restSeconds: 120,
           notes: 'Controlled',
-          setTargets: []
+          setTargets: [],
+          tempoSeconds: null
         }
       ]
     });
     expect(component.planMode()).toBe('list');
+  });
+
+  it('sends the tempo of an exercise in tenths of a second, and none for a timed exercise', () => {
+    component.planForm.patchValue({ name: 'Tempo plan', goalFocus: 'STRENGTH', workoutType: 'STRENGTH', difficulty: 'BEGINNER' });
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1', exerciseType: 'STRENGTH', tempoSeconds: 2.54 });
+
+    component.savePlan();
+
+    const request = dataService.createWorkoutPlan.calls.mostRecent().args[0];
+    expect(request.exercises[0].tempoSeconds).toBe(2.5);
+
+    const timed = component.planExercises.at(0);
+    timed.patchValue({ exerciseId: 'exercise-2', exerciseType: 'MOBILITY', targetDurationSeconds: 60, tempoSeconds: 4 });
+    expect(exerciseGroupsToInputs([timed])[0].tempoSeconds).toBeNull();
+  });
+
+  it('does not save a tempo outside one to ten seconds', () => {
+    component.planExercises.at(0).patchValue({ exerciseId: 'exercise-1', tempoSeconds: 12 });
+
+    expect(component.planExercises.at(0).controls.tempoSeconds.invalid).toBeTrue();
+    component.planExercises.at(0).patchValue({ tempoSeconds: 0.5 });
+    expect(component.planExercises.at(0).controls.tempoSeconds.invalid).toBeTrue();
+    component.planExercises.at(0).patchValue({ tempoSeconds: null });
+    expect(component.planExercises.at(0).controls.tempoSeconds.valid).toBeTrue();
   });
 
   it('moves the typed exercises into a Monday strength day named after the plan when switching to a week', () => {

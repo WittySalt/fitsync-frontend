@@ -534,6 +534,21 @@ describe('TodayOverviewComponent', () => {
       expect(text(root, '.last-session strong')).toBe('Last lift');
     });
 
+    it('shows the latest completed session it is given, when the rows it holds are cancelled or running', () => {
+      const root = render({
+        today: today(),
+        timezone: 'Asia/Singapore',
+        sessions: [
+          session({ sessionId: 's-3', name: 'Cancelled draft', status: 'CANCELLED' }),
+          session({ sessionId: 's-4', name: 'Still running', status: 'IN_PROGRESS', completedAt: '' })
+        ],
+        lastCompleted: session({ sessionId: 's-9', name: 'Pull day', startedAt: '2026-09-29T10:00:00Z', completedAt: '2026-09-29T10:50:00Z', durationMinutes: 50 })
+      });
+
+      expect(text(root, '.last-session strong')).toBe('Pull day');
+      expect(text(root, '.last-session span:last-child')).toMatch(/^Tuesday 29 Sep.* · 50 min$/);
+    });
+
     it('says none yet when there is no completed session', () => {
       const root = render({ today: today(), sessions: [] });
 

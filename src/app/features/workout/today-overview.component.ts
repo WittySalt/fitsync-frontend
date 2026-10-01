@@ -76,6 +76,9 @@ const BROWSE_LINK: TodayButton = { label: 'Train something else', action: 'brows
 export class TodayOverviewComponent {
   readonly activePlan = input.required<WorkoutPlan | null>();
   readonly sessions = input.required<WorkoutSession[]>();
+  /** The latest completed session, asked for on its own: the rows above are the first page of the
+   *  history, whose newest entries may be cancelled or still running. */
+  readonly lastCompleted = input<WorkoutSession | null>(null);
   readonly starting = input(false);
   /** Today's reading from the weekly insight; null while it loads, when it fails, or on an older
    *  backend, and the card then shows the plain plan. */
@@ -95,6 +98,10 @@ export class TodayOverviewComponent {
   readonly habitStarted = output<WorkoutSessionDetail>();
 
   readonly latestSession = computed<WorkoutSession | null>(() => {
+    const given = this.lastCompleted();
+    if (given) {
+      return given;
+    }
     const sorted = this.sessions()
       .filter(isCompletedSession)
       .sort((a, b) => this.timeOf(b) - this.timeOf(a));

@@ -1,0 +1,179 @@
+// Pieces the exercise screen repeats: the outlined button, the quiet text button, the block that
+// says what comes next, the motion tokens and the red of destructive actions. A component includes
+// only the ones it uses.
+
+// The one place that says how long things move. A host sets them once and everything inside reads
+// them. Reduced motion keeps a plain fade of at most 120 ms and takes every movement out.
+@mixin motion-tokens {
+  --motion-quick: 160ms;
+  --motion-base: 220ms;
+  --motion-slow: 300ms;
+  --motion-ease: ease-out;
+  --motion-shift: 12px;
+  --motion-pop: 0.6;
+  --motion-scale: 0.98;
+
+  @media (prefers-reduced-motion: reduce) {
+    --motion-quick: 0ms;
+    --motion-base: 120ms;
+    --motion-slow: 120ms;
+    --motion-shift: 0px;
+    --motion-pop: 1;
+    --motion-scale: 1;
+  }
+}
+
+// Something that comes in: it fades in while it rises a little.
+@mixin fade-rise-keyframes {
+  @keyframes fade-rise {
+    from {
+      opacity: 0;
+      transform: translateY(var(--motion-shift));
+    }
+  }
+}
+
+// The same keyframes under two names, "name-a" and "name-b". A component flips between the two
+// classes to start an animation again at every change (see flip-on-change.ts).
+@mixin twin-keyframes($name) {
+  @each $turn in a, b {
+    @keyframes #{$name}-#{$turn} {
+      @content;
+    }
+  }
+}
+
+// Destructive actions use the danger colour of the app: red text with a red outline on hover and
+// focus, or a filled red button with white text. The darker red keeps both above 4.5:1 on white.
+@mixin danger-actions {
+  .danger-text {
+    color: var(--danger-hover);
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+      outline: 1.5px solid var(--danger-hover);
+      outline-offset: -1.5px;
+    }
+  }
+
+  .danger-solid {
+    border-color: var(--danger-hover);
+    background: var(--danger-hover);
+    color: var(--white);
+
+    &:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--danger-hover) 82%, black);
+      background: color-mix(in srgb, var(--danger-hover) 82%, black);
+    }
+  }
+}
+
+// The filled green button of the one thing to do next.
+@mixin big-button {
+  .big {
+    flex: 1 1 100%;
+    min-height: 56px;
+    padding: 0 24px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--accent);
+    color: var(--text-on-accent);
+    font: inherit;
+    font-size: 17px;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+    transition:
+      background-color var(--motion-quick) var(--motion-ease),
+      transform var(--motion-quick) var(--motion-ease);
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(var(--motion-scale));
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+@mixin quiet-button {
+  .quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &.text {
+      padding: 0 8px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--green-800);
+    }
+  }
+}
+
+@mixin what-block {
+  .what {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .kicker {
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--green-800);
+  }
+
+  .name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: var(--fw-semibold);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+  }
+
+  .line {
+    font-size: 17px;
+    font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+
+  @container (min-width: 720px) {
+    .what {
+      align-items: center;
+      text-align: center;
+    }
+
+    .name {
+      font-size: 26px;
+    }
+  }
+}

@@ -7,10 +7,12 @@ import {
 import {
   PlayerSet,
   SetTarget,
+  defaultTempoSeconds,
   exerciseSummary,
   findPlanExercise,
   formatTargetDuration,
   resolveExerciseSets,
+  resolveTempoSeconds,
   sameTarget,
   targetLine,
   valuesLine
@@ -263,6 +265,23 @@ describe('player targets', () => {
       expect(sameTarget(null, null)).toBeTrue();
       expect(sameTarget(null, target({ reps: 10 }))).toBeFalse();
       expect(sameTarget(target({ reps: 10 }), null)).toBeFalse();
+    });
+  });
+
+  describe('the tempo of an exercise', () => {
+    it('defaults by the kind of exercise', () => {
+      expect(defaultTempoSeconds('STRENGTH')).toBe(3);
+      expect(defaultTempoSeconds('MOBILITY')).toBe(4);
+      expect(defaultTempoSeconds('CARDIO')).toBe(2.5);
+      expect(defaultTempoSeconds('SPORT')).toBe(2.5);
+      expect(defaultTempoSeconds(null)).toBe(3);
+    });
+
+    it('takes the copy of the workout first, then the plan, then the default', () => {
+      expect(resolveTempoSeconds({ tempoSeconds: 2 }, { tempoSeconds: 4 }, 'STRENGTH')).toBe(2);
+      expect(resolveTempoSeconds({ tempoSeconds: null }, { tempoSeconds: 4 }, 'STRENGTH')).toBe(4);
+      expect(resolveTempoSeconds(null, null, 'MOBILITY')).toBe(4);
+      expect(resolveTempoSeconds({ tempoSeconds: 0 }, null, 'CARDIO')).toBe(2.5);
     });
   });
 });

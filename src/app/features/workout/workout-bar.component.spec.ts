@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutExerciseLog, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { WorkoutBarComponent } from './workout-bar.component';
+import { BAR_LEAVE_MS, WorkoutBarComponent } from './workout-bar.component';
 import { WorkoutLiveService } from './workout-live.service';
 
 function log(sets: boolean[]): WorkoutExerciseLog {
@@ -77,6 +77,11 @@ describe('WorkoutBarComponent', () => {
     fixture.detectChanges();
   }
 
+  /** The bar slides down before it is taken out of the page. */
+  const slidDown = async () => {
+    await new Promise((resolve) => setTimeout(resolve, BAR_LEAVE_MS + 60));
+    fixture.detectChanges();
+  };
   const button = (selector: string) => root.querySelector<HTMLButtonElement>(selector);
   const dialog = () => root.querySelector<HTMLDialogElement>('dialog');
   const choice = (label: string) =>
@@ -130,6 +135,27 @@ describe('WorkoutBarComponent', () => {
     expect(root.querySelector('.step')?.textContent?.trim()).toBe('Goblet squat · set 2 of 3');
   });
 
+  it('shows a running timed set, a counted set by its reps and a rest in the step slot', async () => {
+    await start(120, { exercises: [log([false, false])] });
+    const identity = { sessionId: 'session-live', exerciseLogId: 'log-1', setNumber: 1, exerciseName: 'Plank Hold' };
+    const run = { targetReps: 0, tempoSeconds: 3, weightKg: null, distanceKm: null, restSeconds: null, restAfterSeconds: 30 };
+
+    live.startRun({ ...identity, ...run, kind: 'timed', targetSeconds: 45 });
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Plank Hold \u00b7 0:45 left');
+
+    live.startRun({ ...identity, ...run, exerciseName: 'Goblet squat', kind: 'counted', targetSeconds: 0, targetReps: 12 });
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Goblet squat \u00b7 0 / 12');
+
+    live.beginRest(identity, 42);
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Rest 0:42');
+    live.clearRun();
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Goblet squat \u00b7 set 1 of 2');
+  });
+
   it('shows the hours once the workout passes the hour', async () => {
     await start(3723);
 
@@ -178,8 +204,34 @@ describe('WorkoutBarComponent', () => {
     live.screenOpen.set(true);
     fixture.detectChanges();
 
-    expect(root.querySelector('.bar')).toBeNull();
     expect(document.documentElement.style.getPropertyValue(SPACE)).toBe('');
+    await slidDown();
+    expect(root.querySelector('.bar')).toBeNull();
+  });
+
+  it('slides down and keeps what it showed while it is taken out, then goes', async () => {
+    await start(754);
+
+    live.setSession(session(754, { status: 'COMPLETED' }));
+    fixture.detectChanges();
+
+    const bar = root.querySelector('.bar');
+    expect(bar?.classList.contains('leaving')).toBeTrue();
+    expect(bar?.querySelector('.name')?.textContent?.trim()).toBe('Leg day');
+    expect(bar?.querySelector<HTMLButtonElement>('.resume')?.tabIndex).toBe(-1);
+
+    await slidDown();
+    expect(root.querySelector('.bar')).toBeNull();
+  });
+
+  it('comes back at once, without the leaving class, when the workout is shown again', async () => {
+    await start(90);
+    live.screenOpen.set(true);
+    fixture.detectChanges();
+    live.screenOpen.set(false);
+    fixture.detectChanges();
+
+    expect(root.querySelector('.bar')?.classList.contains('leaving')).toBeFalse();
   });
 
   it('does not show a workout that has already ended', async () => {
@@ -187,6 +239,7 @@ describe('WorkoutBarComponent', () => {
 
     live.setSession(session(90, { status: 'COMPLETED' }));
     fixture.detectChanges();
+    await slidDown();
 
     expect(root.querySelector('.bar')).toBeNull();
   });
@@ -228,6 +281,19 @@ describe('WorkoutBarComponent', () => {
       expect(dataService.cancelSession).not.toHaveBeenCalled();
     });
 
+    it('takes clicks in the dialog although the bar lets clicks through around itself on wide layouts', async () => {
+      await start(754);
+      (fixture.nativeElement as HTMLElement).style.pointerEvents = 'none';
+
+      button('.end')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      for (const label of ['Finish and save', 'Discard workout', 'Keep going']) {
+        expect(getComputedStyle(choice(label) as HTMLElement).pointerEvents).withContext(label).toBe('auto');
+      }
+    });
+
     it('closes on Escape as Keep going does', async () => {
       await start(754);
       button('.end')?.click();
@@ -254,6 +320,7 @@ describe('WorkoutBarComponent', () => {
       expect(toast.success).toHaveBeenCalledWith('Workout completed.');
       expect(dialog()).toBeNull();
       expect(live.session()).toBeNull();
+      await slidDown();
       expect(root.querySelector('.bar')).toBeNull();
     });
 

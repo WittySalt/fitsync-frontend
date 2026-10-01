@@ -963,6 +963,18 @@ a:focus-visible {
   }
 }
 
+// Something that comes back onto the page, such as the header and the tabs when a full screen is
+// put away. The motion tokens come from the host that sets them; the numbers here are the fallback.
+.fade-in {
+  animation: fade-in var(--motion-base, 220ms) ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

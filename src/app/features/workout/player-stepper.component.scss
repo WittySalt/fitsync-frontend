@@ -1,0 +1,72 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knob {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.value {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+// The larger figure needs the room of a wide screen: beside a second stepper in a narrower column it overflows.
+@container (min-width: 960px) {
+  .value {
+    font-size: 28px;
+  }
+}

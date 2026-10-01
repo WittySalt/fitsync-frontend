@@ -632,6 +632,7 @@ interface BackendExerciseView {
   images?: BackendExerciseImage[] | string[] | null;
   instructions?: BackendExerciseInstruction[] | null;
   secondaryMuscleGroups?: string[] | null;
+  shortSteps?: string[] | null;
 }
 
 interface BackendExerciseImage {
@@ -2476,7 +2477,10 @@ export class FitSyncDataService {
       images: mapped.images ?? [],
       imageUrls: mapped.imageUrls ?? [],
       instructions: mapped.instructions ?? [],
-      secondaryMuscleGroups: mapped.secondaryMuscleGroups ?? []
+      secondaryMuscleGroups: mapped.secondaryMuscleGroups ?? [],
+      shortSteps: Array.isArray(exercise.shortSteps)
+        ? exercise.shortSteps.filter((step): step is string => typeof step === 'string' && step.trim().length > 0)
+        : []
     };
   }
 

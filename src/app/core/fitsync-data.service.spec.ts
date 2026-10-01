@@ -1893,6 +1893,20 @@ describe('FitSyncDataService', () => {
     expect(result?.imageUrls).toEqual(['https://example.test/squat-1.jpg', 'https://example.test/squat-2.jpg']);
     expect(result?.instructions.map((step) => step.text)).toEqual(['Brace your core.', 'Stand tall.']);
     expect(result?.secondaryMuscleGroups).toEqual(['GLUTES', 'HAMSTRINGS']);
+    expect(result?.shortSteps).toEqual([]);
+  });
+
+  it('maps the short steps of an exercise defensively', () => {
+    let result: ExerciseDetail | null | undefined;
+    service.getExercise('exercise-1').subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/workouts/exercises/exercise-1').flush({
+      exerciseId: 'exercise-1',
+      name: 'Back squat',
+      shortSteps: ['Brace your core.', '  ', 7, 'Stand tall.']
+    });
+
+    expect(result?.shortSteps).toEqual(['Brace your core.', 'Stand tall.']);
   });
 
   it('loads a paged exercise search with Spring Page metadata', () => {

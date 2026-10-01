@@ -199,6 +199,8 @@ export interface WorkoutExerciseLog {
   maxHeartRate: number | null;
   notes: string;
   sets: WorkoutExerciseSetLog[];
+  /** Seconds one rep takes when the exercise screen counts along; empty uses the default of its kind. */
+  tempoSeconds?: number | null;
   videoUrl?: string | null;
   animationUrl?: string | null;
   images?: string[];
@@ -231,6 +233,7 @@ export interface WorkoutExerciseLogInput {
   maxHeartRate: number | null;
   notes: string | null;
   sets: WorkoutExerciseSetInput[];
+  tempoSeconds?: number | null;
 }
 
 export interface WorkoutExerciseSetInput {
@@ -242,6 +245,8 @@ export interface WorkoutExerciseSetInput {
   restSeconds: number | null;
   perceivedExertion: number | null;
   notes: string | null;
+  /** SKIPPED records a set the person passed over; left out, the set counts as done. */
+  status?: 'SKIPPED';
 }
 
 export interface UpsertWorkoutSessionRequest {
@@ -335,6 +340,8 @@ export interface ExerciseDetail extends Exercise {
   imageUrls: string[];
   instructions: ExerciseInstruction[];
   secondaryMuscleGroups: string[];
+  /** Two to four short steps in order for the exercise screen; empty when the exercise has none. */
+  shortSteps?: string[];
 }
 
 export interface ExerciseMetadata {
@@ -534,6 +541,8 @@ export interface WorkoutPlanExercise {
   restSeconds: number | null;
   notes: string;
   setTargets: WorkoutPlanExerciseSetTarget[];
+  /** Seconds one rep takes when the exercise screen counts along; empty uses the default of its kind. */
+  tempoSeconds?: number | null;
   /** Thumbnail carried on the plan itself, so rendering one needs no extra request. */
   primaryImageUrl?: string | null;
   videoUrl?: string | null;
@@ -564,6 +573,7 @@ export interface WorkoutPlanExerciseInput {
   restSeconds: number | null;
   notes: string;
   setTargets: WorkoutPlanExerciseSetTargetInput[];
+  tempoSeconds?: number | null;
 }
 
 export interface WorkoutPlanExerciseSetTargetInput {
