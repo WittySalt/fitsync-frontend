@@ -1,0 +1,158 @@
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.rest-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.what {
+  align-self: stretch;
+}
+
+// The next set of the same exercise, with its reps and weight to choose during the rest.
+.next-block {
+  box-sizing: border-box;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-sunken);
+  text-align: left;
+}
+
+.just-done {
+  align-self: stretch;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-quick) var(--motion-ease);
+
+  &:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.tick {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / 14px no-repeat;
+}
+
+.done-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  .kicker {
+    color: var(--text-secondary);
+    font-size: 10px;
+  }
+}
+
+.done-line {
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.pencil {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.auto-line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.coach {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 2px 4px 2px 12px;
+  border: 1px solid var(--green-200);
+  border-radius: 12px;
+  background: var(--surface-tint);
+  text-align: left;
+}
+
+.mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+}
+
+.said {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--green-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.ask {
+  flex: none;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--green-800);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+@include parts.quiet-button;
+@include parts.what-block;

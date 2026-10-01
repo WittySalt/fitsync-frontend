@@ -12,6 +12,7 @@ let nextModalId = 0;
     <dialog
       #dialog
       class="modal"
+      [class.wide]="wide()"
       [attr.aria-labelledby]="titleId"
       (cancel)="onCancel($event)"
     >
@@ -25,6 +26,8 @@ let nextModalId = 0;
 })
 export class WorkoutModalComponent implements OnDestroy {
   readonly heading = input.required<string>();
+  /** A roomier dialog for content such as the exercise guide. */
+  readonly wide = input(false);
   /** Escape. The dialog's owner decides what that means. */
   readonly dismissed = output<void>();
 

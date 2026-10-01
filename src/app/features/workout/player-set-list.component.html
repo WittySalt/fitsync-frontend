@@ -1,23 +1,50 @@
 <ol class="set-list" aria-label="Sets of this exercise">
   @for (set of sets; track set.setNumber) {
-    <li [class.current]="set.setNumber === currentSetNumber" [attr.aria-current]="set.setNumber === currentSetNumber ? 'step' : null">
-      <span class="name">Set {{ set.setNumber }}</span>
-      <span class="values">
-        @if (set.skipped) {
-          Skipped
-        } @else if (set.logged) {
-          @if (differs(set)) {
-            planned {{ planned(set) }}, did {{ done(set) }}
-          } @else {
-            {{ done(set) || planned(set) }}
-          }
-        } @else {
-          {{ planned(set) }}
-        }
-      </span>
-      @if (set.logged && !set.skipped) {
-        <span class="mark" role="img" aria-label="Done">✓</span>
+    <li
+      [class.current]="set.setNumber === currentSetNumber"
+      [class.done]="!!set.logged && !set.skipped"
+      [class.skipped]="set.skipped"
+      [attr.aria-current]="set.setNumber === currentSetNumber ? 'step' : null"
+    >
+      @if (editable && (set.skipped || !!set.logged)) {
+        <button type="button" class="row editable" [attr.aria-label]="spoken(set)" (click)="edit.emit(set.setNumber)">
+          <ng-container [ngTemplateOutlet]="content" [ngTemplateOutletContext]="{ $implicit: set }" />
+          <svg class="pencil" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 20h4L19 9l-4-4L4 16v4z"></path>
+            <path d="M13.5 6.5l4 4"></path>
+          </svg>
+        </button>
+      } @else {
+        <div class="row">
+          <ng-container [ngTemplateOutlet]="content" [ngTemplateOutletContext]="{ $implicit: set }" />
+        </div>
       }
     </li>
   }
 </ol>
+
+<ng-template #content let-set>
+  @if (set.logged && !set.skipped) {
+    <span class="mark" [class.fresh]="fresh.has(set.setNumber)" role="img" aria-label="Done">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+    </span>
+  } @else {
+    <span class="ring" aria-hidden="true"></span>
+  }
+  <span class="name">Set {{ set.setNumber }}</span>
+  <span class="values">
+    @if (set.skipped) {
+      Skipped
+    } @else if (set.logged) {
+      @if (differs(set)) {
+        planned {{ planned(set) }}, did {{ done(set) }}
+      } @else {
+        {{ done(set) || planned(set) }}
+      }
+    } @else if (set.setNumber === currentSetNumber && currentValues) {
+      {{ currentValues }}
+    } @else {
+      {{ planned(set) }}
+    }
+  </span>
+</ng-template>

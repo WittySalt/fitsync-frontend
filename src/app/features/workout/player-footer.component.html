@@ -1,0 +1,36 @@
+<footer class="footer">
+  <div class="left">
+    <button type="button" class="quiet" (click)="pauseToggle.emit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        @if (paused()) {
+          <path d="M7 5l12 7-12 7Z"></path>
+        } @else {
+          <path d="M8 5v14"></path><path d="M16 5v14"></path>
+        }
+      </svg>
+      <span>{{ paused() ? 'Resume' : 'Pause' }}</span>
+    </button>
+    <button type="button" class="quiet" [disabled]="busy()" (click)="finishRequest.emit()">Finish</button>
+  </div>
+  <div class="more">
+    <button
+      #toggle
+      type="button"
+      class="quiet icon"
+      aria-controls="player-more-menu"
+      aria-label="More"
+      [attr.aria-expanded]="menuOpen()"
+      (click)="menuOpen.set(!menuOpen())"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="5" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="19" cy="12" r="1.4"></circle>
+      </svg>
+    </button>
+    @if (menuOpen()) {
+      <div id="player-more-menu" class="menu">
+        <button type="button" [disabled]="busy()" (click)="pick('skip')">Skip this exercise</button>
+        <button type="button" class="danger" [disabled]="busy()" (click)="pick('discard')">Discard workout</button>
+      </div>
+    }
+  </div>
+</footer>

@@ -1,0 +1,130 @@
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.pic {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.movement-media {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  // The picture of the exercise before stays underneath while the new one fades in on top.
+  &.before {
+    position: absolute;
+    inset: 0;
+  }
+
+  &.fade {
+    position: relative;
+  }
+}
+
+@each $turn in a, b {
+  img.fade.#{$turn} {
+    animation: picture-in-#{$turn} var(--motion-base, 220ms) ease-out;
+  }
+}
+
+@include parts.twin-keyframes(picture-in) {
+  from {
+    opacity: 0;
+  }
+}
+
+.media-placeholder {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.initial {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-semibold);
+}
+
+small {
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.dots {
+  position: absolute;
+  inset: auto 0 10px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+
+    &.on {
+      background: var(--text-primary);
+    }
+  }
+}
+
+@container (max-width: 719px) {
+  :host(.lead) {
+    width: 96px;
+
+    .pic {
+      aspect-ratio: 1;
+      border-radius: 14px;
+    }
+
+    .initial {
+      width: 40px;
+      height: 40px;
+      font-size: var(--text-xl);
+    }
+
+    small,
+    .dots {
+      display: none;
+    }
+  }
+
+  :host(.hero) .pic {
+    aspect-ratio: 15 / 8;
+    border-radius: 16px;
+  }
+}

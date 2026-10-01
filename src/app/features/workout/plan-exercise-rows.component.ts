@@ -6,6 +6,7 @@ import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switc
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Exercise } from '../../core/fitsync.models';
 import { ExerciseGroup, isTimedExerciseGroup, TIMED_EXERCISE_TYPES } from './plan-exercise-form';
+import { defaultTempoSeconds } from './player-targets';
 
 /** What the picker of one row shows while it is being used. The text in the box and the type of
  *  the chosen exercise live in the row's own form group, so they are saved and moved with it. */
@@ -106,6 +107,11 @@ export class PlanExerciseRowsComponent {
   isTimedRow(index: number): boolean {
     const group = this.rows().at(index);
     return !!group && isTimedExerciseGroup(group);
+  }
+
+  /** The empty tempo box shows the tempo the exercise screen will use for this kind of exercise. */
+  tempoPlaceholder(index: number): string {
+    return String(defaultTempoSeconds(this.rows().at(index)?.controls.exerciseType.value));
   }
 
   setSearchQuery(index: number, value: string): void {

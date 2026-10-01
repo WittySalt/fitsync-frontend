@@ -1,0 +1,159 @@
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.carousel {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 8px 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  text-align: left;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.text {
+  min-height: 44px;
+  padding: 8px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+@container (min-width: 720px) {
+  .text {
+    font-size: 15px;
+  }
+}
+
+.step {
+  display: block;
+}
+
+// A new step slides in from the right while it fades in; the old one is gone at once.
+.swap {
+  display: block;
+}
+
+@each $turn in a, b {
+  .swap.#{$turn} {
+    animation: step-in-#{$turn} var(--motion-base, 220ms) ease-out;
+  }
+}
+
+@include parts.twin-keyframes(step-in) {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-shift, 12px));
+  }
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 8px;
+  margin-top: -6px;
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.dot {
+  position: relative;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-strong);
+    transform: translate(-50%, -50%);
+    transition: width var(--motion-base, 220ms) ease-out;
+  }
+
+  &.on span {
+    width: 16px;
+    background: var(--accent);
+  }
+}
+
+.howto {
+  flex: none;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--green-800);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.speaker {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: 2px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: var(--surface-tint);
+    color: var(--green-900);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot span {
+    transition: none;
+  }
+}

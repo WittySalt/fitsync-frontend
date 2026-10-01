@@ -1,0 +1,29 @@
+@if (steps().length) {
+  <div class="carousel" role="group" [attr.aria-label]="'How to, step ' + (index() + 1) + ' of ' + steps().length">
+    <div class="body">
+      <button type="button" class="text" (click)="tap()">
+        <span class="step" [attr.aria-live]="liveMode()"><span class="swap" [class.a]="!flipped()" [class.b]="flipped()">{{ current() }}</span></span>
+        @if (steps().length > 1) {
+          <span class="sr-only">{{ reducedMotion() || held() ? 'Tap for the next step.' : 'Tap to hold this step.' }}</span>
+        }
+      </button>
+      <div class="foot">
+        <div class="dots">
+          @for (step of steps(); track $index) {
+            <button type="button" class="dot" [class.on]="$index === index()" [attr.aria-label]="'Step ' + ($index + 1)"
+              [attr.aria-current]="$index === index() ? 'step' : null" (click)="go($index)"><span></span></button>
+          }
+        </div>
+        <button type="button" class="howto" (click)="howTo.emit()">How to</button>
+      </div>
+    </div>
+    @if (speech.available) {
+      <button type="button" class="speaker" [attr.aria-pressed]="reading()"
+        [attr.aria-label]="reading() ? 'Stop reading the steps aloud' : 'Read the steps aloud'" (click)="toggleReading()">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 9v6h4l5 4V5L8 9Z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 6a8.5 8.5 0 0 1 0 12"></path>
+        </svg>
+      </button>
+    }
+  </div>
+}

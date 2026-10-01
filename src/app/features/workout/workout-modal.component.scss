@@ -1,5 +1,8 @@
+@use './player-parts' as parts;
+
 :host {
   display: contents;
+  @include parts.motion-tokens;
 }
 
 .modal {
@@ -11,8 +14,19 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-lg);
 
+  &.wide {
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+  }
+
+  // A dialog fades in while it scales up from 0.98, and the backdrop fades in with it.
+  &[open] {
+    animation: modal-in var(--motion-base) var(--motion-ease);
+  }
+
   &::backdrop {
     background: color-mix(in srgb, var(--slate-900) 60%, transparent);
+    animation: backdrop-in var(--motion-base, 220ms) ease-out;
   }
 }
 
@@ -26,4 +40,17 @@ h2 {
   margin: 0;
   font-size: var(--text-xl);
   line-height: 1.2;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--motion-scale));
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
 }

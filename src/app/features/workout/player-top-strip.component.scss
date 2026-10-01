@@ -1,0 +1,91 @@
+:host {
+  display: block;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+@container (min-width: 720px) {
+  .strip {
+    gap: 20px;
+  }
+}
+
+.minimise {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.segments {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.segment {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--motion-slow, 300ms) ease-out;
+}
+
+.sets {
+  flex: none;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.elapsed {
+  flex: none;
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+@container (max-width: 459px) {
+  .word {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

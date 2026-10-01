@@ -1,0 +1,13 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+.choices {
+  display: grid;
+  gap: 10px;
+
+  .button {
+    min-height: 44px;
+  }
+}

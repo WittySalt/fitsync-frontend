@@ -1,0 +1,228 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.elapsed {
+  flex: none;
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.pic {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface-sunken);
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.initial {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-semibold);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  span {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+  }
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    color: var(--slate-700);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .n {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface-sunken);
+    color: var(--slate-700);
+    font-size: 12px;
+    font-weight: var(--fw-bold);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.empty,
+.description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.video summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--green-800);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+
+  button {
+    flex: 1 1 160px;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-radius: 12px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+  }
+
+  .read {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-primary);
+
+    &[aria-pressed='true'] {
+      border-color: var(--accent);
+      background: var(--surface-tint);
+      color: var(--green-900);
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .primary {
+    border: 0;
+    background: var(--accent);
+    color: var(--text-on-accent);
+  }
+}
+
+// On a phone the guide is a view that slides up inside the exercise screen.
+@keyframes guide-up {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--motion-shift, 12px) * 2));
+  }
+}
+
+.inline {
+  min-height: 100%;
+  animation: guide-up var(--motion-base, 220ms) var(--motion-ease, ease-out);
+
+  .actions {
+    margin-top: auto;
+    flex-direction: column;
+  }
+
+  .actions button {
+    flex: none;
+    min-height: 52px;
+  }
+}

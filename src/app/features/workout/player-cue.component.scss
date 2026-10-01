@@ -1,0 +1,36 @@
+// The host adds no box: the cues sit at the top right of the screen they are placed in.
+:host {
+  display: contents;
+}
+
+.next-set-cue {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--accent);
+  padding: 8px 12px;
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.next-set-cue:not(.still) {
+  animation: next-set-in 800ms ease-out;
+}
+
+@keyframes next-set-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

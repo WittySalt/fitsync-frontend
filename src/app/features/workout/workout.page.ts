@@ -154,6 +154,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
     const session = this.screenVisible() ? this.workoutLive.session() : null;
     return session && session.exercises.length > 0 ? session : null;
   });
+  /** The exercise screen is the whole page while it is open: no header, reading, figures or tabs. */
+  readonly focusMode = computed(() => !!this.guidedPlayerSession());
   readonly liveTrackerSession = computed<WorkoutSessionDetail | null>(() => {
     const session = this.screenVisible() ? this.workoutLive.session() : null;
     return session && session.exercises.length === 0 ? session : null;

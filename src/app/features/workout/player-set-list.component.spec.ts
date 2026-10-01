@@ -66,4 +66,55 @@ describe('PlayerSetListComponent', () => {
     expect(lines([set(target({ reps: 10 }), null)])).toEqual(['10 reps']);
     expect(lines([{ setNumber: 1, target: target({ reps: 10 }), logged: null, skipped: true }])).toEqual(['Skipped']);
   });
+
+  it('shows the values chosen for the current set in its row, and the plan in the others', () => {
+    fixture.componentRef.setInput('currentSetNumber', 1);
+    fixture.componentRef.setInput('currentValues', '8 × 20 kg');
+    const open = (setNumber: number): PlayerSet => ({ setNumber, target: target({ reps: 10, weightKg: 20 }), logged: null, skipped: false });
+    expect(lines([open(1), open(2)])).toEqual(['8 × 20 kg', '10 × 20 kg']);
+  });
+
+  describe('when rows can be edited', () => {
+    const rows = (): HTMLButtonElement[] =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.row')];
+
+    function mount(sets: PlayerSet[], editable = true): void {
+      fixture.componentRef.setInput('sets', sets);
+      fixture.componentRef.setInput('editable', editable);
+      fixture.detectChanges();
+    }
+
+    it('turns a done row and a skipped row into buttons with a full accessible name, and an open row stays plain', () => {
+      mount([
+        { setNumber: 1, target: target({ reps: 10, weightKg: 20 }), logged: target({ reps: 10, weightKg: 20 }), skipped: false },
+        { setNumber: 2, target: target({ reps: 10 }), logged: null, skipped: true },
+        { setNumber: 3, target: target({ durationSeconds: 45 }), logged: target({ durationSeconds: 45 }), skipped: false },
+        { setNumber: 4, target: target({ reps: 10 }), logged: null, skipped: false }
+      ]);
+
+      expect(rows().map((row) => row.getAttribute('aria-label'))).toEqual([
+        'Set 1, 10 reps at 20 kg, done. Edit',
+        'Set 2, skipped. Edit',
+        'Set 3, 45 sec, done. Edit'
+      ]);
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('li').length).toBe(4);
+      expect(rows().every((row) => row.querySelector('.pencil'))).toBeTrue();
+    });
+
+    it('says which set was asked for when a row is pressed', () => {
+      const asked: number[] = [];
+      fixture.componentInstance.edit.subscribe((setNumber) => asked.push(setNumber));
+      mount([{ setNumber: 2, target: null, logged: null, skipped: true }]);
+
+      rows()[0].click();
+
+      expect(asked).toEqual([2]);
+    });
+
+    it('shows no buttons when editing is not allowed', () => {
+      mount([{ setNumber: 1, target: target({ reps: 10 }), logged: target({ reps: 10 }), skipped: false }], false);
+
+      expect(rows().length).toBe(0);
+    });
+  });
 });

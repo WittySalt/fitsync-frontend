@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ToastService } from '../../core/toast/toast.service';
@@ -8,6 +8,17 @@ import { WorkoutLiveService } from './workout-live.service';
 /** The space the bar takes above the page's own padding, read by the shell and the coach button. */
 const BAR_SPACE = 'calc(68px + env(safe-area-inset-bottom, 0px))';
 const BAR_SPACE_PROPERTY = '--workout-bar-space';
+
+/** How long the bar slides down before it is taken out. */
+export const BAR_LEAVE_MS = 220;
+
+/** What the bar shows of the workout; kept while it slides away, when the workout may be gone already. */
+interface BarView {
+  name: string;
+  time: string;
+  step: string;
+  paused: boolean;
+}
 
 /**
  * The workout in progress, fixed above the bottom navigation on every page of the signed-in shell.
@@ -26,6 +37,16 @@ export class WorkoutBarComponent implements OnDestroy {
   private readonly toast = inject(ToastService);
 
   protected readonly visible = computed(() => !!this.live.active() && !this.live.screenOpen());
+  /** The bar has just been put away and is sliding down. */
+  protected readonly leaving = signal(false);
+  protected readonly shown = computed(() => this.visible() || this.leaving());
+  private readonly last = signal<BarView | null>(null);
+  protected readonly view = computed<BarView | null>(() => {
+    const session = this.live.active();
+    return session
+      ? { name: session.name, time: this.live.elapsedLabel(), step: this.live.runLabel() || this.live.currentLabel(), paused: this.live.paused() }
+      : this.last();
+  });
   protected readonly ending = signal(false);
   protected readonly confirmingDiscard = signal(false);
   protected readonly busy = signal(false);
@@ -33,6 +54,12 @@ export class WorkoutBarComponent implements OnDestroy {
   protected readonly accessibleName = computed(
     () => `Resume workout, ${this.live.active()?.name ?? 'workout'}, ${this.live.elapsedLabel()}`
   );
+
+  private wasVisible = false;
+  private leaveId: ReturnType<typeof setTimeout> | null = null;
+  private readonly reducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor() {
     effect(() => {
@@ -43,10 +70,36 @@ export class WorkoutBarComponent implements OnDestroy {
         root.removeProperty(BAR_SPACE_PROPERTY);
       }
     });
+
+    // The bar slides up when it appears and down when it goes; it is kept for the slide.
+    effect(() => {
+      const visible = this.visible();
+      const view = this.view();
+      untracked(() => {
+        if (visible) {
+          this.clearLeave();
+          this.leaving.set(false);
+          this.last.set(view);
+        } else if (this.wasVisible && !this.reducedMotion) {
+          this.leaving.set(true);
+          this.clearLeave();
+          this.leaveId = setTimeout(() => this.leaving.set(false), BAR_LEAVE_MS);
+        }
+        this.wasVisible = visible;
+      });
+    });
   }
 
   ngOnDestroy(): void {
+    this.clearLeave();
     document.documentElement.style.removeProperty(BAR_SPACE_PROPERTY);
+  }
+
+  private clearLeave(): void {
+    if (this.leaveId) {
+      clearTimeout(this.leaveId);
+      this.leaveId = null;
+    }
   }
 
   protected resume(): void {

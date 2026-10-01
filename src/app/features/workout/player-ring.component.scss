@@ -1,0 +1,209 @@
+
+@use './player-parts' as parts;
+
+:host {
+  display: block;
+  flex: none;
+}
+
+.ring {
+  --ring: var(--ring-size, 128px);
+  position: relative;
+  width: var(--ring);
+  height: var(--ring);
+}
+
+@container (min-width: 720px) {
+  .ring {
+    --ring: var(--ring-size, 200px);
+  }
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+circle {
+  fill: none;
+  stroke-width: 7;
+}
+
+.track {
+  stroke: var(--border);
+}
+
+.arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition:
+    stroke-dasharray 1s linear,
+    stroke var(--motion-base, 220ms) ease-out;
+
+  &.slate {
+    stroke: var(--slate-500);
+  }
+
+  // A round cap draws a dot even at zero length, so an empty ring hides its arc.
+  &.empty {
+    stroke-opacity: 0;
+  }
+
+  // A rest that was lengthened grows its arc back with an ease instead of a second of linear travel.
+  .grow & {
+    transition-duration: var(--motion-slow, 300ms), var(--motion-base, 220ms);
+    transition-timing-function: ease-out;
+  }
+
+  // The last seconds of a timed set: a deeper green.
+  .urgent &:not(.slate) {
+    stroke: var(--green-800);
+  }
+
+  // One full turn for every figure of the countdown.
+  &.sweeping {
+    stroke-dasharray: 100 100;
+  }
+}
+
+.still .arc,
+.still .arc.sweeping {
+  transition: none;
+  animation: none;
+}
+
+.centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.figure {
+  font-family: var(--font-display);
+  font-size: calc(var(--ring) * var(--fit, 0.28));
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+// The target of a count is part of the same figure, smaller, on the same baseline.
+.of {
+  font-size: 0.55em;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+}
+
+// Each figure of the countdown pops in; in the last seconds the figure pulses once a second.
+@each $turn in a, b {
+  .sweeping.#{$turn} {
+    animation: sweep-#{$turn} 1s linear forwards;
+  }
+
+  .figure.pop.#{$turn} {
+    animation: pop-#{$turn} var(--motion-base, 220ms) ease-out;
+  }
+
+  .figure.pulse.#{$turn} {
+    animation: pulse-#{$turn} 1s ease-in-out;
+  }
+}
+
+.caption {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+@include parts.twin-keyframes(sweep) {
+  to {
+    stroke-dasharray: 0 100;
+  }
+}
+
+@include parts.twin-keyframes(pop) {
+  from {
+    opacity: 0;
+    transform: scale(var(--motion-pop, 0.6));
+  }
+}
+
+@include parts.twin-keyframes(pulse) {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc,
+  .figure.pulse {
+    transition: none;
+    animation: none;
+  }
+
+  .sweeping {
+    animation: none;
+  }
+}
+
+// A set that was just done: a full ring, a check drawn into it and one ripple going out.
+.done .arc {
+  stroke-dasharray: 100 100;
+}
+
+.check {
+  width: 44%;
+  height: 44%;
+  overflow: visible;
+  transform: none;
+
+  path {
+    fill: none;
+    stroke: var(--green-800);
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 100;
+    animation: draw-check var(--motion-slow, 300ms) var(--motion-ease, ease-out) 120ms backwards;
+  }
+}
+
+.ripple {
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--green-200);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ripple-out 900ms ease-out;
+}
+
+.still .check path,
+.still .ripple {
+  animation: none;
+}
+
+@keyframes draw-check {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes ripple-out {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
