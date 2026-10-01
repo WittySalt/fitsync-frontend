@@ -133,7 +133,9 @@
       </div>
     </div>
 
-    @if (showTodayRow()) {
+    @if (showFirstSessions()) {
+      <app-first-sessions (planStarted)="onPlanStarted()" />
+    } @else if (showTodayRow()) {
       <app-today-row
         [today]="todayInsight()!"
         [todayDay]="todayDayEntry()"
