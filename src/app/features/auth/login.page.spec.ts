@@ -1,22 +1,42 @@
+import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService, PendingDeletion } from '../../core/auth/auth.service';
 import { LoginPage } from './login.page';
 
 describe('LoginPage', () => {
   let fixture: ComponentFixture<LoginPage>;
   let authService: jasmine.SpyObj<AuthService>;
+  let pendingDeletion: WritableSignal<PendingDeletion | null>;
+  let canCancel: WritableSignal<boolean>;
   let router: Router;
 
   beforeEach(async () => {
+    pendingDeletion = signal<PendingDeletion | null>(null);
+    canCancel = signal(false);
     authService = jasmine.createSpyObj<AuthService>(
       'AuthService',
-      ['signIn', 'signUp', 'confirmSignUp', 'resendConfirmationCode', 'forgotPassword', 'confirmForgotPassword', 'beginSocialSignIn'],
-      { socialSignInEnabled: false }
+      [
+        'signIn',
+        'signUp',
+        'confirmSignUp',
+        'resendConfirmationCode',
+        'forgotPassword',
+        'confirmForgotPassword',
+        'beginSocialSignIn',
+        'cancelAccountDeletion',
+        'dismissPendingDeletion'
+      ],
+      { socialSignInEnabled: false, pendingDeletion, canCancelAccountDeletion: canCancel }
     );
+    authService.cancelAccountDeletion.and.returnValue(of(void 0));
+    authService.dismissPendingDeletion.and.callFake(() => {
+      pendingDeletion.set(null);
+      canCancel.set(false);
+    });
     authService.signIn.and.returnValue(of(void 0));
     authService.signUp.and.returnValue(of(void 0));
     authService.confirmSignUp.and.returnValue(of(void 0));
@@ -266,6 +286,100 @@ describe('LoginPage', () => {
 
     expect(component.error()).toBe('Reset request failed.');
     expect(component.loading()).toBeNull();
+  });
+
+  describe('when the account is scheduled for deletion', () => {
+    const element = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const button = (label: string): HTMLButtonElement | undefined =>
+      Array.from(element().querySelectorAll<HTMLButtonElement>('.deletion-notice button')).find((candidate) => candidate.textContent?.trim().startsWith(label));
+
+    function showNotice(held: boolean): void {
+      pendingDeletion.set({ scheduledFor: '2026-10-31T12:00:00Z' });
+      canCancel.set(held);
+      fixture.detectChanges();
+    }
+
+    it('replaces the sign-in form with the notice and the date', () => {
+      showNotice(true);
+
+      const notice = element().querySelector('.deletion-notice');
+      expect(notice?.getAttribute('role')).toBe('status');
+      expect(notice?.querySelector('h1')?.textContent).toContain('This account is scheduled for deletion');
+      expect(notice?.textContent).toContain('It will be removed on 31 Oct 2026.');
+      expect(notice?.textContent).not.toContain('Sign in again within that time');
+      expect(element().querySelector('form')).toBeNull();
+      expect(button('Keep my account')).toBeDefined();
+      expect(button('Back to sign in')).toBeDefined();
+    });
+
+    it('moves focus to the notice heading', () => {
+      showNotice(true);
+
+      expect(document.activeElement).toBe(element().querySelector('.deletion-notice h1'));
+    });
+
+    it('leaves the date sentence out when there is no date', () => {
+      pendingDeletion.set({ scheduledFor: null });
+      canCancel.set(true);
+      fixture.detectChanges();
+
+      expect(element().querySelector('.deletion-notice')?.textContent).not.toContain('It will be removed');
+    });
+
+    it('keeps the account and continues as a sign-in does', () => {
+      showNotice(true);
+
+      button('Keep my account')?.click();
+
+      expect(authService.cancelAccountDeletion).toHaveBeenCalled();
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard');
+      expect(fixture.componentInstance.loading()).toBeNull();
+    });
+
+    it('shows the busy state while the account is being restored', () => {
+      authService.cancelAccountDeletion.and.returnValue(NEVER);
+      showNotice(true);
+
+      button('Keep my account')?.click();
+      fixture.detectChanges();
+
+      const keep = button('Keeping');
+      expect(keep?.disabled).toBeTrue();
+      expect(keep?.getAttribute('aria-busy')).toBe('true');
+      expect(button('Back to sign in')?.disabled).toBeTrue();
+    });
+
+    it('shows the failure and leaves the notice in place', () => {
+      authService.cancelAccountDeletion.and.returnValue(throwError(() => new Error('The account could not be restored. Try again.')));
+      showNotice(true);
+
+      button('Keep my account')?.click();
+      fixture.detectChanges();
+
+      expect(element().textContent).toContain('The account could not be restored. Try again.');
+      expect(button('Keep my account')?.disabled).toBeFalse();
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('offers no primary button when the notice was handed over from settings', () => {
+      showNotice(false);
+
+      expect(button('Keep my account')).toBeUndefined();
+      const text = (element().querySelector('.deletion-notice')?.textContent ?? '').replace(/\s+/g, ' ');
+      expect(text).toContain('It will be removed on 31 Oct 2026. Sign in again within that time to keep it.');
+    });
+
+    it('goes back to the sign-in form', () => {
+      showNotice(true);
+
+      button('Back to sign in')?.click();
+      fixture.detectChanges();
+
+      expect(authService.dismissPendingDeletion).toHaveBeenCalled();
+      expect(element().querySelector('.deletion-notice')).toBeNull();
+      expect(element().querySelector('form')).not.toBeNull();
+      expect(element().textContent).toContain('Sign in to FitSync');
+    });
   });
 
   it('validates and confirms a new password, then returns to sign-in', () => {

@@ -150,6 +150,8 @@ export interface AccountDataExportRequestView {
 export interface AccountDeletionStatus {
   status: 'NOT_REQUESTED' | 'REQUESTED' | string;
   requestedAt: string | null;
+  /** When the data is removed. The service always fills it, with null while nothing is pending. */
+  scheduledFor?: string | null;
   passwordConfirmationRequired: boolean;
 }
 
@@ -315,14 +317,16 @@ export class AccountDataService {
   }
 
   getAccountDeletionStatus(): Observable<AccountDeletionStatus> {
-    return this.http.get<AccountDeletionStatus>(`${this.apiBaseUrl}/auth/account-deletion`);
+    return this.http.get<AccountDeletionStatus>(`${this.apiBaseUrl}/auth/account-deletion`).pipe(map(withScheduledFor));
   }
 
   requestAccountDeletion(confirmationText: string, currentPassword: string | null): Observable<AccountDeletionStatus> {
-    return this.http.post<AccountDeletionStatus>(`${this.apiBaseUrl}/auth/account-deletion/request`, {
-      confirmationText,
-      currentPassword
-    });
+    return this.http
+      .post<AccountDeletionStatus>(`${this.apiBaseUrl}/auth/account-deletion/request`, {
+        confirmationText,
+        currentPassword
+      })
+      .pipe(map(withScheduledFor));
   }
 
   toAccountSummary(data: AccountCenterData): AccountSummary {
@@ -353,6 +357,20 @@ export class AccountDataService {
     this.currentUser$ = undefined;
     this.profileSummary$ = undefined;
   }
+}
+
+function withScheduledFor(status: AccountDeletionStatus): AccountDeletionStatus {
+  return { ...status, scheduledFor: status.scheduledFor ?? null };
+}
+
+/** "31 Oct 2026" for an instant, in the browser's timezone, or an empty string when it is not a date. */
+export function formatDeletionDate(instant: string | null | undefined): string {
+  const date = instant ? new Date(instant) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return '';
+  }
+  // en-GB's short September is "Sept" on current ICU data but has differed between versions.
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date).replace(/\bSep\b/, 'Sept');
 }
 
 export function initialsFor(displayName: string): string {

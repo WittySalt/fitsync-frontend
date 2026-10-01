@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import {
@@ -17,6 +17,7 @@ describe('SettingsPage', () => {
   let authService: jasmine.SpyObj<AuthService>;
   let accountDataService: jasmine.SpyObj<AccountDataService>;
   let toast: jasmine.SpyObj<ToastService>;
+  let router: Router;
 
   const accountData: AccountCenterData = {
     user: {
@@ -150,7 +151,9 @@ describe('SettingsPage', () => {
       'logout',
       'changePassword',
       'signOutEverywhere',
-      'deleteAccount'
+      'deleteAccount',
+      'noteDeletionRequested',
+      'completeLogout'
     ]);
     accountDataService = jasmine.createSpyObj<AccountDataService>(
       'AccountDataService',
@@ -165,7 +168,8 @@ describe('SettingsPage', () => {
         'updateRecoveryEmail',
         'requestDataExport',
         'downloadDataExport',
-        'requestAccountDeletion'
+        'requestAccountDeletion',
+        'invalidateCurrentUser'
       ]
     );
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
@@ -197,6 +201,8 @@ describe('SettingsPage', () => {
       ]
     }).compileComponents();
 
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
     fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
   });
@@ -499,7 +505,63 @@ describe('SettingsPage', () => {
     component.requestAccountDeletion();
 
     expect(accountDataService.requestAccountDeletion).toHaveBeenCalledWith('DELETE', 'password123');
-    expect(toast.success).toHaveBeenCalledWith('Account deletion request submitted.');
+    expect(authService.completeLogout).toHaveBeenCalled();
+  });
+
+  it('signs out after a deletion request and hands the date to the sign-in page', () => {
+    const component = fixture.componentInstance;
+    accountDataService.requestAccountDeletion.and.returnValue(of({
+      status: 'REQUESTED',
+      requestedAt: '2026-10-01T08:00:00Z',
+      scheduledFor: '2026-10-31T12:00:00Z',
+      passwordConfirmationRequired: false
+    }));
+
+    component.deletionForm.patchValue({ confirmationText: 'DELETE', currentPassword: '' });
+    component.requestAccountDeletion();
+
+    expect(authService.noteDeletionRequested).toHaveBeenCalledWith('2026-10-31T12:00:00Z');
+    expect(authService.completeLogout).toHaveBeenCalled();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/login');
+    expect(accountDataService.invalidateCurrentUser).toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(component.saving()).toBeNull();
+  });
+
+  it('says what happens before any request and names the submit button plainly', () => {
+    const component = fixture.componentInstance;
+    component.selectedSection.set('privacy-data');
+    component.startEdit('delete');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const submit = element.querySelector<HTMLButtonElement>('.danger-zone button.danger');
+    expect(element.querySelector('.danger-zone')?.textContent).toContain('Your account is closed at once and your data is removed after 30 days.');
+    expect(submit?.textContent?.trim()).toBe('Delete my account');
+    expect(element.querySelector('.danger-zone')?.textContent).not.toContain('Submit deletion request');
+  });
+
+  it('shows the scheduled date and a sign-out button instead of the form when a deletion is pending', () => {
+    const component = fixture.componentInstance;
+    component.data.set({
+      ...accountData,
+      accountDeletion: {
+        status: 'REQUESTED',
+        requestedAt: '2026-10-01T08:00:00Z',
+        scheduledFor: '2026-10-31T12:00:00Z',
+        passwordConfirmationRequired: false
+      }
+    });
+    component.selectedSection.set('privacy-data');
+    fixture.detectChanges();
+
+    const zone = (fixture.nativeElement as HTMLElement).querySelector('.danger-zone');
+    expect(zone?.textContent).toContain('This account is scheduled for deletion on 31 Oct 2026.');
+    expect(zone?.querySelector('form')).toBeNull();
+    expect(zone?.querySelector('button.danger-action')).toBeNull();
+    const signOut = Array.from(zone?.querySelectorAll('button') ?? []).find((candidate) => candidate.textContent?.trim() === 'Sign out');
+    signOut?.click();
+    expect(authService.logout).toHaveBeenCalled();
   });
 
   it('uses the single privacy account deletion flow', () => {

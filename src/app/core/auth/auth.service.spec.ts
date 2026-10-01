@@ -529,6 +529,175 @@ describe('AuthService', () => {
     httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush('plain Cognito error', { status: 400, statusText: 'Bad Request' });
   });
 
+  describe('an account scheduled for deletion', () => {
+    const CANCEL_URL = '/api/v1/auth/account-deletion/cancel';
+    const BOOTSTRAP_URL = '/api/v1/auth/bootstrap';
+    const scheduledFor = '2026-10-31T08:00:00Z';
+    let errors: string[];
+    let completed: boolean;
+
+    const pendingBody = { status: 403, error: 'Forbidden', code: 'ACCOUNT_DELETION_PENDING', data: { requestedAt: '2026-10-01T08:00:00Z', scheduledFor } };
+
+    function credentials(): { access: string; identity: string; refresh: string } {
+      const suffix = 'pending-' + String(Math.random()).slice(2, 8);
+      return { access: `a-${suffix}`, identity: `i-${suffix}`, refresh: `r-${suffix}` };
+    }
+
+    /** Signs in and answers the identity provider, then returns the pending bootstrap request. */
+    function startSignIn(creds: { access: string; identity: string; refresh: string }) {
+      completed = false;
+      service.signIn('sam@example.com', 'supersecret').subscribe({
+        complete: () => (completed = true),
+        error: (error: Error) => errors.push(error.message)
+      });
+      httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush({
+        AuthenticationResult: { AccessToken: creds.access, IdToken: creds.identity, RefreshToken: creds.refresh, ExpiresIn: 300 }
+      });
+      return httpMock.expectOne(BOOTSTRAP_URL);
+    }
+
+    function holdPendingAccount(creds: { access: string; identity: string; refresh: string }): void {
+      startSignIn(creds).flush(pendingBody, { status: 403, statusText: 'Forbidden' });
+    }
+
+    function storageIsClean(): boolean {
+      return [
+        AUTH_STORAGE_KEYS.accessToken,
+        AUTH_STORAGE_KEYS.expiresAt,
+        AUTH_STORAGE_KEYS.cognitoAccessToken,
+        AUTH_STORAGE_KEYS.cognitoIdToken,
+        AUTH_STORAGE_KEYS.cognitoRefreshToken
+      ].every((key) => localStorage.getItem(key) === null);
+    }
+
+    beforeEach(() => {
+      errors = [];
+    });
+
+    it('holds the sign-in, publishes the date and leaves no session or stored Cognito values', () => {
+      holdPendingAccount(credentials());
+
+      expect(service.pendingDeletion()).toEqual({ scheduledFor });
+      expect(service.canCancelAccountDeletion()).toBeTrue();
+      expect(completed).toBeTrue();
+      expect(errors).toEqual([]);
+      expect(service.isAuthenticated()).toBeFalse();
+      expect(storageIsClean()).toBeTrue();
+    });
+
+    it('sets the date to null when the refusal carries none', () => {
+      startSignIn(credentials()).flush({ code: 'ACCOUNT_DELETION_PENDING' }, { status: 403, statusText: 'Forbidden' });
+
+      expect(service.pendingDeletion()).toEqual({ scheduledFor: null });
+    });
+
+    it('treats a 403 without the deletion code as an ordinary failure', () => {
+      startSignIn(credentials()).flush({ message: 'Forbidden', code: 'OTHER' }, { status: 403, statusText: 'Forbidden' });
+
+      expect(service.pendingDeletion()).toBeNull();
+      expect(service.canCancelAccountDeletion()).toBeFalse();
+      expect(errors).toEqual(['Forbidden']);
+      expect(storageIsClean()).toBeTrue();
+    });
+
+    it('cancels with the held identity value in the header and no body, then signs in', () => {
+      const creds = credentials();
+      const applicationJwt = jwtWithExpiry(Math.floor((Date.now() + 3_600_000) / 1000));
+      holdPendingAccount(creds);
+      let done = false;
+
+      service.cancelAccountDeletion().subscribe({ complete: () => (done = true) });
+
+      const cancel = httpMock.expectOne(CANCEL_URL);
+      expect(cancel.request.method).toBe('POST');
+      expect(cancel.request.body).toBeNull();
+      expect(cancel.request.headers.get('Authorization')).toBe(`Bearer ${creds.identity}`);
+      cancel.flush({ status: 'NOT_REQUESTED', requestedAt: null, scheduledFor: null, passwordConfirmationRequired: false });
+
+      const bootstrap = httpMock.expectOne(BOOTSTRAP_URL);
+      expect(bootstrap.request.headers.get('Authorization')).toBe(`Bearer ${creds.identity}`);
+      bootstrap.flush({ accessToken: applicationJwt, tokenType: 'Bearer' });
+
+      expect(done).toBeTrue();
+      expect(service.isAuthenticated()).toBeTrue();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.cognitoIdToken)).toBe(creds.identity);
+      expect(service.pendingDeletion()).toBeNull();
+      expect(service.canCancelAccountDeletion()).toBeFalse();
+    });
+
+    it('clears the held values and reports the final message on a 409', () => {
+      holdPendingAccount(credentials());
+
+      service.cancelAccountDeletion().subscribe({ error: (error: Error) => errors.push(error.message) });
+      httpMock.expectOne(CANCEL_URL).flush({ code: 'ACCOUNT_DELETION_FINAL' }, { status: 409, statusText: 'Conflict' });
+
+      expect(errors).toEqual(['This account can no longer be restored.']);
+      expect(service.pendingDeletion()).toBeNull();
+      expect(service.canCancelAccountDeletion()).toBeFalse();
+      service.cancelAccountDeletion().subscribe({ error: (error: Error) => errors.push(error.message) });
+      httpMock.expectNone(CANCEL_URL);
+      expect(errors.length).toBe(2);
+    });
+
+    it('keeps the held values after a network failure so the person can try again', () => {
+      const creds = credentials();
+      holdPendingAccount(creds);
+
+      service.cancelAccountDeletion().subscribe({ error: (error: Error) => errors.push(error.message) });
+      httpMock.expectOne(CANCEL_URL).error(new ProgressEvent('network error'), { status: 0, statusText: 'Unknown Error' });
+
+      expect(errors).toEqual(['The account could not be restored. Try again.']);
+      expect(service.pendingDeletion()).toEqual({ scheduledFor });
+      expect(service.canCancelAccountDeletion()).toBeTrue();
+      expect(storageIsClean()).toBeTrue();
+
+      service.cancelAccountDeletion().subscribe();
+      expect(httpMock.expectOne(CANCEL_URL).request.headers.get('Authorization')).toBe(`Bearer ${creds.identity}`);
+    });
+
+    it('keeps the held values when the bootstrap after a cancel fails', () => {
+      holdPendingAccount(credentials());
+
+      service.cancelAccountDeletion().subscribe({ error: (error: Error) => errors.push(error.message) });
+      httpMock.expectOne(CANCEL_URL).flush({}, { status: 200, statusText: 'OK' });
+      httpMock.expectOne(BOOTSTRAP_URL).flush({}, { status: 500, statusText: 'Server Error' });
+
+      expect(errors).toEqual(['The account could not be restored. Try again.']);
+      expect(service.canCancelAccountDeletion()).toBeTrue();
+      expect(storageIsClean()).toBeTrue();
+    });
+
+    it('drops the held values and the notice when dismissed', () => {
+      holdPendingAccount(credentials());
+
+      service.dismissPendingDeletion();
+
+      expect(service.pendingDeletion()).toBeNull();
+      expect(service.canCancelAccountDeletion()).toBeFalse();
+      service.cancelAccountDeletion().subscribe({ error: (error: Error) => errors.push(error.message) });
+      httpMock.expectNone(CANCEL_URL);
+      expect(errors).toEqual(['Sign in again to keep this account.']);
+    });
+
+    it('drops the held values when another sign-in starts', () => {
+      holdPendingAccount(credentials());
+
+      service.signIn('other@example.com', 'supersecret').subscribe({ error: () => undefined });
+
+      expect(service.pendingDeletion()).toBeNull();
+      expect(service.canCancelAccountDeletion()).toBeFalse();
+      httpMock.expectOne(COGNITO_AUTH_CONFIG.apiEndpoint).flush({}, { status: 500, statusText: 'Server Error' });
+    });
+
+    it('notes a requested deletion for the sign-in page without holding anything to restore it with', () => {
+      service.noteDeletionRequested(scheduledFor);
+      service.completeLogout();
+
+      expect(service.pendingDeletion()).toEqual({ scheduledFor });
+      expect(service.canCancelAccountDeletion()).toBeFalse();
+    });
+  });
+
   function jwtWithExpiry(exp: number): string {
     return ['header', base64Url(JSON.stringify({ exp })), 'signature'].join('.');
   }

@@ -205,7 +205,9 @@
               </dl>
               <div class="plan-actions">
                 <button class="button secondary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="editPlan(plan)">Edit</button>
-                <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ACTIVE' || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
+                @if (plan.status !== 'ACTIVE') {
+                  <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
+                }
                 <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
                 <button class="button primary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
               </div>

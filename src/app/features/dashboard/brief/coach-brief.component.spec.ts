@@ -161,6 +161,14 @@ describe('CoachBriefComponent', () => {
     expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith('Asia/Singapore');
   });
 
+  it('shows the week title without a week and month switch', () => {
+    setup();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.week-title')?.textContent?.trim()).toBe('This week');
+    expect(element.querySelector('.week-switch')).toBeNull();
+    expect(Array.from(element.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Month')).toBeFalse();
+  });
+
   it('lists what the coach noticed under the week strip', () => {
     setup();
     const facts = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.noticed-fact')).map((node) => node.textContent?.trim());

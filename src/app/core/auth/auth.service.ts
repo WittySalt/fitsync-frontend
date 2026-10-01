@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { EMPTY, catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
 import {
   AUTH_STORAGE_KEYS,
@@ -33,13 +33,41 @@ interface BootstrapAuthResponse {
   tokenType: string;
 }
 
+/** An account whose deletion is scheduled. The date is null when the backend did not send one. */
+export interface PendingDeletion {
+  scheduledFor: string | null;
+}
+
+const DELETION_PENDING_CODE = 'ACCOUNT_DELETION_PENDING';
+
+function deletionPendingFrom(error: HttpErrorResponse | Error): PendingDeletion | null {
+  if (!(error instanceof HttpErrorResponse) || error.status !== 403) {
+    return null;
+  }
+  const body = error.error as { code?: unknown; data?: { scheduledFor?: unknown } | null } | null;
+  if (body?.code !== DELETION_PENDING_CODE) {
+    return null;
+  }
+  const scheduledFor = body.data?.scheduledFor;
+  return { scheduledFor: typeof scheduledFor === 'string' ? scheduledFor : null };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly config = COGNITO_AUTH_CONFIG;
   private sessionBootstrap$?: Observable<boolean>;
+  // The Cognito tokens of an account that was refused a session because its deletion is pending.
+  // They stay in memory only, so that the person can keep the account without signing in again.
+  private pendingDeletionTokens: CognitoTokenSet | null = null;
 
   readonly authError = signal<string | null>(null);
+
+  /** Set while a sign-in is held back because the account is scheduled for deletion. */
+  readonly pendingDeletion = signal<PendingDeletion | null>(null);
+
+  /** Whether the account can be restored from here, which needs the tokens of a sign-in made in this page. */
+  readonly canCancelAccountDeletion = signal(false);
 
   // The current-user response is the trusted source for the role. The role claim of the stored
   // application token covers the moment before that response has arrived, on a reload for example.
@@ -108,7 +136,9 @@ export class AuthService {
 
   signIn(email: string, password: string): Observable<void> {
     this.authError.set(null);
+    this.dismissPendingDeletion();
     this.clearSession();
+    let signedInTokens: CognitoTokenSet | null = null;
 
     return this.cognitoPost<InitiateAuthResponse>('InitiateAuth', {
       AuthFlow: 'USER_PASSWORD_AUTH',
@@ -128,14 +158,70 @@ export class AuthService {
           return throwError(() => new Error('Cognito did not return the required tokens.'));
         }
 
+        signedInTokens = tokens;
         this.storeCognitoTokens(tokens);
         return this.bootstrapWithCognitoToken(tokens.IdToken);
       }),
       catchError((error: HttpErrorResponse | Error) => {
         this.clearSession();
+        const pending = deletionPendingFrom(error);
+        if (pending && signedInTokens) {
+          // The sign-in itself worked, so the person is not shown an error. They are asked whether to keep the account.
+          this.pendingDeletionTokens = signedInTokens;
+          this.canCancelAccountDeletion.set(true);
+          this.pendingDeletion.set(pending);
+          return EMPTY;
+        }
         return throwError(() => new Error(this.authErrorMessage(error)));
       })
     );
+  }
+
+  /** Remembers that the account just asked to be deleted, for the sign-in page to explain. No tokens are kept. */
+  noteDeletionRequested(scheduledFor: string | null): void {
+    this.dismissPendingDeletion();
+    this.pendingDeletion.set({ scheduledFor });
+  }
+
+  /**
+   * Restores an account whose deletion is pending and signs the person in. The held Cognito tokens are
+   * dropped once the account is restored or can no longer be, and kept after any other failure so the
+   * person can try again.
+   */
+  cancelAccountDeletion(): Observable<void> {
+    const tokens = this.pendingDeletionTokens;
+    if (!tokens?.IdToken) {
+      return throwError(() => new Error('Sign in again to keep this account.'));
+    }
+    const identityToken = tokens.IdToken;
+
+    return this.http
+      .post<unknown>(
+        '/api/v1/auth/account-deletion/cancel',
+        null,
+        { headers: new HttpHeaders({ Authorization: `Bearer ${identityToken}` }) }
+      )
+      .pipe(
+        switchMap(() => this.bootstrapWithCognitoToken(identityToken)),
+        tap(() => {
+          this.storeCognitoTokens(tokens);
+          this.dismissPendingDeletion();
+        }),
+        catchError((error: HttpErrorResponse | Error) => {
+          if (error instanceof HttpErrorResponse && error.status === 409) {
+            this.dismissPendingDeletion();
+            return throwError(() => new Error('This account can no longer be restored.'));
+          }
+          return throwError(() => new Error('The account could not be restored. Try again.'));
+        })
+      );
+  }
+
+  /** Drops the held tokens and the notice, for the person who goes back to the sign-in form. */
+  dismissPendingDeletion(): void {
+    this.pendingDeletionTokens = null;
+    this.canCancelAccountDeletion.set(false);
+    this.pendingDeletion.set(null);
   }
 
   signUp(email: string, password: string, displayName: string): Observable<void> {

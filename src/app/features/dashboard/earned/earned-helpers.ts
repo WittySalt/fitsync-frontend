@@ -158,15 +158,19 @@ export function toBadgeViews(list: readonly AnalyticsAchievement[], timezone: st
   });
 }
 
-/** How this week's training time compares with last week's, in whole percent. Nothing is said
- *  when either week is empty, because a percentage against zero means nothing. */
+/**
+ * How this week's training time so far compares with last week's up to the same weekday, in whole
+ * percent, since the figures are week to date. Nothing is said when either week is empty, because
+ * a percentage against zero means nothing, and nothing is said when this week is behind: the
+ * section cheers what is done and never presses about what is not.
+ */
 export function comparisonLine(thisWeek: number | null | undefined, lastWeek: number | null | undefined): string {
   if (!thisWeek || !lastWeek || thisWeek <= 0 || lastWeek <= 0 || !Number.isFinite(thisWeek) || !Number.isFinite(lastWeek)) {
     return '';
   }
   const percent = Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
   if (percent === 0) {
-    return 'the same as last week';
+    return 'the same as by this day last week';
   }
-  return percent > 0 ? `${percent}% more than last week` : `${Math.abs(percent)}% less than last week`;
+  return percent > 0 ? `${percent}% more than by this day last week` : '';
 }

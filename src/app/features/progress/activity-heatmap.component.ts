@@ -10,6 +10,8 @@ import { SessionDetailComponent } from '../workout/session-detail.component';
 type ActivityPresetKey = 'week' | 'month' | 'quarter' | 'year';
 type ActivityHeatmapVariant = 'full' | 'compact';
 
+const COMPACT_ROLLING_WEEKS = 5;
+
 export interface ActivityHeatmapRange {
   from: string;
   to: string;
@@ -134,7 +136,14 @@ export class ActivityHeatmapComponent implements OnInit {
   readonly weekBlocks = computed(() => this.resolveWeekBlocks());
   readonly allDaySessions = computed(() => this.resolveAllDaySessions());
   readonly monthDays = computed(() => this.buildMonthCalendarDays(this.selectedDate()));
-  readonly compactMonth = computed(() => this.buildMonthHeatmap(this.parseIsoDate(this.startDate())));
+  // Without a range from its host the compact card shows the five weeks that end with this one. A
+  // calendar month is empty on its first days, which reads as if the history were gone.
+  private readonly compactRolling = signal(false);
+  readonly compactMonth = computed(() =>
+    this.compactRolling()
+      ? this.buildWeeksHeatmap(this.parseIsoDate(this.startDate()), COMPACT_ROLLING_WEEKS)
+      : this.buildMonthHeatmap(this.parseIsoDate(this.startDate()))
+  );
   readonly compactWorkoutCount = computed(() => this.days().reduce((total, day) => total + day.workoutCount, 0));
   readonly compactWorkoutMinutes = computed(() => this.days().reduce((total, day) => total + day.workoutMinutes, 0));
   readonly hasCompactActivity = computed(() => this.compactWorkoutCount() > 0 || this.compactWorkoutMinutes() > 0);
@@ -349,34 +358,33 @@ export class ActivityHeatmapComponent implements OnInit {
   }
 
   private configureCompactRange(): void {
-    const range = this.range ?? this.currentMonthRange();
+    const range = this.range ?? this.rollingWeeksRange();
+    this.compactRolling.set(this.range === null);
     this.selectedPreset.set('month');
     this.selectedDate.set(this.parseIsoDate(range.from));
     this.startDate.set(range.from);
     this.endDate.set(range.to);
   }
 
-  private currentMonthRange(): ActivityHeatmapRange {
-    const parts = new Intl.DateTimeFormat('en-SG', {
-      timeZone: this.timezone || 'Asia/Singapore',
-      year: 'numeric',
-      month: '2-digit'
-    })
-      .formatToParts(new Date())
-      .reduce<Record<string, string>>((acc, part) => {
-        if (part.type !== 'literal') {
-          acc[part.type] = part.value;
-        }
-        return acc;
-      }, {});
-    const year = Number(parts['year']);
-    const month = Number(parts['month']);
-    const lastDay = new Date(year, month, 0).getDate();
+  /** Monday of the week four weeks back to Sunday of this week, in the profile's timezone. */
+  private rollingWeeksRange(): ActivityHeatmapRange {
+    const today = this.parseIsoDate(this.localDateTimeParts(new Date()).date);
+    const start = this.addDays(this.startOfWeek(today), -7 * (COMPACT_ROLLING_WEEKS - 1));
+    return { from: this.formatIsoDate(start), to: this.formatIsoDate(this.addDays(start, 7 * COMPACT_ROLLING_WEEKS - 1)) };
+  }
 
-    return {
-      from: `${year}-${String(month).padStart(2, '0')}-01`,
-      to: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    };
+  private buildWeeksHeatmap(start: Date, weekCount: number): MonthHeatmap {
+    const cursor = new Date(start);
+    const weeks: CalendarDay[][] = [];
+    for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
+      const week: CalendarDay[] = [];
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+        week.push(this.calendarDay(this.formatIsoDate(cursor), true));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      weeks.push(week);
+    }
+    return { label: 'Last five weeks', weeks };
   }
 
   private moveEventPeriod(date: Date): void {

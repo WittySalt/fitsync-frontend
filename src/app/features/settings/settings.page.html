@@ -364,18 +364,24 @@
           </article>
           <article class="sub-card danger-zone">
             <div class="sub-card-header"><h3>Delete account</h3></div>
-            @if (sectionErrors().delete; as message) { <p class="section-error">{{ message }}</p> }
-            <div class="field-row readonly"><span>Deletion status</span><strong>{{ labelFor(account.accountDeletion.status) }}{{ account.accountDeletion.requestedAt ? ' - ' + displayDateTime(account.accountDeletion.requestedAt) : '' }}</strong><em>{{ account.accountDeletion.passwordConfirmationRequired ? 'Password required' : 'Confirmation required' }}</em></div>
-            <p class="settings-help danger-help">Requesting deletion starts the FitSync account deletion flow. Until backend cascade is enabled, export your account data first.</p>
-            @if (editPanel() !== 'delete') {
-              <button class="field-row single-row danger-action" type="button" (click)="startEdit('delete')"><span>Delete account</span><strong>Request account deletion</strong><em>Open</em></button>
-            }
-            @if (editPanel() === 'delete') {
-              <form class="settings-editor single" [formGroup]="deletionForm" (ngSubmit)="requestAccountDeletion()">
-                <label>Confirmation text<input formControlName="confirmationText" /></label>
-                <label>Current password<input type="password" formControlName="currentPassword" /></label>
-                <div class="editor-actions"><button class="button danger" type="submit" [disabled]="saving() === 'delete'">Submit deletion request</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
-              </form>
+            @if (account.accountDeletion.status === 'REQUESTED') {
+              <p class="settings-help">{{ deletionScheduledLine(account.accountDeletion) }}</p>
+              <div class="editor-actions"><button class="button secondary" type="button" (click)="logout()">Sign out</button></div>
+            } @else {
+              <p class="settings-help">{{ deletionGraceLine(account.accountDeletion) }}</p>
+              @if (sectionErrors().delete; as message) { <p class="section-error">{{ message }}</p> }
+              <div class="field-row readonly"><span>Deletion status</span><strong>{{ labelFor(account.accountDeletion.status) }}{{ account.accountDeletion.requestedAt ? ' - ' + displayDateTime(account.accountDeletion.requestedAt) : '' }}</strong><em>{{ account.accountDeletion.passwordConfirmationRequired ? 'Password required' : 'Confirmation required' }}</em></div>
+              <p class="settings-help danger-help">Requesting deletion starts the FitSync account deletion flow. Until backend cascade is enabled, export your account data first.</p>
+              @if (editPanel() !== 'delete') {
+                <button class="field-row single-row danger-action" type="button" (click)="startEdit('delete')"><span>Delete account</span><strong>Request account deletion</strong><em>Open</em></button>
+              }
+              @if (editPanel() === 'delete') {
+                <form class="settings-editor single" [formGroup]="deletionForm" (ngSubmit)="requestAccountDeletion()">
+                  <label>Confirmation text<input formControlName="confirmationText" /></label>
+                  <label>Current password<input type="password" formControlName="currentPassword" /></label>
+                  <div class="editor-actions"><button class="button danger" type="submit" [disabled]="saving() === 'delete'">Delete my account</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+                </form>
+              }
             }
           </article>
         </section>

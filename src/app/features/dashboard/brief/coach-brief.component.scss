@@ -578,6 +578,12 @@ app-muscle-wheel {
     font-size: 10.5px;
   }
 
+  // The word has to sit inside a tile that is about 42 px wide on a phone.
+  .today-text {
+    font-size: 10.5px;
+    letter-spacing: 0;
+  }
+
   .next-session-row {
     padding: 16px;
   }

@@ -50,10 +50,7 @@
         <div class="week-card">
           <div class="week-head">
             <span class="week-title">This week</span>
-            <div class="week-switch" role="group" aria-label="Week or month">
-              <button type="button" class="switch-tab active" aria-pressed="true">Week</button>
-              <button type="button" class="switch-tab" aria-pressed="false" disabled aria-disabled="true">Month</button>
-            </div>
+            <!-- The month view brings the week and month switch back. -->
           </div>
           <div class="week-strip" role="img" [attr.aria-label]="weekAriaLabel()">
             @for (day of week(); track day.dateKey) {
