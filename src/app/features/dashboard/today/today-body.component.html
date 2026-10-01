@@ -21,6 +21,17 @@
     </dl>
   }
 
+  @if (trendState() === 'loading') {
+    <div class="skeleton trend-skeleton" aria-hidden="true"></div>
+  } @else if (chartInsight(); as insight) {
+    <div class="trend">
+      <app-today-weight-chart [insight]="insight" />
+      @if (sentence()) {
+        <p class="sentence">{{ sentence() }}</p>
+      }
+    </div>
+  }
+
   <a class="action quiet" routerLink="/body">All measurements</a>
 } @else {
   <p class="nothing">No measurement yet</p>

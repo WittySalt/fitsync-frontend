@@ -1,24 +1,41 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { defer, Subscription } from 'rxjs';
 
-import { BodyMetric } from '../../../core/fitsync.models';
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { BodyMetric, ProgressInsight } from '../../../core/fitsync.models';
+import { weightProjection } from '../../../shared/coach/insight/weight-projection.geometry';
 import { oneDecimal, weighedLabel, weightChangeLabel } from './today-format';
+import { TodayWeightChartComponent } from './today-weight-chart.component';
+import { trendSentence } from './today-weight-trend';
 
 interface BodyFigure {
   label: string;
   value: string;
 }
 
+type TrendState = 'loading' | 'ready' | 'none';
+
 @Component({
   selector: 'app-today-body',
-  imports: [RouterLink],
+  imports: [RouterLink, TodayWeightChartComponent],
   templateUrl: './today-body.component.html',
   styleUrl: './today-body.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TodayBodyComponent {
+  private readonly dataService = inject(FitSyncDataService);
+  private readonly destroyRef = inject(DestroyRef);
+  private request: Subscription | null = null;
+
   readonly metric = input.required<BodyMetric | null>();
   readonly now = input.required<Date>();
+  /** The person's timezone, which decides the reference day of the trend. The device's is used without it. */
+  readonly timezone = input<string | null>(null);
+
+  readonly trendState = signal<TrendState>('none');
+  private readonly insight = signal<ProgressInsight | null>(null);
 
   // The dashboard snapshot writes an absent reading as 0, so a zero weight means no weight.
   readonly weightKg = computed(() => {
@@ -42,9 +59,64 @@ export class TodayBodyComponent {
     if (metric?.bodyFatRate != null && metric.bodyFatRate > 0) {
       figures.push({ label: 'Body fat', value: `${oneDecimal(metric.bodyFatRate)}%` });
     }
+    if (metric?.waistCm != null && metric.waistCm > 0) {
+      figures.push({ label: 'Waist', value: `${oneDecimal(metric.waistCm)} cm` });
+    }
     if (metric?.bmi != null && metric.bmi > 0) {
       figures.push({ label: 'BMI', value: oneDecimal(metric.bmi) });
     }
     return figures;
   });
+
+  /** The insight when it has enough weigh-ins to draw, so the chart and its sentence appear together. */
+  readonly chartInsight = computed(() => {
+    const insight = this.insight();
+    return this.trendState() === 'ready' && insight !== null && weightProjection(insight) !== null ? insight : null;
+  });
+  readonly sentence = computed(() => {
+    const insight = this.chartInsight();
+    return insight === null ? '' : trendSentence(insight);
+  });
+
+  constructor() {
+    // The trend is asked for again only when the measurement changes. Without a measurement there
+    // is nothing to chart, so no request is made.
+    const requestKey = computed(() => (this.hasMeasurement() ? `${this.metric()?.measuredAt ?? ''}|${this.weightKg()}` : null));
+    effect(() => {
+      const key = requestKey();
+      untracked(() => (key === null ? this.stop() : this.load()));
+    });
+  }
+
+  private stop(): void {
+    this.request?.unsubscribe();
+    this.request = null;
+    this.insight.set(null);
+    this.trendState.set('none');
+  }
+
+  // The chart is an addition to the figures, so a failed request leaves the figures as they are.
+  private load(): void {
+    this.request?.unsubscribe();
+    this.insight.set(null);
+    this.trendState.set('loading');
+    // The call is deferred so that any failure, even one thrown before a request exists, is caught.
+    this.request = defer(() => this.dataService.getProgressInsight(this.timezone() || deviceTimezone()))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (insight) => {
+          this.insight.set(insight);
+          this.trendState.set('ready');
+        },
+        error: () => this.trendState.set('none')
+      });
+  }
+}
+
+function deviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
 }
