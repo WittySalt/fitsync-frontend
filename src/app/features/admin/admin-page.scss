@@ -182,6 +182,10 @@ table {
 
   tbody th {
     font-weight: var(--fw-semibold);
+    // A row's name is read in full; it wraps where the column is narrow and is never cut short.
+    padding-block: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .num {
