@@ -685,7 +685,7 @@ a:focus-visible {
   .body-snapshot {
     display: grid;
     // Side by side only while each half has room; the sidebar leaves less than the window shows.
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
     gap: 18px;
   }
 

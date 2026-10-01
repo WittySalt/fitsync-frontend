@@ -152,7 +152,7 @@ describe('EarnedComponent', () => {
     expect(root().querySelector('.result-note')?.textContent).not.toContain('last week');
   });
 
-  it('leaves out the comparison when last week was empty, and writes less and the same', () => {
+  it('leaves out the comparison when last week was empty or this week is behind, and writes the same', () => {
     api.getSummaryCompare.and.returnValue(of(compare(60, 0)));
     fixture.detectChanges();
     expect(cardText(0)).toBe("This week's training 1 h");
@@ -161,7 +161,7 @@ describe('EarnedComponent', () => {
     api.getSummaryCompare.and.returnValue(of(compare(100, 120)));
     second.detectChanges();
     expect(second.nativeElement.textContent).toContain('1 h 40 min');
-    expect(second.nativeElement.textContent).toContain('17% less than by this day last week');
+    expect(second.nativeElement.textContent).not.toContain('last week');
 
     const third = TestBed.createComponent(EarnedComponent);
     api.getSummaryCompare.and.returnValue(of(compare(120, 120)));
