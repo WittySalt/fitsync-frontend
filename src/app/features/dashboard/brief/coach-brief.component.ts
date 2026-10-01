@@ -17,6 +17,8 @@ import { CoachNoticedComponent } from './coach-noticed.component';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from './day-kind-icons';
 import { GlyphShape } from './muscle-icons';
 import { MuscleWheelComponent } from './muscle-wheel.component';
+import { FIRST_SESSION_COUNT, FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
+import { FirstSessionsComponent } from './no-plan/first-sessions.component';
 import { TodayRowComponent } from './today-row.component';
 
 /** WORKOUT_FREQUENCY goals track a weekly session count; other goal types don't apply here. */
@@ -25,7 +27,7 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
 @Component({
   selector: 'app-coach-brief',
   standalone: true,
-  imports: [CoachNoticedComponent, FormsModule, MuscleWheelComponent, RouterLink, StatePanelComponent, TodayRowComponent],
+  imports: [CoachNoticedComponent, FirstSessionsComponent, FormsModule, MuscleWheelComponent, RouterLink, StatePanelComponent, TodayRowComponent],
   templateUrl: './coach-brief.component.html',
   styleUrl: './coach-brief.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -36,6 +38,7 @@ export class CoachBriefComponent implements OnInit {
   private readonly coachContext = inject(CoachContextService);
   private readonly router = inject(Router);
   private readonly now = inject(BRIEF_NOW);
+  private readonly firstSessionTemplates = inject(FIRST_SESSION_TEMPLATES);
 
   // Signal inputs, so the copy follows a value that arrives after the first render. The calorie
   // target does exactly that, because the page loads the nutrition summary on its own request.
@@ -188,6 +191,20 @@ export class CoachBriefComponent implements OnInit {
 
   // The row for today replaces the plan-only next-session row once the insight carries `today`;
   // until then, the page looks and behaves exactly as it did before this feature existed.
+  // A person with no plan and an open day is offered three first sessions in place of the row that
+  // only said to pick a plan. Without enough starter templates the row stays as the fallback.
+  readonly showFirstSessions = computed(() => {
+    const today = this.todayInsight();
+    return (
+      this.activePlan() === null &&
+      today !== null &&
+      today.kind === 'OPEN' &&
+      today.source !== 'DONE' &&
+      today.source !== 'IN_PROGRESS' &&
+      today.carriedOver.length === 0 &&
+      this.firstSessionTemplates.length >= FIRST_SESSION_COUNT
+    );
+  });
   readonly showTodayRow = computed(() => this.todayInsight() !== null);
   readonly showNextSession = computed(() => this.todayInsight() === null && this.activePlan() !== null && this.period() !== 'NIGHT');
   // The row for today hides its own start-button rows on the same rule the row it replaces used
@@ -230,13 +247,7 @@ export class CoachBriefComponent implements OnInit {
       }
     });
 
-    this.dataService.getWeeklyTrainingInsight(this.timezone()).subscribe({
-      next: (insight) => {
-        this.insight.set(insight);
-        this.coachContext.setTodayKind(insight.today?.kind ?? null);
-      },
-      error: () => this.insight.set(null)
-    });
+    this.loadInsight();
 
     this.dataService.getGoals().subscribe({
       next: (goals) => {
@@ -247,6 +258,27 @@ export class CoachBriefComponent implements OnInit {
       error: () => this.weeklyTarget.set(null)
     });
 
+    this.loadActivePlan();
+  }
+
+  /** Runs when a first session has just become the active plan. The page stays on screen, and
+   *  only what the plan changes is read again, so the row for today appears without a reload. */
+  onPlanStarted(): void {
+    this.loadInsight();
+    this.loadActivePlan();
+  }
+
+  private loadInsight(): void {
+    this.dataService.getWeeklyTrainingInsight(this.timezone()).subscribe({
+      next: (insight) => {
+        this.insight.set(insight);
+        this.coachContext.setTodayKind(insight.today?.kind ?? null);
+      },
+      error: () => this.insight.set(null)
+    });
+  }
+
+  private loadActivePlan(): void {
     this.dataService.getActivePlan().subscribe({
       next: (plan) => this.activePlan.set(plan),
       // No active plan means no next-session row; that is a valid, quiet state.

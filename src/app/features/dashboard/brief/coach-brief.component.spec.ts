@@ -7,6 +7,7 @@ import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { DayInsight, MuscleGroupCode, NextTraining, TodayInsight, UserGoal, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
 import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
+import { FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
 
 const NOW = new Date('2026-09-27T00:10:00Z'); // Sunday 08:10 in Asia/Singapore
 
@@ -394,8 +395,10 @@ describe('CoachBriefComponent - day-kinds fields', () => {
       'getGoals',
       'getActivePlan',
       'getWeeklyTrainingInsight',
-      'startWorkoutPlan'
+      'startWorkoutPlan',
+      'getOnboardingSeed'
     ]);
+    dataService.getOnboardingSeed.and.returnValue(of({ value: {}, hasExistingBodyBaseline: false, hasExistingTrainingBaseline: false, hasExistingNutritionBaseline: false }));
     dataService.getWorkoutSessionsInRange.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
     coachStore = jasmine.createSpyObj<CoachStore>('CoachStore', ['open', 'ask']);
@@ -478,5 +481,71 @@ describe('CoachBriefComponent - day-kinds fields', () => {
     setup(baseInsight(days, today), 6);
 
     expect(fixture.componentInstance.headline().lines[0]).toBe('Rest day.');
+  });
+
+  describe('without a plan', () => {
+    const openToday: TodayInsight = {
+      date: '2026-09-27',
+      kind: 'OPEN',
+      label: '',
+      source: 'NONE',
+      planDayId: null,
+      title: null,
+      estimatedMinutes: null,
+      moves: null,
+      lastOfKind: null,
+      carriedOver: []
+    };
+
+    function openInsight(): WeeklyTrainingInsight {
+      return baseInsight(WEEK_KEYS.map((key) => dayInsight(key)), openToday);
+    }
+
+    it('offers three first sessions in place of the row that said to pick a plan', () => {
+      setup(openInsight(), null);
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.showFirstSessions()).toBe(true);
+      expect(element.querySelector('app-first-sessions')).toBeTruthy();
+      expect(element.querySelectorAll('app-first-sessions li.card').length).toBe(3);
+      expect(element.querySelector('app-today-row')).toBeNull();
+      expect(element.textContent).not.toContain('Pick a plan');
+    });
+
+    it('does not offer them to a person with a plan', () => {
+      dataService.getActivePlan.and.returnValue(of(activePlan));
+      setup(openInsight(), null);
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.showFirstSessions()).toBe(false);
+      expect(element.querySelector('app-first-sessions')).toBeNull();
+    });
+
+    it('does not offer them when today is a rest day', () => {
+      setup(baseInsight(WEEK_KEYS.map((key) => dayInsight(key)), { ...openToday, kind: 'REST', label: 'Rest', source: 'PLAN' }), null);
+      expect(fixture.nativeElement.querySelector('app-first-sessions')).toBeNull();
+    });
+
+    it('keeps the old row when there are too few templates to offer', () => {
+      TestBed.overrideProvider(FIRST_SESSION_TEMPLATES, { useValue: [] });
+      setup(openInsight(), null);
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('app-first-sessions')).toBeNull();
+      expect(element.querySelector('app-today-row')).toBeTruthy();
+      expect(element.textContent).toContain('Pick a plan');
+      expect(element.textContent).toContain('Browse plans');
+    });
+
+    it('reads the plan and the day again once a first session has started', () => {
+      setup(openInsight(), null);
+      dataService.getWeeklyTrainingInsight.calls.reset();
+      dataService.getActivePlan.calls.reset();
+
+      fixture.componentInstance.onPlanStarted();
+
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(dataService.getActivePlan).toHaveBeenCalledTimes(1);
+    });
   });
 });
