@@ -1,13 +1,14 @@
 import { MonthWeekInsight } from '../../../../core/fitsync.models';
 import { monthNameOf } from './month-grid';
 
-export const BARS_WIDTH = 320;
-export const BARS_HEIGHT = 140;
-const PLOT_LEFT = 8;
-const PLOT_RIGHT = BARS_WIDTH - 8;
-const BASE_Y = 118;
-const TOP_Y = 24;
-const MAX_BAR_WIDTH = 40;
+// The same size as the radar beside it, so the two drawings scale alike.
+export const BARS_WIDTH = 190;
+export const BARS_HEIGHT = 134;
+const PLOT_LEFT = 4;
+const PLOT_RIGHT = BARS_WIDTH - 4;
+const BASE_Y = 112;
+const TOP_Y = 22;
+const MAX_BAR_WIDTH = 24;
 
 export type WeekKind = 'strength' | 'cardio' | 'mobility' | 'sport' | 'other';
 
@@ -38,6 +39,9 @@ export interface WeekBar {
 export interface WeekBarsGeometry {
   width: number;
   height: number;
+  /** The two ends of the base line. */
+  plotLeft: number;
+  plotRight: number;
   baseY: number;
   max: number;
   bars: WeekBar[];
@@ -90,12 +94,12 @@ export function buildWeekBars(weeks: readonly MonthWeekInsight[], monthStart: st
       x: round(centre - width / 2),
       width,
       centre,
-      countY: round(top - 6),
+      countY: round(top - 5),
       segments
     };
   });
 
-  return { width: BARS_WIDTH, height: BARS_HEIGHT, baseY: BASE_Y, max, bars, kinds: WEEK_KINDS.filter((kind) => present.has(kind)) };
+  return { width: BARS_WIDTH, height: BARS_HEIGHT, plotLeft: PLOT_LEFT, plotRight: PLOT_RIGHT, baseY: BASE_Y, max, bars, kinds: WEEK_KINDS.filter((kind) => present.has(kind)) };
 }
 
 /** The chart in words, for a screen reader. */

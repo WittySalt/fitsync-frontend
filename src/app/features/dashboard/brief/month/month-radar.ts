@@ -6,12 +6,16 @@ export const RADAR_ORDER = ['CHEST', 'SHOULDERS', 'ARMS', 'CORE', 'LEGS', 'GLUTE
 /** A radar needs three axes; with fewer groups the chart is drawn as bars. */
 export const RADAR_MIN_AXES = 3;
 
-export const RADAR_WIDTH = 320;
-export const RADAR_HEIGHT = 176;
+// The drawing is as wide as half of the panel's column, where it sits beside the weekly bars, so
+// its text is drawn at close to its real size there.
+export const RADAR_WIDTH = 190;
+export const RADAR_HEIGHT = 134;
 const CENTRE_X = RADAR_WIDTH / 2;
-const CENTRE_Y = 88;
-const RADIUS = 56;
-const LABEL_GAP = 12;
+const CENTRE_Y = 66;
+const RADIUS = 36;
+const LABEL_GAP = 8;
+/** The distance from a label's name to the count on the line under it. */
+export const RADAR_LABEL_LINE = 12;
 const RINGS = 4;
 
 export interface RadarLabel {
@@ -19,7 +23,9 @@ export interface RadarLabel {
   label: string;
   count: number;
   x: number;
+  /** The baseline of the name. The count sits one line below it. */
   y: number;
+  countY: number;
   anchor: 'start' | 'middle' | 'end';
 }
 
@@ -82,9 +88,9 @@ export function buildMuscleChart(muscles: readonly MonthMuscleInsight[]): Muscle
   const max = radarScale(groups.map((group) => group.sessions));
 
   if (groups.length < RADAR_MIN_AXES) {
-    const barX = 92;
+    const barX = 70;
     // The count sits after the end of the longest bar, so the bar leaves room for it.
-    const full = RADAR_WIDTH - 36 - barX;
+    const full = RADAR_WIDTH - 28 - barX;
     return {
       mode: 'bars',
       width: RADAR_WIDTH,
@@ -121,13 +127,17 @@ export function buildMuscleChart(muscles: readonly MonthMuscleInsight[]): Muscle
     labels: groups.map((group, index) => {
       const spot = point(angles[index], RADIUS + LABEL_GAP);
       const side = Math.sin(angles[index]);
+      const up = Math.cos(angles[index]);
+      // A label is two lines, the name and the count under it. Above the centre the pair sits on
+      // its anchor, below the centre it hangs under it, and at the sides it is centred on it.
+      const y = round(spot.y + (up > 0.3 ? -RADAR_LABEL_LINE - 1 : up < -0.3 ? 9 : -2));
       return {
         group: group.group,
         label: group.label,
         count: group.sessions,
         x: spot.x,
-        // Labels above the centre sit on their anchor, those below hang under it.
-        y: round(spot.y + (Math.cos(angles[index]) > 0.3 ? -1 : Math.cos(angles[index]) < -0.3 ? 9 : 4)),
+        y,
+        countY: round(y + RADAR_LABEL_LINE),
         anchor: side > 0.3 ? 'start' : side < -0.3 ? 'end' : 'middle'
       };
     })

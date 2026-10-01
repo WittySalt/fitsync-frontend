@@ -58,8 +58,9 @@ describe('month figures', () => {
     expect(shown(weeks)).toBe('–');
   });
 
-  it('adds an arrow and the difference to the figures that have a month before', () => {
+  it('adds an arrow and the difference to the figures of a past month', () => {
     const insight = septemberInsight({
+      referenceDate: '2026-10-05',
       totals: { sessions: 17, minutes: 815, records: 4, longestStreakDays: 3 },
       previousTotals: { sessions: 15, minutes: 900, records: 6, longestStreakDays: 3 }
     });
@@ -68,18 +69,31 @@ describe('month figures', () => {
     expect(figureOf(figures, 'sessions').compare).toEqual({ direction: 'up', text: '2' });
     expect(figureOf(figures, 'time').compare).toEqual({ direction: 'down', text: '1 h 25 min' });
     expect(figureOf(figures, 'records').compare).toEqual({ direction: 'down', text: '2' });
-    // Three badges in August and two in September.
-    expect(figureOf(figures, 'badges').compare).toEqual({ direction: 'down', text: '1' });
-    // The same streak in both months carries no arrow, and the weeks carry none at all.
+    // The same streak in both months carries no arrow, and the weeks and the badges carry none at all.
     expect(figureOf(figures, 'streak').compare).toBeNull();
     expect(figureOf(figures, 'weeks').compare).toBeNull();
+    expect(figureOf(figures, 'badges').compare).toBeNull();
   });
 
-  it('states last month in the accessible text', () => {
+  it('draws only the upward arrows while the month is still running', () => {
+    const insight = septemberInsight({
+      totals: { sessions: 17, minutes: 600, records: 4, longestStreakDays: 2 },
+      previousTotals: { sessions: 15, minutes: 900, records: 6, longestStreakDays: 3 }
+    });
+    const figures = buildFigures({ insight, weeklyTarget: 4, badgeDates, badgeState: 'ready' });
+
+    expect(figureOf(figures, 'sessions').compare).toEqual({ direction: 'up', text: '2' });
+    expect(figureOf(figures, 'time').compare).toBeNull();
+    expect(figureOf(figures, 'records').compare).toBeNull();
+    expect(figureOf(figures, 'streak').compare).toBeNull();
+    expect(figureOf(figures, 'time').label).toBe('10 h trained');
+  });
+
+  it('states last month in the accessible text where an arrow is drawn', () => {
     const figures = buildFigures({ insight: septemberInsight(), weeklyTarget: 4, badgeDates, badgeState: 'ready' });
     expect(figureOf(figures, 'sessions').label).toBe('17 sessions, 15 last month');
     expect(figureOf(figures, 'time').label).toBe('13 h 35 min trained, 12 h 15 min last month');
-    expect(figureOf(figures, 'streak').label).toBe('Longest streak 3 days, 3 last month');
+    expect(figureOf(figures, 'streak').label).toBe('Longest streak 3 days');
   });
 
   it('draws no arrow and no last month for the first month', () => {

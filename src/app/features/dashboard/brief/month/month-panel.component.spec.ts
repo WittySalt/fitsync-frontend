@@ -61,9 +61,9 @@ describe('MonthPanelComponent', () => {
       '17 sessions, 15 last month',
       '13 h 35 min trained, 12 h 15 min last month',
       '3 of 3 full weeks on goal',
-      '6 personal records, 6 last month',
-      '1 badge earned, 1 last month',
-      'Longest streak 3 days, 3 last month'
+      '6 personal records',
+      '1 badge earned',
+      'Longest streak 3 days'
     ]);
   });
 
@@ -72,7 +72,7 @@ describe('MonthPanelComponent', () => {
     const arrows = Array.from(root().querySelectorAll('.figure')).map((figure) => figure.querySelector('.compare')?.textContent?.trim() ?? '');
     expect(arrows).toEqual(['2', '1 h 20 min', '', '', '', '']);
     expect(root().querySelectorAll('.compare.up').length).toBe(2);
-    expect(root().querySelectorAll('.compare svg[aria-hidden="true"]').length).toBe(2);
+    expect(root().querySelectorAll('.compare[aria-hidden="true"] svg').length).toBe(2);
   });
 
   it('shows the figures in the same grid with the first month and says since when', () => {

@@ -6,23 +6,21 @@
           <span class="part">{{ part.value }}@if (part.unit) {<span class="unit"> {{ part.unit }}</span>}</span>
         }
       </span>
-      <span class="caption" aria-hidden="true">
-        {{ figure.caption }}
-        @if (figure.compare; as compare) {
-          <span class="compare" [class.up]="compare.direction === 'up'">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              @if (compare.direction === 'up') {
-                <path d="M12 19V5"></path>
-                <path d="M6 11l6-6 6 6"></path>
-              } @else {
-                <path d="M12 5v14"></path>
-                <path d="M6 13l6 6 6-6"></path>
-              }
-            </svg>
-            {{ compare.text }}
-          </span>
-        }
-      </span>
+      <span class="caption" aria-hidden="true">{{ figure.caption }}</span>
+      @if (figure.compare; as compare) {
+        <span class="compare" [class.up]="compare.direction === 'up'" aria-hidden="true">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            @if (compare.direction === 'up') {
+              <path d="M12 19V5"></path>
+              <path d="M6 11l6-6 6 6"></path>
+            } @else {
+              <path d="M12 5v14"></path>
+              <path d="M6 13l6 6 6-6"></path>
+            }
+          </svg>
+          {{ compare.text }}
+        </span>
+      }
     </div>
   }
 </div>

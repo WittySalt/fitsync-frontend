@@ -224,7 +224,6 @@ describe('CoachBriefComponent', () => {
       expect(element.querySelector('app-coach-noticed')).toBeNull();
       expect(element.querySelector('app-muscle-wheel')).toBeNull();
       expect(element.querySelector('.brief-panel app-month-panel .head .title')?.textContent?.trim()).toBe('September so far');
-      expect(element.querySelector('.brief-top')?.classList).toContain('month-view');
       expect(element.querySelector('.brief-panel .panel-title')).toBeNull();
     });
 

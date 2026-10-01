@@ -61,8 +61,15 @@ function durationParts(minutes: number): FigurePart[] {
       ];
 }
 
-function countCompare(current: number, previous: number | null, write: (difference: number) => string): FigureCompare | null {
-  if (previous === null || current === previous) {
+/** The distance from last month's figure. A month that is still running has had less time than
+ *  the whole month before it, so there it is only shown once the figure is already ahead. */
+function countCompare(
+  current: number,
+  previous: number | null,
+  inProgress: boolean,
+  write: (difference: number) => string
+): FigureCompare | null {
+  if (previous === null || current === previous || (inProgress && current < previous)) {
     return null;
   }
   return { direction: current > previous ? 'up' : 'down', text: write(Math.abs(current - previous)) };
@@ -79,24 +86,32 @@ export function buildFigures(input: FigureInput): MonthFigure[] {
   const { totals } = insight;
   const previous = insight.previousTotals;
   const month = insight.month;
+  const inProgress = monthOfDate(insight.referenceDate) === month;
   const figures: MonthFigure[] = [];
 
-  const withLast = (now: string, last: string | null): string => (last === null ? now : `${now}, ${last} last month`);
+  // The words follow the arrow: last month's figure is read out only where an arrow is drawn.
+  const withLast = (now: string, last: string, compare: FigureCompare | null): string =>
+    compare === null ? now : `${now}, ${last} last month`;
+
+  const sessionsCompare = countCompare(totals.sessions, previous?.sessions ?? null, inProgress, String);
+  const timeCompare = countCompare(totals.minutes, previous?.minutes ?? null, inProgress, (difference) => formatDuration(difference));
+  const recordsCompare = countCompare(totals.records, previous?.records ?? null, inProgress, String);
+  const streakCompare = countCompare(totals.longestStreakDays, previous?.longestStreakDays ?? null, inProgress, String);
 
   figures.push({
     id: 'sessions',
     parts: [{ value: String(totals.sessions), unit: '' }],
     caption: plural(totals.sessions, 'session', 'sessions'),
-    label: withLast(`${totals.sessions} ${plural(totals.sessions, 'session', 'sessions')}`, previous ? String(previous.sessions) : null),
-    compare: countCompare(totals.sessions, previous?.sessions ?? null, String)
+    label: withLast(`${totals.sessions} ${plural(totals.sessions, 'session', 'sessions')}`, String(previous?.sessions ?? 0), sessionsCompare),
+    compare: sessionsCompare
   });
 
   figures.push({
     id: 'time',
     parts: durationParts(totals.minutes),
     caption: 'trained',
-    label: withLast(`${formatDuration(totals.minutes)} trained`, previous ? formatDuration(previous.minutes) : null),
-    compare: countCompare(totals.minutes, previous?.minutes ?? null, (difference) => formatDuration(difference))
+    label: withLast(`${formatDuration(totals.minutes)} trained`, formatDuration(previous?.minutes ?? 0), timeCompare),
+    compare: timeCompare
   });
 
   const full = fullWeeks(insight);
@@ -129,24 +144,22 @@ export function buildFigures(input: FigureInput): MonthFigure[] {
     id: 'records',
     parts: [{ value: String(totals.records), unit: '' }],
     caption: plural(totals.records, 'personal record', 'personal records'),
-    label: withLast(
-      `${totals.records} ${plural(totals.records, 'personal record', 'personal records')}`,
-      previous ? String(previous.records) : null
-    ),
-    compare: countCompare(totals.records, previous?.records ?? null, String)
+    label: withLast(`${totals.records} ${plural(totals.records, 'personal record', 'personal records')}`, String(previous?.records ?? 0), recordsCompare),
+    compare: recordsCompare
   });
 
   if (input.badgeState === 'loading') {
     figures.push({ id: 'badges', parts: [{ value: EN_DASH, unit: '' }], caption: 'badges earned', label: 'Badges are loading', compare: null });
   } else if (input.badgeState === 'ready') {
+    // A badge is earned once, so a month with fewer of them than the last is no step back and the
+    // figure carries no comparison.
     const earned = badgesInMonth(input.badgeDates, month);
-    const before = previous ? badgesInMonth(input.badgeDates, shiftMonth(month, -1)) : null;
     figures.push({
       id: 'badges',
       parts: [{ value: String(earned), unit: '' }],
       caption: plural(earned, 'badge earned', 'badges earned'),
-      label: withLast(`${earned} ${plural(earned, 'badge earned', 'badges earned')}`, before === null ? null : String(before)),
-      compare: countCompare(earned, before, String)
+      label: `${earned} ${plural(earned, 'badge earned', 'badges earned')}`,
+      compare: null
     });
   }
 
@@ -155,8 +168,8 @@ export function buildFigures(input: FigureInput): MonthFigure[] {
     id: 'streak',
     parts: [{ value: String(streak), unit: plural(streak, 'day', 'days') }],
     caption: 'longest streak',
-    label: withLast(`Longest streak ${streak} ${plural(streak, 'day', 'days')}`, previous ? String(previous.longestStreakDays) : null),
-    compare: countCompare(streak, previous?.longestStreakDays ?? null, String)
+    label: withLast(`Longest streak ${streak} ${plural(streak, 'day', 'days')}`, String(previous?.longestStreakDays ?? 0), streakCompare),
+    compare: streakCompare
   });
 
   return figures;
@@ -169,10 +182,11 @@ export function headTitle(month: string, referenceDate: string): string {
 }
 
 /** The line under the title: where the figures start for the month of the first session,
- *  otherwise which month the arrows compare with, otherwise nothing. */
-export function headLine(month: string, firstSessionDate: string | null, hasPrevious: boolean): string | null {
+ *  otherwise which month the arrows compare with when at least one arrow is drawn, otherwise
+ *  nothing. */
+export function headLine(month: string, firstSessionDate: string | null, hasArrows: boolean): string | null {
   if (firstSessionDate && monthOfDate(firstSessionDate) === month) {
     return `Since you joined on ${Number(firstSessionDate.slice(8, 10))} ${monthNameOf(month)}.`;
   }
-  return hasPrevious ? `Arrows compare with ${monthNameOf(shiftMonth(month, -1))}.` : null;
+  return hasArrows ? `Arrows compare with ${monthNameOf(shiftMonth(month, -1))}.` : null;
 }

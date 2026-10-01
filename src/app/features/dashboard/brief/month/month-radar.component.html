@@ -8,11 +8,11 @@
     }
     <polygon class="shape" [attr.points]="chart.shape"></polygon>
     @for (dot of chart.dots; track $index) {
-      <circle class="dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="3"></circle>
+      <circle class="dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="2.5"></circle>
     }
     @for (label of chart.labels; track label.group) {
       <g class="label" [attr.data-group]="label.group">
-        <text [attr.x]="label.x" [attr.y]="label.y" [attr.text-anchor]="label.anchor"><tspan class="name">{{ label.label }}</tspan><tspan class="count" dx="4">{{ label.count }}</tspan></text>
+        <text [attr.text-anchor]="label.anchor"><tspan class="name" [attr.x]="label.x" [attr.y]="label.y">{{ label.label }}</tspan><tspan class="count" [attr.x]="label.x" [attr.y]="label.countY">{{ label.count }}</tspan></text>
       </g>
     }
   </svg>

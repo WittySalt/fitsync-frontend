@@ -17,12 +17,12 @@
   gap: 4px;
 }
 
-// Every number has the same line height, so the numbers of a row share one baseline whatever the
-// captions below do.
+// Every number is one line of the same height, so the numbers of a row share one baseline whatever
+// the captions below do.
 .value {
   display: flex;
-  flex-wrap: wrap;
-  column-gap: 0.3em;
+  column-gap: 0.25em;
+  white-space: nowrap;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 24px;
@@ -48,11 +48,13 @@
   color: var(--slate-300);
 }
 
+// The comparison has a line of its own under the caption, in the same place on every tile.
 .compare {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: 4px;
+  font-size: 12px;
+  line-height: 1.35;
   font-weight: 700;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -75,8 +77,9 @@
   }
 }
 
-@container (max-width: 359px) {
-  .value {
-    font-size: 21px;
+// On a phone three figures in a row would break "13 h 35 min" in two, so they go two in a row.
+@container (max-width: 319px) {
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

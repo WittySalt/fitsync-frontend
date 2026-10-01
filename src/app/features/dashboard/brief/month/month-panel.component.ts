@@ -28,11 +28,6 @@ export class MonthPanelComponent {
   protected readonly status = computed(() => this.state.status());
   protected readonly insight = computed(() => this.state.insight());
   protected readonly title = computed(() => headTitle(this.state.month(), this.state.referenceDate()));
-  protected readonly since = computed(() => {
-    const insight = this.insight();
-    return insight ? headLine(insight.month, insight.firstSessionDate, insight.previousTotals !== null) : null;
-  });
-
   protected readonly figures = computed(() => {
     const insight = this.insight();
     return insight
@@ -43,6 +38,12 @@ export class MonthPanelComponent {
           badgeState: this.state.badgeStatus()
         })
       : [];
+  });
+
+  protected readonly since = computed(() => {
+    const insight = this.insight();
+    const hasArrows = this.figures().some((figure) => figure.compare !== null);
+    return insight ? headLine(insight.month, insight.firstSessionDate, hasArrows) : null;
   });
 
   /** A month without a session has figures of zero and nothing to draw or to say. */

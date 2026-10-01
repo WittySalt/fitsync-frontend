@@ -1,13 +1,13 @@
 @if (chart(); as chart) {
   <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="description()">
-    <line class="base" x1="8" [attr.y1]="chart.baseY" x2="312" [attr.y2]="chart.baseY"></line>
+    <line class="base" [attr.x1]="chart.plotLeft" [attr.y1]="chart.baseY" [attr.x2]="chart.plotRight" [attr.y2]="chart.baseY"></line>
     @for (bar of chart.bars; track bar.weekStart) {
       <g class="week" [class.open]="!bar.complete" [attr.data-week]="bar.weekStart">
         @for (segment of bar.segments; track segment.kind) {
           <rect [class]="'seg ' + segment.kind" [attr.x]="bar.x" [attr.y]="segment.y" [attr.width]="bar.width" [attr.height]="segment.height"></rect>
         }
         <text class="count" [attr.x]="bar.centre" [attr.y]="bar.countY" text-anchor="middle">{{ bar.sessions }}</text>
-        <text class="day" [attr.x]="bar.centre" [attr.y]="chart.baseY + 17" text-anchor="middle">{{ bar.label }}</text>
+        <text class="day" [attr.x]="bar.centre" [attr.y]="chart.baseY + 15" text-anchor="middle">{{ bar.label }}</text>
       </g>
     }
   </svg>

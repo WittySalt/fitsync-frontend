@@ -25,7 +25,7 @@ describe('month week bars', () => {
     expect(tall.segments[0].y + tall.segments[0].height).toBeCloseTo(chart.baseY, 1);
     expect(tall.segments[1].y + tall.segments[1].height).toBeCloseTo(tall.segments[0].y, 1);
     const total = tall.segments.reduce((sum, segment) => sum + segment.height, 0);
-    expect(total).toBeCloseTo(chart.baseY - tall.countY - 6, 1);
+    expect(total).toBeCloseTo(chart.baseY - tall.countY - 5, 1);
     // A bar of two sessions is half the height of one of four.
     const small = chart.bars[4];
     expect(small.segments.reduce((sum, segment) => sum + segment.height, 0)).toBeCloseTo(total / 2, 1);
