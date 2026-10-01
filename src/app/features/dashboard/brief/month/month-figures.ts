@@ -190,3 +190,14 @@ export function headLine(month: string, firstSessionDate: string | null, hasArro
   }
   return hasArrows ? `Arrows compare with ${monthNameOf(shiftMonth(month, -1))}.` : null;
 }
+
+/** The calm line of a month without a session, which takes the place of the figures. The month
+ *  that holds the reference date is just beginning in its first week, and yet to have a session
+ *  after that; a month that has passed simply has none. */
+export function emptyMonthLine(month: string, referenceDate: string): string {
+  const name = monthNameOf(month);
+  if (monthOfDate(referenceDate) !== month) {
+    return `Nothing logged in ${name}.`;
+  }
+  return Number(referenceDate.slice(8, 10)) <= 7 ? `${name} is just beginning.` : `Nothing logged in ${name} yet.`;
+}

@@ -23,15 +23,15 @@ const MAX_OBSERVATIONS = 3;
 const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
 /** A count in words up to twelve and in digits above. */
-function word(count: number): string {
+export function word(count: number): string {
   return Number.isInteger(count) && count >= 0 && count < WORDS.length ? WORDS[count] : String(count);
 }
 
-function capital(text: string): string {
+export function capital(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function plural(count: number, one: string, many: string): string {
+export function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many;
 }
 
@@ -40,14 +40,14 @@ const TREND: GlyphShape[] = [
   { tag: 'path', d: 'M3 17l6-6 4 4 8-8' },
   { tag: 'path', d: 'M15 7h6v6' }
 ];
-const TROPHY: GlyphShape[] = [
+export const TROPHY: GlyphShape[] = [
   { tag: 'path', d: 'M8 4h8v6a4 4 0 0 1-8 0Z' },
   { tag: 'path', d: 'M8 6H5a3 3 0 0 0 3 4' },
   { tag: 'path', d: 'M16 6h3a3 3 0 0 1-3 4' },
   { tag: 'path', d: 'M12 14v4' },
   { tag: 'path', d: 'M8.5 20h7' }
 ];
-const SCALE: GlyphShape[] = [
+export const SCALE: GlyphShape[] = [
   { tag: 'rect', x: 4, y: 4, width: 16, height: 16, rx: 4 },
   { tag: 'path', d: 'M8.5 9a5 5 0 0 1 7 0' },
   { tag: 'path', d: 'M12 9.5l1.5-2' }
@@ -87,7 +87,7 @@ function weeksObservation(input: MonthObservationInput): MonthObservation | null
   return null;
 }
 
-function listDays(days: number[]): string {
+export function listDays(days: number[]): string {
   if (days.length === 1) {
     return String(days[0]);
   }

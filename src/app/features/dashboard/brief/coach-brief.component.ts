@@ -404,6 +404,9 @@ export class CoachBriefComponent implements OnInit {
     if (view === 'month') {
       // Looked up on first use, so a brief that never shows the month never builds its requests.
       this.injector.get(MonthViewState).open(this.timezone(), this.todayDateKey());
+    } else {
+      // The month view does not remember what was picked in it.
+      this.injector.get(MonthViewState).clearSelection();
     }
     this.view.set(view);
   }

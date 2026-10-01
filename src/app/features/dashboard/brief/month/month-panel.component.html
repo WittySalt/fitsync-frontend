@@ -3,6 +3,9 @@
   @if (since(); as line) {
     <span class="since">{{ line }}</span>
   }
+  @if (emptyLine(); as line) {
+    <span class="since">{{ line }}</span>
+  }
 </div>
 @if (status() === 'loading') {
   <div class="loading" role="status" aria-busy="true" aria-label="Loading the month">
@@ -15,14 +18,14 @@
     <span class="block block-notes"></span>
   </div>
 } @else if (insight(); as month) {
-  <app-month-figures [figures]="figures()" />
   @if (hasTraining()) {
+    <app-month-figures [figures]="figures()" />
     @if (month.muscles.length || month.weeks.length) {
       <div class="charts">
         @if (month.muscles.length) {
           <section class="chart" aria-labelledby="month-chart-muscles">
-            <h3 id="month-chart-muscles" class="chart-title">By muscle group</h3>
-            <app-month-radar [muscles]="month.muscles" />
+            <h3 id="month-chart-muscles" class="chart-title">{{ muscleTitle() }}</h3>
+            <app-month-radar [muscles]="month.muscles" [selected]="selectedMuscle()" (groupSelected)="state.selectMuscle($event)" />
           </section>
         }
         @if (month.weeks.length) {
@@ -33,8 +36,12 @@
         }
       </div>
     }
-    @if (observations().length) {
-      <app-month-noticed [observations]="observations()" />
-    }
+  }
+  @if (selectedDate(); as date) {
+    <app-month-day [date]="date" />
+  } @else if (selectedMuscle(); as group) {
+    <app-month-muscle [group]="group" />
+  } @else if (observations().length) {
+    <app-month-noticed [observations]="observations()" />
   }
 }

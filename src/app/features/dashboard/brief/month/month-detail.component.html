@@ -1,0 +1,11 @@
+<section class="detail" aria-labelledby="month-detail-title" aria-live="polite">
+  <div class="bar">
+    <h3 id="month-detail-title" class="title">{{ heading() }}</h3>
+    <button type="button" class="back" (click)="back.emit()">{{ backLabel() }}</button>
+  </div>
+  @if (rows().length) {
+    <app-month-rows [rows]="rows()" />
+  } @else if (quiet()) {
+    <p class="quiet">{{ quiet() }}</p>
+  }
+</section>

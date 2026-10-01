@@ -1,0 +1,36 @@
+<ul class="list">
+  @for (row of rows(); track row.id) {
+    @if (asText(row); as line) {
+      <li class="row">
+        <span class="tile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            @for (part of line.glyph; track $index) {
+              @switch (part.tag) {
+                @case ('path') {
+                  <path [attr.d]="part.d"></path>
+                }
+                @case ('circle') {
+                  <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
+                }
+                @case ('rect') {
+                  <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
+                }
+              }
+            }
+          </svg>
+        </span>
+        <div class="text">
+          <strong class="headline">{{ line.headline }}</strong>
+          @if (line.note) {
+            <span class="note">{{ line.note }}</span>
+          }
+        </div>
+      </li>
+    } @else {
+      <li class="row pending" aria-hidden="true">
+        <span class="tile"></span>
+        <div class="text"><span class="bar"></span><span class="bar short"></span></div>
+      </li>
+    }
+  }
+</ul>

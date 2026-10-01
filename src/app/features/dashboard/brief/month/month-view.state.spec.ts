@@ -83,3 +83,98 @@ describe('MonthViewState badges and weights', () => {
     expect(state.weights()).toBeNull();
   });
 });
+
+describe('MonthViewState selection', () => {
+  let state: MonthViewState;
+  let data: jasmine.SpyObj<FitSyncDataService>;
+  let accounts: jasmine.SpyObj<AccountDataService>;
+
+  beforeEach(() => {
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getMonthlyTrainingInsight']);
+    data.getMonthlyTrainingInsight.and.returnValue(of(monthInsight()));
+    accounts = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['listBodyMetrics']);
+    accounts.listBodyMetrics.and.returnValue(of([]));
+    TestBed.configureTestingModule({
+      providers: [
+        MonthViewState,
+        { provide: FitSyncDataService, useValue: data },
+        { provide: AccountDataService, useValue: accounts },
+        { provide: AnalyticsApiService, useValue: analyticsStub() }
+      ]
+    });
+    state = TestBed.inject(MonthViewState);
+    state.open('Asia/Singapore', '2026-09-27');
+  });
+
+  it('picks a date and lets go of it when it is picked again', () => {
+    state.selectDay('2026-09-04');
+    expect(state.selectedDate()).toBe('2026-09-04');
+    state.selectDay('2026-09-03');
+    expect(state.selectedDate()).toBe('2026-09-03');
+    state.selectDay('2026-09-03');
+    expect(state.selectedDate()).toBeNull();
+  });
+
+  it('picks a muscle group and lets go of it when it is picked again', () => {
+    state.selectMuscle('CHEST');
+    expect(state.selectedMuscle()).toBe('CHEST');
+    state.selectMuscle('CHEST');
+    expect(state.selectedMuscle()).toBeNull();
+  });
+
+  it('keeps one pick at a time, the later one replacing the earlier', () => {
+    state.selectDay('2026-09-04');
+    state.selectMuscle('CHEST');
+    expect(state.selectedDate()).toBeNull();
+    expect(state.selectedMuscle()).toBe('CHEST');
+    state.selectDay('2026-09-05');
+    expect(state.selectedMuscle()).toBeNull();
+    expect(state.selectedDate()).toBe('2026-09-05');
+  });
+
+  it('lets go of the pick when the month changes or the view is opened again', () => {
+    state.selectDay('2026-09-04');
+    state.step(-1);
+    expect(state.selectedDate()).toBeNull();
+    state.selectMuscle('CHEST');
+    state.open('Asia/Singapore', '2026-09-27');
+    expect(state.selectedMuscle()).toBeNull();
+  });
+
+  it('lets go of the pick and, when asked, names where the focus should go back to', () => {
+    state.selectDay('2026-09-04');
+    state.clearSelection(true);
+    expect(state.selectedDate()).toBeNull();
+    expect(state.focusTarget()).toEqual({ kind: 'day', key: '2026-09-04' });
+    state.selectMuscle('LEGS');
+    state.clearSelection(true);
+    expect(state.focusTarget()).toEqual({ kind: 'muscle', key: 'LEGS' });
+  });
+
+  it('does not ask for the focus when the pick is let go of without a button', () => {
+    state.selectDay('2026-09-04');
+    state.clearSelection();
+    expect(state.focusTarget()).toBeNull();
+  });
+
+  it('keeps the weight of every weigh-in date, the latest of a date winning', () => {
+    accounts.listBodyMetrics.and.returnValue(
+      of([
+        { ...weighIn('2026-09-20T02:00:00Z'), weightKg: 71.4 },
+        { ...weighIn('2026-09-20T12:00:00Z'), weightKg: 71.2 },
+        { ...weighIn('2026-09-02T02:00:00Z'), weightKg: 72.5 },
+        { ...weighIn('2026-09-10T02:00:00Z'), weightKg: null }
+      ])
+    );
+    state.load();
+    expect(state.weightByDate().get('2026-09-20')).toBe(71.2);
+    expect(state.weightByDate().get('2026-09-02')).toBe(72.5);
+    expect(state.weightByDate().has('2026-09-10')).toBeFalse();
+  });
+
+  it('has no weights when the weigh-in request failed', () => {
+    accounts.listBodyMetrics.and.returnValue(throwError(() => new Error('offline')));
+    state.load();
+    expect(state.weightByDate().size).toBe(0);
+  });
+});

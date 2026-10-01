@@ -1,5 +1,5 @@
 @if (radar(); as chart) {
-  <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="description()">
+  <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="group" [attr.aria-label]="description()">
     @for (ring of chart.rings; track $index) {
       <polygon class="ring" [attr.points]="ring"></polygon>
     }
@@ -11,15 +11,39 @@
       <circle class="dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="2.5"></circle>
     }
     @for (label of chart.labels; track label.group) {
-      <g class="label" [attr.data-group]="label.group">
+      <g
+        class="label"
+        [class.selected]="selected() === label.group"
+        [attr.data-group]="label.group"
+        role="button"
+        tabindex="0"
+        [attr.aria-pressed]="selected() === label.group"
+        [attr.aria-label]="sessionsOf(label.group)"
+        (click)="press(label.group)"
+        (keydown.enter)="press(label.group, $event)"
+        (keydown.space)="press(label.group, $event)"
+      >
+        <rect class="hit" [attr.x]="label.hit.x" [attr.y]="label.hit.y" [attr.width]="label.hit.width" [attr.height]="label.hit.height" rx="8"></rect>
         <text [attr.text-anchor]="label.anchor"><tspan class="name" [attr.x]="label.x" [attr.y]="label.y">{{ label.label }}</tspan><tspan class="count" [attr.x]="label.x" [attr.y]="label.countY">{{ label.count }}</tspan></text>
       </g>
     }
   </svg>
 } @else if (bars(); as chart) {
-  <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="description()">
+  <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="group" [attr.aria-label]="description()">
     @for (row of chart.rows; track row.group) {
-      <g class="label" [attr.data-group]="row.group">
+      <g
+        class="label"
+        [class.selected]="selected() === row.group"
+        [attr.data-group]="row.group"
+        role="button"
+        tabindex="0"
+        [attr.aria-pressed]="selected() === row.group"
+        [attr.aria-label]="sessionsOf(row.group)"
+        (click)="press(row.group)"
+        (keydown.enter)="press(row.group, $event)"
+        (keydown.space)="press(row.group, $event)"
+      >
+        <rect class="hit" [attr.x]="row.hit.x" [attr.y]="row.hit.y" [attr.width]="row.hit.width" [attr.height]="row.hit.height" rx="8"></rect>
         <text x="0" [attr.y]="row.labelY" text-anchor="start"><tspan class="name">{{ row.label }}</tspan></text>
         <rect class="bar" [attr.x]="chart.barX" [attr.y]="row.y" [attr.width]="row.barWidth" [attr.height]="chart.barHeight" rx="4"></rect>
         <text [attr.x]="chart.barX + row.barWidth + 8" [attr.y]="row.labelY" text-anchor="start"><tspan class="count">{{ row.count }}</tspan></text>

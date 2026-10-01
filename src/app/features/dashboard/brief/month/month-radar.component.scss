@@ -48,3 +48,30 @@
 .bar {
   fill: var(--green-500);
 }
+
+// A label is a button. Its area is a transparent rectangle, so the chart looks as before until a
+// group is picked, which tints the area and draws its edge in green.
+.label {
+  cursor: pointer;
+  outline: none;
+}
+
+.hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 1.5;
+}
+
+.label:hover .hit {
+  stroke: var(--slate-600);
+}
+
+.label.selected .hit {
+  fill: rgba(34, 197, 94, 0.18);
+  stroke: var(--green-400);
+}
+
+.label:focus-visible .hit {
+  stroke: var(--white);
+  stroke-width: 2;
+}

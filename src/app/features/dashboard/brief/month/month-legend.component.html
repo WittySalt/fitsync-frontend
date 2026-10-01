@@ -1,0 +1,59 @@
+<ng-template #glyph let-parts>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    @for (part of parts; track $index) {
+      @switch (part.tag) {
+        @case ('path') { <path [attr.d]="part.d"></path> }
+        @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+        @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+      }
+    }
+  </svg>
+</ng-template>
+
+<ul class="legend" [class.picked]="group()" aria-label="Legend">
+  @if (group()) {
+    <li>
+      <span class="swatch swatch-kind"><ng-container [ngTemplateOutlet]="glyph" [ngTemplateOutletContext]="{ $implicit: groupGlyph() }" /></span>
+      {{ trainedLabel() }}
+    </li>
+    <li>
+      <span class="swatch swatch-other"><ng-container [ngTemplateOutlet]="glyph" [ngTemplateOutletContext]="{ $implicit: otherGlyph }" /></span>
+      Other sessions
+    </li>
+  } @else {
+    @for (item of legendKinds; track item.kind) {
+      <li>
+        <span class="swatch swatch-kind"><ng-container [ngTemplateOutlet]="glyph" [ngTemplateOutletContext]="{ $implicit: glyphFor(item.kind) }" /></span>
+        {{ item.label }}
+      </li>
+    }
+  }
+  <li>
+    <span class="swatch swatch-mark">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="4"></rect>
+        <path d="M8.5 9a5 5 0 0 1 7 0"></path>
+        <path d="M12 9.5l1.5-2"></path>
+      </svg>
+    </span>
+    Weigh-in
+  </li>
+  <li>
+    <span class="swatch swatch-mark">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 4h8v6a4 4 0 0 1-8 0Z"></path>
+        <path d="M8 6H5a3 3 0 0 0 3 4"></path>
+        <path d="M16 6h3a3 3 0 0 1-3 4"></path>
+        <path d="M12 14v4"></path>
+        <path d="M8.5 20h7"></path>
+      </svg>
+    </span>
+    Record
+  </li>
+  @if (hasBefore()) {
+    <li class="before-item">
+      <span class="swatch swatch-before"></span>
+      Before you joined
+    </li>
+  }
+</ul>

@@ -23,6 +23,12 @@ export interface MonthWeights {
 /** The most weigh-ins one request may ask for, which is the limit the user service allows. */
 const WEIGH_IN_LIMIT = 500;
 
+/** What was last selected, so that the control that replaces it can hand the focus back. */
+export interface FocusTarget {
+  kind: 'day' | 'muscle';
+  key: string;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -37,6 +43,8 @@ export class MonthViewState implements OnDestroy {
   private readonly analytics = inject(AnalyticsApiService);
 
   private timezone = 'UTC';
+  /** The timezone of the person, for the parts that read a date of their own. */
+  readonly zone = signal('UTC');
   private requests: Subscription[] = [];
   private badgeRequest: Subscription | null = null;
   private badgesInFlight = false;
@@ -47,6 +55,15 @@ export class MonthViewState implements OnDestroy {
   readonly insight = signal<MonthlyTrainingInsight | null>(null);
   readonly weighIns = signal<ReadonlySet<string>>(new Set<string>());
   readonly weights = signal<MonthWeights | null>(null);
+  /** The weight of each weigh-in date, from the same request; the latest one of a date wins. */
+  readonly weightByDate = signal<ReadonlyMap<string, number>>(new Map<string, number>());
+  /** The date picked in the calendar and the muscle group picked on the radar, as YYYY-MM-DD and
+   *  as a group code. Only one of them is set at a time, since the panel shows one thing below
+   *  the charts. */
+  readonly selectedDate = signal<string | null>(null);
+  readonly selectedMuscle = signal<string | null>(null);
+  /** Set when a control that was pressed goes away and the focus has to return to what it chose. */
+  readonly focusTarget = signal<FocusTarget | null>(null);
   /** The dates, as YYYY-MM-DD in the person's timezone, on which a badge was earned. */
   readonly badgeDates = signal<readonly string[]>([]);
   readonly badgeStatus = signal<BadgeLoadStatus>('loading');
@@ -65,11 +82,36 @@ export class MonthViewState implements OnDestroy {
   /** Opens the view on the month that contains today and loads it. */
   open(timezone: string, todayKey: string): void {
     this.timezone = timezone;
+    this.zone.set(timezone);
     this.openedOn.set(todayKey);
     this.bounds.set(null);
     this.month.set(monthOfDate(todayKey));
     this.load();
     this.loadBadges();
+  }
+
+  /** Picks a date, or lets go of it when it is the one already picked. */
+  selectDay(dateKey: string): void {
+    this.selectedMuscle.set(null);
+    this.selectedDate.set(this.selectedDate() === dateKey ? null : dateKey);
+  }
+
+  /** Picks a muscle group, or lets go of it when it is the one already picked. */
+  selectMuscle(group: string): void {
+    this.selectedDate.set(null);
+    this.selectedMuscle.set(this.selectedMuscle() === group ? null : group);
+  }
+
+  /** Lets go of the pick. Asked from a button of the lower panel, it sends the focus back to the
+   *  date or the label that was picked. */
+  clearSelection(returnFocus = false): void {
+    const date = this.selectedDate();
+    const muscle = this.selectedMuscle();
+    if (returnFocus) {
+      this.focusTarget.set(date ? { kind: 'day', key: date } : muscle ? { kind: 'muscle', key: muscle } : null);
+    }
+    this.selectedDate.set(null);
+    this.selectedMuscle.set(null);
   }
 
   step(delta: number): void {
@@ -87,6 +129,8 @@ export class MonthViewState implements OnDestroy {
     this.insight.set(null);
     this.weighIns.set(new Set<string>());
     this.weights.set(null);
+    this.weightByDate.set(new Map<string, number>());
+    this.clearSelection();
 
     this.requests.push(
       this.data.getMonthlyTrainingInsight(month, this.timezone).subscribe({
@@ -108,16 +152,23 @@ export class MonthViewState implements OnDestroy {
         next: (metrics) => {
           const dates = new Set<string>();
           const inMonth: { time: number; weightKg: number }[] = [];
+          const latest = new Map<string, { time: number; weightKg: number }>();
           for (const metric of metrics ?? []) {
             const key = metric.weightKg != null ? dateKeyInTimezone(metric.measuredAt, this.timezone) : null;
             if (key) {
               dates.add(key);
+              const entry = { time: Date.parse(metric.measuredAt ?? ''), weightKg: metric.weightKg as number };
+              const previous = latest.get(key);
+              if (!previous || previous.time <= entry.time) {
+                latest.set(key, entry);
+              }
               if (monthOfDate(key) === month) {
-                inMonth.push({ time: Date.parse(metric.measuredAt ?? ''), weightKg: metric.weightKg as number });
+                inMonth.push(entry);
               }
             }
           }
           this.weighIns.set(dates);
+          this.weightByDate.set(new Map(Array.from(latest, ([key, entry]) => [key, entry.weightKg] as const)));
           inMonth.sort((a, b) => a.time - b.time);
           this.weights.set(
             inMonth.length > 0
@@ -128,6 +179,7 @@ export class MonthViewState implements OnDestroy {
         error: () => {
           this.weighIns.set(new Set<string>());
           this.weights.set(null);
+          this.weightByDate.set(new Map<string, number>());
         }
       })
     );
