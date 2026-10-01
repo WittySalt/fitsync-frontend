@@ -41,10 +41,10 @@
                 [line]="timedLine()"
                 [share]="workGuideShare()"
                 [figure]="timedFigure()"
-                [caption]="live.paused() ? 'Paused' : (isTimedTarget() ? 'Left' : 'Reps')"
+                [caption]="live.paused() ? 'Paused' : 'Left'"
                 [label]="timedLabel()"
                 [secondsLeft]="workGuideRemainingSeconds()"
-                [canStop]="!savingSet() && workGuideElapsedSeconds() > 0"
+                [canStop]="!saving() && workGuideElapsedSeconds() > 0"
                 [(stepIndex)]="stepIndex"
                 [(reading)]="readAloud"
                 [reducedMotion]="prefersReducedMotion"
@@ -110,62 +110,68 @@
                   @if (!isTimedTarget() && nextLine()) {
                     <p class="next-line"><span class="eyebrow">Next</span>&ngsp;<span class="next-text">{{ nextLine() }}</span></p>
                   }
-                  @if (isTimedTarget()) {
-                    <div class="steppers single">
-                      <app-player-stepper label="Time" format="clock" [step]="5" [min]="5" [max]="21600" [(value)]="durationValue" />
-                    </div>
-                  } @else if (hasRepsStepper()) {
-                    <div class="steppers" [class.single]="!hasWeightStepper()">
-                      <app-player-stepper label="Reps" [min]="1" [max]="999" [(value)]="repsValue" />
-                      @if (hasWeightStepper()) {
-                        <app-player-stepper label="Weight" unit="kg" [step]="2.5" [max]="1000" [(value)]="weightValue" />
-                      }
-                    </div>
-                  }
+                  <div class="live-row" [class.has-ring]="setActive() && ringTarget() > 0">
+                    @if (setActive() && ringTarget() > 0) {
+                      <app-player-ring
+                        [share]="ringShare()"
+                        [centre]="ringReps() + ' / ' + ringTarget()"
+                        [caption]="setClock()"
+                        [label]="ringLabel()"
+                        [urgent]="ringFull()"
+                        [reducedMotion]="prefersReducedMotion"
+                      />
+                    } @else if (setActive()) {
+                      <p class="set-clock" role="timer" aria-label="Set time">Set time {{ setClock() }}</p>
+                    }
+                    @if (isTimedTarget()) {
+                      <div class="steppers single">
+                        <app-player-stepper label="Time" format="clock" [step]="5" [min]="5" [max]="21600" [(value)]="durationValue" />
+                      </div>
+                    } @else if (hasRepsStepper()) {
+                      <div class="steppers" [class.single]="!hasWeightStepper()">
+                        <app-player-stepper label="Reps" [min]="1" [max]="999" [(value)]="repsValue" />
+                        @if (hasWeightStepper()) {
+                          <app-player-stepper label="Weight" unit="kg" [step]="2.5" [max]="1000" [(value)]="weightValue" />
+                        }
+                      </div>
+                    }
+                  </div>
                   <div class="actions">
                     @if (isTimedTarget()) {
                       <button
                         class="big start-timer"
                         type="button"
                         data-primary
-                        [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
-                        (click)="startTimedSet()"
+                        [disabled]="saving() || !live.canWrite() || allTargetsComplete()"
+                        (click)="startSet()"
                       >
                         Start timer
                       </button>
                       <button
                         class="quiet complete-set"
                         type="button"
-                        [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                        [disabled]="saving() || !live.canWrite() || allTargetsComplete()"
                         (click)="completeCurrentSet()"
                       >
-                        {{ savingSet() ? 'Saving...' : 'Complete set' }}
+                        {{ saving() ? 'Saving...' : 'Complete set' }}
                       </button>
                     } @else {
                       <button
-                        class="big complete-set"
+                        class="big"
+                        [class.start-set]="!setActive()"
+                        [class.complete-set]="setActive()"
                         type="button"
                         data-primary
-                        [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
-                        (click)="completeCurrentSet()"
+                        [disabled]="saving() || !live.canWrite() || allTargetsComplete()"
+                        (click)="onPrimary()"
                       >
-                        {{ savingSet() ? 'Saving...' : 'Complete set' }}
+                        {{ setActive() ? (saving() ? 'Saving...' : 'Complete set') : 'Start set' }}
                       </button>
-                      @if (targetWorkSeconds() > 0) {
-                        <button
-                          class="quiet text start-tempo"
-                          type="button"
-                          [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
-                          (click)="startGuidedSet()"
-                        >
-                          Start tempo
-                        </button>
-                      }
                     }
                     <button
                       class="quiet text skip-set"
                       type="button"
-                      [disabled]="savingSet() || !live.canWrite() || allTargetsComplete()"
+                      [disabled]="saving() || !live.canWrite() || allTargetsComplete()"
                       (click)="skipCurrentSet()"
                     >
                       Skip this set
@@ -208,11 +214,9 @@
           [alt]="subject.alt"
           [initial]="subject.initial"
           [chips]="subject.chips"
-          [steps]="subject.steps"
+          [steps]="subject.fullSteps"
           [description]="subject.description"
           [videoUrl]="subject.videoUrl"
-          [currentStep]="stepIndex()"
-          [(reading)]="readAloud"
           [backLabel]="guideBackLabel()"
           (back)="closeGuide()"
         />
@@ -225,11 +229,9 @@
         [alt]="subject.alt"
         [initial]="subject.initial"
         [chips]="subject.chips"
-        [steps]="subject.steps"
+        [steps]="subject.fullSteps"
         [description]="subject.description"
         [videoUrl]="subject.videoUrl"
-        [currentStep]="stepIndex()"
-        [(reading)]="readAloud"
         [backLabel]="guideBackLabel()"
         [clock]="live.elapsedLabel()"
         (back)="closeGuide()"

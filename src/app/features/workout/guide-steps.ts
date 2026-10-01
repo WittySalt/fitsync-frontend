@@ -30,3 +30,19 @@ export function guideSteps(detail: Pick<ExerciseDetail, 'shortSteps' | 'instruct
   const short = (detail.shortSteps ?? []).map((step) => (typeof step === 'string' ? step.trim() : '')).filter(Boolean);
   return short.length ? short : fromInstructions(detail.instructions ?? []);
 }
+
+/**
+ * The steps the full guide shows: the original instructions, every one in full and in order. A step
+ * that only tells the person to repeat the movement is left out. An exercise without instructions
+ * falls back to its short steps.
+ */
+export function fullGuideSteps(detail: Pick<ExerciseDetail, 'shortSteps' | 'instructions'> | null | undefined): string[] {
+  if (!detail) {
+    return [];
+  }
+  const full = [...(detail.instructions ?? [])]
+    .sort((a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER))
+    .map((step) => (step.text ?? '').replace(/\s+/g, ' ').trim())
+    .filter((text) => text.length > 0 && !(isRepeatStep(text) && text.split(' ').length <= 12));
+  return full.length ? full : guideSteps(detail);
+}

@@ -135,6 +135,27 @@ describe('WorkoutBarComponent', () => {
     expect(root.querySelector('.step')?.textContent?.trim()).toBe('Goblet squat · set 2 of 3');
   });
 
+  it('shows a running timed set, a counted set by its reps and a rest in the step slot', async () => {
+    await start(120, { exercises: [log([false, false])] });
+    const identity = { sessionId: 'session-live', exerciseLogId: 'log-1', setNumber: 1, exerciseName: 'Plank Hold' };
+    const run = { targetReps: 0, tempoSeconds: 3, weightKg: null, distanceKm: null, restSeconds: null, restAfterSeconds: 30 };
+
+    live.startRun({ ...identity, ...run, kind: 'timed', targetSeconds: 45 });
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Plank Hold \u00b7 0:45 left');
+
+    live.startRun({ ...identity, ...run, exerciseName: 'Goblet squat', kind: 'counted', targetSeconds: 0, targetReps: 12 });
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Goblet squat \u00b7 0 / 12');
+
+    live.beginRest(identity, 42);
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Rest 0:42');
+    live.clearRun();
+    fixture.detectChanges();
+    expect(root.querySelector('.step')?.textContent?.trim()).toBe('Goblet squat \u00b7 set 1 of 2');
+  });
+
   it('shows the hours once the workout passes the hour', async () => {
     await start(3723);
 

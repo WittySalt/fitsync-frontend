@@ -7,7 +7,7 @@
 }
 
 .ring {
-  --ring: 128px;
+  --ring: var(--ring-size, 128px);
   position: relative;
   width: var(--ring);
   height: var(--ring);
@@ -15,7 +15,7 @@
 
 @container (min-width: 720px) {
   .ring {
-    --ring: 200px;
+    --ring: var(--ring-size, 200px);
   }
 }
 

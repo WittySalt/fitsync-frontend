@@ -44,7 +44,7 @@ export class WorkoutBarComponent implements OnDestroy {
   protected readonly view = computed<BarView | null>(() => {
     const session = this.live.active();
     return session
-      ? { name: session.name, time: this.live.elapsedLabel(), step: this.live.currentLabel(), paused: this.live.paused() }
+      ? { name: session.name, time: this.live.elapsedLabel(), step: this.live.runLabel() || this.live.currentLabel(), paused: this.live.paused() }
       : this.last();
   });
   protected readonly ending = signal(false);

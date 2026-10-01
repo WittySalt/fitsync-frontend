@@ -17,6 +17,30 @@ import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutCelebrationComponent } from './workout-celebration.component';
 import { COUNTDOWN_GO_MS } from './player-timer-stage.component';
 
+/**
+ * Completes the current set the way a person does: a counted set is started, its countdown is
+ * skipped, and "Complete set" is pressed. A timed set has its own quiet "Complete set" button.
+ */
+function completeSet(host: ComponentFixture<ExercisePlayerComponent>): void {
+  const root = host.nativeElement as HTMLElement;
+  const start = root.querySelector<HTMLButtonElement>('.start-set');
+  if (start) {
+    start.click();
+    host.detectChanges();
+    host.componentInstance.onCountdownStarted();
+    host.detectChanges();
+  }
+  root.querySelector<HTMLButtonElement>('.complete-set')?.click();
+}
+
+function clearStoredRuns(): void {
+  try {
+    sessionStorage.clear();
+  } catch {
+    // Storage may be missing; the tests then have nothing to clear.
+  }
+}
+
 /** Lets the timers that a test leaves behind (the step carousel, the cues) run out before it ends. */
 function settle(): void {
   discardPeriodicTasks();
@@ -168,6 +192,7 @@ describe('ExercisePlayerComponent', () => {
   let live: WorkoutLiveService;
 
   beforeEach(async () => {
+    clearStoredRuns();
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startWorkoutPlan',
       'startAdHocSession',
@@ -267,31 +292,59 @@ describe('ExercisePlayerComponent', () => {
     expect(steps).toEqual(['Hinge at the hips and lower the bar.']);
   });
 
-  it('keeps the long original instruction out of the guide when the exercise has short steps', () => {
+  it('shows the original instructions in full in the guide while the carousel keeps the short steps', () => {
+    const long = 'Lie on the bench with your feet flat on the floor, grip the bar slightly wider than your shoulders, unrack it and lower it under control to the middle of your chest.';
     fixture.componentInstance.currentDetail.set(exerciseDetail({
-      description: 'Get into a prone position on the floor, supporting your weight on your toes and your forearms.',
-      shortSteps: ['Brace the core.', 'Hold a straight line.']
+      description: 'Get into a prone position on the floor.',
+      shortSteps: ['Brace the core.', 'Hold a straight line.'],
+      instructions: [
+        { stepNumber: 2, text: 'Press the bar back up.' },
+        { stepNumber: 1, text: long },
+        { stepNumber: 3, text: 'Repeat for the prescribed number of repetitions.' }
+      ]
     }));
     fixture.componentInstance.openGuide();
     fixture.detectChanges();
 
     const guide = (fixture.nativeElement as HTMLElement).querySelector('app-exercise-guide') as HTMLElement;
-    expect(guide.querySelectorAll('.steps li').length).toBe(2);
-    expect(guide.querySelector('.description')).toBeNull();
-    expect(guide.textContent).not.toContain('prone position');
+    const items = Array.from(guide.querySelectorAll('.steps li .text')).map((item) => item.textContent?.trim());
+    expect(items).toEqual([long, 'Press the bar back up.']);
+    expect(guide.querySelector('.description')?.textContent).toContain('prone position');
+    expect(fixture.componentInstance.currentSubject().steps).toEqual(['Brace the core.', 'Hold a straight line.']);
   });
 
-  it('shows the original description in the guide only when there are no short steps', () => {
+  it('reads the full steps of the guide in order, on its own, and leaves the carousel alone', () => {
     fixture.componentInstance.currentDetail.set(exerciseDetail({
-      description: 'Get into a prone position on the floor.',
-      shortSteps: [],
+      shortSteps: ['Brace.', 'Hold.'],
+      instructions: [
+        { stepNumber: 1, text: 'Lie on the bench and unrack the bar with straight arms.' },
+        { stepNumber: 2, text: 'Lower the bar under control to the middle of your chest.' }
+      ]
+    }));
+    fixture.componentInstance.openGuide();
+    fixture.detectChanges();
+
+    const guide = (fixture.nativeElement as HTMLElement).querySelector('app-exercise-guide') as HTMLElement;
+    guide.querySelector<HTMLButtonElement>('.read')?.click();
+    fixture.detectChanges();
+
+    expect(speech.speak.calls.mostRecent().args[0]).toBe('Lie on the bench and unrack the bar with straight arms.');
+    expect(fixture.componentInstance.readAloud()).toBeFalse();
+    speech.speak.calls.mostRecent().args[1].ended();
+    fixture.detectChanges();
+    expect(speech.speak.calls.mostRecent().args[0]).toBe('Lower the bar under control to the middle of your chest.');
+  });
+
+  it('falls back to the short steps in the guide when the exercise has no original instructions', () => {
+    fixture.componentInstance.currentDetail.set(exerciseDetail({
+      shortSteps: ['Brace the core.', 'Hold a straight line.'],
       instructions: []
     }));
     fixture.componentInstance.openGuide();
     fixture.detectChanges();
 
     const guide = (fixture.nativeElement as HTMLElement).querySelector('app-exercise-guide') as HTMLElement;
-    expect(guide.querySelector('.description')?.textContent).toContain('prone position');
+    expect(guide.querySelectorAll('.steps li').length).toBe(2);
   });
 
   it('asks once before discarding, and Keep going leaves the workout alone', () => {
@@ -341,7 +394,7 @@ describe('ExercisePlayerComponent', () => {
   });
 
   it('saves the current set with session, exercise log, set number, and target values', () => {
-    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    completeSet(fixture);
 
     expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
       'session-live',
@@ -352,7 +405,7 @@ describe('ExercisePlayerComponent', () => {
   });
 
   it('shows a short Done cue when a set is saved', fakeAsync(() => {
-    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    completeSet(fixture);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.setCompleteCue()).toBeTrue();
@@ -369,7 +422,7 @@ describe('ExercisePlayerComponent', () => {
   }));
 
   it('shows the rest countdown after completing a set', () => {
-    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    completeSet(fixture);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Rest');
@@ -413,62 +466,8 @@ describe('ExercisePlayerComponent', () => {
     settle();
   }));
 
-  it('counts reps during tempo guidance and records the target reps when it completes', fakeAsync(() => {
-    const tempo = renderPlayer(plan({
-      exercises: [
-        {
-          ...plan().exercises[0],
-          targetReps: 2,
-          restSeconds: 0
-        },
-        plan().exercises[1]
-      ]
-    }));
-
-    tempo.componentInstance.startGuidedSet();
-    tick(3_000);
-    tempo.detectChanges();
-
-    expect(tempo.componentInstance.guidedRepCount()).toBe(1);
-
-    tick(3_000);
-
-    expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
-      'session-live',
-      'log-1',
-      1,
-      jasmine.objectContaining({ reps: 2, durationSeconds: 6 })
-    );
-    settle();
-  }));
-
-  it('stops tempo guidance and records only the reached reps', fakeAsync(() => {
-    const tempo = renderPlayer(plan({
-      exercises: [
-        {
-          ...plan().exercises[0],
-          targetReps: 3,
-          restSeconds: 0
-        },
-        plan().exercises[1]
-      ]
-    }));
-
-    tempo.componentInstance.startGuidedSet();
-    tick(3_000);
-    tempo.componentInstance.stopGuidedSet();
-
-    expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
-      'session-live',
-      'log-1',
-      1,
-      jasmine.objectContaining({ reps: 1, durationSeconds: 3 })
-    );
-    settle();
-  }));
-
   it('advances to the next exercise after rest finishes', fakeAsync(() => {
-    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    completeSet(fixture);
     tick(1_000);
     fixture.detectChanges();
 
@@ -657,7 +656,7 @@ describe('ExercisePlayerComponent', () => {
       expect(text).toContain('Hold the weight close and keep your chest tall.');
       expect(text.indexOf('Brace your core before you descend.')).toBeLessThan(text.indexOf('Drive through your feet to stand tall.'));
       expect(text).toContain('Back to set 1');
-      expect(guide.querySelector('li[aria-current="step"]')?.textContent).toContain('Brace your core');
+      expect(guide.querySelector('li[aria-current]')).toBeNull();
 
       guide.querySelector<HTMLButtonElement>('.primary')?.click();
       fixture.detectChanges();
@@ -710,7 +709,7 @@ describe('ExercisePlayerComponent', () => {
     it('follows the exercise when it changes and reuses cached details', fakeAsync(() => {
       expect(dataService.getExercise.calls.allArgs().filter(([exerciseId]) => exerciseId === 'exercise-1').length).toBe(1);
 
-      fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+      completeSet(fixture);
       tick(1_000);
       tick(800);
       fixture.detectChanges();
@@ -814,7 +813,7 @@ describe('ExercisePlayerComponent', () => {
   it('surfaces set write failures through toast', () => {
     dataService.upsertSessionSet.and.returnValue(throwError(() => new Error('boom')));
 
-    fixture.debugElement.query(By.css('.complete-set')).nativeElement.click();
+    completeSet(fixture);
 
     expect(toast.error).toHaveBeenCalledWith('Unable to save this set. Please retry.');
   });
@@ -905,8 +904,8 @@ describe('ExercisePlayerComponent', () => {
       expect(player.componentInstance.currentExerciseIndex()).toBe(1);
       expect(player.componentInstance.allTargetsComplete()).toBeTrue();
       expect((player.nativeElement as HTMLElement).querySelector('.completion-note')).not.toBeNull();
-      const complete = (player.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.complete-set');
-      expect(complete?.disabled).toBeTrue();
+      const start = (player.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.start-set');
+      expect(start?.disabled).toBeTrue();
     });
 
     it('keeps its place while the same workout comes back with more sets recorded', () => {
@@ -1203,7 +1202,7 @@ describe('ExercisePlayerComponent', () => {
         player.detectChanges();
         expect(values()).toEqual(['8', '22.5']);
 
-        button(player, '.complete-set').click();
+        completeSet(player);
 
         expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
           'session-live',
@@ -1222,7 +1221,7 @@ describe('ExercisePlayerComponent', () => {
         player.detectChanges();
         expect(value()).toBe('0:50');
 
-        button(player, '.complete-set').click();
+        completeSet(player);
 
         expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
           'session-live',
@@ -1272,7 +1271,7 @@ describe('ExercisePlayerComponent', () => {
       it('shows the rest with the next set of the same exercise and a line of fact from the coach', fakeAsync(() => {
         const player = mountStrength();
 
-        button(player, '.complete-set').click();
+        completeSet(player);
         player.detectChanges();
 
         expect(textOf(player, 'app-player-rest .kicker')).toBe('Next');
@@ -1298,15 +1297,12 @@ describe('ExercisePlayerComponent', () => {
           : exerciseDetail()));
         const player = mountStrength();
         for (let set = 1; set <= 2; set++) {
-          button(player, '.complete-set').click();
+          completeSet(player);
           player.componentInstance.skipRest();
-          player.detectChanges();
-          // A rest that ends is followed by the countdown; Start now goes to the set.
-          buttonByText(player, 'Start now').click();
           player.detectChanges();
         }
 
-        button(player, '.complete-set').click();
+        completeSet(player);
         player.detectChanges();
 
         expect(textOf(player, 'app-player-rest .kicker')).toBe('Next · exercise 2 of 2');
@@ -1320,6 +1316,157 @@ describe('ExercisePlayerComponent', () => {
         expect(coach.open).toHaveBeenCalled();
         expect(coach.ask).toHaveBeenCalledWith('How did my bench press sets go?');
         player.componentInstance.skipRest();
+        settle();
+      }));
+
+      it('shows a set ready first: nothing counts down until Start set is pressed', fakeAsync(() => {
+        const player = mountStrength();
+
+        expect(player.componentInstance.stage()).toBe('set');
+        expect(textOf(player, '.start-set')).toBe('Start set');
+        expect(root(player).querySelector('.complete-set')).toBeNull();
+        expect(root(player).querySelector('.start-tempo')).toBeNull();
+        expect(root(player).querySelectorAll('app-player-stepper').length).toBe(2);
+        expect(root(player).querySelector('app-step-carousel')).not.toBeNull();
+
+        tick(10_000);
+        player.detectChanges();
+        expect(player.componentInstance.stage()).toBe('set');
+
+        button(player, '.start-set').click();
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('countdown');
+        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('3');
+        expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 1 of 3 · 10 reps · 20 kg');
+        settle();
+      }));
+
+      it('counts three, two, one and Go after Start set, announcing each figure once, then the set is active', fakeAsync(() => {
+        const player = mountStrength();
+        const announced: string[] = [];
+        const note = () => announced.push(player.componentInstance.liveAnnouncement());
+
+        button(player, '.start-set').click();
+        player.detectChanges();
+        note();
+        for (const figure of ['2', '1', 'Go']) {
+          tick(1000);
+          player.detectChanges();
+          expect(textOf(player, 'app-player-timer-stage .figure')).toBe(figure);
+          note();
+        }
+        expect(announced).toEqual(['3', '2', '1', 'Go']);
+        expect(root(player).querySelector('app-player-ring [aria-live]')).toBeNull();
+
+        tick(COUNTDOWN_GO_MS);
+        player.detectChanges();
+
+        expect(player.componentInstance.stage()).toBe('set');
+        expect(player.componentInstance.setActive()).toBeTrue();
+        expect(textOf(player, '.complete-set')).toBe('Complete set');
+        expect(root(player).querySelector('.live-row app-player-ring')).not.toBeNull();
+        expect(root(player).querySelectorAll('app-player-stepper').length).toBe(2);
+        expect(document.activeElement).toBe(button(player, '.complete-set'));
+        player.componentInstance.skipCurrentSet();
+        settle();
+      }));
+
+      it('skips the countdown with Start now or a tap on the ring', fakeAsync(() => {
+        const player = mountStrength();
+
+        button(player, '.start-set').click();
+        player.detectChanges();
+        buttonByText(player, 'Start now').click();
+        player.detectChanges();
+        expect(player.componentInstance.setActive()).toBeTrue();
+        player.componentInstance.skipCurrentSet();
+        settle();
+
+        const other = mountStrength();
+        button(other, '.start-set').click();
+        other.detectChanges();
+        button(other, '.ring-tap').click();
+        other.detectChanges();
+        expect(other.componentInstance.setActive()).toBeTrue();
+        other.componentInstance.skipCurrentSet();
+        settle();
+      }));
+
+      it('guides the reps of an active counted set with a ring at the tempo, and never ends the set by itself', fakeAsync(() => {
+        const player = mountStrength();
+        button(player, '.start-set').click();
+        player.detectChanges();
+        buttonByText(player, 'Start now').click();
+        player.detectChanges();
+
+        const centre = () => textOf(player, '.live-row .figure');
+        const caption = () => textOf(player, '.live-row .caption');
+        expect(centre()).toBe('0 / 10');
+        expect(caption()).toBe('0:00');
+
+        tick(7000);
+        player.detectChanges();
+        expect(centre()).toBe('2 / 10');
+        expect(caption()).toBe('0:07');
+        expect(root(player).querySelector('.live-row [role="img"]')?.getAttribute('aria-label')).toBe('2 of 10 reps, set time 0:07');
+
+        tick(23_000);
+        player.detectChanges();
+        expect(centre()).toBe('10 / 10');
+        expect(root(player).querySelector('.live-row .ring.urgent')).not.toBeNull();
+
+        tick(30_000);
+        player.detectChanges();
+        expect(centre()).toBe('10 / 10');
+        expect(caption()).toBe('1:00');
+        expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+        expect(player.componentInstance.setActive()).toBeTrue();
+
+        // The ring is a guide: the reps recorded are the ones on the stepper.
+        button(player, '[aria-label="Less reps"]').click();
+        player.detectChanges();
+        button(player, '.complete-set').click();
+        expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+          'session-live',
+          'log-1',
+          1,
+          jasmine.objectContaining({ reps: 9, weightKg: 20 })
+        );
+        player.componentInstance.skipRest();
+        settle();
+      }));
+
+      it('takes the pace of the ring from the type of the exercise', fakeAsync(() => {
+        dataService.getExercise.and.returnValue(of(exerciseDetail({ exerciseType: 'MOBILITY' })));
+        const player = mountStrength();
+        button(player, '.start-set').click();
+        player.detectChanges();
+        buttonByText(player, 'Start now').click();
+        tick(8000);
+        player.detectChanges();
+
+        expect(textOf(player, '.live-row .figure')).toBe('2 / 10');
+        player.componentInstance.skipCurrentSet();
+        settle();
+      }));
+
+      it('shows only a quiet set time while the set has no reps to count', fakeAsync(() => {
+        const session = detail({
+          planDayId: 'day-1',
+          exercises: [{ ...detail().exercises[0], sets: [weeklySet(1, { restSeconds: 0 })] }]
+        });
+        followWrites(session);
+        const player = mount(session, weeklyPlan());
+        button(player, '.start-set').click();
+        player.detectChanges();
+        buttonByText(player, 'Start now').click();
+        tick(5000);
+        player.detectChanges();
+
+        expect(root(player).querySelector('.live-row app-player-ring')).toBeNull();
+        expect(textOf(player, '.set-clock')).toBe('Set time 0:05');
+        player.componentInstance.skipCurrentSet();
         settle();
       }));
 
@@ -1344,6 +1491,7 @@ describe('ExercisePlayerComponent', () => {
         expect(player.componentInstance.stage()).toBe('timed');
         expect(player.componentInstance.workGuideActive()).toBeTrue();
         expect(textOf(player, 'app-player-timer-stage .figure')).toBe('0:45');
+        player.componentInstance.stopGuidedSet();
         settle();
       }));
 
@@ -1373,168 +1521,76 @@ describe('ExercisePlayerComponent', () => {
         settle();
       }));
 
-      it('starts the countdown when a rest ends and the next set is timed, then the timer', fakeAsync(() => {
+      it('records a timed set at zero and goes to rest, as the on-screen timer does', fakeAsync(() => {
         const player = mountPlank();
 
-        button(player, '.complete-set').click();
+        button(player, '.start-timer').click();
+        player.detectChanges();
+        buttonByText(player, 'Start now').click();
+        tick(45_000);
+        player.detectChanges();
+
+        expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+        expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+          'session-live',
+          'log-1',
+          1,
+          jasmine.objectContaining({ reps: null, durationSeconds: 45, restSeconds: 30 })
+        );
+        expect(player.componentInstance.stage()).toBe('rest');
+        player.componentInstance.skipRest();
+        settle();
+      }));
+
+      it('shows the next timed set ready when a rest ends, with no countdown, and the primary button has focus', fakeAsync(() => {
+        const player = mountPlank();
+
+        completeSet(player);
         player.detectChanges();
         expect(player.componentInstance.stage()).toBe('rest');
 
         tick(30_000);
         player.detectChanges();
+        player.detectChanges();
 
         expect(player.componentInstance.currentSetNumber()).toBe(2);
-        expect(player.componentInstance.stage()).toBe('countdown');
-
-        tick(3000);
-        player.detectChanges();
-        expect(textOf(player, 'app-player-timer-stage .figure')).toBe('Go');
-        expect(player.componentInstance.stage()).toBe('countdown');
-
-        tick(COUNTDOWN_GO_MS);
-        player.detectChanges();
-        expect(player.componentInstance.stage()).toBe('timed');
+        expect(player.componentInstance.stage()).toBe('set');
+        expect(textOf(player, '.start-timer')).toBe('Start timer');
+        expect(document.activeElement).toBe(button(player, '.start-timer'));
+        tick(5000);
+        expect(player.componentInstance.stage()).toBe('set');
         settle();
       }));
 
-      it('counts down before a set of reps too, and shows the set with its steppers after Go', fakeAsync(() => {
+      it('shows the next set of reps ready when a rest ends, and again after Skip rest', fakeAsync(() => {
         const player = mountStrength();
 
-        button(player, '.complete-set').click();
+        completeSet(player);
         player.detectChanges();
         tick(30_000);
         player.detectChanges();
 
-        expect(player.componentInstance.stage()).toBe('countdown');
-        expect(player.componentInstance.currentSetNumber()).toBe(2);
-        expect(textOf(player, 'app-player-timer-stage .line')).toBe('Set 2 of 3 · 10 reps · 20 kg');
-        expect(root(player).querySelector('app-player-stepper')).toBeNull();
-
-        tick(3000 + COUNTDOWN_GO_MS);
-        player.detectChanges();
-
         expect(player.componentInstance.stage()).toBe('set');
+        expect(player.componentInstance.currentSetNumber()).toBe(2);
+        expect(textOf(player, '.start-set')).toBe('Start set');
         expect(root(player).querySelector('app-player-timer-stage')).toBeNull();
-        expect(root(player).querySelectorAll('app-player-stepper').length).toBe(2);
-        expect(button(player, '.complete-set')).not.toBeNull();
-        settle();
-      }));
 
-      it('counts down after Skip rest as well, and a tap on the ring starts the set at once', fakeAsync(() => {
-        const player = mountStrength();
-
-        button(player, '.complete-set').click();
+        completeSet(player);
         player.componentInstance.skipRest();
         player.detectChanges();
-        expect(player.componentInstance.stage()).toBe('countdown');
-
-        button(player, '.ring-tap').click();
-        player.detectChanges();
 
         expect(player.componentInstance.stage()).toBe('set');
+        expect(player.componentInstance.currentSetNumber()).toBe(3);
+        expect(textOf(player, '.start-set')).toBe('Start set');
         settle();
       }));
-
-      describe('the countdown of a workout that was just started', () => {
-        function mountFresh(): ComponentFixture<ExercisePlayerComponent> {
-          followWrites(strengthSession());
-          live.reset();
-          dataService.upsertSessionSet.calls.reset();
-          live.freshStart.set(true);
-          const player = TestBed.createComponent(ExercisePlayerComponent);
-          player.componentRef.setInput('session', strengthSession());
-          player.componentRef.setInput('activePlan', weeklyPlan());
-          player.detectChanges();
-          return player;
-        }
-
-        it('opens on the first set with three, two, one and Go, announcing each figure once', fakeAsync(() => {
-          const player = mountFresh();
-          const announced: string[] = [];
-          const note = () => announced.push(player.componentInstance.liveAnnouncement());
-
-          expect(player.componentInstance.stage()).toBe('countdown');
-          expect(textOf(player, 'app-player-timer-stage .figure')).toBe('3');
-          expect(textOf(player, 'app-player-timer-stage .name')).toBe('Bench Press');
-          player.detectChanges();
-          note();
-          for (const figure of ['2', '1', 'Go']) {
-            tick(1000);
-            player.detectChanges();
-            expect(textOf(player, 'app-player-timer-stage .figure')).toBe(figure);
-            note();
-          }
-          expect(announced).toEqual(['3', '2', '1', 'Go']);
-          expect(root(player).querySelector('app-player-ring [aria-live]')).toBeNull();
-
-          tick(COUNTDOWN_GO_MS);
-          player.detectChanges();
-          expect(player.componentInstance.stage()).toBe('set');
-          expect(document.activeElement).toBe(button(player, '.complete-set'));
-          settle();
-        }));
-
-        it('can be skipped with Start now', fakeAsync(() => {
-          const player = mountFresh();
-
-          buttonByText(player, 'Start now').click();
-          player.detectChanges();
-
-          expect(player.componentInstance.stage()).toBe('set');
-          settle();
-        }));
-
-        it('asks for the countdown once: a screen opened again at the same place has none', fakeAsync(() => {
-          const first = mountFresh();
-          buttonByText(first, 'Start now').click();
-          first.detectChanges();
-          first.destroy();
-
-          const again = mount(strengthSession(), weeklyPlan());
-
-          expect(again.componentInstance.stage()).toBe('set');
-          settle();
-        }));
-
-        it('does not run when the screen is reopened in the middle of a workout', () => {
-          const session = strengthSession();
-          session.exercises[0].sets[0] = { ...session.exercises[0].sets[0], status: 'DONE', logged: true };
-          live.reset();
-          live.freshStart.set(true);
-          const player = TestBed.createComponent(ExercisePlayerComponent);
-          player.componentRef.setInput('session', session);
-          player.componentRef.setInput('activePlan', weeklyPlan());
-          player.detectChanges();
-
-          expect(player.componentInstance.stage()).toBe('set');
-        });
-
-        it('counts down before the timer of a timed first set, and starts the timer after Go', fakeAsync(() => {
-          followWrites(weeklySession());
-          live.reset();
-          live.freshStart.set(true);
-          const player = TestBed.createComponent(ExercisePlayerComponent);
-          player.componentRef.setInput('session', weeklySession());
-          player.componentRef.setInput('activePlan', weeklyPlan());
-          player.detectChanges();
-          expect(player.componentInstance.stage()).toBe('countdown');
-
-          tick(3000 + COUNTDOWN_GO_MS);
-          player.detectChanges();
-
-          expect(player.componentInstance.stage()).toBe('timed');
-          expect(player.componentInstance.workGuideActive()).toBeTrue();
-          player.componentInstance.stopGuidedSet();
-          settle();
-        }));
-      });
 
       it('stops reading aloud when the set is completed', () => {
         const player = mountStrength();
         player.componentInstance.readAloud.set(true);
         player.detectChanges();
 
-        button(player, '.complete-set').click();
+        completeSet(player);
 
         expect(speech.cancel).toHaveBeenCalled();
         expect(player.componentInstance.readAloud()).toBeFalse();
@@ -1637,7 +1693,7 @@ describe('ExercisePlayerComponent', () => {
           buttonByText(player, 'Keep going').click();
           player.detectChanges();
 
-          button(player, '.complete-set').click();
+          completeSet(player);
           player.detectChanges();
 
           expect(textOf(player, 'app-player-rest .said')).toBe('Eight sets left in this workout.');
@@ -1720,6 +1776,162 @@ describe('ExercisePlayerComponent', () => {
 
           expect(player.componentInstance.currentExerciseIndex()).toBe(2);
         });
+      });
+
+      describe('a set that keeps running while the screen is away', () => {
+        const reopen = (): ComponentFixture<ExercisePlayerComponent> => {
+          const player = TestBed.createComponent(ExercisePlayerComponent);
+          player.componentRef.setInput('session', live.session());
+          player.componentRef.setInput('activePlan', weeklyPlan());
+          player.detectChanges();
+          return player;
+        };
+        const startTimed = (player: ComponentFixture<ExercisePlayerComponent>) => {
+          button(player, '.start-timer').click();
+          player.detectChanges();
+          buttonByText(player, 'Start now').click();
+          player.detectChanges();
+        };
+        const startCounted = (player: ComponentFixture<ExercisePlayerComponent>) => {
+          button(player, '.start-set').click();
+          player.detectChanges();
+          buttonByText(player, 'Start now').click();
+          player.detectChanges();
+        };
+
+        it('reopens a timed set with the ring at the right point', fakeAsync(() => {
+          const player = mountPlank();
+          startTimed(player);
+          tick(10_000);
+          player.destroy();
+          tick(5_000);
+
+          const again = reopen();
+
+          expect(again.componentInstance.stage()).toBe('timed');
+          expect(textOf(again, 'app-player-timer-stage .figure')).toBe('0:30');
+          expect(again.componentInstance.currentSetNumber()).toBe(1);
+          again.componentInstance.stopGuidedSet();
+          settle();
+        }));
+
+        it('reopens an active counted set with its ring and its set time', fakeAsync(() => {
+          const player = mountStrength();
+          startCounted(player);
+          tick(10_000);
+          player.destroy();
+          tick(5_000);
+
+          const again = reopen();
+
+          expect(again.componentInstance.setActive()).toBeTrue();
+          expect(textOf(again, '.live-row .figure')).toBe('5 / 10');
+          expect(textOf(again, '.live-row .caption')).toBe('0:15');
+          expect(textOf(again, '.complete-set')).toBe('Complete set');
+          again.componentInstance.skipCurrentSet();
+          settle();
+        }));
+
+        it('reopens a timed set that ended while away on its rest, and the set after it once the rest is over', fakeAsync(() => {
+          const player = mountPlank();
+          startTimed(player);
+          tick(5_000);
+          player.destroy();
+          tick(40_000);
+
+          expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+          expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+            'session-live',
+            'log-1',
+            1,
+            jasmine.objectContaining({ reps: null, durationSeconds: 45, restSeconds: 30 })
+          );
+          const resting = reopen();
+          expect(resting.componentInstance.stage()).toBe('rest');
+          expect(resting.componentInstance.restRemainingSeconds()).toBe(30);
+          resting.destroy();
+
+          tick(30_000);
+          const ready = reopen();
+
+          expect(ready.componentInstance.stage()).toBe('set');
+          expect(ready.componentInstance.currentSetNumber()).toBe(2);
+          expect(textOf(ready, '.start-timer')).toBe('Start timer');
+          expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+          settle();
+        }));
+
+        it('reopens a rest with the right time left', fakeAsync(() => {
+          const player = mountStrength();
+          completeSet(player);
+          player.detectChanges();
+          tick(12_000);
+          player.destroy();
+          tick(8_000);
+
+          const again = reopen();
+
+          expect(again.componentInstance.stage()).toBe('rest');
+          expect(again.componentInstance.restRemainingSeconds()).toBe(10);
+          expect(again.componentInstance.currentSetNumber()).toBe(1);
+          again.componentInstance.skipRest();
+          settle();
+        }));
+
+        it('resumes a countdown that was in progress as the set ready, not as a countdown', fakeAsync(() => {
+          const player = mountStrength();
+          button(player, '.start-set').click();
+          player.detectChanges();
+          expect(player.componentInstance.stage()).toBe('countdown');
+          player.destroy();
+
+          const again = reopen();
+
+          expect(again.componentInstance.stage()).toBe('set');
+          expect(textOf(again, '.start-set')).toBe('Start set');
+          settle();
+        }));
+
+        it('keeps a pause through the minimise', fakeAsync(() => {
+          const player = mountPlank();
+          startTimed(player);
+          tick(10_000);
+          buttonByText(player, 'Pause').click();
+          player.destroy();
+          tick(20_000);
+
+          const again = reopen();
+
+          expect(live.paused()).toBeTrue();
+          expect(textOf(again, 'app-player-timer-stage .figure')).toBe('0:35');
+          expect(textOf(again, 'app-player-timer-stage .caption')).toBe('Paused');
+          buttonByText(again, 'Resume').click();
+          again.componentInstance.stopGuidedSet();
+          settle();
+        }));
+
+        it('clears the stored set when the set is completed or skipped', fakeAsync(() => {
+          const key = 'fitsync.workout.run.session-live';
+          const session = detail({
+            planDayId: 'day-1',
+            exercises: [{ ...detail().exercises[0], sets: [weeklySet(1, { reps: 10, restSeconds: 0 }), weeklySet(2, { reps: 10, restSeconds: 0 })] }]
+          });
+          followWrites(session);
+          const player = mount(session, weeklyPlan());
+          startCounted(player);
+          expect(sessionStorage.getItem(key)).not.toBeNull();
+
+          button(player, '.complete-set').click();
+          player.detectChanges();
+          expect(sessionStorage.getItem(key)).toBeNull();
+
+          startCounted(player);
+          expect(sessionStorage.getItem(key)).not.toBeNull();
+          button(player, '.skip-set').click();
+          player.detectChanges();
+          expect(sessionStorage.getItem(key)).toBeNull();
+          settle();
+        }));
       });
 
       describe('the one Pause', () => {

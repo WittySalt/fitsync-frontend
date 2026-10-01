@@ -64,7 +64,8 @@
   color: var(--text-primary);
 }
 
-@container (min-width: 720px) {
+// The larger figure needs the room of a wide screen: beside a second stepper in a narrower column it overflows.
+@container (min-width: 960px) {
   .value {
     font-size: 28px;
   }

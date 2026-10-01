@@ -15,6 +15,7 @@ import {
   signal,
   untracked
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { concatMap, from, last } from 'rxjs';
 
 import { CoachStore } from '../../core/coach/coach.store';
@@ -31,6 +32,7 @@ import { ExercisePictureComponent } from './exercise-picture.component';
 import { PlayerConfirmComponent } from './player-confirm.component';
 import { PlayerCueComponent } from './player-cue.component';
 import { PlayerFooterComponent } from './player-footer.component';
+import { PlayerRingComponent } from './player-ring.component';
 import { PlayerRestComponent } from './player-rest.component';
 import { PlayerSetListComponent } from './player-set-list.component';
 import { PlayerStageComponent } from './player-stage.component';
@@ -50,7 +52,7 @@ import { restCoachLine, restCoachQuestion } from './rest-coach';
 import { SpeechService } from './speech.service';
 import { StageExercise } from './stage-exercise';
 import { StepCarouselComponent } from './step-carousel.component';
-import { guideSteps } from './guide-steps';
+import { fullGuideSteps, guideSteps } from './guide-steps';
 import { WorkoutCelebrationComponent, WorkoutCelebrationSummary } from './workout-celebration.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutModalComponent } from './workout-modal.component';
@@ -67,7 +69,10 @@ interface GuideSubject {
   alt: string;
   initial: string;
   chips: string[];
+  /** The short steps, for the carousel read at a glance during a set. */
   steps: string[];
+  /** The original instructions in full, for the guide. */
+  fullSteps: string[];
   description: string;
   videoUrl: string | null;
 }
@@ -92,6 +97,7 @@ interface UpNext {
     PlayerStageComponent,
     PlayerTimerStageComponent,
     PlayerRestComponent,
+    PlayerRingComponent,
     PlayerFooterComponent,
     PlayerConfirmComponent,
     PlayerCueComponent,
@@ -110,7 +116,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly live = inject(WorkoutLiveService);
-  private readonly defaultTempoSecondsPerRep = 3;
 
   @Input({ required: true }) session: WorkoutSessionDetail | null = null;
   @Input({ required: true }) activePlan: WorkoutPlan | null = null;
@@ -126,8 +131,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   readonly currentExerciseIndex = signal(0);
   readonly currentSetNumber = signal(1);
-  readonly restRemainingSeconds = signal(0);
-  readonly restTotalSeconds = signal(0);
   readonly savingSet = signal(false);
   readonly ending = signal(false);
   readonly allTargetsComplete = signal(false);
@@ -135,17 +138,12 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly failedFrameUrls = signal<Set<string>>(new Set());
   readonly currentDetail = signal<ExerciseDetail | null>(null);
   readonly detailsById = signal<ReadonlyMap<string, ExerciseDetail | null>>(new Map());
-  readonly workGuideActive = signal(false);
-  readonly workGuideElapsedSeconds = signal(0);
-  readonly workGuideRemainingSeconds = signal(0);
-  readonly guidedRepCount = signal(0);
   readonly countdownActive = signal(false);
   readonly setCompleteCue = signal(false);
   readonly restCompleteCue = signal(false);
   readonly showCelebration = signal(false);
   readonly celebrationSummary = signal<WorkoutCelebrationSummary | null>(null);
   readonly liveAnnouncement = signal('');
-  readonly activeTempoSecondsPerRep = signal(this.defaultTempoSecondsPerRep);
   readonly prefersReducedMotion = this.readReducedMotionPreference();
 
   /** The step the carousel is on, and whether the steps are being read aloud. */
@@ -162,12 +160,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly weightValue = signal(0);
   readonly durationValue = signal(0);
 
-  private restTimerId: ReturnType<typeof setInterval> | null = null;
-  private workTimerId: ReturnType<typeof setInterval> | null = null;
   private mediaTimerId: ReturnType<typeof setInterval> | null = null;
   private setCueTimerId: ReturnType<typeof setTimeout> | null = null;
   private restCueTimerId: ReturnType<typeof setTimeout> | null = null;
   private readonly activePlanRevision = signal(0);
+  private readonly defaultTempoSecondsPerRep = 3;
   private readonly detailCache = new Map<string, ExerciseDetail | null>();
   private readonly detailPending = new Set<string>();
   private currentMediaExerciseId = '';
@@ -191,6 +188,36 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     const log = this.currentLog();
     return (log && this.setsByLog().get(log.exerciseLogId)) || [];
   });
+  /** The run of the live service (the set that is running, or its rest) when it is the one on screen. */
+  private readonly runHere = computed(() => {
+    const run = this.live.run();
+    const log = this.currentLog();
+    return run && log && run.exerciseLogId === log.exerciseLogId && run.setNumber === this.currentSetNumber() ? run : null;
+  });
+  readonly restRemainingSeconds = computed(() => (this.runHere()?.phase === 'rest' ? this.live.restRemainingSeconds() : 0));
+  readonly restTotalSeconds = computed(() => this.runHere()?.restTotalSeconds ?? 0);
+  readonly workGuideActive = computed(() => {
+    const run = this.runHere();
+    return run?.phase === 'active' && run.kind === 'timed';
+  });
+  readonly workGuideElapsedSeconds = computed(() => (this.workGuideActive() ? this.live.runElapsedSeconds() : 0));
+  readonly workGuideRemainingSeconds = computed(() => (this.workGuideActive() ? this.live.runRemainingSeconds() : 0));
+  /** A counted set that was started: the countdown is over and the set is running. */
+  readonly setActive = computed(() => {
+    const run = this.runHere();
+    return run?.phase === 'active' && run.kind === 'counted';
+  });
+  readonly setElapsedSeconds = computed(() => (this.setActive() ? this.live.runElapsedSeconds() : 0));
+  /** The ring of a counted set: the reps it has reached at the tempo of the exercise. */
+  readonly ringReps = computed(() => (this.setActive() ? this.live.runReps() : 0));
+  readonly ringTarget = computed(() => this.runHere()?.targetReps ?? 0);
+  readonly ringFull = computed(() => this.ringTarget() > 0 && this.ringReps() >= this.ringTarget());
+  readonly ringShare = computed(() => (this.ringTarget() > 0 ? this.ringReps() / this.ringTarget() : 0));
+  readonly ringLabel = computed(
+    () => `${this.ringReps()} of ${this.ringTarget()} reps, set time ${this.setClock()}`
+  );
+  /** Saving a set, by a button here or by the clock of a timed set reaching zero. */
+  readonly saving = computed(() => this.savingSet() || this.live.recording());
   readonly currentTarget = computed<SetTarget | null>(
     () => this.currentSets().find((set) => set.setNumber === this.currentSetNumber())?.target ?? null
   );
@@ -211,13 +238,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     if (!target) {
       return 0;
     }
-    if ((target.durationSeconds ?? 0) > 0) {
-      return Math.max(1, target.durationSeconds ?? 0);
-    }
-    if ((target.reps ?? 0) > 0) {
-      return Math.max(1, target.reps ?? 0) * this.workGuideTempoSecondsPerRep();
-    }
-    return 0;
+    return (target.durationSeconds ?? 0) > 0 ? Math.max(1, target.durationSeconds ?? 0) : 0;
   });
   /** How much of the timed set is left, from 1 down to 0. */
   readonly workGuideShare = computed(() => {
@@ -355,22 +376,30 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     total: this.targetSets(),
     target: this.currentTarget()
   }));
-  readonly timedFigure = computed(() =>
-    this.isTimedTarget()
-      ? this.formatClock(this.workGuideRemainingSeconds())
-      : `${this.guidedRepCount()} / ${this.currentTarget()?.reps ?? 0}`
-  );
-  readonly timedLabel = computed(() =>
-    this.isTimedTarget()
-      ? `${this.formatClock(this.workGuideRemainingSeconds())} left`
-      : `${this.guidedRepCount()} of ${this.currentTarget()?.reps ?? 0} reps`
-  );
-  /** Nothing turns by itself while the workout is paused or the guide is open and not being read. */
-  readonly holdSteps = computed(() => this.live.paused() || (this.guideOpen() && !this.readAloud()));
+  readonly timedFigure = computed(() => this.formatClock(this.workGuideRemainingSeconds()));
+  readonly timedLabel = computed(() => `${this.formatClock(this.workGuideRemainingSeconds())} left`);
+  /** How long the counted set has lasted, as mm:ss. */
+  readonly setClock = computed(() => this.formatClock(this.setElapsedSeconds()));
+  /** Nothing turns by itself while the workout is paused or the guide is open. */
+  readonly holdSteps = computed(() => this.live.paused() || this.guideOpen());
   readonly guideInline = computed(() => this.guideOpen() && !this.guideAsDialog());
   readonly guideBackLabel = computed(() =>
     this.stage() === 'rest' ? 'Back to the rest' : `Back to set ${this.currentSetNumber()}`
   );
+
+  /** A timed set that ended or a rest that ended while this screen is mounted, with or without anyone looking. */
+  private readonly runEventsSubscription = this.live.runEvents.pipe(takeUntilDestroyed()).subscribe((event) => {
+    if (event.kind === 'recorded') {
+      this.stopReading();
+      this.triggerSetCompleteCue();
+      if (!event.restStarted) {
+        this.advanceTarget();
+      }
+      return;
+    }
+    this.triggerRestCompleteCue();
+    this.advanceTarget();
+  });
 
   private readonly detailEffect = effect(() => {
     const exerciseId = this.currentExerciseId();
@@ -441,7 +470,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['activePlan']) {
       this.activePlanRevision.update((value) => value + 1);
-      this.clearWorkTimer();
+      this.countdownActive.set(false);
     }
     const sessionChange = changes['session'];
     if (this.session && sessionChange) {
@@ -453,24 +482,25 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       && (sessionChange.firstChange || sessionChange.previousValue?.sessionId !== this.session?.sessionId);
     const moved = !!(changes['initialExerciseId'] || changes['initialSetNumber'] || changes['allDoneOnOpen']);
     if (this.session && (otherWorkout || moved)) {
-      const index = this.initialExerciseIndex();
+      // A set that is running (or its rest) keeps its place: the screen opens on it, wherever it was left.
+      const run = this.live.run();
+      const runIndex = run && run.sessionId === this.session.sessionId
+        ? this.orderedLogs().findIndex((log) => log.exerciseLogId === run.exerciseLogId)
+        : -1;
+      const index = runIndex >= 0 ? runIndex : this.initialExerciseIndex();
       this.currentExerciseIndex.set(index);
-      this.currentSetNumber.set(this.initialSetNumber ?? this.nextTargetSetNumber(this.orderedLogs()[index] ?? null));
+      this.currentSetNumber.set(
+        runIndex >= 0 && run ? run.setNumber : (this.initialSetNumber ?? this.nextTargetSetNumber(this.orderedLogs()[index] ?? null))
+      );
       this.allTargetsComplete.set(this.allDoneOnOpen);
-      this.clearRestTimer();
-      this.clearWorkTimer();
+      this.countdownActive.set(false);
       this.stopReading();
       this.guideOpen.set(false);
       this.confirm.set(null);
-      if (otherWorkout && this.live.consumeFreshStart() && this.opensOnFirstSet()) {
-        this.countdownActive.set(true);
-      }
     }
   }
 
   ngOnDestroy(): void {
-    this.clearRestTimer();
-    this.clearWorkTimer();
     this.clearMediaTimer();
     this.clearCueTimers();
     this.stopReading();
@@ -481,11 +511,10 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     const log = this.currentLog();
     const target = this.currentTarget();
     const setNumber = this.currentSetNumber();
-    if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.savingSet() || this.restRemainingSeconds() > 0) {
+    if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.saving() || this.restRemainingSeconds() > 0) {
       return;
     }
 
-    this.clearWorkTimer();
     this.restCompleteCue.set(false);
     this.savingSet.set(true);
     this.live.recordSet(session.sessionId, log.exerciseLogId, setNumber, {
@@ -514,10 +543,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   skipCurrentSet(): void {
     const session = this.live.session();
     const log = this.currentLog();
-    if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.savingSet() || this.restRemainingSeconds() > 0) {
+    if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.saving() || this.restRemainingSeconds() > 0) {
       return;
     }
-    this.clearWorkTimer();
+    this.countdownActive.set(false);
+    this.live.clearRun();
     this.stopReading();
     this.savingSet.set(true);
     this.live.skipSet(session.sessionId, log.exerciseLogId, this.currentSetNumber()).subscribe({
@@ -540,8 +570,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     const sessionId = session.sessionId;
     const exerciseLogId = log.exerciseLogId;
     const open = this.currentSets().filter((set) => !set.logged && !set.skipped).map((set) => set.setNumber);
-    this.clearWorkTimer();
-    this.clearRestTimer();
+    this.countdownActive.set(false);
+    this.live.clearRun();
     this.stopReading();
     if (!open.length) {
       this.moveToNextExercise();
@@ -561,65 +591,79 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     });
   }
 
-  /** "Start timer": the countdown first, then the timer. */
-  startTimedSet(): void {
-    if (!this.canRecordWorkSet() || this.targetWorkSeconds() <= 0) {
+  /** "Start set" and "Start timer": the countdown comes first, then the set begins. */
+  startSet(): void {
+    if (!this.canRecordWorkSet() || (this.isTimedTarget() && this.targetWorkSeconds() <= 0)) {
       return;
     }
-    this.clearWorkTimer();
     this.restCompleteCue.set(false);
     this.countdownActive.set(true);
   }
 
-  /** The countdown reached zero or was skipped: a timed set starts its timer, any other shows the set. */
+  /** The countdown reached zero or was skipped: the set begins, a timed one with its timer, a counted one with its ring. */
   onCountdownStarted(): void {
     this.countdownActive.set(false);
-    if (this.isTimedTarget()) {
-      this.startGuidedSet();
-    }
+    this.startGuidedSet();
   }
 
-  startGuidedSet(): void {
-    if (!this.canRecordWorkSet() || this.targetWorkSeconds() <= 0) {
+  /** The primary button of the set screen: it starts the set, and completes it once it is running. */
+  onPrimary(): void {
+    if (this.setActive()) {
+      this.completeCurrentSet();
       return;
     }
-
-    this.clearWorkTimer();
-    this.restCompleteCue.set(false);
-    this.activeTempoSecondsPerRep.set(this.currentTempoSecondsPerRep());
-    this.workGuideElapsedSeconds.set(0);
-    this.workGuideRemainingSeconds.set(this.targetWorkSeconds());
-    this.guidedRepCount.set(0);
-    this.workGuideActive.set(true);
-    this.workTimerId = setInterval(() => this.tickWorkGuide(), 1000);
+    this.startSet();
   }
 
+  /** The set starts running in the live service, which keeps its clock whether or not this screen is open. */
+  startGuidedSet(): void {
+    const session = this.live.session();
+    const log = this.currentLog();
+    if (!session?.sessionId || !log?.exerciseLogId || !this.canRecordWorkSet()) {
+      return;
+    }
+    const target = this.currentTarget();
+    const timed = this.isTimedTarget();
+    if (timed && this.targetWorkSeconds() <= 0) {
+      return;
+    }
+    this.restCompleteCue.set(false);
+    this.live.startRun({
+      sessionId: session.sessionId,
+      exerciseLogId: log.exerciseLogId,
+      setNumber: this.currentSetNumber(),
+      exerciseName: log.exerciseNameSnapshot,
+      kind: timed ? 'timed' : 'counted',
+      targetSeconds: timed ? this.targetWorkSeconds() : 0,
+      targetReps: timed ? 0 : (target?.reps ?? 0),
+      tempoSeconds: this.currentTempoSecondsPerRep(),
+      weightKg: target?.weightKg ?? null,
+      distanceKm: target?.distanceKm ?? null,
+      restSeconds: target?.restSeconds ?? null,
+      restAfterSeconds: this.isLastTarget() ? 0 : (target?.restSeconds ?? 0)
+    });
+  }
+
+  /** "Stop and save" on a timed set: what has run so far is recorded. */
   stopGuidedSet(): void {
     if (!this.workGuideActive()) {
       return;
     }
-    const elapsed = this.workGuideElapsedSeconds();
-    this.clearWorkTimer(false);
-    if (elapsed <= 0) {
-      this.clearWorkTimer();
-      return;
-    }
-    this.recordGuidedSet(false);
+    this.live.finishTimedRun();
   }
 
   skipRest(): void {
     if (this.restRemainingSeconds() <= 0) {
       return;
     }
-    this.clearRestTimer();
+    this.live.clearRun();
     this.restCompleteCue.set(false);
     this.advanceTarget();
-    this.startCountdown();
   }
 
   addRestSeconds(): void {
     if (this.restRemainingSeconds() > 0) {
-      this.restRemainingSeconds.update((value) => value + 15);
+      this.live.extendRest(15);
     }
   }
 
@@ -697,6 +741,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   openGuide(): void {
+    this.stopReading();
     this.guideAsDialog.set(this.host.nativeElement.clientWidth >= WIDE_PLAYER_PX);
     this.guideOpener = typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null);
     this.guideOpen.set(true);
@@ -787,10 +832,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private subjectFor(log: WorkoutExerciseLog | null, detail: ExerciseDetail | null, imageUrl: string | null): GuideSubject {
     const instructions = this.instructionsOf(detail);
-    // The description is the original long text. The short steps replace it, and it is shown
-    // only when the exercise has none.
-    const hasShortSteps = (detail?.shortSteps ?? []).some((step) => typeof step === 'string' && step.trim().length > 0);
-    const description = hasShortSteps ? '' : (detail?.description?.trim() ?? '');
     return {
       name: log?.exerciseNameSnapshot ?? 'Exercise',
       imageUrl,
@@ -798,7 +839,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       initial: this.mediaInitial(log),
       chips: this.chipsOf(detail),
       steps: guideSteps({ shortSteps: detail?.shortSteps, instructions }),
-      description,
+      fullSteps: fullGuideSteps({ shortSteps: detail?.shortSteps, instructions }),
+      description: detail?.description?.trim() ?? '',
       videoUrl: detail?.videoUrl ?? null
     };
   }
@@ -847,40 +889,23 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   private beginRestOrAdvance(restSeconds: number): void {
-    this.clearWorkTimer();
-    if (restSeconds <= 0 || this.isLastTarget()) {
+    const session = this.live.session();
+    const log = this.currentLog();
+    if (restSeconds <= 0 || this.isLastTarget() || !session?.sessionId || !log) {
+      this.live.clearRun();
       this.advanceTarget();
       return;
     }
-
-    this.restRemainingSeconds.set(restSeconds);
-    this.restTotalSeconds.set(restSeconds);
-    this.clearRestTimer(false);
-    this.restTimerId = setInterval(() => {
-      this.restRemainingSeconds.update((value) => Math.max(0, value - 1));
-      if (this.restRemainingSeconds() === 0) {
-        this.clearRestTimer(false);
-        this.triggerRestCompleteCue();
-        this.advanceTarget();
-        this.startCountdown();
-      }
-    }, 1000);
-  }
-
-  /** When a rest ends, a countdown comes before the next set, whatever its kind. */
-  private startCountdown(): void {
-    if (!this.allTargetsComplete() && this.canRecordWorkSet()) {
-      this.countdownActive.set(true);
-    }
-  }
-
-  /** A workout that was just started opens on its very first set, with nothing done or skipped yet. */
-  private opensOnFirstSet(): boolean {
-    if (this.allDoneOnOpen || this.currentExerciseIndex() !== 0 || !this.live.canWrite()) {
-      return false;
-    }
-    const rows = this.orderedLogs().flatMap((log) => log.sets);
-    return !rows.some((row) => !isOpenSet(row));
+    // The rest is the live service's: it counts down by the wall clock and ends on its own.
+    this.live.beginRest(
+      {
+        sessionId: session.sessionId,
+        exerciseLogId: log.exerciseLogId,
+        setNumber: this.currentSetNumber(),
+        exerciseName: log.exerciseNameSnapshot
+      },
+      restSeconds
+    );
   }
 
   private loadExerciseDetail(exerciseId: string | null): void {
@@ -922,7 +947,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   /** The next set that is still to do in this exercise, else the next exercise that has one. */
   private advanceTarget(): void {
-    this.restRemainingSeconds.set(0);
     const current = this.currentSetNumber();
     const next = this.currentSets().find((set) => set.setNumber > current && !set.logged && !set.skipped);
     if (next) {
@@ -934,7 +958,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   /** Goes to the next exercise that still has an open set; none left means the plan is done. */
   private moveToNextExercise(): void {
-    this.restRemainingSeconds.set(0);
     const logs = this.orderedLogs();
     for (let index = this.currentExerciseIndex() + 1; index < logs.length; index++) {
       const sets = this.setsByLog().get(logs[index].exerciseLogId) ?? [];
@@ -953,77 +976,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return !!session?.sessionId
       && !!log?.exerciseLogId
       && this.live.canWrite()
-      && !this.savingSet()
+      && !this.saving()
       && this.restRemainingSeconds() <= 0
       && !this.allTargetsComplete();
-  }
-
-  private tickWorkGuide(): void {
-    if (!this.workGuideActive() || this.live.paused() || this.savingSet()) {
-      return;
-    }
-    const targetSeconds = this.targetWorkSeconds();
-    if (targetSeconds <= 0) {
-      this.clearWorkTimer();
-      return;
-    }
-
-    const nextElapsed = Math.min(targetSeconds, this.workGuideElapsedSeconds() + 1);
-    this.workGuideElapsedSeconds.set(nextElapsed);
-    this.workGuideRemainingSeconds.set(Math.max(0, targetSeconds - nextElapsed));
-    this.updateGuidedRepCount(nextElapsed);
-
-    if (nextElapsed >= targetSeconds) {
-      this.clearWorkTimer(false);
-      this.recordGuidedSet(true);
-    }
-  }
-
-  private updateGuidedRepCount(elapsedSeconds: number): void {
-    const targetReps = this.currentTarget()?.reps ?? 0;
-    if (this.isTimedTarget() || targetReps <= 0) {
-      this.guidedRepCount.set(0);
-      return;
-    }
-    const completedReps = Math.min(targetReps, Math.floor(elapsedSeconds / this.workGuideTempoSecondsPerRep()));
-    this.guidedRepCount.set(completedReps);
-  }
-
-  private recordGuidedSet(fullTarget: boolean): void {
-    const session = this.live.session();
-    const log = this.currentLog();
-    const target = this.currentTarget();
-    const setNumber = this.currentSetNumber();
-    if (!session?.sessionId || !log?.exerciseLogId || !target || !this.canRecordWorkSet()) {
-      this.clearWorkTimer();
-      return;
-    }
-
-    const elapsedSeconds = this.workGuideElapsedSeconds();
-    const recordedDurationSeconds = elapsedSeconds > 0 ? Math.round(elapsedSeconds) : null;
-    const reps = this.guidedSetReps(fullTarget, target);
-    this.restCompleteCue.set(false);
-    this.savingSet.set(true);
-    this.live.recordSet(session.sessionId, log.exerciseLogId, setNumber, {
-      reps,
-      weightKg: this.hasWeightStepper() ? this.weightValue() : (target.weightKg ?? null),
-      durationSeconds: recordedDurationSeconds,
-      distanceKm: target.distanceKm ?? null,
-      restSeconds: target.restSeconds ?? null,
-      perceivedExertion: null,
-      notes: null
-    }).subscribe({
-      next: () => {
-        this.stopReading();
-        this.triggerSetCompleteCue();
-        this.beginRestOrAdvance(target.restSeconds ?? 0);
-      },
-      error: () => {
-        this.toast.error('Unable to save this set. Please retry.');
-        this.savingSet.set(false);
-      },
-      complete: () => this.savingSet.set(false)
-    });
   }
 
   private isLastTarget(): boolean {
@@ -1040,10 +995,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     }
     const passed = log?.sets.filter((set) => !isOpenSet(set)).map((set) => set.setNumber) ?? [];
     return Math.max(0, ...passed) + 1;
-  }
-
-  private workGuideTempoSecondsPerRep(): number {
-    return this.workGuideActive() ? this.activeTempoSecondsPerRep() : this.currentTempoSecondsPerRep();
   }
 
   private tempoForExerciseType(exerciseType: string | null | undefined): number {
@@ -1067,31 +1018,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return index >= 0 ? index : 0;
   }
 
-  private clearRestTimer(reset = true): void {
-    if (this.restTimerId) {
-      clearInterval(this.restTimerId);
-      this.restTimerId = null;
-    }
-    if (reset) {
-      this.restRemainingSeconds.set(0);
-    }
-  }
-
-  private clearWorkTimer(reset = true): void {
-    if (this.workTimerId) {
-      clearInterval(this.workTimerId);
-      this.workTimerId = null;
-    }
-    this.workGuideActive.set(false);
-    this.countdownActive.set(false);
-    if (reset) {
-      this.activeTempoSecondsPerRep.set(this.currentTempoSecondsPerRep());
-      this.workGuideElapsedSeconds.set(0);
-      this.workGuideRemainingSeconds.set(0);
-      this.guidedRepCount.set(0);
-    }
-  }
-
   private detailMediaFrames(): string[] {
     return [...(this.currentDetail()?.images ?? [])]
       .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER))
@@ -1112,13 +1038,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private fallbackMediaFrames(): string[] {
     const fallbackFrame = this.fallbackMediaFrame();
     return fallbackFrame ? [fallbackFrame] : [];
-  }
-
-  private guidedSetReps(fullTarget: boolean, target: SetTarget): number | null {
-    if (this.isTimedTarget()) {
-      return null;
-    }
-    return fullTarget ? target.reps ?? null : this.guidedRepCount();
   }
 
   private resetMediaForExercise(exerciseId = ''): void {

@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutExerciseLog, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { NOTHING_LOGGED_NOTICE, STILL_RUNNING_NOTICE, WorkoutLiveService, formatElapsedClock } from './workout-live.service';
+import { NOTHING_LOGGED_NOTICE, STILL_RUNNING_NOTICE, SetRunIdentity, WorkoutLiveService, formatElapsedClock } from './workout-live.service';
 
 function session(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
   return {
@@ -398,29 +398,6 @@ describe('WorkoutLiveService', () => {
     expect(service.currentLabel()).toBe('All sets done');
   });
 
-  it('marks a workout that was just started, once, and not one that is picked up again', () => {
-    service.startFromPlan('plan-1').subscribe();
-    expect(service.freshStart()).toBeTrue();
-    expect(service.consumeFreshStart()).toBeTrue();
-    expect(service.consumeFreshStart()).toBeFalse();
-
-    dataService.getActiveWorkout.and.returnValue(
-      of({ session: session({ sessionId: 'session-other', exercises: [log([false])] }), resume: null })
-    );
-    service.refresh();
-
-    expect(service.session()?.sessionId).toBe('session-other');
-    expect(service.freshStart()).toBeFalse();
-  });
-
-  it('forgets the fresh start when the workout is reset', () => {
-    service.startFromPlan('plan-1').subscribe();
-
-    service.reset();
-
-    expect(service.freshStart()).toBeFalse();
-  });
-
   it('opens on the last exercise with Finish next when every set is done', () => {
     const exercises = [log([true]), log([true], { exerciseLogId: 'log-2', exerciseId: 'exercise-2', sequence: 2 })];
     dataService.getActiveWorkout.and.returnValue(of({ session: session({ exercises }), resume: null }));
@@ -658,5 +635,287 @@ describe('WorkoutLiveService', () => {
     expect(formatElapsedClock(754)).toBe('12:34');
     expect(formatElapsedClock(3723)).toBe('1:02:03');
     expect(formatElapsedClock(-5)).toBe('0:00');
+  });
+
+  describe('the set in progress', () => {
+    const identity: SetRunIdentity = {
+      sessionId: 'session-live',
+      exerciseLogId: 'log-1',
+      setNumber: 1,
+      exerciseName: 'Plank Hold'
+    };
+    const key = 'fitsync.workout.run.session-live';
+    const timed = (overrides: object = {}) => ({
+      ...identity,
+      kind: 'timed' as const,
+      targetSeconds: 45,
+      targetReps: 0,
+      tempoSeconds: 3,
+      weightKg: null,
+      distanceKm: null,
+      restSeconds: 30,
+      restAfterSeconds: 30,
+      ...overrides
+    });
+    const counted = (overrides: object = {}) => ({
+      ...identity,
+      exerciseName: 'Goblet Squat',
+      kind: 'counted' as const,
+      targetSeconds: 0,
+      targetReps: 12,
+      tempoSeconds: 3,
+      weightKg: 16,
+      distanceKm: null,
+      restSeconds: 30,
+      restAfterSeconds: 30,
+      ...overrides
+    });
+    const open = () => session({ exercises: [log([false, false, false])] });
+    const afterFirstSet = () => session({ exercises: [log([true, false, false])] });
+    const stored = () => sessionStorage.getItem(key);
+
+    beforeEach(() => {
+      sessionStorage.clear();
+      service.setSession(open());
+    });
+
+    afterEach(() => {
+      sessionStorage.clear();
+    });
+
+    it('keeps the time left of a timed set while the screen is put away, from the wall clock', fakeAsync(() => {
+      service.startRun(timed());
+      tick(10_000);
+      expect(service.runRemainingSeconds()).toBe(35);
+
+      service.minimise();
+      tick(5_000);
+
+      expect(service.runRemainingSeconds()).toBe(30);
+      expect(service.runLabel()).toBe('Plank Hold · 0:30 left');
+      service.reset();
+    }));
+
+    it('shows a counted set by its reps in the bar, and never ends it by itself', fakeAsync(() => {
+      service.startRun(counted());
+      tick(21_000);
+
+      expect(service.runReps()).toBe(7);
+      expect(service.runLabel()).toBe('Goblet Squat · 7 / 12');
+
+      tick(600_000);
+      expect(service.runReps()).toBe(12);
+      expect(service.run()?.phase).toBe('active');
+      expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+      service.reset();
+    }));
+
+    it('shows the set time in the bar when a counted set has no reps to count', fakeAsync(() => {
+      service.startRun(counted({ targetReps: 0 }));
+      tick(23_000);
+
+      expect(service.runLabel()).toBe('Goblet Squat · 0:23');
+      service.reset();
+    }));
+
+    it('records a timed set that reaches zero while the screen is away, once, and starts the rest', fakeAsync(() => {
+      dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));
+      const events: string[] = [];
+      service.runEvents.subscribe((event) => events.push(event.kind));
+      service.startRun(timed({ targetSeconds: 3, restAfterSeconds: 2 }));
+      service.minimise();
+
+      tick(3_000);
+
+      expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+      expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+        'session-live',
+        'log-1',
+        1,
+        jasmine.objectContaining({ reps: null, durationSeconds: 3, restSeconds: 30 })
+      );
+      expect(service.run()?.phase).toBe('rest');
+      expect(service.runLabel()).toBe('Rest 0:02');
+      tick(1_000);
+      expect(service.runLabel()).toBe('Rest 0:01');
+
+      tick(1_000);
+      expect(service.run()).toBeNull();
+      expect(stored()).toBeNull();
+      expect(events).toEqual(['recorded', 'rest-ended']);
+      expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+    }));
+
+    it('goes straight to the next set when no rest follows a timed set that ended', fakeAsync(() => {
+      dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));
+      service.startRun(timed({ targetSeconds: 2, restAfterSeconds: 0 }));
+
+      tick(2_000);
+
+      expect(service.run()).toBeNull();
+      expect(stored()).toBeNull();
+    }));
+
+    it('keeps the set and does not retry every second when saving fails', fakeAsync(() => {
+      dataService.upsertSessionSet.and.returnValue(throwError(() => new Error('down')));
+      service.startRun(timed({ targetSeconds: 2 }));
+
+      tick(5_000);
+
+      expect(dataService.upsertSessionSet).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenCalled();
+      expect(service.run()?.phase).toBe('active');
+      service.reset();
+    }));
+
+    it('holds the set clock and the workout clock together while paused, through a minimise', fakeAsync(() => {
+      service.startRun(timed());
+      tick(10_000);
+      service.pause();
+      service.minimise();
+      tick(20_000);
+
+      expect(service.paused()).toBeTrue();
+      expect(service.runRemainingSeconds()).toBe(35);
+      expect(JSON.parse(stored() ?? '{}').pausedAtMs).not.toBeNull();
+
+      service.resume();
+      tick(5_000);
+
+      expect(service.runRemainingSeconds()).toBe(30);
+      service.reset();
+    }));
+
+    it('does not finish a timed set while the workout is paused', fakeAsync(() => {
+      service.startRun(timed({ targetSeconds: 5 }));
+      tick(2_000);
+      service.pause();
+      tick(60_000);
+
+      expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+      service.reset();
+    }));
+
+    it('stores the set under its session and takes it up again after a reload', fakeAsync(() => {
+      service.startRun(timed());
+      tick(10_000);
+      expect(stored()).not.toBeNull();
+
+      const reloaded = TestBed.runInInjectionContext(() => new WorkoutLiveService());
+      reloaded.setSession(open());
+      tick(5_000);
+
+      expect(reloaded.run()?.exerciseName).toBe('Plank Hold');
+      expect(reloaded.runRemainingSeconds()).toBe(30);
+      service.reset();
+      reloaded.reset();
+    }));
+
+    it('restores a paused set as paused after a reload', fakeAsync(() => {
+      service.startRun(timed());
+      tick(10_000);
+      service.pause();
+
+      const reloaded = TestBed.runInInjectionContext(() => new WorkoutLiveService());
+      reloaded.setSession(open());
+      tick(30_000);
+
+      expect(reloaded.paused()).toBeTrue();
+      expect(reloaded.runRemainingSeconds()).toBe(35);
+      service.reset();
+      reloaded.reset();
+    }));
+
+    it('takes up a rest that is still running after a reload', fakeAsync(() => {
+      service.beginRest(identity, 30);
+      tick(10_000);
+
+      const reloaded = TestBed.runInInjectionContext(() => new WorkoutLiveService());
+      reloaded.setSession(afterFirstSet());
+
+      expect(reloaded.run()?.phase).toBe('rest');
+      expect(reloaded.runLabel()).toBe('Rest 0:20');
+      service.reset();
+      reloaded.reset();
+    }));
+
+    it('carries on when storage throws', fakeAsync(() => {
+      const write = spyOn(Storage.prototype, 'setItem').and.throwError('full');
+      const read = spyOn(Storage.prototype, 'getItem').and.throwError('blocked');
+      spyOn(Storage.prototype, 'removeItem').and.throwError('blocked');
+
+      expect(() => service.startRun(timed())).not.toThrow();
+      tick(3_000);
+      expect(service.runElapsedSeconds()).toBe(3);
+
+      const reloaded = TestBed.runInInjectionContext(() => new WorkoutLiveService());
+      expect(() => reloaded.setSession(open())).not.toThrow();
+      expect(reloaded.run()).toBeNull();
+      expect(write).toHaveBeenCalled();
+      expect(read).toHaveBeenCalled();
+      expect(() => service.clearRun()).not.toThrow();
+      reloaded.reset();
+    }));
+
+    it('ignores a stored set that belongs to another workout, one that is closed, and one that is garbled', () => {
+      const record = (overrides: object = {}) => JSON.stringify({
+        ...timed(), phase: 'active', startedAtMs: Date.now(), pausedMs: 0, pausedAtMs: null, restEndsAtMs: 0, restTotalSeconds: 0, ...overrides
+      });
+      const reloadWith = (raw: string, current = open()) => {
+        sessionStorage.setItem(key, raw);
+        const reloaded = TestBed.runInInjectionContext(() => new WorkoutLiveService());
+        reloaded.setSession(current);
+        const run = reloaded.run();
+        reloaded.reset();
+        return run;
+      };
+
+      expect(reloadWith(record({ sessionId: 'session-other' }))).toBeNull();
+      expect(stored()).toBeNull();
+      expect(reloadWith(record(), afterFirstSet())).toBeNull();
+      expect(stored()).toBeNull();
+      expect(reloadWith('{not json')).toBeNull();
+      expect(reloadWith(record({ phase: 'resting' }))).toBeNull();
+      expect(reloadWith(record({ phase: 'rest', restEndsAtMs: Date.now() - 1000 }), afterFirstSet())).toBeNull();
+      expect(reloadWith(record())).not.toBeNull();
+    });
+
+    it('clears the stored set when the workout is finished', fakeAsync(() => {
+      service.startRun(timed());
+      tick(1_000);
+      expect(stored()).not.toBeNull();
+
+      service.finishActive().subscribe();
+
+      expect(stored()).toBeNull();
+      expect(service.run()).toBeNull();
+    }));
+
+    it('clears the stored set when the workout is discarded', fakeAsync(() => {
+      service.startRun(timed());
+      tick(1_000);
+
+      service.discardActive().subscribe();
+
+      expect(stored()).toBeNull();
+      expect(service.run()).toBeNull();
+    }));
+
+    it('clears the stored set when it is cleared, as after a set is skipped or recorded', fakeAsync(() => {
+      service.startRun(counted());
+      expect(stored()).not.toBeNull();
+
+      service.clearRun();
+
+      expect(stored()).toBeNull();
+    }));
+
+    it('lengthens a rest by the wall clock', fakeAsync(() => {
+      service.beginRest(identity, 30);
+      service.extendRest(15);
+
+      expect(service.restRemainingSeconds()).toBe(45);
+      service.reset();
+    }));
   });
 });
