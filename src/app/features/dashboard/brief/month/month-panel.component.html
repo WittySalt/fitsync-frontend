@@ -18,9 +18,6 @@
       <span>{{ saving() ? 'Saving…' : 'Save as image' }}</span>
     </button>
   }
-  @if (emptyLine(); as line) {
-    <span class="since">{{ line }}</span>
-  }
 </div>
 @if (status() === 'loading') {
   <div class="loading" role="status" aria-busy="true" aria-label="Loading the month">
