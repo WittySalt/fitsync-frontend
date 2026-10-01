@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnChanges, OnInit, Output, SimpleChanges, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -22,6 +22,7 @@ import {
 import { formatKm } from '../dashboard/brief/brief-duration';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { SessionRecordComponent } from './session-record.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
 
@@ -53,7 +54,7 @@ const integerOrBlank: ValidatorFn = (control) => {
 
 @Component({
   selector: 'app-session-detail',
-  imports: [ReactiveFormsModule, StatePanelComponent],
+  imports: [ReactiveFormsModule, StatePanelComponent, SessionRecordComponent],
   templateUrl: './session-detail.component.html',
   styleUrl: './session-detail.component.scss'
 })
@@ -76,6 +77,8 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   readonly editing = signal(false);
   readonly exerciseEditing = signal(false);
   readonly saving = signal(false);
+  /** The More menu of the page: edit, repeat and the one red delete. */
+  readonly moreOpen = signal(false);
 
   readonly editForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -105,6 +108,74 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     if (changes['sessionId'] && !changes['sessionId'].firstChange) {
       this.loadSession();
     }
+  }
+
+  toggleMore(event: Event): void {
+    event.stopPropagation();
+    this.moreOpen.update((open) => !open);
+  }
+
+  @HostListener('document:click')
+  closeMore(): void {
+    this.moreOpen.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  closeMoreOnEscape(): void {
+    this.moreOpen.set(false);
+  }
+
+  statusLabel(session: WorkoutSessionDetail): string {
+    switch (session.status) {
+      case 'COMPLETED':
+        return 'Completed';
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'IN_PROGRESS':
+        return 'In progress';
+      default:
+        return this.formatLabel(session.status);
+    }
+  }
+
+  /** "Strength · Wed 1 Oct, 21:13 to 22:01", or "since 21:13" while it is in progress. */
+  subLine(session: WorkoutSessionDetail): string {
+    const type = session.sportLabel || this.formatLabel(session.workoutType);
+    const start = new Date(session.startedAt);
+    if (Number.isNaN(start.getTime())) {
+      return type;
+    }
+    const day = start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const time = (value: Date) => value.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const ended = session.endedAt || session.completedAt;
+    const end = ended ? new Date(ended) : null;
+    const live = session.status === 'IN_PROGRESS' || session.status === 'PLANNED';
+    let range = live ? `since ${time(start)}` : time(start);
+    if (end && !Number.isNaN(end.getTime())) {
+      range = `${time(start)} to ${time(end)}`;
+    }
+    return `${type} · ${day}, ${range}`;
+  }
+
+  /** "Count this workout": a cancelled session with sets done becomes completed at its last set. */
+  countThis(): void {
+    const session = this.session();
+    if (!session?.sessionId || this.saving()) {
+      return;
+    }
+    this.saving.set(true);
+    this.dataService.countSession(session.sessionId).subscribe({
+      next: (counted) => {
+        this.session.set(counted);
+        this.updated.emit(counted);
+        this.toast.success('Workout counted.');
+      },
+      error: () => {
+        this.toast.error('Unable to count this workout. Please retry.');
+        this.saving.set(false);
+      },
+      complete: () => this.saving.set(false)
+    });
   }
 
   startEdit(): void {

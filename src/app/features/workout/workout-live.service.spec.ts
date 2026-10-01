@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutExerciseLog, WorkoutSessionDetail } from '../../core/fitsync.models';
@@ -80,10 +80,12 @@ describe('WorkoutLiveService', () => {
       'getActiveWorkout',
       'upsertSessionSet',
       'completeSession',
-      'cancelSession'
+      'cancelSession',
+      'recordRestTaken'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
     dataService.getActiveWorkout.and.returnValue(of(null));
+    dataService.recordRestTaken.and.returnValue(EMPTY);
     // The clock runs from the start the server reports, so the stubs report a start of right now.
     dataService.startWorkoutPlan.and.callFake(() => of(session({ startedAt: new Date().toISOString() })));
     dataService.startAdHocSession.and.callFake(() =>
@@ -773,6 +775,26 @@ describe('WorkoutLiveService', () => {
       expect(TestBed.runInInjectionContext(() => new WorkoutLiveService()).followAlong()).toBeFalse();
       localStorage.removeItem('fitsync.workout.mode');
     });
+
+    it('records the rest actually taken on the set it followed, when it runs out and when it is skipped', fakeAsync(() => {
+      dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));
+      service.startRun(timed({ targetSeconds: 2, restAfterSeconds: 3 }));
+      tick(2_000);
+      service.extendRest(15);
+      tick(18_000);
+
+      expect(dataService.recordRestTaken).toHaveBeenCalledOnceWith('session-live', 'log-1', 1, 18);
+      expect(service.run()).toBeNull();
+
+      dataService.recordRestTaken.calls.reset();
+      service.startRun(timed({ targetSeconds: 2, restAfterSeconds: 60 }));
+      tick(2_000);
+      tick(7_000);
+      service.endRest();
+
+      expect(dataService.recordRestTaken).toHaveBeenCalledOnceWith('session-live', 'log-1', 1, 7);
+      service.reset();
+    }));
 
     it('records a timed set that reaches zero while the screen is away, once, and starts the rest', fakeAsync(() => {
       dataService.upsertSessionSet.and.returnValue(of(afterFirstSet()));

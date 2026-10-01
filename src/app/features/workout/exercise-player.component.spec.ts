@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, flush, tick } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
@@ -9,6 +9,7 @@ import {
   WorkoutPlan,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
+import { AnalyticsApiService } from '../../core/analytics-api.service';
 import { CoachStore } from '../../core/coach/coach.store';
 import { ToastService } from '../../core/toast/toast.service';
 import { SpeechService } from './speech.service';
@@ -209,10 +210,13 @@ describe('ExercisePlayerComponent', () => {
       'getExercise',
       'upsertSessionSet',
       'completeSession',
-      'cancelSession'
+      'cancelSession',
+      'recordRestTaken',
+      'updateSessionEffort'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
     coach = jasmine.createSpyObj<CoachStore>('CoachStore', ['open', 'ask']);
+    dataService.recordRestTaken.and.returnValue(EMPTY);
     speech = { available: true, speak: jasmine.createSpy('speak'), cancel: jasmine.createSpy('cancel') };
 
     dataService.upsertSessionSet.and.returnValue(of(detail({
@@ -264,7 +268,8 @@ describe('ExercisePlayerComponent', () => {
         { provide: FitSyncDataService, useValue: dataService },
         { provide: ToastService, useValue: toast },
         { provide: CoachStore, useValue: coach },
-        { provide: SpeechService, useValue: speech }
+        { provide: SpeechService, useValue: speech },
+        { provide: AnalyticsApiService, useValue: { getAchievements: () => of({ achievements: [] }) } }
       ]
     }).compileComponents();
 
@@ -834,7 +839,7 @@ describe('ExercisePlayerComponent', () => {
     expect(toast.error).toHaveBeenCalledWith('Unable to save this set. Please retry.');
   });
 
-  it('shows the workout celebration after a completed finish and emits only after Continue', () => {
+  it('shows the workout celebration after a completed finish and emits only after Done', () => {
     spyOn(live, 'finish').and.returnValue(of(detail({ status: 'COMPLETED' })));
     const completedSpy = jasmine.createSpy('completed');
     fixture.componentInstance.completed.subscribe(completedSpy);
@@ -843,11 +848,10 @@ describe('ExercisePlayerComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.showCelebration()).toBeTrue();
-    expect(fixture.nativeElement.textContent).toContain('Great work!');
     expect(fixture.nativeElement.textContent).toContain('Workout complete');
     expect(completedSpy).not.toHaveBeenCalled();
 
-    fixture.debugElement.query(By.css('app-workout-celebration button')).nativeElement.click();
+    fixture.debugElement.query(By.css('app-workout-celebration .done')).nativeElement.click();
     fixture.detectChanges();
 
     expect(completedSpy).toHaveBeenCalledWith(jasmine.objectContaining({ status: 'COMPLETED' }));

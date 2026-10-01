@@ -172,6 +172,12 @@
     border-color: var(--border-accent);
   }
 
+  // A row of a session opens its page; its inside lays itself out (see history-row.component).
+  .history-row.session-row {
+    grid-template-columns: minmax(0, 1fr);
+    background: var(--surface);
+  }
+
   .history-row {
     display: grid;
     align-items: center;

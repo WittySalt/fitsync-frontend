@@ -1,6 +1,11 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, computed, inject, signal } from '@angular/core';
 
-import { WorkoutSessionDetail } from '../../core/fitsync.models';
+import { AnalyticsApiService } from '../../core/analytics-api.service';
+import { AnalyticsAchievement } from '../../core/analytics.models';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { WorkoutNewRecord, WorkoutSessionDetail } from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
+import { EffortBarsComponent } from './effort-bars.component';
 
 export interface WorkoutCelebrationSummary {
   completedSets: number;
@@ -10,84 +15,143 @@ export interface WorkoutCelebrationSummary {
   session: WorkoutSessionDetail;
 }
 
+/** One line of "Earned today": a new best or a badge. */
+export interface EarnedItem {
+  kind: 'record' | 'badge';
+  title: string;
+  line: string;
+}
+
+/** Badges are counted by another service from the workout's events, so they are asked for a moment later. */
+export const BADGE_DELAY_MS = 1500;
+
+const RECORD_WORDS: Record<string, (value: number) => string> = {
+  MAX_WEIGHT_KG: (value) => `${trim(value)} kg`,
+  MAX_REPS: (value) => `${trim(value)} reps`,
+  MAX_SINGLE_SET_VOLUME_KG: (value) => `${trim(value)} kg in one set`
+};
+
+function trim(value: number): string {
+  return String(Math.round(value * 100) / 100);
+}
+
+/** The new bests of a session, one line for each exercise with what it beat. */
+export function recordItems(records: readonly WorkoutNewRecord[] | undefined): EarnedItem[] {
+  const byExercise = new Map<string, string[]>();
+  for (const record of records ?? []) {
+    const word = RECORD_WORDS[record.recordType];
+    if (!word) {
+      continue;
+    }
+    byExercise.set(record.exerciseName, [...(byExercise.get(record.exerciseName) ?? []), word(record.value)]);
+  }
+  return Array.from(byExercise, ([exercise, values]) => ({ kind: 'record' as const, title: 'New best', line: `${exercise} · ${values.join(', ')}` }));
+}
+
+/** Badges unlocked since the workout started. */
+export function badgeItems(achievements: readonly AnalyticsAchievement[], since: string): EarnedItem[] {
+  const start = new Date(since).getTime();
+  return achievements
+    .filter((badge) => badge.unlocked && badge.unlockedAt && (!Number.isFinite(start) || new Date(badge.unlockedAt).getTime() >= start))
+    .map((badge) => ({ kind: 'badge' as const, title: `Badge · ${badge.title}`, line: 'unlocked today' }));
+}
+
+/**
+ * The end of a completed workout: the result first (time, sets, calories), then what it earned,
+ * then how hard it was. The effort the server estimated is already chosen; the person may tap
+ * another value, which is saved when they leave. Nothing on it waits for an answer.
+ */
 @Component({
   selector: 'app-workout-celebration',
+  imports: [EffortBarsComponent],
   templateUrl: './workout-celebration.component.html',
   styleUrl: './workout-celebration.component.scss'
 })
 export class WorkoutCelebrationComponent implements OnChanges, OnDestroy {
+  private readonly dataService = inject(FitSyncDataService);
+  private readonly analytics = inject(AnalyticsApiService);
+  private readonly toast = inject(ToastService);
+
   @Input({ required: true }) summary: WorkoutCelebrationSummary | null = null;
   @Input() reducedMotion = false;
 
   @Output() continue = new EventEmitter<void>();
 
-  readonly displaySets = signal(0);
-  readonly displaySeconds = signal(0);
-  readonly displayCalories = signal(0);
-  readonly confettiPieces = Array.from({ length: 16 }, (_, index) => index);
+  readonly effort = signal(5);
+  readonly effortEstimated = signal(true);
+  readonly badges = signal<EarnedItem[]>([]);
+  readonly saving = signal(false);
 
-  private countTimerId: ReturnType<typeof setInterval> | null = null;
+  readonly minutes = computed(() => Math.max(0, Math.round((this.summaryState()?.elapsedSeconds ?? 0) / 60)));
+  readonly calories = computed(() => {
+    const summary = this.summaryState();
+    return summary?.session.caloriesBurned ?? summary?.estimatedCalories ?? 0;
+  });
+  readonly earned = computed(() => [...recordItems(this.summaryState()?.session.newRecords), ...this.badges()]);
+  readonly hasEffort = computed(() => this.summaryState()?.session.perceivedExertion != null);
+
+  private readonly summaryState = signal<WorkoutCelebrationSummary | null>(null);
+  private badgeTimerId: ReturnType<typeof setTimeout> | null = null;
   private hasVibrated = false;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['summary'] || changes['reducedMotion']) {
-      this.startPresentation();
+    if (!changes['summary']) {
+      return;
+    }
+    const summary = this.summary;
+    this.summaryState.set(summary);
+    this.effort.set(summary?.session.perceivedExertion ?? 5);
+    this.effortEstimated.set(summary?.session.effortEstimated ?? true);
+    this.badges.set([]);
+    this.clearBadgeTimer();
+    if (summary) {
+      this.vibrateOnce();
+      this.badgeTimerId = setTimeout(() => this.loadBadges(summary.session.startedAt), BADGE_DELAY_MS);
     }
   }
 
   ngOnDestroy(): void {
-    this.clearCountTimer();
+    this.clearBadgeTimer();
   }
 
-  formatElapsed(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainder = seconds % 60;
-    return `${minutes}m ${remainder}s`;
-  }
-
-  private startPresentation(): void {
-    const summary = this.summary;
-    this.clearCountTimer();
-    if (!summary) {
+  /** "Done": a value the person chose is saved on the way out; an untouched estimate is already saved. */
+  done(): void {
+    const session = this.summaryState()?.session;
+    if (!session?.sessionId || this.effortEstimated() || this.saving() || !this.hasEffort()) {
+      this.continue.emit();
       return;
     }
-
-    if (this.reducedMotion) {
-      this.displaySets.set(summary.completedSets);
-      this.displaySeconds.set(summary.elapsedSeconds);
-      this.displayCalories.set(summary.estimatedCalories);
-      return;
-    }
-
-    this.vibrateOnce();
-    const startedAt = Date.now();
-    const durationMs = 800;
-    this.displaySets.set(0);
-    this.displaySeconds.set(0);
-    this.displayCalories.set(0);
-    this.countTimerId = setInterval(() => {
-      const progress = Math.min(1, (Date.now() - startedAt) / durationMs);
-      this.displaySets.set(Math.round(summary.completedSets * progress));
-      this.displaySeconds.set(Math.round(summary.elapsedSeconds * progress));
-      this.displayCalories.set(Math.round(summary.estimatedCalories * progress));
-      if (progress >= 1) {
-        this.clearCountTimer();
+    this.saving.set(true);
+    this.dataService.updateSessionEffort(session.sessionId, this.effort()).subscribe({
+      next: () => this.continue.emit(),
+      error: () => {
+        this.toast.error('Unable to save how hard it was. The estimate is kept.');
+        this.saving.set(false);
+        this.continue.emit();
       }
-    }, 40);
+    });
+  }
+
+  private loadBadges(since: string): void {
+    this.badgeTimerId = null;
+    this.analytics.getAchievements().subscribe({
+      next: (response) => this.badges.set(badgeItems(response.achievements, since)),
+      error: () => this.badges.set([])
+    });
   }
 
   private vibrateOnce(): void {
-    if (this.hasVibrated || typeof navigator === 'undefined') {
+    if (this.hasVibrated || this.reducedMotion || typeof navigator === 'undefined') {
       return;
     }
     navigator.vibrate?.(35);
     this.hasVibrated = true;
   }
 
-  private clearCountTimer(): void {
-    if (this.countTimerId) {
-      clearInterval(this.countTimerId);
-      this.countTimerId = null;
+  private clearBadgeTimer(): void {
+    if (this.badgeTimerId) {
+      clearTimeout(this.badgeTimerId);
+      this.badgeTimerId = null;
     }
   }
 }

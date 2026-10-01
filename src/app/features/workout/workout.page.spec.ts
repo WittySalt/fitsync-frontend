@@ -1,4 +1,4 @@
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { CoachApiService } from '../../core/coach/coach-api.service';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
@@ -900,19 +900,20 @@ describe('WorkoutPage', () => {
       expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
     });
 
-    it('falls back to the session in History when Continue finds no workout in progress', () => {
+    it('falls back to the page of the session when Continue finds no workout in progress', () => {
+      const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.detectChanges();
 
       todayCard(fixture).openSession.emit({ sessionId: 'session-running', status: 'IN_PROGRESS' });
       fixture.detectChanges();
 
-      expect(fixture.componentInstance.selectedTab()).toBe('history');
+      expect(navigate).toHaveBeenCalledWith(['/workout/sessions', 'session-running']);
       expect(fixture.componentInstance.filterStatus()).toBe('');
-      expect(fixture.componentInstance.selectedSessionId()).toBe('session-running');
     });
 
-    it('opens a finished session in History with its own status selected', () => {
+    it('opens a finished session on its own page, with History behind it on its status', () => {
+      const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.detectChanges();
 
@@ -920,17 +921,18 @@ describe('WorkoutPage', () => {
       fixture.detectChanges();
 
       expect(fixture.componentInstance.selectedTab()).toBe('history');
-      expect(fixture.componentInstance.selectedSessionId()).toBe('session-done');
+      expect(navigate).toHaveBeenCalledWith(['/workout/sessions', 'session-done']);
     });
 
-    it('opens History without a selection when the insight names no session', () => {
+    it('opens History without a page when the insight names no session', () => {
+      const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.detectChanges();
 
       todayCard(fixture).openSession.emit({ sessionId: null, status: 'COMPLETED' });
 
       expect(fixture.componentInstance.selectedTab()).toBe('history');
-      expect(fixture.componentInstance.selectedSessionId()).toBeNull();
+      expect(navigate).not.toHaveBeenCalled();
     });
   });
 
@@ -1300,21 +1302,26 @@ describe('WorkoutPage', () => {
     expect(component.selectedTab()).toBe('history');
   });
 
-  it('opens session detail from a history row', () => {
-    const completed = session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' });
+  it('opens the page of a session from its History row, which names its kind, day, facts and state', () => {
+    const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    const completed = session({
+      sessionId: 'session-1', name: 'Push day', status: 'COMPLETED', durationMinutes: 48, doneSets: 9, totalSets: 12
+    });
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([completed])));
-    dataService.getSession.and.returnValue(of(sessionDetail({ sessionId: 'session-1', name: 'Push day' })));
 
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
     fixture.componentInstance.selectedTab.set('history');
     fixture.detectChanges();
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.history-row')?.click();
-    fixture.detectChanges();
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.history-row.session-row');
+    expect(row?.querySelector('.name')?.textContent?.trim()).toBe('Push day');
+    expect(row?.querySelector('.facts')?.textContent?.trim()).toBe('48 min \u00b7 9 of 12 sets');
+    expect(row?.querySelector('.state')?.textContent?.trim()).toBe('Completed');
+    row?.click();
 
-    expect(fixture.componentInstance.selectedSessionId()).toBe('session-1');
-    expect(dataService.getSession).toHaveBeenCalledWith('session-1');
+    expect(navigate).toHaveBeenCalledWith(['/workout/sessions', 'session-1']);
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-session-detail')).toBeNull();
   });
 
   it('renders missing history duration without fake zeroes', () => {
@@ -1664,35 +1671,21 @@ describe('WorkoutPage', () => {
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
   });
 
-  it('updates session detail state and handles empty history selections', () => {
+  it('opens a session page only for a row that has an id, and reloads History after a repeat', () => {
+    const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
     const first = session({ sessionId: 'session-1', name: 'First', status: 'COMPLETED' });
-    const second = session({ sessionId: 'session-2', name: 'Second', status: 'COMPLETED' });
-    component.sessions.set([first, second]);
 
     component.openSessionDetail(session({ status: 'COMPLETED' }));
-
-    expect(component.selectedSessionId()).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
 
     component.openSessionDetail(first);
-    expect(component.selectedSessionId()).toBe('session-1');
-
-    const updated = sessionDetail({ sessionId: 'session-1', name: 'Updated', status: 'COMPLETED' });
-    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([updated, second])));
-
-    component.handleSessionUpdated(updated);
-    expect(component.sessions()[0].name).toBe('Updated');
-
-    component.handleSessionDeleted();
-    expect(component.selectedSessionId()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/workout/sessions', 'session-1']);
 
     const repeated = sessionDetail({ sessionId: 'session-2', name: 'Repeated' });
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([repeated, first])));
 
     component.handleSessionRepeated();
     expect(component.sessions()[0].name).toBe('Repeated');
-
-    component.closeSessionDetail();
-    expect(component.selectedSessionId()).toBeNull();
   });
 
   it('guards latest-session repeat and handles repeat errors', () => {

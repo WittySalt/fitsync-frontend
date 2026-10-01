@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 
 import { ToastService } from '../../core/toast/toast.service';
 import { WorkoutModalComponent } from './workout-modal.component';
-import { WorkoutLiveService } from './workout-live.service';
+import { WorkoutLiveService, discardLine } from './workout-live.service';
 
 /** The space the bar takes above the page's own padding, read by the shell and the coach button. */
 const BAR_SPACE = 'calc(68px + env(safe-area-inset-bottom, 0px))';
@@ -49,6 +49,7 @@ export class WorkoutBarComponent implements OnDestroy {
   });
   protected readonly ending = signal(false);
   protected readonly confirmingDiscard = signal(false);
+  protected readonly discardText = computed(() => discardLine(this.live.doneSetCount()));
   protected readonly busy = signal(false);
 
   protected readonly accessibleName = computed(

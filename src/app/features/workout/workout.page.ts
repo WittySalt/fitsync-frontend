@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
@@ -57,7 +57,7 @@ import {
   trainingDayCount,
   weekMoves
 } from './plan-week-form';
-import { SessionDetailComponent } from './session-detail.component';
+import { HistoryRowComponent } from './history-row.component';
 import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
@@ -98,7 +98,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
     LiveTrackerComponent,
     TodayOverviewComponent,
     ExerciseLibraryComponent,
-    SessionDetailComponent,
+    HistoryRowComponent,
     WorkoutDataIoComponent
   ],
   templateUrl: './workout.page.html',
@@ -106,6 +106,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 })
 export class WorkoutPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
@@ -144,7 +145,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly savingPlan = signal(false);
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
-  readonly selectedSessionId = signal<string | null>(null);
   /** The exercise screen is on screen: there is a workout, the Today tab is open, and it is not minimised. */
   readonly screenVisible = computed(
     () => this.selectedTab() === 'overview' && !!this.workoutLive.session() && !this.workoutLive.minimised()
@@ -648,8 +648,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
         if (active) {
           this.openScreen();
         } else if (event.sessionId) {
-          this.selectedTab.set('history');
-          this.selectedSessionId.set(event.sessionId);
+          this.openSessionPage(event.sessionId);
         }
       });
       return;
@@ -659,7 +658,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
     }
     this.selectedTab.set('history');
     if (event.sessionId) {
-      this.selectedSessionId.set(event.sessionId);
+      this.openSessionPage(event.sessionId);
     }
   }
 
@@ -738,30 +737,15 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.selectedTab.set('plans');
   }
 
+  /** A row of History opens the session on its own page. */
   openSessionDetail(session: WorkoutSession): void {
-    if (!session.sessionId) {
-      return;
-    }
-    this.selectedSessionId.set(session.sessionId);
-    // Bring the detail panel into view; it renders below the (possibly long) list.
-    if (typeof queueMicrotask === 'function' && typeof document !== 'undefined') {
-      queueMicrotask(() => document.querySelector('app-session-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    if (session.sessionId) {
+      this.openSessionPage(session.sessionId);
     }
   }
 
-  closeSessionDetail(): void {
-    this.selectedSessionId.set(null);
-  }
-
-  handleSessionUpdated(session: WorkoutSessionDetail): void {
-    this.sessions.update((sessions) => sessions.map((item) => (item.sessionId === session.sessionId ? session : item)));
-    this.loadSessions();
-  }
-
-  handleSessionDeleted(): void {
-    this.workoutLive.sessionRemoved(this.selectedSessionId());
-    this.selectedSessionId.set(null);
-    this.loadSessions();
+  private openSessionPage(sessionId: string): void {
+    void this.router.navigate(['/workout/sessions', sessionId]);
   }
 
   /** A repeated session is a new workout in progress, so it opens on the exercise screen. */

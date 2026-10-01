@@ -348,7 +348,8 @@ describe('WorkoutBarComponent', () => {
       choice('Discard workout')?.click();
       fixture.detectChanges();
 
-      expect(root.querySelector('.ask')?.textContent?.trim()).toBe('Discard this workout? It will not be saved.');
+      expect(root.querySelector('.ask')?.textContent?.trim()).toBe('Discard this workout? 1 set is done. Discarded, it will not count.');
+      expect(choice('Finish and save')).toBeTruthy();
       expect(dataService.cancelSession).not.toHaveBeenCalled();
 
       choice('Keep going')?.click();

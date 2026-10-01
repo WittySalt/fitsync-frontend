@@ -42,6 +42,8 @@ const RUN_KEY_PREFIX = 'fitsync.workout.run.';
 const MODE_KEY = 'fitsync.workout.mode';
 /** A counted set that follows along waits this long on its last rep before it is recorded. */
 const LAST_REP_HOLD_MS = 1000;
+/** The longest rest the server keeps, six hours. */
+const MAX_REST_SECONDS = 21600;
 /** How long the check of a set that was just done stays before the rest is shown. */
 export const SET_DONE_MS = 1200;
 
@@ -85,6 +87,8 @@ export interface SetRun extends SetRunIdentity {
   restAfterSeconds: number;
   restEndsAtMs: number;
   restTotalSeconds: number;
+  /** The wall-clock instant the rest began, so the rest actually taken can be recorded when it ends. */
+  restStartedAtMs: number;
 }
 
 /** What a mounted exercise screen is told when the set state moves on without it being asked to. */
@@ -143,8 +147,22 @@ function parseRun(raw: string | null): SetRun | null {
     restSeconds: numberOrNull(value['restSeconds']),
     restAfterSeconds: Math.max(0, numberOr(value['restAfterSeconds'], 0)),
     restEndsAtMs: numberOr(value['restEndsAtMs'], 0),
-    restTotalSeconds: Math.max(0, numberOr(value['restTotalSeconds'], 0))
+    restTotalSeconds: Math.max(0, numberOr(value['restTotalSeconds'], 0)),
+    restStartedAtMs: numberOr(
+      value['restStartedAtMs'],
+      numberOr(value['restEndsAtMs'], 0) - Math.max(0, numberOr(value['restTotalSeconds'], 0)) * 1000
+    )
   };
+}
+
+/** What discarding would lose: the sets already done, which then do not count. */
+export function discardLine(doneSets: number): string {
+  if (doneSets <= 0) {
+    return 'It will not be saved.';
+  }
+  return doneSets === 1
+    ? '1 set is done. Discarded, it will not count.'
+    : `${doneSets} sets are done. Discarded, they will not count.`;
 }
 
 export const NOTHING_LOGGED_NOTICE = 'No set was logged, so this workout was not saved.';
@@ -225,6 +243,11 @@ export class WorkoutLiveService {
   });
 
   readonly elapsedLabel = computed(() => formatElapsedClock(this.elapsedSeconds()));
+
+  /** Sets of the workout in progress that are done. */
+  readonly doneSetCount = computed(() =>
+    (this.active()?.exercises ?? []).reduce((sum, log) => sum + log.sets.filter((set) => set.logged).length, 0)
+  );
 
   /** The next open set: the first one, in exercise and set order, that is neither done nor skipped.
    *  It follows the sets as they are recorded, and falls back to the server's answer for a session
@@ -354,7 +377,8 @@ export class WorkoutLiveService {
       pausedMs: 0,
       pausedAtMs: this.paused() ? now : null,
       restEndsAtMs: 0,
-      restTotalSeconds: 0
+      restTotalSeconds: 0,
+      restStartedAtMs: 0
     });
   }
 
@@ -368,6 +392,7 @@ export class WorkoutLiveService {
       setNumber: identity.setNumber,
       exerciseName: identity.exerciseName,
       phase: 'rest',
+      restStartedAtMs: Date.now(),
       restEndsAtMs: Date.now() + seconds * 1000,
       restTotalSeconds: seconds
     });
@@ -398,6 +423,19 @@ export class WorkoutLiveService {
     if (run?.phase === 'rest') {
       this.setRun({ ...run, restEndsAtMs: run.restEndsAtMs + seconds * 1000 });
     }
+  }
+
+  /**
+   * The rest is over, by the clock or by "Skip rest": the rest actually taken is recorded on the set
+   * it followed, and nothing runs any more. A failed write only loses that one figure.
+   */
+  endRest(): void {
+    const run = this.runState();
+    if (run?.phase === 'rest' && run.restStartedAtMs > 0) {
+      const taken = Math.min(MAX_REST_SECONDS, Math.max(0, Math.round((Date.now() - run.restStartedAtMs) / 1000)));
+      this.dataService.recordRestTaken(run.sessionId, run.exerciseLogId, run.setNumber, taken).subscribe({ error: () => undefined });
+    }
+    this.clearRun();
   }
 
   /** Nothing is running any more: the set was recorded or skipped, or the rest was skipped. */
@@ -815,7 +853,8 @@ export class WorkoutLiveService {
       restSeconds: null,
       restAfterSeconds: 0,
       restEndsAtMs: 0,
-      restTotalSeconds: 0
+      restTotalSeconds: 0,
+      restStartedAtMs: 0
     };
   }
 
@@ -861,7 +900,7 @@ export class WorkoutLiveService {
     this.runNow.set(now);
     if (run.phase === 'rest') {
       if (now >= run.restEndsAtMs) {
-        this.clearRun();
+        this.endRest();
         this.runEvents.next({ kind: 'rest-ended' });
       }
       return;

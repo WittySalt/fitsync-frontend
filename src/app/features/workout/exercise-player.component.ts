@@ -876,7 +876,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     if (this.restRemainingSeconds() <= 0) {
       return;
     }
-    this.live.clearRun();
+    this.live.endRest();
     this.restCompleteCue.set(false);
     this.moveOnAfterRest();
   }

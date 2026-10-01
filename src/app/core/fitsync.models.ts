@@ -105,6 +105,22 @@ export interface WorkoutSession {
   planDayId?: string | null;
   /** When the server closed a left workout by itself; null for a session the person ended. */
   autoClosedAt?: string | null;
+  /** When the session ended, completed or cancelled; null while it is in progress. */
+  endedAt?: string | null;
+  /** Sets done and sets in all, when the answer carried the session's exercises. */
+  doneSets?: number | null;
+  totalSets?: number | null;
+  /** The calories, or the effort, were estimated by the server rather than entered by the person. */
+  caloriesEstimated?: boolean;
+  effortEstimated?: boolean;
+}
+
+/** A personal record a session set, given only in the answer to completing or counting it. */
+export interface WorkoutNewRecord {
+  exerciseName: string;
+  /** MAX_WEIGHT_KG, MAX_REPS or MAX_SINGLE_SET_VOLUME_KG. */
+  recordType: string;
+  value: number;
 }
 
 /** The set a workout in progress needs next, as the active-workout call names it. */
@@ -183,6 +199,8 @@ export interface WorkoutSessionDetail extends WorkoutSession {
   exercises: WorkoutExerciseLog[];
   createdAt: string;
   updatedAt: string;
+  /** Records set by this session; only present right after it was completed or counted. */
+  newRecords?: WorkoutNewRecord[];
 }
 
 export interface WorkoutExerciseLog {
@@ -219,6 +237,8 @@ export interface WorkoutExerciseSetLog {
   perceivedExertion: number | null;
   logged: boolean;
   notes: string;
+  /** The rest actually taken after the set, measured by the exercise screen; null when not timed. */
+  restTakenSeconds?: number | null;
 }
 
 export interface WorkoutExerciseLogInput {

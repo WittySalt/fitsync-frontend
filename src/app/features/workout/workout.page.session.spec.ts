@@ -1,7 +1,7 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 
@@ -453,25 +453,6 @@ describe('WorkoutPage and the workout in progress', () => {
       expect(player(fixture)).toBeDefined();
     });
 
-    it('opens the screen after Repeat this in the session detail', () => {
-      dataService.repeatSession.and.returnValue(of(running({ sessionId: 'session-repeat' })));
-      dataService.getSession.and.returnValue(of(running({ sessionId: 'session-listed', status: 'COMPLETED' })));
-      const fixture = createPage();
-      fixture.componentInstance.selectedTab.set('history');
-      fixture.componentInstance.selectedSessionId.set('session-listed');
-      fixture.detectChanges();
-
-      const repeat = [...root(fixture).querySelectorAll<HTMLButtonElement>('app-session-detail button')].find(
-        (button) => button.textContent?.trim() === 'Repeat this'
-      );
-      repeat?.click();
-      fixture.detectChanges();
-
-      expect(dataService.repeatSession).toHaveBeenCalledWith('session-listed');
-      expect(fixture.componentInstance.selectedTab()).toBe('overview');
-      expect(player(fixture)).toBeDefined();
-    });
-
     it('leaves a refused start to the shared dialog: no error, no screen, and the button is free again', () => {
       dataService.startWorkoutPlan.and.returnValue(throwError(() => conflict()));
       const fixture = createPage();
@@ -545,7 +526,6 @@ describe('WorkoutPage and the workout in progress', () => {
       fixture.detectChanges();
 
       expect(fixture.componentInstance.selectedTab()).toBe('overview');
-      expect(fixture.componentInstance.selectedSessionId()).toBeNull();
       expect(player(fixture)).toBeDefined();
     });
 
@@ -586,20 +566,6 @@ describe('WorkoutPage and the workout in progress', () => {
       expect(history(fixture).length).toBe(1);
       expect(root(fixture).textContent).not.toContain('No sessions match these filters');
     });
-
-    it('forgets a deleted workout in progress', () => {
-      dataService.getActiveWorkout.and.returnValue(of({ session: running(), resume: null }));
-      const fixture = TestBed.createComponent(WorkoutPage);
-      fixture.componentInstance.workoutLive.refresh();
-      fixture.detectChanges();
-      fixture.componentInstance.selectedSessionId.set('session-running');
-      dataService.getActiveWorkout.and.returnValue(of(null));
-
-      fixture.componentInstance.handleSessionDeleted();
-
-      expect(fixture.componentInstance.workoutLive.session()).toBeNull();
-      expect(fixture.componentInstance.selectedSessionId()).toBeNull();
-    });
   });
 
   describe('a workout the server closed by itself', () => {
@@ -615,11 +581,12 @@ describe('WorkoutPage and the workout in progress', () => {
       expect(notice?.nextElementSibling?.tagName.toLowerCase()).toBe('app-today-overview');
       expect(notice?.textContent).toContain('was saved at');
 
+      const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
       notice?.querySelector<HTMLButtonElement>('.edit')?.click();
       fixture.detectChanges();
 
       expect(fixture.componentInstance.selectedTab()).toBe('history');
-      expect(fixture.componentInstance.selectedSessionId()).toBe('session-closed');
+      expect(navigate).toHaveBeenCalledWith(['/workout/sessions', 'session-closed']);
     });
 
     it('asks for the latest session of the last day', () => {

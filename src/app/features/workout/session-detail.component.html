@@ -1,32 +1,57 @@
-<article class="session-detail summary-card" aria-label="Workout session detail">
-  <div class="section-title">
-    <div>
-      <span class="card-label">Session detail</span>
-      <h2>{{ session()?.name || 'Workout session' }}</h2>
-    </div>
-    <button class="text-link" type="button" (click)="closed.emit()">Close</button>
-  </div>
+<article class="session-detail" aria-label="Workout session">
+  <button class="back" type="button" (click)="closed.emit()">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5"></path><path d="M11 6l-6 6 6 6"></path></svg>
+    History
+  </button>
 
   @if (loading()) {
     <div class="skeleton tall" aria-label="Loading session detail"></div>
   } @else if (session(); as detail) {
+    <header class="head">
+      <div class="title-block">
+        <div class="title-line">
+          <h2>{{ detail.name || 'Workout session' }}</h2>
+          <span class="chip" [class.cancelled]="detail.status !== 'COMPLETED'">{{ statusLabel(detail) }}</span>
+        </div>
+        <span class="sub">{{ subLine(detail) }}</span>
+      </div>
+      <div class="more-wrap">
+        <button
+          class="more"
+          type="button"
+          aria-label="More"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="moreOpen()"
+          (click)="toggleMore($event)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle>
+          </svg>
+        </button>
+        @if (moreOpen()) {
+          <div class="menu" role="menu">
+            <button role="menuitem" type="button" [disabled]="saving()" (click)="moreOpen.set(false); startEdit()">Edit details</button>
+            <button
+              role="menuitem"
+              type="button"
+              [disabled]="saving() || !canEditExercises(detail)"
+              [title]="exerciseEditUnavailableLabel(detail)"
+              (click)="moreOpen.set(false); startExerciseEdit()"
+            >
+              Edit exercises
+            </button>
+            <button role="menuitem" type="button" [disabled]="saving()" (click)="moreOpen.set(false); repeatThis()">Repeat this</button>
+            <button role="menuitem" class="danger-text" type="button" [disabled]="saving()" (click)="moreOpen.set(false); deleteSession()">
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+    </header>
+
     @if (autoClosedLine(detail); as closedLine) {
       <p class="session-notes">{{ closedLine }}</p>
     }
-    <div class="detail-actions">
-      <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit details</button>
-      <button
-        class="button secondary"
-        type="button"
-        (click)="startExerciseEdit()"
-        [disabled]="saving() || !canEditExercises(detail)"
-        [title]="exerciseEditUnavailableLabel(detail)"
-      >
-        Edit exercises
-      </button>
-      <button class="button secondary" type="button" (click)="repeatThis()" [disabled]="saving()">Repeat this</button>
-      <button class="button secondary" type="button" (click)="deleteSession()" [disabled]="saving()">Delete</button>
-    </div>
 
     @if (editing()) {
       <form class="session-form" [formGroup]="editForm" (ngSubmit)="saveEdit()">
@@ -208,96 +233,8 @@
       </form>
     }
 
-    <dl class="detail-grid">
-      <div>
-        <dt>Type</dt>
-        <dd>{{ detail.sportLabel || formatLabel(detail.workoutType) }}</dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>{{ formatLabel(detail.status) }}</dd>
-      </div>
-      <div>
-        <dt>Started</dt>
-        <dd>{{ formatDate(detail.startedAt) }}</dd>
-      </div>
-      <div>
-        <dt>Completed</dt>
-        <dd>{{ formatDate(detail.completedAt) }}</dd>
-      </div>
-      <div>
-        <dt>Duration</dt>
-        <dd>{{ formatDuration(detail) }}</dd>
-      </div>
-      @if (detail.distanceKm != null) {
-        <div>
-          <dt>Distance</dt>
-          <dd>{{ formatDistance(detail.distanceKm) }}</dd>
-        </div>
-      }
-      <div>
-        <dt>Calories</dt>
-        <dd>{{ formatCalories(detail.caloriesBurned) }}</dd>
-      </div>
-      <div>
-        <dt>Effort</dt>
-        <dd>{{ formatNumber(detail.perceivedExertion) }}</dd>
-      </div>
-    </dl>
-
-    @if (detail.notes) {
-      <p class="session-notes">{{ detail.notes }}</p>
-    }
-
-    @if (detail.exercises.length) {
-      <div class="exercise-list">
-        @for (exercise of detail.exercises; track exercise.exerciseLogId || exercise.sequence) {
-          <section class="exercise-block">
-            <div class="exercise-heading">
-              <div>
-                <h3>{{ exercise.exerciseNameSnapshot }}</h3>
-                <small>
-                  {{ formatNumber(exercise.performedSets) }} sets -
-                  {{ formatNumber(exercise.performedReps) }} reps -
-                  {{ formatNumber(exercise.totalVolumeKg, ' kg') }}
-                </small>
-              </div>
-              <span>{{ exercise.sequence }}</span>
-            </div>
-
-            @if (exercise.sets.length) {
-              <table class="set-table" [attr.aria-label]="exercise.exerciseNameSnapshot + ' sets'">
-                <thead>
-                  <tr class="set-row header">
-                    <th scope="col">Set</th>
-                    <th scope="col">Reps</th>
-                    <th scope="col">Weight</th>
-                    <th scope="col">Rest</th>
-                    <th scope="col">RPE</th>
-                    <th scope="col">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                @for (set of exercise.sets; track set.setLogId || set.setNumber) {
-                  <tr class="set-row">
-                    <td>{{ set.setNumber }}</td>
-                    <td>{{ formatNumber(set.reps) }}</td>
-                    <td>{{ formatNumber(set.weightKg, ' kg') }}</td>
-                    <td>{{ formatNumber(set.restSeconds, ' sec') }}</td>
-                    <td>{{ formatNumber(set.perceivedExertion) }}</td>
-                    <td>{{ set.notes || '-' }}</td>
-                  </tr>
-                }
-                </tbody>
-              </table>
-            } @else {
-              <app-state-panel title="No sets recorded" message="This exercise has no set detail yet." />
-            }
-          </section>
-        }
-      </div>
-    } @else {
-      <app-state-panel title="No exercise detail" message="This session does not have recorded exercises." />
+    @if (!editing() && !exerciseEditing()) {
+      <app-session-record [session]="detail" [busy]="saving()" (count)="countThis()" />
     }
   } @else {
     <app-state-panel title="Session unavailable" message="Open another history row or retry later." />

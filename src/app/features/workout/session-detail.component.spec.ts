@@ -137,10 +137,10 @@ describe('SessionDetailComponent', () => {
     fixture.componentInstance.sessionId = 'session-1';
     fixture.detectChanges();
 
-    const text = (fixture.nativeElement as HTMLElement).querySelector('.detail-grid')?.textContent ?? '';
-    expect(text).toContain('Cycling');
-    expect(text).toContain('24.5 km');
-    expect(text).not.toContain('Sports');
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.sub')?.textContent).toContain('Cycling');
+    expect(root.querySelector('.sub')?.textContent).not.toContain('Sports');
+    expect(root.querySelector('app-session-record .stats')?.textContent?.replace(/\s+/g, '')).toContain('Distance24.5km');
   });
 
   it('shows no distance for a session without one', () => {
@@ -148,7 +148,7 @@ describe('SessionDetailComponent', () => {
     fixture.componentInstance.sessionId = 'session-1';
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('.detail-grid')?.textContent).not.toContain('Distance');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-session-record .stats')?.textContent).not.toContain('Distance');
   });
 
   it('sends completedAt and preserves session timing and exercises when editing details', () => {

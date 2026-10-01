@@ -16,10 +16,13 @@
 @if (ending()) {
   <app-workout-modal heading="End this workout" (dismissed)="keepGoing()">
     @if (confirmingDiscard()) {
-      <p class="ask">Discard this workout? It will not be saved.</p>
+      <p class="ask">Discard this workout? {{ discardText() }}</p>
       <div class="choices">
+        @if (live.doneSetCount() > 0) {
+          <button class="button primary" type="button" [disabled]="busy()" (click)="finishAndSave()">Finish and save</button>
+        }
         <button class="button danger-solid" type="button" [disabled]="busy()" (click)="discard()">Discard</button>
-        <button class="button primary" type="button" [disabled]="busy()" (click)="keepGoing()">Keep going</button>
+        <button class="button secondary" type="button" [disabled]="busy()" (click)="keepGoing()">Keep going</button>
       </div>
     } @else {
       <div class="choices">
