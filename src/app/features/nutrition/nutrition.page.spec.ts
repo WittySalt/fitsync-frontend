@@ -1,5 +1,3 @@
-import { CoachApiService } from '../../core/coach/coach-api.service';
-import { CoachReading } from '../../core/coach/coach.models';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -7,35 +5,15 @@ import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
+import { AccountDataService } from '../../core/account-data.service';
+import { CoachApiService } from '../../core/coach/coach-api.service';
+import { CoachReading } from '../../core/coach/coach.models';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { NutritionSummary } from '../../core/fitsync.models';
-import { ToastService } from '../../core/toast/toast.service';
+import { diaryServiceStub, item, meal, rangeDay } from './diary/diary-testing.spec';
+import { toIsoDate } from './diary/diary-time';
+import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent } from './meal-builder.component';
 import { NutritionPage } from './nutrition.page';
-
-function summary(overrides: Partial<NutritionSummary> = {}): NutritionSummary {
-  return {
-    totalCalories: 142,
-    targetCalories: null,
-    totalProteinGrams: 2.8,
-    targetProteinGrams: null,
-    totalCarbsGrams: 20,
-    targetCarbsGrams: null,
-    totalFatGrams: 5,
-    targetFatGrams: null,
-    mealCount: 1,
-    totalFiberGrams: null,
-    totalSugarGrams: null,
-    totalSodiumMg: null,
-    fiberTargetGrams: null,
-    sugarLimitGrams: null,
-    sodiumLimitMg: null,
-    fiberTargetMet: null,
-    sugarWithinLimit: null,
-    sodiumWithinLimit: null,
-    ...overrides
-  };
-}
 
 // The page carries an insight panel. Its store is real; only the wire is stubbed. The reading is
 // empty, so the panel takes no space and the specs about the page itself are not disturbed.
@@ -57,14 +35,16 @@ const coachApiStub = {
 };
 
 describe('NutritionPage', () => {
+  let diary: jasmine.SpyObj<NutritionDiaryService>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
-  let toast: jasmine.SpyObj<ToastService>;
+  const today = toIsoDate(new Date());
 
   beforeEach(async () => {
+    diary = diaryServiceStub();
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
-      'getDailyNutritionSummary',
-      'getTodayMeals',
+      'getUsualMeals',
       'copyMeal',
+      'createMealTemplate',
       'getFoodCategories',
       'getRecentFoods',
       'getFavoriteFoods',
@@ -76,17 +56,38 @@ describe('NutritionPage', () => {
       'quickAddMeal',
       'getFoodByBarcode',
       'addFavoriteFood',
-      'removeFavoriteFood'
+      'removeFavoriteFood',
+      'getDailyNutritionSummary'
     ]);
-    dataService.getTodayMeals.and.returnValue(of([]));
+    dataService.getDailyNutritionSummary.and.returnValue(
+      of({
+        totalCalories: 0,
+        targetCalories: null,
+        totalProteinGrams: 0,
+        targetProteinGrams: null,
+        totalCarbsGrams: 0,
+        targetCarbsGrams: null,
+        totalFatGrams: 0,
+        targetFatGrams: null,
+        mealCount: 0,
+        totalFiberGrams: null,
+        totalSugarGrams: null,
+        totalSodiumMg: null,
+        fiberTargetGrams: null,
+        sugarLimitGrams: null,
+        sodiumLimitMg: null,
+        fiberTargetMet: null,
+        sugarWithinLimit: null,
+        sodiumWithinLimit: null
+      })
+    );
+    dataService.getUsualMeals.and.returnValue(of([]));
     dataService.getFoodCategories.and.returnValue(of([]));
     dataService.getRecentFoods.and.returnValue(of([]));
     dataService.getFavoriteFoods.and.returnValue(of([]));
     dataService.getFrequentFoods.and.returnValue(of([]));
     dataService.getMealTemplates.and.returnValue(of([]));
     dataService.searchFoodsPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
-    dataService.copyMeal.and.returnValue(of({ ok: true }));
-    toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
 
     await TestBed.configureTestingModule({
       imports: [NutritionPage],
@@ -96,20 +97,24 @@ describe('NutritionPage', () => {
         provideHttpClientTesting(),
         { provide: CoachApiService, useValue: coachApiStub },
         provideRouter([{ path: '**', children: [] }]),
+        { provide: NutritionDiaryService, useValue: diary },
         { provide: FitSyncDataService, useValue: dataService },
-        { provide: ToastService, useValue: toast }
+        { provide: AccountDataService, useValue: { getCurrentUser: () => of({ preferences: { nutrition: { waterGoalMl: 2500 } } }) } }
       ]
     }).compileComponents();
   });
 
-  describe('deep link to the log tab', () => {
+  function render(): ComponentFixture<NutritionPage> {
+    const fixture = TestBed.createComponent(NutritionPage);
+    fixture.detectChanges();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  describe('deep link to the meal builder', () => {
     async function open(query: string): Promise<ComponentFixture<NutritionPage>> {
-      dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
       await TestBed.inject(Router).navigateByUrl(`/nutrition${query}`);
-      const fixture = TestBed.createComponent(NutritionPage);
-      fixture.detectChanges();
-      fixture.detectChanges();
-      return fixture;
+      return render();
     }
 
     function builderMealType(fixture: ComponentFixture<NutritionPage>): string | undefined {
@@ -117,10 +122,10 @@ describe('NutritionPage', () => {
       return builder?.componentInstance.mealForm.controls.mealType.value;
     }
 
-    it('opens the log tab with the requested meal type chosen', async () => {
+    it('opens the builder with the requested meal type chosen', async () => {
       const fixture = await open('?log=LUNCH');
 
-      expect(fixture.componentInstance.selectedTab()).toBe('log');
+      expect(fixture.componentInstance.view()).toBe('log');
       expect(builderMealType(fixture)).toBe('LUNCH');
     });
 
@@ -133,196 +138,126 @@ describe('NutritionPage', () => {
     it('ignores a value that is not a known meal type', async () => {
       const fixture = await open('?log=FASTING');
 
-      expect(fixture.componentInstance.selectedTab()).toBe('today');
+      expect(fixture.componentInstance.view()).toBe('diary');
       expect(builderMealType(fixture)).toBeUndefined();
     });
 
-    it('stays on the today tab without the parameter', async () => {
+    it('stays on the Diary without the parameter', async () => {
       const fixture = await open('');
 
-      expect(fixture.componentInstance.selectedTab()).toBe('today');
+      expect(fixture.componentInstance.view()).toBe('diary');
     });
   });
 
-  it('mounts the insight panel for nutrition in place of the old coach block', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
-    const fixture = TestBed.createComponent(NutritionPage);
-    fixture.detectChanges();
+  it('has a head like the Workout page: the title, the date and the calorie target', () => {
+    diary.getRange.and.returnValue(of([rangeDay(today, { targetCalories: 2100 })]));
+    const element = render().nativeElement as HTMLElement;
 
-    const compiled = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('h1')?.textContent).toBe('Nutrition');
+    expect(element.querySelector('.head-line')?.textContent).toContain('2,100 kcal a day');
+  });
+
+  it('leaves the target out of the head line when there is none', () => {
+    diary.getRange.and.returnValue(of([rangeDay(today, { targetCalories: null })]));
+    const line = (render().nativeElement as HTMLElement).querySelector('.head-line')?.textContent ?? '';
+
+    expect(line).not.toContain('kcal');
+    expect(line.length).toBeGreaterThan(0);
+  });
+
+  it('mounts the insight panel for nutrition', () => {
+    const compiled = render().nativeElement as HTMLElement;
+
     expect(compiled.querySelectorAll('app-insight-panel').length).toBe(1);
-    expect(compiled.querySelector('app-coach-anchor')).toBeNull();
     expect(coachApiStub.getReading).toHaveBeenCalledWith('NUTRITION', jasmine.any(String));
   });
 
-  it('shows logged totals and target setup guidance when daily targets are missing', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
-    const fixture = TestBed.createComponent(NutritionPage);
+  it('shows the week card and only a Diary tab', () => {
+    const compiled = render().nativeElement as HTMLElement;
+
+    expect(compiled.querySelectorAll('app-diary-week').length).toBe(1);
+    const tabs = Array.from(compiled.querySelectorAll('.nutrition-tabs [role="tab"]')).map((tab) => tab.textContent?.trim());
+    expect(tabs).toEqual(['Diary']);
+  });
+
+  it('asks for the Monday to Sunday week that holds today', () => {
+    render();
+    const [from, to] = diary.getRange.calls.mostRecent().args;
+
+    expect(new Date(`${from}T00:00:00`).getDay()).toBe(1);
+    expect(new Date(`${to}T00:00:00`).getDay()).toBe(0);
+    expect(from <= today && today <= to).toBeTrue();
+  });
+
+  it('shows a retry in the week card when the week fails, and loads it again', () => {
+    diary.getRange.and.returnValue(throwError(() => new Error('down')));
+    const fixture = render();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.failed')).not.toBeNull();
+    diary.getRange.and.returnValue(of([rangeDay(today)]));
+    (compiled.querySelector('.failed button') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
-    expect(text).toContain('142');
-    expect(text).toContain('kcal logged');
-    expect(text).toContain('Daily calorie target not set');
-    expect(text).toContain('Set daily target');
-    expect(text).toContain('2.8g · target not set');
-    expect(text).not.toContain('of 0 kcal');
-    expect(text).not.toContain('0%');
-    expect(text).not.toContain('0g left');
+    expect(compiled.querySelector('.failed')).toBeNull();
+    expect(compiled.querySelector('.days')).not.toBeNull();
   });
 
-  it('keeps progress and remaining copy when daily targets are available', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(
-      of(
-        summary({
-          totalCalories: 600,
-          targetCalories: 2000,
-          totalProteinGrams: 50,
-          targetProteinGrams: 100,
-          totalCarbsGrams: 120,
-          targetCarbsGrams: 240,
-          totalFatGrams: 20,
-          targetFatGrams: 60
-        })
-      )
-    );
-    const fixture = TestBed.createComponent(NutritionPage);
+  it('shows the Diary for today and opens another day when its tile is tapped', () => {
+    const fixture = render();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(diary.getMeals).toHaveBeenCalledWith(today);
+
+    const first = compiled.querySelectorAll<HTMLButtonElement>('.day')[0];
+    first.click();
     fixture.detectChanges();
 
-    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
-    expect(text).toContain('of 2000 kcal logged');
-    expect(text).toContain('30%');
-    expect(text).toContain('1400 kcal');
-    expect(text).toContain('50g left');
-    expect(text).toContain('120g left');
-    expect(text).toContain('40g left');
+    expect(fixture.componentInstance.selectedDate()).toBe(fixture.componentInstance.dates[0]);
+    expect(diary.getMeals).toHaveBeenCalledWith(fixture.componentInstance.dates[0]);
   });
 
-  it('stores dashboard load errors while still refreshing meal history', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(throwError(() => new Error('Dashboard unavailable')));
-    dataService.getTodayMeals.and.returnValue(of([]));
+  it('opens the builder from a meal Add with that meal type chosen, and goes back to the Diary', () => {
+    diary.getMeals.and.returnValue(of([meal({ mealType: 'LUNCH', items: [item()] })]));
+    const fixture = render();
+    const compiled = fixture.nativeElement as HTMLElement;
 
-    const fixture = TestBed.createComponent(NutritionPage);
+    compiled.querySelectorAll<HTMLButtonElement>('.add')[2].click();
+    fixture.detectChanges();
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.loading()).toBeFalse();
-    expect(fixture.componentInstance.error()).toBe('Dashboard unavailable');
-    expect(dataService.getTodayMeals).toHaveBeenCalled();
+    expect(fixture.componentInstance.view()).toBe('log');
+    expect(compiled.querySelector('app-diary-day')).toBeNull();
+    const builder = fixture.debugElement.query(By.directive(MealBuilderComponent));
+    expect(builder.componentInstance.mealForm.controls.mealType.value).toBe('DINNER');
+
+    (compiled.querySelector('.log-head button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('app-diary-day')).not.toBeNull();
   });
 
-  it('copies meals, guards empty ids, and reports copy errors', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(of(summary()));
-    const component = TestBed.createComponent(NutritionPage).componentInstance;
+  it('returns to today after a meal is saved, and reloads the Diary and the week', () => {
+    const fixture = render();
+    fixture.componentInstance.startLog('SNACK');
+    fixture.detectChanges();
+    const summaries = diary.getSummary.calls.count();
+    const ranges = diary.getRange.calls.count();
 
-    component.copyMeal('', 'DINNER');
-    expect(dataService.copyMeal).not.toHaveBeenCalled();
+    fixture.componentInstance.refreshAfterMealSave();
+    fixture.detectChanges();
 
-    component.copyMeal('meal-1', 'DINNER');
-    expect(dataService.copyMeal).toHaveBeenCalledWith('meal-1', 'DINNER');
-    expect(toast.success).toHaveBeenCalledWith('Meal copied to now.');
-
-    dataService.copyMeal.and.returnValue(throwError(() => new Error('copy failed')));
-    component.copyMeal('meal-2', 'BREAKFAST');
-
-    expect(toast.error).toHaveBeenCalledWith('Unable to copy meal. Please retry.');
+    expect(fixture.componentInstance.view()).toBe('diary');
+    expect(fixture.componentInstance.selectedDate()).toBe(today);
+    expect(diary.getSummary.calls.count()).toBeGreaterThan(summaries);
+    expect(diary.getRange.calls.count()).toBeGreaterThan(ranges);
   });
 
-  it('reports refresh-dashboard errors after a meal save', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(throwError(() => new Error('refresh failed')));
-    dataService.getTodayMeals.and.returnValue(of([]));
-    const component = TestBed.createComponent(NutritionPage).componentInstance;
+  it('ignores an unknown meal type from the Add button', () => {
+    const fixture = render();
+    fixture.componentInstance.startLog('NOPE');
+    fixture.detectChanges();
 
-    component.refreshAfterMealSave();
-
-    expect(toast.error).toHaveBeenCalledWith('Meal saved, but today summary could not refresh.');
-    expect(dataService.getTodayMeals).toHaveBeenCalled();
-  });
-
-  it('computes progress, remaining amounts, labels, and formatted values', () => {
-    const component = TestBed.createComponent(NutritionPage).componentInstance;
-
-    expect(component.progress(50, null)).toBeNull();
-    expect(component.progress(50, 0)).toBeNull();
-    expect(component.progress(250, 200)).toBe(100);
-    expect(component.remaining(250, 200)).toBe(0);
-    expect(component.remaining(50, null)).toBeNull();
-    expect(component.label(null)).toBe('');
-    expect(component.label('POST_WORKOUT')).toBe('Post Workout');
-    expect(component.formatTime(null)).toBe('');
-    expect(component.formatTime('not-a-date')).toBe('');
-    expect(component.formatTime('2026-06-21T08:05:00Z')).toMatch(/\d{2}:\d{2}/);
-    expect(component.formatAmount(null, 'g')).toBe('No data');
-    expect(component.formatAmount(1.24, 'g')).toBe('1.2g');
-    expect(component.formatAmount(1234.56, 'mg')).toBe('1235mg');
-  });
-
-  it('builds meal timeline entries and calorie/macro cards from loaded data', () => {
-    const component = TestBed.createComponent(NutritionPage).componentInstance;
-    component.nutritionSummary.set(summary({ totalCalories: 2300, targetCalories: 2000, targetProteinGrams: 100 }));
-    component.todayMeals.set([
-      {
-        mealId: 'meal-1',
-        name: 'Lunch bowl',
-        mealType: 'LUNCH',
-        consumedAt: '2026-06-21T04:30:00Z',
-        totalCalories: 620,
-        totalProteinGrams: 32.6,
-        itemCount: 3
-      }
-    ]);
-
-    expect(component.hasCalorieTarget()).toBeTrue();
-    expect(component.caloriesRemaining()).toBe(0);
-    expect(component.calorieProgress()).toBe(100);
-    expect(component.macroCards()[0]).toEqual(jasmine.objectContaining({ label: 'Protein', targetSet: true }));
-    expect(component.mealTimeline()[0]).toEqual(jasmine.objectContaining({ type: 'Lunch', protein: 33 }));
-  });
-
-  it('uses zeroed nutrition fallbacks when dashboard data is absent', () => {
-    const component = TestBed.createComponent(NutritionPage).componentInstance;
-    component.nutritionSummary.set(null);
-
-    expect(component.nutrition()).toBeNull();
-    expect(component.hasCalorieTarget()).toBeFalse();
-    expect(component.caloriesRemaining()).toBeNull();
-    expect(component.calorieProgress()).toBe(0);
-    expect(component.macroCards()).toEqual([
-      jasmine.objectContaining({ label: 'Protein', value: 0, target: null, targetSet: false }),
-      jasmine.objectContaining({ label: 'Carbs', value: 0, target: null, targetSet: false }),
-      jasmine.objectContaining({ label: 'Fat', value: 0, target: null, targetSet: false })
-    ]);
-  });
-
-  it('filters absent nutrition checks and labels target/limit status states', () => {
-    const component = TestBed.createComponent(NutritionPage).componentInstance;
-
-    expect(component.nutritionChecks()).toEqual([]);
-
-    component.nutritionSummary.set(
-      summary({
-        totalFiberGrams: 18,
-        fiberTargetGrams: 25,
-        fiberTargetMet: false,
-        totalSugarGrams: 30,
-        sugarLimitGrams: 50,
-        sugarWithinLimit: true,
-        totalSodiumMg: 2600,
-        sodiumLimitMg: 2300,
-        sodiumWithinLimit: false
-      })
-    );
-
-    expect(component.nutritionChecks()).toEqual([
-      jasmine.objectContaining({ label: 'Fiber', status: 'warning', statusLabel: 'Below target', detail: '7g left to target.' }),
-      jasmine.objectContaining({ label: 'Sugar', status: 'success', statusLabel: 'Within limit', detail: "Sugar is within today's limit." }),
-      jasmine.objectContaining({ label: 'Sodium', status: 'warning', statusLabel: 'Over limit', detail: "300mg over today's limit." })
-    ]);
-
-    component.nutritionSummary.set(summary({ totalFiberGrams: 25, fiberTargetGrams: 25, fiberTargetMet: true, totalSugarGrams: 10, sugarWithinLimit: null }));
-
-    expect(component.nutritionChecks()).toEqual([
-      jasmine.objectContaining({ label: 'Fiber', status: 'success', statusLabel: 'Target met', detail: 'Fiber target met.' }),
-      jasmine.objectContaining({ label: 'Sugar', status: 'neutral', statusLabel: 'Waiting for target' })
-    ]);
+    expect(fixture.componentInstance.view()).toBe('log');
+    const builder = fixture.debugElement.query(By.directive(MealBuilderComponent));
+    expect(builder.componentInstance.mealForm.controls.mealType.value).not.toBe('NOPE');
   });
 });

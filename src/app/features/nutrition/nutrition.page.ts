@@ -1,132 +1,64 @@
 import { Component, Injector, OnInit, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
-import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Meal, NutritionSummary } from '../../core/fitsync.models';
-import { ToastService } from '../../core/toast/toast.service';
-import { StatePanelComponent } from '../../shared/state-panel.component';
-import { MealBuilderComponent } from './meal-builder.component';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
-
-interface NutritionCheck {
-  label: string;
-  value: number | null;
-  target: number | null;
-  unit: 'g' | 'mg';
-  status: 'success' | 'warning' | 'neutral';
-  statusLabel: string;
-  detail: string;
-}
+import { DiaryDayComponent } from './diary/diary-day.component';
+import { DiaryWeekComponent } from './diary/diary-week.component';
+import { LOADING, Load, RangeDay } from './diary/diary.models';
+import { whole } from './diary/diary-figures';
+import { dayLabel, toIsoDate, weekOf } from './diary/diary-time';
+import { NutritionDiaryService } from './diary/nutrition-diary.service';
+import { MealBuilderComponent } from './meal-builder.component';
 
 /** The meal types a deep link may preselect in the meal builder. */
 const LINKABLE_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
 
+/**
+ * The Nutrition page: a head like the Workout page's (title, date and target, the coach reading, a
+ * week card), then the Diary. Recipes and Insights will join the Diary as tabs when they are built.
+ * The meal builder opens from a meal's Add, or from a link that names a meal type.
+ */
 @Component({
   selector: 'app-nutrition-page',
-  imports: [InsightPanelComponent, RouterLink, StatePanelComponent, MealBuilderComponent],
+  imports: [InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })
 export class NutritionPage implements OnInit {
-  private readonly dataService = inject(FitSyncDataService);
-  private readonly toast = inject(ToastService);
+  private readonly diary = inject(NutritionDiaryService);
   private readonly route = inject(ActivatedRoute);
   private readonly injector = inject(Injector);
   private readonly builder = viewChild(MealBuilderComponent);
-  // The meal type a link asked for, held until the builder exists to take it.
+  // The meal type a link or an Add button asked for, held until the builder exists to take it.
   private pendingMealType: string | null = null;
 
-  readonly nutritionSummary = signal<NutritionSummary | null>(null);
-  readonly todayMeals = signal<Meal[]>([]);
-  readonly loading = signal(true);
-  readonly error = signal<string | null>(null);
-  readonly selectedTab = signal<'today' | 'log'>('today');
+  readonly today = toIsoDate(new Date());
+  readonly dates = weekOf(this.today);
 
-  readonly today = new Intl.DateTimeFormat('en-SG', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric'
-  }).format(new Date());
+  readonly view = signal<'diary' | 'log'>('diary');
+  readonly selectedDate = signal(this.today);
+  readonly range = signal<Load<RangeDay[]>>(LOADING);
+  /** Raised to make the Diary reload, for example after a meal was saved. */
+  readonly refresh = signal(0);
 
-  // The timezone whose day boundary drives the Today view (matches the one
-  // getDailyNutritionSummary sends to the backend).
-  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
-
-  // Source the Today budget/macros/checks from the nutrition daily summary, which
-  // honours the user's timezone (day boundary) and carries real carbs/fat + the
-  // fiber/sugar/sodium micros. The analytics dashboard's "today" is a server/UTC-day
-  // snapshot, so it lagged a day vs the meal list (getTodayMeals uses local midnight).
-  readonly nutrition = computed(() => this.nutritionSummary());
-
-  readonly hasCalorieTarget = computed(() => this.nutrition()?.targetCalories != null);
-
-  readonly caloriesRemaining = computed(() => {
-    const nutrition = this.nutrition();
-    return nutrition?.targetCalories != null ? Math.max(nutrition.targetCalories - nutrition.totalCalories, 0) : null;
+  readonly days = computed(() => {
+    const state = this.range();
+    return state.status === 'ready' ? state.data : [];
   });
 
-  readonly macroCards = computed(() => {
-    const nutrition = this.nutrition();
+  readonly targetCalories = computed(() => this.days().find((day) => day.targetCalories !== null)?.targetCalories ?? null);
 
-    return [
-      {
-        label: 'Protein',
-        value: nutrition?.totalProteinGrams ?? 0,
-        target: nutrition?.targetProteinGrams ?? null,
-        targetSet: nutrition?.targetProteinGrams != null,
-        unit: 'g',
-        tone: 'protein'
-      },
-      {
-        label: 'Carbs',
-        value: nutrition?.totalCarbsGrams ?? 0,
-        target: nutrition?.targetCarbsGrams ?? null,
-        targetSet: nutrition?.targetCarbsGrams != null,
-        unit: 'g',
-        tone: 'carbs'
-      },
-      {
-        label: 'Fat',
-        value: nutrition?.totalFatGrams ?? 0,
-        target: nutrition?.targetFatGrams ?? null,
-        targetSet: nutrition?.targetFatGrams != null,
-        unit: 'g',
-        tone: 'fat'
-      }
-    ];
-  });
-
-  readonly mealTimeline = computed(() =>
-    this.todayMeals().map((meal) => ({
-      mealId: meal.mealId,
-      mealType: meal.mealType,
-      type: this.label(meal.mealType),
-      time: this.formatTime(meal.consumedAt),
-      title: meal.name,
-      calories: meal.totalCalories,
-      protein: Math.round(meal.totalProteinGrams)
-    }))
-  );
-
-  readonly nutritionChecks = computed(() => {
-    const nutrition = this.nutrition();
-    if (!nutrition) {
-      return [];
-    }
-
-    return [
-      this.nutritionCheck('Fiber', nutrition.totalFiberGrams, nutrition.fiberTargetGrams, 'g', nutrition.fiberTargetMet, 'target'),
-      this.nutritionCheck('Sugar', nutrition.totalSugarGrams, nutrition.sugarLimitGrams, 'g', nutrition.sugarWithinLimit, 'limit'),
-      this.nutritionCheck('Sodium', nutrition.totalSodiumMg, nutrition.sodiumLimitMg, 'mg', nutrition.sodiumWithinLimit, 'limit')
-    ].filter((check): check is NutritionCheck => check !== null);
+  readonly headLine = computed(() => {
+    const target = this.targetCalories();
+    return target !== null ? `${dayLabel(this.today)} · ${whole(target)} kcal a day` : dayLabel(this.today);
   });
 
   constructor() {
-    // The link is read once. Only a known meal type opens the log tab; anything else is ignored.
+    // The link is read once. Only a known meal type opens the builder; anything else is ignored.
     const requested = (this.route.snapshot.queryParamMap.get('log') ?? '').toUpperCase();
     if (LINKABLE_MEAL_TYPES.includes(requested)) {
       this.pendingMealType = requested;
-      this.selectedTab.set('log');
+      this.view.set('log');
     }
     effect(() => {
       const builder = this.builder();
@@ -140,152 +72,43 @@ export class NutritionPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.load();
+    this.loadRange();
   }
 
-  load(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.dataService.getDailyNutritionSummary().subscribe({
-      next: (summary) => {
-        this.nutritionSummary.set(summary);
-        this.loading.set(false);
-      },
-      error: (error: Error) => {
-        this.error.set(error.message);
-        this.loading.set(false);
-      }
+  loadRange(): void {
+    this.range.set(LOADING);
+    this.diary.getRange(this.dates[0], this.dates[this.dates.length - 1]).subscribe({
+      next: (days) => this.range.set({ status: 'ready', data: days }),
+      error: () => this.range.set({ status: 'error', message: 'The week could not load. Please retry.' })
     });
+  }
 
-    this.refreshMeals();
+  /** The week card reloads quietly after a change, so the tiles do not flash. */
+  refreshRange(): void {
+    this.diary.getRange(this.dates[0], this.dates[this.dates.length - 1]).subscribe({
+      next: (days) => this.range.set({ status: 'ready', data: days }),
+      error: () => undefined
+    });
+  }
+
+  showDay(date: string): void {
+    this.selectedDate.set(date);
+    this.view.set('diary');
+  }
+
+  startLog(mealType: string): void {
+    this.pendingMealType = LINKABLE_MEAL_TYPES.includes(mealType) ? mealType : null;
+    this.view.set('log');
+  }
+
+  backToDiary(): void {
+    this.view.set('diary');
   }
 
   refreshAfterMealSave(): void {
-    this.refreshDashboard();
-    this.refreshMeals();
-    this.selectedTab.set('today');
-  }
-
-  copyMeal(mealId: string, mealType: string): void {
-    if (!mealId) {
-      return;
-    }
-    this.dataService.copyMeal(mealId, mealType).subscribe({
-      next: () => {
-        this.toast.success('Meal copied to now.');
-        this.refreshAfterMealSave();
-      },
-      error: () => this.toast.error('Unable to copy meal. Please retry.')
-    });
-  }
-
-  calorieProgress(): number {
-    const nutrition = this.nutrition();
-    return this.progress(nutrition?.totalCalories ?? 0, nutrition?.targetCalories ?? null) ?? 0;
-  }
-
-  progress(value: number, target: number | null): number | null {
-    return target != null && target > 0 ? Math.min(Math.round((value / target) * 100), 100) : null;
-  }
-
-  remaining(value: number, target: number | null): number | null {
-    return target != null ? Math.max(Math.round(target - value), 0) : null;
-  }
-
-  label(value: string | null | undefined): string {
-    return (value ?? '')
-      .replace(/_/g, ' ')
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  }
-
-  formatTime(value: string | null | undefined): string {
-    if (!value) {
-      return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return '';
-    }
-    return new Intl.DateTimeFormat('en-SG', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-  }
-
-  formatAmount(value: number | null, unit: 'g' | 'mg'): string {
-    if (value == null) {
-      return 'No data';
-    }
-    const rounded = unit === 'mg' ? Math.round(value) : Math.round(value * 10) / 10;
-    return `${rounded}${unit}`;
-  }
-
-  private refreshDashboard(): void {
-    this.dataService.getDailyNutritionSummary().subscribe({
-      next: (summary) => this.nutritionSummary.set(summary),
-      error: () => this.toast.error('Meal saved, but today summary could not refresh.')
-    });
-  }
-
-  private refreshMeals(): void {
-    this.dataService.getTodayMeals().subscribe((meals) => this.todayMeals.set(meals));
-  }
-
-  private nutritionCheck(
-    label: string,
-    value: number | null,
-    target: number | null,
-    unit: 'g' | 'mg',
-    status: boolean | null,
-    mode: 'target' | 'limit'
-  ): NutritionCheck | null {
-    if (value == null && target == null && status == null) {
-      return null;
-    }
-
-    return {
-      label,
-      value,
-      target,
-      unit,
-      status: this.nutritionStatus(status),
-      statusLabel: this.nutritionStatusLabel(status, mode),
-      detail: this.nutritionDetail(label, value, target, unit, status === true, mode)
-    };
-  }
-
-  private nutritionStatus(status: boolean | null): NutritionCheck['status'] {
-    if (status == null) {
-      return 'neutral';
-    }
-    return status ? 'success' : 'warning';
-  }
-
-  private nutritionStatusLabel(status: boolean | null, mode: 'target' | 'limit'): string {
-    if (status == null) {
-      return 'Waiting for target';
-    }
-    if (mode === 'target') {
-      return status ? 'Target met' : 'Below target';
-    }
-    return status ? 'Within limit' : 'Over limit';
-  }
-
-  private nutritionDetail(
-    label: string,
-    value: number | null,
-    target: number | null,
-    unit: 'g' | 'mg',
-    isGood: boolean,
-    mode: 'target' | 'limit'
-  ): string {
-    if (value == null || target == null) {
-      return 'Waiting for nutrition summary targets.';
-    }
-
-    const delta = Math.abs(target - value);
-    if (mode === 'target') {
-      return isGood ? `${label} target met.` : `${this.formatAmount(delta, unit)} left to target.`;
-    }
-    return isGood ? `${label} is within today's limit.` : `${this.formatAmount(delta, unit)} over today's limit.`;
+    this.selectedDate.set(this.today);
+    this.view.set('diary');
+    this.refresh.update((value) => value + 1);
+    this.refreshRange();
   }
 }
