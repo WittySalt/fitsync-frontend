@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
@@ -5,6 +6,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { SessionDetailComponent } from './session-detail.component';
+import { WorkoutLiveService } from './workout-live.service';
 
 function detail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
   return {
@@ -67,6 +69,7 @@ describe('SessionDetailComponent', () => {
       'updateSession',
       'deleteSession',
       'repeatSession',
+      'getActiveWorkout',
       'getExerciseMetadata',
       'getExercises'
     ]);
@@ -75,6 +78,7 @@ describe('SessionDetailComponent', () => {
     dataService.getSession.and.returnValue(of(detail()));
     dataService.updateSession.and.returnValue(of(detail({ name: 'Updated push' })));
     dataService.deleteSession.and.returnValue(of(void 0));
+    dataService.getActiveWorkout.and.returnValue(of(null));
     dataService.repeatSession.and.returnValue(of(detail({ sessionId: 'session-2', status: 'IN_PROGRESS' })));
     dataService.getExerciseMetadata.and.returnValue(
       of({
@@ -298,7 +302,7 @@ describe('SessionDetailComponent', () => {
     expect(dataService.updateSession).not.toHaveBeenCalled();
   });
 
-  it('keeps exercise editing read-only for non-manual sessions', () => {
+  it('allows exercise editing for a completed session whatever its source', () => {
     dataService.getSession.and.returnValue(of(detail({ source: 'LIVE' })));
     const fixture = TestBed.createComponent(SessionDetailComponent);
     fixture.componentInstance.sessionId = 'session-1';
@@ -306,7 +310,21 @@ describe('SessionDetailComponent', () => {
 
     fixture.componentInstance.startExerciseEdit();
 
+    expect(fixture.componentInstance.exerciseEditing()).toBeTrue();
+  });
+
+  it('keeps exercise editing read-only until the session is completed', () => {
+    dataService.getSession.and.returnValue(of(detail({ status: 'CANCELLED' })));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.startExerciseEdit();
+
     expect(fixture.componentInstance.exerciseEditing()).toBeFalse();
+    expect(fixture.componentInstance.exerciseEditUnavailableLabel(detail({ status: 'CANCELLED' }))).toBe(
+      'Only completed sessions can edit exercises'
+    );
   });
 
   it('deletes a session after confirmation', () => {
@@ -449,5 +467,124 @@ describe('SessionDetailComponent', () => {
 
     expect(toast.error).toHaveBeenCalledWith('Unable to load session detail.');
     expect(fixture.componentInstance.session()).toBeNull();
+  });
+
+  describe('a workout the server closed by itself', () => {
+    function opened(overrides: Partial<WorkoutSessionDetail>) {
+      dataService.getSession.and.returnValue(of(detail(overrides)));
+      const fixture = TestBed.createComponent(SessionDetailComponent);
+      fixture.componentInstance.sessionId = 'session-1';
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    const clock = (iso: string) => {
+      const date = new Date(iso);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    };
+
+    it('says when a completed session ended automatically', () => {
+      const fixture = opened({ autoClosedAt: '2026-06-20T11:05:00Z' });
+
+      const line = (fixture.nativeElement as HTMLElement).querySelector('.session-notes')?.textContent?.trim();
+      expect(line).toBe(`Ended automatically at ${clock('2026-06-20T11:00:00Z')}, the time of your last set.`);
+    });
+
+    it('says that a cancelled session was closed with no set logged', () => {
+      const fixture = opened({ status: 'CANCELLED', completedAt: '', autoClosedAt: '2026-06-20T14:00:00Z' });
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Closed automatically. No set was logged.');
+    });
+
+    it('adds no line for a session the person ended', () => {
+      const fixture = opened({ autoClosedAt: null, notes: '' });
+
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('automatically');
+    });
+  });
+
+  describe('editing when a completed session ended', () => {
+    const clock = (iso: string) => {
+      const date = new Date(iso);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    };
+
+    function editing(overrides: Partial<WorkoutSessionDetail> = {}) {
+      dataService.getSession.and.returnValue(of(detail(overrides)));
+      const fixture = TestBed.createComponent(SessionDetailComponent);
+      fixture.componentInstance.sessionId = 'session-1';
+      fixture.detectChanges();
+      fixture.componentInstance.startEdit();
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('offers Ended at for a completed session, filled with the time it ended', () => {
+      const fixture = editing();
+
+      expect(fixture.componentInstance.editForm.controls.endedAt.value).toBe(clock('2026-06-20T11:00:00Z'));
+      expect((fixture.nativeElement as HTMLElement).querySelector('input[type="time"]')).not.toBeNull();
+    });
+
+    it('offers no Ended at for a cancelled session', () => {
+      const fixture = editing({ status: 'CANCELLED' });
+
+      expect((fixture.nativeElement as HTMLElement).querySelector('input[type="time"]')).toBeNull();
+    });
+
+    it('sends the new end as completedAt on the day it ended, and the duration follows it', () => {
+      const fixture = editing();
+      const started = new Date('2026-06-20T10:00:00Z');
+      const target = new Date('2026-06-20T11:00:00Z');
+      target.setHours(target.getHours(), target.getMinutes() + 30, 0, 0);
+      fixture.componentInstance.editForm.patchValue({ endedAt: clock(target.toISOString()) });
+
+      fixture.componentInstance.saveEdit();
+
+      const sent = dataService.updateSession.calls.mostRecent().args[1];
+      expect(new Date(sent.completedAt as string).getTime()).toBe(target.getTime());
+      expect(sent.durationMinutes).toBe(Math.round((target.getTime() - started.getTime()) / 60_000));
+    });
+
+    it('keeps the stored end when the time is left alone', () => {
+      const fixture = editing();
+
+      fixture.componentInstance.saveEdit();
+
+      expect(dataService.updateSession.calls.mostRecent().args[1].completedAt).toBe('2026-06-20T11:00:00Z');
+    });
+
+    it('refuses an end before the start', () => {
+      const fixture = editing();
+      fixture.componentInstance.editForm.patchValue({ endedAt: '00:01' });
+      fixture.detectChanges();
+
+      fixture.componentInstance.saveEdit();
+
+      expect(fixture.componentInstance.endedAtBeforeStart()).toBeTrue();
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('The end cannot come before the start.');
+      expect(dataService.updateSession).not.toHaveBeenCalled();
+    });
+  });
+
+  it('starts the repeat through the one start path, and leaves a refused repeat to the shared dialog', () => {
+    dataService.repeatSession.and.returnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: { code: 'ACTIVE_SESSION_EXISTS', data: { sessionId: 'running', name: 'Running', startedAt: '2026-06-20T10:00:00Z' } }
+          })
+      )
+    );
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    fixture.componentInstance.repeatThis();
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(TestBed.inject(WorkoutLiveService).pendingStart()?.info.sessionId).toBe('running');
+    expect(fixture.componentInstance.saving()).toBeFalse();
   });
 });

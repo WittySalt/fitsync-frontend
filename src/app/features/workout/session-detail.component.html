@@ -10,6 +10,9 @@
   @if (loading()) {
     <div class="skeleton tall" aria-label="Loading session detail"></div>
   } @else if (session(); as detail) {
+    @if (autoClosedLine(detail); as closedLine) {
+      <p class="session-notes">{{ closedLine }}</p>
+    }
     <div class="detail-actions">
       <button class="button secondary" type="button" (click)="startEdit()" [disabled]="saving()">Edit details</button>
       <button
@@ -51,6 +54,15 @@
           Calories (estimate)
           <input formControlName="caloriesBurned" type="number" min="0" inputmode="numeric" placeholder="Not recorded" />
         </label>
+        @if (detail.status === 'COMPLETED') {
+          <label>
+            Ended at
+            <input formControlName="endedAt" type="time" />
+            @if (endedAtBeforeStart(detail)) {
+              <span class="field-error">The end cannot come before the start.</span>
+            }
+          </label>
+        }
         <label class="wide">
           Notes
           <textarea formControlName="notes" maxlength="1000" rows="2"></textarea>

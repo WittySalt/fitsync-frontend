@@ -1,27 +1,75 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, throwError } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { EMPTY, Observable, Subject, of, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
+  ActiveSessionConflict,
+  ActiveWorkout,
+  ActiveWorkoutNextSet,
+  ActiveWorkoutResume,
   StartAdHocSessionInput,
   WorkoutExerciseSetInput,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
+import { ToastService } from '../../core/toast/toast.service';
+import { activeSessionConflictFrom } from './active-session-conflict';
 
+/** Where the exercise screen opens: the exercise, the set, or the last exercise when all is done. */
+export interface PlayerStart {
+  exerciseId: string | null;
+  setNumber: number | null;
+  allDone: boolean;
+}
+
+/** A start the server refused because a workout is already in progress, kept so it can be repeated. */
+export interface PendingStart {
+  info: ActiveSessionConflict;
+  retry: () => Observable<WorkoutSessionDetail>;
+  /** What to say once the repeated start has worked. */
+  message: string;
+}
+
+export const STILL_RUNNING_NOTICE =
+  'Still running. It saves itself three hours after your last set, and you can edit it afterwards.';
+
+const MIN_SAVED_SECONDS = 60;
+
+/**
+ * The one workout in progress: the session, its timer, where the person left off, and every way
+ * of starting or ending it. The bar, the exercise screen and the history list all read from here,
+ * so a reload, a route change or a start from another tab does not lose the workout.
+ */
 @Injectable({ providedIn: 'root' })
 export class WorkoutLiveService {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly session = signal<WorkoutSessionDetail | null>(null);
   readonly paused = signal(false);
   readonly heartRate = signal<number | null>(null);
+  /** Where the server said the person left off, from the last load of the active workout. */
+  readonly serverResume = signal<ActiveWorkoutResume | null>(null);
+  /** The person put the exercise screen away, so opening the Workout page does not bring it back. */
+  readonly minimised = signal(false);
+  /** The Workout page has the exercise screen on screen, so the bar stays out of the way. */
+  readonly screenOpen = signal(false);
+  readonly playerStart = signal<PlayerStart>({ exerciseId: null, setNumber: null, allDone: false });
+  /** A start that was refused because another workout is in progress; the shared dialog shows it. */
+  readonly pendingStart = signal<PendingStart | null>(null);
+  /** Asks the Workout page, if it is mounted, to show the exercise screen on its Today tab. */
+  readonly openRequests = new Subject<void>();
+  /** A workout was ended, or a refused start went through, outside the page's own handlers. */
+  readonly changedElsewhere = new Subject<WorkoutSessionDetail>();
 
   private readonly nowMs = signal(Date.now());
   private timerId: ReturnType<typeof setInterval> | null = null;
   private startedAtMs = 0;
   private accumulatedMs = 0;
+  /** Workouts the person has already been told about, so the notice comes once per workout. */
+  private readonly noticed = new Set<string>();
+  private refreshToken = 0;
 
   readonly elapsedSeconds = computed(() => {
     if (!this.session()) {
@@ -29,6 +77,58 @@ export class WorkoutLiveService {
     }
     const activeMs = this.paused() ? 0 : Math.max(0, this.nowMs() - this.startedAtMs);
     return Math.floor((this.accumulatedMs + activeMs) / 1000);
+  });
+
+  /** The session while it is still being trained; null once it is completed or cancelled. */
+  readonly active = computed(() => {
+    const session = this.session();
+    return session && (session.status === 'PLANNED' || session.status === 'IN_PROGRESS') ? session : null;
+  });
+
+  readonly elapsedLabel = computed(() => formatElapsedClock(this.elapsedSeconds()));
+
+  /** The next open set. It follows the sets as they are recorded, and falls back to the server's
+   *  answer for a session whose sets the list does not carry. */
+  readonly nextSet = computed<ActiveWorkoutNextSet | null>(() => {
+    const session = this.active();
+    if (!session) {
+      return null;
+    }
+    const logs = [...session.exercises].sort((a, b) => a.sequence - b.sequence);
+    if (logs.some((log) => log.sets.length > 0)) {
+      for (const log of logs) {
+        const open = [...log.sets].sort((a, b) => a.setNumber - b.setNumber).find((set) => !set.logged);
+        if (open) {
+          return {
+            exerciseLogId: log.exerciseLogId,
+            exerciseId: log.exerciseId,
+            exerciseName: log.exerciseNameSnapshot,
+            exerciseSequence: log.sequence,
+            setNumber: open.setNumber
+          };
+        }
+      }
+      return null;
+    }
+    return this.serverResume()?.nextSet ?? null;
+  });
+
+  /** "Goblet squat · set 2 of 3", or an empty string when the workout has no exercises. */
+  readonly currentLabel = computed(() => {
+    const session = this.active();
+    if (!session || session.exercises.length === 0) {
+      return '';
+    }
+    const next = this.nextSet();
+    if (!next) {
+      return 'All sets done';
+    }
+    const total = session.exercises.find((log) => log.exerciseLogId === next.exerciseLogId)?.sets.length ?? 0;
+    let set = '';
+    if (next.setNumber) {
+      set = total >= next.setNumber ? `set ${next.setNumber} of ${total}` : `set ${next.setNumber}`;
+    }
+    return [next.exerciseName, set].filter(Boolean).join(' · ');
   });
 
   readonly estimatedCalories = computed(() => {
@@ -49,14 +149,120 @@ export class WorkoutLiveService {
     this.destroyRef.onDestroy(() => this.stopTimer());
   }
 
-  /** Starts a plan, optionally a specific day of it, in the user's timezone. */
+  /**
+   * Starts a plan, optionally a specific day of it, in the user's timezone. Every start goes
+   * through the same guard: when a workout is already in progress the server refuses, the shared
+   * dialog is opened, and the returned stream completes without a value, so the caller neither
+   * shows an error nor opens a screen.
+   */
   startFromPlan(planId: string, options?: { planDayId?: string | null; timezone?: string }): Observable<WorkoutSessionDetail> {
-    const started = options ? this.dataService.startWorkoutPlan(planId, options) : this.dataService.startWorkoutPlan(planId);
-    return started.pipe(tap((session) => this.begin(session)));
+    return this.guardedStart(
+      () => (options ? this.dataService.startWorkoutPlan(planId, options) : this.dataService.startWorkoutPlan(planId)),
+      'Workout session started.'
+    );
   }
 
   startAdHoc(input: StartAdHocSessionInput): Observable<WorkoutSessionDetail> {
-    return this.dataService.startAdHocSession(input).pipe(tap((session) => this.begin(session)));
+    return this.guardedStart(() => this.dataService.startAdHocSession(input), 'Workout started.');
+  }
+
+  repeatSession(sessionId: string): Observable<WorkoutSessionDetail> {
+    return this.guardedStart(() => this.dataService.repeatSession(sessionId), 'Workout repeated.');
+  }
+
+  repeatLatest(): Observable<WorkoutSessionDetail> {
+    return this.guardedStart(() => this.dataService.repeatLatestSession(), 'Latest workout repeated.');
+  }
+
+  /** Loads the workout in progress and adopts it; a missing one leaves things as they are. */
+  loadActive(): Observable<ActiveWorkout | null> {
+    const token = ++this.refreshToken;
+    return this.dataService.getActiveWorkout().pipe(
+      tap((active) => {
+        if (active && token === this.refreshToken) {
+          this.adopt(active);
+        }
+      })
+    );
+  }
+
+  refresh(): void {
+    this.loadActive().subscribe();
+  }
+
+  /** Shows the exercise screen: on the next open set, or on the exercise the person picked. */
+  open(exerciseId: string | null = null): void {
+    this.minimised.set(false);
+    this.capturePlayerStart(exerciseId);
+    this.openRequests.next();
+  }
+
+  /** Puts the exercise screen away. The workout keeps running, and the person is told once. */
+  minimise(): void {
+    this.minimised.set(true);
+    const sessionId = this.active()?.sessionId;
+    if (sessionId && this.nextSet() && !this.noticed.has(sessionId)) {
+      this.noticed.add(sessionId);
+      this.toast.info(STILL_RUNNING_NOTICE, 8000);
+    }
+  }
+
+  /** Ends the workout from outside the exercise screen, under the same 60 second rule. */
+  finishActive(): Observable<WorkoutSessionDetail> {
+    return this.finish().pipe(tap((session) => this.closeOut(session)));
+  }
+
+  discardActive(): Observable<WorkoutSessionDetail> {
+    return this.abort().pipe(tap((session) => this.closeOut(session)));
+  }
+
+  /** A session was deleted; if it was the one in progress it is gone from here too. */
+  sessionRemoved(sessionId: string | null | undefined): void {
+    if (sessionId && this.session()?.sessionId === sessionId) {
+      this.reset();
+    }
+    this.refresh();
+  }
+
+  dismissPendingStart(): void {
+    this.pendingStart.set(null);
+  }
+
+  /** The dialog's "Resume it": the refused start is dropped and the running workout opens. */
+  resumePending(): void {
+    this.pendingStart.set(null);
+    if (this.active()) {
+      this.open();
+      return;
+    }
+    this.loadActive().subscribe((active) => {
+      if (active) {
+        this.open();
+      }
+    });
+  }
+
+  /**
+   * The dialog's "End it and start this one". The workout in the way is finished, or discarded when
+   * it was under a minute or had no set done, and the start that was refused is repeated once.
+   */
+  endAndStart(): Observable<WorkoutSessionDetail | null> {
+    const pending = this.pendingStart();
+    if (!pending) {
+      return of(null);
+    }
+    const current$ = this.session()?.sessionId === pending.info.sessionId ? of(null) : this.loadActive();
+    return current$.pipe(
+      switchMap(() => this.endForNewStart()),
+      switchMap(() => {
+        this.pendingStart.set(null);
+        return pending.retry().pipe(tap((session) => this.afterStart(session)));
+      }),
+      tap((session) => {
+        this.toast.success(pending.message);
+        this.changedElsewhere.next(session);
+      })
+    );
   }
 
   recordSet(
@@ -76,7 +282,7 @@ export class WorkoutLiveService {
       return throwError(() => new Error('No live workout session to finish.'));
     }
 
-    const write = this.elapsedSeconds() < 60
+    const write = this.elapsedSeconds() < MIN_SAVED_SECONDS
       ? this.dataService.cancelSession(sessionId)
       : this.dataService.completeSession(sessionId);
 
@@ -100,6 +306,7 @@ export class WorkoutLiveService {
     this.nowMs.set(Date.now());
   }
 
+  /** Continues a paused timer. */
   resume(): void {
     if (!this.session() || !this.paused()) {
       return;
@@ -114,8 +321,10 @@ export class WorkoutLiveService {
   }
 
   reset(): void {
+    this.refreshToken++;
     this.stopTimer();
     this.session.set(null);
+    this.serverResume.set(null);
     this.heartRate.set(null);
     this.paused.set(false);
     this.accumulatedMs = 0;
@@ -123,11 +332,82 @@ export class WorkoutLiveService {
     this.nowMs.set(Date.now());
   }
 
-  private begin(session: WorkoutSessionDetail): void {
+  private guardedStart(
+    start: () => Observable<WorkoutSessionDetail>,
+    message: string
+  ): Observable<WorkoutSessionDetail> {
+    return start().pipe(
+      tap((session) => this.afterStart(session)),
+      catchError((error: unknown) => {
+        const info = activeSessionConflictFrom(error);
+        if (!info) {
+          return throwError(() => error);
+        }
+        this.pendingStart.set({ info, retry: start, message });
+        return EMPTY;
+      })
+    );
+  }
+
+  private afterStart(session: WorkoutSessionDetail): void {
+    this.begin(session);
+    this.refresh();
+  }
+
+  private adopt(active: ActiveWorkout): void {
+    if (this.session()?.sessionId === active.session.sessionId) {
+      this.session.set(active.session);
+      this.serverResume.set(active.resume);
+      return;
+    }
+    this.begin(active.session, active.resume);
+    this.capturePlayerStart(null);
+  }
+
+  private closeOut(session: WorkoutSessionDetail): void {
+    this.reset();
+    this.changedElsewhere.next(session);
+    this.refresh();
+  }
+
+  private endForNewStart(): Observable<null> {
+    const session = this.active();
+    if (!session) {
+      return of(null);
+    }
+    const rows = session.exercises.flatMap((log) => log.sets);
+    const noSetDone = rows.length > 0 && !rows.some((set) => set.logged);
+    const ended$ = noSetDone ? this.abort() : this.finish();
+    return ended$.pipe(
+      tap(() => this.reset()),
+      map(() => null)
+    );
+  }
+
+  private capturePlayerStart(exerciseId: string | null): void {
+    if (exerciseId) {
+      this.playerStart.set({ exerciseId, setNumber: null, allDone: false });
+      return;
+    }
+    const next = this.nextSet();
+    if (next) {
+      this.playerStart.set({ exerciseId: next.exerciseId, setNumber: next.setNumber, allDone: false });
+      return;
+    }
+    const logs = [...(this.active()?.exercises ?? [])].sort((a, b) => a.sequence - b.sequence);
+    const last = logs[logs.length - 1];
+    this.playerStart.set({ exerciseId: last?.exerciseId ?? null, setNumber: null, allDone: logs.length > 0 });
+  }
+
+  private begin(session: WorkoutSessionDetail, resume: ActiveWorkoutResume | null = null): void {
     this.reset();
     this.session.set(session);
-    this.startedAtMs = Date.now();
-    this.nowMs.set(this.startedAtMs);
+    this.serverResume.set(resume);
+    this.minimised.set(false);
+    // The clock runs from the moment the server says the workout started, so a reload keeps it.
+    const started = new Date(session.startedAt).getTime();
+    this.startedAtMs = Number.isFinite(started) ? Math.min(started, Date.now()) : Date.now();
+    this.nowMs.set(Date.now());
     this.refreshMockHeartRate();
     this.startTimer();
   }
@@ -203,4 +483,13 @@ export class WorkoutLiveService {
         return 5;
     }
   }
+}
+
+/** 12:34, or 1:02:03 once the workout passes the hour. */
+export function formatElapsedClock(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = String(total % 60).padStart(2, '0');
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
 }

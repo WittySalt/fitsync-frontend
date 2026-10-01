@@ -22,6 +22,7 @@ import {
 import { formatKm } from '../dashboard/brief/brief-duration';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { WorkoutLiveService } from './workout-live.service';
 import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
 
 type ExerciseSetEditGroup = FormGroup<{
@@ -60,6 +61,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
+  private readonly live = inject(WorkoutLiveService);
 
   @Input() sessionId: string | null = null;
   @Output() closed = new EventEmitter<void>();
@@ -80,7 +82,9 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     workoutType: ['', Validators.required],
     caloriesBurned: [null as number | null, [Validators.min(0)]],
     perceivedExertion: [null as number | null, [Validators.min(1), Validators.max(10)]],
-    notes: ['', Validators.maxLength(1000)]
+    notes: ['', Validators.maxLength(1000)],
+    // The time of day the workout ended (HH:mm), for a completed session.
+    endedAt: ['']
   });
 
   readonly exerciseEditForm = new FormGroup({
@@ -113,7 +117,8 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       workoutType: session.workoutType,
       caloriesBurned: session.caloriesBurned,
       perceivedExertion: session.perceivedExertion,
-      notes: session.notes
+      notes: session.notes,
+      endedAt: session.status === 'COMPLETED' ? this.clockTime(session.completedAt) : ''
     });
     this.editing.set(true);
     this.exerciseEditing.set(false);
@@ -237,6 +242,10 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       return;
     }
 
+    if (this.endedAtBeforeStart(session)) {
+      return;
+    }
+
     this.saving.set(true);
     const request = this.buildUpdateRequest(session);
     this.dataService.updateSession(session.sessionId, request).subscribe({
@@ -286,7 +295,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     }
 
     this.saving.set(true);
-    this.dataService.repeatSession(session.sessionId).subscribe({
+    this.live.repeatSession(session.sessionId).subscribe({
       next: (repeated) => {
         this.toast.success('Workout repeated.');
         this.repeated.emit(repeated);
@@ -343,11 +352,32 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   }
 
   canEditExercises(session: WorkoutSessionDetail | null = this.session()): boolean {
-    return session?.status === 'COMPLETED' && session.source === 'MANUAL';
+    return session?.status === 'COMPLETED';
   }
 
   exerciseEditUnavailableLabel(session: WorkoutSessionDetail): string {
-    return this.canEditExercises(session) ? 'Edit recorded exercises and sets' : 'Only completed manual sessions can edit exercises';
+    return this.canEditExercises(session) ? 'Edit recorded exercises and sets' : 'Only completed sessions can edit exercises';
+  }
+
+  /** One line for a workout the server closed by itself, or null for any other. */
+  autoClosedLine(session: WorkoutSessionDetail): string | null {
+    if (!session.autoClosedAt) {
+      return null;
+    }
+    if (session.status === 'COMPLETED') {
+      return `Ended automatically at ${this.clockTime(session.completedAt)}, the time of your last set.`;
+    }
+    return session.status === 'CANCELLED' ? 'Closed automatically. No set was logged.' : null;
+  }
+
+  /** The "Ended at" time sits before the start, which cannot be saved. */
+  endedAtBeforeStart(session: WorkoutSessionDetail | null = this.session()): boolean {
+    if (!session) {
+      return false;
+    }
+    const ended = this.endedAtInstant(session);
+    const started = new Date(session.startedAt).getTime();
+    return ended !== null && Number.isFinite(started) && ended.getTime() < started;
   }
 
   exerciseGroups(): ExerciseEditGroup[] {
@@ -360,6 +390,30 @@ export class SessionDetailComponent implements OnInit, OnChanges {
 
   exerciseSetNumber(setIndex: number): number {
     return setIndex + 1;
+  }
+
+  /** HH:mm in the browser's timezone, or an empty string. */
+  private clockTime(value: string | null | undefined): string {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  }
+
+  /** The edited end as an instant on the day the workout ended, or null when it is unchanged or blank. */
+  private endedAtInstant(session: WorkoutSessionDetail): Date | null {
+    const time = this.editForm.controls.endedAt.value;
+    if (session.status !== 'COMPLETED' || !/^\d{2}:\d{2}$/.test(time) || time === this.clockTime(session.completedAt)) {
+      return null;
+    }
+    const day = new Date(session.completedAt || session.startedAt);
+    if (Number.isNaN(day.getTime())) {
+      return null;
+    }
+    const [hours, minutes] = time.split(':').map(Number);
+    day.setHours(hours, minutes, 0, 0);
+    return day;
   }
 
   private loadMetadata(): void {
@@ -397,6 +451,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
 
   private buildUpdateRequest(session: WorkoutSessionDetail): UpsertWorkoutSessionRequest {
     const raw = this.editForm.getRawValue();
+    const completedAt = this.endedAtInstant(session)?.toISOString() ?? session.completedAt;
     const request: UpsertWorkoutSessionRequest = {
       planId: session.planId ?? null,
       name: raw.name.trim(),
@@ -404,7 +459,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       status: session.status,
       source: session.source ?? 'MANUAL',
       startedAt: session.startedAt,
-      durationMinutes: deriveDurationMinutes(session.startedAt, session.completedAt) ?? session.durationMinutes,
+      durationMinutes: deriveDurationMinutes(session.startedAt, completedAt) ?? session.durationMinutes,
       caloriesBurned: raw.caloriesBurned ?? session.caloriesBurned,
       perceivedExertion: raw.perceivedExertion,
       notes: raw.notes.trim() || null,
@@ -412,7 +467,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
     };
 
     if (session.status === 'COMPLETED') {
-      request.completedAt = session.completedAt;
+      request.completedAt = completedAt;
     }
 
     return request;

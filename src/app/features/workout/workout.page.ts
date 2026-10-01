@@ -1,5 +1,6 @@
 import { ActivatedRoute } from '@angular/router';
-import { Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { CoachContextService } from '../../core/coach/coach-context.service';
@@ -22,6 +23,8 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { AutoClosedNoticeComponent } from './auto-closed-notice.component';
+import { dismissAutoClosed, isAutoClosedDismissed } from './auto-closed-dismissal';
 import { ExercisePlayerComponent } from './exercise-player.component';
 import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveStartCardComponent } from './live-start-card.component';
@@ -36,6 +39,7 @@ import {
   isBlankExerciseGroup,
   resetExerciseGroup
 } from './plan-exercise-form';
+import { dayToStart, isoWeekdayIn } from './plan-day-pick';
 import { PlanExerciseRowsComponent } from './plan-exercise-rows.component';
 import { PlanWeekEditorComponent } from './plan-week-editor.component';
 import { PlanWeekSummaryComponent } from './plan-week-summary.component';
@@ -76,7 +80,8 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
-  imports: [InsightPanelComponent, 
+  imports: [InsightPanelComponent,
+    AutoClosedNoticeComponent,
     ReactiveFormsModule,
     PlanExerciseRowsComponent,
     PlanWeekEditorComponent,
@@ -93,12 +98,13 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   templateUrl: './workout.page.html',
   styleUrl: './workout.page.scss'
 })
-export class WorkoutPage implements OnInit {
+export class WorkoutPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
-  private readonly workoutLive = inject(WorkoutLiveService);
+  readonly workoutLive = inject(WorkoutLiveService);
   private readonly coachContext = inject(CoachContextService);
   private readonly liveStartCard = viewChild(LiveStartCardComponent);
 
@@ -125,10 +131,24 @@ export class WorkoutPage implements OnInit {
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
   readonly selectedSessionId = signal<string | null>(null);
-  readonly guidedPlayerSession = signal<WorkoutSessionDetail | null>(null);
-  readonly guidedInitialExerciseId = signal<string | null>(null);
-  readonly liveTrackerSession = signal<WorkoutSessionDetail | null>(null);
+  /** The exercise screen is on screen: there is a workout, the Today tab is open, and it is not minimised. */
+  readonly screenVisible = computed(
+    () => this.selectedTab() === 'overview' && !!this.workoutLive.session() && !this.workoutLive.minimised()
+  );
+  /** A workout with exercises opens the guided player; one without (free, or a sport day) opens the timer. */
+  readonly guidedPlayerSession = computed<WorkoutSessionDetail | null>(() => {
+    const session = this.screenVisible() ? this.workoutLive.session() : null;
+    return session && session.exercises.length > 0 ? session : null;
+  });
+  readonly liveTrackerSession = computed<WorkoutSessionDetail | null>(() => {
+    const session = this.screenVisible() ? this.workoutLive.session() : null;
+    return session && session.exercises.length === 0 ? session : null;
+  });
+  readonly guidedInitialExerciseId = computed(() => this.workoutLive.playerStart().exerciseId);
   readonly liveTrackerGoal = signal<LiveTrackerGoal | null>(null);
+  /** The most recent workout of the last day, when the server closed it by itself. */
+  readonly recentSession = signal<WorkoutSession | null>(null);
+  private readonly dismissedNotices = signal<Set<string>>(new Set());
   readonly repeatingLatest = signal(false);
   readonly dataToolsOpen = signal(false);
   readonly historySearch = signal('');
@@ -191,6 +211,15 @@ export class WorkoutPage implements OnInit {
 
   readonly historyStatusOptions = ['COMPLETED', 'CANCELLED', 'IN_PROGRESS'] as const;
 
+  readonly autoClosedNotice = computed<WorkoutSession | null>(() => {
+    const recent = this.recentSession();
+    const id = recent?.sessionId;
+    if (!recent || !id || !recent.autoClosedAt || this.dismissedNotices().has(id) || isAutoClosedDismissed(id)) {
+      return null;
+    }
+    return recent.status === 'COMPLETED' || recent.status === 'CANCELLED' ? recent : null;
+  });
+
   // Server-side filters (status/type/duration/date) + pagination drive this list.
   // Name search has no backend param, so it refines the loaded page client-side only.
   readonly visibleSessions = computed(() => {
@@ -198,6 +227,34 @@ export class WorkoutPage implements OnInit {
     const rows = this.sessions();
     return search ? rows.filter((session) => session.name.toLowerCase().includes(search)) : rows;
   });
+
+  /** The workout in progress leads the first page of the history, whatever the status filter says. */
+  readonly runningRow = computed<WorkoutSessionDetail | null>(() => {
+    const running = this.workoutLive.active();
+    const search = this.historySearch().trim().toLowerCase();
+    if (!running || this.page() !== 0 || (search && !running.name.toLowerCase().includes(search))) {
+      return null;
+    }
+    return running;
+  });
+
+  readonly historyRows = computed(() => {
+    const runningId = this.runningRow()?.sessionId;
+    return runningId ? this.visibleSessions().filter((session) => session.sessionId !== runningId) : this.visibleSessions();
+  });
+
+  constructor() {
+    // The bar steps aside while the exercise screen is showing.
+    effect(() => this.workoutLive.screenOpen.set(this.screenVisible()));
+  }
+
+  ngOnDestroy(): void {
+    // Leaving the page with the screen open puts it away, and the person is told once that it keeps running.
+    if (this.screenVisible() && this.workoutLive.active()) {
+      this.workoutLive.minimise();
+    }
+    this.workoutLive.screenOpen.set(false);
+  }
 
   ngOnInit(): void {
     // Another surface can land here on a specific tab. Plan Studio does, after accepting a
@@ -216,6 +273,12 @@ export class WorkoutPage implements OnInit {
     // The home page's line about focus areas lands here to change the active plan, so the plan
     // opens for editing once it has loaded.
     this.editActiveOnArrival = this.route.snapshot.queryParamMap.get('edit') === 'active';
+    // The bar, and a refused start that was resolved elsewhere, ask for the Today tab and the screen.
+    this.workoutLive.openRequests.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.selectedTab.set('overview'));
+    this.workoutLive.changedElsewhere.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.loadSessions();
+      this.loadActivePlan();
+    });
     this.load();
   }
 
@@ -445,25 +508,14 @@ export class WorkoutPage implements OnInit {
     });
   }
 
+  /** The plan card's Start session: the same start as the Today card, in the browser's timezone and,
+   *  for a weekly plan, on today's day or the next one the plan has. */
   startPlan(plan: WorkoutPlan): void {
-    if (!plan.planId || plan.status === 'ARCHIVED' || this.isPlanMutating(plan)) {
+    if (plan.status === 'ARCHIVED') {
       return;
     }
-
-    this.setPlanMutating(plan.planId, true);
-    this.dataService.startWorkoutPlan(plan.planId).subscribe({
-      next: (session) => {
-        this.toast.success('Workout session started.');
-        this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
-        this.selectedTab.set('history');
-        this.loadSessions();
-      },
-      error: () => {
-        this.toast.error('Unable to start this plan. Please retry.');
-        this.setPlanMutating(plan.planId!, false);
-      },
-      complete: () => this.setPlanMutating(plan.planId!, false)
-    });
+    const day = dayToStart(plan.days, isoWeekdayIn(this.timezone));
+    this.startGuidedPlan(plan, null, day?.planDayId ?? null);
   }
 
   isPlanMutating(plan: WorkoutPlan): boolean {
@@ -471,13 +523,12 @@ export class WorkoutPage implements OnInit {
   }
 
   handleLiveTrackerStarted(event: LiveTrackerStartEvent): void {
-    this.liveTrackerSession.set(event.session);
     this.liveTrackerGoal.set(event.goal);
-    this.sessions.update((sessions) => [event.session, ...sessions.filter((item) => item.sessionId !== event.session.sessionId)]);
+    this.openScreen();
+    this.loadSessions();
   }
 
   handleLiveTrackerFinished(): void {
-    this.liveTrackerSession.set(null);
     this.liveTrackerGoal.set(null);
     this.workoutLive.reset();
     this.loadSessions();
@@ -486,10 +537,19 @@ export class WorkoutPage implements OnInit {
   }
 
   handleLiveTrackerCancelled(): void {
-    this.liveTrackerSession.set(null);
     this.liveTrackerGoal.set(null);
     this.workoutLive.reset();
     this.loadSessions();
+  }
+
+  /** The Minimise control of the player and the timer: back to the Today card, with the bar showing. */
+  minimiseScreen(): void {
+    this.workoutLive.minimise();
+  }
+
+  private openScreen(exerciseId: string | null = null): void {
+    this.selectedTab.set('overview');
+    this.workoutLive.open(exerciseId);
   }
 
   handlePastWorkoutLogged(): void {
@@ -534,9 +594,25 @@ export class WorkoutPage implements OnInit {
     }
   }
 
-  /** Continue and See the session both open the session in History, where it can be resumed,
-   *  finished or read. The list shows the status the session has, so that status is selected. */
+  /** Continue opens the exercise screen of the workout in progress. See the session opens a finished
+   *  one in History, whose list shows the status the session has, so that status is selected. */
   handleTodayOpenSession(event: TodayOpenSessionEvent): void {
+    if (event.status === 'IN_PROGRESS') {
+      if (this.workoutLive.active()) {
+        this.openScreen();
+        return;
+      }
+      // The workout has not been loaded yet, so ask for it before giving up on the screen.
+      this.workoutLive.loadActive().subscribe((active) => {
+        if (active) {
+          this.openScreen();
+        } else if (event.sessionId) {
+          this.selectedTab.set('history');
+          this.selectedSessionId.set(event.sessionId);
+        }
+      });
+      return;
+    }
     if (this.filterStatus() !== event.status) {
       this.setFilterStatus(event.status);
     }
@@ -552,15 +628,13 @@ export class WorkoutPage implements OnInit {
     }
 
     this.setPlanMutating(plan.planId, true);
-    this.guidedInitialExerciseId.set(initialExerciseId);
     this.workoutLive.startFromPlan(plan.planId, { planDayId, timezone: this.timezone }).subscribe({
-      next: (session) => {
+      next: () => {
         this.toast.success('Workout session started.');
-        this.guidedPlayerSession.set(session);
-        this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
+        this.openScreen(initialExerciseId);
+        this.loadSessions();
       },
       error: () => {
-        this.guidedInitialExerciseId.set(null);
         this.toast.error('Unable to start this plan. Please retry.');
         this.setPlanMutating(plan.planId!, false);
       },
@@ -569,16 +643,12 @@ export class WorkoutPage implements OnInit {
   }
 
   handleGuidedPlayerFinished(): void {
-    this.guidedPlayerSession.set(null);
-    this.guidedInitialExerciseId.set(null);
     this.workoutLive.reset();
     this.loadSessions();
     this.loadActivePlan();
   }
 
   handleGuidedPlayerCancelled(): void {
-    this.guidedPlayerSession.set(null);
-    this.guidedInitialExerciseId.set(null);
     this.workoutLive.reset();
     this.loadSessions();
   }
@@ -649,13 +719,34 @@ export class WorkoutPage implements OnInit {
   }
 
   handleSessionDeleted(): void {
+    this.workoutLive.sessionRemoved(this.selectedSessionId());
     this.selectedSessionId.set(null);
     this.loadSessions();
   }
 
-  handleSessionRepeated(session: WorkoutSessionDetail): void {
-    this.sessions.update((sessions) => [session, ...sessions.filter((item) => item.sessionId !== session.sessionId)]);
+  /** A repeated session is a new workout in progress, so it opens on the exercise screen. */
+  handleSessionRepeated(): void {
+    this.openScreen();
     this.loadSessions();
+  }
+
+  /** The running workout's row in the history opens the exercise screen, not the read-only detail. */
+  openRunningWorkout(): void {
+    this.openScreen();
+  }
+
+  openAutoClosed(session: WorkoutSession): void {
+    this.openSessionDetail(session);
+    this.selectedTab.set('history');
+  }
+
+  dismissAutoClosedNotice(session: WorkoutSession): void {
+    if (!session.sessionId) {
+      return;
+    }
+    const id = session.sessionId;
+    dismissAutoClosed(id);
+    this.dismissedNotices.update((ids) => new Set(ids).add(id));
   }
 
   handleWorkoutImportFinished(): void {
@@ -672,10 +763,10 @@ export class WorkoutPage implements OnInit {
     }
 
     this.repeatingLatest.set(true);
-    this.dataService.repeatLatestSession().subscribe({
-      next: (session) => {
+    this.workoutLive.repeatLatest().subscribe({
+      next: () => {
         this.toast.success('Latest workout repeated.');
-        this.handleSessionRepeated(session);
+        this.handleSessionRepeated();
       },
       error: () => {
         this.toast.error('Unable to repeat the latest session. Please retry.');
@@ -737,6 +828,15 @@ export class WorkoutPage implements OnInit {
     this.loadHistory();
     this.loadMetrics();
     this.loadInsight();
+    this.loadRecentSession();
+  }
+
+  /** The latest workout of the last day, to say so when the server closed it by itself. */
+  private loadRecentSession(): void {
+    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    this.dataService.getWorkoutSessionPage({ from: dayAgo, page: 0, size: 1 }).subscribe((page) => {
+      this.recentSession.set(page.sessions[0] ?? null);
+    });
   }
 
   private loadInsight(): void {

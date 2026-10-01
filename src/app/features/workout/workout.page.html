@@ -45,8 +45,11 @@
           [session]="playerSession"
           [activePlan]="activePlan()"
           [initialExerciseId]="guidedInitialExerciseId()"
+          [initialSetNumber]="workoutLive.playerStart().setNumber"
+          [allDoneOnOpen]="workoutLive.playerStart().allDone"
           (completed)="handleGuidedPlayerFinished()"
           (cancelled)="handleGuidedPlayerCancelled()"
+          (minimise)="minimiseScreen()"
         />
       } @else if (liveTrackerSession(); as trackerSession) {
         <app-live-tracker
@@ -54,8 +57,16 @@
           [goal]="liveTrackerGoal()"
           (completed)="handleLiveTrackerFinished()"
           (cancelled)="handleLiveTrackerCancelled()"
+          (minimise)="minimiseScreen()"
         />
       } @else {
+        @if (autoClosedNotice(); as notice) {
+          <app-auto-closed-notice
+            [session]="notice"
+            (edit)="openAutoClosed(notice)"
+            (dismissed)="dismissAutoClosedNotice(notice)"
+          />
+        }
         <app-today-overview
           [activePlan]="activePlan()"
           [sessions]="sessions()"
@@ -209,7 +220,9 @@
                   <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
                 }
                 <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
-                <button class="button primary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
+                @if (plan.status === 'ACTIVE') {
+                  <button class="button primary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
+                }
               </div>
             </article>
           }
@@ -279,9 +292,19 @@
           <input type="date" lang="en-SG" [value]="filterDateTo()" (input)="setFilterDateTo($any($event.target).value)" />
         </label>
       </div>
-      @if (visibleSessions().length) {
+      @if (historyRows().length || runningRow()) {
         <div class="history-list">
-          @for (session of visibleSessions(); track session.sessionId ?? session.name + session.startedAt) {
+          @if (runningRow(); as running) {
+            <button class="history-row running" type="button" (click)="openRunningWorkout()">
+              <div>
+                <strong>{{ running.name }}</strong>
+                <small>{{ running.sportLabel || formatLabel(running.workoutType) }} - {{ formatDate(running.startedAt) }}</small>
+              </div>
+              <span>{{ workoutLive.elapsedLabel() }}</span>
+              <span>In progress</span>
+            </button>
+          }
+          @for (session of historyRows(); track session.sessionId ?? session.name + session.startedAt) {
             <button
               class="history-row"
               type="button"
@@ -317,7 +340,7 @@
           (closed)="closeSessionDetail()"
           (updated)="handleSessionUpdated($event)"
           (deleted)="handleSessionDeleted()"
-          (repeated)="handleSessionRepeated($event)"
+          (repeated)="handleSessionRepeated()"
         />
       }
       <div class="data-tools-disclosure">

@@ -717,4 +717,87 @@ describe('TodayOverviewComponent', () => {
       expect(root.querySelector('.kind-tile')?.getAttribute('aria-hidden')).toBe('true');
     });
   });
+
+  describe('a rest day with a next session in the plan', () => {
+    const thursday = () => ({ ...planDay('d-thu', 'CARDIO', [move(1, 'Treadmill run')], 'Treadmill run'), dayOfWeek: 4 });
+
+    it("offers the next planned session today, with its title under the label", () => {
+      const root = render({
+        activePlan: plan({ days: [thursday()] }),
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
+        nextTraining: next()
+      });
+
+      expect(text(root, '.action-primary .action-copy > span')).toBe("Do Thursday's session today");
+      expect(text(root, '.action-primary .action-note')).toBe('Treadmill run');
+      expect(text(root, '.action-link')).toBe('Train something else');
+      expect(chips(root)).toEqual(['Next is Thursday, cardio']);
+    });
+
+    it('starts the plan day that falls on the weekday of the next training', () => {
+      const active = plan({ days: [thursday(), { ...planDay('d-fri', 'STRENGTH', [move(1, 'Squat')]), dayOfWeek: 5 }] });
+      const root = render({
+        activePlan: active,
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
+        nextTraining: next()
+      });
+      const started: Array<{ planDayId: string | null }> = [];
+      component.startPlan.subscribe((event) => started.push(event));
+
+      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+
+      expect(started.length).toBe(1);
+      expect(started[0].planDayId).toBe('d-thu');
+    });
+
+    it('names the weekday of the next training in the label', () => {
+      const friday = { ...planDay('d-fri', 'STRENGTH', [move(1, 'Squat')], 'Legs'), dayOfWeek: 5 };
+      const root = render({
+        activePlan: plan({ days: [friday] }),
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
+        nextTraining: next({ date: '2026-10-02', kind: 'STRENGTH', label: 'Strength', title: 'Legs' })
+      });
+
+      expect(text(root, '.action-primary .action-copy > span')).toBe("Do Friday's session today");
+      expect(text(root, '.action-primary .action-note')).toBe('Legs');
+    });
+
+    it('stays as it was when the plan has no day on that weekday, or no days', () => {
+      for (const days of [[{ ...planDay('d-mon', 'STRENGTH', []), dayOfWeek: 1 }], []]) {
+        const root = render({
+          activePlan: plan({ days }),
+          today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
+          nextTraining: next()
+        });
+
+        expect(root.querySelector('.action-primary')).toBeNull();
+        expect(text(root, '.action-link')).toBe('Train today');
+      }
+    });
+
+    it('stays as it was without a plan or without a next training', () => {
+      const withoutPlan = render({ activePlan: null, today: today({ kind: 'REST', label: 'Rest', planDayId: null }), nextTraining: next() });
+      expect(withoutPlan.querySelector('.action-primary')).toBeNull();
+
+      const withoutNext = render({
+        activePlan: plan({ days: [thursday()] }),
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
+        nextTraining: null
+      });
+      expect(withoutNext.querySelector('.action-primary')).toBeNull();
+      expect(text(withoutNext, '.action-link')).toBe('Train today');
+    });
+
+    it('disables the start while the plan is starting', () => {
+      const root = render({
+        activePlan: plan({ days: [thursday()] }),
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
+        nextTraining: next(),
+        starting: true
+      });
+
+      expect(root.querySelector<HTMLButtonElement>('.action-primary')?.disabled).toBeTrue();
+      expect(text(root, '.action-primary .action-copy > span')).toBe('Starting…');
+    });
+  });
 });

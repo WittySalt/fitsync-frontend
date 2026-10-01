@@ -200,8 +200,23 @@
   min-height: 52px;
 }
 
+.action-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.action-note {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  opacity: 0.85;
+}
+
 .action-primary {
   flex: none;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;

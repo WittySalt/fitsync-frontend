@@ -1,5 +1,6 @@
 <section class="exercise-player" aria-label="Guided exercise player">
   <p class="status-announcer" aria-live="polite">{{ liveAnnouncement() }}</p>
+  <button class="button secondary minimise" type="button" (click)="minimise.emit()">Minimise</button>
   <header class="player-topbar">
     <div>
       <span class="card-label">Guided session</span>

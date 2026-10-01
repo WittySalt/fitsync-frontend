@@ -712,4 +712,67 @@ describe('ExercisePlayerComponent', () => {
     expect(reduced.componentInstance.prefersReducedMotion).toBeTrue();
     expect(celebration.componentInstance.reducedMotion).toBeTrue();
   });
+
+  describe('picking a workout up where it was left', () => {
+    function reopened(inputs: Record<string, unknown>): ComponentFixture<ExercisePlayerComponent> {
+      live.reset();
+      const player = TestBed.createComponent(ExercisePlayerComponent);
+      player.componentRef.setInput('session', detail());
+      player.componentRef.setInput('activePlan', plan());
+      for (const [name, value] of Object.entries(inputs)) {
+        player.componentRef.setInput(name, value);
+      }
+      player.detectChanges();
+      return player;
+    }
+
+    it('opens on the exercise and set it was asked to', () => {
+      const player = reopened({ initialExerciseId: 'exercise-2', initialSetNumber: 3 });
+
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+      expect(player.componentInstance.currentSetNumber()).toBe(3);
+      expect(player.componentInstance.allTargetsComplete()).toBeFalse();
+    });
+
+    it('opens on the last exercise with Finish as the next step when every set is done', () => {
+      const player = reopened({ allDoneOnOpen: true });
+
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+      expect(player.componentInstance.allTargetsComplete()).toBeTrue();
+      expect((player.nativeElement as HTMLElement).querySelector('.completion-note')).not.toBeNull();
+      const complete = (player.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.complete-set');
+      expect(complete?.disabled).toBeTrue();
+    });
+
+    it('keeps its place while the same workout comes back with more sets recorded', () => {
+      const player = reopened({ initialExerciseId: 'exercise-2', initialSetNumber: 1 });
+
+      player.componentRef.setInput('session', detail({ updatedAt: 'later' }));
+      player.detectChanges();
+
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+    });
+
+    it('goes back to the start for another workout, and moves when asked to open somewhere else', () => {
+      const player = reopened({ initialExerciseId: 'exercise-2' });
+
+      player.componentRef.setInput('session', detail({ sessionId: 'session-other' }));
+      player.componentRef.setInput('initialExerciseId', null);
+      player.detectChanges();
+      expect(player.componentInstance.currentExerciseIndex()).toBe(0);
+
+      player.componentRef.setInput('initialExerciseId', 'exercise-2');
+      player.detectChanges();
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+    });
+
+    it('offers a Minimise control that says so to its owner', () => {
+      const minimised = jasmine.createSpy('minimise');
+      fixture.componentInstance.minimise.subscribe(minimised);
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.minimise')?.click();
+
+      expect(minimised).toHaveBeenCalledTimes(1);
+    });
+  });
 });

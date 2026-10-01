@@ -42,13 +42,15 @@ describe('LiveTrackerComponent', () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startWorkoutPlan',
       'startAdHocSession',
+      'getActiveWorkout',
       'upsertSessionSet',
       'completeSession',
       'cancelSession'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
 
-    dataService.startAdHocSession.and.returnValue(of(detail()));
+    dataService.startAdHocSession.and.callFake(() => of(detail({ startedAt: new Date().toISOString() })));
+    dataService.getActiveWorkout.and.returnValue(of(null));
     dataService.completeSession.and.returnValue(of(detail({ status: 'COMPLETED' })));
     dataService.cancelSession.and.returnValue(of(detail({ status: 'CANCELLED' })));
 
@@ -146,4 +148,13 @@ describe('LiveTrackerComponent', () => {
     expect(dataService.completeSession).not.toHaveBeenCalled();
     expect(dataService.cancelSession).not.toHaveBeenCalled();
   }));
+
+  it('offers a Minimise control that says so to its owner', () => {
+    const minimised = jasmine.createSpy('minimise');
+    fixture.componentInstance.minimise.subscribe(minimised);
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.minimise')?.click();
+
+    expect(minimised).toHaveBeenCalledTimes(1);
+  });
 });

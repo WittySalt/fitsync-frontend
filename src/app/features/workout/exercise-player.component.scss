@@ -13,6 +13,10 @@
   box-shadow: var(--shadow-sm);
 }
 
+.minimise {
+  justify-self: start;
+}
+
 .status-announcer {
   position: absolute;
   width: 1px;

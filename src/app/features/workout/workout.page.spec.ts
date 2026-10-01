@@ -61,6 +61,43 @@ function sessionDetail(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSe
   };
 }
 
+/** A workout in progress with one exercise and one open set, which the guided player runs. */
+function guidedSession(overrides: Partial<WorkoutSessionDetail> = {}, exerciseId = 'exercise-1'): WorkoutSessionDetail {
+  return sessionDetail({
+    exercises: [
+      {
+        exerciseLogId: 'log-1',
+        exerciseId,
+        exerciseNameSnapshot: 'Goblet squat',
+        sequence: 1,
+        performedSets: null,
+        performedReps: null,
+        totalVolumeKg: null,
+        distanceKm: null,
+        durationSeconds: null,
+        averageHeartRate: null,
+        maxHeartRate: null,
+        notes: '',
+        sets: [
+          {
+            setLogId: 'set-1',
+            setNumber: 1,
+            reps: 8,
+            weightKg: null,
+            durationSeconds: null,
+            distanceKm: null,
+            restSeconds: null,
+            perceivedExertion: null,
+            logged: false,
+            notes: ''
+          }
+        ]
+      }
+    ],
+    ...overrides
+  });
+}
+
 function exercise(overrides: Partial<Exercise> = {}): Exercise {
   return {
     exerciseId: 'exercise-1',
@@ -214,6 +251,7 @@ describe('WorkoutPage', () => {
       'updateExercise',
       'archiveExercise',
       'getSession',
+      'getActiveWorkout',
       'getExercises',
       'updateSession',
       'deleteSession',
@@ -223,6 +261,7 @@ describe('WorkoutPage', () => {
       'importSessions'
     ]);
     dataService.getExercise.and.returnValue(of(null));
+    dataService.getActiveWorkout.and.returnValue(of(null));
     dataService.getWorkoutPlans.and.returnValue(of([]));
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     dataService.searchExercisesPage.and.returnValue(of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }));
@@ -464,15 +503,15 @@ describe('WorkoutPage', () => {
     expect(compiled.querySelector('#past-workout-form')).toBeNull();
   });
 
-  it('opens the free or goal live tracker when the start card emits a started session', () => {
+  it('opens the free or goal live tracker when the start card has started a workout', () => {
+    dataService.startAdHocSession.and.returnValue(of(sessionDetail({ sessionId: 'session-live', name: 'Goal run', workoutType: 'CARDIO' })));
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.detectChanges();
 
     const startCard = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
-    startCard.started.emit({
-      session: sessionDetail({ sessionId: 'session-live', name: 'Goal run', workoutType: 'CARDIO' }),
-      goal: { type: 'MINUTES', target: 30 }
-    });
+    startCard.selectMode('GOAL');
+    startCard.startForm.patchValue({ goalType: 'MINUTES', targetMinutes: 30 });
+    startCard.startWorkout();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.liveTrackerSession()?.sessionId).toBe('session-live');
@@ -499,7 +538,7 @@ describe('WorkoutPage', () => {
         setTargets: []
       }]
     });
-    const started = sessionDetail({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' });
+    const started = guidedSession({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' });
     dataService.getActivePlan.and.returnValue(of(active));
     dataService.startWorkoutPlan.and.returnValue(of(started));
 
@@ -534,7 +573,7 @@ describe('WorkoutPage', () => {
         setTargets: []
       }]
     });
-    const started = sessionDetail({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' });
+    const started = guidedSession({ sessionId: 'session-today', planId: 'plan-today', name: 'Today plan' }, 'exercise-2');
     dataService.getActivePlan.and.returnValue(of(active));
     dataService.startWorkoutPlan.and.returnValue(of(started));
 
@@ -640,6 +679,7 @@ describe('WorkoutPage', () => {
     it('starts the plan day the card names, in the page timezone', () => {
       const active = dayPlan();
       dataService.getActivePlan.and.returnValue(of(active));
+      dataService.startWorkoutPlan.and.returnValue(of(guidedSession()));
       dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight() })));
 
       const fixture = TestBed.createComponent(WorkoutPage);
@@ -751,7 +791,25 @@ describe('WorkoutPage', () => {
       expect(startCard.pastWorkoutForm.controls.sportActivity.value).toBe('BADMINTON');
     });
 
-    it('opens the named session in History when the card asks to open a session', () => {
+    it('opens the exercise screen when Continue is pressed, and leaves the History filter alone', () => {
+      dataService.getActiveWorkout.and.returnValue(
+        of({ session: guidedSession({ sessionId: 'session-running' }), resume: null })
+      );
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      fixture.componentInstance.workoutLive.minimise();
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).toBeNull();
+
+      todayCard(fixture).openSession.emit({ sessionId: 'session-running', status: 'IN_PROGRESS' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedTab()).toBe('overview');
+      expect(fixture.componentInstance.filterStatus()).toBe('COMPLETED');
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
+    });
+
+    it('falls back to the session in History when Continue finds no workout in progress', () => {
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.detectChanges();
 
@@ -759,8 +817,19 @@ describe('WorkoutPage', () => {
       fixture.detectChanges();
 
       expect(fixture.componentInstance.selectedTab()).toBe('history');
-      expect(fixture.componentInstance.filterStatus()).toBe('IN_PROGRESS');
+      expect(fixture.componentInstance.filterStatus()).toBe('COMPLETED');
       expect(fixture.componentInstance.selectedSessionId()).toBe('session-running');
+    });
+
+    it('opens a finished session in History with its own status selected', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      todayCard(fixture).openSession.emit({ sessionId: 'session-done', status: 'COMPLETED' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedTab()).toBe('history');
+      expect(fixture.componentInstance.selectedSessionId()).toBe('session-done');
     });
 
     it('opens History without a selection when the insight names no session', () => {
@@ -1102,22 +1171,24 @@ describe('WorkoutPage', () => {
     expect(fixture.componentInstance.planExercises.at(0).get('exerciseId')?.touched).toBeTrue();
   });
 
-  it('starts a plan and moves the user to training history', () => {
-    const started = sessionDetail({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
+  it('starts a plan from the plan card in the browser timezone and opens the exercise screen on Today', () => {
+    const started = guidedSession({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
     dataService.startWorkoutPlan.and.returnValue(of(started));
-    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([started])));
+    component.selectedTab.set('plans');
 
     component.startPlan(plan({ status: 'ACTIVE' }));
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1');
-    expect(component.sessions()[0].sessionId).toBe('session-1');
-    expect(component.selectedTab()).toBe('history');
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1', { planDayId: null, timezone: component.timezone });
+    expect(component.selectedTab()).toBe('overview');
+    expect(component.workoutLive.session()?.sessionId).toBe('session-1');
+    expect(component.workoutLive.minimised()).toBeFalse();
+    expect(component.guidedPlayerSession()?.sessionId).toBe('session-1');
   });
 
   it('refreshes sessions and opens history when the live tracker completes', () => {
     const completed = session({ sessionId: 'session-2', name: 'Finished', status: 'COMPLETED' });
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([completed])));
-    component.liveTrackerSession.set(sessionDetail({ sessionId: 'session-live' }));
+    component.workoutLive.setSession(sessionDetail({ sessionId: 'session-live' }));
 
     component.handleLiveTrackerFinished();
 
@@ -1227,6 +1298,9 @@ describe('WorkoutPage', () => {
     expect(dataService.repeatLatestSession).toHaveBeenCalled();
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-latest');
+    // The repeated session is now the workout in progress, shown on the exercise screen.
+    expect(component.workoutLive.session()?.sessionId).toBe('session-latest');
+    expect(component.selectedTab()).toBe('overview');
   });
 
   it('refreshes history after workout data import finishes', () => {
@@ -1474,15 +1548,14 @@ describe('WorkoutPage', () => {
     dataService.startWorkoutPlan.and.returnValue(throwError(() => new Error('guided failed')));
     component.handleTodayExerciseStart(exerciseTarget);
 
-    expect(component.guidedInitialExerciseId()).toBeNull();
+    expect(component.workoutLive.session()).toBeNull();
     expect(component.isPlanMutating(active)).toBeFalse();
 
-    component.guidedPlayerSession.set(sessionDetail({ sessionId: 'guided-open' }));
-    component.guidedInitialExerciseId.set('exercise-2');
+    component.workoutLive.setSession(guidedSession({ sessionId: 'guided-open' }));
     component.handleGuidedPlayerCancelled();
 
+    expect(component.workoutLive.session()).toBeNull();
     expect(component.guidedPlayerSession()).toBeNull();
-    expect(component.guidedInitialExerciseId()).toBeNull();
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
   });
 
@@ -1510,7 +1583,7 @@ describe('WorkoutPage', () => {
     const repeated = sessionDetail({ sessionId: 'session-2', name: 'Repeated' });
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([repeated, first])));
 
-    component.handleSessionRepeated(repeated);
+    component.handleSessionRepeated();
     expect(component.sessions()[0].name).toBe('Repeated');
 
     component.closeSessionDetail();

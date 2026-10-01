@@ -1,0 +1,29 @@
+:host {
+  display: contents;
+}
+
+.modal {
+  width: min(400px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+
+  &::backdrop {
+    background: color-mix(in srgb, var(--slate-900) 60%, transparent);
+  }
+}
+
+.card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}

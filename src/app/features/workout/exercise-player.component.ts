@@ -31,9 +31,14 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) session: WorkoutSessionDetail | null = null;
   @Input({ required: true }) activePlan: WorkoutPlan | null = null;
   @Input() initialExerciseId: string | null = null;
+  /** The set to start on, when the workout is picked up where it was left. */
+  @Input() initialSetNumber: number | null = null;
+  /** Every set was already done, so the screen opens on the last exercise with Finish as the next step. */
+  @Input() allDoneOnOpen = false;
 
   @Output() completed = new EventEmitter<WorkoutSessionDetail>();
   @Output() cancelled = new EventEmitter<WorkoutSessionDetail>();
+  @Output() minimise = new EventEmitter<void>();
 
   readonly currentExerciseIndex = signal(0);
   readonly currentSetNumber = signal(1);
@@ -175,12 +180,20 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       this.activePlanRevision.update((value) => value + 1);
       this.clearWorkTimer();
     }
-    if ((changes['session'] || changes['initialExerciseId']) && this.session) {
+    const sessionChange = changes['session'];
+    if (this.session && sessionChange) {
       this.live.setSession(this.session);
+    }
+    // The session input follows the workout as sets are recorded. The screen goes back to the start
+    // position only for another workout, or when it was asked to open somewhere else.
+    const otherWorkout = !!sessionChange
+      && (sessionChange.firstChange || sessionChange.previousValue?.sessionId !== this.session?.sessionId);
+    const moved = !!(changes['initialExerciseId'] || changes['initialSetNumber'] || changes['allDoneOnOpen']);
+    if (this.session && (otherWorkout || moved)) {
       const index = this.initialExerciseIndex();
       this.currentExerciseIndex.set(index);
-      this.currentSetNumber.set(this.nextTargetSetNumber(this.orderedLogs()[index] ?? null));
-      this.allTargetsComplete.set(false);
+      this.currentSetNumber.set(this.initialSetNumber ?? this.nextTargetSetNumber(this.orderedLogs()[index] ?? null));
+      this.allTargetsComplete.set(this.allDoneOnOpen);
       this.clearRestTimer();
       this.clearWorkTimer();
     }
@@ -598,7 +611,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private initialExerciseIndex(): number {
     if (!this.initialExerciseId) {
-      return 0;
+      return this.allDoneOnOpen ? Math.max(0, this.orderedLogs().length - 1) : 0;
     }
     const index = this.orderedLogs().findIndex((log) => log.exerciseId === this.initialExerciseId);
     return index >= 0 ? index : 0;
