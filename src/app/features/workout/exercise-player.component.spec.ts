@@ -279,7 +279,7 @@ describe('ExercisePlayerComponent', () => {
     return player;
   }
 
-  it('drops a leading instruction that merely repeats the description', () => {
+  it('keeps every step in order and leaves out a description that only repeats the first step', () => {
     fixture.componentInstance.currentDetail.set(exerciseDetail({
       description: 'Brace your core and keep a flat back.',
       instructions: [
@@ -288,8 +288,9 @@ describe('ExercisePlayerComponent', () => {
       ]
     }));
 
-    const steps = fixture.componentInstance.currentSubject().steps;
-    expect(steps).toEqual(['Hinge at the hips and lower the bar.']);
+    const subject = fixture.componentInstance.currentSubject();
+    expect(subject.fullSteps).toEqual(['Brace your core and keep a flat back.', 'Hinge at the hips and lower the bar.']);
+    expect(subject.description).toBe('');
   });
 
   it('shows the original instructions in full in the guide while the carousel keeps the short steps', () => {

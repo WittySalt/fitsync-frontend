@@ -840,7 +840,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       chips: this.chipsOf(detail),
       steps: guideSteps({ shortSteps: detail?.shortSteps, instructions }),
       fullSteps: fullGuideSteps({ shortSteps: detail?.shortSteps, instructions }),
-      description: detail?.description?.trim() ?? '',
+      description: this.descriptionOf(detail, instructions),
       videoUrl: detail?.videoUrl ?? null
     };
   }
@@ -858,13 +858,19 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     };
   }
 
-  /** The instructions in order, without a leading step that only repeats the description. */
+  /** The instructions in order, every one of them. The catalogue often repeats the first step as
+   *  the description; the step stays in its place and the description is left out instead. */
   private instructionsOf(detail: ExerciseDetail | null) {
-    const steps = [...(detail?.instructions ?? [])].sort(
+    return [...(detail?.instructions ?? [])].sort(
       (a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER)
     );
-    const description = detail?.description?.trim();
-    return description && steps.length && steps[0].text?.trim() === description ? steps.slice(1) : steps;
+  }
+
+  /** The description, unless it only repeats one of the steps. */
+  private descriptionOf(detail: ExerciseDetail | null, instructions: { text?: string | null }[]): string {
+    const description = detail?.description?.trim() ?? '';
+    const same = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim() === description.replace(/\s+/g, ' ');
+    return description && !instructions.some((step) => same(step.text)) ? description : '';
   }
 
   private chipsOf(detail: ExerciseDetail | null): string[] {
