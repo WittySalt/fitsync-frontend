@@ -77,7 +77,9 @@ export class LiveTrackerComponent implements OnChanges {
     this.live.finish().subscribe({
       next: (session) => {
         if (session.status === 'CANCELLED') {
-          this.toast.info('Workout was under 60 seconds, so it was cancelled and will not count toward metrics.');
+          if (!this.live.nothingLoggedCancel()) {
+            this.toast.info('Workout was under 60 seconds, so it was cancelled and will not count toward metrics.');
+          }
           this.cancelled.emit(session);
           return;
         }

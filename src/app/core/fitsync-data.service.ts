@@ -286,7 +286,11 @@ function mapLastOfKind(entry: Partial<LastOfKind> | null | undefined): LastOfKin
     date: entry.date,
     minutes: safeInsightNumberOrNull(entry.minutes),
     distanceKm: safeInsightNumberOrNull(entry.distanceKm),
-    paceSecondsPerKm: safeInsightNumberOrNull(entry.paceSecondsPerKm)
+    paceSecondsPerKm: safeInsightNumberOrNull(entry.paceSecondsPerKm),
+    sessionId: typeof entry.sessionId === 'string' && entry.sessionId ? entry.sessionId : null,
+    exerciseNames: Array.isArray(entry.exerciseNames)
+      ? entry.exerciseNames.filter((name): name is string => typeof name === 'string' && name.trim() !== '').slice(0, 6)
+      : []
   };
 }
 
@@ -1041,6 +1045,7 @@ export class FitSyncDataService {
         source: 'MANUAL',
         startedAt: new Date().toISOString(),
         notes: input.notes || null,
+        ...(input.sportActivity ? { sportActivity: input.sportActivity } : {}),
         exercises: []
       })
       .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
@@ -1091,6 +1096,10 @@ export class FitSyncDataService {
     let params = new HttpParams()
       .set('size', String(this.safeWorkoutSessionPageSize(q.size ?? 10)))
       .set('page', String(requestedPage));
+    const name = q.q?.trim().slice(0, 80);
+    if (name) {
+      params = params.set('q', name);
+    }
     if (q.status) {
       params = params.set('status', q.status);
     }

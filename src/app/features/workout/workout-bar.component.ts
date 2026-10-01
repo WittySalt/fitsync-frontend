@@ -75,7 +75,9 @@ export class WorkoutBarComponent implements OnDestroy {
     this.live.finishActive().subscribe({
       next: (session) => {
         if (session.status === 'CANCELLED') {
-          this.toast.info('Workout was under 60 seconds, so it was cancelled and will not be saved.');
+          if (!this.live.nothingLoggedCancel()) {
+            this.toast.info('Workout was under 60 seconds, so it was cancelled and will not be saved.');
+          }
         } else {
           this.toast.success('Workout completed.');
         }

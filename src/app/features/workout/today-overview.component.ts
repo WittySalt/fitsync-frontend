@@ -8,11 +8,13 @@ import {
   TodayInsight,
   WorkoutPlan,
   WorkoutPlanExercise,
-  WorkoutSession
+  WorkoutSession,
+  WorkoutSessionDetail
 } from '../../core/fitsync.models';
 import { formatDuration, formatKm, formatPace } from '../dashboard/brief/brief-duration';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from '../dashboard/brief/day-kind-icons';
 import { GlyphShape } from '../dashboard/brief/muscle-icons';
+import { HabitDayStartComponent } from './habit-day-start.component';
 import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
@@ -53,6 +55,8 @@ interface TodayCard {
   planDayId: string | null;
   ariaLabel: string;
   showTemplates: boolean;
+  /** A habit day without a plan day: the card shows the habit start in place of the plain actions. */
+  habit: TodayInsight | null;
 }
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -65,7 +69,7 @@ const BROWSE_LINK: TodayButton = { label: 'Train something else', action: 'brows
 
 @Component({
   selector: 'app-today-overview',
-  imports: [PlanTemplatesComponent],
+  imports: [PlanTemplatesComponent, HabitDayStartComponent],
   templateUrl: './today-overview.component.html',
   styleUrl: './today-overview.component.scss'
 })
@@ -87,6 +91,8 @@ export class TodayOverviewComponent {
   readonly templateActivated = output<WorkoutPlan>();
   readonly logManually = output<DayKind>();
   readonly openSession = output<TodayOpenSessionEvent>();
+  /** A habit day started a session of its own (repeated, or a plain timer). */
+  readonly habitStarted = output<WorkoutSessionDetail>();
 
   readonly latestSession = computed<WorkoutSession | null>(() => {
     const sorted = this.sessions()
@@ -132,6 +138,13 @@ export class TodayOverviewComponent {
       case 'open':
         this.openSession.emit(this.sessionToOpen());
         break;
+    }
+  }
+
+  startHabitPlanDay(planDayId: string | null): void {
+    const plan = this.activePlan();
+    if (plan?.planId) {
+      this.startPlan.emit({ plan, planDayId });
     }
   }
 
@@ -283,16 +296,25 @@ export class TodayOverviewComponent {
     });
   }
 
-  /** A day the plan does not schedule but the user usually trains. There is no plan day to start,
-   *  so starting goes to the manual flow with the usual kind. */
+  /** A day the plan does not schedule but the user usually trains. Without a plan day the card
+   *  hands over to the habit start, which recommends the usual session and offers others. */
   private habitCard(today: TodayInsight): TodayCard {
     const last = today.lastOfKind;
+    if (!today.planDayId) {
+      return this.makeCard({
+        kind: today.kind,
+        eyebrow: `Your usual · ${today.label}`,
+        title: today.label,
+        habit: today,
+        ariaLabel: `Today's workout, your usual ${this.kindName(today)}`
+      });
+    }
     return this.makeCard({
       kind: today.kind,
       eyebrow: `Your usual · ${today.label}`,
       title: today.label,
       chips: [this.suffixed(formatKm(last?.distanceKm), 'last time'), this.suffixed(formatDuration(last?.minutes), 'last time')],
-      primary: { label: START_LABEL, action: today.planDayId ? 'start' : 'log' },
+      primary: { label: START_LABEL, action: 'start' },
       link: BROWSE_LINK,
       planDayId: today.planDayId,
       ariaLabel: `Today's workout, your usual ${this.kindName(today)}`
@@ -381,6 +403,7 @@ export class TodayOverviewComponent {
       link: null,
       planDayId: null,
       showTemplates: false,
+      habit: null,
       ...parts,
       chips: (parts.chips ?? []).filter((chip) => chip.trim() !== '')
     };

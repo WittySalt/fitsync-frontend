@@ -216,12 +216,28 @@ export function valuesLine(target: SetTarget | null): string {
   return targetLine({ ...target, restSeconds: null });
 }
 
-export function sameTarget(a: SetTarget | null, b: SetTarget | null): boolean {
-  if (!a || !b) {
+/** Two amounts are the same when both are missing or both are present and equal; 10 and 10.0 are. */
+function sameAmount(a: number | null, b: number | null): boolean {
+  if (a === null || b === null) {
     return a === b;
   }
-  return a.reps === b.reps && a.weightKg === b.weightKg
-    && a.durationSeconds === b.durationSeconds && a.distanceKm === b.distanceKm;
+  return Math.abs(a - b) < 0.005;
+}
+
+/**
+ * Whether two sets say the same thing to the person, by value. Only what the line shows is
+ * compared: a set with reps shows reps and weight, so a time the player filled in beside the
+ * reps does not make a logged set look different from its plan. Two missing targets are equal.
+ */
+export function sameTarget(a: SetTarget | null, b: SetTarget | null): boolean {
+  if (!a || !b) {
+    return !a && !b;
+  }
+  if (a.reps !== null || b.reps !== null) {
+    return sameAmount(a.reps, b.reps) && sameAmount(a.weightKg, b.weightKg);
+  }
+  return sameAmount(a.durationSeconds, b.durationSeconds) && sameAmount(a.distanceKm, b.distanceKm)
+    && sameAmount(a.weightKg, b.weightKg);
 }
 
 /** One line for the movement queue: "3 × 10 · 20 kg", "3 × 45 sec", or "3 sets" when the sets differ. */

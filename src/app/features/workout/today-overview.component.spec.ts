@@ -297,10 +297,20 @@ describe('TodayOverviewComponent', () => {
 
       expect(text(root, '.eyebrow')).toBe('Your usual · Cardio');
       expect(text(root, 'h2')).toBe('Cardio');
-      expect(chips(root)).toEqual(['5.75 km last time', '35 min last time']);
+      // The recommendation is the habit start's, and the plain actions are not shown.
+      expect(root.querySelector('app-habit-day-start')).not.toBeNull();
+      expect(all(root, 'app-habit-day-start .facts li')).toEqual(['35 min last time', '5.75 km last time']);
       expect(root.querySelector('.moves')).toBeNull();
+      expect(root.querySelector('.action-primary')).toBeNull();
+      expect(root.querySelector('.action-link')).toBeNull();
+      expect(text(root, 'app-habit-day-start .start')).toBe('Start this');
+    });
+
+    it('keeps the plain Start session on a habit day that has a plan day', () => {
+      const root = render({ today: today({ kind: 'STRENGTH', source: 'HABIT', planDayId: 'd-strength' }) });
+
+      expect(root.querySelector('app-habit-day-start')).toBeNull();
       expect(text(root, '.action-primary')).toBe('Start session');
-      expect(text(root, '.action-link')).toBe('Train something else');
     });
 
     it('shows a session in progress with only Continue', () => {
@@ -583,15 +593,26 @@ describe('TodayOverviewComponent', () => {
       expect(button?.textContent).toContain('Starting…');
     });
 
-    it('asks for a manual log with the kind on a habit day', () => {
+    it('starts the plan day on a habit day that has one, and never opens the manual log', () => {
       const emit = spyOn(component.logManually, 'emit');
       const startPlan = spyOn(component.startPlan, 'emit');
-      const root = render({ today: today({ kind: 'CARDIO', source: 'HABIT', planDayId: null }) });
+      const root = render({ today: today({ kind: 'STRENGTH', source: 'HABIT', planDayId: 'd-strength' }) });
 
       root.querySelector<HTMLButtonElement>('.action-primary')?.click();
 
-      expect(emit).toHaveBeenCalledOnceWith('CARDIO');
-      expect(startPlan).not.toHaveBeenCalled();
+      expect(startPlan).toHaveBeenCalledOnceWith({ plan: plan(), planDayId: 'd-strength' });
+      expect(emit).not.toHaveBeenCalled();
+    });
+
+    it('starts a plan day chosen in the habit start through the same start event', () => {
+      const startPlan = spyOn(component.startPlan, 'emit');
+      const root = render({ today: today({ kind: 'CARDIO', source: 'HABIT', planDayId: null }) });
+
+      root.querySelector<HTMLButtonElement>('app-habit-day-start .more')?.click();
+      fixture.detectChanges();
+      root.querySelector<HTMLButtonElement>('app-habit-day-start .plan-row button')?.click();
+
+      expect(startPlan).toHaveBeenCalledOnceWith({ plan: plan(), planDayId: 'd-strength' });
     });
 
     it('asks for a manual log with the kind when a sport is logged afterwards', () => {

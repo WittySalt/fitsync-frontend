@@ -392,6 +392,11 @@ describe('WorkoutPage', () => {
 
     component.setFilterType('STRENGTH');
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
+      jasmine.objectContaining({ workoutType: 'STRENGTH', status: undefined, page: 0 })
+    );
+
+    component.setFilterStatus('COMPLETED');
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(
       jasmine.objectContaining({ workoutType: 'STRENGTH', status: 'COMPLETED', page: 0 })
     );
 
@@ -432,15 +437,44 @@ describe('WorkoutPage', () => {
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(jasmine.objectContaining({ page: 1 }));
   });
 
-  it('refines the loaded history page client-side by case-insensitive name search', () => {
-    component.sessions.set([
-      session({ sessionId: 'push', name: 'Push Day', completedAt: '2026-06-14T10:00:00Z' }),
-      session({ sessionId: 'run', name: 'Easy Run', workoutType: 'CARDIO', completedAt: '2026-06-15T10:00:00Z' })
-    ]);
+  it('asks the server for the name search once typing pauses, trimmed and from the first page', fakeAsync(() => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    c.page.set(2);
+    dataService.getWorkoutSessionPage.calls.reset();
 
-    component.setHistorySearch('push');
+    c.setHistorySearch(' pu');
+    tick(200);
+    c.setHistorySearch('  push ');
+    tick(299);
+    expect(dataService.getWorkoutSessionPage).not.toHaveBeenCalled();
 
-    expect(component.visibleSessions().map((item) => item.sessionId)).toEqual(['push']);
+    tick(1);
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledTimes(1);
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledWith(jasmine.objectContaining({ q: 'push', page: 0 }));
+
+    c.setHistorySearch('push   ');
+    tick(300);
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalledTimes(1);
+
+    c.setHistorySearch('');
+    tick(300);
+    const query = dataService.getWorkoutSessionPage.calls.mostRecent().args[0] as WorkoutSessionQuery;
+    expect(query.q).toBeUndefined();
+  }));
+
+  it('lists every status by default and lets the address choose one', () => {
+    expect(component.filterStatus()).toBe('');
+    dataService.getWorkoutSessionPage.calls.reset();
+    component.ngOnInit();
+    const statuses = dataService.getWorkoutSessionPage.calls.allArgs().map((args) => (args[0] as WorkoutSessionQuery).status);
+    expect(statuses).toContain(undefined);
+
+    const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { queryParamMap: unknown } };
+    route.snapshot.queryParamMap = convertToParamMap({ status: 'CANCELLED' });
+    component.ngOnInit();
+    expect(component.filterStatus()).toBe('CANCELLED');
   });
 
   it('offers canonical history type and status filter options', () => {
@@ -805,7 +839,7 @@ describe('WorkoutPage', () => {
       fixture.detectChanges();
 
       expect(fixture.componentInstance.selectedTab()).toBe('overview');
-      expect(fixture.componentInstance.filterStatus()).toBe('COMPLETED');
+      expect(fixture.componentInstance.filterStatus()).toBe('');
       expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
     });
 
@@ -817,7 +851,7 @@ describe('WorkoutPage', () => {
       fixture.detectChanges();
 
       expect(fixture.componentInstance.selectedTab()).toBe('history');
-      expect(fixture.componentInstance.filterStatus()).toBe('COMPLETED');
+      expect(fixture.componentInstance.filterStatus()).toBe('');
       expect(fixture.componentInstance.selectedSessionId()).toBe('session-running');
     });
 
@@ -911,6 +945,7 @@ describe('WorkoutPage', () => {
       totalElements: 1
     }));
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -940,6 +975,7 @@ describe('WorkoutPage', () => {
   it('prefills existing plan exercise names without searching', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
     dataService.searchExercisesPage.calls.reset();
 
@@ -980,6 +1016,7 @@ describe('WorkoutPage', () => {
       totalElements: 1
     }));
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -1002,6 +1039,7 @@ describe('WorkoutPage', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     dataService.searchExercisesPage.and.returnValue(throwError(() => new Error('search failed')));
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -1030,6 +1068,7 @@ describe('WorkoutPage', () => {
       of({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 })
     );
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -1072,6 +1111,7 @@ describe('WorkoutPage', () => {
       totalElements: 2
     }));
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -1102,6 +1142,7 @@ describe('WorkoutPage', () => {
   it('opens an empty picker with ArrowDown and closes it with Escape', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -1119,6 +1160,7 @@ describe('WorkoutPage', () => {
   it('keeps an empty typeahead picker stable when arrowing through no results', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     rows(fixture).openPicker(0);
@@ -1131,6 +1173,7 @@ describe('WorkoutPage', () => {
   it('does not select a typeahead result without an exercise id', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     rows(fixture).selectResult(0, exercise({ exerciseId: undefined }));
@@ -1142,6 +1185,7 @@ describe('WorkoutPage', () => {
   it('keeps exercise picker state aligned when removing plan rows', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     fixture.componentInstance.addPlanExercise();
@@ -1156,6 +1200,7 @@ describe('WorkoutPage', () => {
   it('closes the plan exercise picker and marks exerciseId touched on blur', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.exercise-typeahead input');
@@ -1260,7 +1305,7 @@ describe('WorkoutPage', () => {
     expect(rowText).not.toContain('Sports');
   });
 
-  it('shows a filter-aware empty state and keeps the filter bar reachable when empty', () => {
+  it('shows a filter-aware empty state and keeps the filter bar reachable when empty', fakeAsync(() => {
     dataService.getWorkoutSessionPage.and.returnValue(
       of(sessionPage([session({ sessionId: 'session-1', name: 'Push day', status: 'COMPLETED' })]))
     );
@@ -1270,7 +1315,10 @@ describe('WorkoutPage', () => {
     fixture.componentInstance.selectedTab.set('history');
     fixture.detectChanges();
 
+    // The search is the server's: it answers a name that matches nothing with an empty page.
+    dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([])));
     fixture.componentInstance.setHistorySearch('missing');
+    tick(300);
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -1286,7 +1334,7 @@ describe('WorkoutPage', () => {
     const emptyEl = emptyFixture.nativeElement as HTMLElement;
     expect(emptyEl.textContent).toContain('No sessions match these filters');
     expect(emptyEl.querySelector('.history-filter-bar')).not.toBeNull();
-  });
+  }));
 
   it('repeats the latest session and refreshes history', () => {
     const repeated = sessionDetail({ sessionId: 'session-latest', name: 'Repeated', status: 'IN_PROGRESS' });
@@ -1679,6 +1727,7 @@ describe('WorkoutPage', () => {
   it('shows the week editor with the sport list once a week is chosen', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-plan-week-editor')).toBeNull();
 
@@ -1797,6 +1846,7 @@ describe('WorkoutPage', () => {
   it('opens a plan that has a week in week mode', () => {
     const fixture = TestBed.createComponent(WorkoutPage);
     fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planFormOpen.set(true);
     fixture.detectChanges();
 
     fixture.componentInstance.editPlan(
@@ -1998,6 +2048,200 @@ describe('WorkoutPage', () => {
 
       activateWeekPlan(6);
       expect(component.weeklyGoalOffer()?.sessions).toBe(6);
+    });
+  });
+  describe('the Plans tab', () => {
+    const active = () => plan({ planId: 'plan-active', name: 'Current one', status: 'ACTIVE' });
+    const draft = () => plan({ planId: 'plan-draft', name: 'Draft one', status: 'DRAFT' });
+
+    function openPlans(): { fixture: ComponentFixture<WorkoutPage>; root: HTMLElement } {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.componentInstance.selectedTab.set('plans');
+      fixture.detectChanges();
+      return { fixture, root: fixture.nativeElement as HTMLElement };
+    }
+
+    const headings = (root: HTMLElement) =>
+      Array.from(root.querySelectorAll('#workout-panel-plans h2')).map((h) => h.textContent?.trim());
+    const buttons = (el: Element) => Array.from(el.querySelectorAll('button')).map((b) => b.textContent?.trim());
+
+    it('puts the current plan first, with its week and actions, and the other plans below it', () => {
+      dataService.getActivePlan.and.returnValue(of(active()));
+      dataService.getWorkoutPlans.and.returnValue(of([active(), draft()]));
+      const { root } = openPlans();
+
+      expect(headings(root)).toEqual(['Current plan', 'Other plans']);
+      const cards = Array.from(root.querySelectorAll<HTMLElement>('.plan-card'));
+      expect(cards.map((card) => card.querySelector('h3')?.textContent?.trim())).toEqual(['Current one', 'Draft one']);
+      expect(buttons(cards[0])).toEqual(['Edit', 'Archive', 'Start session']);
+      expect(buttons(cards[1])).toEqual(['Edit', 'Activate', 'Archive']);
+    });
+
+    it('filters the other plans by Draft, Archived or All, with Draft first', () => {
+      const { root, fixture } = openPlans();
+
+      expect(fixture.componentInstance.planStatus()).toBe('DRAFT');
+      expect(dataService.getWorkoutPlans).toHaveBeenCalledWith('DRAFT');
+      const filter = root.querySelector('[aria-label="Plan status filter"]')!;
+      expect(buttons(filter)).toEqual(['Draft', 'Archived', 'All']);
+      expect(filter.querySelector('.active')?.textContent?.trim()).toBe('Draft');
+
+      dataService.getWorkoutPlans.calls.reset();
+      (filter.querySelectorAll('button')[2] as HTMLButtonElement).click();
+      expect(dataService.getWorkoutPlans).toHaveBeenCalledWith(null);
+    });
+
+    it('does not repeat the current plan in the other plans when All brings it back', () => {
+      dataService.getActivePlan.and.returnValue(of(active()));
+      dataService.getWorkoutPlans.and.returnValue(of([active(), draft()]));
+      const { fixture } = openPlans();
+
+      expect(fixture.componentInstance.otherPlans().map((p) => p.planId)).toEqual(['plan-draft']);
+    });
+
+    it('says there is no current plan and offers a new one', () => {
+      const { root, fixture } = openPlans();
+
+      expect(root.textContent).toContain('No current plan');
+      const quiet = root.querySelector('.plan-section .summary-card')!;
+      expect(buttons(quiet)).toEqual(['New plan']);
+      expect(root.querySelector('#plan-form')).toBeNull();
+
+      (quiet.querySelector('button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(root.querySelector('#plan-form')).not.toBeNull();
+    });
+
+    it('keeps the form closed until New plan, which opens it empty with the cursor in the name', () => {
+      dataService.getActivePlan.and.returnValue(of(active()));
+      const { root, fixture } = openPlans();
+      expect(root.querySelector('#plan-form')).toBeNull();
+      fixture.componentInstance.planForm.patchValue({ name: 'Left over' });
+
+      const open = root.querySelector<HTMLButtonElement>('.plan-section > .section-title button')!;
+      expect(open.textContent?.trim()).toBe('New plan');
+      open.click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+
+      const form = root.querySelector<HTMLElement>('#plan-form')!;
+      expect(form.querySelector('.card-label')?.textContent).toContain('New plan');
+      expect(fixture.componentInstance.editingPlanId()).toBeNull();
+      expect(fixture.componentInstance.planForm.value.name).toBe('');
+      expect(document.activeElement).toBe(form.querySelector('input[formControlName="name"]'));
+    });
+
+    it('opens the form filled from Edit on any card and scrolls it into view', () => {
+      dataService.getActivePlan.and.returnValue(of(active()));
+      dataService.getWorkoutPlans.and.returnValue(of([draft()]));
+      const { root, fixture } = openPlans();
+      const scroll = spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+      const edit = Array.from(root.querySelectorAll<HTMLElement>('.plan-card'))[1].querySelector('button')!;
+      expect(edit.textContent?.trim()).toBe('Edit');
+      edit.click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingPlanId()).toBe('plan-draft');
+      expect(fixture.componentInstance.planForm.value.name).toBe('Draft one');
+      expect(root.querySelector('#plan-form .card-label')?.textContent).toContain('Edit plan');
+      expect(scroll).toHaveBeenCalled();
+      expect(document.activeElement).toBe(root.querySelector('#plan-form input[formControlName="name"]'));
+    });
+
+    it('shows Cancel in both modes and closes the form with it', () => {
+      const { root, fixture } = openPlans();
+      const cancelOf = () =>
+        Array.from(root.querySelectorAll<HTMLButtonElement>('#plan-form button')).find((b) => b.textContent?.trim() === 'Cancel');
+
+      fixture.componentInstance.openNewPlan();
+      fixture.detectChanges();
+      expect(cancelOf()).toBeDefined();
+      cancelOf()!.click();
+      fixture.detectChanges();
+      expect(root.querySelector('#plan-form')).toBeNull();
+      expect(fixture.componentInstance.planFormOpen()).toBeFalse();
+
+      fixture.componentInstance.editPlan(plan({ planId: 'plan-x' }));
+      fixture.detectChanges();
+      expect(cancelOf()).toBeDefined();
+      cancelOf()!.click();
+      fixture.detectChanges();
+      expect(root.querySelector('#plan-form')).toBeNull();
+      expect(fixture.componentInstance.editingPlanId()).toBeNull();
+    });
+
+    it('closes the form after a successful save, and keeps it open when the save fails', () => {
+      const { root, fixture } = openPlans();
+      const c = fixture.componentInstance;
+      c.openNewPlan();
+      c.planForm.patchValue({ name: 'Saved' });
+      c.planExercises.at(0).patchValue({ exerciseId: 'exercise-1', exerciseName: 'Back squat' });
+
+      dataService.createWorkoutPlan.and.returnValue(throwError(() => new Error('create failed')));
+      c.savePlan();
+      fixture.detectChanges();
+      expect(c.planFormOpen()).toBeTrue();
+
+      dataService.createWorkoutPlan.and.returnValue(of(plan({ status: 'DRAFT' })));
+      c.savePlan();
+      fixture.detectChanges();
+      expect(c.planFormOpen()).toBeFalse();
+      expect(root.querySelector('#plan-form')).toBeNull();
+    });
+
+    it('still opens the active plan in the form when the address asks for it', () => {
+      const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { queryParamMap: unknown } };
+      route.snapshot.queryParamMap = convertToParamMap({ tab: 'plans', edit: 'active' });
+      dataService.getActivePlan.and.returnValue(of(active()));
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.planFormOpen()).toBeTrue();
+      expect(fixture.componentInstance.planForm.value.name).toBe('Current one');
+      expect((fixture.nativeElement as HTMLElement).querySelector('#plan-form')).not.toBeNull();
+    });
+
+    it('does not pick the Active filter after activating a plan', () => {
+      component.activatePlan(plan({ planId: 'plan-1', status: 'DRAFT' }));
+
+      expect(component.planStatus()).toBe('DRAFT');
+      expect(component.planStatusOptions).toEqual(['DRAFT', 'ARCHIVED', null]);
+    });
+  });
+
+  describe('a habit day started from the Today card', () => {
+    it('opens the exercise screen of the session that began and reloads the history', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      fixture.componentInstance.workoutLive.minimise();
+      fixture.componentInstance.selectedTab.set('history');
+      fixture.detectChanges();
+      dataService.getWorkoutSessionPage.calls.reset();
+
+      fixture.componentInstance.handleHabitStarted();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedTab()).toBe('overview');
+      expect(fixture.componentInstance.workoutLive.minimised()).toBeFalse();
+      expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
+    });
+
+    it('is wired from the Today card', () => {
+      dataService.getActivePlan.and.returnValue(of(plan({ status: 'ACTIVE' })));
+      dataService.getWeeklyTrainingInsight.and.returnValue(
+        of(weeklyInsight({ today: todayInsight({ kind: 'CARDIO', label: 'Cardio', source: 'HABIT', planDayId: null }) }))
+      );
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const handler = spyOn(fixture.componentInstance, 'handleHabitStarted');
+
+      fixture.debugElement
+        .query(By.directive(TodayOverviewComponent))
+        .componentInstance.habitStarted.emit(sessionDetail());
+
+      expect(handler).toHaveBeenCalled();
     });
   });
 });

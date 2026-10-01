@@ -1700,6 +1700,30 @@ describe('FitSyncDataService', () => {
     expect(result?.nextTraining?.title).toBe('Treadmill run');
   });
 
+  it('maps the session and exercises behind the last session of the kind, defensively', () => {
+    const insight = (lastOfKind: unknown) => {
+      let result: WeeklyTrainingInsight | undefined;
+      service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+      httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+        timezone: 'Asia/Singapore',
+        referenceDate: '2026-09-27',
+        weekStart: '2026-09-21',
+        weekEnd: '2026-09-27',
+        today: { date: '2026-09-27', kind: 'CARDIO', label: 'Cardio', source: 'HABIT', planDayId: null, lastOfKind, carriedOver: [] }
+      });
+      return result?.today?.lastOfKind;
+    };
+
+    expect(insight({ date: '2026-09-24', minutes: 35, sessionId: 's-1', exerciseNames: ['Run', 7, '', 'Stretch'] })).toEqual(
+      jasmine.objectContaining({ sessionId: 's-1', exerciseNames: ['Run', 'Stretch'] })
+    );
+    expect(insight({ date: '2026-09-24', minutes: 35 })).toEqual(jasmine.objectContaining({ sessionId: null, exerciseNames: [] }));
+    expect(insight({ date: '2026-09-24', sessionId: null, exerciseNames: null })).toEqual(
+      jasmine.objectContaining({ sessionId: null, exerciseNames: [] })
+    );
+    expect(insight({ date: '2026-09-24', exerciseNames: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] })?.exerciseNames?.length).toBe(6);
+  });
+
   it('drops a malformed days array (not exactly seven entries) to null', () => {
     let result: WeeklyTrainingInsight | undefined;
     service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
@@ -2525,6 +2549,35 @@ describe('FitSyncDataService', () => {
 
     expect(started?.sessionId).toBe('session-live');
     expect(started?.exercises).toEqual([]);
+  });
+
+  it('sends the sport of an ad hoc sport session, and nothing for other types', () => {
+    service.startAdHocSession({ name: 'Badminton', workoutType: 'SPORTS', sportActivity: 'BADMINTON' }).subscribe();
+    const sport = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect(sport.request.body.sportActivity).toBe('BADMINTON');
+    sport.flush({ sessionId: 's', name: 'Badminton', workoutType: 'SPORTS', status: 'IN_PROGRESS', startedAt: '2026-06-20T02:00:00Z', exercises: [] });
+
+    service.startAdHocSession({ name: 'Cardio', workoutType: 'CARDIO' }).subscribe();
+    const plain = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect('sportActivity' in plain.request.body).toBeFalse();
+    plain.flush({ sessionId: 's2', name: 'Cardio', workoutType: 'CARDIO', status: 'IN_PROGRESS', startedAt: '2026-06-20T02:00:00Z', exercises: [] });
+  });
+
+  it('sends the name search of the session list, trimmed and capped at 80 characters', () => {
+    service.getWorkoutSessionPage({ q: '  push  ', page: 0, size: 8 }).subscribe();
+    const named = httpTesting.expectOne((req) => req.url === '/api/v1/workouts/sessions');
+    expect(named.request.params.get('q')).toBe('push');
+    named.flush({ content: [] });
+
+    service.getWorkoutSessionPage({ q: 'x'.repeat(120) }).subscribe();
+    const long = httpTesting.expectOne((req) => req.url === '/api/v1/workouts/sessions');
+    expect(long.request.params.get('q')?.length).toBe(80);
+    long.flush({ content: [] });
+
+    service.getWorkoutSessionPage({ q: '   ' }).subscribe();
+    const blank = httpTesting.expectOne((req) => req.url === '/api/v1/workouts/sessions');
+    expect(blank.request.params.has('q')).toBeFalse();
+    blank.flush({ content: [] });
   });
 
   it('adds an exercise to a live session and maps server-derived totals', () => {

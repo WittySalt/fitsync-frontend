@@ -332,7 +332,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.live.finish().subscribe({
       next: (session) => {
         if (session.status === 'CANCELLED') {
-          this.toast.info('Short workout cancelled, so it will not count toward metrics.');
+          if (!this.live.nothingLoggedCancel()) {
+            this.toast.info('Short workout cancelled, so it will not count toward metrics.');
+          }
           this.cancelled.emit(session);
           return;
         }

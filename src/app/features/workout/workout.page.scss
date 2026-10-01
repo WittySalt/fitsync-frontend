@@ -57,6 +57,7 @@
   }
 
   .plans-panel,
+  .plan-section,
   .plan-form,
   .plan-blueprint {
     display: grid;
@@ -144,7 +145,8 @@
     background: var(--surface);
     box-shadow: var(--shadow-sm);
 
-    h2 {
+    h2,
+    h3 {
       margin: 12px 0 8px;
     }
 
@@ -223,6 +225,12 @@
 
     .workout-tabs {
       width: 100%;
+
+      button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0 6px;
+      }
     }
 
     .form-grid .wide {

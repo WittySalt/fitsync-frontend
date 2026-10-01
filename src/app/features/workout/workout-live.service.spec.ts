@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutExerciseLog, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { STILL_RUNNING_NOTICE, WorkoutLiveService, formatElapsedClock } from './workout-live.service';
+import { NOTHING_LOGGED_NOTICE, STILL_RUNNING_NOTICE, WorkoutLiveService, formatElapsedClock } from './workout-live.service';
 
 function session(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
   return {
@@ -197,6 +197,106 @@ describe('WorkoutLiveService', () => {
     expect(dataService.completeSession).toHaveBeenCalledWith('session-live');
     expect(dataService.cancelSession).not.toHaveBeenCalled();
   }));
+
+  describe('finishing with nothing logged', () => {
+    function startWith(sets: boolean[][]): void {
+      dataService.startWorkoutPlan.and.callFake(() =>
+        of(
+          session({
+            startedAt: new Date().toISOString(),
+            exercises: sets.map((flags, index) => log(flags, { exerciseLogId: `log-${index + 1}`, sequence: index + 1 }))
+          })
+        )
+      );
+      service.startFromPlan('plan-1').subscribe();
+    }
+
+    it('cancels a workout with exercises and no logged set, however long it ran, and says so', fakeAsync(() => {
+      startWith([[false, false], [false]]);
+      tick(10 * 60_000);
+
+      let result: WorkoutSessionDetail | undefined;
+      service.finish().subscribe((value) => (result = value));
+
+      expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
+      expect(dataService.completeSession).not.toHaveBeenCalled();
+      expect(result?.status).toBe('CANCELLED');
+      expect(toast.info).toHaveBeenCalledOnceWith(NOTHING_LOGGED_NOTICE);
+      expect(NOTHING_LOGGED_NOTICE).toBe('No set was logged, so this workout was not saved.');
+      expect(service.nothingLoggedCancel()).toBeTrue();
+    }));
+
+    it('completes a workout with a logged set after a minute, without the notice', fakeAsync(() => {
+      startWith([[true, false]]);
+      tick(60_000);
+
+      service.finish().subscribe();
+
+      expect(dataService.completeSession).toHaveBeenCalledWith('session-live');
+      expect(dataService.cancelSession).not.toHaveBeenCalled();
+      expect(toast.info).not.toHaveBeenCalled();
+      expect(service.nothingLoggedCancel()).toBeFalse();
+    }));
+
+    it('keeps the 60 second rule for a workout with logged sets, with its own notice left to the caller', fakeAsync(() => {
+      startWith([[true]]);
+      tick(30_000);
+
+      service.finish().subscribe();
+
+      expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
+      expect(toast.info).not.toHaveBeenCalled();
+      expect(service.nothingLoggedCancel()).toBeFalse();
+    }));
+
+    it('keeps the 60 second rule for a workout without exercises', fakeAsync(() => {
+      service.startFromPlan('plan-1').subscribe();
+      tick(30_000);
+
+      service.finish().subscribe();
+
+      expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
+      expect(toast.info).not.toHaveBeenCalled();
+    }));
+
+    it('cancels in the same way when the server still refuses with NOTHING_LOGGED', fakeAsync(() => {
+      startWith([[true]]);
+      tick(120_000);
+      dataService.completeSession.and.returnValue(
+        throwError(() => new HttpErrorResponse({ status: 400, error: { code: 'NOTHING_LOGGED' } }))
+      );
+
+      let result: WorkoutSessionDetail | undefined;
+      service.finish().subscribe((value) => (result = value));
+
+      expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
+      expect(result?.status).toBe('CANCELLED');
+      expect(toast.info).toHaveBeenCalledOnceWith(NOTHING_LOGGED_NOTICE);
+      expect(service.nothingLoggedCancel()).toBeTrue();
+    }));
+
+    it('lets any other refusal through untouched', fakeAsync(() => {
+      startWith([[true]]);
+      tick(120_000);
+      dataService.completeSession.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { code: 'OTHER' } })));
+
+      let failed = false;
+      service.finish().subscribe({ error: () => (failed = true) });
+
+      expect(failed).toBeTrue();
+      expect(dataService.cancelSession).not.toHaveBeenCalled();
+    }));
+
+    it('follows the same rule when the end dialog finishes the workout from the bar', fakeAsync(() => {
+      startWith([[false]]);
+      tick(5 * 60_000);
+
+      service.finishActive().subscribe();
+
+      expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
+      expect(toast.info).toHaveBeenCalledOnceWith(NOTHING_LOGGED_NOTICE);
+    }));
+  });
 
   it('aborts by cancelling the session immediately', () => {
     service.startFromPlan('plan-1').subscribe();
