@@ -4,7 +4,7 @@ import { catchError, map, switchMap } from 'rxjs/operators';
 
 import { FitSyncDataService } from '../../../../core/fitsync-data.service';
 import { Exercise, WorkoutPlan, WorkoutPlanExerciseInput, WorkoutPlanRequest } from '../../../../core/fitsync.models';
-import { StarterTemplate } from './first-sessions';
+import type { StarterTemplate } from './first-sessions';
 
 type TemplateExercise = StarterTemplate['exercises'][number];
 interface ResolvedExercise {
@@ -28,8 +28,8 @@ export interface ActivatedTemplate {
 
 /**
  * Turns a starter template into a real active plan: it looks each exercise up in the catalogue,
- * creates the plan from the ones it finds and activates it. The steps and the request mirror what
- * the Workout page does for "Use this template".
+ * creates the plan from the ones it finds and activates it. The Workout page's
+ * "Use this template" goes through here too.
  */
 @Injectable({ providedIn: 'root' })
 export class PlanTemplateActivationService {
