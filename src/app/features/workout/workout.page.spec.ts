@@ -352,26 +352,23 @@ describe('WorkoutPage', () => {
     expect(component.editingPlanId()).toBeNull();
   });
 
-  it('shows completed-only metrics from server counts and the last completed session', () => {
-    component.completedSessionCount.set(42);
-    component.weekCompletedCount.set(3);
-    component.lastCompletedSession.set(
-      session({ name: 'New', workoutType: 'STRENGTH', completedAt: '2026-06-18T10:00:00Z' })
-    );
+  it('heads the page with the day and the plan, and one week card in place of the three boxes', () => {
+    component.activePlan.set(plan({ name: 'Recomp Strength + Cardio' }));
+    expect(component.headLine()).toContain(' \u00b7 Recomp Strength + Cardio');
+    component.activePlan.set(null);
+    expect(component.headLine()).not.toContain('\u00b7');
 
-    const metrics = component.metrics();
-    expect(metrics[0]).toEqual(jasmine.objectContaining({ label: 'Sessions logged', value: '42', detail: 'completed all time' }));
-    expect(metrics[1]).toEqual(jasmine.objectContaining({ label: 'Last 7 days', value: '3', detail: 'completed sessions' }));
-    expect(metrics[2].detail).toBe('Strength');
-    expect(metrics[2].value).not.toBe('—');
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('h1')?.textContent?.trim()).toBe('Workout');
+    expect(root.querySelector('app-workout-week')).not.toBeNull();
+    expect(root.querySelector('.metric-strip')).toBeNull();
   });
 
   it('loads completed-only metric counts and last session from the server', () => {
     dataService.getWorkoutSessionPage.and.callFake((query) => {
       const q = query as WorkoutSessionQuery;
-      if (q.from) {
-        return of(sessionPage([], 5));
-      }
       if (q.status === 'COMPLETED' && q.size === 1) {
         return of(sessionPage([session({ sessionId: 'last', workoutType: 'STRENGTH', completedAt: new Date().toISOString() })], 40));
       }
@@ -383,7 +380,6 @@ describe('WorkoutPage', () => {
     const c = fixture.componentInstance;
 
     expect(c.completedSessionCount()).toBe(40);
-    expect(c.weekCompletedCount()).toBe(5);
     expect(c.lastCompletedSession()?.sessionId).toBe('last');
   });
 
@@ -619,7 +615,7 @@ describe('WorkoutPage', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('.workout-header')).not.toBeNull();
     expect(root.querySelector('app-insight-panel')).not.toBeNull();
-    expect(root.querySelector('.metric-strip')).not.toBeNull();
+    expect(root.querySelector('app-workout-week')).not.toBeNull();
     expect(root.querySelector('.workout-tabs')).not.toBeNull();
 
     const today = fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
@@ -630,7 +626,7 @@ describe('WorkoutPage', () => {
     expect(root.querySelector('app-exercise-player')).not.toBeNull();
     expect(root.querySelector('.workout-header')).toBeNull();
     expect(root.querySelector('app-insight-panel')).toBeNull();
-    expect(root.querySelector('.metric-strip')).toBeNull();
+    expect(root.querySelector('app-workout-week')).toBeNull();
     expect(root.querySelector('.workout-tabs')).toBeNull();
     expect(root.querySelector('.goal-offer')).toBeNull();
 
@@ -641,7 +637,7 @@ describe('WorkoutPage', () => {
     expect(root.querySelector('app-exercise-player')).toBeNull();
     expect(root.querySelector('.workout-header')).not.toBeNull();
     expect(root.querySelector('app-insight-panel')).not.toBeNull();
-    expect(root.querySelector('.metric-strip')).not.toBeNull();
+    expect(root.querySelector('app-workout-week')).not.toBeNull();
     expect(root.querySelector('.workout-tabs')).not.toBeNull();
   });
 
@@ -1709,7 +1705,6 @@ describe('WorkoutPage', () => {
     expect(component.formatLabel('MUSCLE_GAIN')).toBe('Muscle Gain');
     expect(component.formatDate(null)).toBe('\u2014');
     expect(component.formatDate('not-a-date')).toBe('\u2014');
-    expect(component.metrics()[2].detail).toBe('Strength');
   });
 
   it('saves a new plan as one list with exactly the request it always sent', () => {

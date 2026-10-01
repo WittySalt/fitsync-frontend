@@ -15,6 +15,7 @@ import { formatDuration, formatKm, formatPace } from '../dashboard/brief/brief-d
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from '../dashboard/brief/day-kind-icons';
 import { GlyphShape } from '../dashboard/brief/muscle-icons';
 import { HabitDayStartComponent } from './habit-day-start.component';
+import { lastTitle } from './workout-week';
 import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
@@ -57,6 +58,8 @@ interface TodayCard {
   showTemplates: boolean;
   /** A habit day without a plan day: the card shows the habit start in place of the plain actions. */
   habit: TodayInsight | null;
+  /** A rest day: both choices are quiet, so nothing on the card asks the person to train. */
+  quiet: boolean;
 }
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -113,6 +116,11 @@ export class TodayOverviewComponent {
   readonly glyph = computed<GlyphShape[]>(() => DAY_KIND_GLYPHS[this.card().kind]);
 
   /** The footer's second line: when and how long, or nothing when the session has neither. */
+  /** "Cardio · Treadmill": the kind, then the name, written the same way everywhere. */
+  lastTitle(session: WorkoutSession): string {
+    return lastTitle(session);
+  }
+
   readonly lastSessionDetail = computed(() => {
     const session = this.latestSession();
     if (!session) {
@@ -358,7 +366,8 @@ export class TodayOverviewComponent {
   private restCard(): TodayCard {
     const next = this.nextTraining();
     const weekday = next ? this.weekdayOfDate(next.date) : '';
-    const chips = next && weekday ? [`Next is ${weekday}, ${next.label.toLowerCase()}`] : [];
+    const nextName = next?.kind === 'SPORT' ? next.label : (next?.title || next?.label);
+    const chips = next && weekday ? [`Next: ${weekday}`, nextName ?? '', formatDuration(next.estimatedMinutes)] : [];
     // The next training does not say which plan day it is, so the day is found by its weekday.
     const day = next ? planDayOn(this.activePlan()?.days, isoWeekdayOfDateKey(next.date)) : null;
     if (next && weekday && day) {
@@ -367,8 +376,9 @@ export class TodayOverviewComponent {
         eyebrow: 'Today · Rest',
         title: 'Rest day',
         chips,
-        primary: { label: `Do ${weekday}'s session today`, action: 'start', note: next.title || day.title || next.label },
+        primary: { label: `Do ${weekday}'s session today`, action: 'start' },
         link: BROWSE_LINK,
+        quiet: true,
         planDayId: day.planDayId,
         ariaLabel: "Today's workout, rest day"
       });
@@ -411,6 +421,7 @@ export class TodayOverviewComponent {
       planDayId: null,
       showTemplates: false,
       habit: null,
+      quiet: false,
       ...parts,
       chips: (parts.chips ?? []).filter((chip) => chip.trim() !== '')
     };

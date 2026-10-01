@@ -3,23 +3,20 @@
   @if (!focusMode()) {
     <header class="page-header workout-header fade-in">
       <div>
-        <p class="eyebrow">Workout</p>
-        <h1>Train with intent</h1>
-        <p>Review your plans, training history, and the exercise library - all from your FitSync data.</p>
+        <h1>Workout</h1>
+        <p class="head-line">{{ headLine() }}</p>
       </div>
     </header>
 
     <app-insight-panel class="fade-in" surface="WORKOUT" />
 
-    <section class="metric-strip fade-in" aria-label="Training summary">
-      @for (metric of metrics(); track metric.label) {
-        <article class="training-metric">
-          <span>{{ metric.label }}</span>
-          <strong>{{ metric.value }}</strong>
-          <small>{{ metric.detail }}</small>
-        </article>
-      }
-    </section>
+    <app-workout-week
+      class="fade-in"
+      [insight]="insight()"
+      [total]="completedSessionCount()"
+      [last]="lastCompletedSession()"
+      (openSession)="openSessionDetail($event)"
+    />
 
     <div class="segmented workout-tabs fade-in" role="tablist" aria-label="Workout sections">
       <button id="workout-tab-overview" [class.active]="selectedTab() === 'overview'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'overview'" aria-controls="workout-panel-overview" (click)="selectedTab.set('overview')">Today</button>

@@ -155,7 +155,7 @@ describe('TodayOverviewComponent', () => {
   const text = (root: HTMLElement, selector: string) => root.querySelector(selector)?.textContent?.trim() ?? null;
   const all = (root: HTMLElement, selector: string) => [...root.querySelectorAll(selector)].map((el) => el.textContent?.trim() ?? '');
   const rows = (root: HTMLElement) => all(root, '.move-copy strong');
-  const chips = (root: HTMLElement) => all(root, '.chip');
+  const chips = (root: HTMLElement) => (root.querySelector('.info')?.textContent?.trim() ?? '').split(' · ').filter(Boolean);
 
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getExercises', 'getExercise', 'createWorkoutPlan', 'activateWorkoutPlan']);
@@ -206,8 +206,10 @@ describe('TodayOverviewComponent', () => {
       expect(rows(root)).toEqual(['Dumbbell bench press', 'Bent-over row', 'Goblet squat', 'Plank hold']);
       expect(all(root, '.move-copy small')[0]).toBe('3 × 10 · 22.5 kg · 75 s rest');
       expect(text(root, '.action-primary')).toBe('Start session');
-      expect(text(root, '.action-link')).toBe('Train something else');
-      expect(root.querySelector('.action-secondary')).toBeNull();
+      expect(text(root, 'a.action-secondary')).toBe('Train something else');
+      expect(root.querySelector('button.action-secondary')).toBeNull();
+      expect(root.querySelector('.action-primary')?.classList).not.toContain('quiet');
+      expect(root.querySelector('.action-primary svg')).toBeNull();
     });
 
     it('shows a cardio day with last time distance and pace', () => {
@@ -227,7 +229,7 @@ describe('TodayOverviewComponent', () => {
       expect(chips(root)).toEqual(['35 min', '5.75 km last time', '6:05 per km']);
       expect(rows(root)).toEqual(['Treadmill run', 'Plank hold']);
       expect(all(root, '.move-copy small')[0]).toBe('5 km · 35 min');
-      expect(text(root, '.action-link')).toBe('Train something else');
+      expect(text(root, 'a.action-secondary')).toBe('Train something else');
     });
 
     it('shows a mobility day with three moves and a quiet line for the rest', () => {
@@ -269,7 +271,7 @@ describe('TodayOverviewComponent', () => {
       expect(root.querySelector('.moves')).toBeNull();
       expect(text(root, '.action-primary')).toBe('Start session');
       expect(text(root, '.action-secondary')).toBe('Log it afterwards');
-      expect(root.querySelector('.action-link')).toBeNull();
+      expect(root.querySelector('a.action-secondary')).toBeNull();
     });
 
     it('shows the planned length on a sport day nobody has played yet', () => {
@@ -302,7 +304,7 @@ describe('TodayOverviewComponent', () => {
       expect(all(root, 'app-habit-day-start .facts li')).toEqual(['35 min last time', '5.75 km last time']);
       expect(root.querySelector('.moves')).toBeNull();
       expect(root.querySelector('.action-primary')).toBeNull();
-      expect(root.querySelector('.action-link')).toBeNull();
+      expect(root.querySelector('a.action-secondary')).toBeNull();
       expect(text(root, 'app-habit-day-start .start')).toBe('Start this');
     });
 
@@ -318,10 +320,10 @@ describe('TodayOverviewComponent', () => {
 
       expect(text(root, '.eyebrow')).toBe('In progress');
       expect(text(root, 'h2')).toBe('Full body');
-      expect(root.querySelector('.chips')).toBeNull();
+      expect(root.querySelector('.info')).toBeNull();
       expect(root.querySelector('.moves')).toBeNull();
       expect(text(root, '.action-primary')).toBe('Continue');
-      expect(root.querySelector('.action-link')).toBeNull();
+      expect(root.querySelector('a.action-secondary')).toBeNull();
     });
 
     it('shows a finished strength day with its minutes and a link to the session', () => {
@@ -330,7 +332,7 @@ describe('TodayOverviewComponent', () => {
       expect(text(root, '.eyebrow')).toBe('Done today');
       expect(chips(root)).toEqual(['50 min']);
       expect(root.querySelector('.action-primary')).toBeNull();
-      expect(text(root, '.action-link')).toBe('See the session');
+      expect(text(root, 'a.action-secondary')).toBe('See the session');
     });
 
     it('adds distance and pace to a finished cardio day when the day entry has them', () => {
@@ -366,19 +368,19 @@ describe('TodayOverviewComponent', () => {
 
       expect(text(root, '.eyebrow')).toBe('Today · Rest');
       expect(text(root, 'h2')).toBe('Rest day');
-      expect(chips(root)).toEqual(['Next is Thursday, cardio']);
+      expect(chips(root)).toEqual(['Next: Thursday', 'Treadmill run', '35 min']);
       expect(root.querySelector('.action-primary')).toBeNull();
       expect(root.querySelector('button.action-secondary')).toBeNull();
-      expect(text(root, '.action-link')).toBe('Train today');
+      expect(text(root, 'a.action-secondary')).toBe('Train today');
     });
 
-    it('names a sport in lower case on the next-training chip', () => {
+    it('names a sport by its name in the next-training line', () => {
       const root = render({
         today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
         nextTraining: next({ date: '2026-10-03', kind: 'SPORT', label: 'Badminton' })
       });
 
-      expect(chips(root)).toEqual(['Next is Saturday, badminton']);
+      expect(chips(root)).toEqual(['Next: Saturday', 'Badminton', '35 min']);
     });
 
     it('offers the earlier open day on a rest day', () => {
@@ -396,7 +398,7 @@ describe('TodayOverviewComponent', () => {
       expect(chips(root)).toEqual(['50 min']);
       expect(rows(root)).toEqual(['Monday squat']);
       expect(text(root, '.action-primary')).toBe('Start session');
-      expect(text(root, '.action-link')).toBe('Train something else');
+      expect(text(root, 'a.action-secondary')).toBe('Train something else');
     });
 
     it('offers the earlier open day on an open day too, and leaves the rows out when the plan lacks it', () => {
@@ -410,7 +412,7 @@ describe('TodayOverviewComponent', () => {
       });
 
       expect(text(root, '.eyebrow')).toBe('Still open from Tuesday');
-      expect(root.querySelector('.chips')).toBeNull();
+      expect(root.querySelector('.info')).toBeNull();
       expect(root.querySelector('.moves')).toBeNull();
     });
 
@@ -476,7 +478,7 @@ describe('TodayOverviewComponent', () => {
         today: today({ estimatedMinutes: null, moves: null, planDayId: 'd-unknown' })
       });
 
-      expect(root.querySelector('.chips')).toBeNull();
+      expect(root.querySelector('.info')).toBeNull();
     });
 
     it('never prints null, undefined or NaN', () => {
@@ -497,7 +499,7 @@ describe('TodayOverviewComponent', () => {
     it('skips the next-training chip when its date cannot be read', () => {
       const root = render({ today: today({ kind: 'REST', planDayId: null }), nextTraining: next({ date: 'nonsense' }) });
 
-      expect(root.querySelector('.chips')).toBeNull();
+      expect(root.querySelector('.info')).toBeNull();
     });
   });
 
@@ -643,7 +645,7 @@ describe('TodayOverviewComponent', () => {
       const emit = spyOn(component.browsePlans, 'emit');
       const kinds: TodayInsight[] = [today(), today({ kind: 'REST', planDayId: null })];
       for (const insight of kinds) {
-        render({ today: insight }).querySelector<HTMLAnchorElement>('.action-link')?.click();
+        render({ today: insight }).querySelector<HTMLAnchorElement>('a.action-secondary')?.click();
       }
       render({ activePlan: null, today: null }).querySelector<HTMLButtonElement>('.action-primary')?.click();
 
@@ -654,7 +656,7 @@ describe('TodayOverviewComponent', () => {
       const root = render({ today: today() });
       const event = new MouseEvent('click', { bubbles: true, cancelable: true });
 
-      root.querySelector('.action-link')?.dispatchEvent(event);
+      root.querySelector('a.action-secondary')?.dispatchEvent(event);
 
       expect(event.defaultPrevented).toBeTrue();
     });
@@ -693,7 +695,7 @@ describe('TodayOverviewComponent', () => {
         todayDay: dayEntry({ sessions: [finished('short', 10), finished('long', 50)] })
       });
 
-      root.querySelector<HTMLAnchorElement>('.action-link')?.click();
+      root.querySelector<HTMLAnchorElement>('a.action-secondary')?.click();
 
       expect(emit).toHaveBeenCalledOnceWith({ sessionId: 'long', status: 'COMPLETED' });
     });
@@ -749,7 +751,7 @@ describe('TodayOverviewComponent', () => {
 
       expect(root.querySelector('.action-primary')?.tagName).toBe('BUTTON');
       expect(root.querySelector('.action-primary')?.getAttribute('type')).toBe('button');
-      expect(root.querySelector('.action-link')?.tagName).toBe('A');
+      expect(root.querySelector('a.action-secondary')?.tagName).toBe('A');
       expect(root.querySelector('.kind-tile')?.getAttribute('aria-hidden')).toBe('true');
     });
   });
@@ -757,17 +759,19 @@ describe('TodayOverviewComponent', () => {
   describe('a rest day with a next session in the plan', () => {
     const thursday = () => ({ ...planDay('d-thu', 'CARDIO', [move(1, 'Treadmill run')], 'Treadmill run'), dayOfWeek: 4 });
 
-    it("offers the next planned session today, with its title under the label", () => {
+    it('offers the next planned session today as a quiet choice, and names it once in the line above', () => {
       const root = render({
         activePlan: plan({ days: [thursday()] }),
         today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
         nextTraining: next()
       });
 
-      expect(text(root, '.action-primary .action-copy > span')).toBe("Do Thursday's session today");
-      expect(text(root, '.action-primary .action-note')).toBe('Treadmill run');
-      expect(text(root, '.action-link')).toBe('Train something else');
-      expect(chips(root)).toEqual(['Next is Thursday, cardio']);
+      expect(text(root, '.action-primary')).toBe("Do Thursday's session today");
+      expect(root.querySelector('.action-primary')?.classList).toContain('quiet');
+      expect(root.querySelector('.actions')?.classList).toContain('equal');
+      expect(root.querySelector('.action-primary svg')).toBeNull();
+      expect(text(root, 'a.action-secondary')).toBe('Train something else');
+      expect(chips(root)).toEqual(['Next: Thursday', 'Treadmill run', '35 min']);
     });
 
     it('starts the plan day that falls on the weekday of the next training', () => {
@@ -794,8 +798,8 @@ describe('TodayOverviewComponent', () => {
         nextTraining: next({ date: '2026-10-02', kind: 'STRENGTH', label: 'Strength', title: 'Legs' })
       });
 
-      expect(text(root, '.action-primary .action-copy > span')).toBe("Do Friday's session today");
-      expect(text(root, '.action-primary .action-note')).toBe('Legs');
+      expect(text(root, '.action-primary')).toBe("Do Friday's session today");
+      expect(chips(root)).toEqual(['Next: Friday', 'Legs', '35 min']);
     });
 
     it('stays as it was when the plan has no day on that weekday, or no days', () => {
@@ -807,7 +811,7 @@ describe('TodayOverviewComponent', () => {
         });
 
         expect(root.querySelector('.action-primary')).toBeNull();
-        expect(text(root, '.action-link')).toBe('Train today');
+        expect(text(root, 'a.action-secondary')).toBe('Train today');
       }
     });
 
@@ -821,7 +825,7 @@ describe('TodayOverviewComponent', () => {
         nextTraining: null
       });
       expect(withoutNext.querySelector('.action-primary')).toBeNull();
-      expect(text(withoutNext, '.action-link')).toBe('Train today');
+      expect(text(withoutNext, 'a.action-secondary')).toBe('Train today');
     });
 
     it('disables the start while the plan is starting', () => {
@@ -833,7 +837,7 @@ describe('TodayOverviewComponent', () => {
       });
 
       expect(root.querySelector<HTMLButtonElement>('.action-primary')?.disabled).toBeTrue();
-      expect(text(root, '.action-primary .action-copy > span')).toBe('Starting…');
+      expect(text(root, '.action-primary')).toBe('Starting…');
     });
   });
 });

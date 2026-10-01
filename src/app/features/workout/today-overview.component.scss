@@ -81,28 +81,11 @@
   color: var(--accent-text);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.info {
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.chip {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--surface-sunken);
   color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
 
 .moves {
@@ -196,47 +179,33 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 16px;
-  min-height: 52px;
+  gap: 12px;
 }
 
-.action-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  text-align: left;
-  white-space: normal;
-}
-
-.action-note {
-  font-size: var(--text-sm);
-  font-weight: var(--fw-semibold);
-  opacity: 0.85;
+// One filled button for the thing to do; every other choice is outlined in green, never an arrow.
+.action-primary,
+.action-secondary {
+  flex: none;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: var(--radius-lg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .action-primary {
-  flex: none;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-sizing: border-box;
-  min-height: 52px;
-  padding: 0 24px;
   border: 0;
-  border-radius: var(--radius-lg);
   background: var(--accent);
   color: var(--text-on-accent);
-  font: inherit;
-  font-size: var(--text-base);
-  font-weight: var(--fw-bold);
-  white-space: nowrap;
-  cursor: pointer;
-
-  svg {
-    flex: none;
-    display: block;
-  }
 
   &:hover:not(:disabled) {
     background: var(--accent-hover);
@@ -248,40 +217,22 @@
   }
 }
 
-.action-secondary {
-  flex: none;
-  box-sizing: border-box;
-  min-height: 52px;
-  padding: 0 20px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+.action-secondary,
+.action-primary.quiet {
+  border: 1.5px solid var(--green-200);
   background: var(--surface);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 15px;
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-  cursor: pointer;
+  color: var(--green-900);
 
-  &:hover {
-    background: var(--surface-sunken);
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--surface-tint);
   }
 }
 
-.action-link {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--accent-text);
-  font-size: var(--text-sm);
-  font-weight: var(--fw-semibold);
-  text-decoration: none;
-  white-space: nowrap;
-
-  &:hover {
-    text-decoration: underline;
-  }
+// A rest day's two choices share the row evenly.
+.actions.equal > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .last-session {
@@ -308,8 +259,7 @@
 
 .move:focus-visible,
 .action-primary:focus-visible,
-.action-secondary:focus-visible,
-.action-link:focus-visible {
+.action-secondary:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -323,8 +273,14 @@
     font-size: 26px;
   }
 
-  .action-primary {
-    flex: 1 1 100%;
-    justify-content: center;
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions > *,
+  .actions.equal > * {
+    flex: none;
+    width: 100%;
   }
 }

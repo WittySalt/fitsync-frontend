@@ -58,18 +58,13 @@ import {
   weekMoves
 } from './plan-week-form';
 import { HistoryRowComponent } from './history-row.component';
+import { WorkoutWeekComponent } from './workout-week.component';
 import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { sessionDurationLabel } from './workout-session.util';
 import { formatKm } from '../dashboard/brief/brief-duration';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
-
-interface TrainingMetric {
-  label: string;
-  value: string;
-  detail: string;
-}
 
 type PlanMode = 'list' | 'week';
 
@@ -99,6 +94,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
     TodayOverviewComponent,
     ExerciseLibraryComponent,
     HistoryRowComponent,
+    WorkoutWeekComponent,
     WorkoutDataIoComponent
   ],
   templateUrl: './workout.page.html',
@@ -126,7 +122,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly historyTotalPages = signal(1);
   readonly historyLoading = signal(false);
   readonly completedSessionCount = signal(0);
-  readonly weekCompletedCount = signal(0);
   readonly lastCompletedSession = signal<WorkoutSession | null>(null);
   readonly activePlan = signal<WorkoutPlan | null>(null);
   private editActiveOnArrival = false;
@@ -210,17 +205,11 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private sportActivitiesRequested = false;
   private weeklyGoalRequest = 0;
 
-  readonly metrics = computed<TrainingMetric[]>(() => {
-    const latest = this.lastCompletedSession();
-    return [
-      { label: 'Sessions logged', value: String(this.completedSessionCount()), detail: 'completed all time' },
-      { label: 'Last 7 days', value: String(this.weekCompletedCount()), detail: 'completed sessions' },
-      {
-        label: 'Last session',
-        value: latest ? this.formatDate(latest.completedAt || latest.startedAt) : '—',
-        detail: latest ? this.formatLabel(latest.workoutType) : 'none yet'
-      }
-    ];
+  /** "Friday 2 Oct · Recomp Strength + Cardio": today, and the plan in use when there is one. */
+  readonly headLine = computed(() => {
+    const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const plan = this.activePlan()?.name;
+    return plan ? `${today} · ${plan}` : today;
   });
 
   readonly historyTypeOptions = this.workoutTypeOptions;
@@ -894,10 +883,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.dataService.getWorkoutSessionPage({ status: 'COMPLETED', page: 0, size: 1 }).subscribe((page) => {
       this.completedSessionCount.set(page.total);
       this.lastCompletedSession.set(page.sessions[0] ?? null);
-    });
-    const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-    this.dataService.getWorkoutSessionPage({ status: 'COMPLETED', from: weekAgo, page: 0, size: 1 }).subscribe((page) => {
-      this.weekCompletedCount.set(page.total);
     });
   }
 
