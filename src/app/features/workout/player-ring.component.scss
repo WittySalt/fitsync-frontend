@@ -81,12 +81,19 @@ circle {
 
 .figure {
   font-family: var(--font-display);
-  font-size: calc(var(--ring) * 0.28);
+  font-size: calc(var(--ring) * var(--fit, 0.28));
   font-weight: var(--fw-semibold);
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: var(--text-primary);
+}
 
+// The target of a count is part of the same figure, smaller, on the same baseline.
+.of {
+  font-size: 0.55em;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
 }
 
 // Each figure of the countdown pops in; in the last seconds the figure pulses once a second.

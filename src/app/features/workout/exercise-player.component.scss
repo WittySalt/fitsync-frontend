@@ -121,7 +121,8 @@
   }
 }
 
-.set-clock {
+.set-clock,
+.at-weight {
   margin: 0;
   color: var(--text-secondary);
   font-size: 14px;
@@ -129,32 +130,34 @@
   text-align: center;
 }
 
-.live-row {
+// Before a set the person decides (Ready); while it runs the ring takes the same place (Active). Both
+// have the same height, so the button under them does not move when the set starts.
+.turn:empty {
+  display: none;
+}
+
+.turn.sized {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-
-  &.has-ring {
-    align-items: center;
-    --ring-size: 128px;
-  }
-
-  .steppers {
-    align-self: stretch;
-  }
+  justify-content: center;
+  min-height: 200px;
+  --ring-size: 160px;
 }
 
-.steppers {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+.ready,
+.running {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fade-rise var(--motion-base) var(--motion-ease);
 }
 
-@container (min-width: 460px) {
-  .steppers:not(.single) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
+.running {
+  align-items: center;
+}
+
+.ready .eyebrow {
+  color: var(--text-secondary);
 }
 
 .actions {
@@ -197,14 +200,9 @@
 }
 
 @container (min-width: 720px) {
-  .live-row.has-ring {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    --ring-size: 144px;
-
-    .steppers:not(.single) {
-      grid-template-columns: minmax(0, 1fr);
-    }
+  .turn.sized {
+    min-height: 220px;
+    --ring-size: 180px;
   }
 
   .actions {

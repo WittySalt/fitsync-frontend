@@ -106,33 +106,46 @@
                   (howTo)="openGuide()"
                 />
                 <div slot="main" class="set-main">
-                  <app-player-set-list [sets]="currentSets()" [currentSetNumber]="currentSetNumber()" [scope]="log.exerciseLogId" />
+                  <app-player-set-list
+                    [sets]="currentSets()"
+                    [currentSetNumber]="currentSetNumber()"
+                    [scope]="log.exerciseLogId"
+                    [editable]="live.canWrite()"
+                    (edit)="openSetEditor($event)"
+                  />
                   @if (!isTimedTarget() && nextLine()) {
                     <p class="next-line"><span class="eyebrow">Next</span>&ngsp;<span class="next-text">{{ nextLine() }}</span></p>
                   }
-                  <div class="live-row" [class.has-ring]="setActive() && ringTarget() > 0">
-                    @if (setActive() && ringTarget() > 0) {
-                      <app-player-ring
-                        [share]="ringShare()"
-                        [centre]="ringReps() + ' / ' + ringTarget()"
-                        [caption]="setClock()"
-                        [label]="ringLabel()"
-                        [urgent]="ringFull()"
-                        [reducedMotion]="prefersReducedMotion"
-                      />
-                    } @else if (setActive()) {
-                      <p class="set-clock" role="timer" aria-label="Set time">Set time {{ setClock() }}</p>
-                    }
-                    @if (isTimedTarget()) {
-                      <div class="steppers single">
-                        <app-player-stepper label="Time" format="clock" [step]="5" [min]="5" [max]="21600" [(value)]="durationValue" />
-                      </div>
-                    } @else if (hasRepsStepper()) {
-                      <div class="steppers" [class.single]="!hasWeightStepper()">
-                        <app-player-stepper label="Reps" [min]="1" [max]="999" [(value)]="repsValue" />
-                        @if (hasWeightStepper()) {
-                          <app-player-stepper label="Weight" unit="kg" [step]="2.5" [max]="1000" [(value)]="weightValue" />
+                  <div class="turn" [class.sized]="hasRepsStepper() || isTimedTarget()">
+                    @if (setActive()) {
+                      <div class="running">
+                        @if (ringTarget() > 0) {
+                          <app-player-ring
+                            [share]="ringShare()"
+                            [centre]="ringReps() + ' / ' + ringTarget()"
+                            [caption]="setClock()"
+                            [label]="ringLabel()"
+                            [urgent]="ringFull()"
+                            [reducedMotion]="prefersReducedMotion"
+                          />
+                        } @else {
+                          <p class="set-clock" role="timer" aria-label="Set time">Set time {{ setClock() }}</p>
                         }
+                        @if (activeWeightLine()) {
+                          <p class="at-weight">{{ activeWeightLine() }}</p>
+                        }
+                      </div>
+                    } @else if (hasRepsStepper() || isTimedTarget()) {
+                      <div class="ready">
+                        <span class="eyebrow">This set</span>
+                        <app-player-set-values
+                          [timed]="isTimedTarget()"
+                          [hasReps]="hasRepsStepper()"
+                          [hasWeight]="hasWeightStepper()"
+                          [(reps)]="repsValue"
+                          [(weight)]="weightValue"
+                          [(duration)]="durationValue"
+                        />
                       </div>
                     }
                   </div>
@@ -237,6 +250,12 @@
         (back)="closeGuide()"
       />
     }
+  }
+
+  @if (editedSet(); as set) {
+    <app-workout-modal [heading]="'Edit set ' + set.setNumber" (dismissed)="closeSetEditor()">
+      <app-set-editor [set]="set" [saving]="saving()" (save)="saveSetEdit(set, $event)" (cancelled)="closeSetEditor()" />
+    </app-workout-modal>
   }
 
   @if (confirm(); as question) {
