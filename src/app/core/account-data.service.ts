@@ -58,6 +58,7 @@ export interface TrainingPreferences {
   preferredDurationMinutes: number | null;
   preferredWorkoutTime: string | null;
   intensityPreference: string;
+  focusAreas?: string[] | null;
 }
 
 export interface NutritionPreferences {

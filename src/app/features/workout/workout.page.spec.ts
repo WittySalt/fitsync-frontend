@@ -290,6 +290,29 @@ describe('WorkoutPage', () => {
     component = TestBed.createComponent(WorkoutPage).componentInstance;
   });
 
+  it('opens the active plan for editing when the address asks for it', () => {
+    const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { queryParamMap: unknown } };
+    route.snapshot.queryParamMap = convertToParamMap({ tab: 'plans', edit: 'active' });
+    dataService.getActivePlan.and.returnValue(of(plan({ planId: 'plan-active', name: 'Active plan', status: 'ACTIVE' })));
+
+    component.ngOnInit();
+
+    expect(component.selectedTab()).toBe('plans');
+    expect(component.editingPlanId()).toBe('plan-active');
+  });
+
+  it('leaves the editor closed on a plain arrival, and when the address asks but no plan is active', () => {
+    dataService.getActivePlan.and.returnValue(of(plan({ planId: 'plan-active', status: 'ACTIVE' })));
+    component.ngOnInit();
+    expect(component.editingPlanId()).toBeNull();
+
+    const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { queryParamMap: unknown } };
+    route.snapshot.queryParamMap = convertToParamMap({ edit: 'active' });
+    dataService.getActivePlan.and.returnValue(of(null));
+    component.ngOnInit();
+    expect(component.editingPlanId()).toBeNull();
+  });
+
   it('shows completed-only metrics from server counts and the last completed session', () => {
     component.completedSessionCount.set(42);
     component.weekCompletedCount.set(3);

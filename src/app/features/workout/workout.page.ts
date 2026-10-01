@@ -111,6 +111,7 @@ export class WorkoutPage implements OnInit {
   readonly weekCompletedCount = signal(0);
   readonly lastCompletedSession = signal<WorkoutSession | null>(null);
   readonly activePlan = signal<WorkoutPlan | null>(null);
+  private editActiveOnArrival = false;
   readonly loading = signal(true);
   readonly planError = signal<string | null>(null);
   readonly planMode = signal<PlanMode>('list');
@@ -212,6 +213,9 @@ export class WorkoutPage implements OnInit {
     if (status && (this.historyStatusOptions as readonly string[]).includes(status)) {
       this.filterStatus.set(status);
     }
+    // The home page's line about focus areas lands here to change the active plan, so the plan
+    // opens for editing once it has loaded.
+    this.editActiveOnArrival = this.route.snapshot.queryParamMap.get('edit') === 'active';
     this.load();
   }
 
@@ -809,7 +813,15 @@ export class WorkoutPage implements OnInit {
   }
 
   private loadActivePlan(): void {
-    this.dataService.getActivePlan().subscribe((plan) => this.activePlan.set(plan));
+    this.dataService.getActivePlan().subscribe((plan) => {
+      this.activePlan.set(plan);
+      if (this.editActiveOnArrival) {
+        this.editActiveOnArrival = false;
+        if (plan?.planId) {
+          this.editPlan(plan);
+        }
+      }
+    });
   }
 
   private buildPlanRequest(): WorkoutPlanRequest {

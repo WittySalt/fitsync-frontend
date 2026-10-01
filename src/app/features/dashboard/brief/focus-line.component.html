@@ -1,0 +1,22 @@
+@if (line(); as focus) {
+  <div class="focus-line">
+    @if (focus.groups.length <= 3) {
+      <span class="focus-badges" aria-hidden="true">
+        @for (code of focus.groups; track code) {
+          <span class="focus-badge">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              @for (part of glyph(code); track $index) {
+                @switch (part.tag) {
+                  @case ('path') { <path [attr.d]="part.d"></path> }
+                  @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                  @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+                }
+              }
+            </svg>
+          </span>
+        }
+      </span>
+    }
+    <p class="focus-text">{{ focus.sentence }} <a class="focus-link" [routerLink]="link.path" [queryParams]="link.queryParams">{{ focus.linkText }}</a></p>
+  </div>
+}

@@ -11,7 +11,7 @@ import { briefHeadline, quickQuestions } from './brief-copy';
 import { formatDuration } from './brief-duration';
 import { wheelSectors } from './brief-muscles';
 import { dailyObservations } from './brief-observations';
-import { BRIEF_NOW, DayPeriod, clockLabel, dateLabel, dayPeriodFor, periodLabel } from './brief-time';
+import { BRIEF_NOW, DayPeriod, clockLabel, dateLabel, dayPeriodFor, minutesOfDay, periodLabel } from './brief-time';
 import { BriefDay, buildWeek, buildWeekFromInsight, completedSessionCount, weekRange } from './brief-week';
 import { CoachNoticedComponent } from './coach-noticed.component';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from './day-kind-icons';
@@ -24,6 +24,7 @@ import { MonthViewState } from './month/month-view.state';
 import { MuscleWheelComponent } from './muscle-wheel.component';
 import { FIRST_SESSION_COUNT, FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
 import { FirstSessionsComponent } from './no-plan/first-sessions.component';
+import { FocusLineComponent } from './focus-line.component';
 import { TodayRowComponent } from './today-row.component';
 
 /** WORKOUT_FREQUENCY goals track a weekly session count; other goal types don't apply here. */
@@ -35,6 +36,7 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
   imports: [
     CoachNoticedComponent,
     FirstSessionsComponent,
+    FocusLineComponent,
     FormsModule,
     MonthCalendarComponent,
     MonthLineComponent,
@@ -67,6 +69,8 @@ export class CoachBriefComponent implements OnInit {
   /** The name for the saved picture of a month; the first name stands in until it is known. */
   readonly displayName = input<string | null>(null);
   readonly caloriesTarget = input<number | null>(null);
+  /** The focus areas chosen at setup, from the profile the page already loaded. */
+  readonly focusAreas = input<readonly string[]>([]);
 
   // The brief always opens in the week view: it is about today, so the choice is not remembered.
   readonly view = signal<'week' | 'month'>('week');
@@ -147,9 +151,22 @@ export class CoachBriefComponent implements OnInit {
       completedToday: this.completedToday(),
       restToday: this.todayInsight()?.kind === 'REST',
       trainedYesterday: this.trainedYesterday(),
-      daysSinceLastSession: this.daysSinceLastSession()
+      daysSinceLastSession: this.daysSinceLastSession(),
+      usualStartTime: this.insight()?.usualStartTime ?? null,
+      nowMinutes: minutesOfDay(this.now(), this.timezone()),
+      todayOpen: this.todayOpen()
     })
   );
+
+  // Today's session is still ahead: it is neither done nor under way. Without the day-kinds
+  // fields the week strip's own entry for today says the same.
+  readonly todayOpen = computed(() => {
+    const today = this.todayInsight();
+    if (today) {
+      return today.source !== 'DONE' && today.source !== 'IN_PROGRESS';
+    }
+    return this.week().some((day) => day.state === 'today-open');
+  });
 
   // Today counts as completed once its source is DONE; without the day-kinds fields, the week
   // strip's own today-trained entry (with real minutes) is the only signal available.

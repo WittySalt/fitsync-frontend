@@ -321,6 +321,33 @@ function mapTodayInsight(entry: Partial<TodayInsight> | null | undefined): Today
   };
 }
 
+const FOCUS_AREA_CODES: Record<string, string> = {
+  '240001': 'FULL_BODY',
+  '240002': 'UPPER',
+  '240003': 'CORE',
+  '240004': 'LOWER',
+  '240005': 'MOBILITY',
+  '240006': 'CARDIO'
+};
+
+/** The focus areas as onboarding names them. The backend may send either the names or its numeric
+ *  codes, so both are read; anything that is not a string is dropped, and a repeat is kept once. */
+export function normalizeFocusAreas(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const areas = values
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => FOCUS_AREA_CODES[value.trim()] ?? value.trim().toUpperCase());
+  return [...new Set(areas)];
+}
+
+/** The usual start time is "HH:mm" in 24-hour time. Anything else, including a missing value,
+ *  means the records show no usual time, so the brief says nothing about it. */
+export function mapUsualStartTime(value: unknown): string | null {
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
+}
+
 function mapNextTraining(entry: Partial<NextTraining> | null | undefined): NextTraining | null {
   if (!entry || typeof entry.date !== 'string' || !entry.date) {
     return null;
@@ -767,7 +794,7 @@ export class FitSyncDataService {
         .pipe(catchError(() => of(null)))
     }).pipe(
       map(({ analytics, goalProgress, user, latestWorkout, latestMeal }) => ({
-        profile: this.mapProfile(user.profile),
+        profile: { ...this.mapProfile(user.profile), focusAreas: normalizeFocusAreas(user.preferences?.training?.focusAreas) },
         nutrition: this.mapAnalyticsNutrition(analytics.nutrition),
         workout: analytics.workout,
         latestWorkout: this.mapWorkoutSession(latestWorkout, { completedOnly: true }),
@@ -1136,7 +1163,8 @@ export class FitSyncDataService {
           },
           days: mapDays(response.days),
           today: mapTodayInsight(response.today),
-          nextTraining: mapNextTraining(response.nextTraining)
+          nextTraining: mapNextTraining(response.nextTraining),
+          usualStartTime: mapUsualStartTime(response.usualStartTime)
         }))
       );
   }

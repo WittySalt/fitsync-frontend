@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
-import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
+import { DashboardData, FitSyncDataService, ProgressData, normalizeFocusAreas } from './fitsync-data.service';
 import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, UsualMeal } from './fitsync.models';
 import { MonthlyTrainingInsight } from './fitsync.models';
 
@@ -522,6 +522,23 @@ describe('FitSyncDataService', () => {
         ]
       })
     );
+  });
+
+  it('carries the focus areas of the user preferences onto the dashboard profile', () => {
+    let result: DashboardData | undefined;
+    service.getDashboard().subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush(dashboardAnalytics);
+    httpTesting.expectOne((req) => req.url === '/api/v1/analytics/goals/progress').flush(activeGoalProgress);
+    httpTesting.expectOne('/api/v1/users/me').flush({
+      profile: { displayName: 'Wang Xu' },
+      preferences: { training: { focusAreas: ['UPPER', '240003'] } },
+      activeGoals: []
+    });
+    httpTesting.expectOne('/api/v1/workouts/sessions/latest').flush({});
+    httpTesting.expectOne('/api/v1/nutrition/meals/latest').flush({});
+
+    expect(result?.profile.focusAreas).toEqual(['UPPER', 'CORE']);
   });
 
   it('maps empty analytics dashboard fields to friendly empty dashboard data', () => {
@@ -1551,6 +1568,52 @@ describe('FitSyncDataService', () => {
       .flush('nope', { status: 500, statusText: 'Server Error' });
 
     expect(error).toBeTruthy();
+  });
+
+  describe('usualStartTime', () => {
+    function insightWith(extra: Record<string, unknown>): WeeklyTrainingInsight | undefined {
+      let result: WeeklyTrainingInsight | undefined;
+      service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+      httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+        timezone: 'Asia/Singapore',
+        muscleGroups: [],
+        volume: {},
+        ...extra
+      });
+      return result;
+    }
+
+    it('maps a time sent as HH:mm', () => {
+      expect(insightWith({ usualStartTime: '18:30' })?.usualStartTime).toBe('18:30');
+      expect(insightWith({ usualStartTime: '06:05' })?.usualStartTime).toBe('06:05');
+    });
+
+    it('is null when absent or null', () => {
+      expect(insightWith({})?.usualStartTime).toBeNull();
+      expect(insightWith({ usualStartTime: null })?.usualStartTime).toBeNull();
+    });
+
+    it('is null when malformed', () => {
+      for (const bad of ['18:30:00', '6:30', '24:00', '18:61', 'evening', '', 1830, {}, ['18:30']]) {
+        expect(insightWith({ usualStartTime: bad })?.usualStartTime).withContext(JSON.stringify(bad)).toBeNull();
+      }
+    });
+  });
+
+  describe('normalizeFocusAreas', () => {
+    it('keeps the names onboarding uses, once each', () => {
+      expect(normalizeFocusAreas(['UPPER', 'CORE', 'UPPER'])).toEqual(['UPPER', 'CORE']);
+    });
+
+    it('reads the numeric codes and lower-case names', () => {
+      expect(normalizeFocusAreas(['240002', '240004', 'cardio'])).toEqual(['UPPER', 'LOWER', 'CARDIO']);
+    });
+
+    it('drops what is not a name and treats a non-list as empty', () => {
+      expect(normalizeFocusAreas(['UPPER', null, 7, ' '])).toEqual(['UPPER']);
+      expect(normalizeFocusAreas(null)).toEqual([]);
+      expect(normalizeFocusAreas('UPPER')).toEqual([]);
+    });
   });
 
   it('leaves days, today and nextTraining null when the response has none of the day-kinds fields', () => {

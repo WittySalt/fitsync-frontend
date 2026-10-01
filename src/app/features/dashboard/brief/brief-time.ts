@@ -27,6 +27,12 @@ function safeFormatter(timezone: string): Intl.DateTimeFormat {
   }
 }
 
+/** Minutes since local midnight in the given timezone, for comparing with a time of day. */
+export function minutesOfDay(now: Date, timezone: string): number {
+  const { hour, minute } = localHourMinute(now, timezone);
+  return hour * 60 + minute;
+}
+
 export function dayPeriodFor(now: Date, timezone: string): DayPeriod {
   const { hour, minute } = localHourMinute(now, timezone);
   const minutesOfDay = hour * 60 + minute;

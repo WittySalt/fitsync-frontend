@@ -120,6 +120,9 @@
           </div>
           @if (sectors().length) {
             <app-muscle-wheel [sectors]="sectors()" [completed]="completed()" [target]="weeklyTarget()" />
+            @if (activePlan()) {
+              <app-focus-line [focusAreas]="focusAreas()" [sectors]="sectors()" />
+            }
           } @else {
             <div class="panel-value">
               <span class="panel-number">
