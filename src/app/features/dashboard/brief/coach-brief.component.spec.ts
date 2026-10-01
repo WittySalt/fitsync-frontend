@@ -186,7 +186,7 @@ describe('CoachBriefComponent', () => {
         'Shoulders and arms belong to your upper-body focus and are not in your plan. Add them'
       );
       const link = line()?.querySelector<HTMLAnchorElement>('a.focus-link');
-      expect(link?.getAttribute('href')).toBe('/workout?tab=plans');
+      expect(link?.getAttribute('href')).toBe('/workout?tab=plans&edit=active');
     });
 
     it('stays out when every focus group is on the wheel or no focus was chosen', () => {

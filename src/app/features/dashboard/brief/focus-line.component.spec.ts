@@ -28,7 +28,7 @@ describe('FocusLineComponent', () => {
     );
     const link = root().querySelector<HTMLAnchorElement>('a.focus-link');
     expect(link?.textContent?.trim()).toBe('Add them');
-    expect(link?.getAttribute('href')).toBe('/workout?tab=plans');
+    expect(link?.getAttribute('href')).toBe('/workout?tab=plans&edit=active');
   });
 
   it('says "Add it" for a single group', () => {

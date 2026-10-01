@@ -42,7 +42,7 @@ export interface FocusLine {
 /** The router target of the link: the Workout page on its plans tab, where the active plan is
  *  edited. The page opens a plan for editing only from its own Edit button, so there is no deeper
  *  address to link to. */
-export const FOCUS_LINK = { path: ['/workout'], queryParams: { tab: 'plans' } } as const;
+export const FOCUS_LINK = { path: ['/workout'], queryParams: { tab: 'plans', edit: 'active' } } as const;
 
 /** The groups a focus area stands for. An area that cannot be mapped gives none. */
 export function focusAreaGroups(area: string): MuscleGroupCode[] {

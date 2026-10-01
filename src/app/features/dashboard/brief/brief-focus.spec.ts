@@ -98,6 +98,6 @@ describe('focusLine', () => {
 describe('the link of the focus line', () => {
   it('opens the plans tab of the Workout page', () => {
     expect(FOCUS_LINK.path).toEqual(['/workout']);
-    expect(FOCUS_LINK.queryParams).toEqual({ tab: 'plans' });
+    expect(FOCUS_LINK.queryParams).toEqual({ tab: 'plans', edit: 'active' });
   });
 });
