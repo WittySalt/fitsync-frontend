@@ -392,7 +392,7 @@ describe('WorkoutPage and the workout in progress', () => {
       fixture.detectChanges();
 
       expect(player(fixture)).toBeDefined();
-      expect(fixture.componentInstance.filterStatus()).toBe('COMPLETED');
+      expect(fixture.componentInstance.filterStatus()).toBe('');
       expect(fixture.componentInstance.selectedTab()).toBe('overview');
     });
   });
@@ -419,10 +419,12 @@ describe('WorkoutPage and the workout in progress', () => {
       const active = { ...weeklyPlan(), planId: 'plan-a', name: 'Active one' };
       const draft = { ...weeklyPlan(), planId: 'plan-d', name: 'Draft one', status: 'DRAFT' as const };
       dataService.getWorkoutPlans.and.returnValue(of([active, draft]));
+      dataService.getActivePlan.and.returnValue(of(active));
       const fixture = createPage();
 
       selectTab(fixture, 'plans');
 
+      // The current plan is shown first and is left out of the list below it.
       const cards = [...root(fixture).querySelectorAll('.plan-card')];
       const starts = (card: Element) => [...card.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Start session');
       expect(cards.length).toBe(2);
@@ -507,6 +509,8 @@ describe('WorkoutPage and the workout in progress', () => {
       dataService.getActiveWorkout.and.returnValue(of({ session: running(), resume: null }));
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.componentInstance.workoutLive.refresh();
+      // The filter leaves out in-progress sessions, and the running one is listed all the same.
+      fixture.componentInstance.filterStatus.set('COMPLETED');
       fixture.detectChanges();
 
       const rows = history(fixture);

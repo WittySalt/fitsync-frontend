@@ -1,0 +1,93 @@
+<div class="habit">
+  <div class="recommend">
+    @if (sourceLine()) {
+      <p class="source">{{ sourceLine() }}</p>
+    }
+    @if (facts().length) {
+      <ul class="facts" aria-label="Last time">
+        @for (fact of facts(); track $index) {
+          <li>{{ fact }}</li>
+        }
+      </ul>
+    }
+    @if (names().length) {
+      <ul class="names" aria-label="Exercises">
+        @for (name of names(); track $index) {
+          <li>{{ name }}</li>
+        }
+      </ul>
+    }
+    <button class="start" type="button" [disabled]="busy()" (click)="startThis()">
+      <span>{{ busy() ? 'Starting…' : 'Start this' }}</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14"></path>
+        <path d="M13 6l6 6-6 6"></path>
+      </svg>
+    </button>
+  </div>
+
+  <button class="more" type="button" [attr.aria-expanded]="open()" [attr.aria-controls]="panelId" (click)="toggle()">
+    Choose something else
+  </button>
+
+  @if (open()) {
+    <div class="choices" [id]="panelId">
+      @if (planChoices().length) {
+        <section class="group" [attr.aria-labelledby]="panelId + '-plan'">
+          <h3 [id]="panelId + '-plan'">From my plan</h3>
+          <ul class="plan-rows">
+            @for (choice of planChoices(); track $index) {
+              <li class="plan-row">
+                <span class="plan-copy">
+                  <strong>{{ choice.title }}</strong>
+                  @if (choice.detail) {
+                    <small>{{ choice.detail }}</small>
+                  }
+                </span>
+                <button
+                  class="small"
+                  type="button"
+                  [disabled]="planBusy()"
+                  [attr.aria-label]="'Start ' + choice.title"
+                  (click)="startPlan(choice)"
+                >
+                  Start
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      <section class="group" [attr.aria-labelledby]="panelId + '-timer'">
+        <h3 [id]="panelId + '-timer'">Just a timer</h3>
+        <div class="timers">
+          @for (timer of timers; track timer.type) {
+            <button class="small" type="button" [disabled]="busy()" (click)="startTimer(timer.type)">{{ timer.label }}</button>
+          }
+          <button class="small" type="button" [attr.aria-pressed]="sportPickerOpen()" [disabled]="busy()" (click)="openSportPicker()">Sport</button>
+        </div>
+        @if (sportPickerOpen()) {
+          <div class="sport">
+            <label [for]="sportSelectId">Sport</label>
+            <select [id]="sportSelectId" [value]="sportCode()" (change)="chooseSport($any($event.target).value)">
+              <option value="">Choose a sport</option>
+              @for (sport of sports(); track sport.code) {
+                <option [value]="sport.code" [selected]="sport.code === sportCode()">{{ sport.label }}</option>
+              }
+            </select>
+            <button class="small solid" type="button" [disabled]="busy() || !sportCode()" (click)="startSport()">Start</button>
+          </div>
+          @if (sportsFailed()) {
+            <p class="note" role="status">Sports could not be loaded.</p>
+          }
+        }
+      </section>
+
+      <section class="group" [attr.aria-labelledby]="panelId + '-coach'">
+        <h3 [id]="panelId + '-coach'">Ask your coach</h3>
+        <button class="small wide" type="button" (click)="askCoach()">{{ question() }}</button>
+      </section>
+    </div>
+  }
+</div>

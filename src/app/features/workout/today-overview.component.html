@@ -34,6 +34,16 @@
         </ul>
       }
 
+      @if (c.habit; as habit) {
+        <app-habit-day-start
+          [today]="habit"
+          [activePlan]="activePlan()"
+          [planBusy]="starting()"
+          (started)="habitStarted.emit($event)"
+          (startPlanDay)="startHabitPlanDay($event)"
+        />
+      }
+
       @if (c.rows.length) {
         <ul class="moves">
           @for (exercise of c.rows; track exerciseKey(exercise); let index = $index) {

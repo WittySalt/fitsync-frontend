@@ -145,6 +145,8 @@ export interface WorkoutSessionPage {
 }
 
 export interface WorkoutSessionQuery {
+  /** Part of the session name, matched by the server without regard to case. At most 80 characters. */
+  q?: string;
   status?: string;
   workoutType?: string;
   minDurationMinutes?: number | null;
@@ -171,6 +173,8 @@ export interface StartAdHocSessionInput {
   name: string;
   workoutType: string;
   notes?: string | null;
+  /** Required by the backend when the workout type is SPORTS. */
+  sportActivity?: string | null;
 }
 
 export interface WorkoutSessionDetail extends WorkoutSession {
@@ -684,6 +688,10 @@ export interface LastOfKind {
   minutes: number | null;
   distanceKm: number | null;
   paceSecondsPerKm: number | null;
+  /** The earlier session, so it can be repeated. Null when there is none; absent on an older backend. */
+  sessionId?: string | null;
+  /** The exercises of that session, at most six. */
+  exerciseNames?: string[];
 }
 
 /** A plan day from earlier this week that is still open, offered back on a rest or open today. */

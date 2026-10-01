@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { EMPTY, Observable, Subject, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 
@@ -35,6 +36,16 @@ export const STILL_RUNNING_NOTICE =
 
 const MIN_SAVED_SECONDS = 60;
 
+export const NOTHING_LOGGED_NOTICE = 'No set was logged, so this workout was not saved.';
+const NOTHING_LOGGED = 'NOTHING_LOGGED';
+
+/** The server's refusal to complete a workout that has exercises and not one logged set. */
+function isNothingLogged(error: unknown): boolean {
+  return error instanceof HttpErrorResponse
+    && error.status === 400
+    && (error.error as { code?: unknown } | null)?.code === NOTHING_LOGGED;
+}
+
 /**
  * The one workout in progress: the session, its timer, where the person left off, and every way
  * of starting or ending it. The bar, the exercise screen and the history list all read from here,
@@ -62,6 +73,9 @@ export class WorkoutLiveService {
   readonly openRequests = new Subject<void>();
   /** A workout was ended, or a refused start went through, outside the page's own handlers. */
   readonly changedElsewhere = new Subject<WorkoutSessionDetail>();
+  /** True when the last finish cancelled the workout because no set was logged. The service has
+   *  already told the person, so a caller does not add a notice of its own. */
+  readonly nothingLoggedCancel = signal(false);
 
   private readonly nowMs = signal(Date.now());
   private timerId: ReturnType<typeof setInterval> | null = null;
@@ -277,14 +291,24 @@ export class WorkoutLiveService {
   }
 
   finish(): Observable<WorkoutSessionDetail> {
-    const sessionId = this.session()?.sessionId;
-    if (!sessionId) {
+    const current = this.session();
+    const sessionId = current?.sessionId;
+    if (!current || !sessionId) {
       return throwError(() => new Error('No live workout session to finish.'));
+    }
+
+    this.nothingLoggedCancel.set(false);
+    // A workout with exercises and no logged set is not worth saving, however long it ran.
+    if (this.hasNothingLogged(current)) {
+      return this.cancelForNothingLogged(sessionId).pipe(tap((session) => this.end(session)));
     }
 
     const write = this.elapsedSeconds() < MIN_SAVED_SECONDS
       ? this.dataService.cancelSession(sessionId)
-      : this.dataService.completeSession(sessionId);
+      : this.dataService.completeSession(sessionId).pipe(
+          // Another device may have changed the sets, so the server can still refuse.
+          catchError((error: unknown) => (isNothingLogged(error) ? this.cancelForNothingLogged(sessionId) : throwError(() => error)))
+        );
 
     return write.pipe(tap((session) => this.end(session)));
   }
@@ -345,6 +369,19 @@ export class WorkoutLiveService {
         }
         this.pendingStart.set({ info, retry: start, message });
         return EMPTY;
+      })
+    );
+  }
+
+  private hasNothingLogged(session: WorkoutSessionDetail): boolean {
+    return session.exercises.length > 0 && !session.exercises.some((log) => log.sets.some((set) => set.logged));
+  }
+
+  private cancelForNothingLogged(sessionId: string): Observable<WorkoutSessionDetail> {
+    return this.dataService.cancelSession(sessionId).pipe(
+      tap(() => {
+        this.nothingLoggedCancel.set(true);
+        this.toast.info(NOTHING_LOGGED_NOTICE);
       })
     );
   }

@@ -79,6 +79,7 @@
           (startExercise)="handleTodayExerciseStart($event)"
           (logManually)="handleTodayLogManually($event)"
           (openSession)="handleTodayOpenSession($event)"
+          (habitStarted)="handleHabitStarted()"
           (browsePlans)="browsePlans()"
           (templateActivated)="handleTemplateActivated($event)"
         />
@@ -91,148 +92,175 @@
     </div>
   } @else if (selectedTab() === 'plans') {
     <section id="workout-panel-plans" class="plans-panel" role="tabpanel" aria-labelledby="workout-tab-plans">
-      <form class="summary-card plan-form" [formGroup]="planForm" (ngSubmit)="savePlan()">
-        <div class="section-title">
-          <div>
-            <span class="card-label">{{ editingPlanId() ? 'Edit plan' : 'New plan' }}</span>
-            <h2>{{ editingPlanId() ? 'Update workout plan' : 'Create workout plan' }}</h2>
-          </div>
-          @if (editingPlanId()) {
-            <button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button>
-          }
-        </div>
-
-        <div class="form-grid">
-          <label>
-            Name
-            <input formControlName="name" type="text" maxlength="120" autocomplete="off" />
-          </label>
-          <label>
-            Duration
-            <input formControlName="estimatedDurationMinutes" type="number" min="1" inputmode="numeric" />
-          </label>
-          <label>
-            Goal focus
-            <select formControlName="goalFocus">
-              @for (option of goalFocusOptions; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            Workout type
-            <select formControlName="workoutType">
-              @for (option of workoutTypeOptions; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            Difficulty
-            <select formControlName="difficulty">
-              @for (option of difficultyOptions; track option) {
-                <option [value]="option">{{ formatLabel(option) }}</option>
-              }
-            </select>
-          </label>
-          <label class="wide">
-            Description
-            <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
-          </label>
-        </div>
-
-        <div class="plan-blueprint">
-          <div class="plan-card-header">
-            <span class="card-label">{{ planMode() === 'week' ? 'Weekly plan' : 'Exercise blueprint' }}</span>
-            <div class="blueprint-actions">
-              <div class="segmented" role="group" aria-label="Plan layout">
-                <button type="button" [class.active]="planMode() === 'list'" [attr.aria-pressed]="planMode() === 'list'" (click)="setPlanMode('list')">One list</button>
-                <button type="button" [class.active]="planMode() === 'week'" [attr.aria-pressed]="planMode() === 'week'" (click)="setPlanMode('week')">A week</button>
-              </div>
-              @if (planMode() === 'list') {
-                <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
-              }
+      @if (planFormOpen()) {
+        <form #planFormEl id="plan-form" class="summary-card plan-form" [formGroup]="planForm" (ngSubmit)="savePlan()">
+          <div class="section-title">
+            <div>
+              <span class="card-label">{{ editingPlanId() ? 'Edit plan' : 'New plan' }}</span>
+              <h2>{{ editingPlanId() ? 'Update workout plan' : 'Create workout plan' }}</h2>
             </div>
+            <button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button>
           </div>
-          @if (planMode() === 'week') {
-            <app-plan-week-editor
-              [week]="planWeek"
-              [planName]="planForm.controls.name.value ?? ''"
-              [sportActivities]="sportActivities()"
-              [(selectedDay)]="selectedPlanDay"
-            />
-          } @else {
-            <app-plan-exercise-rows [rows]="planExercises" (removeRow)="removePlanExercise($event)" />
-          }
-        </div>
 
-        <button class="button primary" type="submit" [disabled]="savingPlan()">
-          {{ savingPlan() ? 'Saving...' : editingPlanId() ? 'Update plan' : 'Create plan' }}
-        </button>
-      </form>
+          <div class="form-grid">
+            <label>
+              Name
+              <input #planName formControlName="name" type="text" maxlength="120" autocomplete="off" />
+            </label>
+            <label>
+              Duration
+              <input formControlName="estimatedDurationMinutes" type="number" min="1" inputmode="numeric" />
+            </label>
+            <label>
+              Goal focus
+              <select formControlName="goalFocus">
+                @for (option of goalFocusOptions; track option) {
+                  <option [value]="option">{{ formatLabel(option) }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Workout type
+              <select formControlName="workoutType">
+                @for (option of workoutTypeOptions; track option) {
+                  <option [value]="option">{{ formatLabel(option) }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Difficulty
+              <select formControlName="difficulty">
+                @for (option of difficultyOptions; track option) {
+                  <option [value]="option">{{ formatLabel(option) }}</option>
+                }
+              </select>
+            </label>
+            <label class="wide">
+              Description
+              <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
+            </label>
+          </div>
 
-      <div class="plan-toolbar">
-        <fieldset class="segmented" aria-label="Plan status filter">
-          @for (status of planStatusOptions; track status ?? 'ALL') {
-            <button
-              type="button"
-              [class.active]="planStatus() === status"
-              [attr.aria-pressed]="planStatus() === status"
-              (click)="selectPlanStatus(status)"
-            >
-              {{ status ? formatLabel(status) : 'All' }}
-            </button>
-          }
-        </fieldset>
-      </div>
-
-      @if (loading()) {
-        <div class="summary-card skeleton tall"></div>
-      } @else if (planError()) {
-        <app-state-panel title="Plans unavailable" [message]="planError() ?? 'Unable to load workout plans.'" />
-      } @else if (plans().length) {
-        <div class="plan-grid">
-          @for (plan of plans(); track plan.planId ?? plan.name) {
-            <article class="plan-card">
-              <div class="plan-card-header">
-                <span class="card-label">{{ formatLabel(plan.status) }}</span>
-                @if (plan.days?.length) {
-                  <app-plan-week-summary [days]="plan.days ?? []" [sessions]="plan.sessionsPerWeek ?? plan.days?.length ?? 0" />
-                } @else {
-                  <span>{{ plan.exerciseCount }} exercises</span>
+          <div class="plan-blueprint">
+            <div class="plan-card-header">
+              <span class="card-label">{{ planMode() === 'week' ? 'Weekly plan' : 'Exercise blueprint' }}</span>
+              <div class="blueprint-actions">
+                <div class="segmented" role="group" aria-label="Plan layout">
+                  <button type="button" [class.active]="planMode() === 'list'" [attr.aria-pressed]="planMode() === 'list'" (click)="setPlanMode('list')">One list</button>
+                  <button type="button" [class.active]="planMode() === 'week'" [attr.aria-pressed]="planMode() === 'week'" (click)="setPlanMode('week')">A week</button>
+                </div>
+                @if (planMode() === 'list') {
+                  <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
                 }
               </div>
-              <h2>{{ plan.name }}</h2>
-              <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>
-              <dl class="inline-stats">
-                <div>
-                  <dt>Duration</dt>
-                  <dd>{{ plan.estimatedDurationMinutes }} min</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{{ formatLabel(plan.status) }}</dd>
-                </div>
-              </dl>
-              <div class="plan-actions">
-                <button class="button secondary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="editPlan(plan)">Edit</button>
-                @if (plan.status !== 'ACTIVE') {
-                  <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
-                }
-                <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
-                @if (plan.status === 'ACTIVE') {
-                  <button class="button primary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
-                }
-              </div>
-            </article>
-          }
-        </div>
-      } @else {
-        <app-state-panel
-          title="No plans yet"
-          message="Create a reusable plan or switch the status filter to find archived plans."
-        />
+            </div>
+            @if (planMode() === 'week') {
+              <app-plan-week-editor
+                [week]="planWeek"
+                [planName]="planForm.controls.name.value ?? ''"
+                [sportActivities]="sportActivities()"
+                [(selectedDay)]="selectedPlanDay"
+              />
+            } @else {
+              <app-plan-exercise-rows [rows]="planExercises" (removeRow)="removePlanExercise($event)" />
+            }
+          </div>
+
+          <button class="button primary" type="submit" [disabled]="savingPlan()">
+            {{ savingPlan() ? 'Saving...' : editingPlanId() ? 'Update plan' : 'Create plan' }}
+          </button>
+        </form>
       }
+
+      <ng-template #planCard let-plan>
+      <article class="plan-card">
+        <div class="plan-card-header">
+          <span class="card-label">{{ formatLabel(plan.status) }}</span>
+          @if (plan.days?.length) {
+            <app-plan-week-summary [days]="plan.days ?? []" [sessions]="plan.sessionsPerWeek ?? plan.days?.length ?? 0" />
+          } @else {
+            <span>{{ plan.exerciseCount }} exercises</span>
+          }
+        </div>
+        <h3>{{ plan.name }}</h3>
+        <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>
+        <dl class="inline-stats">
+          <div>
+            <dt>Duration</dt>
+            <dd>{{ plan.estimatedDurationMinutes }} min</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{{ formatLabel(plan.status) }}</dd>
+          </div>
+        </dl>
+        <div class="plan-actions">
+          <button class="button secondary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="editPlan(plan)">Edit</button>
+          @if (plan.status !== 'ACTIVE') {
+            <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
+          }
+          <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
+          @if (plan.status === 'ACTIVE') {
+            <button class="button primary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
+          }
+        </div>
+      </article>
+      </ng-template>
+
+      <section class="plan-section" aria-labelledby="plans-current-title">
+        <div class="section-title">
+          <h2 id="plans-current-title">Current plan</h2>
+          @if (!planFormOpen()) {
+            <button class="button secondary" type="button" (click)="openNewPlan()">New plan</button>
+          }
+        </div>
+        @if (activePlan(); as current) {
+          <div class="plan-grid">
+            <ng-container [ngTemplateOutlet]="planCard" [ngTemplateOutletContext]="{ $implicit: current }" />
+          </div>
+        } @else if (activePlanLoading()) {
+          <div class="summary-card skeleton tall"></div>
+        } @else {
+          <div class="summary-card section-title">
+            <p>No current plan</p>
+            <button class="button primary" type="button" (click)="openNewPlan()">New plan</button>
+          </div>
+        }
+      </section>
+
+      <section class="plan-section" aria-labelledby="plans-other-title">
+        <div class="section-title">
+          <h2 id="plans-other-title">Other plans</h2>
+          <fieldset class="segmented" aria-label="Plan status filter">
+            @for (status of planStatusOptions; track status ?? 'ALL') {
+              <button
+                type="button"
+                [class.active]="planStatus() === status"
+                [attr.aria-pressed]="planStatus() === status"
+                (click)="selectPlanStatus(status)"
+              >
+                {{ status ? formatLabel(status) : 'All' }}
+              </button>
+            }
+          </fieldset>
+        </div>
+        @if (loading()) {
+          <div class="summary-card skeleton tall"></div>
+        } @else if (planError()) {
+          <app-state-panel title="Plans unavailable" [message]="planError() ?? 'Unable to load workout plans.'" />
+        } @else if (otherPlans().length) {
+          <div class="plan-grid">
+            @for (plan of otherPlans(); track plan.planId ?? plan.name) {
+              <ng-container [ngTemplateOutlet]="planCard" [ngTemplateOutletContext]="{ $implicit: plan }" />
+            }
+          </div>
+        } @else {
+          <app-state-panel
+            title="No other plans"
+            message="Nothing matches this filter. Create a plan, or switch the filter to find the others."
+          />
+        }
+      </section>
     </section>
   } @else if (selectedTab() === 'history') {
     <section id="workout-panel-history" class="summary-card" role="tabpanel" aria-labelledby="workout-tab-history">
@@ -251,7 +279,8 @@
           <input
             type="search"
             autocomplete="off"
-            placeholder="Session name (current page)"
+            maxlength="80"
+            placeholder="Session name"
             [value]="historySearch()"
             (input)="setHistorySearch($any($event.target).value)"
           />

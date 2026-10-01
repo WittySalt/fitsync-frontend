@@ -11,6 +11,7 @@ import {
   findPlanExercise,
   formatTargetDuration,
   resolveExerciseSets,
+  sameTarget,
   targetLine,
   valuesLine
 } from './player-targets';
@@ -217,6 +218,51 @@ describe('player targets', () => {
     it('counts the sets when they differ or have no target', () => {
       expect(exerciseSummary([set(1, { reps: 10 }), set(2, { reps: 8 }), set(3, { reps: 8 })])).toBe('3 sets');
       expect(exerciseSummary([{ setNumber: 1, target: null, logged: null, skipped: false }])).toBe('1 set');
+    });
+  });
+
+  describe('comparing a set with its plan', () => {
+    const target = (values: Partial<SetTarget>): SetTarget => ({
+      reps: null,
+      weightKg: null,
+      durationSeconds: null,
+      distanceKm: null,
+      restSeconds: null,
+      ...values
+    });
+
+    it('treats equal values as the same, whatever the number is written like', () => {
+      expect(sameTarget(target({ reps: 10, weightKg: 20 }), target({ reps: 10, weightKg: 20.0 }))).toBeTrue();
+      expect(sameTarget(target({ reps: 10, weightKg: 20 }), target({ reps: 10, weightKg: 20.001 }))).toBeTrue();
+    });
+
+    it('treats a missing weight on both sides as equal', () => {
+      expect(sameTarget(target({ reps: 8 }), target({ reps: 8 }))).toBeTrue();
+    });
+
+    it('tells a different count of reps apart', () => {
+      expect(sameTarget(target({ reps: 10, weightKg: 20 }), target({ reps: 8, weightKg: 20 }))).toBeFalse();
+    });
+
+    it('tells a different weight apart, and a missing one from a present one', () => {
+      expect(sameTarget(target({ reps: 10, weightKg: 20 }), target({ reps: 10, weightKg: 22.5 }))).toBeFalse();
+      expect(sameTarget(target({ reps: 10, weightKg: 20 }), target({ reps: 10 }))).toBeFalse();
+    });
+
+    it('ignores what the line does not show, such as a time beside the reps or the rest', () => {
+      expect(sameTarget(target({ reps: 10, restSeconds: 60 }), target({ reps: 10, durationSeconds: 35 }))).toBeTrue();
+    });
+
+    it('compares time and distance for a set without reps', () => {
+      expect(sameTarget(target({ durationSeconds: 1800, distanceKm: 5.75 }), target({ durationSeconds: 1800, distanceKm: 5.75 }))).toBeTrue();
+      expect(sameTarget(target({ durationSeconds: 1800 }), target({ durationSeconds: 1500 }))).toBeFalse();
+      expect(sameTarget(target({ reps: 10 }), target({ durationSeconds: 30 }))).toBeFalse();
+    });
+
+    it('is the same only when both sides are missing, or both present', () => {
+      expect(sameTarget(null, null)).toBeTrue();
+      expect(sameTarget(null, target({ reps: 10 }))).toBeFalse();
+      expect(sameTarget(target({ reps: 10 }), null)).toBeFalse();
     });
   });
 });

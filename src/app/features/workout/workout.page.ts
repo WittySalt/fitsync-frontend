@@ -1,6 +1,9 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { Component, computed, DestroyRef, effect, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { CoachContextService } from '../../core/coach/coach-context.service';
@@ -76,6 +79,8 @@ interface WeeklyGoalOffer {
   existing: UserGoal | null;
 }
 
+const HISTORY_SEARCH_MAX = 80;
+
 type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
@@ -83,6 +88,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   imports: [InsightPanelComponent,
     AutoClosedNoticeComponent,
     ReactiveFormsModule,
+    NgTemplateOutlet,
     PlanExerciseRowsComponent,
     PlanWeekEditorComponent,
     PlanWeekSummaryComponent,
@@ -107,6 +113,11 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly workoutLive = inject(WorkoutLiveService);
   private readonly coachContext = inject(CoachContextService);
   private readonly liveStartCard = viewChild(LiveStartCardComponent);
+  private readonly injector = inject(Injector);
+  private readonly planFormEl = viewChild<ElementRef<HTMLElement>>('planFormEl');
+  private readonly planNameInput = viewChild<ElementRef<HTMLInputElement>>('planName');
+  /** What the search box holds, as typed. The server is asked once the typing pauses. */
+  private readonly searchTyped = new Subject<string>();
 
   readonly plans = signal<WorkoutPlan[]>([]);
   readonly sessions = signal<WorkoutSession[]>([]);
@@ -125,7 +136,10 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly sportActivities = signal<SportActivityOption[]>([]);
   readonly weeklyGoalOffer = signal<WeeklyGoalOffer | null>(null);
   readonly weeklyGoalSaving = signal(false);
-  readonly planStatus = signal<WorkoutPlanStatus | null>('ACTIVE');
+  // The active plan has its own section above the list, so it is not a filter value.
+  readonly planStatus = signal<WorkoutPlanStatus | null>('DRAFT');
+  readonly planFormOpen = signal(false);
+  readonly activePlanLoading = signal(true);
   readonly editingPlanId = signal<string | null>(null);
   readonly savingPlan = signal(false);
   readonly planMutations = signal<Set<string>>(new Set());
@@ -153,13 +167,13 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly dataToolsOpen = signal(false);
   readonly historySearch = signal('');
   readonly filterType = signal('');
-  readonly filterStatus = signal('COMPLETED');
+  readonly filterStatus = signal('');
   readonly filterDuration = signal<HistoryDurationFilter>('');
   readonly filterDateFrom = signal('');
   readonly filterDateTo = signal('');
   readonly page = signal(0);
   readonly pageSize = signal(8);
-  readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['ACTIVE', 'DRAFT', 'ARCHIVED', null];
+  readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['DRAFT', 'ARCHIVED', null];
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
@@ -220,12 +234,10 @@ export class WorkoutPage implements OnInit, OnDestroy {
     return recent.status === 'COMPLETED' || recent.status === 'CANCELLED' ? recent : null;
   });
 
-  // Server-side filters (status/type/duration/date) + pagination drive this list.
-  // Name search has no backend param, so it refines the loaded page client-side only.
-  readonly visibleSessions = computed(() => {
-    const search = this.historySearch().trim().toLowerCase();
-    const rows = this.sessions();
-    return search ? rows.filter((session) => session.name.toLowerCase().includes(search)) : rows;
+  /** The plans of the chosen filter, without the current plan, which has its own section. */
+  readonly otherPlans = computed(() => {
+    const currentId = this.activePlan()?.planId;
+    return this.plans().filter((plan) => plan.status !== 'ACTIVE' && !(currentId && plan.planId === currentId));
   });
 
   /** The workout in progress leads the first page of the history, whatever the status filter says. */
@@ -240,12 +252,20 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   readonly historyRows = computed(() => {
     const runningId = this.runningRow()?.sessionId;
-    return runningId ? this.visibleSessions().filter((session) => session.sessionId !== runningId) : this.visibleSessions();
+    return runningId ? this.sessions().filter((session) => session.sessionId !== runningId) : this.sessions();
   });
 
   constructor() {
     // The bar steps aside while the exercise screen is showing.
     effect(() => this.workoutLive.screenOpen.set(this.screenVisible()));
+    this.searchTyped
+      .pipe(
+        debounceTime(300),
+        map((value) => value.trim()),
+        distinctUntilChanged(),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.reloadHistoryFromFirstPage());
   }
 
   ngOnDestroy(): void {
@@ -293,8 +313,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   setHistorySearch(value: string): void {
-    // Name search has no backend param; refine the loaded page client-side only.
     this.historySearch.set(value);
+    this.searchTyped.next(value);
   }
 
   setFilterType(value: string): void {
@@ -373,11 +393,19 @@ export class WorkoutPage implements OnInit, OnDestroy {
     }
   }
 
+  /** The New plan button: an empty form, brought into view with the cursor in the name. */
+  openNewPlan(): void {
+    this.editingPlanId.set(null);
+    this.resetPlanForm();
+    this.revealPlanForm();
+  }
+
   editPlan(plan: WorkoutPlan): void {
     if (!plan.planId) {
       this.toast.error('This sample plan cannot be edited until the workout API is available.');
       return;
     }
+    this.revealPlanForm();
 
     this.editingPlanId.set(plan.planId);
     this.planForm.patchValue({
@@ -412,6 +440,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   cancelEdit(): void {
     this.editingPlanId.set(null);
     this.resetPlanForm();
+    this.planFormOpen.set(false);
   }
 
   savePlan(): void {
@@ -454,7 +483,11 @@ export class WorkoutPage implements OnInit, OnDestroy {
         this.toast.success(editingId ? 'Plan updated.' : 'Plan created.');
         this.resetPlanForm();
         this.editingPlanId.set(null);
-        this.planStatus.set(plan.status === 'ARCHIVED' ? 'ARCHIVED' : (plan.status as WorkoutPlanStatus));
+        this.planFormOpen.set(false);
+        // A saved draft or archived plan is shown under its own filter; an active one is the current plan.
+        if (plan.status === 'DRAFT' || plan.status === 'ARCHIVED') {
+          this.planStatus.set(plan.status);
+        }
         this.loadPlans();
         this.loadActivePlan();
       },
@@ -475,7 +508,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.dataService.activateWorkoutPlan(plan.planId).subscribe({
       next: (activated) => {
         this.toast.success('Plan activated.');
-        this.planStatus.set('ACTIVE');
         this.loadPlans();
         this.loadActivePlan();
         this.offerWeeklyGoal(activated);
@@ -558,6 +590,13 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   handleTodayStart(event: TodayStartEvent): void {
     this.startGuidedPlan(event.plan, null, event.planDayId);
+  }
+
+  /** The habit day started a session through the live service, so the exercise screen opens. */
+  handleHabitStarted(): void {
+    this.liveTrackerGoal.set(null);
+    this.openScreen();
+    this.loadSessions();
   }
 
   handleTodayExerciseStart(exercise: WorkoutPlanExercise): void {
@@ -655,7 +694,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   handleTemplateActivated(plan: WorkoutPlan): void {
     this.activePlan.set(plan);
-    this.planStatus.set('ACTIVE');
     this.loadPlans();
     this.loadActivePlan();
     this.offerWeeklyGoal(plan);
@@ -880,6 +918,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private historyQuery(): WorkoutSessionQuery {
     const [minDurationMinutes, maxDurationMinutes] = this.durationBounds(this.filterDuration());
     return {
+      q: this.historySearch().trim().slice(0, HISTORY_SEARCH_MAX) || undefined,
       status: this.filterStatus() || undefined,
       workoutType: this.filterType() || undefined,
       minDurationMinutes,
@@ -915,6 +954,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private loadActivePlan(): void {
     this.dataService.getActivePlan().subscribe((plan) => {
       this.activePlan.set(plan);
+      this.activePlanLoading.set(false);
       if (this.editActiveOnArrival) {
         this.editActiveOnArrival = false;
         if (plan?.planId) {
@@ -939,6 +979,18 @@ export class WorkoutPage implements OnInit, OnDestroy {
     return this.planMode() === 'week'
       ? { ...request, exercises: [], days: buildWeekRequest(this.planWeek) }
       : request;
+  }
+
+  /** Opens the form and, once it is on screen, scrolls to it and puts the cursor in the Name field. */
+  private revealPlanForm(): void {
+    this.planFormOpen.set(true);
+    afterNextRender(
+      () => {
+        this.planFormEl()?.nativeElement.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        this.planNameInput()?.nativeElement.focus({ preventScroll: true });
+      },
+      { injector: this.injector }
+    );
   }
 
   private resetPlanForm(): void {
