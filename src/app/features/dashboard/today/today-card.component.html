@@ -77,7 +77,7 @@
           <div class="skeleton panel-skeleton" aria-hidden="true"></div>
         } @else {
           @if (dashboard(); as data) {
-            <app-today-body [metric]="data.latestBodyMetric" [now]="now()" />
+            <app-today-body [metric]="data.latestBodyMetric" [now]="now()" [timezone]="data.profile.timezone" />
           }
         }
       </div>

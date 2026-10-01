@@ -1,0 +1,113 @@
+// The panel around this body is dark in both themes, so these colours are fixed rather than taken
+// from the brief's tokens. The layout follows the width of the panel itself, which is a narrow
+// column beside the calendar or the full width of the brief below it.
+:host {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  container-type: inline-size;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green-400);
+}
+
+.since {
+  font-size: 14px;
+  color: var(--slate-300);
+}
+
+.charts {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px 12px;
+  padding: 12px;
+  border: 1px solid var(--slate-700);
+  border-radius: 14px;
+}
+
+.chart {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--slate-300);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+.block {
+  display: block;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.block-figure {
+  height: 54px;
+}
+
+// These heights are those of the charts and of the three observations once the month has loaded,
+// so the panel does not change height when the answer arrives.
+.block-charts {
+  height: 422px;
+  border-radius: 14px;
+}
+
+.block-notes {
+  height: 163px;
+}
+
+// Beside the calendar the panel is a column of about 370 px, which holds the two charts side by
+// side. On a phone it is narrower and they stack.
+@container (min-width: 340px) {
+  .block-charts {
+    height: 210px;
+  }
+
+  .charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@container (max-width: 319px) {
+  .skeleton-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 640px) {
+  .skeleton-figures {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}

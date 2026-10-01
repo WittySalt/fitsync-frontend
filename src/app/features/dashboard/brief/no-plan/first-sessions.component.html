@@ -1,0 +1,51 @@
+<section class="first-sessions" aria-labelledby="first-sessions-title" [attr.aria-busy]="!ready()">
+  <div class="heading">
+    <span class="eyebrow">Start here</span>
+    <h2 id="first-sessions-title">Three ways to begin</h2>
+  </div>
+
+  <ul class="cards" role="list">
+    @if (ready()) {
+      @for (option of options(); track option.template.id; let first = $first) {
+        <li class="card">
+          <div class="card-top">
+            <span class="glyph">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                @for (part of option.glyph; track $index) {
+                  @switch (part.tag) {
+                    @case ('path') { <path [attr.d]="part.d"></path> }
+                    @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                    @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+                  }
+                }
+              </svg>
+            </span>
+            <span class="difficulty">{{ option.difficulty }}</span>
+          </div>
+          <div class="card-body">
+            @if (first && personalised()) {
+              <span class="card-eyebrow">Closest to what you told us</span>
+            }
+            <h3>{{ option.template.name }}</h3>
+            <span class="meta">{{ option.meta }}</span>
+          </div>
+          <button
+            type="button"
+            class="start"
+            [disabled]="startingId() !== null || started()"
+            [attr.aria-busy]="startingId() === option.template.id ? 'true' : null"
+            (click)="start(option.template)"
+          >
+            Start with this
+          </button>
+        </li>
+      }
+    } @else {
+      @for (placeholder of [0, 1, 2]; track placeholder) {
+        <li class="card placeholder" aria-hidden="true"></li>
+      }
+    }
+  </ul>
+
+  <a class="browse" routerLink="/workout" [queryParams]="{ tab: 'plans' }">Browse all plans</a>
+</section>

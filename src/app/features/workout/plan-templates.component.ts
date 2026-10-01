@@ -1,10 +1,9 @@
 import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
-import { forkJoin, of, switchMap } from 'rxjs';
-import { catchError, finalize, map } from 'rxjs/operators';
+import { finalize } from 'rxjs/operators';
 
-import { FitSyncDataService } from '../../core/fitsync-data.service';
-import { Exercise, WorkoutPlan, WorkoutPlanExerciseInput, WorkoutPlanRequest } from '../../core/fitsync.models';
+import { WorkoutPlan } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { NoTemplateExercisesError, PlanTemplateActivationService } from '../dashboard/brief/no-plan/plan-template-activation.service';
 
 interface TemplateExercise {
   code?: string;
@@ -91,7 +90,7 @@ export const WORKOUT_PLAN_TEMPLATES: PlanTemplate[] = [
   styleUrl: './plan-templates.component.scss'
 })
 export class PlanTemplatesComponent {
-  private readonly dataService = inject(FitSyncDataService);
+  private readonly activation = inject(PlanTemplateActivationService);
   private readonly toast = inject(ToastService);
 
   @Output() planActivated = new EventEmitter<WorkoutPlan>();
@@ -110,100 +109,23 @@ export class PlanTemplatesComponent {
     }
 
     this.applyingTemplateId.set(template.id);
-    this.resolveTemplateExercises(template).pipe(
-      switchMap((resolved) => {
-        if (!resolved.length) {
-          this.toast.error('None of this template\'s exercises are available yet.');
-          return of(null);
-        }
-
-        const skipped = template.exercises.length - resolved.length;
-        if (skipped > 0) {
-          this.toast.info(`${skipped} template exercise${skipped === 1 ? '' : 's'} unavailable and skipped.`);
-        }
-
-        return this.dataService.createWorkoutPlan(this.toWorkoutPlanRequest(template, resolved)).pipe(
-          switchMap((plan) => {
-            if (!plan.planId) {
-              throw new Error('Created plan did not include an id.');
-            }
-            return this.dataService.activateWorkoutPlan(plan.planId);
-          })
-        );
-      }),
+    this.activation.activate(template).pipe(
       finalize(() => this.applyingTemplateId.set(null))
     ).subscribe({
-      next: (plan) => {
-        if (!plan) {
-          return;
+      next: ({ plan, skipped }) => {
+        if (skipped > 0) {
+          this.toast.info(`${skipped} template exercise${skipped === 1 ? '' : 's'} unavailable and skipped.`);
         }
         this.toast.success('Template activated for today.');
         this.planActivated.emit(plan);
       },
-      error: () => this.toast.error('Unable to use this template. Please retry.')
+      error: (error: unknown) => this.toast.error(
+        error instanceof NoTemplateExercisesError ? error.message : 'Unable to use this template. Please retry.'
+      )
     });
   }
 
   formatLabel(value: string): string {
     return value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-  }
-
-  private resolveTemplateExercises(template: PlanTemplate) {
-    const lookups = template.exercises.map((exercise) => {
-      const query = exercise.code ?? exercise.name;
-      return this.dataService.getExercises({ q: query, size: 20 }).pipe(
-        catchError(() => of([] as Exercise[]))
-      );
-    });
-
-    return forkJoin(lookups).pipe(
-      map((results) => results
-        .map((exercises, index) => this.matchExercise(template.exercises[index], exercises))
-        .filter(Boolean) as Array<{ template: TemplateExercise; exercise: Exercise }>)
-    );
-  }
-
-  private matchExercise(templateExercise: TemplateExercise, exercises: Exercise[]) {
-    const code = this.normalize(templateExercise.code ?? '');
-    const name = this.normalize(templateExercise.name);
-    const exercise = exercises.find((candidate) => code && this.normalize(candidate.code) === code)
-      ?? exercises.find((candidate) => this.normalize(candidate.name) === name)
-      ?? exercises.find((candidate) => this.normalize(candidate.name).includes(name));
-    if (!exercise?.exerciseId) {
-      return null;
-    }
-    return { template: templateExercise, exercise };
-  }
-
-  private toWorkoutPlanRequest(
-    template: PlanTemplate,
-    resolved: Array<{ template: TemplateExercise; exercise: Exercise }>
-  ): WorkoutPlanRequest {
-    const exercises: WorkoutPlanExerciseInput[] = resolved.map(({ template: exerciseTemplate, exercise }, index) => ({
-      exerciseId: exercise.exerciseId!,
-      sequence: index + 1,
-      targetSets: exerciseTemplate.targetSets,
-      targetReps: exerciseTemplate.targetReps,
-      targetWeightKg: null,
-      targetDurationSeconds: exerciseTemplate.targetDurationSeconds ?? null,
-      targetDistanceKm: null,
-      restSeconds: exerciseTemplate.restSeconds,
-      notes: '',
-      setTargets: []
-    }));
-
-    return {
-      name: template.name,
-      description: template.description,
-      goalFocus: template.goalFocus,
-      workoutType: template.workoutType,
-      difficulty: template.difficulty,
-      estimatedDurationMinutes: template.estimatedDurationMinutes,
-      exercises
-    };
-  }
-
-  private normalize(value: string): string {
-    return value.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
   }
 }

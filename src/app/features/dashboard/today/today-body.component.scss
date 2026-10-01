@@ -31,7 +31,7 @@
 
 .figures {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   gap: 10px;
   width: 100%;
   margin: 0;
@@ -95,4 +95,25 @@
       text-decoration: underline;
     }
   }
+}
+
+.trend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.sentence {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+// The skeleton holds the chart's final height, so the card does not jump when the trend arrives.
+.trend-skeleton {
+  width: 100%;
+  min-height: 140px;
+  height: 140px;
 }

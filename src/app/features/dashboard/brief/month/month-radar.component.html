@@ -1,0 +1,29 @@
+@if (radar(); as chart) {
+  <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="description()">
+    @for (ring of chart.rings; track $index) {
+      <polygon class="ring" [attr.points]="ring"></polygon>
+    }
+    @for (axis of chart.axes; track $index) {
+      <line class="axis" [attr.x1]="axis.x1" [attr.y1]="axis.y1" [attr.x2]="axis.x2" [attr.y2]="axis.y2"></line>
+    }
+    <polygon class="shape" [attr.points]="chart.shape"></polygon>
+    @for (dot of chart.dots; track $index) {
+      <circle class="dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="2.5"></circle>
+    }
+    @for (label of chart.labels; track label.group) {
+      <g class="label" [attr.data-group]="label.group">
+        <text [attr.text-anchor]="label.anchor"><tspan class="name" [attr.x]="label.x" [attr.y]="label.y">{{ label.label }}</tspan><tspan class="count" [attr.x]="label.x" [attr.y]="label.countY">{{ label.count }}</tspan></text>
+      </g>
+    }
+  </svg>
+} @else if (bars(); as chart) {
+  <svg class="chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="description()">
+    @for (row of chart.rows; track row.group) {
+      <g class="label" [attr.data-group]="row.group">
+        <text x="0" [attr.y]="row.labelY" text-anchor="start"><tspan class="name">{{ row.label }}</tspan></text>
+        <rect class="bar" [attr.x]="chart.barX" [attr.y]="row.y" [attr.width]="row.barWidth" [attr.height]="chart.barHeight" rx="4"></rect>
+        <text [attr.x]="chart.barX + row.barWidth + 8" [attr.y]="row.labelY" text-anchor="start"><tspan class="count">{{ row.count }}</tspan></text>
+      </g>
+    }
+  </svg>
+}

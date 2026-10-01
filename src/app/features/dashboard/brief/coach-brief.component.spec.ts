@@ -3,10 +3,14 @@ import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { CoachStore } from '../../../core/coach/coach.store';
+import { AccountDataService } from '../../../core/account-data.service';
+import { AnalyticsApiService } from '../../../core/analytics-api.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { DayInsight, MuscleGroupCode, NextTraining, TodayInsight, UserGoal, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession, WorkoutSessionDetail } from '../../../core/fitsync.models';
 import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
+import { analyticsStub, monthInsight, septemberInsight } from './month/month-fixtures.spec';
+import { FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
 
 const NOW = new Date('2026-09-27T00:10:00Z'); // Sunday 08:10 in Asia/Singapore
 
@@ -93,6 +97,8 @@ const weeklyInsight: WeeklyTrainingInsight = {
 describe('CoachBriefComponent', () => {
   let fixture: ComponentFixture<CoachBriefComponent>;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let accountData: jasmine.SpyObj<AccountDataService>;
+  let analytics: jasmine.SpyObj<AnalyticsApiService>;
   let coachStore: jasmine.SpyObj<CoachStore>;
   let router: Router;
 
@@ -112,8 +118,13 @@ describe('CoachBriefComponent', () => {
       'getGoals',
       'getActivePlan',
       'getWeeklyTrainingInsight',
+      'getMonthlyTrainingInsight',
       'startWorkoutPlan'
     ]);
+    dataService.getMonthlyTrainingInsight.and.returnValue(of(monthInsight()));
+    analytics = analyticsStub();
+    accountData = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['listBodyMetrics']);
+    accountData.listBodyMetrics.and.returnValue(of([]));
     dataService.getWorkoutSessionsInRange.and.returnValue(of(fourCompletedSessions));
     dataService.getGoals.and.returnValue(of([weeklyFrequencyGoal]));
     dataService.getActivePlan.and.returnValue(of(activePlan));
@@ -145,6 +156,8 @@ describe('CoachBriefComponent', () => {
       providers: [
         provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
+        { provide: AccountDataService, useValue: accountData },
+        { provide: AnalyticsApiService, useValue: analytics },
         { provide: CoachStore, useValue: coachStore },
         { provide: BRIEF_NOW, useValue: () => NOW }
       ]
@@ -161,12 +174,132 @@ describe('CoachBriefComponent', () => {
     expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith('Asia/Singapore');
   });
 
-  it('shows the week title without a week and month switch', () => {
-    setup();
-    const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('.week-title')?.textContent?.trim()).toBe('This week');
-    expect(element.querySelector('.week-switch')).toBeNull();
-    expect(Array.from(element.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Month')).toBeFalse();
+  describe('week and month switch', () => {
+    function tab(label: string): HTMLButtonElement {
+      const found = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.switch-tab')).find(
+        (button) => button.textContent?.trim() === label
+      );
+      if (!found) {
+        throw new Error(`No ${label} button`);
+      }
+      return found;
+    }
+
+    function press(label: string): void {
+      tab(label).click();
+      fixture.detectChanges();
+    }
+
+    it('shows the week title and a switch with Week pressed', () => {
+      setup();
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.week-title')?.textContent?.trim()).toBe('This week');
+      expect(element.querySelectorAll('.switch-tab').length).toBe(2);
+      expect(tab('Week').getAttribute('aria-pressed')).toBe('true');
+      expect(tab('Month').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('opens in the week view, without asking for a month', () => {
+      setup();
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.week-strip')).not.toBeNull();
+      expect(element.querySelector('app-coach-noticed')).not.toBeNull();
+      expect(element.querySelector('app-muscle-wheel')).not.toBeNull();
+      expect(element.querySelector('app-month-calendar')).toBeNull();
+      expect(dataService.getMonthlyTrainingInsight).not.toHaveBeenCalled();
+    });
+
+    it('replaces the strip, the observations and the wheel with the month view', () => {
+      setup();
+      press('Month');
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+      expect(tab('Month').getAttribute('aria-pressed')).toBe('true');
+      expect(tab('Week').getAttribute('aria-pressed')).toBe('false');
+      expect(element.querySelector('.week-title')).toBeNull();
+      expect(element.querySelector('app-month-nav .title')?.textContent?.trim()).toBe('September 2026');
+      expect(element.querySelectorAll('app-month-calendar button.cell').length).toBe(30);
+      expect(element.querySelector('.week-strip')).toBeNull();
+      expect(element.querySelector('app-coach-noticed')).toBeNull();
+      expect(element.querySelector('app-muscle-wheel')).toBeNull();
+      expect(element.querySelector('.brief-panel app-month-panel .head .title')?.textContent?.trim()).toBe('September so far');
+      expect(element.querySelector('.brief-panel .panel-title')).toBeNull();
+    });
+
+    it('gives the month panel the weekly goal, so it can count the weeks on goal, and asks for the badges once', () => {
+      dataService.getMonthlyTrainingInsight.and.returnValue(of(septemberInsight()));
+      setup();
+      press('Month');
+      press('Week');
+      press('Month');
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('[data-figure="weeks"]')?.getAttribute('aria-label')).toBe('3 of 3 full weeks on goal');
+      expect(analytics.getAchievements).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the headline and everything below the row while the month shows', () => {
+      setup();
+      press('Month');
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.headline')?.textContent).toContain('Four for four!');
+      expect(element.querySelector('.ask-box')).not.toBeNull();
+    });
+
+    it('brings the strip, the observations and the wheel back when it switches to the week', () => {
+      setup();
+      press('Month');
+      press('Week');
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.week-title')?.textContent?.trim()).toBe('This week');
+      expect(element.querySelectorAll('.day-col').length).toBe(7);
+      expect(element.querySelector('app-coach-noticed')).not.toBeNull();
+      expect(element.querySelector('app-muscle-wheel')).not.toBeNull();
+      expect(element.querySelector('app-month-calendar')).toBeNull();
+      expect(element.querySelector('app-month-panel')).toBeNull();
+    });
+
+    it('loads the month again each time it is opened', () => {
+      setup();
+      press('Month');
+      press('Week');
+      press('Month');
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledTimes(2);
+    });
+
+    it('does nothing when the pressed view is already shown', () => {
+      setup();
+      press('Week');
+      expect(dataService.getMonthlyTrainingInsight).not.toHaveBeenCalled();
+      press('Month');
+      press('Month');
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not remember the month view when the brief is created again', () => {
+      setup();
+      press('Month');
+      fixture.destroy();
+
+      fixture = TestBed.createComponent(CoachBriefComponent);
+      fixture.componentRef.setInput('firstName', 'Ruixian');
+      fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.week-title')).not.toBeNull();
+      expect(element.querySelector('app-month-calendar')).toBeNull();
+      expect(tab('Week').getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('keeps the switch usable when the month fails to load', () => {
+      dataService.getMonthlyTrainingInsight.and.returnValue(throwError(() => new Error('offline')));
+      setup();
+      press('Month');
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('app-month-calendar .state-text')?.textContent?.trim()).toBe('This month could not be loaded.');
+      press('Week');
+      expect(element.querySelectorAll('.day-col').length).toBe(7);
+    });
   });
 
   it('lists what the coach noticed under the week strip', () => {
@@ -394,8 +527,10 @@ describe('CoachBriefComponent - day-kinds fields', () => {
       'getGoals',
       'getActivePlan',
       'getWeeklyTrainingInsight',
-      'startWorkoutPlan'
+      'startWorkoutPlan',
+      'getOnboardingSeed'
     ]);
+    dataService.getOnboardingSeed.and.returnValue(of({ value: {}, hasExistingBodyBaseline: false, hasExistingTrainingBaseline: false, hasExistingNutritionBaseline: false }));
     dataService.getWorkoutSessionsInRange.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
     coachStore = jasmine.createSpyObj<CoachStore>('CoachStore', ['open', 'ask']);
@@ -478,5 +613,71 @@ describe('CoachBriefComponent - day-kinds fields', () => {
     setup(baseInsight(days, today), 6);
 
     expect(fixture.componentInstance.headline().lines[0]).toBe('Rest day.');
+  });
+
+  describe('without a plan', () => {
+    const openToday: TodayInsight = {
+      date: '2026-09-27',
+      kind: 'OPEN',
+      label: '',
+      source: 'NONE',
+      planDayId: null,
+      title: null,
+      estimatedMinutes: null,
+      moves: null,
+      lastOfKind: null,
+      carriedOver: []
+    };
+
+    function openInsight(): WeeklyTrainingInsight {
+      return baseInsight(WEEK_KEYS.map((key) => dayInsight(key)), openToday);
+    }
+
+    it('offers three first sessions in place of the row that said to pick a plan', () => {
+      setup(openInsight(), null);
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.showFirstSessions()).toBe(true);
+      expect(element.querySelector('app-first-sessions')).toBeTruthy();
+      expect(element.querySelectorAll('app-first-sessions li.card').length).toBe(3);
+      expect(element.querySelector('app-today-row')).toBeNull();
+      expect(element.textContent).not.toContain('Pick a plan');
+    });
+
+    it('does not offer them to a person with a plan', () => {
+      dataService.getActivePlan.and.returnValue(of(activePlan));
+      setup(openInsight(), null);
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.showFirstSessions()).toBe(false);
+      expect(element.querySelector('app-first-sessions')).toBeNull();
+    });
+
+    it('does not offer them when today is a rest day', () => {
+      setup(baseInsight(WEEK_KEYS.map((key) => dayInsight(key)), { ...openToday, kind: 'REST', label: 'Rest', source: 'PLAN' }), null);
+      expect(fixture.nativeElement.querySelector('app-first-sessions')).toBeNull();
+    });
+
+    it('keeps the old row when there are too few templates to offer', () => {
+      TestBed.overrideProvider(FIRST_SESSION_TEMPLATES, { useValue: [] });
+      setup(openInsight(), null);
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('app-first-sessions')).toBeNull();
+      expect(element.querySelector('app-today-row')).toBeTruthy();
+      expect(element.textContent).toContain('Pick a plan');
+      expect(element.textContent).toContain('Browse plans');
+    });
+
+    it('reads the plan and the day again once a first session has started', () => {
+      setup(openInsight(), null);
+      dataService.getWeeklyTrainingInsight.calls.reset();
+      dataService.getActivePlan.calls.reset();
+
+      fixture.componentInstance.onPlanStarted();
+
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(dataService.getActivePlan).toHaveBeenCalledTimes(1);
+    });
   });
 });

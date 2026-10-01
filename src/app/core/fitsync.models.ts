@@ -399,6 +399,8 @@ export interface BodyMetric {
   /** Change in weight over the last 30 days in kilograms, negative when the person lost weight.
    *  Null when the analytics snapshot has no earlier reading to compare with. */
   weightChange30dKg?: number | null;
+  /** Waist in centimetres when the person records it. The dashboard snapshot does not carry it yet. */
+  waistCm?: number | null;
 }
 
 export interface Goal {
@@ -892,6 +894,8 @@ export interface ProgressInsight {
   weightKg: number | null;
   measuredOn: string | null;
   weeklyRateKg: number | null;
+  /** Days of weigh-ins the weekly rate was measured over. Absent in older responses. */
+  rateWindowDays?: number | null;
   goalWeightKg: number | null;
   goalDate: string | null;
   projectedDate: string | null;
@@ -922,4 +926,61 @@ export interface UsualMeal {
   totalCarbsGrams: number | null;
   totalFatGrams: number | null;
   items: UsualMealItem[];
+}
+
+/** One day of the month calendar that has completed training; days without any are not listed. */
+export interface MonthDayInsight {
+  date: string;
+  kind: DayKind;
+  label: string;
+  sessions: number;
+  minutes: number;
+  muscles: string[];
+  /** True when the day set a personal record. */
+  record: boolean;
+}
+
+/** One Monday-to-Sunday week that overlaps the month; its figures count only days inside it. */
+export interface MonthWeekInsight {
+  weekStart: string;
+  weekEnd: string;
+  sessions: number;
+  minutes: number;
+  strengthSessions: number;
+  cardioSessions: number;
+  mobilitySessions: number;
+  sportSessions: number;
+  /** True once the week has fully passed on the reference date. */
+  complete: boolean;
+}
+
+export interface MonthTotals {
+  sessions: number;
+  minutes: number;
+  records: number;
+  longestStreakDays: number;
+}
+
+export interface MonthMuscleInsight {
+  group: string;
+  label: string;
+  sessions: number;
+}
+
+export interface MonthlyTrainingInsight {
+  timezone: string;
+  /** The month as YYYY-MM. */
+  month: string;
+  monthStart: string;
+  monthEnd: string;
+  /** Today's date in the user's timezone, as the backend counts it. */
+  referenceDate: string;
+  /** The date of the first completed session ever, or null before the first one. */
+  firstSessionDate: string | null;
+  days: MonthDayInsight[];
+  weeks: MonthWeekInsight[];
+  totals: MonthTotals;
+  /** The month before, or null when the person had no training before this month. */
+  previousTotals: MonthTotals | null;
+  muscles: MonthMuscleInsight[];
 }

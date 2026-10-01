@@ -47,3 +47,74 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+// On a phone a four-column table would hide its action off to the side. Each service becomes a
+// block instead: its name, the two figures with their names, then the action.
+.table-scroll {
+  container-type: inline-size;
+}
+
+@container (max-width: 560px) {
+  .table-scroll table {
+    display: block;
+    min-width: 0;
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    tbody {
+      display: block;
+    }
+
+    tr {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr);
+      align-items: center;
+      gap: 6px 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody th,
+    tbody td {
+      width: auto;
+      height: auto;
+      padding: 0;
+      border-bottom: 0;
+      text-align: left;
+      white-space: normal;
+    }
+
+    tbody th {
+      grid-column: 1 / -1;
+    }
+
+    td.num::before {
+      content: 'Waiting ';
+      color: var(--text-secondary);
+    }
+
+    td.oldest::before {
+      content: 'Oldest ';
+      color: var(--text-secondary);
+    }
+
+    td.failed {
+      grid-column: 1 / -1;
+    }
+
+    td.action {
+      grid-column: 1 / -1;
+      padding-left: 0;
+    }
+
+    td.action:empty {
+      display: none;
+    }
+  }
+}

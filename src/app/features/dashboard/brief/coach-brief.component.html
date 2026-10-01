@@ -49,22 +49,42 @@
 
         <div class="week-card">
           <div class="week-head">
-            <span class="week-title">This week</span>
-            <!-- The month view brings the week and month switch back. -->
+            @if (view() === 'week') {
+              <span class="week-title">This week</span>
+            } @else {
+              <app-month-nav />
+            }
+            <div class="week-switch" role="group" aria-label="Week or month">
+              <button type="button" class="switch-tab" [class.active]="view() === 'week'" [attr.aria-pressed]="view() === 'week'" (click)="showView('week')">Week</button>
+              <button type="button" class="switch-tab" [class.active]="view() === 'month'" [attr.aria-pressed]="view() === 'month'" (click)="showView('month')">Month</button>
+            </div>
           </div>
-          <div class="week-strip" role="img" [attr.aria-label]="weekAriaLabel()">
-            @for (day of week(); track day.dateKey) {
-              <div class="day-col">
-                <span class="day-label">{{ day.weekday }}</span>
-                <span
-                  class="day-tile"
-                  [class.trained]="day.state === 'trained' || day.state === 'today-trained'"
-                  [class.today-open]="day.state === 'today-open'"
-                  [class.planned]="day.state === 'upcoming' && day.planned"
-                >
-                  @if (day.state === 'today-open') {
-                    @if (isTraining(day.kind)) {
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="today-kind-glyph">
+          @if (view() === 'week') {
+            <div class="week-strip" role="img" [attr.aria-label]="weekAriaLabel()">
+              @for (day of week(); track day.dateKey) {
+                <div class="day-col">
+                  <span class="day-label">{{ day.weekday }}</span>
+                  <span
+                    class="day-tile"
+                    [class.trained]="day.state === 'trained' || day.state === 'today-trained'"
+                    [class.today-open]="day.state === 'today-open'"
+                    [class.planned]="day.state === 'upcoming' && day.planned"
+                  >
+                    @if (day.state === 'today-open') {
+                      @if (isTraining(day.kind)) {
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="today-kind-glyph">
+                          @for (part of glyphFor(day.kind); track $index) {
+                            @switch (part.tag) {
+                              @case ('path') { <path [attr.d]="part.d"></path> }
+                              @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                              @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+                            }
+                          }
+                        </svg>
+                      }
+                      <span class="today-text">Today</span>
+                    } @else if ((day.state === 'trained' || day.state === 'today-trained' || (day.state === 'upcoming' && day.planned)) && day.kind) {
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         @for (part of glyphFor(day.kind); track $index) {
                           @switch (part.tag) {
                             @case ('path') { <path [attr.d]="part.d"></path> }
@@ -74,51 +94,48 @@
                         }
                       </svg>
                     }
-                    <span class="today-text">Today</span>
-                  } @else if ((day.state === 'trained' || day.state === 'today-trained' || (day.state === 'upcoming' && day.planned)) && day.kind) {
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      @for (part of glyphFor(day.kind); track $index) {
-                        @switch (part.tag) {
-                          @case ('path') { <path [attr.d]="part.d"></path> }
-                          @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
-                          @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
-                        }
-                      }
-                    </svg>
-                  }
-                </span>
-                <span class="day-caption">{{ dayCaption(day) }}</span>
-              </div>
-            }
-          </div>
+                  </span>
+                  <span class="day-caption">{{ dayCaption(day) }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <app-month-calendar />
+          }
         </div>
 
-        @if (observations().length) {
+        @if (view() === 'week' && observations().length) {
           <app-coach-noticed [observations]="observations()" />
         }
       </div>
 
       <div class="brief-panel">
-        <div class="panel-head">
-          <span class="panel-title">{{ panelTitle() }}</span>
-          @if (sectors().length) {
-            <span class="panel-sub">One ring for each session that trained it.</span>
-          }
-        </div>
-        @if (sectors().length) {
-          <app-muscle-wheel [sectors]="sectors()" [completed]="completed()" [target]="weeklyTarget()" />
-        } @else {
-          <div class="panel-value">
-            <span class="panel-number">
-              {{ completed() }}@if (weeklyTarget(); as target) {<span class="panel-slash">/{{ target }}</span>}
-            </span>
-            <span class="panel-caption">sessions</span>
+        @if (view() === 'week') {
+          <div class="panel-head">
+            <span class="panel-title">{{ panelTitle() }}</span>
+            @if (sectors().length) {
+              <span class="panel-sub">One ring for each session that trained it.</span>
+            }
           </div>
+          @if (sectors().length) {
+            <app-muscle-wheel [sectors]="sectors()" [completed]="completed()" [target]="weeklyTarget()" />
+          } @else {
+            <div class="panel-value">
+              <span class="panel-number">
+                {{ completed() }}@if (weeklyTarget(); as target) {<span class="panel-slash">/{{ target }}</span>}
+              </span>
+              <span class="panel-caption">sessions</span>
+            </div>
+          }
+        } @else {
+          <app-month-panel [weeklyTarget]="weeklyTarget()" />
         }
       </div>
     </div>
 
-    @if (showTodayRow()) {
+    @if (showFirstSessions()) {
+      <app-first-sessions (planStarted)="onPlanStarted()" />
+    } @else if (showTodayRow()) {
       <app-today-row
         [today]="todayInsight()!"
         [todayDay]="todayDayEntry()"

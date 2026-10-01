@@ -1,0 +1,85 @@
+// The panel is dark in both themes, so these colours are the fixed slate and green primitives.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+.figure {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// Every number is one line of the same height, so the numbers of a row share one baseline whatever
+// the captions below do.
+.value {
+  display: flex;
+  column-gap: 0.25em;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--white);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.part {
+  white-space: nowrap;
+}
+
+.unit {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--slate-300);
+}
+
+.caption {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--slate-300);
+}
+
+// The comparison has a line of its own under the caption, in the same place on every tile.
+.compare {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--slate-300);
+
+  &.up {
+    color: var(--green-400);
+  }
+
+  svg {
+    flex: none;
+    display: block;
+  }
+}
+
+// The panel stacked under the calendar can be as wide as the brief, where six figures fit a row.
+@container (min-width: 640px) {
+  .figures {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+// On a phone three figures in a row would break "13 h 35 min" in two, so they go two in a row.
+@container (max-width: 319px) {
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

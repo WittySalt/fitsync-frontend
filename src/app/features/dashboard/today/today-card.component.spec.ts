@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
 import { DashboardData, FitSyncDataService } from '../../../core/fitsync-data.service';
-import { DayMeal, NutritionSummary, UsualMeal } from '../../../core/fitsync.models';
+import { DayMeal, NutritionSummary, ProgressInsight, UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
 import { BRIEF_NOW } from '../brief/brief-time';
 import { TodayCardComponent } from './today-card.component';
@@ -32,6 +32,18 @@ const nutrition: NutritionSummary = {
   fiberTargetMet: null,
   sugarWithinLimit: null,
   sodiumWithinLimit: null
+};
+
+// The weight trend of a person with too few weigh-ins to draw, so the card specs see the figures only.
+const noInsight: ProgressInsight = {
+  referenceDate: '2026-09-30',
+  weightKg: null,
+  measuredOn: null,
+  weeklyRateKg: null,
+  goalWeightKg: null,
+  goalDate: null,
+  projectedDate: null,
+  series: []
 };
 
 const dashboard: DashboardData = {
@@ -110,10 +122,11 @@ describe('TodayCardComponent', () => {
 
   beforeEach(() => {
     localStorage.removeItem(TODAY_TAB_STORAGE_KEY);
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getMealsForDay', 'getUsualMeals', 'copyMeal']);
+    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getMealsForDay', 'getUsualMeals', 'copyMeal', 'getProgressInsight']);
     dataService.getMealsForDay.and.returnValue(of([]));
     dataService.getUsualMeals.and.returnValue(of([]));
     dataService.copyMeal.and.returnValue(of({ ok: true }));
+    dataService.getProgressInsight.and.returnValue(of(noInsight));
   });
 
   afterEach(() => localStorage.removeItem(TODAY_TAB_STORAGE_KEY));
@@ -727,6 +740,12 @@ describe('TodayCardComponent', () => {
       const link = el().querySelector<HTMLAnchorElement>('#today-panel-body .action');
       expect(link?.textContent?.trim()).toBe('All measurements');
       expect(link?.getAttribute('href')).toBe('/body');
+    });
+
+    it('asks for the weight trend in the timezone of the person', () => {
+      create();
+
+      expect(dataService.getProgressInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
     });
 
     it('writes an older weigh-in as a date with the Sept spelling', () => {

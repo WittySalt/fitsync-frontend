@@ -6,6 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData } from './fitsync-data.service';
 import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, UsualMeal } from './fitsync.models';
+import { MonthlyTrainingInsight } from './fitsync.models';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -58,7 +59,9 @@ const dashboardAnalytics: AnalyticsDashboardResponse = {
     latestBodyFatRate: 18,
     bmi: 24.3,
     weightChange30d: -2.4,
-    measuredOn: '2026-06-21'
+    measuredOn: '2026-06-21',
+    latestWaistCm: 84.5,
+    waistMeasuredAt: '2026-06-19'
   },
   workout: {
     todayWorkoutCount: 1,
@@ -501,7 +504,8 @@ describe('FitSyncDataService', () => {
         latestBodyMetric: jasmine.objectContaining({
           weightKg: 77,
           bodyFatRate: 18,
-          bmi: 24.3
+          bmi: 24.3,
+          waistCm: 84.5
         }),
         goals: [
           jasmine.objectContaining({
@@ -1431,6 +1435,16 @@ describe('FitSyncDataService', () => {
     expect(result?.weightKg).toBeNull();
     expect(result?.goalWeightKg).toBeNull();
     expect(result?.projectedDate).toBeNull();
+  });
+
+  it('keeps the window of days the weekly rate was measured over, and null when it is absent', () => {
+    const results: ProgressInsight[] = [];
+    service.getProgressInsight('UTC').subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({ weeklyRateKg: -0.41, rateWindowDays: 28, series: [] });
+    service.getProgressInsight('UTC').subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({ series: [] });
+
+    expect(results.map((value) => value.rateWindowDays)).toEqual([28, null]);
   });
 
   it('requests the weekly training insight with timezone and, when given, date', () => {
@@ -2678,5 +2692,90 @@ describe('FitSyncDataService', () => {
     expect(request.request.body.sportActivity).toBe('CYCLING');
     expect(request.request.body.distanceKm).toBe(24.5);
     request.flush({});
+  });
+
+  it('requests the monthly training insight with the month and the timezone', () => {
+    let result: MonthlyTrainingInsight | undefined;
+    service.getMonthlyTrainingInsight('2026-09', 'Asia/Singapore').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne(
+      (req) =>
+        req.url === '/api/v1/workouts/insights/monthly' &&
+        req.params.get('month') === '2026-09' &&
+        req.params.get('timezone') === 'Asia/Singapore'
+    );
+    request.flush({
+      timezone: 'Asia/Singapore',
+      month: '2026-09',
+      monthStart: '2026-09-01',
+      monthEnd: '2026-09-30',
+      referenceDate: '2026-10-01',
+      firstSessionDate: '2026-08-03',
+      days: [{ date: '2026-09-03', kind: 'CARDIO', label: 'Cardio', sessions: 1, minutes: 35, muscles: ['CARDIO'], record: true }],
+      weeks: [
+        { weekStart: '2026-08-31', weekEnd: '2026-09-06', sessions: 4, minutes: 195, strengthSessions: 2, cardioSessions: 1, mobilitySessions: 0, sportSessions: 1, complete: true }
+      ],
+      totals: { sessions: 16, minutes: 780, records: 3, longestStreakDays: 3 },
+      previousTotals: { sessions: 15, minutes: 720, records: 2, longestStreakDays: 2 },
+      muscles: [{ group: 'CHEST', label: 'Chest', sessions: 8 }]
+    });
+
+    expect(result?.month).toBe('2026-09');
+    expect(result?.referenceDate).toBe('2026-10-01');
+    expect(result?.firstSessionDate).toBe('2026-08-03');
+    expect(result?.days).toEqual([{ date: '2026-09-03', kind: 'CARDIO', label: 'Cardio', sessions: 1, minutes: 35, muscles: ['CARDIO'], record: true }]);
+    expect(result?.weeks[0].complete).toBeTrue();
+    expect(result?.weeks[0].sportSessions).toBe(1);
+    expect(result?.totals.minutes).toBe(780);
+    expect(result?.previousTotals?.sessions).toBe(15);
+    expect(result?.muscles[0].label).toBe('Chest');
+  });
+
+  it('defensively maps a monthly training insight with missing and invalid fields', () => {
+    let result: MonthlyTrainingInsight | undefined;
+    service.getMonthlyTrainingInsight('2026-09', 'Asia/Singapore').subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush({
+      referenceDate: '2026-10-01',
+      days: [
+        { date: '2026-09-03', kind: 'UNKNOWN_KIND', sessions: null, minutes: Number.NaN },
+        { kind: 'CARDIO' },
+        null
+      ],
+      weeks: [{ sessions: 2 }],
+      totals: { sessions: 2 },
+      muscles: [{ label: 'No code' }, { group: 'CORE', sessions: undefined }]
+    });
+
+    expect(result?.month).toBe('2026-09');
+    expect(result?.timezone).toBe('Asia/Singapore');
+    expect(result?.firstSessionDate).toBeNull();
+    expect(result?.previousTotals).toBeNull();
+    expect(result?.days.length).toBe(1);
+    expect(result?.days[0].kind).toBe('OPEN');
+    expect(result?.days[0].sessions).toBe(0);
+    expect(result?.days[0].minutes).toBe(0);
+    expect(result?.days[0].muscles).toEqual([]);
+    expect(result?.days[0].record).toBeFalse();
+    expect(result?.weeks).toEqual([]);
+    expect(result?.totals).toEqual({ sessions: 2, minutes: 0, records: 0, longestStreakDays: 0 });
+    expect(result?.muscles).toEqual([{ group: 'CORE', label: 'CORE', sessions: 0 }]);
+  });
+
+  it('maps an empty monthly response to empty lists and zero totals', () => {
+    let result: MonthlyTrainingInsight | undefined;
+    service.getMonthlyTrainingInsight('2026-09', 'UTC').subscribe((value) => (result = value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush({});
+    expect(result?.days).toEqual([]);
+    expect(result?.weeks).toEqual([]);
+    expect(result?.muscles).toEqual([]);
+    expect(result?.totals.sessions).toBe(0);
+  });
+
+  it('lets a failed monthly request reach the caller', () => {
+    let failed = false;
+    service.getMonthlyTrainingInsight('2026-09', 'UTC').subscribe({ error: () => (failed = true) });
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush('boom', { status: 500, statusText: 'Server Error' });
+    expect(failed).toBeTrue();
   });
 });
