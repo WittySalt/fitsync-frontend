@@ -891,8 +891,10 @@ a:focus-visible {
   }
 
   .body-history-list li {
-    display: grid;
-    grid-template-columns: minmax(210px, 1.2fr) auto auto minmax(0, 1fr) auto;
+    // The row wraps by its own width: the note keeps a readable width and drops under the figures
+    // when the row has no room for it, whatever the sidebar leaves of the window.
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     padding: 12px;
@@ -902,6 +904,7 @@ a:focus-visible {
   }
 
   .body-history-main {
+    flex: 1 1 210px;
     display: grid;
     gap: 4px;
 
@@ -927,6 +930,7 @@ a:focus-visible {
   }
 
   .body-history-list p {
+    flex: 1 1 160px;
     margin: 0;
     min-width: 0;
     color: var(--text-secondary);
