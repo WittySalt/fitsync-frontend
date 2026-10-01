@@ -1,6 +1,6 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { ToastService } from '../../core/toast/toast.service';
@@ -8,9 +8,11 @@ import { ToastService } from '../../core/toast/toast.service';
 import {
   AccountCenterData,
   AccountDataService,
+  AccountDeletionStatus,
   AccountPreferences,
   AccountProfile,
   NotificationPreferences,
+  formatDeletionDate,
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -62,6 +64,7 @@ const DISPLAY_LOCALE = 'en-SG';
 export class SettingsPage implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly accountDataService = inject(AccountDataService);
+  private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly themeService = inject(ThemeService);
   private readonly toast = inject(ToastService);
@@ -299,6 +302,19 @@ export class SettingsPage implements OnInit {
       timeStyle: 'short',
       timeZone: this.accountTimezone()
     }).format(date);
+  }
+
+  /** The one quiet line about the grace period, with the date once the backend has fixed it. */
+  deletionGraceLine(status: AccountDeletionStatus): string {
+    const date = formatDeletionDate(status.scheduledFor);
+    return date
+      ? `Your account is closed at once and your data is removed on ${date}.`
+      : 'Your account is closed at once and your data is removed after 30 days.';
+  }
+
+  deletionScheduledLine(status: AccountDeletionStatus): string {
+    const date = formatDeletionDate(status.scheduledFor);
+    return date ? `This account is scheduled for deletion on ${date}.` : 'This account is scheduled for deletion.';
   }
 
   displayDate(value: string | null | undefined): string {
@@ -599,9 +615,14 @@ export class SettingsPage implements OnInit {
       nullableText(value.currentPassword)
     ).subscribe({
       next: (accountDeletion) => {
-        this.setData({ ...data, accountDeletion });
         this.deletionForm.reset();
-        this.finishSave('delete', 'Account deletion request submitted.');
+        this.saving.set(null);
+        // The sign-in page explains what happens next, so it has to be reached without a page reload that
+        // would drop what the auth service holds for it. The cached user is dropped with the session.
+        this.accountDataService.invalidateCurrentUser();
+        this.authService.noteDeletionRequested(accountDeletion.scheduledFor ?? null);
+        this.authService.completeLogout();
+        void this.router.navigateByUrl('/auth/login');
       },
       error: (error: Error) => this.handleSaveError('delete', error)
     });

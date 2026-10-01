@@ -5,12 +5,14 @@ import { TestBed } from '@angular/core/testing';
 import {
   AccountCenterData,
   AccountDataService,
+  AccountDeletionStatus,
   AccountPreferences,
   AccountProfile,
   AccountSummary,
   AccountUserResponse,
   CreateBodyMetricRequest,
   SecurityOverview,
+  formatDeletionDate,
   initialsFor
 } from './account-data.service';
 
@@ -220,6 +222,29 @@ describe('AccountDataService', () => {
     expect(requestDeletion.request.method).toBe('POST');
     expect(requestDeletion.request.body).toEqual({ confirmationText: 'DELETE', currentPassword: null });
     requestDeletion.flush({ status: 'REQUESTED', requestedAt: '2026-06-21T08:00:00Z', passwordConfirmationRequired: true });
+  });
+
+  it('maps the scheduled deletion date, with null when the response has none', () => {
+    const statuses: AccountDeletionStatus[] = [];
+    service.getAccountDeletionStatus().subscribe((status) => statuses.push(status));
+    httpTesting.expectOne('/api/v1/auth/account-deletion').flush({ status: 'NOT_REQUESTED', requestedAt: null, passwordConfirmationRequired: false });
+
+    service.requestAccountDeletion('DELETE', null).subscribe((status) => statuses.push(status));
+    httpTesting.expectOne('/api/v1/auth/account-deletion/request').flush({
+      status: 'REQUESTED',
+      requestedAt: '2026-10-01T08:00:00Z',
+      scheduledFor: '2026-10-31T08:00:00Z',
+      passwordConfirmationRequired: false
+    });
+
+    expect(statuses.map((status) => status.scheduledFor)).toEqual([null, '2026-10-31T08:00:00Z']);
+  });
+
+  it('writes a deletion date with Sept and an empty string for a missing or invalid instant', () => {
+    expect(formatDeletionDate('2026-09-30T12:00:00Z')).toBe('30 Sept 2026');
+    expect(formatDeletionDate('2026-10-31T12:00:00Z')).toBe('31 Oct 2026');
+    expect(formatDeletionDate(null)).toBe('');
+    expect(formatDeletionDate('not a date')).toBe('');
   });
 
   it('combines account center requests and derives summary fallbacks', () => {

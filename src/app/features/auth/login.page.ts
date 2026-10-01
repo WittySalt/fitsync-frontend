@@ -1,12 +1,13 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
+import { formatDeletionDate } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SocialProvider } from '../../core/auth/auth.config';
 
 type AuthMode = 'signin' | 'signup' | 'confirm' | 'reset' | 'reset-confirm';
-type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend' | 'reset' | 'reset-confirm';
+type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend' | 'reset' | 'reset-confirm' | 'keep';
 type BrandQuote = {
   headline: string;
   sub: string;
@@ -34,6 +35,15 @@ export class LoginPage implements OnInit, OnDestroy {
   readonly activeQuoteIndex = signal(0);
   readonly currentFact = signal('');
   readonly socialSignInEnabled = this.authService.socialSignInEnabled;
+  readonly pendingDeletion = this.authService.pendingDeletion;
+  readonly canKeepAccount = this.authService.canCancelAccountDeletion;
+  readonly deletionDate = computed(() => formatDeletionDate(this.pendingDeletion()?.scheduledFor));
+  private readonly deletionHeading = viewChild<ElementRef<HTMLElement>>('deletionHeading');
+
+  constructor() {
+    // The notice replaces the form, so focus follows it for people who cannot see the change.
+    effect(() => this.deletionHeading()?.nativeElement.focus());
+  }
 
   readonly brandQuotes: BrandQuote[] = [
     {
@@ -128,6 +138,22 @@ export class LoginPage implements OnInit, OnDestroy {
       error: (error: Error) => this.fail(error),
       complete: () => this.loading.set(null)
     });
+  }
+
+  keepAccount(): void {
+    this.loading.set('keep');
+    this.resetMessages();
+
+    this.authService.cancelAccountDeletion().subscribe({
+      next: () => this.router.navigateByUrl('/dashboard'),
+      error: (error: Error) => this.fail(error),
+      complete: () => this.loading.set(null)
+    });
+  }
+
+  backToSignIn(): void {
+    this.authService.dismissPendingDeletion();
+    this.resetMessages();
   }
 
   signUp(): void {

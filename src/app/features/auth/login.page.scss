@@ -150,6 +150,48 @@ input.invalid {
   background: var(--accent-hover);
 }
 
+.deletion-notice {
+  display: grid;
+  gap: 14px;
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+
+  h1:focus {
+    outline: 0;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+}
+
+.deletion-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.button.quiet {
+  min-height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.button.quiet:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
 .link-button {
   min-height: 32px;
   padding: 0;

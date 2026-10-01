@@ -9,23 +9,25 @@
         </span>
       </a>
 
-      <header class="auth-heading">
-        <p class="eyebrow">Welcome back</p>
-        <h1>
-          @if (mode() === 'signup') {
-            Create your FitSync account
-          } @else if (mode() === 'confirm') {
-            Confirm your email
-          } @else if (mode() === 'reset') {
-            Reset your password
-          } @else if (mode() === 'reset-confirm') {
-            Set a new password
-          } @else {
-            Sign in to FitSync
-          }
-        </h1>
-        <p>Plan training, track meals, and measure progress from one focused dashboard.</p>
-      </header>
+      @if (!pendingDeletion()) {
+        <header class="auth-heading">
+          <p class="eyebrow">Welcome back</p>
+          <h1>
+            @if (mode() === 'signup') {
+              Create your FitSync account
+            } @else if (mode() === 'confirm') {
+              Confirm your email
+            } @else if (mode() === 'reset') {
+              Reset your password
+            } @else if (mode() === 'reset-confirm') {
+              Set a new password
+            } @else {
+              Sign in to FitSync
+            }
+          </h1>
+          <p>Plan training, track meals, and measure progress from one focused dashboard.</p>
+        </header>
+      }
 
       @if (error()) {
         <p class="form-alert error">{{ error() }}</p>
@@ -35,7 +37,27 @@
         <p class="form-alert notice">{{ notice() }}</p>
       }
 
-      @if (mode() === 'signin') {
+      @if (pendingDeletion()) {
+        <section class="deletion-notice" role="status">
+          <h1 #deletionHeading tabindex="-1">This account is scheduled for deletion</h1>
+          <p>
+            @if (deletionDate()) {
+              It will be removed on {{ deletionDate() }}.
+            }
+            @if (!canKeepAccount()) {
+              {{ deletionDate() ? 'Sign in again within that time to keep it.' : 'Sign in again to keep it.' }}
+            }
+          </p>
+          <div class="deletion-actions">
+            @if (canKeepAccount()) {
+              <button class="button primary" type="button" [disabled]="loading() !== null" [attr.aria-busy]="loading() === 'keep'" (click)="keepAccount()">
+                {{ loading() === 'keep' ? 'Keeping...' : 'Keep my account' }}
+              </button>
+            }
+            <button class="button quiet" type="button" [disabled]="loading() !== null" (click)="backToSignIn()">Back to sign in</button>
+          </div>
+        </section>
+      } @else if (mode() === 'signin') {
         <form class="auth-form" [formGroup]="signInForm" (ngSubmit)="signIn()" novalidate>
           <label for="email">Email</label>
           <input id="email" type="email" autocomplete="email" formControlName="email" [class.invalid]="signInForm.controls.email.invalid && signInForm.controls.email.touched" />
