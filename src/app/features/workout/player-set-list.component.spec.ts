@@ -67,6 +67,13 @@ describe('PlayerSetListComponent', () => {
     expect(lines([{ setNumber: 1, target: target({ reps: 10 }), logged: null, skipped: true }])).toEqual(['Skipped']);
   });
 
+  it('shows the values chosen for the current set in its row, and the plan in the others', () => {
+    fixture.componentRef.setInput('currentSetNumber', 1);
+    fixture.componentRef.setInput('currentValues', '8 × 20 kg');
+    const open = (setNumber: number): PlayerSet => ({ setNumber, target: target({ reps: 10, weightKg: 20 }), logged: null, skipped: false });
+    expect(lines([open(1), open(2)])).toEqual(['8 × 20 kg', '10 × 20 kg']);
+  });
+
   describe('when rows can be edited', () => {
     const rows = (): HTMLButtonElement[] =>
       [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.row')];

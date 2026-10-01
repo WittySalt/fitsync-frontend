@@ -109,6 +109,7 @@
                   <app-player-set-list
                     [sets]="currentSets()"
                     [currentSetNumber]="currentSetNumber()"
+                    [currentValues]="chosenLine()"
                     [scope]="log.exerciseLogId"
                     [editable]="live.canWrite()"
                     (edit)="openSetEditor($event)"

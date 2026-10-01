@@ -46,7 +46,8 @@ import {
   formatTargetDuration,
   isOpenSet,
   resolveExerciseSets,
-  targetLine
+  targetLine,
+  valuesLine
 } from './player-targets';
 import { EditedSet, SetEditorComponent } from './set-editor.component';
 import { restCoachLine, restCoachQuestion } from './rest-coach';
@@ -188,6 +189,26 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return new Map<string, PlayerSet[]>(
       this.orderedLogs().map((log) => [log.exerciseLogId, resolveExerciseSets(log, planDayId, plan)])
     );
+  });
+  /** The values chosen for the current set: from the running set when there is one, otherwise from the
+   *  steppers of Ready. The current row shows them, so the list agrees with what will be recorded. */
+  readonly chosenLine = computed(() => {
+    const target = this.currentTarget();
+    if (!target) {
+      return null;
+    }
+    const run = this.runHere();
+    const active = run && run.phase !== 'rest';
+    if (this.isTimedTarget()) {
+      const seconds = active ? run.targetSeconds : this.durationValue();
+      return valuesLine({ ...target, durationSeconds: seconds > 0 ? seconds : target.durationSeconds });
+    }
+    if (!this.hasRepsStepper()) {
+      return null;
+    }
+    const reps = active ? run.targetReps : this.repsValue();
+    const weight = active ? run.weightKg : (this.hasWeightStepper() ? this.weightValue() : target.weightKg);
+    return valuesLine({ ...target, reps: reps > 0 ? reps : target.reps, weightKg: weight });
   });
   readonly currentSets = computed<PlayerSet[]>(() => {
     const log = this.currentLog();

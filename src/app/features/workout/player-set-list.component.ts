@@ -13,6 +13,8 @@ import { PlayerSet, sameTarget, valuesLine } from './player-targets';
 export class PlayerSetListComponent implements OnChanges {
   @Input({ required: true }) sets: PlayerSet[] = [];
   @Input() currentSetNumber: number | null = null;
+  /** What the person chose for the current set before starting it, shown in its row instead of the plan. */
+  @Input() currentValues: string | null = null;
   /** Which exercise the sets belong to. Another exercise starts the list afresh, with nothing new in it. */
   @Input() scope = '';
   /** Done and skipped rows open an editor when asked to. */

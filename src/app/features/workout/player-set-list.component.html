@@ -41,6 +41,8 @@
       } @else {
         {{ done(set) || planned(set) }}
       }
+    } @else if (set.setNumber === currentSetNumber && currentValues) {
+      {{ currentValues }}
     } @else {
       {{ planned(set) }}
     }
