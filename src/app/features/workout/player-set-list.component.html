@@ -1,0 +1,23 @@
+<ol class="set-list" aria-label="Sets of this exercise">
+  @for (set of sets; track set.setNumber) {
+    <li [class.current]="set.setNumber === currentSetNumber" [attr.aria-current]="set.setNumber === currentSetNumber ? 'step' : null">
+      <span class="name">Set {{ set.setNumber }}</span>
+      <span class="values">
+        @if (set.skipped) {
+          Skipped
+        } @else if (set.logged) {
+          @if (differs(set)) {
+            planned {{ planned(set) }}, did {{ done(set) }}
+          } @else {
+            {{ done(set) || planned(set) }}
+          }
+        } @else {
+          {{ planned(set) }}
+        }
+      </span>
+      @if (set.logged && !set.skipped) {
+        <span class="mark" role="img" aria-label="Done">✓</span>
+      }
+    </li>
+  }
+</ol>

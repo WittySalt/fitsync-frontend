@@ -19,6 +19,7 @@ export class LiveTrackerComponent implements OnChanges {
 
   @Output() completed = new EventEmitter<WorkoutSessionDetail>();
   @Output() cancelled = new EventEmitter<WorkoutSessionDetail>();
+  @Output() minimise = new EventEmitter<void>();
 
   readonly ending = signal(false);
 

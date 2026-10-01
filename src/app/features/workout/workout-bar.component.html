@@ -1,0 +1,32 @@
+@if (visible()) {
+  @let session = live.active();
+  <div class="bar">
+    <button class="resume" type="button" [attr.aria-label]="accessibleName()" (click)="resume()">
+      <span class="dot" [class.paused]="live.paused()" aria-hidden="true"></span>
+      <span class="name">{{ session?.name }}</span>
+      <span class="time" aria-hidden="true">{{ live.elapsedLabel() }}</span>
+      @if (live.currentLabel(); as step) {
+        <span class="step" aria-hidden="true">{{ step }}</span>
+      }
+    </button>
+    <button class="end" type="button" (click)="openEnd()">End</button>
+  </div>
+}
+
+@if (ending()) {
+  <app-workout-modal heading="End this workout" (dismissed)="keepGoing()">
+    @if (confirmingDiscard()) {
+      <p class="ask">Discard this workout? It will not be saved.</p>
+      <div class="choices">
+        <button class="button secondary danger" type="button" [disabled]="busy()" (click)="discard()">Discard</button>
+        <button class="button primary" type="button" [disabled]="busy()" (click)="keepGoing()">Keep going</button>
+      </div>
+    } @else {
+      <div class="choices">
+        <button class="button primary" type="button" [disabled]="busy()" (click)="finishAndSave()">Finish and save</button>
+        <button class="button secondary" type="button" [disabled]="busy()" (click)="confirmingDiscard.set(true)">Discard workout</button>
+        <button class="button secondary" type="button" [disabled]="busy()" (click)="keepGoing()">Keep going</button>
+      </div>
+    }
+  </app-workout-modal>
+}

@@ -783,10 +783,11 @@ interface DockSuggestion {
           border-radius: var(--radius-xl) var(--radius-xl) 0 0;
         }
       }
-      /* Below the sidebar breakpoint the bottom navigation is on screen, so the launcher rides above it. */
+      /* Below the sidebar breakpoint the bottom navigation is on screen, so the launcher rides above it,
+         and above the bar of a workout in progress when that is showing. */
       @media (max-width: 860px) {
         .launch {
-          bottom: 88px;
+          bottom: calc(88px + var(--workout-bar-space, 0px));
         }
       }
     `

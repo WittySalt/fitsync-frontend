@@ -6,12 +6,23 @@ import { AccountDataService, AccountSummary } from './core/account-data.service'
 import { AuthService } from './core/auth/auth.service';
 import { ThemeService } from './core/theme/theme.service';
 import { CoachStore } from './core/coach/coach.store';
+import { WorkoutBarComponent } from './features/workout/workout-bar.component';
+import { WorkoutConflictDialogComponent } from './features/workout/workout-conflict-dialog.component';
+import { WorkoutLiveService } from './features/workout/workout-live.service';
 import { CoachDockComponent } from './shared/coach/coach-dock.component';
 import { ToastOutletComponent } from './shared/toast-outlet.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, ToastOutletComponent, CoachDockComponent],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    ToastOutletComponent,
+    CoachDockComponent,
+    WorkoutBarComponent,
+    WorkoutConflictDialogComponent
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -21,10 +32,13 @@ export class App implements OnInit {
   private readonly accountDataService = inject(AccountDataService);
   protected readonly themeService = inject(ThemeService);
   protected readonly coach = inject(CoachStore);
+  private readonly workoutLive = inject(WorkoutLiveService);
 
   protected readonly accountMenuOpen = signal(false);
   protected readonly account = signal<AccountSummary | null>(null);
   private readonly accountLoading = signal(false);
+  private signedIn = false;
+  private activeWorkoutRequested = false;
 
   protected readonly navItems = [
     { path: '/dashboard', label: 'Home', icon: 'home' },
@@ -45,7 +59,10 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.loadAccountIfNeeded();
-    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => this.loadAccountIfNeeded());
+    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
+      this.loadAccountIfNeeded();
+      this.loadActiveWorkoutIfNeeded();
+    });
   }
 
   protected toggleAccountMenu(): void {
@@ -71,6 +88,7 @@ export class App implements OnInit {
 
   protected logout(): void {
     this.closeAccountMenu();
+    this.workoutLive.reset();
     this.authService.logout();
   }
 
@@ -80,6 +98,16 @@ export class App implements OnInit {
     if (this.accountMenuOpen() && !target?.closest('.account-menu')) {
       this.closeAccountMenu();
     }
+  }
+
+  /** The workout in progress is loaded once the shell knows who is signed in. The admin console and the
+   *  signed-out pages never ask for it. */
+  private loadActiveWorkoutIfNeeded(): void {
+    if (this.activeWorkoutRequested || !this.signedIn || this.isAuthRoute() || this.isAdminRoute()) {
+      return;
+    }
+    this.activeWorkoutRequested = true;
+    this.workoutLive.refresh();
   }
 
   private loadAccountIfNeeded(): void {
@@ -95,6 +123,8 @@ export class App implements OnInit {
           this.account.set(null);
           return;
         }
+        this.signedIn = true;
+        this.loadActiveWorkoutIfNeeded();
 
         this.accountDataService.getProfileSummary().subscribe({
           next: (account) => {

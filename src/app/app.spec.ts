@@ -1,5 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -9,6 +9,7 @@ import { AccountDataService, AccountSummary } from './core/account-data.service'
 import { AuthService } from './core/auth/auth.service';
 import { CoachStore } from './core/coach/coach.store';
 import { ThemeService } from './core/theme/theme.service';
+import { WorkoutLiveService } from './features/workout/workout-live.service';
 
 describe('App', () => {
   let authService: jasmine.SpyObj<AuthService>;
@@ -160,5 +161,97 @@ describe('App', () => {
     expect(compiled.querySelector('.nav-list')).toBeNull();
     expect(compiled.querySelector('.bottom-nav')).toBeNull();
     expect(compiled.querySelector('app-coach-dock')).toBeNull();
+  });
+
+  describe('the workout in progress', () => {
+    const activeUrl = '/api/v1/workouts/sessions/active';
+    const requests = () => TestBed.inject(HttpTestingController).match((request) => request.url === activeUrl);
+
+    it('is asked for once the shell knows who is signed in, and shows the bar when there is one', () => {
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+
+      const calls = requests();
+      expect(calls.length).toBe(1);
+      calls[0].flush({
+        session: {
+          sessionId: 'session-live',
+          name: 'Leg day',
+          workoutType: 'STRENGTH',
+          status: 'IN_PROGRESS',
+          startedAt: new Date(Date.now() - 90_000).toISOString(),
+          exercises: []
+        },
+        resume: null
+      });
+      fixture.detectChanges();
+
+      const bar = (fixture.nativeElement as HTMLElement).querySelector('app-workout-bar .bar');
+      expect(bar?.textContent).toContain('Leg day');
+    });
+
+    it('shows no bar when the answer is no content', () => {
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+
+      requests()[0].flush(null, { status: 204, statusText: 'No Content' });
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-workout-bar .bar')).toBeNull();
+    });
+
+    it('is not asked for while signed out', () => {
+      authService.ensureSession.and.returnValue(of(false));
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+
+      expect(requests().length).toBe(0);
+    });
+
+    it('is not asked for in the admin area', async () => {
+      const router = TestBed.inject(Router);
+      router.resetConfig([{ path: 'admin', children: [] }]);
+      await router.navigateByUrl('/admin');
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+
+      expect(requests().length).toBe(0);
+    });
+
+    it('is asked for later, when a member reaches the app from the admin area', async () => {
+      const router = TestBed.inject(Router);
+      router.resetConfig([
+        { path: 'admin', children: [] },
+        { path: 'workout', children: [] }
+      ]);
+      await router.navigateByUrl('/admin');
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+      expect(requests().length).toBe(0);
+
+      await router.navigateByUrl('/workout');
+      fixture.detectChanges();
+
+      expect(requests().length).toBe(1);
+    });
+
+    it('is forgotten when the person signs out', () => {
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+      requests()[0].flush({
+        session: { sessionId: 'session-live', name: 'Leg day', status: 'IN_PROGRESS', startedAt: new Date().toISOString(), exercises: [] },
+        resume: null
+      });
+      fixture.detectChanges();
+      const live = TestBed.inject(WorkoutLiveService);
+      expect(live.session()).not.toBeNull();
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.account-button')?.click();
+      fixture.detectChanges();
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.logout-row')?.click();
+
+      expect(live.session()).toBeNull();
+      expect(authService.logout).toHaveBeenCalled();
+    });
   });
 });

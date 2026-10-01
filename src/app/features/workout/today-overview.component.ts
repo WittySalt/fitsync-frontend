@@ -13,6 +13,7 @@ import {
 import { formatDuration, formatKm, formatPace } from '../dashboard/brief/brief-duration';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from '../dashboard/brief/day-kind-icons';
 import { GlyphShape } from '../dashboard/brief/muscle-icons';
+import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
 
@@ -34,6 +35,8 @@ type TodayAction = 'start' | 'log' | 'browse' | 'open';
 interface TodayButton {
   label: string;
   action: TodayAction;
+  /** A line under the label, such as the title of the session a rest day offers. */
+  note?: string;
 }
 
 interface TodayCard {
@@ -326,11 +329,26 @@ export class TodayOverviewComponent {
   private restCard(): TodayCard {
     const next = this.nextTraining();
     const weekday = next ? this.weekdayOfDate(next.date) : '';
+    const chips = next && weekday ? [`Next is ${weekday}, ${next.label.toLowerCase()}`] : [];
+    // The next training does not say which plan day it is, so the day is found by its weekday.
+    const day = next ? planDayOn(this.activePlan()?.days, isoWeekdayOfDateKey(next.date)) : null;
+    if (next && weekday && day) {
+      return this.makeCard({
+        kind: 'REST',
+        eyebrow: 'Today · Rest',
+        title: 'Rest day',
+        chips,
+        primary: { label: `Do ${weekday}'s session today`, action: 'start', note: next.title || day.title || next.label },
+        link: BROWSE_LINK,
+        planDayId: day.planDayId,
+        ariaLabel: "Today's workout, rest day"
+      });
+    }
     return this.makeCard({
       kind: 'REST',
       eyebrow: 'Today · Rest',
       title: 'Rest day',
-      chips: next && weekday ? [`Next is ${weekday}, ${next.label.toLowerCase()}`] : [],
+      chips,
       link: { label: 'Train today', action: 'browse' },
       ariaLabel: "Today's workout, rest day"
     });
@@ -433,12 +451,8 @@ export class TodayOverviewComponent {
   /** Names the weekday of a YYYY-MM-DD key. The key is a calendar day already in the user's
    *  timezone, so it is read as plain date parts and never shifted through an instant. */
   private weekdayOfDate(dateKey: string): string {
-    const [year, month, day] = dateKey.split('-').map(Number);
-    if (![year, month, day].every(Number.isFinite)) {
-      return '';
-    }
-    const index = (new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7;
-    return WEEKDAYS[index] ?? '';
+    const weekday = isoWeekdayOfDateKey(dateKey);
+    return weekday ? (WEEKDAYS[weekday - 1] ?? '') : '';
   }
 
   private formatSessionDay(value: string | null | undefined): string {

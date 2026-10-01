@@ -2841,4 +2841,93 @@ describe('FitSyncDataService', () => {
     httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush('boom', { status: 500, statusText: 'Server Error' });
     expect(failed).toBeTrue();
   });
+
+  describe('getActiveWorkout', () => {
+    const url = '/api/v1/workouts/sessions/active';
+
+    it('maps the session and where the person left off', () => {
+      let result: unknown;
+      service.getActiveWorkout().subscribe((value) => (result = value));
+
+      httpTesting.expectOne(url).flush({
+        session: {
+          sessionId: 'session-1',
+          name: 'Leg day',
+          workoutType: 'STRENGTH',
+          status: 'IN_PROGRESS',
+          startedAt: '2026-10-01T10:00:00Z',
+          planDayId: 'day-3',
+          autoClosedAt: null,
+          exercises: [{ exerciseLogId: 'log-1', exerciseId: 'exercise-1', exerciseNameSnapshot: 'Goblet squat', sequence: 1, sets: [] }]
+        },
+        resume: {
+          doneSets: 2,
+          skippedSets: 0,
+          pendingSets: 4,
+          totalSets: 6,
+          nextSet: { exerciseLogId: 'log-1', exerciseId: 'exercise-1', exerciseNameSnapshot: 'Goblet squat', exerciseSequence: 1, setNumber: 3 }
+        }
+      });
+
+      const active = result as { session: WorkoutSessionDetail; resume: { doneSets: number; nextSet: { exerciseName: string; setNumber: number } } };
+      expect(active.session.sessionId).toBe('session-1');
+      expect(active.session.planDayId).toBe('day-3');
+      expect(active.session.autoClosedAt).toBeNull();
+      expect(active.session.exercises.length).toBe(1);
+      expect(active.resume.doneSets).toBe(2);
+      expect(active.resume.nextSet).toEqual(jasmine.objectContaining({ exerciseName: 'Goblet squat', setNumber: 3 }));
+    });
+
+    it('keeps a missing resume as null, and a missing next set as null', () => {
+      const results: unknown[] = [];
+      service.getActiveWorkout().subscribe((value) => results.push(value));
+      httpTesting.expectOne(url).flush({ session: { sessionId: 'session-1', name: 'Run', status: 'IN_PROGRESS', startedAt: '2026-10-01T10:00:00Z' } });
+      service.getActiveWorkout().subscribe((value) => results.push(value));
+      httpTesting.expectOne(url).flush({
+        session: { sessionId: 'session-2', name: 'Run', status: 'IN_PROGRESS', startedAt: '2026-10-01T10:00:00Z' },
+        resume: { doneSets: 1, skippedSets: 0, pendingSets: 0, totalSets: 1, nextSet: null }
+      });
+
+      expect((results[0] as { resume: unknown }).resume).toBeNull();
+      expect((results[1] as { resume: { nextSet: unknown } }).resume.nextSet).toBeNull();
+    });
+
+    it('means no workout for a 204, an empty body, a body without a session, and an error', () => {
+      const results: unknown[] = [];
+      const ask = () => service.getActiveWorkout().subscribe((value) => results.push(value));
+
+      ask();
+      httpTesting.expectOne(url).flush(null, { status: 204, statusText: 'No Content' });
+      ask();
+      httpTesting.expectOne(url).flush(null);
+      ask();
+      httpTesting.expectOne(url).flush({ resume: null });
+      ask();
+      httpTesting.expectOne(url).flush({ session: { name: 'No id' } });
+      ask();
+      httpTesting.expectOne(url).flush('boom', { status: 500, statusText: 'Server Error' });
+
+      expect(results).toEqual([null, null, null, null, null]);
+    });
+  });
+
+  it('carries the plan day and the automatic close on every session it maps', () => {
+    let page: { sessions: WorkoutSession[] } | undefined;
+    service.getWorkoutSessionPage({ page: 0, size: 1 }).subscribe((value) => (page = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/sessions').flush({
+      content: [
+        { sessionId: 'session-1', name: 'Run', status: 'COMPLETED', startedAt: '2026-10-01T10:00:00Z', planDayId: 'day-2', autoClosedAt: '2026-10-01T13:00:00Z' },
+        { sessionId: 'session-2', name: 'Lift', status: 'COMPLETED', startedAt: '2026-10-01T08:00:00Z' }
+      ],
+      totalElements: 2,
+      totalPages: 1,
+      number: 0
+    });
+
+    expect(page?.sessions[0].planDayId).toBe('day-2');
+    expect(page?.sessions[0].autoClosedAt).toBe('2026-10-01T13:00:00Z');
+    expect(page?.sessions[1].planDayId).toBeNull();
+    expect(page?.sessions[1].autoClosedAt).toBeNull();
+  });
 });

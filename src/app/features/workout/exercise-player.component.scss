@@ -1,5 +1,6 @@
 :host {
   display: block;
+  container-type: inline-size;
 }
 
 .exercise-player {
@@ -11,6 +12,10 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+}
+
+.minimise {
+  justify-self: start;
 }
 
 .status-announcer {
@@ -63,6 +68,10 @@
 .focus-copy p,
 .focus-card.empty p {
   color: var(--text-secondary);
+}
+
+.live-metrics .elapsed {
+  font-variant-numeric: tabular-nums;
 }
 
 .live-metrics span {
@@ -155,6 +164,7 @@
 
 .focus-copy {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -203,9 +213,13 @@
   line-height: 1.35;
 }
 
+// The name follows the width of the player, so a long word such as "Dumbbell" stays whole in the
+// narrow column between the picture and the current set.
 .focus-copy h3 {
-  font-size: var(--text-5xl);
-  line-height: 1;
+  font-size: clamp(1.75rem, 5.5cqi, var(--text-4xl));
+  line-height: 1.05;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
 .focus-copy p {
@@ -405,11 +419,15 @@
   background: var(--surface-sunken);
 }
 
-@media (max-width: 760px) {
+@container (max-width: 760px) {
   .player-topbar,
   .focus-card,
   .player-actions {
     display: grid;
+  }
+
+  .focus-card {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .live-metrics {

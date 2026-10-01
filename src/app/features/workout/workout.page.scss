@@ -166,6 +166,10 @@
     font-weight: var(--fw-bold);
   }
 
+  .history-row.running {
+    border-color: var(--border-accent);
+  }
+
   .history-row {
     display: grid;
     align-items: center;

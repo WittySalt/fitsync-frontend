@@ -57,12 +57,14 @@ describe('LiveStartCardComponent', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startAdHocSession',
+      'getActiveWorkout',
       'saveWorkoutSession',
       'getExerciseMetadata'
     ]);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
 
     dataService.startAdHocSession.and.returnValue(of(detail()));
+    dataService.getActiveWorkout.and.returnValue(of(null));
     dataService.saveWorkoutSession.and.returnValue(of({ ok: true }));
     dataService.getExerciseMetadata.and.returnValue(of(metadata()));
 

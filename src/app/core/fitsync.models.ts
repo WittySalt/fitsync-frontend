@@ -101,6 +101,40 @@ export interface WorkoutSession {
   sportActivity?: string | null;
   sportLabel?: string | null;
   distanceKm?: number | null;
+  /** The plan day a session was started from, when it came from a weekly plan. */
+  planDayId?: string | null;
+  /** When the server closed a left workout by itself; null for a session the person ended. */
+  autoClosedAt?: string | null;
+}
+
+/** The set a workout in progress needs next, as the active-workout call names it. */
+export interface ActiveWorkoutNextSet {
+  exerciseLogId: string | null;
+  exerciseId: string | null;
+  exerciseName: string;
+  exerciseSequence: number | null;
+  setNumber: number | null;
+}
+
+export interface ActiveWorkoutResume {
+  doneSets: number;
+  skippedSets: number;
+  pendingSets: number;
+  totalSets: number;
+  nextSet: ActiveWorkoutNextSet | null;
+}
+
+/** The one workout in progress, with where the person left off. */
+export interface ActiveWorkout {
+  session: WorkoutSessionDetail;
+  resume: ActiveWorkoutResume | null;
+}
+
+/** What the server says when a start is refused because a workout is already in progress. */
+export interface ActiveSessionConflict {
+  sessionId: string;
+  name: string;
+  startedAt: string;
 }
 
 export interface WorkoutSessionPage {
@@ -169,6 +203,8 @@ export interface WorkoutExerciseLog {
 export interface WorkoutExerciseSetLog {
   setLogId: string;
   setNumber: number;
+  /** PENDING until the set is done; SKIPPED when the person passed it over. Absent on older answers. */
+  status?: string | null;
   reps: number | null;
   weightKg: number | null;
   durationSeconds: number | null;

@@ -5,7 +5,6 @@ import {
   ExerciseDetail,
   WorkoutExerciseLog,
   WorkoutPlan,
-  WorkoutPlanExercise,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
@@ -15,10 +14,19 @@ import {
   WorkoutCelebrationSummary
 } from './workout-celebration.component';
 import { ExerciseVideoComponent } from './exercise-video.component';
+import { PlayerSetListComponent } from './player-set-list.component';
+import {
+  PlayerSet,
+  SetTarget,
+  exerciseSummary,
+  findPlanExercise,
+  resolveExerciseSets,
+  targetLine
+} from './player-targets';
 
 @Component({
   selector: 'app-exercise-player',
-  imports: [WorkoutCelebrationComponent, ExerciseVideoComponent],
+  imports: [WorkoutCelebrationComponent, ExerciseVideoComponent, PlayerSetListComponent],
   templateUrl: './exercise-player.component.html',
   styleUrl: './exercise-player.component.scss'
 })
@@ -31,9 +39,14 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) session: WorkoutSessionDetail | null = null;
   @Input({ required: true }) activePlan: WorkoutPlan | null = null;
   @Input() initialExerciseId: string | null = null;
+  /** The set to start on, when the workout is picked up where it was left. */
+  @Input() initialSetNumber: number | null = null;
+  /** Every set was already done, so the screen opens on the last exercise with Finish as the next step. */
+  @Input() allDoneOnOpen = false;
 
   @Output() completed = new EventEmitter<WorkoutSessionDetail>();
   @Output() cancelled = new EventEmitter<WorkoutSessionDetail>();
+  @Output() minimise = new EventEmitter<void>();
 
   readonly currentExerciseIndex = signal(0);
   readonly currentSetNumber = signal(1);
@@ -72,24 +85,44 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   );
 
   readonly currentLog = computed(() => this.orderedLogs()[this.currentExerciseIndex()] ?? null);
-  readonly currentPlanExercise = computed(() => this.findPlanExercise(this.currentLog()));
+  /** The sets of every exercise: the session's own rows first, the plan only where there are none. */
+  readonly setsByLog = computed(() => {
+    this.activePlanRevision();
+    const planDayId = this.live.session()?.planDayId ?? null;
+    const plan = this.activePlan;
+    return new Map<string, PlayerSet[]>(
+      this.orderedLogs().map((log) => [log.exerciseLogId, resolveExerciseSets(log, planDayId, plan)])
+    );
+  });
+  readonly currentSets = computed<PlayerSet[]>(() => {
+    const log = this.currentLog();
+    return (log && this.setsByLog().get(log.exerciseLogId)) || [];
+  });
+  readonly currentTarget = computed<SetTarget | null>(
+    () => this.currentSets().find((set) => set.setNumber === this.currentSetNumber())?.target ?? null
+  );
+  readonly currentTargetLine = computed(() => targetLine(this.currentTarget()));
+  readonly currentPlanExercise = computed(() => {
+    this.activePlanRevision();
+    return findPlanExercise(this.currentLog(), this.live.session()?.planDayId, this.activePlan);
+  });
   readonly currentExerciseId = computed(() => this.currentLog()?.exerciseId || this.currentPlanExercise()?.exerciseId || '');
   readonly currentMediaIdentity = computed(() =>
     this.currentExerciseId() || this.currentLog()?.exerciseLogId || this.currentLog()?.exerciseNameSnapshot || ''
   );
-  readonly targetSets = computed(() => Math.max(1, this.currentPlanExercise()?.targetSets ?? 1));
-  readonly isTimedTarget = computed(() => (this.currentPlanExercise()?.targetDurationSeconds ?? 0) > 0);
+  readonly targetSets = computed(() => Math.max(1, this.currentSets().length));
+  readonly isTimedTarget = computed(() => (this.currentTarget()?.durationSeconds ?? 0) > 0);
   readonly currentTempoSecondsPerRep = computed(() => this.tempoForExerciseType(this.currentDetail()?.exerciseType));
   readonly targetWorkSeconds = computed(() => {
-    const target = this.currentPlanExercise();
+    const target = this.currentTarget();
     if (!target) {
       return 0;
     }
-    if ((target.targetDurationSeconds ?? 0) > 0) {
-      return Math.max(1, target.targetDurationSeconds ?? 0);
+    if ((target.durationSeconds ?? 0) > 0) {
+      return Math.max(1, target.durationSeconds ?? 0);
     }
-    if ((target.targetReps ?? 0) > 0) {
-      return Math.max(1, target.targetReps ?? 0) * this.workGuideTempoSecondsPerRep();
+    if ((target.reps ?? 0) > 0) {
+      return Math.max(1, target.reps ?? 0) * this.workGuideTempoSecondsPerRep();
     }
     return 0;
   });
@@ -101,7 +134,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return Math.min(100, Math.round((this.workGuideElapsedSeconds() / targetSeconds) * 100));
   });
   readonly totalTargetSets = computed(() =>
-    this.activePlanExercises().reduce((sum, exercise) => sum + Math.max(1, exercise.targetSets ?? 1), 0)
+    Array.from(this.setsByLog().values()).reduce((sum, sets) => sum + sets.length, 0)
   );
   readonly completedSetCount = computed(() =>
     this.orderedLogs().reduce((sum, log) => sum + log.sets.filter((set) => set.logged).length, 0)
@@ -175,12 +208,20 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
       this.activePlanRevision.update((value) => value + 1);
       this.clearWorkTimer();
     }
-    if ((changes['session'] || changes['initialExerciseId']) && this.session) {
+    const sessionChange = changes['session'];
+    if (this.session && sessionChange) {
       this.live.setSession(this.session);
+    }
+    // The session input follows the workout as sets are recorded. The screen goes back to the start
+    // position only for another workout, or when it was asked to open somewhere else.
+    const otherWorkout = !!sessionChange
+      && (sessionChange.firstChange || sessionChange.previousValue?.sessionId !== this.session?.sessionId);
+    const moved = !!(changes['initialExerciseId'] || changes['initialSetNumber'] || changes['allDoneOnOpen']);
+    if (this.session && (otherWorkout || moved)) {
       const index = this.initialExerciseIndex();
       this.currentExerciseIndex.set(index);
-      this.currentSetNumber.set(this.nextTargetSetNumber(this.orderedLogs()[index] ?? null));
-      this.allTargetsComplete.set(false);
+      this.currentSetNumber.set(this.initialSetNumber ?? this.nextTargetSetNumber(this.orderedLogs()[index] ?? null));
+      this.allTargetsComplete.set(this.allDoneOnOpen);
       this.clearRestTimer();
       this.clearWorkTimer();
     }
@@ -196,7 +237,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   completeCurrentSet(): void {
     const session = this.live.session();
     const log = this.currentLog();
-    const target = this.currentPlanExercise();
+    const target = this.currentTarget();
     const setNumber = this.currentSetNumber();
     if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.savingSet() || this.restRemainingSeconds() > 0) {
       return;
@@ -206,10 +247,10 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.restCompleteCue.set(false);
     this.savingSet.set(true);
     this.live.recordSet(session.sessionId, log.exerciseLogId, setNumber, {
-      reps: target?.targetReps ?? null,
-      weightKg: target?.targetWeightKg ?? null,
-      durationSeconds: target?.targetDurationSeconds ?? null,
-      distanceKm: target?.targetDistanceKm ?? null,
+      reps: target?.reps ?? null,
+      weightKg: target?.weightKg ?? null,
+      durationSeconds: target?.durationSeconds ?? null,
+      distanceKm: target?.distanceKm ?? null,
       restSeconds: target?.restSeconds ?? null,
       perceivedExertion: null,
       notes: null
@@ -321,23 +362,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     });
   }
 
-  targetSummary(exercise: WorkoutPlanExercise | null): string {
-    if (!exercise) {
-      return 'Follow the plan target for this movement.';
-    }
-    const parts = [`${Math.max(1, exercise.targetSets ?? 1)} x ${exercise.targetReps ?? '-'}`];
-    if (exercise.targetWeightKg) {
-      parts.push(`${exercise.targetWeightKg} kg`);
-    }
-    if (exercise.targetDurationSeconds) {
-      parts.push(`${exercise.targetDurationSeconds} sec`);
-    }
-    if (exercise.restSeconds) {
-      parts.push(`${exercise.restSeconds} sec rest`);
-    }
-    return parts.join(' / ');
-  }
-
   mediaAlt(log: WorkoutExerciseLog): string {
     return `${log.exerciseNameSnapshot} movement reference`;
   }
@@ -351,7 +375,12 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   plannedSetCount(log: WorkoutExerciseLog): number {
-    return Math.max(1, this.findPlanExercise(log)?.targetSets ?? log.sets.length);
+    return this.setsByLog().get(log.exerciseLogId)?.length ?? Math.max(1, log.sets.length);
+  }
+
+  /** The plan of one exercise in a line: "3 x 10 / 20 kg", "3 x 45 sec", or "3 sets". */
+  queueSummary(log: WorkoutExerciseLog): string {
+    return exerciseSummary(this.setsByLog().get(log.exerciseLogId) ?? []);
   }
 
   onMediaError(): void {
@@ -381,12 +410,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return `${minutes}:${remainder.toString().padStart(2, '0')}`;
   }
 
-  formatElapsed(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainder = seconds % 60;
-    return `${minutes}m ${remainder}s`;
-  }
-
   workGuideLabel(): string {
     return this.isTimedTarget() ? 'Timed set' : 'Tempo guide';
   }
@@ -395,7 +418,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     if (this.isTimedTarget()) {
       return this.formatClock(this.workGuideRemainingSeconds());
     }
-    return `${this.guidedRepCount()} / ${this.currentPlanExercise()?.targetReps ?? 0} reps`;
+    return `${this.guidedRepCount()} / ${this.currentTarget()?.reps ?? 0} reps`;
   }
 
   tempoSummary(): string {
@@ -509,7 +532,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   }
 
   private updateGuidedRepCount(elapsedSeconds: number): void {
-    const targetReps = this.currentPlanExercise()?.targetReps ?? 0;
+    const targetReps = this.currentTarget()?.reps ?? 0;
     if (this.isTimedTarget() || targetReps <= 0) {
       this.guidedRepCount.set(0);
       return;
@@ -521,7 +544,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private recordGuidedSet(fullTarget: boolean): void {
     const session = this.live.session();
     const log = this.currentLog();
-    const target = this.currentPlanExercise();
+    const target = this.currentTarget();
     const setNumber = this.currentSetNumber();
     if (!session?.sessionId || !log?.exerciseLogId || !target || !this.canRecordWorkSet()) {
       this.clearWorkTimer();
@@ -535,9 +558,9 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.savingSet.set(true);
     this.live.recordSet(session.sessionId, log.exerciseLogId, setNumber, {
       reps,
-      weightKg: target.targetWeightKg ?? null,
+      weightKg: target.weightKg ?? null,
       durationSeconds: recordedDurationSeconds,
-      distanceKm: target.targetDistanceKm ?? null,
+      distanceKm: target.distanceKm ?? null,
       restSeconds: target.restSeconds ?? null,
       perceivedExertion: null,
       notes: null
@@ -564,21 +587,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return Math.max(0, ...logged) + 1;
   }
 
-  private findPlanExercise(log: WorkoutExerciseLog | null): WorkoutPlanExercise | null {
-    const exercises = this.activePlanExercises();
-    if (!log || !exercises.length) {
-      return null;
-    }
-    return exercises.find((exercise) => exercise.exerciseId === log.exerciseId)
-      ?? exercises.find((exercise) => exercise.sequence === log.sequence)
-      ?? null;
-  }
-
-  private activePlanExercises(): WorkoutPlanExercise[] {
-    this.activePlanRevision();
-    return this.activePlan?.exercises ?? [];
-  }
-
   private workGuideTempoSecondsPerRep(): number {
     return this.workGuideActive() ? this.activeTempoSecondsPerRep() : this.currentTempoSecondsPerRep();
   }
@@ -598,7 +606,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private initialExerciseIndex(): number {
     if (!this.initialExerciseId) {
-      return 0;
+      return this.allDoneOnOpen ? Math.max(0, this.orderedLogs().length - 1) : 0;
     }
     const index = this.orderedLogs().findIndex((log) => log.exerciseId === this.initialExerciseId);
     return index >= 0 ? index : 0;
@@ -650,11 +658,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return fallbackFrame ? [fallbackFrame] : [];
   }
 
-  private guidedSetReps(fullTarget: boolean, target: WorkoutPlanExercise): number | null {
+  private guidedSetReps(fullTarget: boolean, target: SetTarget): number | null {
     if (this.isTimedTarget()) {
       return null;
     }
-    return fullTarget ? target.targetReps ?? null : this.guidedRepCount();
+    return fullTarget ? target.reps ?? null : this.guidedRepCount();
   }
 
   private resetMediaForExercise(exerciseId = ''): void {

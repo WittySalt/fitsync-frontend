@@ -429,11 +429,12 @@ describe('ExercisePlayerComponent', () => {
     }));
     withSetProgress.detectChanges();
 
-    const subtitles = Array.from(
-      (withSetProgress.nativeElement as HTMLElement).querySelectorAll('.movement-queue .queue-item small')
-    ).map((subtitle) => subtitle.textContent?.trim());
+    const root = withSetProgress.nativeElement as HTMLElement;
+    const texts = (selector: string) =>
+      Array.from(root.querySelectorAll(`.movement-queue .queue-item ${selector}`)).map((node) => node.textContent?.trim());
 
-    expect(subtitles).toEqual(['1 / 3 sets', '0 / 3 sets']);
+    expect(texts('small:not(.queue-plan)')).toEqual(['1 / 3 sets', '0 / 3 sets']);
+    expect(texts('.queue-plan')).toEqual(['3 × 10 · 20 kg', '3 × 8']);
   });
 
   it('starts focused on the requested initial exercise', () => {
@@ -711,5 +712,247 @@ describe('ExercisePlayerComponent', () => {
     const celebration = reduced.debugElement.query(By.directive(WorkoutCelebrationComponent));
     expect(reduced.componentInstance.prefersReducedMotion).toBeTrue();
     expect(celebration.componentInstance.reducedMotion).toBeTrue();
+  });
+
+  describe('picking a workout up where it was left', () => {
+    function reopened(inputs: Record<string, unknown>): ComponentFixture<ExercisePlayerComponent> {
+      live.reset();
+      const player = TestBed.createComponent(ExercisePlayerComponent);
+      player.componentRef.setInput('session', detail());
+      player.componentRef.setInput('activePlan', plan());
+      for (const [name, value] of Object.entries(inputs)) {
+        player.componentRef.setInput(name, value);
+      }
+      player.detectChanges();
+      return player;
+    }
+
+    it('opens on the exercise and set it was asked to', () => {
+      const player = reopened({ initialExerciseId: 'exercise-2', initialSetNumber: 3 });
+
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+      expect(player.componentInstance.currentSetNumber()).toBe(3);
+      expect(player.componentInstance.allTargetsComplete()).toBeFalse();
+    });
+
+    it('opens on the last exercise with Finish as the next step when every set is done', () => {
+      const player = reopened({ allDoneOnOpen: true });
+
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+      expect(player.componentInstance.allTargetsComplete()).toBeTrue();
+      expect((player.nativeElement as HTMLElement).querySelector('.completion-note')).not.toBeNull();
+      const complete = (player.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.complete-set');
+      expect(complete?.disabled).toBeTrue();
+    });
+
+    it('keeps its place while the same workout comes back with more sets recorded', () => {
+      const player = reopened({ initialExerciseId: 'exercise-2', initialSetNumber: 1 });
+
+      player.componentRef.setInput('session', detail({ updatedAt: 'later' }));
+      player.detectChanges();
+
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+    });
+
+    it('goes back to the start for another workout, and moves when asked to open somewhere else', () => {
+      const player = reopened({ initialExerciseId: 'exercise-2' });
+
+      player.componentRef.setInput('session', detail({ sessionId: 'session-other' }));
+      player.componentRef.setInput('initialExerciseId', null);
+      player.detectChanges();
+      expect(player.componentInstance.currentExerciseIndex()).toBe(0);
+
+      player.componentRef.setInput('initialExerciseId', 'exercise-2');
+      player.detectChanges();
+      expect(player.componentInstance.currentExerciseIndex()).toBe(1);
+    });
+
+    it('offers a Minimise control that says so to its owner', () => {
+      const minimised = jasmine.createSpy('minimise');
+      fixture.componentInstance.minimise.subscribe(minimised);
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.minimise')?.click();
+
+      expect(minimised).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('a session started from a weekly plan', () => {
+    function weeklySet(setNumber: number, values: Partial<WorkoutExerciseSetLog>): WorkoutExerciseSetLog {
+      return {
+        setLogId: '',
+        setNumber,
+        status: 'PENDING',
+        reps: null,
+        weightKg: null,
+        durationSeconds: null,
+        distanceKm: null,
+        restSeconds: 0,
+        perceivedExertion: null,
+        logged: false,
+        notes: '',
+        ...values
+      };
+    }
+
+    function weeklySession(overrides: Partial<WorkoutSessionDetail> = {}): WorkoutSessionDetail {
+      const base = detail();
+      return detail({
+        planDayId: 'day-1',
+        exercises: [
+          {
+            ...base.exercises[0],
+            exerciseId: 'exercise-plank',
+            exerciseNameSnapshot: 'Plank',
+            sets: [1, 2, 3].map((n) => weeklySet(n, { durationSeconds: 45, restSeconds: 30 }))
+          },
+          {
+            ...base.exercises[1],
+            exerciseId: 'exercise-run',
+            exerciseNameSnapshot: 'Treadmill',
+            sets: [weeklySet(1, { durationSeconds: 1800, distanceKm: 5.75 })]
+          }
+        ],
+        ...overrides
+      });
+    }
+
+    const weeklyPlan = () => plan({ exercises: [], days: [] });
+    const root = (player: ComponentFixture<ExercisePlayerComponent>) => player.nativeElement as HTMLElement;
+    const text = (player: ComponentFixture<ExercisePlayerComponent>) => root(player).textContent ?? '';
+    const textOf = (player: ComponentFixture<ExercisePlayerComponent>, selector: string) =>
+      root(player).querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim();
+
+    function mount(session: WorkoutSessionDetail, activePlan: WorkoutPlan): ComponentFixture<ExercisePlayerComponent> {
+      live.reset();
+      dataService.upsertSessionSet.calls.reset();
+      const player = TestBed.createComponent(ExercisePlayerComponent);
+      player.componentRef.setInput('session', session);
+      player.componentRef.setInput('activePlan', activePlan);
+      player.detectChanges();
+      return player;
+    }
+
+    it('counts the planned sets of the session, and the progress bar follows', () => {
+      const player = mount(weeklySession(), weeklyPlan());
+
+      expect(text(player)).toContain('0 of 4 sets done');
+
+      live.setSession(weeklySession({
+        exercises: [
+          {
+            ...weeklySession().exercises[0],
+            sets: [
+              weeklySet(1, { durationSeconds: 45, restSeconds: 30, logged: true, status: 'DONE' }),
+              weeklySet(2, { durationSeconds: 45, restSeconds: 30 }),
+              weeklySet(3, { durationSeconds: 45, restSeconds: 30 })
+            ]
+          },
+          weeklySession().exercises[1]
+        ]
+      }));
+      player.detectChanges();
+
+      expect(text(player)).toContain('1 of 4 sets done');
+      expect(player.componentInstance.progressPercent()).toBe(25);
+    });
+
+    it('shows the real number of sets and the target of the current set', () => {
+      const player = mount(weeklySession(), weeklyPlan());
+
+      expect(textOf(player, '.set-panel strong')).toBe('1 / 3');
+      expect(textOf(player, '.focus-copy p')).toBe('45 sec · 30 sec rest');
+      expect(text(player)).not.toContain('Follow the plan target');
+    });
+
+    it('offers the timer for a timed set and records the target values', () => {
+      const player = mount(weeklySession(), weeklyPlan());
+      player.componentRef.setInput('initialExerciseId', 'exercise-run');
+      player.detectChanges();
+
+      expect(text(player)).toContain('Start timer');
+      expect(textOf(player, '.focus-copy p')).toBe('30 min · 5.75 km');
+
+      root(player).querySelector<HTMLButtonElement>('.complete-set')?.click();
+
+      expect(dataService.upsertSessionSet).toHaveBeenCalledWith(
+        'session-live',
+        'log-2',
+        1,
+        jasmine.objectContaining({ reps: null, durationSeconds: 1800, distanceKm: 5.75 })
+      );
+    });
+
+    it('lists the sets of the current exercise with the planned and the logged values', () => {
+      const session = weeklySession({
+        exercises: [
+          {
+            ...weeklySession().exercises[0],
+            exerciseId: 'ex-bench',
+            exerciseNameSnapshot: 'Bench',
+            sets: [
+              weeklySet(1, { reps: 8, weightKg: 20, logged: true, status: 'DONE' }),
+              weeklySet(2, { reps: 10, weightKg: 20, logged: true, status: 'DONE' }),
+              weeklySet(3, { status: 'SKIPPED', logged: true }),
+              weeklySet(4, { reps: 10, weightKg: 20 })
+            ]
+          }
+        ]
+      });
+      const benchPlan = plan({
+        exercises: [{ ...plan().exercises[0], exerciseId: 'ex-bench', targetSets: 4, targetReps: 10, targetWeightKg: 20 }]
+      });
+      const player = mount(session, benchPlan);
+
+      const items = Array.from(root(player).querySelectorAll('app-player-set-list li'))
+        .map((item) => item.textContent?.replace(/\s+/g, ' ').trim());
+
+      expect(items).toEqual([
+        'Set 1 planned 10 × 20 kg, did 8 × 20 kg ✓',
+        'Set 2 10 × 20 kg ✓',
+        'Set 3 Skipped',
+        'Set 4 10 × 20 kg'
+      ]);
+      expect(root(player).querySelector('app-player-set-list ol')).not.toBeNull();
+      expect(root(player).querySelector('app-player-set-list [aria-label="Done"]')).not.toBeNull();
+    });
+
+    it('writes the plan of each exercise in the movement queue', () => {
+      const player = mount(weeklySession(), weeklyPlan());
+
+      const lines = Array.from(root(player).querySelectorAll('.queue-plan')).map((node) => node.textContent?.trim());
+
+      expect(lines).toEqual(['3 × 45 sec', '30 min · 5.75 km']);
+    });
+
+    it('takes the sets from the plan day of the session when the exercise has no set rows', () => {
+      const day = {
+        planDayId: 'day-1', dayOfWeek: 1, kind: 'STRENGTH', title: 'Legs', sportActivity: null, sportLabel: null,
+        estimatedDurationMinutes: null,
+        exercises: [
+          { ...plan().exercises[0], targetSets: 3, targetReps: 12, targetWeightKg: 15 },
+          { ...plan().exercises[1], targetSets: 2, targetReps: 8 }
+        ]
+      } as unknown as NonNullable<WorkoutPlan['days']>[number];
+      const player = mount(detail({ planDayId: 'day-1' }), plan({ exercises: [], days: [day] }));
+
+      expect(text(player)).toContain('0 of 5 sets done');
+      expect(textOf(player, '.set-panel strong')).toBe('1 / 3');
+      expect(textOf(player, '.focus-copy p')).toBe('12 reps · 15 kg · 1 sec rest');
+    });
+
+    it('shows no target line and one set when nothing is known', () => {
+      const player = mount(detail(), plan({ exercises: [], days: [] }));
+
+      expect(text(player)).toContain('0 of 2 sets done');
+      expect(root(player).querySelector('.focus-copy p')).toBeNull();
+      expect(text(player)).not.toContain('Follow the plan target');
+    });
+
+    it('shows the elapsed time the way the workout bar does', () => {
+      const player = mount(weeklySession(), weeklyPlan());
+
+      expect(textOf(player, '.elapsed')).toBe(live.elapsedLabel());
+    });
   });
 });

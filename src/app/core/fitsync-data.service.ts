@@ -12,6 +12,8 @@ import {
   AnalyticsGoalProgress
 } from './analytics.models';
 import {
+  ActiveWorkout,
+  ActiveWorkoutResume,
   BodyMetric,
   CreateExerciseRequest,
   Exercise,
@@ -510,6 +512,26 @@ interface BackendWorkoutPlanDay {
   exercises?: BackendWorkoutPlanExercise[] | null;
 }
 
+interface BackendActiveResume {
+  doneSets?: number | null;
+  skippedSets?: number | null;
+  pendingSets?: number | null;
+  totalSets?: number | null;
+  nextSet?: {
+    exerciseLogId?: string | null;
+    exerciseId?: string | null;
+    exerciseNameSnapshot?: string | null;
+    exerciseName?: string | null;
+    exerciseSequence?: number | null;
+    setNumber?: number | null;
+  } | null;
+}
+
+interface BackendActiveWorkout {
+  session?: BackendWorkoutSessionDetail | null;
+  resume?: BackendActiveResume | null;
+}
+
 interface BackendWorkoutSessionDetail extends Partial<WorkoutSession> {
   perceivedExertion?: number | null;
   notes?: string | null;
@@ -540,6 +562,7 @@ interface BackendWorkoutExerciseLog {
 interface BackendWorkoutExerciseSetLog {
   setLogId?: string | null;
   setNumber?: number | null;
+  status?: string | null;
   reps?: number | null;
   weightKg?: number | string | null;
   durationSeconds?: number | null;
@@ -1250,6 +1273,24 @@ export class FitSyncDataService {
 
   deleteGoal(goalType: GoalType): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/users/me/goals/${goalType}`);
+  }
+
+  /** The workout in progress, if any. A 204, an empty body, a body without a session and an error all
+   *  mean there is none, so a failure never turns into a message on every page. */
+  getActiveWorkout(): Observable<ActiveWorkout | null> {
+    return this.http
+      .get<BackendActiveWorkout | null>(`${this.apiBaseUrl}/workouts/sessions/active`, { observe: 'response' })
+      .pipe(
+        map((response) => {
+          const body = response.status === 204 ? null : response.body;
+          if (!body?.session) {
+            return null;
+          }
+          const session = this.mapWorkoutSessionDetail(body.session);
+          return session.sessionId ? { session, resume: this.mapActiveResume(body.resume) } : null;
+        }),
+        catchError(() => of(null))
+      );
   }
 
   getSession(sessionId: string): Observable<WorkoutSessionDetail | null> {
@@ -2296,7 +2337,9 @@ export class FitSyncDataService {
       kind: session.kind ?? null,
       sportActivity: session.sportActivity ?? null,
       sportLabel: session.sportLabel ?? null,
-      distanceKm: this.numericValue(session.distanceKm)
+      distanceKm: this.numericValue(session.distanceKm),
+      planDayId: session.planDayId ?? null,
+      autoClosedAt: session.autoClosedAt ?? null
     };
   }
 
@@ -2320,7 +2363,9 @@ export class FitSyncDataService {
       durationMinutes: session.durationMinutes ?? null,
       caloriesBurned: session.caloriesBurned ?? null,
       completedAt: session.completedAt ?? '',
-      exerciseCount: session.exerciseCount ?? session.exercises?.length ?? 0
+      exerciseCount: session.exerciseCount ?? session.exercises?.length ?? 0,
+      planDayId: session.planDayId ?? null,
+      autoClosedAt: session.autoClosedAt ?? null
     };
 
     const exercises = (session.exercises ?? []).map((exercise) => this.mapWorkoutExerciseLog(exercise));
@@ -2332,6 +2377,28 @@ export class FitSyncDataService {
       exercises,
       createdAt: session.createdAt ?? '',
       updatedAt: session.updatedAt ?? ''
+    };
+  }
+
+  private mapActiveResume(resume: BackendActiveResume | null | undefined): ActiveWorkoutResume | null {
+    if (!resume) {
+      return null;
+    }
+    const next = resume.nextSet;
+    return {
+      doneSets: resume.doneSets ?? 0,
+      skippedSets: resume.skippedSets ?? 0,
+      pendingSets: resume.pendingSets ?? 0,
+      totalSets: resume.totalSets ?? 0,
+      nextSet: next
+        ? {
+            exerciseLogId: next.exerciseLogId ?? null,
+            exerciseId: next.exerciseId ?? null,
+            exerciseName: next.exerciseNameSnapshot ?? next.exerciseName ?? '',
+            exerciseSequence: next.exerciseSequence ?? null,
+            setNumber: next.setNumber ?? null
+          }
+        : null
     };
   }
 
@@ -2360,6 +2427,7 @@ export class FitSyncDataService {
     return {
       setLogId: set.setLogId ?? '',
       setNumber: set.setNumber ?? 1,
+      ...(set.status ? { status: set.status } : {}),
       reps: set.reps ?? null,
       weightKg: this.numericValue(set.weightKg),
       durationSeconds: set.durationSeconds ?? null,
