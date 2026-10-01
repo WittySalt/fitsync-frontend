@@ -213,10 +213,13 @@
   line-height: 1.35;
 }
 
+// The name follows the width of the player, so a long word such as "Dumbbell" stays whole in the
+// narrow column between the picture and the current set.
 .focus-copy h3 {
-  font-size: var(--text-5xl);
-  line-height: 1;
-  overflow-wrap: anywhere;
+  font-size: clamp(1.75rem, 5.5cqi, var(--text-4xl));
+  line-height: 1.05;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
 .focus-copy p {
