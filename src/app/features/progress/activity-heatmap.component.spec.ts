@@ -533,6 +533,24 @@ describe('ActivityHeatmapComponent', () => {
     expect(compiled.textContent).toContain('More');
   });
 
+  it('shows the five weeks that end with this one when the host gives no range', () => {
+    component.timezone = 'UTC';
+    component.variant = 'compact';
+
+    fixture.detectChanges();
+
+    const [from, to] = analyticsApi.getActivityCalendar.calls.mostRecent().args;
+    const start = new Date(`${from}T00:00:00Z`);
+    const end = new Date(`${to}T00:00:00Z`);
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    expect(start.getUTCDay()).toBe(1);
+    expect(end.getUTCDay()).toBe(0);
+    expect(Math.round((end.getTime() - start.getTime()) / 86_400_000)).toBe(34);
+    expect(today.getTime()).toBeGreaterThanOrEqual(start.getTime());
+    expect(today.getTime()).toBeLessThanOrEqual(end.getTime());
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.compact-month-grid li').length).toBe(35);
+  });
+
   it('aggregates compact monthly workout totals in the footer', () => {
     component.variant = 'compact';
     component.range = { from: '2026-06-01', to: '2026-06-30' };

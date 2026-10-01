@@ -288,7 +288,7 @@ describe('DashboardPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const heatmapCard = compiled.querySelector<HTMLAnchorElement>('.heatmap-metric');
     expect(heatmapCard?.getAttribute('href')).toBe('/progress');
-    expect(heatmapCard?.textContent).toContain('This month');
+    expect(heatmapCard?.textContent).toContain('Last five weeks');
     expect(heatmapCard?.textContent).toContain('3 workouts · 125 min');
     expect(compiled.textContent).not.toContain('Daily target progress');
   });
