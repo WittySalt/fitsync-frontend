@@ -166,7 +166,8 @@ describe('ExerciseLibraryComponent', () => {
     fixture.detectChanges();
 
     const tabs = Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('.library-view-nav button'));
-    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(tabs[0].getAttribute('aria-pressed')).toBe('true');
+    expect(tabs[0].getAttribute('role')).toBeNull();
     expect(fixture.nativeElement.querySelector('.filter-panel')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.exercise-list')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[aria-label="Create custom exercise"]')).toBeNull();
@@ -175,7 +176,7 @@ describe('ExerciseLibraryComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.libraryView()).toBe('create');
-    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(tabs[1].getAttribute('aria-pressed')).toBe('true');
     expect(fixture.nativeElement.querySelector('[aria-label="Create custom exercise"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.filter-panel')).toBeNull();
     expect(fixture.nativeElement.querySelector('.exercise-list')).toBeNull();
@@ -358,6 +359,8 @@ describe('ExerciseLibraryComponent', () => {
       videoMode: 'url',
       videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
     });
+    const saved = jasmine.createSpy('exerciseSaved');
+    fixture.componentInstance.exerciseSaved.subscribe(saved);
     fixture.componentInstance.createExercise();
 
     expect(dataService.createExercise).toHaveBeenCalledWith({
@@ -371,6 +374,7 @@ describe('ExerciseLibraryComponent', () => {
       videoUrl: 'https://www.youtube.com/watch?v=abc123def45'
     });
     expect(toast.success).toHaveBeenCalledWith('Exercise created.');
+    expect(saved).toHaveBeenCalledTimes(1);
   });
 
   it('creates an exercise then uploads the selected video before finishing', () => {
@@ -552,7 +556,10 @@ describe('ExerciseLibraryComponent', () => {
       videoMode: 'url',
       videoUrl: 'https://vimeo.com/12345678'
     });
+    const saved = jasmine.createSpy('exerciseSaved');
+    fixture.componentInstance.exerciseSaved.subscribe(saved);
     fixture.componentInstance.updateExercise();
+    expect(saved).toHaveBeenCalledTimes(1);
 
     expect(dataService.updateExercise).toHaveBeenCalledWith(
       'exercise-1',
@@ -600,12 +607,27 @@ describe('ExerciseLibraryComponent', () => {
     const fixture = TestBed.createComponent(ExerciseLibraryComponent);
     fixture.detectChanges();
 
+    const saved = jasmine.createSpy('exerciseSaved');
+    fixture.componentInstance.exerciseSaved.subscribe(saved);
     fixture.componentInstance.archiveExercise(customExercise);
 
+    expect(saved).toHaveBeenCalledTimes(1);
     expect(window.confirm).toHaveBeenCalledWith('Archive Back squat?');
     expect(dataService.archiveExercise).toHaveBeenCalledWith('exercise-1');
     expect(toast.success).toHaveBeenCalledWith('Exercise archived.');
     expect(fixture.componentInstance.saving()).toBeFalse();
+  });
+
+  it('does not emit exerciseSaved for a browse load or a failed save', () => {
+    dataService.updateExercise.and.returnValue(throwError(() => new Error('nope')));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    const saved = jasmine.createSpy('exerciseSaved');
+    fixture.componentInstance.exerciseSaved.subscribe(saved);
+    fixture.detectChanges();
+    fixture.componentInstance.startEdit(exercise({ custom: true }));
+    fixture.componentInstance.updateExercise();
+
+    expect(saved).not.toHaveBeenCalled();
   });
 
   it('does not archive when guards fail or confirmation is declined', () => {

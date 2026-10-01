@@ -6,21 +6,19 @@
     </div>
   </div>
 
-  <div class="library-view-nav segmented" role="tablist" aria-label="Exercise library view">
+  <div class="library-view-nav segmented" role="group" aria-label="Exercise library view">
     <button
       type="button"
-      role="tab"
       [class.active]="libraryView() === 'browse'"
-      [attr.aria-selected]="libraryView() === 'browse'"
+      [attr.aria-pressed]="libraryView() === 'browse'"
       (click)="setLibraryView('browse')"
     >
       Browse
     </button>
     <button
       type="button"
-      role="tab"
       [class.active]="libraryView() === 'create'"
-      [attr.aria-selected]="libraryView() === 'create'"
+      [attr.aria-pressed]="libraryView() === 'create'"
       (click)="setLibraryView('create')"
     >
       Create

@@ -43,7 +43,8 @@ export class ExerciseLibraryComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
 
-  @Output() exercisesChanged = new EventEmitter<Exercise[]>();
+  /** Emitted after an exercise was created, updated or archived, so the page can refresh what shows it. */
+  @Output() exerciseSaved = new EventEmitter<void>();
 
   readonly metadata = signal<ExerciseMetadata | null>(null);
   readonly exercises = signal<Exercise[]>([]);
@@ -354,6 +355,7 @@ export class ExerciseLibraryComponent implements OnInit {
     this.dataService.updateExercise(exercise.exerciseId, this.normalizeUpdate(this.editForm.getRawValue())).subscribe({
       next: () => {
         this.toast.success('Exercise updated.');
+        this.exerciseSaved.emit();
         this.cancelEdit();
         this.loadExercises();
       },
@@ -423,6 +425,7 @@ export class ExerciseLibraryComponent implements OnInit {
     this.dataService.archiveExercise(exercise.exerciseId).subscribe({
       next: () => {
         this.toast.success('Exercise archived.');
+        this.exerciseSaved.emit();
         this.loadExercises();
       },
       error: () => {
@@ -548,7 +551,6 @@ export class ExerciseLibraryComponent implements OnInit {
         this.totalPages.set(result.totalPages);
         this.totalElements.set(result.totalElements);
         this.exercises.set(result.items);
-        this.exercisesChanged.emit(result.items);
         this.loading.set(false);
       },
       error: () => {
@@ -663,6 +665,7 @@ export class ExerciseLibraryComponent implements OnInit {
 
   private finishCreateSuccess(): void {
     this.toast.success('Exercise created.');
+    this.exerciseSaved.emit();
     this.createForm.reset({
       name: '',
       description: '',

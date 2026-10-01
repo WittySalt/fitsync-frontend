@@ -19,10 +19,50 @@
     />
 
     <div class="segmented workout-tabs fade-in" role="tablist" aria-label="Workout sections">
-      <button id="workout-tab-overview" [class.active]="selectedTab() === 'overview'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'overview'" aria-controls="workout-panel-overview" (click)="selectedTab.set('overview')">Today</button>
-      <button id="workout-tab-plans" [class.active]="selectedTab() === 'plans'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'plans'" aria-controls="workout-panel-plans" (click)="selectedTab.set('plans')">Plans</button>
-      <button id="workout-tab-history" [class.active]="selectedTab() === 'history'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'history'" aria-controls="workout-panel-history" (click)="selectedTab.set('history')">History</button>
-      <button id="workout-tab-library" [class.active]="selectedTab() === 'library'" type="button" role="tab" [attr.aria-selected]="selectedTab() === 'library'" aria-controls="workout-panel-library" (click)="selectedTab.set('library')">Library</button>
+      <button
+        id="workout-tab-overview"
+        [class.active]="selectedTab() === 'overview'"
+        type="button"
+        role="tab"
+        [attr.aria-selected]="selectedTab() === 'overview'"
+        [attr.aria-controls]="selectedTab() === 'overview' ? 'workout-panel-overview' : null"
+        [attr.tabindex]="selectedTab() === 'overview' ? 0 : -1"
+        (keydown)="onTabKeydown($event)"
+        (click)="selectedTab.set('overview')"
+      >Today</button>
+      <button
+        id="workout-tab-plans"
+        [class.active]="selectedTab() === 'plans'"
+        type="button"
+        role="tab"
+        [attr.aria-selected]="selectedTab() === 'plans'"
+        [attr.aria-controls]="selectedTab() === 'plans' ? 'workout-panel-plans' : null"
+        [attr.tabindex]="selectedTab() === 'plans' ? 0 : -1"
+        (keydown)="onTabKeydown($event)"
+        (click)="selectedTab.set('plans')"
+      >Plans</button>
+      <button
+        id="workout-tab-history"
+        [class.active]="selectedTab() === 'history'"
+        type="button"
+        role="tab"
+        [attr.aria-selected]="selectedTab() === 'history'"
+        [attr.aria-controls]="selectedTab() === 'history' ? 'workout-panel-history' : null"
+        [attr.tabindex]="selectedTab() === 'history' ? 0 : -1"
+        (keydown)="onTabKeydown($event)"
+        (click)="selectedTab.set('history')"
+      >History</button>
+      <button
+        id="workout-tab-library"
+        [class.active]="selectedTab() === 'library'"
+        type="button"
+        role="tab"
+        [attr.aria-selected]="selectedTab() === 'library'"
+        [attr.aria-controls]="selectedTab() === 'library' ? 'workout-panel-library' : null"
+        [attr.tabindex]="selectedTab() === 'library' ? 0 : -1"
+        (keydown)="onTabKeydown($event)"
+        (click)="selectedTab.set('library')"
+      >Library</button>
     </div>
 
     @if (weeklyGoalOffer(); as offer) {
@@ -85,10 +125,12 @@
           (templateActivated)="handleTemplateActivated($event)"
         />
 
-        <app-live-start-card
-          (started)="handleLiveTrackerStarted($event)"
-          (backfilled)="handlePastWorkoutLogged()"
-        />
+        @if (!workoutLive.active() && todayInsight()?.source !== 'DONE') {
+          <app-live-start-card
+            (started)="handleLiveTrackerStarted($event)"
+            (backfilled)="handlePastWorkoutLogged()"
+          />
+        }
       }
     </div>
   } @else if (selectedTab() === 'plans') {
@@ -196,13 +238,13 @@
           </div>
         </dl>
         <div class="plan-actions">
-          <button class="button secondary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="editPlan(plan)">Edit</button>
+          <button class="button secondary" type="button" [disabled]="plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="editPlan(plan)">Edit</button>
           @if (plan.status !== 'ACTIVE') {
-            <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
+            <button class="button secondary" type="button" [disabled]="plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="activatePlan(plan)">Activate</button>
           }
-          <button class="button secondary" type="button" [disabled]="!plan.planId || plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
+          <button class="button secondary" type="button" [disabled]="plan.status === 'ARCHIVED' || isPlanMutating(plan)" (click)="archivePlan(plan)">Archive</button>
           @if (plan.status === 'ACTIVE') {
-            <button class="button primary" type="button" [disabled]="!plan.planId || isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
+            <button class="button primary" type="button" [disabled]="isPlanMutating(plan)" (click)="startPlan(plan)">Start session</button>
           }
         </div>
       </article>
@@ -248,7 +290,13 @@
         @if (loading()) {
           <div class="summary-card skeleton tall"></div>
         } @else if (planError()) {
-          <app-state-panel title="Plans unavailable" [message]="planError() ?? 'Unable to load workout plans.'" />
+          <app-state-panel
+            title="Plans unavailable"
+            [message]="planError() ?? 'Unable to load workout plans.'"
+            [error]="true"
+            actionLabel="Retry"
+            (action)="loadPlans()"
+          />
         } @else if (otherPlans().length) {
           <div class="plan-grid">
             @for (plan of otherPlans(); track plan.planId ?? plan.name) {
@@ -373,7 +421,7 @@
     </section>
   } @else {
     <section id="workout-panel-library" role="tabpanel" aria-labelledby="workout-tab-library">
-      <app-exercise-library />
+      <app-exercise-library (exerciseSaved)="handleExerciseSaved()" />
     </section>
   }
 </div>
