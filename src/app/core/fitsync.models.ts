@@ -399,6 +399,8 @@ export interface BodyMetric {
   /** Change in weight over the last 30 days in kilograms, negative when the person lost weight.
    *  Null when the analytics snapshot has no earlier reading to compare with. */
   weightChange30dKg?: number | null;
+  /** Waist in centimetres when the person records it. The dashboard snapshot does not carry it yet. */
+  waistCm?: number | null;
 }
 
 export interface Goal {
@@ -892,6 +894,8 @@ export interface ProgressInsight {
   weightKg: number | null;
   measuredOn: string | null;
   weeklyRateKg: number | null;
+  /** Days of weigh-ins the weekly rate was measured over. Absent in older responses. */
+  rateWindowDays?: number | null;
   goalWeightKg: number | null;
   goalDate: string | null;
   projectedDate: string | null;

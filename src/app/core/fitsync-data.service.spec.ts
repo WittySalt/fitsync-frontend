@@ -1434,6 +1434,16 @@ describe('FitSyncDataService', () => {
     expect(result?.projectedDate).toBeNull();
   });
 
+  it('keeps the window of days the weekly rate was measured over, and null when it is absent', () => {
+    const results: ProgressInsight[] = [];
+    service.getProgressInsight('UTC').subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({ weeklyRateKg: -0.41, rateWindowDays: 28, series: [] });
+    service.getProgressInsight('UTC').subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({ series: [] });
+
+    expect(results.map((value) => value.rateWindowDays)).toEqual([28, null]);
+  });
+
   it('requests the weekly training insight with timezone and, when given, date', () => {
     let result: WeeklyTrainingInsight | undefined;
     service.getWeeklyTrainingInsight('Asia/Singapore', '2026-09-27').subscribe((value) => (result = value));

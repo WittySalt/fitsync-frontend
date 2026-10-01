@@ -1176,6 +1176,7 @@ export class FitSyncDataService {
         weightKg: numberOrNull(response.weightKg),
         measuredOn: textOrNull(response.measuredOn),
         weeklyRateKg: numberOrNull(response.weeklyRateKg),
+        rateWindowDays: numberOrNull(response.rateWindowDays),
         goalWeightKg: numberOrNull(response.goalWeightKg),
         goalDate: textOrNull(response.goalDate),
         projectedDate: textOrNull(response.projectedDate),
