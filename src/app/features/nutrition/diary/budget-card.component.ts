@@ -39,17 +39,19 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
       @if (figures(); as budget) {
         <svg class="ring" [attr.width]="size" [attr.height]="size" [attr.viewBox]="'0 0 ' + size + ' ' + size" role="img" [attr.aria-label]="budget.percent + '% of the daily target'">
           <circle class="track" [attr.cx]="size / 2" [attr.cy]="size / 2" [attr.r]="radius" fill="none" stroke-width="11"></circle>
-          <circle
-            class="within"
-            [attr.cx]="size / 2"
-            [attr.cy]="size / 2"
-            [attr.r]="radius"
-            fill="none"
-            stroke-width="11"
-            [attr.stroke-linecap]="budget.isOver ? 'butt' : 'round'"
-            [attr.stroke-dasharray]="length * budget.within + ' ' + length"
-            [attr.transform]="'rotate(-90 ' + size / 2 + ' ' + size / 2 + ')'"
-          ></circle>
+          @if (budget.within > 0) {
+            <circle
+              class="within"
+              [attr.cx]="size / 2"
+              [attr.cy]="size / 2"
+              [attr.r]="radius"
+              fill="none"
+              stroke-width="11"
+              [attr.stroke-linecap]="budget.isOver ? 'butt' : 'round'"
+              [attr.stroke-dasharray]="length * budget.within + ' ' + length"
+              [attr.transform]="'rotate(-90 ' + size / 2 + ' ' + size / 2 + ')'"
+            ></circle>
+          }
           @if (budget.isOver) {
             <circle
               class="beyond"

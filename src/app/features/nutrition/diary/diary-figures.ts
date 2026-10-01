@@ -49,6 +49,8 @@ export function barPercent(share: number): number {
 
 export interface BalanceRowView {
   entry: BalanceEntry;
+  /** True when there is no data for this nutrient yet. The row then has no bar and no amount. */
+  unknown: boolean;
   value: string;
   reference: string;
   /** Where the limit marker sits along a bar of a limit that was passed, as a percentage; null otherwise. */
@@ -70,12 +72,18 @@ export function sourceLine(entry: BalanceEntry): string {
 
 export function balanceRow(entry: BalanceEntry): BalanceRowView {
   const limit = entry.kind === 'LIMIT';
+  const amount = entry.amount;
+  const share = entry.share;
+  if (amount === null || share === null) {
+    return { entry, unknown: true, value: '', reference: '', marker: null, metText: '', source: '' };
+  }
   return {
     entry,
-    value: amountText(entry.amount, entry.unit),
+    unknown: false,
+    value: amountText(amount, entry.unit),
     reference: limit ? `${amountText(entry.reference, entry.unit)} limit` : `${amountText(entry.reference, entry.unit)} a day`,
-    marker: limit && entry.over && entry.share > 0 ? 100 / entry.share : null,
-    metText: !limit && entry.met ? `met · ${Math.round(entry.share * 100)}%` : '',
+    marker: limit && entry.over && share > 0 ? 100 / share : null,
+    metText: !limit && entry.met ? `met · ${Math.round(share * 100)}%` : '',
     source: sourceLine(entry)
   };
 }
@@ -129,8 +137,8 @@ export interface NutrientView {
 export function nutrientView(row: NutrientRow): NutrientView {
   return {
     row,
-    percent: Math.round(row.share * 100),
-    amount: `${amountText(row.averageAmount, '').trim()} of ${amountText(row.reference, row.unit)}`,
+    percent: Math.round((row.share ?? 0) * 100),
+    amount: `${amountText(row.averageAmount ?? 0, '').trim()} of ${amountText(row.reference, row.unit)}`,
     words: row.aboveUpperLimit && row.upperLimit !== null
       ? `Above the upper limit of ${amountText(row.upperLimit, row.unit)}.`
       : row.richestUsualFood
@@ -141,6 +149,7 @@ export function nutrientView(row: NutrientRow): NutrientView {
 
 /** The lowest three as large rows and the rest as chips. The backend already sorts focus codes first, then lowest first. */
 export function splitNutrients(rows: readonly NutrientRow[]): { low: NutrientView[]; rest: NutrientView[] } {
-  const views = rows.map(nutrientView);
+  // A nutrient with no data at all is unknown, so it gets no ring and no percentage.
+  const views = rows.filter((row) => row.averageAmount !== null && row.share !== null).map(nutrientView);
   return { low: views.slice(0, 3), rest: views.slice(3) };
 }

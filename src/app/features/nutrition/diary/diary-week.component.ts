@@ -38,7 +38,7 @@ import { whole } from './diary-figures';
                 <span class="tile" [class]="'tile ' + tile.state" [class.logged]="tile.logged">
                   <span class="fill" [style.height.%]="tile.fill * 100"></span>
                 </span>
-                <span class="caption" [class.now]="tile.state === 'today'">{{ tile.caption }}</span>
+                <span class="caption" [class.now]="tile.state === 'today'" [class.far]="tile.farOff">{{ tile.caption }}</span>
               </button>
             </li>
           }

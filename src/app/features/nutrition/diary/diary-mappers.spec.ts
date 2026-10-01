@@ -25,14 +25,31 @@ describe('num', () => {
 });
 
 describe('amountLabel', () => {
-  it('uses the serving label, with the count when it is not one', () => {
-    expect(amountLabel(1, 'serving', '1 medium', null)).toBe('1 medium');
-    expect(amountLabel(2, 'serving', '1 medium', null)).toBe('2 x 1 medium');
+  it('reads grams and millilitres as the amount, whatever the serving label says', () => {
+    expect(amountLabel(187, 'g', '1 cup', 187)).toBe('187 g');
+    expect(amountLabel(250, 'ml', '1 glass', null)).toBe('250 ml');
+    expect(amountLabel(12.5, 'G', null, 12.5)).toBe('12.5 g');
   });
 
-  it('falls back to grams and then to the unit', () => {
-    expect(amountLabel(1, 'serving', null, 199.6)).toBe('200 g');
+  it('uses the serving label for one serving of a piece, with the weight when it is known', () => {
+    expect(amountLabel(1, 'piece', '1 medium', 118)).toBe('1 medium (118 g)');
+    expect(amountLabel(1, 'piece', '1 medium', null)).toBe('1 medium');
+  });
+
+  it('spells out another count, and keeps a bare word short', () => {
+    expect(amountLabel(1.1, 'piece', '1 medium', 130)).toBe('1.1 servings of 1 medium (130 g)');
+    expect(amountLabel(2, 'piece', 'slice', null)).toBe('2 \u00d7 slice');
+  });
+
+  it('does not say the weight twice', () => {
+    expect(amountLabel(1, 'serving', '20 g', 20)).toBe('20 g');
+  });
+
+  it('falls back to the unit with the weight, and to grams or a serving when there is no unit', () => {
+    expect(amountLabel(2, 'piece', null, 90)).toBe('2 piece (90 g)');
     expect(amountLabel(1.5, 'serving', null, null)).toBe('1.5 serving');
+    expect(amountLabel(1, null, null, 199.6)).toBe('200 g');
+    expect(amountLabel(3, null, null, null)).toBe('3 serving');
   });
 });
 
@@ -115,6 +132,16 @@ describe('mapDiarySummary', () => {
     expect(summary.proteinByMeal?.meals[0].mealType).toBe('LUNCH');
   });
 
+  it('keeps a balance entry with no amount as unknown, not as zero', () => {
+    const entry = mapDiarySummary({
+      balance: [{ code: 'FIBER', displayName: 'Fibre', kind: 'TARGET', amount: null, unit: 'g', reference: 28, share: null, met: null, over: null, topSources: [] }]
+    }).balance?.[0];
+    expect(entry?.amount).toBeNull();
+    expect(entry?.share).toBeNull();
+    expect(entry?.met).toBeFalse();
+    expect(entry?.over).toBeFalse();
+  });
+
   it('treats an empty balance list as missing so the card hides', () => {
     expect(mapDiarySummary({ balance: [] }).balance).toBeNull();
   });
@@ -158,6 +185,12 @@ describe('mapNutrientSummary', () => {
     expect(summary.itemsWithoutNutrients).toBe(4);
     expect(summary.nutrients.length).toBe(1);
     expect(summary.nutrients[0].richestUsualFood).toBe('Salmon');
+  });
+
+  it('keeps a nutrient with no amount as unknown, not as zero', () => {
+    const row = mapNutrientSummary({ nutrients: [{ code: 'IRON', reference: 8, averageAmount: null, share: null, met: null }] }).nutrients[0];
+    expect(row.averageAmount).toBeNull();
+    expect(row.share).toBeNull();
   });
 
   it('has no coverage when the backend sends none', () => {

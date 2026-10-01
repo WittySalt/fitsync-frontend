@@ -27,7 +27,7 @@ const PLATE_SIZE = 216;
     @if (!items().length) {
       <p class="empty">Nothing is logged yet, so there is no plate to draw.</p>
     } @else if (!wedges().length) {
-      <p class="empty">None of this food has a weight and a food group yet, so there is no plate to draw.</p>
+      <p class="empty">{{ noPlateLine() }}</p>
     } @else {
       <div class="plate-row">
         <app-plate-chart [wedges]="wedgeViews()" [size]="size" />
@@ -46,11 +46,8 @@ const PLATE_SIZE = 216;
         </div>
       </div>
     }
-    @if (totals().leftOut > 0) {
-      <p class="left-out">
-        {{ totals().leftOut }} {{ totals().leftOut === 1 ? 'food is' : 'foods are' }} left off the plate because
-        {{ totals().leftOut === 1 ? 'it has' : 'they have' }} no weight or food group.
-      </p>
+    @if (wedges().length && totals().leftOut > 0) {
+      <p class="left-out">{{ leftOutLine() }}</p>
     }
     @if (items().length) {
       <div class="badges-block">
@@ -86,6 +83,13 @@ export class PlateCardComponent {
   protected readonly wedgeViews = computed(() => toWedgeViews(this.wedges()));
   protected readonly legend = computed(() => plateLegend(this.wedges()));
   protected readonly sentence = computed(() => fruitVegSentence(this.totals()));
+  protected readonly noPlateLine = computed(() =>
+    this.totals().leftOut > 0 ? 'These foods have no weight yet, so there is no plate to draw.' : 'Drinks count in water, so there is no plate to draw.'
+  );
+  protected readonly leftOutLine = computed(() => {
+    const count = this.totals().leftOut;
+    return count === 1 ? '1 food has no weight and is left off the plate.' : `${count} foods have no weight and are left off the plate.`;
+  });
   protected readonly badges = computed(() => groupBadges(this.items()));
   protected readonly eatenCount = computed(() => this.badges().filter((badge) => badge.eaten).length);
   protected readonly note = computed(() => badgeNote(this.badges()));

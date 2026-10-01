@@ -23,19 +23,21 @@
     />
   }
 
-  <div class="segmented nutrition-tabs" role="tablist" aria-label="Nutrition sections">
-    <button
-      id="nutrition-tab-diary"
-      type="button"
-      role="tab"
-      [class.active]="view() === 'diary'"
-      [attr.aria-selected]="view() === 'diary'"
-      aria-controls="nutrition-panel-diary"
-      (click)="backToDiary()"
-    >
-      Diary
-    </button>
-  </div>
+  @if (tabs().length > 1) {
+    <div class="segmented nutrition-tabs" role="tablist" aria-label="Nutrition sections">
+      <button
+        id="nutrition-tab-diary"
+        type="button"
+        role="tab"
+        [class.active]="view() === 'diary'"
+        [attr.aria-selected]="view() === 'diary'"
+        aria-controls="nutrition-panel-diary"
+        (click)="backToDiary()"
+      >
+        Diary
+      </button>
+    </div>
+  }
 
   @if (view() === 'diary') {
     <section id="nutrition-panel-diary" role="tabpanel" aria-labelledby="nutrition-tab-diary">

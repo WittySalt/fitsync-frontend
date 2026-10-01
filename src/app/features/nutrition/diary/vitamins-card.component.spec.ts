@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { LOADING, Load, NutrientRow, NutrientSummary } from './diary.models';
-import { NutrientPeriod, VitaminsCardComponent, coverageLine, focusLine } from './vitamins-card.component';
+import { NutrientPeriod, VitaminsCardComponent, coverageLine, focusLine, noVitaminData } from './vitamins-card.component';
 import { nutrientRow, spoken as text } from './diary-testing.spec';
 
 const row = (code: string, name: string, share: number, overrides: Partial<NutrientRow> = {}) =>
@@ -96,6 +96,33 @@ describe('VitaminsCardComponent', () => {
     expect((render(ready(summary())).nativeElement as HTMLElement).querySelector('.coverage')).toBeNull();
   });
 
+  it('replaces the rings and chips with one sentence when no logged food has vitamin data', () => {
+    const element = render(ready(summary({ itemsLogged: 8, itemsWithoutNutrients: 8 }))).nativeElement as HTMLElement;
+    expect(text(element.querySelector('.empty'))).toBe('None of the foods logged in these 7 days have vitamin data yet.');
+    expect(element.querySelector('.low')).toBeNull();
+    expect(element.querySelector('.chip')).toBeNull();
+    expect(element.querySelector('.coverage')).toBeNull();
+    expect(element.textContent).not.toContain('0%');
+  });
+
+  it('says today for the Today toggle, and also when every amount is null', () => {
+    const nulls = summary({ nutrients: [row('IRON', 'Iron', 0, { averageAmount: null, share: null })] });
+    const element = render(ready(nulls), 'today').nativeElement as HTMLElement;
+    expect(text(element.querySelector('.empty'))).toBe('None of the foods logged today have vitamin data yet.');
+  });
+
+  it('keeps the rings with the coverage sentence when only some foods have no data, leaving out an unknown nutrient', () => {
+    const partial = summary({
+      itemsLogged: 8,
+      itemsWithoutNutrients: 3,
+      nutrients: [...summary().nutrients, row('ZINC', 'Zinc', 0, { averageAmount: null, share: null })]
+    });
+    const element = render(ready(partial)).nativeElement as HTMLElement;
+    expect(element.querySelectorAll('.low').length).toBe(3);
+    expect(text(element.querySelector('.coverage'))).toContain('3 of 8 logged foods');
+    expect(element.textContent).not.toContain('Zinc');
+  });
+
   it('asks the person to log food when nothing was logged', () => {
     const element = render(ready(summary({ daysLogged: 0, nutrients: [] }))).nativeElement as HTMLElement;
     expect(text(element.querySelector('.empty'))).toBe('Log some food to see your vitamins and minerals.');
@@ -115,6 +142,16 @@ describe('VitaminsCardComponent', () => {
     expect(text(fixture.nativeElement.querySelector('app-state-panel'))).toContain('could not load');
     (fixture.nativeElement.querySelector('app-state-panel button') as HTMLButtonElement).click();
     expect(retried).toBe(1);
+  });
+});
+
+describe('noVitaminData', () => {
+  it('is true when every logged food lacks data or every amount is null, and false otherwise', () => {
+    expect(noVitaminData(summary({ itemsLogged: 5, itemsWithoutNutrients: 5 }))).toBeTrue();
+    expect(noVitaminData(summary({ itemsLogged: 5, itemsWithoutNutrients: 2 }))).toBeFalse();
+    expect(noVitaminData(summary({ itemsLogged: 0, itemsWithoutNutrients: 0 }))).toBeFalse();
+    expect(noVitaminData(summary({ nutrients: [row('IRON', 'Iron', 0, { averageAmount: null, share: null })] }))).toBeTrue();
+    expect(noVitaminData(summary())).toBeFalse();
   });
 });
 

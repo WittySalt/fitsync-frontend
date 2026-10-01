@@ -62,6 +62,14 @@ describe('balanceRow', () => {
     expect(row.metText).toBe('');
   });
 
+  it('marks a row with no amount as unknown, with no value, reference or marker', () => {
+    const row = balanceRow(balanceEntry({ amount: null, share: null }));
+    expect(row.unknown).toBeTrue();
+    expect(row.value).toBe('');
+    expect(row.marker).toBeNull();
+    expect(row.metText).toBe('');
+  });
+
   it('writes met and the share for a reached target', () => {
     const row = balanceRow(balanceEntry({ amount: 31, share: 31 / 28, met: true }));
     expect(row.metText).toBe('met · 111%');

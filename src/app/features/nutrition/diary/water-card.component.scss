@@ -35,6 +35,13 @@
   }
 }
 
+.set {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--accent-text);
+}
+
 .progress {
   display: flex;
   gap: 2px;

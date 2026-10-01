@@ -15,6 +15,8 @@ export interface DayTile {
   caption: string;
   /** The day was logged and came within a tenth of its target. Only past days are judged. */
   onTarget: boolean;
+  /** A past logged day far outside its target band: under 90% or over 110%. Its caption is drawn bold. */
+  farOff: boolean;
 }
 
 /** The seven tiles of a week. A date with no entry in the range is a day with nothing logged. */
@@ -34,7 +36,8 @@ export function dayTiles(days: readonly RangeDay[], dates: readonly string[], to
       kcal,
       fill: Math.min(share, 1),
       caption: state === 'today' ? 'Today' : state === 'past' && logged ? Math.round(kcal).toLocaleString('en-GB') : '',
-      onTarget: state === 'past' && logged && share >= 0.9 && share <= 1.1
+      onTarget: state === 'past' && logged && share >= 0.9 && share <= 1.1,
+      farOff: state === 'past' && logged && target !== null && target > 0 && (share < 0.9 || share > 1.1)
     };
   });
 }

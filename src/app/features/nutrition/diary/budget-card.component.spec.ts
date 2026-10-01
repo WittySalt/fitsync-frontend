@@ -29,6 +29,13 @@ describe('BudgetCardComponent', () => {
     expect(element.querySelector('.beyond')).toBeNull();
   });
 
+  it('draws no arc at all when nothing is eaten, so no dot shows at the top of the ring', () => {
+    const element = render(summary({ totalCalories: 0, targetCalories: 2000 }));
+    expect(element.querySelector('.track')).not.toBeNull();
+    expect(element.querySelector('.within')).toBeNull();
+    expect(element.querySelector('.percent')?.textContent).toBe('0%');
+  });
+
   it('says kcal over and draws the part over the target as its own arc, never in red', () => {
     const element = render(summary({ totalCalories: 2400, targetCalories: 2000 }));
     const line = element.querySelector('.line') as HTMLElement;

@@ -62,6 +62,12 @@ describe('DiaryWeekComponent', () => {
     expect(captions[4]).toBe('Today');
   });
 
+  it('shows kcal under every past day with data, in bold ink only for a day far from its target', () => {
+    const captions = Array.from<HTMLElement>(render().nativeElement.querySelectorAll('.caption'));
+    expect(captions.map((node) => node.textContent?.trim())).toEqual(['2,050', '1,980', '2,280', '1,720', 'Today', '', '']);
+    expect(captions.map((node) => node.classList.contains('far'))).toEqual([false, false, false, true, false, false, false]);
+  });
+
   it('shows days logged, days on target and kcal a day', () => {
     const figures = Array.from<HTMLElement>(render().nativeElement.querySelectorAll('.figure')).map((node) => Array.from(node.children).map((child) => child.textContent?.trim()).join(' '));
     expect(figures).toEqual(['4 of 4 days logged', '3 on target', '2,008 kcal a day']);

@@ -35,6 +35,8 @@ export class NutritionPage implements OnInit {
   readonly today = toIsoDate(new Date());
   readonly dates = weekOf(this.today);
 
+  /** The tabs of the page. The bar shows only when there is more than the Diary to switch to. */
+  readonly tabs = signal<readonly string[]>(['diary']);
   readonly view = signal<'diary' | 'log'>('diary');
   readonly selectedDate = signal(this.today);
   readonly range = signal<Load<RangeDay[]>>(LOADING);

@@ -47,6 +47,21 @@ describe('dayTiles', () => {
     expect(tiles.map((tile) => tile.onTarget)).toEqual([true, false, false, false, false, false, false]);
   });
 
+  it('marks a past logged day under 90% or over 110% of its target as far off, and no other', () => {
+    const tiles = dayTiles(
+      [
+        rangeDay('2026-09-28', { totalCalories: 2050 }),
+        rangeDay('2026-09-29', { totalCalories: 1700 }),
+        rangeDay('2026-09-30', { totalCalories: 2400 }),
+        rangeDay(TODAY, { totalCalories: 100 })
+      ],
+      DATES,
+      TODAY,
+      2100
+    );
+    expect(tiles.map((tile) => tile.farOff)).toEqual([false, true, true, false, false, false, false]);
+  });
+
   it('leaves a tile empty when there is no target to fill against', () => {
     const tiles = dayTiles([rangeDay('2026-09-28', { targetCalories: null })], DATES, TODAY, null);
     expect(tiles[0].fill).toBe(0);

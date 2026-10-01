@@ -172,11 +172,20 @@ describe('NutritionPage', () => {
     expect(coachApiStub.getReading).toHaveBeenCalledWith('NUTRITION', jasmine.any(String));
   });
 
-  it('shows the week card and only a Diary tab', () => {
+  it('shows the week card and hides the tab bar while the Diary is the only tab', () => {
     const compiled = render().nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('app-diary-week').length).toBe(1);
-    const tabs = Array.from(compiled.querySelectorAll('.nutrition-tabs [role="tab"]')).map((tab) => tab.textContent?.trim());
+    expect(compiled.querySelector('.nutrition-tabs')).toBeNull();
+    expect(compiled.querySelector('app-diary-day')).not.toBeNull();
+  });
+
+  it('shows the tab bar once there is more than one tab', () => {
+    const fixture = render();
+    fixture.componentInstance.tabs.set(['diary', 'recipes']);
+    fixture.detectChanges();
+
+    const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nutrition-tabs [role="tab"]')).map((tab) => tab.textContent?.trim());
     expect(tabs).toEqual(['Diary']);
   });
 

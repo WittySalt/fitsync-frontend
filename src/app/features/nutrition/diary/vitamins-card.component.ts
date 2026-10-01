@@ -34,6 +34,15 @@ export function coverageLine(summary: NutrientSummary): string {
     : `${missing} logged foods have no vitamin data, so these amounts may be low.`;
 }
 
+/** True when no food logged in the period has vitamin data, so every amount is unknown rather than low. */
+export function noVitaminData(summary: NutrientSummary): boolean {
+  const logged = summary.itemsLogged;
+  if (logged !== null && logged > 0 && summary.itemsWithoutNutrients === logged) {
+    return true;
+  }
+  return summary.nutrients.length > 0 && summary.nutrients.every((row) => row.averageAmount === null);
+}
+
 /**
  * Vitamins and minerals as an average over the last seven days or for today: the three lowest are
  * large with a ring and the richest food the person often eats, the rest are chips with a tick when
@@ -59,7 +68,11 @@ export function coverageLine(summary: NutrientSummary): string {
       }
       @default {
         @if (summary(); as data) {
-          @if (data.nutrients.length === 0 || data.daysLogged === 0) {
+          @if (data.daysLogged === 0) {
+            <p class="empty">Log some food to see your vitamins and minerals.</p>
+          } @else if (noData()) {
+            <p class="empty">None of the foods logged {{ period() === 'today' ? 'today' : 'in these 7 days' }} have vitamin data yet.</p>
+          } @else if (data.nutrients.length === 0) {
             <p class="empty">Log some food to see your vitamins and minerals.</p>
           } @else {
             @if (focus()) {
@@ -146,6 +159,10 @@ export class VitaminsCardComponent {
     const state = this.state();
     return state.status === 'error' ? state.message : '';
   });
+  protected readonly noData = computed(() => {
+    const data = this.summary();
+    return data ? noVitaminData(data) : false;
+  });
   protected readonly parts = computed(() => splitNutrients(this.summary()?.nutrients ?? []));
   protected readonly focus = computed(() => {
     const data = this.summary();
@@ -171,10 +188,10 @@ export class VitaminsCardComponent {
   }
 
   protected fraction(view: NutrientView): number {
-    return Math.min(Math.max(view.row.share, 0), 1);
+    return Math.min(Math.max(view.row.share ?? 0, 0), 1);
   }
 
   protected percentOf(view: NutrientView): number {
-    return barPercent(view.row.share);
+    return barPercent(view.row.share ?? 0);
   }
 }

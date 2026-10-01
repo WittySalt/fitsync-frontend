@@ -62,12 +62,12 @@ describe('PlateCardComponent', () => {
   it('says how many foods it could not weigh and leaves them off', () => {
     const element = render([food('GRAINS', 100), food('VEG', null), food('FRUIT', null)]);
     expect(element.querySelectorAll('.wedge').length).toBe(1);
-    expect(text(element.querySelector('.left-out'))).toBe('2 foods are left off the plate because they have no weight or food group.');
+    expect(text(element.querySelector('.left-out'))).toBe('2 foods have no weight and are left off the plate.');
   });
 
   it('says one food in the singular', () => {
     const element = render([food('GRAINS', 100), food('VEG', null)]);
-    expect(text(element.querySelector('.left-out'))).toBe('1 food is left off the plate because it has no weight or food group.');
+    expect(text(element.querySelector('.left-out'))).toBe('1 food has no weight and is left off the plate.');
   });
 
   it('explains an empty day without drawing a plate or fake data', () => {
@@ -79,9 +79,16 @@ describe('PlateCardComponent', () => {
 
   it('explains food that has no weight at all', () => {
     const element = render([food('VEG', null)]);
-    expect(text(element.querySelector('.empty'))).toContain('has a weight and a food group');
+    expect(text(element.querySelector('.empty'))).toBe('These foods have no weight yet, so there is no plate to draw.');
+    expect(element.querySelector('.left-out')).toBeNull();
+    expect(element.querySelectorAll('p').length).toBe(1);
     expect(element.querySelector('app-plate-chart')).toBeNull();
     expect(element.querySelector('.badges')).not.toBeNull();
+  });
+
+  it('says only the drinks are in water when there is nothing else to draw', () => {
+    const element = render([food('DRINKS', 250)]);
+    expect(text(element.querySelector('.empty'))).toBe('Drinks count in water, so there is no plate to draw.');
   });
 
   it('draws a single group as a full circle', () => {

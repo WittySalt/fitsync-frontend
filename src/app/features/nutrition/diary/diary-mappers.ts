@@ -42,20 +42,38 @@ function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-/** How much of the food was logged, as a person would say it: the serving label, or grams, or the unit. */
+/**
+ * How much of the food was logged, as a person would say it. Grams and millilitres read as "187 g"
+ * and "250 ml". Any other unit reads as the serving label ("1 medium"), or "1.1 servings of 1 medium"
+ * for another count, with the weight after it in brackets when it is known and not already said.
+ */
 export function amountLabel(
   quantity: number,
   unit: string | null,
   servingLabel: string | null,
   gramsConsumed: number | null
 ): string {
+  const measure = (unit ?? '').trim().toLowerCase();
+  if (measure === 'g' || measure === 'ml') {
+    return `${round(quantity)} ${measure}`;
+  }
+  const grams = gramsConsumed !== null && gramsConsumed > 0 ? `${Math.round(gramsConsumed)} g` : null;
+  let amount: string;
   if (servingLabel) {
-    return quantity === 1 ? servingLabel : `${round(quantity)} x ${servingLabel}`;
+    if (quantity === 1) {
+      amount = servingLabel;
+    } else {
+      // "1.1 x medium" reads well for a bare word, but "2 x 1 cup" does not, so a label with a count in it is spelled out.
+      amount = /^\d/.test(servingLabel) ? `${round(quantity)} servings of ${servingLabel}` : `${round(quantity)} \u00d7 ${servingLabel}`;
+    }
+  } else if (unit) {
+    amount = `${round(quantity)} ${unit}`.trim();
+  } else if (grams) {
+    return grams;
+  } else {
+    amount = `${round(quantity)} serving`;
   }
-  if (gramsConsumed !== null && gramsConsumed > 0) {
-    return `${Math.round(gramsConsumed)} g`;
-  }
-  return `${round(quantity)} ${unit ?? 'serving'}`.trim();
+  return grams && amount !== grams ? `${amount} (${grams})` : amount;
 }
 
 export function mapDiaryItem(raw: Wire): DiaryItem {
@@ -118,7 +136,7 @@ function mapBalanceEntry(raw: Wire): BalanceEntry | null {
   const amount = num(raw['amount']);
   const reference = num(raw['reference']);
   const code = text(raw['code']);
-  if (!code || amount === null || reference === null || reference <= 0) {
+  if (!code || reference === null || reference <= 0) {
     return null;
   }
   return {
@@ -128,7 +146,7 @@ function mapBalanceEntry(raw: Wire): BalanceEntry | null {
     amount,
     unit: text(raw['unit']) ?? 'g',
     reference,
-    share: num(raw['share']) ?? amount / reference,
+    share: amount === null ? null : (num(raw['share']) ?? amount / reference),
     met: raw['met'] === true,
     over: raw['over'] === true,
     topSources: list(raw['topSources'])
@@ -216,7 +234,7 @@ function mapNutrientRow(raw: Wire): NutrientRow | null {
   const code = text(raw['code']);
   const reference = num(raw['reference']);
   const average = num(raw['averageAmount']);
-  if (!code || reference === null || reference <= 0 || average === null) {
+  if (!code || reference === null || reference <= 0) {
     return null;
   }
   const kind = raw['kind'] === 'MINERAL' ? 'MINERAL' : raw['kind'] === 'VITAMIN' ? 'VITAMIN' : 'OTHER';
@@ -227,7 +245,7 @@ function mapNutrientRow(raw: Wire): NutrientRow | null {
     unit: text(raw['unit']) ?? '',
     averageAmount: average,
     reference,
-    share: num(raw['share']) ?? average / reference,
+    share: average === null ? null : (num(raw['share']) ?? average / reference),
     met: raw['met'] === true,
     upperLimit: num(raw['upperLimit']),
     aboveUpperLimit: raw['aboveUpperLimit'] === true,

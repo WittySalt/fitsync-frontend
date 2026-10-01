@@ -50,10 +50,11 @@ export interface BalanceEntry {
   displayName: string;
   /** TARGET is an amount to reach, LIMIT an amount to stay under. */
   kind: 'TARGET' | 'LIMIT';
-  amount: number;
+  /** Null when none of the foods in the period has data for this nutrient: unknown, not zero. */
+  amount: number | null;
   unit: string;
   reference: number;
-  share: number;
+  share: number | null;
   met: boolean;
   over: boolean;
   topSources: BalanceSource[];
@@ -128,9 +129,10 @@ export interface NutrientRow {
   displayName: string;
   kind: 'VITAMIN' | 'MINERAL' | 'OTHER';
   unit: string;
-  averageAmount: number;
+  /** Null when none of the foods in the period has data for this nutrient: unknown, not zero. */
+  averageAmount: number | null;
   reference: number;
-  share: number;
+  share: number | null;
   met: boolean;
   upperLimit: number | null;
   aboveUpperLimit: boolean;

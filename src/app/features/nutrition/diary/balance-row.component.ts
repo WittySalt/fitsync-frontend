@@ -15,7 +15,9 @@ import { BalanceRowView, barPercent } from './diary-figures';
     <div class="line">
       <span class="label">
         <strong>{{ row().entry.displayName }}</strong>
-        <strong>{{ row().value }}</strong>
+        @if (!row().unknown) {
+          <strong>{{ row().value }}</strong>
+        }
         @if (row().entry.over) {
           <strong>· over</strong>
         }
@@ -31,16 +33,20 @@ import { BalanceRowView, barPercent } from './diary-figures';
         </span>
       }
     </div>
-    <span class="bar" [class.limit]="row().entry.kind === 'LIMIT'">
-      <span class="fill" [style.width.%]="fill()"></span>
-      @if (row().marker !== null) {
-        <span class="marker" [style.left.%]="row().marker"></span>
-      }
-    </span>
-    <div class="foot">
-      <span>{{ row().source }}</span>
-      <span class="reference">{{ row().reference }}</span>
-    </div>
+    @if (row().unknown) {
+      <p class="unknown">No data for these foods yet.</p>
+    } @else {
+      <span class="bar" [class.limit]="row().entry.kind === 'LIMIT'">
+        <span class="fill" [style.width.%]="fill()"></span>
+        @if (row().marker !== null) {
+          <span class="marker" [style.left.%]="row().marker"></span>
+        }
+      </span>
+      <div class="foot">
+        <span>{{ row().source }}</span>
+        <span class="reference">{{ row().reference }}</span>
+      </div>
+    }
   `,
   styles: [
     `
@@ -136,6 +142,12 @@ import { BalanceRowView, barPercent } from './diary-figures';
       .reference {
         flex: none;
       }
+
+      .unknown {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
     `
   ]
 })
@@ -144,7 +156,7 @@ export class BalanceRowComponent {
   /** The seven dots of this week: true on target, false missed, null not yet. */
   readonly dots = input<(boolean | null)[]>([]);
 
-  protected readonly fill = computed(() => barPercent(this.row().entry.share));
+  protected readonly fill = computed(() => barPercent(this.row().entry.share ?? 0));
   protected readonly dotsLabel = computed(
     () => 'This week: ' + this.dots().map((dot) => (dot === null ? 'not yet' : dot ? 'on target' : 'missed')).join(', ')
   );

@@ -1,4 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { FrequentDrink, WaterDay } from './diary.models';
@@ -12,7 +13,7 @@ import { WaterTimelineComponent } from './water-timeline.component';
  */
 @Component({
   selector: 'app-water-card',
-  imports: [FoodGlyphComponent, WaterTimelineComponent],
+  imports: [FoodGlyphComponent, WaterTimelineComponent, RouterLink],
   template: `
     <div class="head">
       <span class="eyebrow">Water</span>
@@ -25,6 +26,9 @@ import { WaterTimelineComponent } from './water-timeline.component';
         }
       </span>
     </div>
+    @if (!shares()) {
+      <a class="set" routerLink="/settings">Set a daily goal</a>
+    }
     @if (shares(); as share) {
       <div
         class="progress"

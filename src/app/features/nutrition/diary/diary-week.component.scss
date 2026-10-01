@@ -84,6 +84,11 @@
   height: 18px;
 }
 
+.caption.far {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
 .now {
   font-weight: var(--fw-bold);
   color: var(--accent-text);
@@ -194,9 +199,8 @@
     gap: 6px;
   }
 
-  // The kcal do not fit under a narrow day; today keeps its word.
-  .caption:not(.now) {
-    visibility: hidden;
+  .caption {
+    font-size: 11px;
   }
 
   .figures {

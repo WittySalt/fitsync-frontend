@@ -49,6 +49,18 @@ describe('BalanceCardComponent', () => {
     expect(names(sections[1])).toEqual(['Sugar', 'Saturated fat', 'Sodium']);
   });
 
+  it('says there is no data for a nutrient with no amount, with no bar and the week dots not yet', () => {
+    const unknown = balanceEntry({ amount: null, share: null });
+    const element = render({ entries: [unknown], days: [rangeDay('2026-09-28', { fiberMet: null }), rangeDay('2026-09-29', { fiberMet: null })] });
+    const row = element.querySelector('app-balance-row') as HTMLElement;
+    expect(text(row.querySelector('.unknown'))).toBe('No data for these foods yet.');
+    expect(row.querySelector('.bar')).toBeNull();
+    expect(text(row.querySelector('.label'))).toBe('Fibre');
+    const dots = Array.from(row.querySelectorAll('.dots i'));
+    expect(dots.length).toBe(7);
+    expect(dots.every((dot) => !dot.classList.contains('on') && !dot.classList.contains('missed'))).toBeTrue();
+  });
+
   it('reads the dot legend and says the dots are this week', () => {
     const element = render();
     expect(text(element.querySelector('.key'))).toBe('on target missed not yet');

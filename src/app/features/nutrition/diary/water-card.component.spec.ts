@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { FrequentDrink, WaterDay } from './diary.models';
 import { WaterCardComponent } from './water-card.component';
@@ -7,6 +8,8 @@ import { item, waterDay, spoken as text } from './diary-testing.spec';
 const latte: FrequentDrink = { name: 'Latte', calories: 110, draft: item().draft };
 
 describe('WaterCardComponent', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+
   function render(day: WaterDay, options: { goal?: number | null; frequent?: FrequentDrink[]; now?: number | null } = {}) {
     const fixture = TestBed.createComponent(WaterCardComponent);
     fixture.componentRef.setInput('day', day);
@@ -47,6 +50,13 @@ describe('WaterCardComponent', () => {
     const element = render(day(), { goal: null }).nativeElement as HTMLElement;
     expect(element.querySelector('[role="progressbar"]')).toBeNull();
     expect(text(element.querySelector('.total'))).toBe('1,250 ml');
+  });
+
+  it('offers a quiet link to the settings page to set a goal, only while there is none', () => {
+    const link = (render(day(), { goal: null }).nativeElement as HTMLElement).querySelector('a.set');
+    expect(link?.textContent?.trim()).toBe('Set a daily goal');
+    expect(link?.getAttribute('href')).toBe('/settings');
+    expect((render(day()).nativeElement as HTMLElement).querySelector('a.set')).toBeNull();
   });
 
   it('leaves out the drinks part when the backend does not report it', () => {
