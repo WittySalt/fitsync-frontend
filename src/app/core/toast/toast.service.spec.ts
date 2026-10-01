@@ -36,4 +36,21 @@ describe('ToastService', () => {
     tick(1000);
     expect(service.toasts().length).toBe(0);
   }));
+
+  it('keeps an action on the toast and runs it once, taking the toast away', () => {
+    const run = jasmine.createSpy('run');
+    service.success('Added a glass of water.', 0, { label: 'Undo', run });
+    const toast = service.toasts()[0];
+    expect(toast.action?.label).toBe('Undo');
+    service.runAction(toast.id);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(service.toasts().length).toBe(0);
+    service.runAction(toast.id);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the action off a plain toast', () => {
+    service.success('Saved');
+    expect('action' in service.toasts()[0]).toBeFalse();
+  });
 });
