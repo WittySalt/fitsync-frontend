@@ -10,6 +10,10 @@ export interface AnalyticsDashboardBody {
   /** Day the newest measurement was taken. Absent before the backend fix, which is why the
    *  "Latest body metric" caption used to fall back to the snapshot's generatedAt. */
   measuredOn: string | null;
+  /** The newest waist and its day. It can be older than `measuredOn` when a later entry had a
+   *  weight only, and both are absent on a backend that does not send them yet. */
+  latestWaistCm?: number | null;
+  waistMeasuredAt?: string | null;
 }
 
 export interface AnalyticsDashboardWorkout {

@@ -59,7 +59,9 @@ const dashboardAnalytics: AnalyticsDashboardResponse = {
     latestBodyFatRate: 18,
     bmi: 24.3,
     weightChange30d: -2.4,
-    measuredOn: '2026-06-21'
+    measuredOn: '2026-06-21',
+    latestWaistCm: 84.5,
+    waistMeasuredAt: '2026-06-19'
   },
   workout: {
     todayWorkoutCount: 1,
@@ -502,7 +504,8 @@ describe('FitSyncDataService', () => {
         latestBodyMetric: jasmine.objectContaining({
           weightKg: 77,
           bodyFatRate: 18,
-          bmi: 24.3
+          bmi: 24.3,
+          waistCm: 84.5
         }),
         goals: [
           jasmine.objectContaining({

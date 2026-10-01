@@ -369,6 +369,7 @@ interface BackendUserProfile {
   activityLevel?: string | null;
   timezone?: string | null;
   onboardingCompleted?: boolean | null;
+  primaryGoal?: string | null;
 }
 
 interface BackendUserPreferences {
@@ -2038,6 +2039,10 @@ export class FitSyncDataService {
     const value: Partial<OnboardingFormValue> = {};
 
     this.applyProfileSeed(value, profile, latestBodyMetric, weightGoal);
+    // Profiles from before the goal was kept have none, and the seed then leaves it out.
+    if (profile?.primaryGoal) {
+      value.primaryGoal = profile.primaryGoal;
+    }
     this.applyAppPreferenceSeed(value, preferences?.app);
     this.applyNutritionSeed(value, preferences?.nutrition, caloriesGoal, proteinGoal);
     this.applyTrainingSeed(value, preferences?.training);
@@ -2452,7 +2457,8 @@ export class FitSyncDataService {
       bodyFatRate: body.latestBodyFatRate ?? 0,
       bmi: body.bmi ?? 0,
       measuredAt: body.measuredOn ?? null,
-      weightChange30dKg: body.weightChange30d ?? null
+      weightChange30dKg: body.weightChange30d ?? null,
+      waistCm: body.latestWaistCm ?? null
     };
   }
 

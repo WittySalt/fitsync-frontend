@@ -88,15 +88,15 @@ function compare<T extends FitShape>(a: { template: T; index: number }, b: { tem
   return a.index - b.index;
 }
 
-/** Reads the answers out of the onboarding seed. The seed carries no primary goal, so the goal is
- *  inferred from the weight target, which onboarding sets equal to the current weight for every
- *  goal that does not ask for a change: a lower target means losing fat, a higher one building
- *  muscle, and no change leaves the goal unknown. */
+/** Reads the answers out of the onboarding seed. A profile from before the primary goal was kept
+ *  has none, and the goal is then inferred from the weight target, which onboarding sets equal to
+ *  the current weight for every goal that does not ask for a change: a lower target means losing
+ *  fat, a higher one building muscle, and no change leaves the goal unknown. */
 export function answersFromSeed(value: Partial<OnboardingFormValue>): FirstSessionAnswers {
   const current = value.currentWeightKg ?? null;
   const target = value.targetWeightKg ?? null;
-  let primaryGoal: string | null = null;
-  if (current !== null && target !== null && target !== current) {
+  let primaryGoal: string | null = value.primaryGoal || null;
+  if (primaryGoal === null && current !== null && target !== null && target !== current) {
     primaryGoal = target < current ? 'LOSE_FAT' : 'BUILD_MUSCLE';
   }
   return {

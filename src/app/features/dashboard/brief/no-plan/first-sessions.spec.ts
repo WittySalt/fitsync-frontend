@@ -100,6 +100,10 @@ describe('answersFromSeed', () => {
     expect(answersFromSeed({ currentWeightKg: 70, targetWeightKg: 70 }).primaryGoal).toBeNull();
   });
 
+  it('takes the primary goal the profile keeps before any inference', () => {
+    expect(answersFromSeed({ primaryGoal: 'IMPROVE_FITNESS', currentWeightKg: 80, targetWeightKg: 74 }).primaryGoal).toBe('IMPROVE_FITNESS');
+  });
+
   it('leaves everything open for an empty seed', () => {
     expect(answersFromSeed({})).toEqual({ primaryGoal: null, experienceLevel: null, preferredMinutes: null });
   });
