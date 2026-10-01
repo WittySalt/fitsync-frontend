@@ -1,3 +1,4 @@
+import { NutrientReferenceRange } from '../../../core/account-data.service';
 import { FoodDetail, MealItemDraft } from '../../../core/fitsync.models';
 import { FoodGroup } from '../../../shared/food/food-groups';
 
@@ -142,6 +143,7 @@ export interface NutrientRow {
 export interface NutrientSummary {
   daysLogged: number;
   referenceLabel: string | null;
+  referenceRange?: NutrientReferenceRange | null;
   focusCodes: string[];
   itemsLogged: number | null;
   itemsWithoutNutrients: number | null;

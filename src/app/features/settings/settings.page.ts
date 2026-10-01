@@ -12,6 +12,8 @@ import {
   AccountPreferences,
   AccountProfile,
   NotificationPreferences,
+  NutrientReferenceRange,
+  normalizeReferenceRange,
   formatDeletionDate,
   initialsFor
 } from '../../core/account-data.service';
@@ -146,6 +148,12 @@ export class SettingsPage implements OnInit {
     ['300005', 'Keto'],
     ['300006', 'Low carbohydrate']
   ]);
+  readonly referenceRangeOptions: { value: NutrientReferenceRange; label: string }[] = [
+    { value: 'PROFILE', label: 'Based on my profile' },
+    { value: 'FEMALE', label: 'Female ranges' },
+    { value: 'MALE', label: 'Male ranges' },
+    { value: 'BLENDED', label: 'Blended ranges' }
+  ];
   readonly calorieModeOptions = this.options([
     ['310001', 'Off'],
     ['310002', 'Flexible'],
@@ -209,7 +217,8 @@ export class SettingsPage implements OnInit {
     mealFrequency: ['', [Validators.min(1), Validators.max(12)]],
     calorieTrackingMode: ['310002'],
     macroPreference: ['320001'],
-    waterGoalMl: ['', [Validators.min(0), Validators.max(10000)]]
+    waterGoalMl: ['', [Validators.min(0), Validators.max(10000)]],
+    nutrientReferenceRange: ['PROFILE' as NutrientReferenceRange]
   });
 
   readonly notificationsForm = this.fb.group({
@@ -341,6 +350,11 @@ export class SettingsPage implements OnInit {
       return 'Not set';
     }
     return `${this.labelFor(training.fitnessLevel)} / ${this.labelFor(training.trainingLocation)} / ${this.displayTime(training.preferredWorkoutTime)}`;
+  }
+
+  referenceRangeLabel(value: string | null | undefined): string {
+    const range = normalizeReferenceRange(value);
+    return this.referenceRangeOptions.find((option) => option.value === range)?.label ?? 'Based on my profile';
   }
 
   nutritionTracking(): string {
@@ -699,7 +713,8 @@ export class SettingsPage implements OnInit {
       mealFrequency: toFormNumber(preferences.nutrition.mealFrequency),
       calorieTrackingMode: preferences.nutrition.calorieTrackingMode,
       macroPreference: preferences.nutrition.macroPreference,
-      waterGoalMl: toFormNumber(preferences.nutrition.waterGoalMl)
+      waterGoalMl: toFormNumber(preferences.nutrition.waterGoalMl),
+      nutrientReferenceRange: normalizeReferenceRange(preferences.nutrition.nutrientReferenceRange)
     });
     this.notificationsForm.patchValue({
       pushEnabled: preferences.notifications.pushEnabled,
@@ -766,7 +781,8 @@ export class SettingsPage implements OnInit {
           mealFrequency: toNullableNumber(value.mealFrequency),
           calorieTrackingMode: value.calorieTrackingMode,
           macroPreference: value.macroPreference,
-          waterGoalMl: toNullableNumber(value.waterGoalMl)
+          waterGoalMl: toNullableNumber(value.waterGoalMl),
+          nutrientReferenceRange: value.nutrientReferenceRange
         }
       };
     }

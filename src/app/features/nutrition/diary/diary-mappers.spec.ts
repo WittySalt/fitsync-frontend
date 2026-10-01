@@ -187,6 +187,11 @@ describe('mapNutrientSummary', () => {
     expect(summary.nutrients[0].richestUsualFood).toBe('Salmon');
   });
 
+  it('reads the reference range and leaves it null when the backend sends none', () => {
+    expect(mapNutrientSummary({ referenceRange: 'BLENDED', nutrients: [] }).referenceRange).toBe('BLENDED');
+    expect(mapNutrientSummary({ nutrients: [] }).referenceRange).toBeNull();
+  });
+
   it('keeps a nutrient with no amount as unknown, not as zero', () => {
     const row = mapNutrientSummary({ nutrients: [{ code: 'IRON', reference: 8, averageAmount: null, share: null, met: null }] }).nutrients[0];
     expect(row.averageAmount).toBeNull();

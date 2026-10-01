@@ -61,12 +61,29 @@ export interface TrainingPreferences {
   focusAreas?: string[] | null;
 }
 
+export type NutrientReferenceRange = 'PROFILE' | 'FEMALE' | 'MALE' | 'BLENDED';
+
+export function normalizeReferenceRange(value: unknown): NutrientReferenceRange {
+  return value === 'FEMALE' || value === 'MALE' || value === 'BLENDED' ? value : 'PROFILE';
+}
+
+function withReferenceRange(preferences: AccountPreferences): AccountPreferences {
+  if (!preferences?.nutrition) {
+    return preferences;
+  }
+  return {
+    ...preferences,
+    nutrition: { ...preferences.nutrition, nutrientReferenceRange: normalizeReferenceRange(preferences.nutrition.nutrientReferenceRange) }
+  };
+}
+
 export interface NutritionPreferences {
   dietaryPattern: string;
   mealFrequency: number | null;
   calorieTrackingMode: string;
   macroPreference: string;
   waterGoalMl: number | null;
+  nutrientReferenceRange?: NutrientReferenceRange | null;
 }
 
 export interface NotificationPreferences {
@@ -219,6 +236,7 @@ export class AccountDataService {
 
   getCurrentUser(): Observable<AccountUserResponse> {
     this.currentUser$ ??= this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`).pipe(
+      map((user) => (user?.preferences ? { ...user, preferences: withReferenceRange(user.preferences) } : user)),
       tap((user) => this.authService.setUserRole(user.role)),
       shareReplay({ bufferSize: 1, refCount: false })
     );
@@ -262,7 +280,9 @@ export class AccountDataService {
 
   updatePreferences(preferences: AccountPreferences): Observable<AccountPreferences> {
     this.invalidateCurrentUser();
-    return this.http.put<AccountPreferences>(`${this.apiBaseUrl}/users/me/preferences`, preferences);
+    return this.http
+      .put<AccountPreferences>(`${this.apiBaseUrl}/users/me/preferences`, withReferenceRange(preferences))
+      .pipe(map(withReferenceRange));
   }
 
   createBodyMetric(request: CreateBodyMetricRequest): Observable<AccountBodyMetric> {

@@ -1,3 +1,4 @@
+import { normalizeReferenceRange } from '../../../core/account-data.service';
 import { FoodServing, MealItemDraft } from '../../../core/fitsync.models';
 import { asFoodGroup } from '../../../shared/food/food-groups';
 import {
@@ -258,6 +259,7 @@ export function mapNutrientSummary(raw: Wire): NutrientSummary {
   return {
     daysLogged: num(raw['daysLogged']) ?? 0,
     referenceLabel: text(raw['referenceLabel']),
+    referenceRange: raw['referenceRange'] === undefined || raw['referenceRange'] === null ? null : normalizeReferenceRange(raw['referenceRange']),
     focusCodes: Array.isArray(raw['focusCodes']) ? raw['focusCodes'].filter((code): code is string => typeof code === 'string') : [],
     itemsLogged: coverage ? num(coverage['itemsLogged']) : null,
     itemsWithoutNutrients: coverage ? num(coverage['itemsWithoutNutrients']) : null,
