@@ -281,6 +281,19 @@ describe('WorkoutBarComponent', () => {
       expect(dataService.cancelSession).not.toHaveBeenCalled();
     });
 
+    it('takes clicks in the dialog although the bar lets clicks through around itself on wide layouts', async () => {
+      await start(754);
+      (fixture.nativeElement as HTMLElement).style.pointerEvents = 'none';
+
+      button('.end')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      for (const label of ['Finish and save', 'Discard workout', 'Keep going']) {
+        expect(getComputedStyle(choice(label) as HTMLElement).pointerEvents).withContext(label).toBe('auto');
+      }
+    });
+
     it('closes on Escape as Keep going does', async () => {
       await start(754);
       button('.end')?.click();

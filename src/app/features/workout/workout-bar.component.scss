@@ -38,6 +38,11 @@
   }
 }
 
+// The host lets clicks through around the bar on wide layouts; the end dialog it opens takes them again.
+app-workout-modal {
+  pointer-events: auto;
+}
+
 .bar {
   display: flex;
   align-items: center;
