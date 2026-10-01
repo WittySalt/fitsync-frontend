@@ -293,6 +293,43 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.load();
   }
 
+  /** The tabs in the order they appear, which the arrow keys walk through. */
+  readonly tabOrder = ['overview', 'plans', 'history', 'library'] as const;
+
+  /** Arrow keys, Home and End move between the tabs. Selection follows focus, and focus follows
+   *  the selected tab once it has been rendered. */
+  onTabKeydown(event: KeyboardEvent): void {
+    const current = this.tabOrder.indexOf(this.selectedTab());
+    let next = current;
+    switch (event.key) {
+      case 'ArrowRight':
+        next = (current + 1) % this.tabOrder.length;
+        break;
+      case 'ArrowLeft':
+        next = (current - 1 + this.tabOrder.length) % this.tabOrder.length;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = this.tabOrder.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    const tab = this.tabOrder[next];
+    this.selectedTab.set(tab);
+    const list = (event.currentTarget as HTMLElement | null)?.closest('[role="tablist"]');
+    list?.querySelector<HTMLElement>(`#workout-tab-${tab}`)?.focus();
+  }
+
+  /** An exercise was created, changed or archived in the library, so what shows exercises reloads. */
+  handleExerciseSaved(): void {
+    this.loadSessions();
+    this.loadActivePlan();
+  }
+
   load(): void {
     this.loadPlans();
     this.loadSessions();
@@ -393,7 +430,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   editPlan(plan: WorkoutPlan): void {
     if (!plan.planId) {
-      this.toast.error('This sample plan cannot be edited until the workout API is available.');
       return;
     }
     this.revealPlanForm();
@@ -556,7 +592,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.workoutLive.reset();
     this.loadSessions();
     this.loadActivePlan();
-    this.selectedTab.set('history');
   }
 
   handleLiveTrackerCancelled(): void {
@@ -821,7 +856,8 @@ export class WorkoutPage implements OnInit, OnDestroy {
     return formatKm(km);
   }
 
-  private loadPlans(): void {
+  /** Loads the plans of the chosen filter again, which is what the Retry button of the error panel does. */
+  loadPlans(): void {
     this.loading.set(true);
     this.planError.set(null);
     this.dataService.getWorkoutPlans(this.planStatus()).subscribe({

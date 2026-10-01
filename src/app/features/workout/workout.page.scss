@@ -17,6 +17,16 @@
 
   .workout-tabs {
     width: fit-content;
+    border: 0;
+
+    button {
+      user-select: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
   }
 
   .plan-card {

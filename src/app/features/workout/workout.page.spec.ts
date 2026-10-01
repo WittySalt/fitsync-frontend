@@ -366,6 +366,126 @@ describe('WorkoutPage', () => {
     expect(root.querySelector('.metric-strip')).toBeNull();
   });
 
+  it('shows the Plans unavailable panel on failure and Retry loads the plans again', () => {
+    dataService.getWorkoutPlans.and.returnValue(throwError(() => new Error('offline')));
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.textContent).toContain('Plans unavailable');
+    const retry = Array.from(root.querySelectorAll<HTMLButtonElement>('app-state-panel button')).find(
+      (button) => button.textContent?.trim() === 'Retry'
+    );
+    expect(retry).toBeDefined();
+
+    dataService.getWorkoutPlans.calls.reset();
+    dataService.getWorkoutPlans.and.returnValue(of([plan({ planId: 'plan-d', status: 'DRAFT' })]));
+    retry?.click();
+    fixture.detectChanges();
+
+    expect(dataService.getWorkoutPlans).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.planError()).toBeNull();
+    expect(root.textContent).not.toContain('Plans unavailable');
+  });
+
+  it('disables Edit for an archived plan', () => {
+    dataService.getWorkoutPlans.and.returnValue(of([plan({ planId: 'plan-a', status: 'ARCHIVED' })]));
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.componentInstance.selectedTab.set('plans');
+    fixture.componentInstance.planStatus.set('ARCHIVED');
+    fixture.detectChanges();
+    const edit = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.plan-actions button')).find(
+      (button) => button.textContent?.trim() === 'Edit'
+    );
+
+    expect(edit?.disabled).toBeTrue();
+  });
+
+  describe('tab bar', () => {
+    function tabs(fixture: ComponentFixture<WorkoutPage>): HTMLButtonElement[] {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.workout-tabs [role="tab"]'));
+    }
+
+    it('gives only the selected tab a tab stop and aria-controls', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const [today, plans] = tabs(fixture);
+
+      expect(today.getAttribute('tabindex')).toBe('0');
+      expect(today.getAttribute('aria-controls')).toBe('workout-panel-overview');
+      expect(plans.getAttribute('tabindex')).toBe('-1');
+      expect(plans.hasAttribute('aria-controls')).toBeFalse();
+    });
+
+    it('moves selection and focus with the arrow keys, Home and End', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      document.body.appendChild(fixture.nativeElement);
+      fixture.detectChanges();
+      const focused = () => (fixture.nativeElement as HTMLElement).querySelector(`#workout-tab-${fixture.componentInstance.selectedTab()}`) as HTMLElement;
+      const press = (key: string) => {
+        focused().dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+      };
+
+      press('ArrowRight');
+      expect(fixture.componentInstance.selectedTab()).toBe('plans');
+      expect(document.activeElement?.id).toBe('workout-tab-plans');
+      press('End');
+      expect(fixture.componentInstance.selectedTab()).toBe('library');
+      press('ArrowRight');
+      expect(fixture.componentInstance.selectedTab()).toBe('overview');
+      press('ArrowLeft');
+      expect(fixture.componentInstance.selectedTab()).toBe('library');
+      press('Home');
+      expect(fixture.componentInstance.selectedTab()).toBe('overview');
+      fixture.nativeElement.remove();
+    });
+  });
+
+  describe('quick start card', () => {
+    function startCard(fixture: ComponentFixture<WorkoutPage>): Element | null {
+      return (fixture.nativeElement as HTMLElement).querySelector('app-live-start-card');
+    }
+
+    it('shows when nothing is in progress and today is not done', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(startCard(fixture)).not.toBeNull();
+    });
+
+    it('is hidden while a workout is in progress', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.componentInstance.workoutLive.setSession(sessionDetail({ sessionId: 'running', status: 'IN_PROGRESS' }));
+      fixture.componentInstance.workoutLive.minimise();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.workoutLive.active()).not.toBeNull();
+      expect(startCard(fixture)).toBeNull();
+    });
+
+    it('is hidden when today was already trained', () => {
+      dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight({ source: 'DONE' }) })));
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+
+      expect(startCard(fixture)).toBeNull();
+    });
+  });
+
+  it('reloads the active plan and sessions when the library saved an exercise', () => {
+    const fixture = TestBed.createComponent(WorkoutPage);
+    fixture.detectChanges();
+    dataService.getActivePlan.calls.reset();
+    dataService.getWorkoutSessionPage.calls.reset();
+
+    fixture.componentInstance.handleExerciseSaved();
+
+    expect(dataService.getActivePlan).toHaveBeenCalledTimes(1);
+    expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
+  });
+
   it('loads completed-only metric counts and last session from the server', () => {
     dataService.getWorkoutSessionPage.and.callFake((query) => {
       const q = query as WorkoutSessionQuery;
@@ -1285,7 +1405,7 @@ describe('WorkoutPage', () => {
     expect(component.guidedPlayerSession()?.sessionId).toBe('session-1');
   });
 
-  it('refreshes sessions and opens history when the live tracker completes', () => {
+  it('refreshes sessions and stays on Today when the live tracker completes', () => {
     const completed = session({ sessionId: 'session-2', name: 'Finished', status: 'COMPLETED' });
     dataService.getWorkoutSessionPage.and.returnValue(of(sessionPage([completed])));
     component.workoutLive.setSession(sessionDetail({ sessionId: 'session-live' }));
@@ -1295,7 +1415,7 @@ describe('WorkoutPage', () => {
     expect(dataService.getWorkoutSessionPage).toHaveBeenCalled();
     expect(component.sessions()[0].sessionId).toBe('session-2');
     expect(component.liveTrackerSession()).toBeNull();
-    expect(component.selectedTab()).toBe('history');
+    expect(component.selectedTab()).toBe('overview');
   });
 
   it('opens the page of a session from its History row, which names its kind, day, facts and state', () => {
@@ -1515,7 +1635,7 @@ describe('WorkoutPage', () => {
     expect(component.planExercises.length).toBe(1);
   });
 
-  it('edits concrete plans, skips sample plans, and cancels edit mode', () => {
+  it('edits concrete plans, ignores a plan without an id, and cancels edit mode', () => {
     component.editPlan(plan({ planId: null as unknown as string }));
 
     expect(component.editingPlanId()).toBeNull();

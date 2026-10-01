@@ -960,38 +960,8 @@ export class FitSyncDataService {
     }
 
     return this.http.get<PageResponse<BackendWorkoutPlan>>(`${this.apiBaseUrl}/workouts/plans`, { params }).pipe(
-      map((response) => (response.content ?? []).map((plan) => this.mapWorkoutPlan(plan))),
-      catchError(() => (status === 'ACTIVE' ? this.getFallbackWorkoutPlans() : of([] as WorkoutPlan[])))
+      map((response) => (response.content ?? []).map((plan) => this.mapWorkoutPlan(plan)))
     );
-  }
-
-  getFallbackWorkoutPlans(): Observable<WorkoutPlan[]> {
-    return of([
-      {
-        name: 'Four Day Strength Base',
-        planId: null,
-        description: '',
-        goalFocus: 'STRENGTH',
-        workoutType: 'STRENGTH',
-        difficulty: 'INTERMEDIATE',
-        estimatedDurationMinutes: 50,
-        status: 'ACTIVE',
-        exerciseCount: 7,
-        exercises: []
-      },
-      {
-        name: 'Low Impact Conditioning',
-        planId: null,
-        description: '',
-        goalFocus: 'ENDURANCE',
-        workoutType: 'CARDIO',
-        difficulty: 'BEGINNER',
-        estimatedDurationMinutes: 32,
-        status: 'DRAFT',
-        exerciseCount: 5,
-        exercises: []
-      }
-    ]).pipe(delay(220));
   }
 
   createWorkoutPlan(request: WorkoutPlanRequest): Observable<WorkoutPlan> {
