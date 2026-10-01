@@ -16,6 +16,7 @@ import { BriefDay, buildWeek, buildWeekFromInsight, completedSessionCount, weekR
 import { CoachNoticedComponent } from './coach-noticed.component';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from './day-kind-icons';
 import { GlyphShape } from './muscle-icons';
+import { MonthLineComponent } from './month/month-line.component';
 import { MonthCalendarComponent } from './month/month-calendar.component';
 import { MonthNavComponent } from './month/month-nav.component';
 import { MonthPanelComponent } from './month/month-panel.component';
@@ -36,6 +37,7 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
     FirstSessionsComponent,
     FormsModule,
     MonthCalendarComponent,
+    MonthLineComponent,
     MonthNavComponent,
     MonthPanelComponent,
     MuscleWheelComponent,
@@ -62,6 +64,8 @@ export class CoachBriefComponent implements OnInit {
   // target does exactly that, because the page loads the nutrition summary on its own request.
   readonly firstName = input.required<string>();
   readonly timezone = input.required<string>();
+  /** The name for the saved picture of a month; the first name stands in until it is known. */
+  readonly displayName = input<string | null>(null);
   readonly caloriesTarget = input<number | null>(null);
 
   // The brief always opens in the week view: it is about today, so the choice is not remembered.
@@ -411,6 +415,12 @@ export class CoachBriefComponent implements OnInit {
     this.view.set(view);
   }
 
+  /** Opens the month view on the month the line of the first days offers. */
+  seeMonth(month: string): void {
+    this.injector.get(MonthViewState).open(this.timezone(), this.todayDateKey(), month);
+    this.view.set('month');
+  }
+
   /** True for a training kind, used by the template to decide whether the strip draws a glyph. */
   isTraining(kind: DayKind | null): boolean {
     return isTrainingDayKind(kind);
@@ -422,7 +432,7 @@ export class CoachBriefComponent implements OnInit {
 
   /** Today's calendar-day key in the user's timezone, in the same YYYY-MM-DD shape the weekly
    *  insight uses for lastTrainedOn, so the two can be compared as plain strings. */
-  private todayDateKey(): string {
+  protected todayDateKey(): string {
     const timezone = this.timezone();
     try {
       return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: timezone }).format(

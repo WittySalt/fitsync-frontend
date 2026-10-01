@@ -20,6 +20,7 @@
   } @else if (data(); as dashboard) {
     <app-coach-brief
       [firstName]="dashboard.profile.firstName"
+      [displayName]="dashboard.profile.displayName"
       [timezone]="dashboard.profile.timezone"
       [caloriesTarget]="nutritionSummary()?.targetCalories ?? null"
     />

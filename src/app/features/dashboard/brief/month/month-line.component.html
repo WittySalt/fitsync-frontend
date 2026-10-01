@@ -1,0 +1,9 @@
+@if (month(); as offered) {
+  <p class="line">
+    <span class="text">{{ monthName() }} is complete.</span>
+    <span class="actions">
+      <button type="button" class="link" (click)="see()">See the month</button>
+      <button type="button" class="link" (click)="dismiss()">Not now</button>
+    </span>
+  </p>
+}

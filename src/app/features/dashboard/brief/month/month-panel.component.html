@@ -1,10 +1,22 @@
 <div class="head">
-  <span class="title">{{ title() }}</span>
-  @if (since(); as line) {
-    <span class="since">{{ line }}</span>
-  }
-  @if (emptyLine(); as line) {
-    <span class="since">{{ line }}</span>
+  <div class="head-text">
+    <span class="title">{{ title() }}</span>
+    @if (since(); as line) {
+      <span class="since">{{ line }}</span>
+    }
+    @if (emptyLine(); as line) {
+      <span class="since">{{ line }}</span>
+    }
+  </div>
+  @if (canSave()) {
+    <button type="button" class="save" [disabled]="saving()" (click)="saveImage()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4v11"></path>
+        <path d="M7.5 10.5L12 15l4.5-4.5"></path>
+        <path d="M5 19.5h14"></path>
+      </svg>
+      <span>{{ saving() ? 'Saving…' : 'Save as image' }}</span>
+    </button>
   }
 </div>
 @if (status() === 'loading') {

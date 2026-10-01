@@ -484,6 +484,64 @@ describe('CoachBriefComponent', () => {
   function pageText(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
+
+  describe('the line of the first days', () => {
+    const STORAGE_KEY = 'fitsync.month-line.dismissed';
+
+    function setupOn(now: Date): void {
+      TestBed.overrideProvider(BRIEF_NOW, { useValue: () => now });
+      dataService.getMonthlyTrainingInsight.and.returnValue(of(septemberInsight()));
+      setup();
+    }
+
+    function tab(label: string): HTMLButtonElement | undefined {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.switch-tab')).find(
+        (button) => button.textContent?.trim() === label
+      );
+    }
+
+    function seeTheMonth(): void {
+      const link = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-month-line .link')).find(
+        (button) => button.textContent?.trim() === 'See the month'
+      );
+      link?.click();
+      fixture.detectChanges();
+    }
+
+    const lineOf = (): Element | null => (fixture.nativeElement as HTMLElement).querySelector('app-month-line .line');
+
+    beforeEach(() => localStorage.removeItem(STORAGE_KEY));
+    afterEach(() => localStorage.removeItem(STORAGE_KEY));
+
+    it('offers last month on the second of the month and opens the month view on it', () => {
+      setupOn(new Date('2026-10-02T02:00:00Z'));
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+      expect(lineOf()?.querySelector('.text')?.textContent?.trim()).toBe('September is complete.');
+
+      seeTheMonth();
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('app-month-nav .title')?.textContent?.trim()).toBe('September 2026');
+      expect(lineOf()).toBeNull();
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledTimes(2);
+      expect(dataService.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09', 'Asia/Singapore']);
+    });
+
+    it('does not bring the line back when the week view returns', () => {
+      setupOn(new Date('2026-10-02T02:00:00Z'));
+      seeTheMonth();
+      tab('Week')?.click();
+      fixture.detectChanges();
+      expect(lineOf()).toBeNull();
+    });
+
+    it('shows no line while the month view is open', () => {
+      setupOn(new Date('2026-10-02T02:00:00Z'));
+      tab('Month')?.click();
+      fixture.detectChanges();
+      expect(lineOf()).toBeNull();
+    });
+  });
 });
 
 describe('CoachBriefComponent - day-kinds fields', () => {
@@ -680,4 +738,5 @@ describe('CoachBriefComponent - day-kinds fields', () => {
       expect(dataService.getActivePlan).toHaveBeenCalledTimes(1);
     });
   });
+
 });
