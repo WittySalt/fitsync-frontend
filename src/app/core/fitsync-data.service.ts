@@ -470,6 +470,7 @@ interface BackendWorkoutPlanExercise {
   targetDistanceKm?: number | string | null;
   restSeconds?: number | null;
   notes?: string | null;
+  tempoSeconds?: number | string | null;
   setTargets?: BackendWorkoutPlanExerciseSetTarget[] | null;
   videoUrl?: string | null;
   animationUrl?: string | null;
@@ -537,6 +538,7 @@ interface BackendActiveWorkout {
 }
 
 interface BackendWorkoutSessionDetail extends Partial<WorkoutSession> {
+  newRecords?: { exerciseName?: string | null; recordType?: string | null; value?: number | string | null }[] | null;
   perceivedExertion?: number | null;
   notes?: string | null;
   createdAt?: string | null;
@@ -557,6 +559,7 @@ interface BackendWorkoutExerciseLog {
   averageHeartRate?: number | null;
   maxHeartRate?: number | null;
   notes?: string | null;
+  tempoSeconds?: number | string | null;
   sets?: BackendWorkoutExerciseSetLog[] | null;
   videoUrl?: string | null;
   animationUrl?: string | null;
@@ -575,6 +578,7 @@ interface BackendWorkoutExerciseSetLog {
   perceivedExertion?: number | null;
   logged?: boolean | null;
   notes?: string | null;
+  restTakenSeconds?: number | null;
 }
 
 interface BackendExerciseRecordValue {
@@ -1077,6 +1081,30 @@ export class FitSyncDataService {
       .post<BackendWorkoutSessionDetail>(
         `${this.apiBaseUrl}/workouts/sessions/${sessionId}/complete`,
         completedAt ? { completedAt } : {}
+      )
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  /** Counts a cancelled session that has a done set: it becomes completed at its last set. */
+  countSession(sessionId: string): Observable<WorkoutSessionDetail> {
+    return this.http
+      .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}/count`, {})
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  /** The effort the person chose for a completed session, from 1 to 10. */
+  updateSessionEffort(sessionId: string, perceivedExertion: number): Observable<WorkoutSessionDetail> {
+    return this.http
+      .put<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}/effort`, { perceivedExertion })
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  /** The rest actually taken after a done set of the workout in progress, in whole seconds. */
+  recordRestTaken(sessionId: string, exerciseLogId: string, setNumber: number, restTakenSeconds: number): Observable<WorkoutSessionDetail> {
+    return this.http
+      .put<BackendWorkoutSessionDetail>(
+        `${this.apiBaseUrl}/workouts/sessions/${sessionId}/exercises/${exerciseLogId}/sets/${setNumber}/rest`,
+        { restTakenSeconds }
       )
       .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
   }
@@ -2349,7 +2377,24 @@ export class FitSyncDataService {
       sportLabel: session.sportLabel ?? null,
       distanceKm: this.numericValue(session.distanceKm),
       planDayId: session.planDayId ?? null,
-      autoClosedAt: session.autoClosedAt ?? null
+      autoClosedAt: session.autoClosedAt ?? null,
+      endedAt: session.endedAt ?? null,
+      caloriesEstimated: session.caloriesEstimated === true,
+      effortEstimated: session.effortEstimated === true,
+      ...this.setCounts(session)
+    };
+  }
+
+  /** Sets done and in all, from the exercises a session answer carries; nothing when it carries none. */
+  private setCounts(session: Partial<WorkoutSession>): { doneSets?: number; totalSets?: number } {
+    const exercises = (session as { exercises?: BackendWorkoutExerciseLog[] | null }).exercises;
+    if (!Array.isArray(exercises)) {
+      return {};
+    }
+    const sets = exercises.flatMap((exercise) => exercise.sets ?? []);
+    return {
+      doneSets: sets.filter((set) => set.status !== 'SKIPPED' && (set.logged === true || set.status === 'DONE')).length,
+      totalSets: sets.length
     };
   }
 
@@ -2375,7 +2420,10 @@ export class FitSyncDataService {
       completedAt: session.completedAt ?? '',
       exerciseCount: session.exerciseCount ?? session.exercises?.length ?? 0,
       planDayId: session.planDayId ?? null,
-      autoClosedAt: session.autoClosedAt ?? null
+      autoClosedAt: session.autoClosedAt ?? null,
+      endedAt: session.endedAt ?? null,
+      caloriesEstimated: session.caloriesEstimated === true,
+      effortEstimated: session.effortEstimated === true
     };
 
     const exercises = (session.exercises ?? []).map((exercise) => this.mapWorkoutExerciseLog(exercise));
@@ -2386,7 +2434,14 @@ export class FitSyncDataService {
       notes: session.notes ?? '',
       exercises,
       createdAt: session.createdAt ?? '',
-      updatedAt: session.updatedAt ?? ''
+      updatedAt: session.updatedAt ?? '',
+      newRecords: (session.newRecords ?? [])
+        .map((record) => ({
+          exerciseName: record.exerciseName ?? '',
+          recordType: record.recordType ?? '',
+          value: this.numericValue(record.value) ?? 0
+        }))
+        .filter((record) => record.exerciseName && record.recordType)
     };
   }
 
@@ -2426,6 +2481,7 @@ export class FitSyncDataService {
       averageHeartRate: exercise.averageHeartRate ?? null,
       maxHeartRate: exercise.maxHeartRate ?? null,
       notes: exercise.notes ?? '',
+      tempoSeconds: this.numericValue(exercise.tempoSeconds),
       sets: (exercise.sets ?? []).map((set) => this.mapWorkoutExerciseSetLog(set)),
       videoUrl: exercise.videoUrl ?? null,
       animationUrl: exercise.animationUrl ?? null,
@@ -2445,7 +2501,8 @@ export class FitSyncDataService {
       restSeconds: set.restSeconds ?? null,
       perceivedExertion: set.perceivedExertion ?? null,
       logged: set.logged ?? false,
-      notes: set.notes ?? ''
+      notes: set.notes ?? '',
+      restTakenSeconds: set.restTakenSeconds ?? null
     };
   }
 
@@ -2738,6 +2795,7 @@ export class FitSyncDataService {
       targetDistanceKm: this.numericValue(exercise.targetDistanceKm),
       restSeconds: exercise.restSeconds ?? null,
       notes: exercise.notes ?? '',
+      tempoSeconds: this.numericValue(exercise.tempoSeconds),
       videoUrl: exercise.videoUrl ?? null,
       animationUrl: exercise.animationUrl ?? null,
       primaryImageUrl: exercise.primaryImageUrl ?? null,

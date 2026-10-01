@@ -338,18 +338,8 @@
             </button>
           }
           @for (session of historyRows(); track session.sessionId ?? session.name + session.startedAt) {
-            <button
-              class="history-row"
-              type="button"
-              [attr.aria-expanded]="selectedSessionId() === session.sessionId"
-              (click)="openSessionDetail(session)"
-            >
-              <div>
-                <strong>{{ session.name }}</strong>
-                <small>{{ session.sportLabel || formatLabel(session.workoutType) }} - {{ formatDate(session.completedAt || session.startedAt) }}</small>
-              </div>
-              <span>{{ formatDuration(session) }}@if (session.distanceKm != null) { · {{ formatDistance(session.distanceKm) }}}</span>
-              <span>{{ formatLabel(session.status) }}</span>
+            <button class="history-row session-row" type="button" (click)="openSessionDetail(session)">
+              <app-history-row [session]="session" />
             </button>
           }
         </div>
@@ -366,15 +356,6 @@
         }
       } @else {
         <app-state-panel title="No sessions match these filters" message="Try a broader search, status, date range, or workout type." />
-      }
-      @if (selectedSessionId(); as sessionId) {
-        <app-session-detail
-          [sessionId]="sessionId"
-          (closed)="closeSessionDetail()"
-          (updated)="handleSessionUpdated($event)"
-          (deleted)="handleSessionDeleted()"
-          (repeated)="handleSessionRepeated()"
-        />
       }
       <div class="data-tools-disclosure">
         <button
