@@ -78,6 +78,18 @@
   /* ---------- SEMANTIC: glow elevation ---------- */
   --shadow-glow:           0 10px 30px -8px rgba(22, 163, 74, .45);
 
+  /* ---------- FOOD DATA (Diary): market colours, never used for app chrome ---------- */
+  --food-veg:     #4d9e5c;
+  --food-fruit:   #f29e4c;
+  --food-grains:  #d9a441;
+  --food-protein: #c8735a;
+  --food-dairy:   #5b9bd5;
+  --food-nuts:    #a47551;
+  --food-legumes: #8e6fb3;
+  --food-drinks:  #3fa7a3;
+  --food-sweets:  #d96c9b;
+  --food-water:   #3b82c4;
+
   /* ---------- TYPOGRAPHY ---------- */
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -183,6 +195,17 @@
   --shadow-lg: 0 12px 28px rgba(0,0,0,.55);
 
   --shadow-glow:           0 10px 30px -8px rgba(34, 197, 94, .3);
+
+  --food-veg:     #6fbf7e;
+  --food-fruit:   #f6b06a;
+  --food-grains:  #ecc874;
+  --food-protein: #dd8f78;
+  --food-dairy:   #9cc8ee;
+  --food-nuts:    #c09272;
+  --food-legumes: #a990cc;
+  --food-drinks:  #5cc2bd;
+  --food-sweets:  #e68ab2;
+  --food-water:   #6aa9e8;
 }
 
 /* Optional: follow OS preference automatically when no explicit
@@ -213,6 +236,16 @@
     --shadow-md: 0 8px 24px rgba(0,0,0,.45);
     --shadow-lg: 0 12px 28px rgba(0,0,0,.55);
     --shadow-glow:           0 10px 30px -8px rgba(34, 197, 94, .3);
+    --food-veg:     #6fbf7e;
+    --food-fruit:   #f6b06a;
+    --food-grains:  #ecc874;
+    --food-protein: #dd8f78;
+    --food-dairy:   #9cc8ee;
+    --food-nuts:    #c09272;
+    --food-legumes: #a990cc;
+    --food-drinks:  #5cc2bd;
+    --food-sweets:  #e68ab2;
+    --food-water:   #6aa9e8;
   }
 }
 
