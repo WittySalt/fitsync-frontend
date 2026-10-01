@@ -1,4 +1,4 @@
-# CI: lint, test, build (ported from .gitlab-ci.yml).
+# CI: lint, test, build (ported from the former GitLab CI pipeline).
 # Runs on pull requests and pushes to main/develop. Secret detection runs here via
 # gitleaks. SAST is via SonarCloud (the build's Sonar step) — GitHub CodeQL code
 # scanning needs a public repo or GitHub Advanced Security, neither of which this
