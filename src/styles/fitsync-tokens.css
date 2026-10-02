@@ -88,6 +88,7 @@
   --food-legumes: #8e6fb3;
   --food-drinks:  #3fa7a3;
   --food-sweets:  #d96c9b;
+  --food-spice:   #a8482a;
   --food-water:   #3b82c4;
 
   /* ---------- TYPOGRAPHY ---------- */
@@ -205,6 +206,7 @@
   --food-legumes: #a990cc;
   --food-drinks:  #5cc2bd;
   --food-sweets:  #e68ab2;
+  --food-spice:   #d27a5a;
   --food-water:   #6aa9e8;
 }
 
@@ -245,6 +247,7 @@
     --food-legumes: #a990cc;
     --food-drinks:  #5cc2bd;
     --food-sweets:  #e68ab2;
+    --food-spice:   #d27a5a;
     --food-water:   #6aa9e8;
   }
 }

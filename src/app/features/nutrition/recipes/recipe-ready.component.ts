@@ -54,6 +54,7 @@ import { StepperComponent } from './stepper.component';
           <div class="head">
             <h3>Have you got everything?</h3>
             <span class="count" aria-live="polite">{{ ticked().size }} of {{ r.ingredients.length }} ticked</span>
+            <button type="button" class="all" (click)="tickAll(r)">{{ ticked().size === r.ingredients.length ? 'Clear all' : 'Tick all' }}</button>
           </div>
           <ul>
             @for (ingredient of r.ingredients; track ingredient.ingredientId) {
@@ -136,6 +137,11 @@ export class RecipeReadyComponent implements OnInit {
       }
       return next;
     });
+  }
+
+  protected tickAll(recipe: RecipeDetail): void {
+    const all = recipe.ingredients.length;
+    this.ticked.set(this.ticked().size === all ? new Set() : new Set(recipe.ingredients.map((ingredient) => ingredient.ingredientId)));
   }
 
   protected amount(recipe: RecipeDetail, id: string): string {

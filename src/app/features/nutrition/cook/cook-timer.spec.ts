@@ -9,6 +9,7 @@ import {
   remainingSeconds,
   resumeTimer,
   segmentFills,
+  setRemaining,
   stageName,
   startStage,
   stepperSeconds,
@@ -128,5 +129,18 @@ describe('cook timer state machine', () => {
     const running: TimerState = startStage(createTimer(sides), T0);
     const restored = JSON.parse(JSON.stringify(running)) as TimerState;
     expect(remainingSeconds(restored, T0 + 30_000)).toBe(150);
+  });
+
+  it('sets the time left of a running or paused timer, and leaves an idle one alone', () => {
+    const running = startStage(createTimer(single), T0);
+    const moved = setRemaining(running, T0 + 60_000, 120);
+    expect(remainingSeconds(moved, T0 + 60_000)).toBe(120);
+    expect(moved.phase).toBe('running');
+    const paused = setRemaining(pauseTimer(running, T0 + 1000), T0 + 2000, 300);
+    expect(remainingSeconds(paused, T0 + 2000)).toBe(300);
+    expect(paused.phase).toBe('paused');
+    const idle = createTimer(single);
+    expect(setRemaining(idle, T0, 60)).toBe(idle);
+    expect(remainingSeconds(setRemaining(running, T0, 999_999), T0)).toBe(3 * 3600);
   });
 });

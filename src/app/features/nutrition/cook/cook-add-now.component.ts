@@ -41,9 +41,12 @@ import { CookIngredient } from './cook.models';
           </li>
         }
       </ul>
-      @if (allAdded()) {
-        <p class="quiet">All added</p>
-      }
+      <div class="foot">
+        @if (allAdded()) {
+          <p class="quiet">All added</p>
+        }
+        <button type="button" class="all" (click)="allMarked.emit(!allAdded())">{{ allAdded() ? 'Clear all' : 'Mark all added' }}</button>
+      </div>
     } @else if (assigned()) {
       <p class="quiet">Nothing new to add in this step</p>
     }
@@ -59,11 +62,13 @@ export class CookAddNowComponent {
   /** False while the backend names no ingredients in any step, so "nothing to add" would be a guess. */
   readonly assigned = input(true);
   readonly toggled = output<string>();
+  /** Mark all added (true) or clear them all (false). */
+  readonly allMarked = output<boolean>();
 
   protected readonly allAdded = computed(() => this.ingredients().length > 0 && this.ingredients().every((ingredient) => this.added().has(ingredient.id)));
 
   protected colour(ingredient: CookIngredient): string {
-    return groupColour(ingredient.foodGroup);
+    return groupColour(ingredient.foodGroup, ingredient.categoryCode);
   }
 
   protected icon(ingredient: CookIngredient): string | null {
@@ -72,6 +77,10 @@ export class CookAddNowComponent {
 
   protected amount(ingredient: CookIngredient): string {
     const grams = scaledGrams(ingredient.grams, this.factor());
-    return grams === null ? ingredient.displayText : gramsText(grams);
+    if (grams !== null) {
+      return gramsText(grams);
+    }
+    // The line as written is only a second line when it says more than the name already does.
+    return ingredient.displayText.trim().toLowerCase() === ingredient.name.trim().toLowerCase() ? '' : ingredient.displayText;
   }
 }

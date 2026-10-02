@@ -60,6 +60,19 @@ describe('RecipeReadyComponent', () => {
     expect(text(fixture, '.count')).toBe('0 of 2 ticked');
   });
 
+  it('ticks all of the list at once, and clears it when everything is ticked', () => {
+    const fixture = render();
+    const all = () => el(fixture).querySelector('.all') as HTMLButtonElement;
+    expect(all().textContent).toBe('Tick all');
+    all().click();
+    fixture.detectChanges();
+    expect(text(fixture, '.count')).toBe('2 of 2 ticked');
+    expect(all().textContent).toBe('Clear all');
+    all().click();
+    fixture.detectChanges();
+    expect(text(fixture, '.count')).toBe('0 of 2 ticked');
+  });
+
   it('changes the servings with the stepper, within 0.25 and 20', () => {
     const fixture = render(0.25);
     const buttons = () => el(fixture).querySelectorAll<HTMLButtonElement>('app-stepper button');

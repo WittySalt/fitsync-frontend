@@ -3,7 +3,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { servingsText } from './cook-format';
 
-/** The banner: the recipe photo under a dark gradient (a food icon cover without one), "Back to recipe", "Cooking" and the name. */
+/** The banner: the recipe photo under a dark gradient (a food icon cover without one), "Exit", "Cooking" and the name. */
 @Component({
   selector: 'app-cook-banner',
   imports: [FoodGlyphComponent],
@@ -14,8 +14,8 @@ import { servingsText } from './cook-format';
       <span class="cover" aria-hidden="true"><app-food-glyph name="PROTEIN" [size]="56" [strokeWidth]="1.4" /></span>
     }
     <span class="shade" aria-hidden="true"></span>
-    <button type="button" class="return" (click)="closed.emit()">
-      <app-food-glyph name="ARROW_LEFT" [size]="16" [strokeWidth]="2.4" />Back to recipe
+    <button type="button" class="return" aria-label="Exit cooking" (click)="closed.emit()">
+      <app-food-glyph name="CLOSE" [size]="16" [strokeWidth]="2.4" />Exit
     </button>
     <div class="text">
       <div class="lines">

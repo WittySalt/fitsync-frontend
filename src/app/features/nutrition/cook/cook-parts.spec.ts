@@ -163,6 +163,49 @@ describe('cook mode parts', () => {
     expect(el.querySelector('.add')).not.toBeNull();
   });
 
+  it('lets the cook tick every ingredient of the step at once, and clear them again', () => {
+    const fixture = TestBed.createComponent(CookAddNowComponent);
+    fixture.componentRef.setInput('ingredients', [ingredient('a', 'Salmon', 200), ingredient('b', 'Oil', 20, 'NUTS')]);
+    fixture.componentRef.setInput('stepNumber', 1);
+    fixture.componentRef.setInput('stepCount', 2);
+    const seen: boolean[] = [];
+    fixture.componentInstance.allMarked.subscribe((on) => seen.push(on));
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const all = () => el.querySelector('.all') as HTMLButtonElement;
+    expect(all().textContent).toBe('Mark all added');
+    all().click();
+    fixture.componentRef.setInput('added', new Set(['a', 'b']));
+    fixture.detectChanges();
+    expect(all().textContent).toBe('Clear all');
+    all().click();
+    expect(seen).toEqual([true, false]);
+  });
+
+  it('shows 0 g as to taste on the second line and never repeats the line as written under the name', () => {
+    const fixture = TestBed.createComponent(CookAddNowComponent);
+    const salt = { ...ingredient('s', 'Salt', 0, null), displayText: 'To taste Salt' };
+    const pepper = { ...ingredient('p', 'Pepper', null, null), displayText: 'pepper' };
+    fixture.componentRef.setInput('ingredients', [salt, pepper]);
+    fixture.componentRef.setInput('stepNumber', 1);
+    fixture.componentRef.setInput('stepCount', 1);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(Array.from(el.querySelectorAll('li strong')).map((n) => n.textContent)).toEqual(['Salt', 'Pepper']);
+    expect(Array.from(el.querySelectorAll('.grams')).map((n) => n.textContent)).toEqual(['to taste', '']);
+  });
+
+  it('draws a spice on a tile of its own colour with the shaker', () => {
+    const fixture = TestBed.createComponent(CookAddNowComponent);
+    fixture.componentRef.setInput('ingredients', [{ ...ingredient('s', 'Salt', 3, null), categoryCode: 'SPICES' }]);
+    fixture.componentRef.setInput('stepNumber', 1);
+    fixture.componentRef.setInput('stepCount', 1);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('li')?.getAttribute('style')).toContain('--food-spice');
+    expect(el.querySelector('li .icon svg')).not.toBeNull();
+  });
+
   it('shows the banner with a photo, or a cover without one, and hides the awake text when unsupported', () => {
     const fixture = TestBed.createComponent(CookBannerComponent);
     fixture.componentRef.setInput('name', 'Salmon salad');
@@ -171,7 +214,8 @@ describe('cook mode parts', () => {
     fixture.componentInstance.closed.subscribe(() => closed.push(true));
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.return')?.textContent).toContain('Back to recipe');
+    expect(el.querySelector('.return')?.textContent).toContain('Exit');
+    expect(el.querySelector('.return')?.getAttribute('aria-label')).toBe('Exit cooking');
     el.querySelector<HTMLButtonElement>('.return')?.click();
     expect(closed).toEqual([true]);
     expect(el.querySelector('.cover')).not.toBeNull();

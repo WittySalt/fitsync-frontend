@@ -198,10 +198,39 @@ describe('CookPage', () => {
     expect(text('app-cook-custom-timers .add')).toContain('Add a timer');
   });
 
-  it('has a Back to recipe control that leaves through the guarded navigation', () => {
+  it('has an Exit control, and Previous step and Next step buttons; nothing else says Back', () => {
     setup();
     load();
-    expect(text('app-cook-banner .return')).toBe('Back to recipe');
+    expect(text('app-cook-banner .return')).toBe('Exit');
+    expect(el.querySelector('app-cook-banner .return')?.getAttribute('aria-label')).toBe('Exit cooking');
+    expect(text('.back')).toBe('\u2190 Previous step');
+    expect(text('.forward')).toBe('Next step \u2192');
+    expect(el.textContent).not.toMatch(/\bBack\b/);
+  });
+
+  it('marks every ingredient of the step as added with one tap, and clears them again', () => {
+    setup();
+    load();
+    click('app-cook-add-now .all');
+    expect(session.data()!.added.sort()).toEqual(['i2', 'i3']);
+    expect(text('app-cook-add-now .all')).toBe('Clear all');
+    click('app-cook-add-now .all');
+    expect(session.data()!.added).toEqual([]);
+  });
+
+  it('changes the time of a running timer by tapping it, and the new value becomes the time left', () => {
+    setup();
+    load();
+    click('.forward');
+    click('app-cook-timer .slot');
+    click('app-cook-timer button.time');
+    expect(el.querySelector('app-cook-retime')).not.toBeNull();
+    click('app-cook-retime button[aria-label="More minutes"]');
+    click('app-cook-retime .set');
+    const left = session.data()!.timers[1].endsAtMs - Date.now();
+    expect(left).toBeGreaterThan(3 * 60_000);
+    expect(left).toBeLessThanOrEqual(4 * 60_000);
+    expect(el.querySelector('app-cook-retime')).toBeNull();
   });
 
   it('keeps the session for the Continue cooking banner when the cook leaves with nothing running', async () => {

@@ -130,6 +130,13 @@ export const GLYPHS: Record<string, readonly GlyphShape[]> = {
     { d: 'M9 14L4 9l5-5' },
     { d: 'M4 9h10a6 6 0 0 1 0 12h-3' }
   ],
+  SHAKER: [
+    { d: 'M9 8h6l1.4 11.3a1.5 1.5 0 0 1-1.5 1.7H9.1a1.5 1.5 0 0 1-1.5-1.7Z' },
+    { d: 'M9.5 8V6.2a2.5 2.5 0 0 1 5 0V8' },
+    { cx: 10.8, cy: 13, r: 0.7 },
+    { cx: 13.2, cy: 13, r: 0.7 },
+    { cx: 12, cy: 16, r: 0.7 }
+  ],
   DRAG: [
     { cx: 9, cy: 7, r: 1 },
     { cx: 15, cy: 7, r: 1 },

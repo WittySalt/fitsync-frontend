@@ -17,7 +17,7 @@ import { CookSessionService } from './cook-session.service';
 import { CookStepsComponent } from './cook-steps.component';
 import { CookTimerComponent } from './cook-timer.component';
 import { CookWakeLock } from './cook-wake-lock';
-import { addMinute, adjustStage, pauseTimer, remainingSeconds, resumeTimer, segmentFills, stageName, startStage } from './cook-timer';
+import { addMinute, adjustStage, pauseTimer, remainingSeconds, resumeTimer, segmentFills, setRemaining, stageName, startStage } from './cook-timer';
 import { CookRecipe } from './cook.models';
 
 type Status = 'loading' | 'error' | 'ready';
@@ -210,6 +210,13 @@ export class CookPage implements OnInit, OnDestroy {
     return recipe ? topGroups(recipe) : [];
   });
 
+  protected markAll(on: boolean): void {
+    this.session.setAdded(
+      this.nowIngredients().map((ingredient) => ingredient.id),
+      on
+    );
+  }
+
   protected toggleAdded(id: string): void {
     this.session.toggleAdded(id);
   }
@@ -252,6 +259,10 @@ export class CookPage implements OnInit, OnDestroy {
 
   protected resume(): void {
     this.act(resumeTimer);
+  }
+
+  protected retime(seconds: number): void {
+    this.act((state, now) => setRemaining(state, now, seconds));
   }
 
   protected addMinute(): void {

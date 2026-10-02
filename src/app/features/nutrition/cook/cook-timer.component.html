@@ -15,13 +15,13 @@
       }
       @case ('running') {
         <div class="row">
-          <strong class="time">{{ clock() }}</strong>
+          <button type="button" class="time" aria-label="Change the time" [attr.aria-expanded]="editing()" (click)="editing.set(!editing())">{{ clock() }}</button>
           <button type="button" class="link" (click)="minuteAdded.emit()">+1 min</button>
         </div>
       }
       @case ('paused') {
         <div class="row">
-          <strong class="time dim">{{ clock() }}</strong>
+          <button type="button" class="time dim" aria-label="Change the time" [attr.aria-expanded]="editing()" (click)="editing.set(!editing())">{{ clock() }}</button>
           <button type="button" class="link" (click)="minuteAdded.emit()">+1 min</button>
         </div>
       }
@@ -38,6 +38,10 @@
       }
     }
   </div>
+
+  @if (editing() && (phase() === 'running' || phase() === 'paused')) {
+    <app-cook-retime [minutes]="minutesLeft()" (applied)="retime($event)" />
+  }
 
   <app-cook-segments
     [fills]="fills()"

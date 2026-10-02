@@ -12,7 +12,7 @@
         <p>This recipe could not be opened for cooking.</p>
         <div class="state-actions">
           <button type="button" class="again" (click)="load()">Try again</button>
-          <button type="button" class="leave" (click)="close()">Back</button>
+          <button type="button" class="leave" (click)="close()">Exit</button>
         </div>
       </div>
     }
@@ -46,6 +46,7 @@
               [added]="added()"
               [assigned]="assigned()"
               (toggled)="toggleAdded($event)"
+              (allMarked)="markAll($event)"
             />
 
             <p class="step">
@@ -64,6 +65,7 @@
                 (resumed)="resume()"
                 (minuteAdded)="addMinute()"
                 (adjusted)="adjust($event)"
+                (retimed)="retime($event)"
                 (next)="next()"
               />
             }
@@ -83,8 +85,8 @@
             </details>
 
             <div class="nav">
-              <button type="button" class="back" [disabled]="index() === 0" (click)="back()">Back</button>
-              <button type="button" class="forward" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step' }}</button>
+              <button type="button" class="back" [disabled]="index() === 0" (click)="back()">&larr; Previous step</button>
+              <button type="button" class="forward" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step \u2192' }}</button>
             </div>
           </main>
 

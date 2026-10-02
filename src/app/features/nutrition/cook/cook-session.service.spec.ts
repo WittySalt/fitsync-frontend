@@ -177,6 +177,17 @@ describe('CookSessionService', () => {
     again.clear();
   });
 
+  it('ticks or clears a group of ingredients at once', () => {
+    service.open(meta, [sides]);
+    service.toggleAdded('keep');
+    service.setAdded(['a', 'b'], true);
+    expect(service.data()?.added).toEqual(['keep', 'a', 'b']);
+    service.setAdded(['a', 'b'], true);
+    expect(service.data()?.added).toEqual(['keep', 'a', 'b']);
+    service.setAdded(['a', 'b'], false);
+    expect(service.data()?.added).toEqual(['keep']);
+  });
+
   it('adds timers to a step, any number, next to the one found in the text', () => {
     service.open({ ...meta, imageUrl: 'https://img/x.jpg' }, [sides, null]);
     expect(service.data()?.stepCount).toBe(2);

@@ -103,6 +103,15 @@ export function addMinute(state: TimerState): TimerState {
   return state;
 }
 
+/** Sets the time left of the stage that runs or waits paused; the minutes the cook chose become what is left. */
+export function setRemaining(state: TimerState, now: number, seconds: number): TimerState {
+  const ms = Math.min(MAX_STAGE_SECONDS, Math.max(1, seconds)) * 1000;
+  if (state.phase === 'running') {
+    return { ...state, endsAtMs: now + ms, totalMs: ms };
+  }
+  return state.phase === 'paused' ? { ...state, remainingMs: ms, totalMs: ms } : state;
+}
+
 /** Moves a running timer to the turn or the end when its time is up. Nothing else changes by itself. */
 export function tickTimer(state: TimerState, now: number): { state: TimerState; ended: TimerEnd | null } {
   if (state.phase !== 'running' || now < state.endsAtMs) {

@@ -27,6 +27,10 @@ describe('food groups', () => {
     expect(groupForCategory('fats_oils')).toBe('NUTS');
     expect(groupForCategory('BEVERAGES')).toBe('DRINKS');
     expect(groupForCategory('SPICES')).toBeNull();
+    expect(iconFor(null, 'SPICES')).toBe('SHAKER');
+    expect(groupColour(null, 'spices')).toBe('var(--food-spice)');
+    expect(groupColour('VEG', 'SPICES')).toBe('var(--food-veg)');
+    expect(groupColour(null, 'DAIRY')).not.toBe('var(--food-spice)');
     expect(groupForCategory(undefined)).toBeNull();
   });
 

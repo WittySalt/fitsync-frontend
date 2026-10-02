@@ -219,6 +219,16 @@ export class CookSessionService {
     this.write({ ...data, added: has ? data.added.filter((id) => id !== ingredientId) : [...data.added, ingredientId] });
   }
 
+  /** Ticks all of these ingredients as added, or takes the ticks off all of them. */
+  setAdded(ingredientIds: readonly string[], on: boolean): void {
+    const data = this.data();
+    if (!data) {
+      return;
+    }
+    const rest = data.added.filter((id) => !ingredientIds.includes(id));
+    this.write({ ...data, added: on ? [...rest, ...ingredientIds] : rest });
+  }
+
   dismissAlert(key: string): void {
     this.alerts.update((alerts) => alerts.filter((alert) => alert.key !== key));
   }

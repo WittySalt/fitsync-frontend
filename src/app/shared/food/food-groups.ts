@@ -38,7 +38,17 @@ export function foodGroupInfo(group: FoodGroup | null | undefined): FoodGroupInf
   return FOOD_GROUPS.find((entry) => entry.key === group) ?? null;
 }
 
-export function groupColour(group: FoodGroup | null | undefined): string {
+/** Spices and herbs are not a plate group (the backend files them under OTHER), so they have a colour and a drawing of their own. */
+const SEASONING_CATEGORIES: ReadonlySet<string> = new Set(['SPICES', 'HERBS', 'HERBS_SPICES', 'SEASONINGS']);
+
+export function isSeasoning(categoryCode: string | null | undefined): boolean {
+  return SEASONING_CATEGORIES.has((categoryCode ?? '').toUpperCase());
+}
+
+export function groupColour(group: FoodGroup | null | undefined, categoryCode?: string | null): string {
+  if (!group && isSeasoning(categoryCode)) {
+    return 'var(--food-spice)';
+  }
   return foodGroupInfo(group)?.colour ?? NEUTRAL_FOOD_COLOUR;
 }
 
@@ -68,6 +78,9 @@ export function groupForCategory(categoryCode: string | null | undefined): FoodG
 /** The icon for a food: fish and eggs have their own drawing, everything else uses its group's. */
 export function iconFor(group: FoodGroup | null | undefined, categoryCode?: string | null): string | null {
   const category = (categoryCode ?? '').toUpperCase();
+  if (!group && isSeasoning(category)) {
+    return 'SHAKER';
+  }
   if (category === 'SEAFOOD') {
     return 'FISH';
   }

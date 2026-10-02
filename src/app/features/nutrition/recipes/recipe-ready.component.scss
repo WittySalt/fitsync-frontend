@@ -110,8 +110,20 @@ h2 {
 }
 
 .count {
+  margin-left: auto;
   font-size: 12px;
   color: var(--accent-text);
+}
+
+.all {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
 }
 
 ul {
