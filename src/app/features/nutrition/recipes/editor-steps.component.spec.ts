@@ -32,9 +32,9 @@ describe('EditorStepsComponent', () => {
 
   it('says a timer was found when the text names a time next to a cooking word', () => {
     render(['Stir the oats and milk together and simmer for 5 minutes.', 'Slice the banana on top.', 'Fry for 3-4 mins on each side.']);
-    expect(items()[0].querySelector('.found')?.textContent?.trim()).toBe('A 5 min timer was found');
+    expect(items()[0].querySelector('.found')?.textContent?.trim()).toBe('A 5 min timer was found · Simmer');
     expect(items()[1].querySelector('.found')).toBeNull();
-    expect(items()[2].querySelector('.found')?.textContent?.trim()).toBe('A 3 to 4 min timer was found');
+    expect(items()[2].querySelector('.found')?.textContent?.trim()).toBe('A 3 to 4 min timer was found · Fry');
   });
 
   it('updates the note as the text changes', () => {
@@ -45,7 +45,7 @@ describe('EditorStepsComponent', () => {
     expect(seen).toEqual(['text 0 Simmer for 10 minutes.']);
     fixture.componentRef.setInput('steps', ['Simmer for 10 minutes.']);
     fixture.detectChanges();
-    expect(items()[0].querySelector('.found')?.textContent?.trim()).toBe('A 10 min timer was found');
+    expect(items()[0].querySelector('.found')?.textContent?.trim()).toBe('A 10 min timer was found · Simmer');
   });
 
   it('moves a step with the buttons, and the first cannot go up', () => {

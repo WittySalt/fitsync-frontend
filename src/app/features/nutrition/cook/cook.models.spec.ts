@@ -35,7 +35,7 @@ describe('cook recipe mapping', () => {
     });
     expect(recipe.steps.map((s) => s.text)).toEqual(['Fry the salmon 3-4 mins a side.', 'Plate it.']);
     expect(recipe.steps[0]).toEqual(jasmine.objectContaining({ number: 1, title: 'Fry the salmon', ingredientIds: ['i1'] }));
-    expect(recipe.steps[0].timer).toEqual({ seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins' });
+    expect(recipe.steps[0].timer).toEqual({ seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins', label: 'Fry the salmon' });
     expect(recipe.ingredients[0]).toEqual(jasmine.objectContaining({ id: 'i1', name: 'Salmon', grams: 200, foodGroup: 'PROTEIN' }));
     expect(recipe.imageUrl).toBe('https://img/x.jpg');
   });
@@ -63,6 +63,21 @@ describe('cook recipe mapping', () => {
   it('drops a range whose top is not above its bottom', () => {
     const recipe = mapCookRecipe({ id: 'r', name: 'x', steps: [{ text: 'a', timers: [{ seconds: 60, maxSeconds: 60, eachSide: false, phrase: '1 min' }] }] });
     expect(recipe.steps[0].timer?.maxSeconds).toBeNull();
+  });
+
+  it('takes the label the server sends, and works it out with the same rule when it is missing', () => {
+    const recipe = mapCookRecipe({
+      id: 'r',
+      name: 'x',
+      ingredients: [{ ingredientId: 'i1', foodName: 'Pie, apple', displayText: 'pie' }],
+      steps: [
+        { text: 'Brown patties in the pan, about 10 minutes.', timers: [{ seconds: 600, eachSide: false, phrase: '10 minutes', label: 'Sear the patties' }] },
+        { text: 'Brown patties in the pan, about 10 minutes.', timers: [{ seconds: 600, eachSide: false, phrase: '10 minutes' }] },
+        { text: 'Bake for 35 minutes.', ingredientIds: ['i1'], timers: [{ seconds: 2100, eachSide: false, phrase: '35 minutes' }] },
+        { text: 'Leave it, about 5 minutes.', title: 'Wait', timers: [{ seconds: 300, eachSide: false, phrase: '5 minutes' }] }
+      ]
+    });
+    expect(recipe.steps.map((step) => step.timer?.label)).toEqual(['Sear the patties', 'Brown patties', 'Bake · Pie', 'Wait']);
   });
 
   it('keeps an ingredient of 0 g as 0 so it reads to taste, and a missing weight as null', () => {

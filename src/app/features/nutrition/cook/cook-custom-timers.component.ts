@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, effect, input, output, signal, untracked } from '@angular/core';
 
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { CookDurationComponent } from './cook-duration.component';
@@ -56,7 +56,7 @@ const DEFAULT_MINUTES = 5;
       </div>
     }
     @if (!open()) {
-      <button type="button" class="add" (click)="open.set(true)">
+      <button type="button" class="add" (click)="openForm()">
         <app-food-glyph name="PLUS" [size]="14" [strokeWidth]="2.6" />Add a timer
       </button>
     } @else {
@@ -64,7 +64,7 @@ const DEFAULT_MINUTES = 5;
         <app-cook-duration class="duration" [(minutes)]="minutes" [(valid)]="valid" (submitted)="submit()" />
         <label class="field">
           <span class="sr-only">Name of the timer</span>
-          <input type="text" name="timer-name" placeholder="Name, such as Oven preheating" autocomplete="off" [attr.maxlength]="nameMax" [value]="name()" (input)="name.set($any($event.target).value)" />
+          <input type="text" name="timer-name" placeholder="Name, such as Oven preheating" autocomplete="off" [attr.maxlength]="nameMax" [value]="name()" (focus)="selectAll($event)" (input)="name.set($any($event.target).value)" />
         </label>
         <span class="buttons">
           <button type="submit" class="start" [disabled]="!valid()">Start</button>
@@ -77,6 +77,12 @@ const DEFAULT_MINUTES = 5;
 })
 export class CookCustomTimersComponent {
   readonly items = input<CustomTimerView[]>([]);
+  /** The step on screen. A form left open on another step closes, so nothing carries over from it. */
+  readonly stepKey = input<number>(0);
+  /** The name the form starts with, selected so typing replaces it. */
+  readonly suggestion = input('');
+  /** The time the form starts with, in minutes. */
+  readonly defaultMinutes = input(DEFAULT_MINUTES);
   readonly added = output<NewTimer>();
   readonly paused = output<number>();
   readonly resumed = output<number>();
@@ -91,6 +97,27 @@ export class CookCustomTimersComponent {
   protected readonly minutes = signal(DEFAULT_MINUTES);
   protected readonly valid = signal(true);
   protected readonly name = signal('');
+
+  constructor() {
+    effect(() => {
+      this.stepKey();
+      untracked(() => {
+        this.editing.set(null);
+        this.close();
+      });
+    });
+  }
+
+  protected openForm(): void {
+    this.minutes.set(this.defaultMinutes());
+    this.name.set(this.suggestion());
+    this.valid.set(true);
+    this.open.set(true);
+  }
+
+  protected selectAll(event: Event): void {
+    (event.target as HTMLInputElement).select();
+  }
 
   protected label(item: CustomTimerView): string {
     return item.name || 'Timer';
@@ -115,5 +142,6 @@ export class CookCustomTimersComponent {
     this.open.set(false);
     this.minutes.set(DEFAULT_MINUTES);
     this.name.set('');
+    this.valid.set(true);
   }
 }

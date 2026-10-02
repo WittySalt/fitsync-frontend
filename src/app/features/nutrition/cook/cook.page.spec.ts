@@ -191,6 +191,65 @@ describe('CookPage', () => {
     expect(session.data()!.customs).toEqual([]);
   });
 
+  it('labels the found timer, prefills the form with it and shows it in Also timing and the alert', () => {
+    setup();
+    load(wire({
+      steps: [
+        { stepNumber: 1, text: 'Heat a large skillet.', title: 'Heat the pan' },
+        { stepNumber: 2, text: 'Brown patties in batches, about 10 minutes.', title: 'Brown', ingredientIds: ['i1'], timers: [{ seconds: 600, maxSeconds: null, eachSide: false, phrase: '10 minutes', label: 'Brown patties' }] },
+        { stepNumber: 3, text: 'Serve.', title: 'Serve' }
+      ]
+    }));
+    click('.forward');
+    expect(text('app-cook-timer .name')).toBe('Brown patties');
+    click('app-cook-custom-timers .add');
+    const input = el.querySelector('app-cook-custom-timers input[name="timer-name"]') as HTMLInputElement;
+    expect(input.value).toBe('Brown patties');
+    click('app-cook-custom-timers .buttons .link');
+    click('app-cook-timer .slot');
+    click('.forward');
+    expect(text('app-cook-also-timing .what')).toBe('Step 2 · Brown patties');
+    session.tickNow(Date.now() + 601_000);
+    fixture.detectChanges();
+    expect(text('app-cook-alert .text')).toBe('Step 2 · Brown patties is done');
+  });
+
+  it('prefills the form from the step text, else its title, when the step has no timer', () => {
+    setup();
+    load();
+    click('app-cook-custom-timers .add');
+    expect((el.querySelector('app-cook-custom-timers input[name="timer-name"]') as HTMLInputElement).value).toBe('Mix the dressing');
+    click('.forward');
+    click('.forward');
+    click('app-cook-custom-timers .add');
+    expect((el.querySelector('app-cook-custom-timers input[name="timer-name"]') as HTMLInputElement).value).toBe('Rest');
+  });
+
+  it('Algerian Kefta step: the found timer stays visible, and the form starts with its time, never one left from another step', () => {
+    setup();
+    load(wire({
+      steps: [
+        { stepNumber: 1, text: 'Preheat the oven.', title: 'Preheat the oven.' },
+        { stepNumber: 2, text: 'Brown patties in batches, about 10 minutes.', title: 'Brown', timers: [{ seconds: 600, maxSeconds: null, eachSide: false, phrase: '10 minutes' }] }
+      ]
+    }));
+    click('app-cook-custom-timers .add');
+    click('app-cook-custom-timers button[aria-label="Longer"]');
+    expect(el.querySelector('app-cook-custom-timers form')).not.toBeNull();
+    click('.forward');
+    expect(el.querySelector('app-cook-timer')).not.toBeNull();
+    expect(el.querySelector('app-cook-custom-timers form')).toBeNull();
+    click('app-cook-custom-timers .add');
+    expect(el.querySelector('app-cook-timer')).not.toBeNull();
+    expect(el.querySelectorAll<HTMLInputElement>('app-cook-custom-timers app-cook-duration input')[1].value).toBe('10');
+    expect((el.querySelector('app-cook-custom-timers input[name="timer-name"]') as HTMLInputElement).value).toBe('Brown patties');
+    // With the found timer running, the form offers 5 min instead.
+    click('app-cook-custom-timers .buttons .link');
+    click('app-cook-timer .slot');
+    click('app-cook-custom-timers .add');
+    expect(el.querySelectorAll<HTMLInputElement>('app-cook-custom-timers app-cook-duration input')[1].value).toBe('5');
+  });
+
   it('offers + Add a timer on a step that has no timer of its own', () => {
     setup();
     load();
@@ -363,7 +422,7 @@ describe('CookPage', () => {
     click('app-cook-timer .slot');
     click('.back');
     expect(el.querySelectorAll('app-cook-also-timing .chip').length).toBe(1);
-    expect(text('app-cook-also-timing .what')).toBe('First side');
+    expect(text('app-cook-also-timing .what')).toBe('Step 2 · Fry the salmon');
     click('app-cook-also-timing .chip');
     expect(text('app-cook-add-now .eyebrow')).toContain('Step 2 of 3');
     expect(el.querySelector('app-cook-also-timing')).toBeNull();
@@ -377,7 +436,7 @@ describe('CookPage', () => {
     click('.back');
     session.tickNow(Date.now() + 181_000);
     fixture.detectChanges();
-    expect(text('app-cook-alert .text')).toBe('Step 2: the first side is done');
+    expect(text('app-cook-alert .text')).toBe('Step 2 · Fry the salmon: the first side is done');
     click('app-cook-alert .action');
     expect(session.data()!.timers[1].stage).toBe(1);
     expect(el.querySelector('app-cook-alert')).toBeNull();

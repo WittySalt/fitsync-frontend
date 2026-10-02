@@ -164,6 +164,70 @@ describe('cook mode parts', () => {
     expect(el.querySelector('.add')).not.toBeNull();
   });
 
+  describe('the form of + Add a timer', () => {
+    function form(inputs: Record<string, unknown> = {}) {
+      const fixture = TestBed.createComponent(CookCustomTimersComponent);
+      Object.entries(inputs).forEach(([key, value]) => fixture.componentRef.setInput(key, value));
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      const open = () => {
+        el.querySelector<HTMLButtonElement>('.add')?.click();
+        fixture.detectChanges();
+      };
+      const name = () => el.querySelector('input[name="timer-name"]') as HTMLInputElement;
+      const minutes = () => el.querySelectorAll<HTMLInputElement>('app-cook-duration input')[1].value;
+      return { fixture, el, open, name, minutes };
+    }
+
+    it('starts with the suggested name and the default time, and Start with them untouched works', () => {
+      const { fixture, el, open, name, minutes } = form({ suggestion: 'Brown patties', defaultMinutes: 10 });
+      const created: NewTimer[] = [];
+      fixture.componentInstance.added.subscribe((timer) => created.push(timer));
+      open();
+      expect(name().value).toBe('Brown patties');
+      expect(minutes()).toBe('10');
+      el.querySelector<HTMLButtonElement>('.start')?.click();
+      expect(created).toEqual([{ name: 'Brown patties', minutes: 10 }]);
+    });
+
+    it('selects the suggestion on focus so typing replaces it', () => {
+      const { open, name } = form({ suggestion: 'Brown patties' });
+      open();
+      name().dispatchEvent(new Event('focus'));
+      expect(name().selectionStart).toBe(0);
+      expect(name().selectionEnd).toBe('Brown patties'.length);
+    });
+
+    it('starts at 5 min without a found time, and never keeps a time or name from another step', () => {
+      const { fixture, el, open, name, minutes } = form({ suggestion: 'Rest', stepKey: 1 });
+      open();
+      expect(minutes()).toBe('5');
+      el.querySelector<HTMLButtonElement>('button[aria-label="Longer"]')?.click();
+      name().value = 'Oven';
+      name().dispatchEvent(new Event('input'));
+      fixture.componentRef.setInput('stepKey', 2);
+      fixture.componentRef.setInput('suggestion', 'Brown patties');
+      fixture.componentRef.setInput('defaultMinutes', 10);
+      fixture.detectChanges();
+      expect(el.querySelector('form')).toBeNull();
+      open();
+      expect(minutes()).toBe('10');
+      expect(name().value).toBe('Brown patties');
+    });
+
+    it('opens at the default time again after Cancel', () => {
+      const { fixture, el, open, minutes } = form();
+      open();
+      el.querySelector<HTMLButtonElement>('button[aria-label="Longer"]')?.click();
+      fixture.detectChanges();
+      expect(minutes()).toBe('6');
+      el.querySelector<HTMLButtonElement>('.buttons .link')?.click();
+      fixture.detectChanges();
+      open();
+      expect(minutes()).toBe('5');
+    });
+  });
+
   it('lets the cook tick every ingredient of the step at once, and clear them again', () => {
     const fixture = TestBed.createComponent(CookAddNowComponent);
     fixture.componentRef.setInput('ingredients', [ingredient('a', 'Salmon', 200), ingredient('b', 'Oil', 20, 'NUTS')]);
@@ -277,6 +341,10 @@ describe('cook mode parts', () => {
     expect(alertText({ ...turn, step: 1, kind: 'done', eachSide: false })).toBe('Step 2: the timer is done');
     expect(alertText({ ...turn, step: 1, kind: 'done', eachSide: false, name: 'Oven preheating' })).toBe('Step 2: Oven preheating is done');
     expect(alertText({ ...turn, step: 1, kind: 'done', eachSide: false, name: '' })).toBe('Step 2: your timer is done');
+    expect(alertText({ ...turn, step: 2, kind: 'done', eachSide: false, label: 'Brown patties' })).toBe('Step 3 · Brown patties is done');
+    expect(alertText({ ...turn, step: 2, label: 'Brown patties' })).toBe('Step 3 · Brown patties: the first side is done');
+    expect(alertText({ ...turn, step: 2, kind: 'done', label: 'Fry the salmon' })).toBe('Step 3 · Fry the salmon: both sides are done');
+    expect(alertText({ ...turn, step: 1, kind: 'done', eachSide: false, name: 'Rice', label: 'Ignored' })).toBe('Step 2: Rice is done');
     expect(alertAction({ ...turn, step: 3 })).toBe('Start the second side');
     expect(alertAction({ ...turn, step: 1, kind: 'done', eachSide: false })).toBe('Go to step 2');
   });

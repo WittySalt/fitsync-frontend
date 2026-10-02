@@ -44,6 +44,8 @@ export interface CookAlert {
   eachSide: boolean;
   /** The cook's name for a timer they added, else null. */
   name: string | null;
+  /** The name of the timer found in a step, such as "Brown patties"; empty or missing for none. */
+  label?: string;
 }
 
 export interface CookEnded {
@@ -275,7 +277,7 @@ export class CookSessionService {
       const result = tickTimer(state, now);
       if (result.ended) {
         timers = { ...timers, [Number(key)]: result.state };
-        finished.push({ key: foundKey(Number(key)), step: Number(key), kind: result.ended, eachSide: state.eachSide, name: null });
+        finished.push({ key: foundKey(Number(key)), step: Number(key), kind: result.ended, eachSide: state.eachSide, name: null, label: state.label });
       }
     }
     for (const custom of data.customs) {

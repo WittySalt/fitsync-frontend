@@ -73,7 +73,7 @@ describe('CookSessionService', () => {
     service.goTo(1);
     service.tickNow(Date.now() + 181_000);
     expect(service.data()!.timers[0].phase).toBe('turn');
-    expect(service.alerts()).toEqual([{ key: 's0', step: 0, kind: 'turn', eachSide: true, name: null }]);
+    expect(service.alerts()).toEqual([{ key: 's0', step: 0, kind: 'turn', eachSide: true, name: null, label: '' }]);
     expect(service.ended()?.kind).toBe('turn');
   });
 
