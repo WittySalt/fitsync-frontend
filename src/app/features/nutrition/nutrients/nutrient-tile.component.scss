@@ -114,18 +114,32 @@
   color: var(--text-secondary);
 }
 
-/* A narrow tile loses the tick (the tint and the green percentage still say reached) and tightens up. */
-@container (max-width: 83px) {
+/* Under 76px (four columns on a phone) the content shrinks to fit: no tick, a smaller symbol, names on one line. */
+@container (max-width: 75px) {
   .tick {
     display: none;
   }
 
   .tile {
-    padding: 7px 5px;
+    padding: 5px;
+  }
+
+  .atomic {
+    font-size: 9px;
+  }
+
+  .value {
+    font-size: 10px;
+  }
+
+  .symbol {
+    font-size: 22cqw;
   }
 
   .name {
     font-size: 10px;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
   }
 }
 

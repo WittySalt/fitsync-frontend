@@ -45,13 +45,6 @@
   }
 }
 
-/* Four columns only while each tile can be 76px wide: (width - 3 gaps of 10px) / 4. */
-@container (max-width: 333px) {
-  .grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 520px) {
   :host {
     padding: 16px;
