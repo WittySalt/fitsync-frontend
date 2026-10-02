@@ -42,6 +42,18 @@ export const routes: Routes = [
     title: 'FitSync Nutrition'
   },
   {
+    path: 'nutrition/nutrients',
+    loadComponent: () => import('./features/nutrition/nutrients/nutrients.page').then((module) => module.NutrientsPage),
+    canActivate: [authGuard],
+    title: 'FitSync All nutrients'
+  },
+  {
+    path: 'nutrition/nutrients/:code',
+    loadComponent: () => import('./features/nutrition/nutrients/nutrient.page').then((module) => module.NutrientPage),
+    canActivate: [authGuard],
+    title: 'FitSync Nutrient'
+  },
+  {
     path: 'nutrition/recipes/:id/cook',
     loadComponent: () => import('./features/nutrition/cook/cook.page').then((module) => module.CookPage),
     canActivate: [authGuard],

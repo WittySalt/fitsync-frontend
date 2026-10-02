@@ -1,0 +1,126 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.tile {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  aspect-ratio: 100 / 108;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--dur-fast) var(--ease-standard);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  &.selected {
+    border: 2px solid var(--accent);
+  }
+
+  &.over {
+    border: 1.5px solid var(--text-primary);
+  }
+}
+
+.fill {
+  position: absolute;
+  inset: auto 0 0;
+  background: color-mix(in srgb, var(--g) 18%, transparent);
+}
+
+.reached .fill {
+  background: color-mix(in srgb, var(--g) 28%, transparent);
+}
+
+.limit .fill {
+  background: color-mix(in srgb, var(--text-muted) 22%, transparent);
+}
+
+.over .fill {
+  background: color-mix(in srgb, var(--text-secondary) 28%, transparent);
+}
+
+.top,
+.symbol,
+.name {
+  position: relative;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 14px;
+}
+
+.atomic {
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+
+.value {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+.reached .value {
+  color: var(--accent-text);
+}
+
+.none {
+  font-weight: var(--fw-normal);
+  color: var(--text-muted);
+}
+
+.symbol {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
+}

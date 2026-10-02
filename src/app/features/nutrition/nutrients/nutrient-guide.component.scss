@@ -1,0 +1,150 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+h3 {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.note,
+.source {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+th {
+  padding-bottom: 6px;
+  font-size: 12px;
+  font-weight: var(--fw-normal);
+  text-align: right;
+  color: var(--text-secondary);
+
+  &:first-child {
+    text-align: left;
+  }
+}
+
+td {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  text-align: right;
+
+  &:first-child {
+    text-align: left;
+  }
+}
+
+.mine td {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  background: var(--surface-tint);
+
+  &:first-child {
+    padding-left: 8px;
+    border-radius: 8px 0 0 8px;
+  }
+
+  &:last-child {
+    padding-right: 8px;
+    border-radius: 0 8px 8px 0;
+  }
+}
+
+em {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  font-size: 11px;
+  font-style: normal;
+  color: var(--accent-text);
+}
+
+.foods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.food {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+}
+
+.fname {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.famount {
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.tip {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-accent);
+  border-radius: 14px;
+  background: var(--surface-tint);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+
+  app-food-glyph {
+    margin-top: 2px;
+    color: var(--accent);
+  }
+}
+
+@container (max-width: 520px) {
+  .foods {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

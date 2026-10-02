@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { NEVER, Subject, of, throwError } from 'rxjs';
 
 import { AccountDataService } from '../../../core/account-data.service';
@@ -34,6 +35,7 @@ describe('DiaryDayComponent', () => {
     data.copyMeal.and.returnValue(of({ ok: true }));
     TestBed.configureTestingModule({
       providers: [
+        provideRouter([]),
         { provide: NutritionDiaryService, useValue: diary },
         { provide: FitSyncDataService, useValue: data },
         { provide: AccountDataService, useValue: { getCurrentUser: () => of({ preferences: { nutrition: { waterGoalMl: 2500 } } }) } }
