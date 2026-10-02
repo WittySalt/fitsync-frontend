@@ -32,6 +32,13 @@ describe('recipe mappers', () => {
     expect(mapRecipePage({ content: [], fit: 'no' }).fit).toBeNull();
   });
 
+  it('reads the cook count and the last cook of a recipe, and a recipe without them was never cooked', () => {
+    const cooked = mapRecipeDetail({ id: 'r', cookCount: 3, lastCookedAt: '2026-10-01T18:00:00Z' });
+    expect([cooked.cookCount, cooked.lastCookedAt]).toEqual([3, '2026-10-01T18:00:00Z']);
+    const never = mapRecipeDetail({ id: 'r' });
+    expect([never.cookCount, never.lastCookedAt]).toEqual([0, null]);
+  });
+
   it('uses a photo only when it is a web address', () => {
     expect(safeImageUrl('https://x.example/a.jpg')).toBe('https://x.example/a.jpg');
     expect(safeImageUrl('javascript:alert(1)')).toBeNull();

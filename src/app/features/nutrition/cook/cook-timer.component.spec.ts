@@ -32,8 +32,7 @@ describe('CookTimerComponent', () => {
     const el = show(createTimer(sides));
     expect(el.querySelector('.intro')?.textContent).toContain('First side, then the second · 3 min each');
     expect(el.querySelector('.note')?.textContent).toContain('The recipe says 3 to 4 min');
-    expect(slot(el).textContent).toContain('Start the first side');
-    expect(el.querySelectorAll('.round').length).toBe(2);
+    expect((el.querySelector('.intro') as HTMLButtonElement).getAttribute('aria-label')).toBe('Change the time');
     expect(Array.from(el.querySelectorAll('.round')).every((button) => button.querySelector('svg') !== null && !button.textContent?.trim())).toBeTrue();
   });
 
@@ -45,17 +44,25 @@ describe('CookTimerComponent', () => {
     expect(el.querySelectorAll('.seg').length).toBe(1);
   });
 
-  it('emits the stepper direction and the start', () => {
-    const adjusted: number[] = [];
+  it('opens the shared time control from the length, and reports the time chosen in seconds, with Reset to the recipe time', () => {
+    const retimed: number[] = [];
+    fixture.componentInstance.retimed.subscribe((seconds) => retimed.push(seconds));
+    const el = show(createTimer(single));
+    (el.querySelector('.intro') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('app-cook-duration')).not.toBeNull();
+    expect(el.querySelector('.round')).toBeNull();
+    (el.querySelector('app-cook-duration .chips button:nth-child(4)') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('.reset')).not.toBeNull();
+    (el.querySelector('.set') as HTMLButtonElement).click();
+    expect(retimed).toEqual([4200]);
+  });
+
+  it('emits the start', () => {
     let started = 0;
-    fixture.componentInstance.adjusted.subscribe((d) => adjusted.push(d));
     fixture.componentInstance.started.subscribe(() => started++);
-    const el = show(createTimer(sides));
-    const [less, more] = Array.from(el.querySelectorAll<HTMLButtonElement>('.round'));
-    less.click();
-    more.click();
-    slot(el).click();
-    expect(adjusted).toEqual([-1, 1]);
+    slot(show(createTimer(sides))).click();
     expect(started).toBe(1);
   });
 

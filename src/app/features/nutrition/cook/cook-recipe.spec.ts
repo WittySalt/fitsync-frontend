@@ -30,6 +30,7 @@ const recipe: CookRecipe = {
   name: 'Salmon salad',
   imageUrl: null,
   kcalPerServing: 520,
+  cookCount: 0,
   servings: 2,
   ingredients: [salmon, oil, lime],
   steps: [step(1, ['i3']), step(2, ['i1', 'i2']), step(3, [])]

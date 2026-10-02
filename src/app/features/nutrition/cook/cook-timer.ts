@@ -29,7 +29,7 @@ export interface TimerState {
 
 export type TimerEnd = 'turn' | 'done';
 
-export const MAX_STAGE_SECONDS = 3 * 3600;
+export const MAX_STAGE_SECONDS = 12 * 3600;
 const MINUTE_MS = 60_000;
 
 export function createTimer(def: CookTimerDef): TimerState {
@@ -49,21 +49,6 @@ export function createTimer(def: CookTimerDef): TimerState {
 
 export function stageCount(state: TimerState): 1 | 2 {
   return state.eachSide ? 2 : 1;
-}
-
-/** The stepper moves by a minute, or by half a minute when the recipe's time is not a whole minute. */
-export function stepperSeconds(state: TimerState): number {
-  return state.recipeSeconds % 60 === 0 ? 60 : 30;
-}
-
-/** Changes the length of a stage before it starts; ignored once the timer has begun. */
-export function adjustStage(state: TimerState, direction: 1 | -1): TimerState {
-  if (state.phase !== 'idle') {
-    return state;
-  }
-  const step = stepperSeconds(state);
-  const seconds = Math.min(MAX_STAGE_SECONDS, Math.max(step, state.stageSeconds + direction * step));
-  return { ...state, stageSeconds: seconds, totalMs: seconds * 1000, remainingMs: seconds * 1000 };
 }
 
 /** Starts the first stage from idle, or the second side from the turn. */
@@ -103,9 +88,15 @@ export function addMinute(state: TimerState): TimerState {
   return state;
 }
 
-/** Sets the time left of the stage that runs or waits paused; the minutes the cook chose become what is left. */
+/**
+ * Sets the time of the stage: what is left when it runs or waits paused, the length when it has not
+ * started. A finished timer is left alone.
+ */
 export function setRemaining(state: TimerState, now: number, seconds: number): TimerState {
   const ms = Math.min(MAX_STAGE_SECONDS, Math.max(1, seconds)) * 1000;
+  if (state.phase === 'idle') {
+    return { ...state, stageSeconds: ms / 1000, totalMs: ms, remainingMs: ms };
+  }
   if (state.phase === 'running') {
     return { ...state, endsAtMs: now + ms, totalMs: ms };
   }

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { CookTimerDef } from './cook.models';
 import { COOK_SESSION_KEY, CookSessionService } from './cook-session.service';
-import { adjustStage, pauseTimer, startStage } from './cook-timer';
+import { pauseTimer, setRemaining, startStage } from './cook-timer';
 
 const sides: CookTimerDef = { seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins' };
 const single: CookTimerDef = { seconds: 600, maxSeconds: null, eachSide: false, phrase: '10 minutes' };
@@ -119,7 +119,7 @@ describe('CookSessionService', () => {
 
   it('changes the stage length only through the timer functions', () => {
     service.open(meta, [sides]);
-    service.act(0, (state) => adjustStage(state, 1));
+    service.act(0, (state, now) => setRemaining(state, now, 240));
     expect(service.data()!.timers[0].stageSeconds).toBe(240);
   });
 
@@ -166,6 +166,19 @@ describe('CookSessionService', () => {
     expect(service.data()!.startedAt).toBeGreaterThanOrEqual(started);
   });
 
+  it('makes a cook id when cooking starts and keeps it through leaving and a reload', () => {
+    service.open(meta, [null, sides]);
+    const id = service.data()!.cookId;
+    expect(id.length).toBeGreaterThan(8);
+    service.goTo(1);
+    service.leave(true);
+    service.open(meta, [null, sides]);
+    expect(service.data()!.cookId).toBe(id);
+    expect(create().data()!.cookId).toBe(id);
+    service.open({ ...meta, recipeId: 'other' }, [null, sides]);
+    expect(service.data()!.cookId).not.toBe(id);
+  });
+
   it('ticks an ingredient and takes the tick off again, and keeps ticks through a reload', () => {
     service.open(meta, [sides]);
     service.toggleAdded('i1');
@@ -208,7 +221,7 @@ describe('CookSessionService', () => {
   it('refuses a timer with no sense in it', () => {
     service.open(meta, [sides]);
     expect(service.addCustom(0, 'x', 0)).toBeFalse();
-    expect(service.addCustom(0, 'x', 181)).toBeFalse();
+    expect(service.addCustom(0, 'x', 721)).toBeFalse();
     expect(service.addCustom(5, 'x', 5)).toBeFalse();
     expect(service.data()!.customs).toEqual([]);
   });

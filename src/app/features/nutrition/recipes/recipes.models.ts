@@ -118,6 +118,9 @@ export interface RecipeDetail {
   dietFlags: string[];
   favorite: boolean;
   editable: boolean;
+  /** How many times the person finished cooking it, and when last (contract section 9.4). */
+  cookCount: number;
+  lastCookedAt: string | null;
 }
 
 export type RecipeScope = 'library' | 'mine' | 'favorites' | 'recent';

@@ -40,7 +40,7 @@ import { CookLogComponent } from './cook-log.component';
           </div>
         </header>
 
-        @if (first()) {
+        @if (firstCook()) {
           <section class="earned" aria-label="Earned today">
             <span class="eyebrow">Earned today</span>
             <div class="item">
@@ -93,13 +93,14 @@ export class CookFinishedComponent implements OnInit {
   readonly servingsCooked = input(1);
   readonly recipeServings = input(1);
   readonly kcalPerServing = input<number | null>(null);
+  /** True when the recipe had never been cooked before this cook (its cook count was 0). */
+  readonly firstCook = input(false);
   /** Overrides the browser's reduced-motion setting, for tests. */
   readonly reducedMotion = input<boolean | null>(null);
   /** Leave for the recipe page: after Done, or Not now. */
   readonly done = output<void>();
 
   protected readonly today = signal<Load<DiarySummary>>(LOADING);
-  protected readonly first = signal(false);
   protected readonly eaten = signal(1);
   protected readonly mealType = signal<string>(mealTypeByClock(new Date()));
   protected readonly busy = signal(false);
@@ -121,7 +122,6 @@ export class CookFinishedComponent implements OnInit {
   ngOnInit(): void {
     this.eaten.set(clampServings(this.servingsCooked()));
     this.loadToday();
-    this.loadEarned();
     if (!this.reduced() && typeof navigator !== 'undefined') {
       navigator.vibrate?.(35);
     }
@@ -185,17 +185,6 @@ export class CookFinishedComponent implements OnInit {
     this.diary.getSummary(toIsoDate(new Date())).subscribe({
       next: (data) => this.today.set({ status: 'ready', data }),
       error: () => this.today.set({ status: 'error', message: 'Today could not load.' })
-    });
-  }
-
-  /**
-   * "First time cooking this" is only said when it is known: the recent list is read whole, before
-   * anything is logged, and the recipe is not in it. A list that failed or has more pages says nothing.
-   */
-  private loadEarned(): void {
-    this.recipes.list({ scope: 'recent', size: 50 }).subscribe({
-      next: (page) => this.first.set(page.totalPages <= 1 && !page.items.some((card) => card.id === this.recipeId())),
-      error: () => this.first.set(false)
     });
   }
 }

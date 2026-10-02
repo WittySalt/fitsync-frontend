@@ -3,11 +3,7 @@
     @switch (phase()) {
       @case ('idle') {
         <div class="row">
-          <span class="intro">{{ intro() }}</span>
-          <span class="stepper">
-            <button type="button" class="round" aria-label="Shorter" (click)="adjusted.emit(-1)"><app-food-glyph name="MINUS" [size]="16" [strokeWidth]="2.6" /></button>
-            <button type="button" class="round" aria-label="Longer" (click)="adjusted.emit(1)"><app-food-glyph name="PLUS" [size]="16" [strokeWidth]="2.6" /></button>
-          </span>
+          <button type="button" class="intro" aria-label="Change the time" [attr.aria-expanded]="editing()" (click)="editing.set(!editing())">{{ intro() }}</button>
         </div>
         @if (range()) {
           <span class="note">{{ range() }}</span>
@@ -39,8 +35,8 @@
     }
   </div>
 
-  @if (editing() && (phase() === 'running' || phase() === 'paused')) {
-    <app-cook-retime [minutes]="minutesLeft()" (applied)="retime($event)" />
+  @if (editing() && (phase() === 'idle' || phase() === 'running' || phase() === 'paused')) {
+    <app-cook-retime [minutes]="minutesLeft()" [reset]="phase() === 'idle' ? recipeMinutes() : null" (applied)="retime($event)" />
   }
 
   <app-cook-segments

@@ -1,9 +1,10 @@
 import { Component, input, output, signal } from '@angular/core';
 
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
+import { CookDurationComponent } from './cook-duration.component';
 import { CookRetimeComponent } from './cook-retime.component';
 import { unlockSound } from './cook-alert-sound';
-import { CUSTOM_MAX_MINUTES, CUSTOM_NAME_MAX } from './cook-session.service';
+import { CUSTOM_NAME_MAX } from './cook-session.service';
 import { TimerPhase } from './cook-timer';
 
 /** One timer the cook added, ready to draw. */
@@ -24,12 +25,12 @@ export interface NewTimer {
 const DEFAULT_MINUTES = 5;
 
 /**
- * The timers the cook added to this step, and "+ Add a timer" with a minutes stepper, an optional
+ * The timers the cook added to this step, and "+ Add a timer" with hours and minutes, an optional
  * name and Start. The recipe's own timer stays where it is; any number of these can sit beside it.
  */
 @Component({
   selector: 'app-cook-custom-timers',
-  imports: [CookRetimeComponent, FoodGlyphComponent],
+  imports: [CookDurationComponent, CookRetimeComponent, FoodGlyphComponent],
   template: `
     @for (item of items(); track item.id) {
       <div class="item" [class.done]="item.phase === 'done'" role="group" [attr.aria-label]="label(item)">
@@ -60,21 +61,13 @@ const DEFAULT_MINUTES = 5;
       </button>
     } @else {
       <form class="form" (submit)="submit($event)">
-        <span class="stepper">
-          <button type="button" class="round" aria-label="Fewer minutes" [disabled]="minutes() <= 1" (click)="minutes.set(minutes() - 1)">
-            <app-food-glyph name="MINUS" [size]="16" [strokeWidth]="2.6" />
-          </button>
-          <strong class="value" aria-live="polite">{{ minutes() }} min</strong>
-          <button type="button" class="round" aria-label="More minutes" [disabled]="minutes() >= maxMinutes" (click)="minutes.set(minutes() + 1)">
-            <app-food-glyph name="PLUS" [size]="16" [strokeWidth]="2.6" />
-          </button>
-        </span>
+        <app-cook-duration class="duration" [(minutes)]="minutes" [(valid)]="valid" (submitted)="submit($event)" />
         <label class="field">
           <span class="sr-only">Name of the timer</span>
           <input type="text" name="timer-name" placeholder="Name, such as Oven preheating" autocomplete="off" [attr.maxlength]="nameMax" [value]="name()" (input)="name.set($any($event.target).value)" />
         </label>
         <span class="buttons">
-          <button type="submit" class="start">Start</button>
+          <button type="submit" class="start" [disabled]="!valid()">Start</button>
           <button type="button" class="link" (click)="close()">Cancel</button>
         </span>
       </form>
@@ -93,10 +86,10 @@ export class CookCustomTimersComponent {
   readonly retimed = output<{ id: number; seconds: number }>();
 
   protected readonly nameMax = CUSTOM_NAME_MAX;
-  protected readonly maxMinutes = CUSTOM_MAX_MINUTES;
   protected readonly editing = signal<number | null>(null);
   protected readonly open = signal(false);
   protected readonly minutes = signal(DEFAULT_MINUTES);
+  protected readonly valid = signal(true);
   protected readonly name = signal('');
 
   protected label(item: CustomTimerView): string {
@@ -108,8 +101,11 @@ export class CookCustomTimersComponent {
     this.retimed.emit({ id, seconds: minutes * 60 });
   }
 
-  protected submit(event: Event): void {
-    event.preventDefault();
+  protected submit(event?: Event): void {
+    event?.preventDefault();
+    if (!this.valid()) {
+      return;
+    }
     unlockSound();
     this.added.emit({ name: this.name().trim(), minutes: this.minutes() });
     this.close();

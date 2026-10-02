@@ -36,8 +36,7 @@ export class CookTimerComponent implements OnDestroy {
   readonly paused = output<void>();
   readonly resumed = output<void>();
   readonly minuteAdded = output<void>();
-  readonly adjusted = output<1 | -1>();
-  /** The cook typed a new time left, in seconds. */
+  /** The cook set a new time, in seconds: the time left, or the length before the start. */
   readonly retimed = output<number>();
   readonly next = output<void>();
 
@@ -53,6 +52,8 @@ export class CookTimerComponent implements OnDestroy {
 
   protected readonly phase = computed(() => this.state().phase);
   protected readonly minutesLeft = computed(() => Math.max(1, Math.ceil(remainingSeconds(this.state(), this.now()) / 60)));
+  /** The recipe's own time in minutes, for Reset. */
+  protected readonly recipeMinutes = computed(() => Math.max(1, Math.round(this.state().recipeSeconds / 60)));
   protected readonly clock = computed(() => clockText(remainingSeconds(this.state(), this.now())));
   protected readonly fills = computed(() => segmentFills(this.state(), this.now()));
   protected readonly range = computed(() => {

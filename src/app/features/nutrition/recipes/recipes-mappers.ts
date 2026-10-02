@@ -178,7 +178,9 @@ export function mapRecipeDetail(raw: Wire): RecipeDetail {
     tags: words(raw['tags']),
     dietFlags: words(raw['dietFlags']),
     favorite: raw['favorite'] === true,
-    editable: raw['editable'] === true
+    editable: raw['editable'] === true,
+    cookCount: Math.max(0, Math.round(num(raw['cookCount']) ?? 0)),
+    lastCookedAt: text(raw['lastCookedAt'])
   };
 }
 

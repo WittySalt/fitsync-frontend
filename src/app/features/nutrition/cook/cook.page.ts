@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { catchError, of, retry } from 'rxjs';
 
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog.component';
 import { CookAddNowComponent } from './cook-add-now.component';
@@ -15,9 +16,10 @@ import { addedCount, hasAssignments, ingredientsOf, parseServings, scaleFactor, 
 import { CookRecipeService } from './cook-recipe.service';
 import { CookSessionService } from './cook-session.service';
 import { CookStepsComponent } from './cook-steps.component';
+import { CookTopbarComponent } from './cook-topbar.component';
 import { CookTimerComponent } from './cook-timer.component';
 import { CookWakeLock } from './cook-wake-lock';
-import { addMinute, adjustStage, pauseTimer, remainingSeconds, resumeTimer, segmentFills, setRemaining, stageName, startStage } from './cook-timer';
+import { addMinute, pauseTimer, remainingSeconds, resumeTimer, segmentFills, setRemaining, stageName, startStage } from './cook-timer';
 import { CookRecipe } from './cook.models';
 
 type Status = 'loading' | 'error' | 'ready';
@@ -39,6 +41,7 @@ type Status = 'loading' | 'error' | 'ready';
     CookIngredientsComponent,
     CookStepsComponent,
     CookTimerComponent,
+    CookTopbarComponent,
     ConfirmDialogComponent
   ],
   templateUrl: './cook.page.html',
@@ -59,6 +62,8 @@ export class CookPage implements OnInit, OnDestroy {
   /** True from Finish cooking on: the finish card is on screen. */
   protected readonly finishing = signal(false);
   protected readonly minutes = signal(1);
+  /** True while the cook is being recorded, between Finish cooking and the card. */
+  protected readonly recording = signal(false);
   /** The All ingredients section under the step starts closed. */
   protected readonly listOpen = signal(false);
   private recipeId = '';
@@ -205,10 +210,30 @@ export class CookPage implements OnInit, OnDestroy {
 
   /** Finish cooking: the card that thanks the cook and offers to log the meal. */
   protected finish(): void {
+    const data = this.session.data();
+    if (this.recording()) {
+      return;
+    }
     this.finished = true;
-    const started = this.session.data()?.startedAt ?? Date.now();
-    this.minutes.set(minutesCooked(started, Date.now()));
-    this.finishing.set(true);
+    const started = data?.startedAt ?? Date.now();
+    const now = Date.now();
+    this.minutes.set(minutesCooked(started, now));
+    if (!data) {
+      this.finishing.set(true);
+      return;
+    }
+    // The cook is recorded first, once more if it fails; a failure still lets the card show.
+    this.recording.set(true);
+    this.recipes
+      .recordCook(this.recipeId, { clientCookId: data.cookId, servings: this.servings(), startedAt: new Date(started), finishedAt: new Date(now) })
+      .pipe(
+        retry(1),
+        catchError(() => of(undefined))
+      )
+      .subscribe(() => {
+        this.recording.set(false);
+        this.finishing.set(true);
+      });
   }
 
   protected readonly groups = computed(() => {
@@ -253,10 +278,6 @@ export class CookPage implements OnInit, OnDestroy {
 
   protected act(change: Parameters<CookSessionService['act']>[1]): void {
     this.session.act(this.index(), change);
-  }
-
-  protected adjust(direction: 1 | -1): void {
-    this.act((state) => adjustStage(state, direction));
   }
 
   protected start(): void {

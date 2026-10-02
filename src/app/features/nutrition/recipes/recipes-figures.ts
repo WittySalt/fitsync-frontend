@@ -336,6 +336,24 @@ export function cookedWhen(iso: string | null, now: Date = new Date()): string {
   return `Cooked ${moment.getDate()} ${MONTHS[moment.getMonth()]}`;
 }
 
+/**
+ * The line under a recipe's title once it has been cooked: "Cooked 3 times · last on Tuesday". Days
+ * are the person's calendar days and read like Cooked recently ("today", "yesterday", a weekday, "last
+ * week", then a date). Nothing for a recipe never cooked.
+ */
+export function cookedLine(count: number, lastCookedAt: string | null, now: Date = new Date()): string {
+  if (count <= 0) {
+    return '';
+  }
+  const head = `Cooked ${count} ${count === 1 ? 'time' : 'times'}`;
+  const when = cookedWhen(lastCookedAt, now).replace(/^Cooked /, '');
+  if (!when) {
+    return head;
+  }
+  const phrase = when === 'last week' ? when : /^(today|yesterday)$/.test(when) ? `last ${when}` : `last on ${when}`;
+  return `${head} \u00b7 ${phrase}`;
+}
+
 export interface FitLine {
   /** The figure in bold at the start, such as "950 kcal left today". */
   lead: string;

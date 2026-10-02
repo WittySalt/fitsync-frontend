@@ -30,33 +30,20 @@
 }
 
 .intro {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text-secondary);
+  font: inherit;
   font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 .note {
   color: var(--text-secondary);
   font-size: 12px;
-}
-
-.stepper {
-  display: inline-flex;
-  gap: 8px;
-}
-
-.round {
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border-strong);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
 }
 
 button.time {
@@ -98,7 +85,7 @@ button.time {
   cursor: pointer;
 }
 
-.round:focus-visible,
+.intro:focus-visible,
 .link:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;

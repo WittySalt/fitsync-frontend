@@ -66,6 +66,13 @@ describe('RecipePage', () => {
     expect(element.querySelector('app-recipe-steps .credit')?.textContent).toContain('TheMealDB');
   });
 
+  it('says under the title how often it was cooked, and says nothing when it never was', () => {
+    expect(el(render()).querySelector('app-recipe-hero .cooked')).toBeNull();
+    TestBed.resetTestingModule();
+    service.get.and.returnValue(of(detail({ cookCount: 3, lastCookedAt: new Date().toISOString() })));
+    expect(el(render()).querySelector('app-recipe-hero .cooked')?.textContent).toBe('Cooked 3 times \u00b7 last today');
+  });
+
   it('has a Recipes link back that opens the tab', () => {
     const back = el(render()).querySelector('.back') as HTMLAnchorElement;
 

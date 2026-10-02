@@ -4,6 +4,7 @@ import { CookAddNowComponent } from './cook-add-now.component';
 import { CookAlertComponent, alertAction, alertText } from './cook-alert.component';
 import { CookAlsoTimingComponent, TimingChip } from './cook-also-timing.component';
 import { CookBannerComponent } from './cook-banner.component';
+import { CookTopbarComponent } from './cook-topbar.component';
 import { CookCustomTimersComponent, NewTimer } from './cook-custom-timers.component';
 import { CookIngredientsComponent } from './cook-ingredients.component';
 import { CookAlert } from './cook-session.service';
@@ -150,12 +151,12 @@ describe('cook mode parts', () => {
     expect(events).toEqual(['plus 1', 'pause 1', 'remove 1', 'remove 2']);
     el.querySelector<HTMLButtonElement>('.add')?.click();
     fixture.detectChanges();
-    el.querySelector<HTMLButtonElement>('button[aria-label="More minutes"]')?.click();
-    const input = el.querySelector('input') as HTMLInputElement;
+    el.querySelector<HTMLButtonElement>('button[aria-label="Longer"]')?.click();
+    const input = el.querySelector('input[name="timer-name"]') as HTMLInputElement;
     input.value = ' Oven preheating ';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
-    expect(el.querySelector('.value')?.textContent).toBe('6 min');
+    expect(el.querySelectorAll<HTMLInputElement>('app-cook-duration input')[1].value).toBe('6');
     el.querySelector<HTMLButtonElement>('.start')?.click();
     fixture.detectChanges();
     expect(created).toEqual([{ name: 'Oven preheating', minutes: 6 }]);
@@ -192,7 +193,7 @@ describe('cook mode parts', () => {
     (el.querySelector('button.time') as HTMLButtonElement).click();
     fixture.detectChanges();
     expect(el.querySelector('.value, app-cook-retime')).not.toBeNull();
-    (el.querySelector('app-cook-retime button[aria-label="More minutes"]') as HTMLButtonElement).click();
+    (el.querySelector('app-cook-retime button[aria-label="Longer"]') as HTMLButtonElement).click();
     fixture.detectChanges();
     (el.querySelector('app-cook-retime .set') as HTMLButtonElement).click();
     fixture.detectChanges();
@@ -224,18 +225,28 @@ describe('cook mode parts', () => {
     expect(el.querySelector('li .icon svg')).not.toBeNull();
   });
 
+  it('puts Exit and the step count in a bar of their own', () => {
+    const fixture = TestBed.createComponent(CookTopbarComponent);
+    fixture.componentRef.setInput('step', 2);
+    fixture.componentRef.setInput('steps', 5);
+    let exited = 0;
+    fixture.componentInstance.exited.subscribe(() => exited++);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.exit')?.textContent?.trim()).toBe('Exit');
+    expect(el.querySelector('.exit')?.getAttribute('aria-label')).toBe('Exit cooking');
+    expect(el.querySelector('.count')?.textContent).toBe('Step 2 of 5');
+    (el.querySelector('.exit') as HTMLButtonElement).click();
+    expect(exited).toBe(1);
+  });
+
   it('shows the banner with a photo, or a cover without one, and hides the awake text when unsupported', () => {
     const fixture = TestBed.createComponent(CookBannerComponent);
     fixture.componentRef.setInput('name', 'Salmon salad');
     fixture.componentRef.setInput('servings', 2);
-    const closed: boolean[] = [];
-    fixture.componentInstance.closed.subscribe(() => closed.push(true));
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.return')?.textContent).toContain('Exit');
-    expect(el.querySelector('.return')?.getAttribute('aria-label')).toBe('Exit cooking');
-    el.querySelector<HTMLButtonElement>('.return')?.click();
-    expect(closed).toEqual([true]);
+    expect(el.querySelector('button')).toBeNull();
     expect(el.querySelector('.cover')).not.toBeNull();
     expect(el.querySelector('.kicker')?.textContent).toBe('Cooking');
     expect(el.querySelector('.meta')?.textContent).toBe('2 servings · the screen stays on');

@@ -1,32 +1,35 @@
 import { Component, OnInit, input, output, signal } from '@angular/core';
 
-import { StepperComponent } from '../recipes/stepper.component';
-import { CUSTOM_MAX_MINUTES } from './cook-session.service';
+import { CookDurationComponent } from './cook-duration.component';
+import { MAX_MINUTES, MIN_MINUTES } from './cook-duration';
 
 /**
- * Changes the time of a timer that is running or paused: a minutes stepper, like the one for a new
- * timer, and Set time. The minutes chosen become the time left.
+ * Changes the time of a timer: the shared hours and minutes control and Set time. For a timer that
+ * runs or waits paused the time chosen becomes the time left; before the start it becomes the length.
  */
 @Component({
   selector: 'app-cook-retime',
-  imports: [StepperComponent],
+  imports: [CookDurationComponent],
   template: `
-    <app-stepper downLabel="Fewer minutes" upLabel="More minutes" [canDown]="value() > 1" [canUp]="value() < max" (down)="value.set(value() - 1)" (up)="value.set(value() + 1)">
-      <span aria-live="polite">{{ value() }} min</span>
-    </app-stepper>
-    <button type="button" class="set" (click)="applied.emit(value())">Set time</button>
+    <app-cook-duration [(minutes)]="value" [(valid)]="ok" [reset]="reset()" (submitted)="apply()" />
+    <button type="button" class="set" [disabled]="!ok()" (click)="apply()">Set time</button>
   `,
   styles: [
     `
       :host {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        padding: 8px 12px;
+        flex-wrap: wrap;
+        gap: 10px 12px;
+        padding: 10px 12px;
         border: 1px solid var(--border);
         border-radius: 14px;
         background: var(--surface);
+      }
+
+      app-cook-duration {
+        flex: 1 1 240px;
       }
 
       .set {
@@ -42,6 +45,11 @@ import { CUSTOM_MAX_MINUTES } from './cook-session.service';
         cursor: pointer;
       }
 
+      .set:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
       .set:focus-visible {
         outline: 2px solid var(--accent-text);
         outline-offset: 2px;
@@ -50,14 +58,22 @@ import { CUSTOM_MAX_MINUTES } from './cook-session.service';
   ]
 })
 export class CookRetimeComponent implements OnInit {
-  /** The minutes left now, where the stepper starts. */
+  /** The minutes now, where the control starts. */
   readonly minutes = input.required<number>();
+  /** The recipe's own time in minutes, for Reset. */
+  readonly reset = input<number | null>(null);
   readonly applied = output<number>();
 
-  protected readonly max = CUSTOM_MAX_MINUTES;
-  protected readonly value = signal(1);
+  protected readonly value = signal(MIN_MINUTES);
+  protected readonly ok = signal(true);
 
   ngOnInit(): void {
-    this.value.set(Math.min(this.max, Math.max(1, this.minutes())));
+    this.value.set(Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, this.minutes())));
+  }
+
+  protected apply(): void {
+    if (this.ok()) {
+      this.applied.emit(this.value());
+    }
   }
 }

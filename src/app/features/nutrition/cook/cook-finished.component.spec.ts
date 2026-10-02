@@ -14,7 +14,6 @@ describe('CookFinishedComponent', () => {
 
   beforeEach(() => {
     recipes = recipesServiceStub();
-    recipes.list.and.returnValue(of({ items: [], page: 0, totalPages: 1, totalElements: 0 }));
     recipes.logRecipe.and.returnValue(of({ mealId: 'm1' }));
     diary = diaryServiceStub();
     diary.getSummary.and.returnValue(of(summary({ totalCalories: 1210, targetCalories: 2100 })));
@@ -72,23 +71,20 @@ describe('CookFinishedComponent', () => {
   });
 
   describe('earned today', () => {
-    it('says first time when the recent list is complete and the recipe is not in it', () => {
-      const fixture = render();
+    it('says first time when the recipe had never been cooked before this cook', () => {
+      const fixture = render({ firstCook: true });
       expect(text(fixture, '.earned')).toContain('First time cooking this');
       expect(text(fixture, '.earned')).toContain('It now shows under Cooked recently');
-      expect(recipes.list).toHaveBeenCalledWith({ scope: 'recent', size: 50 });
     });
 
-    it('is left out when the recipe was cooked before', () => {
-      recipes.list.and.returnValue(of({ items: [card({ id: 'r1' })], page: 0, totalPages: 1, totalElements: 1 }));
+    it('is left out when it was cooked before, and by default', () => {
+      expect(el(render({ firstCook: false })).querySelector('.earned')).toBeNull();
       expect(el(render()).querySelector('.earned')).toBeNull();
     });
 
-    it('is left out when it cannot be known: the call failed or the list has more pages', () => {
-      recipes.list.and.returnValue(throwError(() => new Error('down')));
-      expect(el(render()).querySelector('.earned')).toBeNull();
-      recipes.list.and.returnValue(of({ items: [card({ id: 'x' })], page: 0, totalPages: 3, totalElements: 120 }));
-      expect(el(render()).querySelector('.earned')).toBeNull();
+    it('asks the server nothing to find out', () => {
+      render({ firstCook: true });
+      expect(recipes.list).not.toHaveBeenCalled();
     });
   });
 

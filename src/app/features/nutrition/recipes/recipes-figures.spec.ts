@@ -4,6 +4,7 @@ import {
   cardTags,
   clampServings,
   cookFigures,
+  cookedLine,
   cookedWhen,
   fitLine,
   timersTotalText,
@@ -295,6 +296,18 @@ describe('ticks', () => {
     expect(cookedWhen(at(15), now)).toBe('Cooked 15 Sept');
     expect(cookedWhen(null, now)).toBe('');
     expect(cookedWhen('not a date', now)).toBe('');
+  });
+
+  it('says how often a recipe was cooked and when last, and nothing for one never cooked', () => {
+    const now = new Date(2026, 9, 3, 9, 0);
+    const at = (month: number, day: number) => new Date(2026, month, day, 20).toISOString();
+    expect(cookedLine(0, at(9, 2), now)).toBe('');
+    expect(cookedLine(3, at(9, 1), now)).toBe('Cooked 3 times \u00b7 last on Thursday');
+    expect(cookedLine(1, at(9, 3), now)).toBe('Cooked 1 time \u00b7 last today');
+    expect(cookedLine(2, at(9, 2), now)).toBe('Cooked 2 times \u00b7 last yesterday');
+    expect(cookedLine(2, at(8, 25), now)).toBe('Cooked 2 times \u00b7 last week');
+    expect(cookedLine(2, at(8, 15), now)).toBe('Cooked 2 times \u00b7 last on 15 Sept');
+    expect(cookedLine(4, null, now)).toBe('Cooked 4 times');
   });
 
   it('builds the line under Fits today from what the server sent, leaving out what is missing', () => {

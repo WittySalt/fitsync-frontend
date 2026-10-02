@@ -96,6 +96,8 @@ export function detail(overrides: Partial<RecipeDetail> = {}): RecipeDetail {
     dietFlags: [],
     favorite: false,
     editable: false,
+    cookCount: 0,
+    lastCookedAt: null,
     ...overrides
   };
 }

@@ -20,12 +20,12 @@
       @let r = recipe()!;
       @let s = step()!;
       <div class="page">
+        <app-cook-topbar [step]="index() + 1" [steps]="steps().length" (exited)="close()" />
         <app-cook-banner
           [name]="r.name"
           [imageUrl]="r.imageUrl"
           [servings]="servings()"
           [screenStaysOn]="wake.supported()"
-          (closed)="close()"
         />
 
         @if (chips().length > 0) {
@@ -64,7 +64,6 @@
                 (paused)="pause()"
                 (resumed)="resume()"
                 (minuteAdded)="addMinute()"
-                (adjusted)="adjust($event)"
                 (retimed)="retime($event)"
                 (next)="next()"
               />
@@ -87,7 +86,7 @@
 
             <div class="nav">
               <button type="button" class="back" [disabled]="index() === 0" (click)="back()">&larr; Previous step</button>
-              <button type="button" class="forward" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step \u2192' }}</button>
+              <button type="button" class="forward" [disabled]="recording()" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step \u2192' }}</button>
             </div>
           </main>
 
@@ -127,6 +126,7 @@
       [servingsCooked]="servings()"
       [recipeServings]="finishedRecipe.servings"
       [kcalPerServing]="finishedRecipe.kcalPerServing"
+      [firstCook]="finishedRecipe.cookCount === 0"
       (done)="close()"
     />
   }

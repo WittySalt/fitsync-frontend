@@ -32,6 +32,8 @@ export interface CookRecipe {
   imageUrl: string | null;
   /** Calories in one serving, or null when the server sent none. */
   kcalPerServing: number | null;
+  /** How many times it was cooked before this cook, 0 when the server sends none. */
+  cookCount: number;
   servings: number;
   ingredients: CookIngredient[];
   steps: CookStep[];
@@ -116,6 +118,7 @@ export function mapCookRecipe(wire: Wire): CookRecipe {
     name: text(wire['name']),
     imageUrl: text(wire['imageUrl']) || null,
     kcalPerServing: positive((wire['perServing'] as Wire | null | undefined)?.['kcal']),
+    cookCount: Math.max(0, Math.round(Number(wire['cookCount']) || 0)),
     servings: positive(wire['servings']) ?? 1,
     ingredients,
     steps

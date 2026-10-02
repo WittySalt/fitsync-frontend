@@ -167,7 +167,7 @@ describe('CookPage', () => {
     click('.forward');
     expect(el.querySelector('app-cook-timer')).not.toBeNull();
     click('app-cook-custom-timers .add');
-    const input = el.querySelector('app-cook-custom-timers input') as HTMLInputElement;
+    const input = el.querySelector('app-cook-custom-timers input[name="timer-name"]') as HTMLInputElement;
     input.value = 'Oven preheating';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -201,8 +201,8 @@ describe('CookPage', () => {
   it('has an Exit control, and Previous step and Next step buttons; nothing else says Back', () => {
     setup();
     load();
-    expect(text('app-cook-banner .return')).toBe('Exit');
-    expect(el.querySelector('app-cook-banner .return')?.getAttribute('aria-label')).toBe('Exit cooking');
+    expect(text('app-cook-topbar .exit')).toBe('Exit');
+    expect(el.querySelector('app-cook-topbar .exit')?.getAttribute('aria-label')).toBe('Exit cooking');
     expect(text('.back')).toBe('\u2190 Previous step');
     expect(text('.forward')).toBe('Next step \u2192');
     expect(el.textContent).not.toMatch(/\bBack\b/);
@@ -225,7 +225,7 @@ describe('CookPage', () => {
     click('app-cook-timer .slot');
     click('app-cook-timer button.time');
     expect(el.querySelector('app-cook-retime')).not.toBeNull();
-    click('app-cook-retime button[aria-label="More minutes"]');
+    click('app-cook-retime button[aria-label="Longer"]');
     click('app-cook-retime .set');
     const left = session.data()!.timers[1].endsAtMs - Date.now();
     expect(left).toBeGreaterThan(3 * 60_000);
@@ -240,6 +240,53 @@ describe('CookPage', () => {
     expect(await fixture.componentInstance.confirmLeave()).toBeTrue();
     expect(session.data()?.step).toBe(1);
     expect(session.viewing()).toBeFalse();
+  });
+
+  describe('recording the cook', () => {
+    const recordUrl = '/api/v1/nutrition/recipes/r1/cooks';
+
+    function finishCooking(): void {
+      setup();
+      load(wire({ cookCount: 0 }));
+      spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+      click('app-cook-steps li button', 2);
+      click('.forward');
+    }
+
+    it('sends the cook with the id made at the start, the servings and the times, then shows the card', () => {
+      finishCooking();
+      expect(el.querySelector('app-cook-finished')).toBeNull();
+      const request = http.expectOne(recordUrl);
+      expect(request.request.body.clientCookId).toBe(session.data()!.cookId);
+      expect(request.request.body.servings).toBe(2);
+      expect(new Date(request.request.body.startedAt).getTime()).toBeLessThanOrEqual(new Date(request.request.body.finishedAt).getTime());
+      request.flush(null);
+      fixture.detectChanges();
+      expect(el.querySelector('app-cook-finished')).not.toBeNull();
+      expect(el.querySelector('app-cook-finished .earned')).not.toBeNull();
+    });
+
+    it('tries once more when it fails, with the same id, and still shows the card when it fails twice', () => {
+      finishCooking();
+      http.expectOne(recordUrl).flush('no', { status: 500, statusText: 'Server Error' });
+      const again = http.expectOne(recordUrl);
+      expect(again.request.body.clientCookId).toBe(session.data()!.cookId);
+      again.flush('no', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+      expect(el.querySelector('app-cook-finished')).not.toBeNull();
+    });
+
+    it('does not offer first time for a recipe cooked before, and sends nothing twice for a second tap', () => {
+      setup();
+      load(wire({ cookCount: 2 }));
+      spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+      click('app-cook-steps li button', 2);
+      click('.forward');
+      expect((el.querySelector('.forward') as HTMLButtonElement).disabled).toBeTrue();
+      http.expectOne(recordUrl).flush(null);
+      fixture.detectChanges();
+      expect(el.querySelector('app-cook-finished .earned')).toBeNull();
+    });
   });
 
   it('ends the session after Finish cooking', async () => {
@@ -260,6 +307,8 @@ describe('CookPage', () => {
     click('app-cook-steps li button', 2);
     expect(el.querySelector('app-cook-finished')).toBeNull();
     click('.forward');
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
+    fixture.detectChanges();
 
     expect(el.querySelector('app-cook-finished')).not.toBeNull();
     expect(text('app-cook-finished .name')).toBe('Salmon salad');
@@ -390,12 +439,14 @@ describe('CookPage', () => {
     setup();
     load();
     const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
-    click('app-cook-banner .return');
+    click('app-cook-topbar .exit');
     expect(navigate).toHaveBeenCalledWith(jasmine.stringMatching(/^\/nutrition\/recipes\/.+/), { replaceUrl: true });
     click('app-cook-steps li button', 2);
     click('.forward');
-    // Finish cooking opens the finish card; it leaves for the recipe when answered.
+    // Finish cooking records the cook, then opens the finish card; it leaves for the recipe when answered.
     expect(navigate).toHaveBeenCalledTimes(1);
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
+    fixture.detectChanges();
     click('app-cook-finished .quiet');
     expect(navigate).toHaveBeenCalledTimes(2);
   });

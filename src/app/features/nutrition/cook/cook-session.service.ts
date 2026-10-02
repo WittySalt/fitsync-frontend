@@ -31,6 +31,8 @@ export interface CookSessionData {
   stepCount: number;
   /** When cooking began, in epoch milliseconds, for the minutes on the finish card. */
   startedAt: number;
+  /** Made when the cook starts; sent with the cook record so a retry or a reload counts it once. */
+  cookId: string;
 }
 
 /** A timer that ended while its step was not on screen, shown until it is answered. */
@@ -59,9 +61,16 @@ export interface LiveTimer {
 }
 
 export const COOK_SESSION_KEY = 'fitsync.cook.session';
-export const CUSTOM_MAX_MINUTES = 180;
+export const CUSTOM_MAX_MINUTES = 12 * 60;
 export const CUSTOM_NAME_MAX = 40;
 const TICK_MS = 250;
+
+/** A fresh id for one cook; the browser's UUID when it has one. */
+export function newCookId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 export function foundKey(step: number): string {
   return `s${step}`;
@@ -145,7 +154,8 @@ export class CookSessionService {
       added: resume ? kept.added : [],
       imageUrl: meta.imageUrl ?? null,
       stepCount: defs.length,
-      startedAt: resume ? kept.startedAt : Date.now()
+      startedAt: resume ? kept.startedAt : Date.now(),
+      cookId: resume ? kept.cookId : newCookId()
     });
     this.viewing.set(true);
     this.tickNow();
@@ -342,7 +352,8 @@ export class CookSessionService {
           added: Array.isArray(parsed.added) ? parsed.added.filter((id): id is string => typeof id === 'string') : [],
           imageUrl: typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
           stepCount: typeof parsed.stepCount === 'number' ? parsed.stepCount : 0,
-          startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : Date.now()
+          startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : Date.now(),
+          cookId: typeof parsed.cookId === 'string' && parsed.cookId !== '' ? parsed.cookId : newCookId()
         } as CookSessionData;
       }
     } catch {
