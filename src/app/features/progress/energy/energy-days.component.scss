@@ -1,4 +1,6 @@
+/* On a narrow card the switch drops under the heading and a day that was not logged shows a dash. */
 :host {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -125,5 +127,42 @@
     white-space: nowrap;
     font-size: 12px;
     color: var(--text-secondary);
+  }
+}
+
+.short {
+  display: none;
+}
+
+@container (max-width: 519px) {
+  .head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .segmented {
+    display: flex;
+    width: 100%;
+
+    button {
+      flex: 1 1 0;
+    }
+  }
+
+  .long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .short {
+    display: inline;
+  }
+
+  .note {
+    position: relative;
   }
 }

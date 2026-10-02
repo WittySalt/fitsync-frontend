@@ -38,7 +38,11 @@ const FALLBACK_WIDTH = 600;
         @for (column of columns().columns; track column.date) {
           <div class="label" [class.off]="!column.logged">
             <span class="day">{{ column.label }}@if (column.estimated) { <span title="Workout calories are estimated"> &asymp;</span> }</span>
-            <span class="note">{{ column.note }}</span>
+            @if (column.logged) {
+              <span class="note">{{ column.note }}</span>
+            } @else {
+              <span class="note"><span class="long">{{ column.note }}</span><span class="short" aria-hidden="true">&ndash;</span></span>
+            }
           </div>
         }
       </div>

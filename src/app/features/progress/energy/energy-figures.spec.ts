@@ -43,12 +43,18 @@ describe('energy figures', () => {
       expect(dialAngle(5000)).toBeCloseTo(2 * Math.PI);
     });
 
-    it('draws the needle straight up at even and fills nothing at the far left', () => {
+    it('draws the needle straight up at even and fills only between even and the needle', () => {
       const even = dialGeometry(210, 0);
       expect(even.needle.x).toBeCloseTo(even.cx);
       expect(even.needle.y).toBeLessThan(even.cy);
-      expect(dialGeometry(210, -1000).value).toBe('');
-      expect(dialGeometry(210, -241).value).toContain('A');
+      expect(even.value).toBe('');
+      const under = dialGeometry(210, -71);
+      const over = dialGeometry(210, 71);
+      expect(under.value).toContain('A');
+      // The arc is short for a small gap and starts at the top on the needle side.
+      expect(under.value.startsWith(`M${under.needle.x.toFixed(1)}`)).toBeFalse();
+      expect(under.value).toContain(`${even.cx.toFixed(1)} ${(even.cy - even.r).toFixed(1)}`);
+      expect(over.value.startsWith(`M${even.cx.toFixed(1)} ${(even.cy - even.r).toFixed(1)}`)).toBeTrue();
     });
 
     it('has a text for screen readers', () => {
@@ -137,6 +143,13 @@ describe('energy figures', () => {
       const bars = energyBars(over);
       expect(bars?.bracket?.label).toBe('312 over');
       expect(bars?.bracket?.left).toBeCloseTo((2088 / 2400) * 100);
+    });
+
+    it('keeps the words under the bracket inside the card by pinning them to the near edge', () => {
+      const far = energyBars(energyWeek({ average: { eaten: 2293, resting: 1968, workouts: 396, used: 2364, balance: -71 } }));
+      expect(far?.bracket?.label).toBe('71 under');
+      expect(far?.bracket?.align).toBe('end');
+      expect(energyBars(energyWeek({ average: { eaten: 900, resting: 1800, workouts: 600, used: 2400, balance: -1500 } }))?.bracket?.align).toBe('center');
     });
 
     it('has no bracket when the bars match, and draws one bar for the whole when there is no split by meal', () => {

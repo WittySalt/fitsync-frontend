@@ -17,9 +17,14 @@ import { barsSummary, energyBars } from './energy-figures';
           @for (part of data.eaten; track part.key) {
             <span class="seg" [attr.data-part]="part.key" [style.width.%]="part.percent" [attr.title]="part.label + ' ' + total(part.value)">
               @if (part.showLabel) {
-                {{ part.label }} {{ total(part.value) }}
+                <span class="in">{{ part.label }} {{ total(part.value) }}</span>
               }
             </span>
+          }
+        </div>
+        <div class="key">
+          @for (part of data.eaten; track part.key) {
+            <span><i [attr.data-part]="part.key"></i>{{ part.label }} {{ total(part.value) }}</span>
           }
         </div>
         <div class="caption used-caption"><span>Used a day</span><strong>{{ total(data.usedTotal) }} kcal</strong></div>
@@ -27,15 +32,20 @@ import { barsSummary, energyBars } from './energy-figures';
           @for (part of data.used; track part.key) {
             <span class="seg" [attr.data-part]="part.key" [style.width.%]="part.percent" [attr.title]="part.label + ' ' + total(part.value)">
               @if (part.showLabel) {
-                {{ part.label }} {{ total(part.value) }}
+                <span class="in">{{ part.label }} {{ total(part.value) }}</span>
               }
             </span>
+          }
+        </div>
+        <div class="key">
+          @for (part of data.used; track part.key) {
+            <span><i [attr.data-part]="part.key"></i>{{ part.label }} {{ total(part.value) }}</span>
           }
         </div>
         @if (data.bracket; as gap) {
           <div class="gap">
             <span class="bracket" [style.left.%]="gap.left" [style.width.%]="gap.width"></span>
-            <span class="words" [style.left.%]="gap.left + gap.width / 2">{{ gap.label }}</span>
+            <span class="words" [attr.data-align]="gap.align" [style.left.%]="gap.align === 'center' ? gap.left + gap.width / 2 : null">{{ gap.label }}</span>
           </div>
         }
       </div>

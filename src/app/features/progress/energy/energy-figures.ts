@@ -52,7 +52,7 @@ export interface DialGeometry {
   cy: number;
   r: number;
   track: string;
-  /** The filled part of the arc from the left end to the needle; empty at the very left. */
+  /** The filled part of the arc between even (the top) and the needle, on the needle's side; empty at even. */
   value: string;
   needle: { x: number; y: number };
   tick: { x1: number; y1: number; x2: number; y2: number };
@@ -79,7 +79,7 @@ export function dialGeometry(size: number, balance: number): DialGeometry {
     cy,
     r,
     track: arc(Math.PI, 2 * Math.PI),
-    value: angle - Math.PI < 0.001 ? '' : arc(Math.PI, angle),
+    value: Math.abs(angle - 1.5 * Math.PI) < 0.001 ? '' : arc(Math.min(angle, 1.5 * Math.PI), Math.max(angle, 1.5 * Math.PI)),
     needle: at(r - 22, angle),
     tick: { x1: cx, y1: cy - r - 14, x2: cx, y2: cy - r + 14 },
     labels: { left: { x: cx - r, y: cy + 24 }, even: { x: cx, y: cy - r - 20 }, right: { x: cx + r, y: cy + 24 } }
@@ -137,7 +137,7 @@ export interface EnergyBars {
   eaten: BarSegment[];
   used: BarSegment[];
   /** The gap between the two bars: where it starts, how wide, and its words. Null when they match. */
-  bracket: { left: number; width: number; label: string } | null;
+  bracket: { left: number; width: number; label: string; align: 'start' | 'center' | 'end' } | null;
 }
 
 const MEAL_LABELS: readonly [keyof NonNullable<EnergyWeek['mealSplit']>, string][] = [
@@ -157,6 +157,11 @@ function segments(parts: { key: string; label: string; value: number | null }[],
       const percent = (part.value / longest) * 100;
       return { ...part, percent, showLabel: percent >= LABEL_FROM };
     });
+}
+
+/** Where the words under the bracket sit: centred on the gap, but pinned to an edge near it so they never leave the card. */
+function labelAlign(centre: number): 'start' | 'center' | 'end' {
+  return centre > 75 ? 'end' : centre < 10 ? 'start' : 'center';
 }
 
 /** The eaten and used bars on one scale, or null when the week has no average to draw. */
@@ -188,7 +193,8 @@ export function energyBars(week: EnergyWeek): EnergyBars | null {
       : {
           left: (Math.min(average.eaten, average.used) / longest) * 100,
           width: (Math.abs(gap) / longest) * 100,
-          label: `${group(rounded)} ${gap > 0 ? 'under' : 'over'}`
+          label: `${group(rounded)} ${gap > 0 ? 'under' : 'over'}`,
+          align: labelAlign(Math.min(average.eaten, average.used) / longest * 100 + (Math.abs(gap) / longest) * 50)
         };
   return { eatenTotal: average.eaten, usedTotal: average.used, eaten, used, bracket };
 }

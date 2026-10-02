@@ -1,5 +1,7 @@
+/* The width of the bars themselves decides between names inside the segments and a key under each bar. */
 :host {
   display: block;
+  container-type: inline-size;
   font-variant-numeric: tabular-nums;
 }
 
@@ -104,10 +106,51 @@
   border-radius: 0 0 6px 6px;
 }
 
+.key {
+  display: none;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  i {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+}
+
+@container (max-width: 519px) {
+  .in {
+    display: none;
+  }
+
+  .key {
+    display: flex;
+  }
+}
+
 .words {
   position: absolute;
   top: 14px;
   transform: translateX(-50%);
+
+  &[data-align='end'] {
+    right: 0;
+    transform: none;
+  }
+
+  &[data-align='start'] {
+    left: 0;
+    transform: none;
+  }
+
   white-space: nowrap;
   font-size: 12px;
   font-weight: var(--fw-bold);
