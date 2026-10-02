@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { Load, NutrientSummary } from './diary.models';
@@ -25,8 +25,8 @@ const FAILURE = 'Vitamins and minerals could not load. Please retry.';
         <button type="button" [class.active]="view() === 'week'" [attr.aria-pressed]="view() === 'week'" (click)="view.set('week')">This week</button>
       </div>
     </div>
-    <div class="stack">
-      <div class="view today" [class.shown]="view() === 'today'" [attr.aria-hidden]="view() !== 'today'">
+    <div class="stack" [style.height.px]="stackHeight()">
+      <div #todayView class="view today" [class.shown]="view() === 'today'" [attr.aria-hidden]="view() !== 'today'">
         @if (todayData(); as data) {
           <app-vitamins-today [summary]="data" [isToday]="date() === today()" />
         } @else if (todayError()) {
@@ -35,7 +35,7 @@ const FAILURE = 'Vitamins and minerals could not load. Please retry.';
           <div class="skeleton" aria-busy="true"></div>
         }
       </div>
-      <div class="view week" [class.shown]="view() === 'week'" [attr.aria-hidden]="view() !== 'week'">
+      <div #weekView class="view week" [class.shown]="view() === 'week'" [attr.aria-hidden]="view() !== 'week'">
         @if (weekData(); as data) {
           <app-vitamins-week [summary]="data" [date]="date()" [today]="today()" />
         } @else if (weekError()) {
@@ -48,7 +48,7 @@ const FAILURE = 'Vitamins and minerals could not load. Please retry.';
   `,
   styleUrl: './vitamins-card.component.scss'
 })
-export class VitaminsCardComponent {
+export class VitaminsCardComponent implements AfterViewInit {
   /** The selected day alone. */
   readonly state = input.required<Load<NutrientSummary>>();
   /** The Monday to Sunday week that holds the selected day. */
@@ -63,6 +63,39 @@ export class VitaminsCardComponent {
   protected readonly weekData = computed(() => ready(this.week()));
   protected readonly todayError = computed(() => failure(this.state()));
   protected readonly weekError = computed(() => failure(this.week()));
+
+  /** The height of the shown view, so the card follows it and the change can be animated. */
+  protected readonly stackHeight = signal<number | null>(null);
+  private readonly todayView = viewChild<ElementRef<HTMLElement>>('todayView');
+  private readonly weekView = viewChild<ElementRef<HTMLElement>>('weekView');
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    effect(() => {
+      this.view();
+      this.measure();
+    });
+  }
+
+  ngAfterViewInit(): void {
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => this.measure());
+    for (const ref of [this.todayView(), this.weekView()]) {
+      if (ref) {
+        observer.observe(ref.nativeElement);
+      }
+    }
+    this.destroyRef.onDestroy(() => observer.disconnect());
+  }
+
+  private measure(): void {
+    const shown = this.view() === 'today' ? this.todayView() : this.weekView();
+    if (shown) {
+      this.stackHeight.set(shown.nativeElement.offsetHeight);
+    }
+  }
 }
 
 function ready(state: Load<NutrientSummary>): NutrientSummary | null {

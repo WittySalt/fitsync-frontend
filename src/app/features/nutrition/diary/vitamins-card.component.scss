@@ -55,9 +55,12 @@
   }
 }
 
-/* Both views sit in one grid cell, so the card is as tall as the taller view and never jumps when they swap. */
+/* Both views sit in one grid cell; the cell takes the height of the shown view and eases to it on a switch. */
 .stack {
   display: grid;
+  align-items: start;
+  overflow: hidden;
+  transition: height 200ms ease;
 }
 
 .view {
@@ -95,6 +98,7 @@
     animation: none;
   }
 
+  .stack,
   .view,
   .view.shown {
     transition: none;
