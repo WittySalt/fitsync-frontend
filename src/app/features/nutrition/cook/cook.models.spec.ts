@@ -35,7 +35,7 @@ describe('cook recipe mapping', () => {
     });
     expect(recipe.steps.map((s) => s.text)).toEqual(['Fry the salmon 3-4 mins a side.', 'Plate it.']);
     expect(recipe.steps[0]).toEqual(jasmine.objectContaining({ number: 1, title: 'Fry the salmon', ingredientIds: ['i1'] }));
-    expect(recipe.steps[0].timer).toEqual({ seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins', label: 'Fry the salmon' });
+    expect(recipe.steps[0].timer).toEqual({ seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins', label: 'Fry the salmon 3-4 mins' });
     expect(recipe.ingredients[0]).toEqual(jasmine.objectContaining({ id: 'i1', name: 'Salmon', grams: 200, foodGroup: 'PROTEIN' }));
     expect(recipe.imageUrl).toBe('https://img/x.jpg');
   });
@@ -77,7 +77,7 @@ describe('cook recipe mapping', () => {
         { text: 'Leave it, about 5 minutes.', title: 'Wait', timers: [{ seconds: 300, eachSide: false, phrase: '5 minutes' }] }
       ]
     });
-    expect(recipe.steps.map((step) => step.timer?.label)).toEqual(['Sear the patties', 'Brown patties', 'Bake · Pie', 'Wait']);
+    expect(recipe.steps.map((step) => step.timer?.label)).toEqual(['Sear the patties', 'Brown patties', 'Bake · Pie, apple', 'Wait']);
   });
 
   it('keeps an ingredient of 0 g as 0 so it reads to taste, and a missing weight as null', () => {

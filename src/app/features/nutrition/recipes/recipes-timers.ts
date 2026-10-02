@@ -105,7 +105,7 @@ function capital(word: string): string {
 
 /**
  * The verb of a sentence and up to 4 words after it, stopping at a preposition (in, until, for,
- * over, on, at, with, into, to, about), at a number, at a comma or at the end: "Brown patties",
+ * over, on, at, with, into, to, about), at a comma or at the end: "Brown patties",
  * "Simmer the sauce". When nothing follows the verb, the verb alone is returned. Null when the
  * sentence has no cooking verb.
  */
@@ -126,7 +126,7 @@ function verbPhrase(sentence: string, phraseAt: number = sentence.length): { ver
   const words: string[] = [];
   for (const raw of sentence.slice((match.index ?? 0) + match[0].length).split(/\s+/).filter(Boolean)) {
     const word = raw.replace(/[.,;:!?)]+$/, '').replace(/^[(]+/, '');
-    if (!word || STOP_WORDS.has(word.toLowerCase()) || /^\d/.test(word)) {
+    if (!word || STOP_WORDS.has(word.toLowerCase())) {
       break;
     }
     words.push(word);
@@ -150,7 +150,7 @@ function fromPhrase(phrase: { verb: string; rest: string }, ingredient: string |
   if (phrase.rest) {
     return `${phrase.verb} ${phrase.rest}`;
   }
-  const name = ingredient?.split(',')[0].trim();
+  const name = ingredient?.trim();
   return name ? `${phrase.verb} · ${name}` : phrase.verb;
 }
 
