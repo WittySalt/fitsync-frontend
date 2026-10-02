@@ -1,0 +1,125 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  strong {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+}
+
+.segmented button {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.chart {
+  display: block;
+  max-width: 100%;
+}
+
+.grid,
+.zero {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.zero {
+  stroke: var(--border-strong);
+}
+
+.shadow {
+  fill: var(--border-strong);
+  fill-opacity: 0.6;
+
+  &.empty {
+    fill-opacity: 0.25;
+  }
+}
+
+.eaten {
+  fill: var(--accent);
+}
+
+.area {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.dot {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+
+  &.hollow {
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 2;
+  }
+}
+
+.end {
+  font: 700 12px var(--font-sans);
+  fill: var(--text-primary);
+}
+
+.labels {
+  display: flex;
+}
+
+.label {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.day {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.note {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.off .day {
+  color: var(--text-secondary);
+}
+
+.axis {
+  position: relative;
+  height: 18px;
+
+  span {
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}

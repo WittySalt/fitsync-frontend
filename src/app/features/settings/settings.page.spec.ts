@@ -225,6 +225,18 @@ describe('SettingsPage', () => {
     expect(text).toContain('Security');
   });
 
+  it('opens the section named in the link, such as the nutrient reference ranges in Preferences', () => {
+    const url = spyOnProperty(router, 'url', 'get').and.returnValue('/settings?section=preferences');
+    const linked = TestBed.createComponent(SettingsPage);
+    linked.detectChanges();
+    expect(linked.componentInstance.selectedSection()).toBe('preferences');
+
+    url.and.returnValue('/settings?section=nonsense');
+    const unknown = TestBed.createComponent(SettingsPage);
+    unknown.detectChanges();
+    expect(unknown.componentInstance.selectedSection()).toBe('personal');
+  });
+
   it('marks Cognito security fields as read-only instead of editable settings', () => {
     const component = fixture.componentInstance;
 

@@ -91,9 +91,15 @@ describe('AnalyticsTrendChartsComponent', () => {
   it('maps nullable nutrition buckets to chart gaps instead of zeros', () => {
     fixture.detectChanges();
 
-    expect(component.nutritionSeries()[0].values).toEqual([1850, null]);
-    expect(component.nutritionSeries()[1].values).toEqual([2200, null]);
+    expect(component.nutritionSeries()[0].values).toEqual([120, null]);
+    expect(component.nutritionSeries()[1].values).toEqual([200, null]);
     expect(component.workoutSeries()[0].values).toEqual([3, 2]);
+  });
+
+  it('draws protein, carbs and fat only, since the energy card covers calories', () => {
+    fixture.detectChanges();
+
+    expect(component.nutritionSeries().map((series) => series.label)).toEqual(['Protein', 'Carbs', 'Fat']);
   });
 
   it('re-queries both series when the bucket changes', () => {

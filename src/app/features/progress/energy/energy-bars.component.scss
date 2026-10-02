@@ -1,0 +1,111 @@
+:host {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.caption {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+  }
+}
+
+.used-caption {
+  margin-top: 6px;
+}
+
+.bar {
+  display: flex;
+  gap: 2px;
+}
+
+.seg {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 4px;
+  height: 34px;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+
+  &:first-child {
+    border-radius: 10px 0 0 10px;
+  }
+
+  &:last-child {
+    border-radius: 0 10px 10px 0;
+  }
+
+  &:only-child {
+    border-radius: 10px;
+  }
+}
+
+/* Four greens from dark to light for the meals, a light and a mid grey for the second bar. */
+[data-part='breakfast'] {
+  background: var(--accent-text);
+  color: var(--text-on-accent);
+}
+
+[data-part='lunch'],
+[data-part='eaten'] {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+[data-part='dinner'] {
+  background: color-mix(in srgb, var(--accent) 55%, var(--surface));
+}
+
+[data-part='snack'] {
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface));
+}
+
+[data-part='resting'] {
+  background: var(--border-strong);
+}
+
+[data-part='workouts'] {
+  background: var(--text-secondary);
+  color: var(--surface);
+}
+
+.gap {
+  position: relative;
+  height: 26px;
+}
+
+.bracket {
+  position: absolute;
+  top: 4px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--text-primary);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+}
+
+.words {
+  position: absolute;
+  top: 14px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}

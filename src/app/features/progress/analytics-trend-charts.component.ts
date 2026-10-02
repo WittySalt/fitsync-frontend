@@ -88,18 +88,9 @@ export class AnalyticsTrendChartsComponent implements OnInit {
   });
 
   readonly nutritionSeries = computed<FsChartSeries[]>(() => {
+    // Calories are not drawn here: the energy card above the charts covers them.
     const points = this.data()?.nutrition.points ?? [];
     return [
-      {
-        label: 'Calories',
-        values: this.valuesForDates(points, (point) => point.totalCaloriesConsumed),
-        colorToken: '--accent'
-      },
-      {
-        label: 'Calorie target',
-        values: this.valuesForDates(points, (point) => point.calorieTarget),
-        colorToken: '--text-secondary'
-      },
       {
         label: 'Protein',
         values: this.valuesForDates(points, (point) => point.totalProteinGrams),
