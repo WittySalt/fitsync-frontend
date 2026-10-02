@@ -61,7 +61,7 @@ const DEFAULT_MINUTES = 5;
       </button>
     } @else {
       <form class="form" (submit)="submit($event)">
-        <app-cook-duration class="duration" [(minutes)]="minutes" [(valid)]="valid" (submitted)="submit($event)" />
+        <app-cook-duration class="duration" [(minutes)]="minutes" [(valid)]="valid" (submitted)="submit()" />
         <label class="field">
           <span class="sr-only">Name of the timer</span>
           <input type="text" name="timer-name" placeholder="Name, such as Oven preheating" autocomplete="off" [attr.maxlength]="nameMax" [value]="name()" (input)="name.set($any($event.target).value)" />

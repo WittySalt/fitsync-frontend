@@ -4,7 +4,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { diaryServiceStub, summary } from '../diary/diary-testing.spec';
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { RecipesService } from '../recipes/recipes.service';
-import { card, recipesServiceStub } from '../recipes/recipes-testing.spec';
+import { recipesServiceStub } from '../recipes/recipes-testing.spec';
 import { RING_MS } from './cook-log.component';
 import { CookFinishedComponent } from './cook-finished.component';
 
