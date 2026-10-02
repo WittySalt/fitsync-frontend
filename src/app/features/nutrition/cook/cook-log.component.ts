@@ -3,7 +3,7 @@ import { Component, OnDestroy, computed, effect, input, model, output, signal, u
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { MEAL_SLOTS } from '../../dashboard/today/today-meals';
 import { DiarySummary, Load } from '../diary/diary.models';
-import { MAX_SERVINGS, MIN_SERVINGS, stepServings } from '../recipes/recipes-figures';
+import { MIN_SERVINGS, stepServings } from '../recipes/recipes-figures';
 import { StepperComponent } from '../recipes/stepper.component';
 import { kcalText, pastTarget, ringShare } from './cook-finish-figures';
 
@@ -56,8 +56,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
     @if (added() === null) {
       <div class="row">
         <span class="label strong">Servings eaten</span>
-        <app-stepper downLabel="Fewer servings eaten" upLabel="More servings eaten" [canDown]="servings() > min" [canUp]="servings() < max" (down)="step(-1)" (up)="step(1)">
-          <span aria-live="polite">{{ servings() }} of {{ recipeServings() }}</span>
+        <app-stepper downLabel="Fewer servings eaten" upLabel="More servings eaten" [canDown]="servings() > min" [canUp]="servings() < servingsCooked()" (down)="step(-1)" (up)="step(1)">
+          <span aria-live="polite">{{ servings() }} of {{ servingsCooked() }}</span>
         </app-stepper>
       </div>
       <div class="row meal">
@@ -94,7 +94,8 @@ export class CookLogComponent implements OnDestroy {
   readonly summary = input.required<Load<DiarySummary>>();
   /** The calories of this meal once it is logged, or null before. */
   readonly added = input<number | null>(null);
-  readonly recipeServings = input(1);
+  /** The servings cooked in this session: what can be eaten at most. */
+  readonly servingsCooked = input(1);
   readonly servings = model(1);
   readonly mealType = model('DINNER');
   readonly busy = input(false);
@@ -105,7 +106,6 @@ export class CookLogComponent implements OnDestroy {
   protected readonly size = SIZE;
   protected readonly radius = RADIUS;
   protected readonly min = MIN_SERVINGS;
-  protected readonly max = MAX_SERVINGS;
   protected readonly slots = MEAL_SLOTS;
   protected readonly kcal = kcalText;
   protected readonly changing = signal(false);

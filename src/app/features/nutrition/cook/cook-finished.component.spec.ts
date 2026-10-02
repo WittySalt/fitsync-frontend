@@ -34,7 +34,6 @@ describe('CookFinishedComponent', () => {
       minutes: 42,
       steps: 5,
       servingsCooked: 2,
-      recipeServings: 2,
       kcalPerServing: 590,
       reducedMotion: reduced,
       ...inputs
@@ -86,6 +85,20 @@ describe('CookFinishedComponent', () => {
       render({ firstCook: true });
       expect(recipes.list).not.toHaveBeenCalled();
     });
+  });
+
+  it('measures the servings eaten against the servings cooked, and cannot go past them', () => {
+    const fixture = render({ servingsCooked: 1 });
+    expect(text(fixture, 'app-stepper')).toContain('1 of 1');
+    const [less, more] = Array.from(el(fixture).querySelectorAll<HTMLButtonElement>('app-stepper button'));
+    expect(more.disabled).toBeTrue();
+    less.click();
+    fixture.detectChanges();
+    expect(text(fixture, 'app-stepper')).toContain('0.75 of 1');
+    expect(more.disabled).toBeFalse();
+    more.click();
+    fixture.detectChanges();
+    expect(text(fixture, 'app-stepper')).toContain('1 of 1');
   });
 
   it('shows the log button with the servings and calories, and one filled button before logging', () => {

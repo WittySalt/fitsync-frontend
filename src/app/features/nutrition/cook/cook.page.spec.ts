@@ -415,12 +415,33 @@ describe('CookPage', () => {
     expect(text('app-confirm-dialog h2')).toBe('1 timer is still running');
     expect(text('app-confirm-dialog p')).toBe('The timer keeps running in a bar at the bottom of the screen.');
     const buttons = el.querySelectorAll('app-confirm-dialog button');
-    expect(buttons[0].textContent).toContain('Keep them running');
-    expect(buttons[1].textContent).toContain('Stop them');
+    expect(buttons[0].textContent).toContain('Keep it running');
+    expect(buttons[1].textContent).toContain('Stop it');
     (buttons[0] as HTMLElement).click();
     expect(await answer).toBeTrue();
     expect(session.viewing()).toBeFalse();
     expect(session.hasLive()).toBeTrue();
+  });
+
+  it('words the answers for one timer, and for more than one', async () => {
+    setup();
+    load();
+    click('.forward');
+    click('app-cook-timer .slot');
+    const first = fixture.componentInstance.confirmLeave() as Promise<boolean>;
+    fixture.detectChanges();
+    let labels = Array.from(el.querySelectorAll('app-confirm-dialog button')).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['Keep it running', 'Stop it']);
+    (el.querySelectorAll('app-confirm-dialog button')[0] as HTMLElement).click();
+    await first;
+
+    session.addCustom(1, 'Rice', 5);
+    const second = fixture.componentInstance.confirmLeave() as Promise<boolean>;
+    fixture.detectChanges();
+    labels = Array.from(el.querySelectorAll('app-confirm-dialog button')).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['Keep them running', 'Stop them']);
+    (el.querySelectorAll('app-confirm-dialog button')[0] as HTMLElement).click();
+    await second;
   });
 
   it('stops the timers on "Stop them"', async () => {

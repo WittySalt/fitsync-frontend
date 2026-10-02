@@ -124,7 +124,6 @@
       [minutes]="minutes()"
       [steps]="steps().length"
       [servingsCooked]="servings()"
-      [recipeServings]="finishedRecipe.servings"
       [kcalPerServing]="finishedRecipe.kcalPerServing"
       [firstCook]="finishedRecipe.cookCount === 0"
       (done)="close()"
@@ -135,8 +134,8 @@
     <app-confirm-dialog
       [title]="leaveTitle()"
       [message]="leaveMessage()"
-      confirmLabel="Stop them"
-      cancelLabel="Keep them running"
+      [confirmLabel]="runningCount() === 1 ? 'Stop it' : 'Stop them'"
+      [cancelLabel]="runningCount() === 1 ? 'Keep it running' : 'Keep them running'"
       (confirmed)="answerLeave(false)"
       (cancelled)="answerLeave(true)"
     />

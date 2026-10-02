@@ -56,7 +56,7 @@ import { CookLogComponent } from './cook-log.component';
         <app-cook-log
           [summary]="today()"
           [added]="added()"
-          [recipeServings]="recipeServings()"
+          [servingsCooked]="servingsCooked()"
           [(servings)]="eaten"
           [(mealType)]="mealType"
           [busy]="busy()"
@@ -91,7 +91,6 @@ export class CookFinishedComponent implements OnInit {
   readonly steps = input(0);
   /** The servings the cook made; the servings eaten start here. */
   readonly servingsCooked = input(1);
-  readonly recipeServings = input(1);
   readonly kcalPerServing = input<number | null>(null);
   /** True when the recipe had never been cooked before this cook (its cook count was 0). */
   readonly firstCook = input(false);
