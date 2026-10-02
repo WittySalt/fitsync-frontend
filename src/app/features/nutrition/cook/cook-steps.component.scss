@@ -1,0 +1,106 @@
+:host {
+  display: block;
+}
+
+.eyebrow {
+  margin: 0;
+  padding: 0 8px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  position: relative;
+
+  // The line that joins one step to the next.
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 34px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--border);
+  }
+
+  &.done:not(:last-child)::after {
+    background: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+}
+
+button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  padding: 4px 8px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: -2px;
+  }
+}
+
+.dot {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.title {
+  padding-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.done {
+  .dot {
+    border: 0;
+    background: var(--accent-subtle);
+    color: var(--accent-text);
+  }
+
+  button {
+    color: var(--text-secondary);
+  }
+}
+
+.now {
+  button {
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .dot {
+    border: 0;
+    background: var(--accent);
+    color: var(--text-on-accent);
+  }
+}

@@ -1,0 +1,106 @@
+:host {
+  position: relative;
+  display: block;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--gradient-hero);
+}
+
+.photo,
+.cover,
+.shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.photo {
+  object-fit: cover;
+}
+
+.cover {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10%;
+  box-sizing: border-box;
+  color: var(--hero-glass-hover);
+}
+
+.shade {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.68) 30%, rgba(0, 0, 0, 0.25));
+}
+
+.text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+}
+
+.close {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hero-glass-border);
+  border-radius: 12px;
+  background: var(--hero-glass);
+  color: var(--text-on-hero);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--text-on-hero);
+    outline-offset: 2px;
+  }
+}
+
+.lines {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.kicker {
+  color: var(--green-400);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.name {
+  overflow: hidden;
+  color: var(--text-on-hero);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--text-on-hero-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  :host {
+    height: 92px;
+  }
+
+  .text {
+    padding: 0 16px;
+  }
+
+  .name {
+    font-size: 19px;
+  }
+}

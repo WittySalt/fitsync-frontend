@@ -1,0 +1,81 @@
+<section class="timer" aria-label="Timer">
+  <div class="head" aria-live="polite">
+    @switch (phase()) {
+      @case ('idle') {
+        <div class="row">
+          <span class="intro">{{ intro() }}</span>
+          <span class="stepper">
+            <button type="button" class="round" aria-label="Shorter" (click)="adjusted.emit(-1)">-</button>
+            <button type="button" class="round" aria-label="Longer" (click)="adjusted.emit(1)">+</button>
+          </span>
+        </div>
+        @if (range()) {
+          <span class="note">{{ range() }}</span>
+        }
+      }
+      @case ('running') {
+        <div class="row">
+          <strong class="time">{{ clock() }}</strong>
+          <button type="button" class="link" (click)="minuteAdded.emit()">+1 min</button>
+        </div>
+      }
+      @case ('paused') {
+        <div class="row">
+          <strong class="time dim">{{ clock() }}</strong>
+          <button type="button" class="link" (click)="minuteAdded.emit()">+1 min</button>
+        </div>
+      }
+      @default {
+        <div class="row">
+          <span class="done">
+            @if (celebrating()) {
+              <strong class="time fading" aria-hidden="true">0:00</strong>
+            }
+            <span class="tick" [class.pop]="celebrating()"><app-food-glyph name="CHECK" [size]="20" [strokeWidth]="3" /></span>
+            <strong class="heading">{{ heading() }}</strong>
+          </span>
+        </div>
+      }
+    }
+  </div>
+
+  <app-cook-segments
+    [fills]="fills()"
+    [labels]="labels()"
+    [activeIndex]="activeIndex()"
+    [celebrating]="celebrating()"
+    [sweepIndex]="sweepIndex()"
+  />
+
+  @switch (phase()) {
+    @case ('idle') {
+      <button type="button" class="slot filled" (click)="press('start')">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" /></svg>
+        {{ startLabel() }}
+      </button>
+    }
+    @case ('running') {
+      <button type="button" class="slot outline" (click)="press('pause')">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" /></svg>
+        Pause
+      </button>
+    }
+    @case ('paused') {
+      <button type="button" class="slot outline" (click)="press('resume')">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" /></svg>
+        Resume
+      </button>
+    }
+    @case ('turn') {
+      <button type="button" class="slot filled" [class.locked]="locked()" [class.ready]="celebrating() && !locked()" [attr.aria-disabled]="locked()" (click)="press('start')">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" /></svg>
+        {{ startLabel() }}
+      </button>
+    }
+    @default {
+      <button type="button" class="slot filled" [class.locked]="locked()" [class.ready]="celebrating() && !locked()" [attr.aria-disabled]="locked()" (click)="press('next')">
+        {{ nextLabel() }}
+      </button>
+    }
+  }
+</section>
