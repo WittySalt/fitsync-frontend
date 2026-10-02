@@ -42,7 +42,7 @@ export class FoodIconComponent {
   readonly categoryCode = input<string | null>(null);
   readonly size = input(36);
 
-  protected readonly colour = computed(() => groupColour(this.group()));
+  protected readonly colour = computed(() => groupColour(this.group(), this.categoryCode()));
   protected readonly icon = computed(() => iconFor(this.group(), this.categoryCode()));
   protected readonly glyphSize = computed(() => Math.round(this.size() * 0.56));
   protected readonly radius = computed(() => Math.round(this.size() * 0.3));

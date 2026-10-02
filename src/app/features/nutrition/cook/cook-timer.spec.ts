@@ -2,16 +2,15 @@ import { CookTimerDef } from './cook.models';
 import {
   TimerState,
   addMinute,
-  adjustStage,
   createTimer,
   isLive,
   pauseTimer,
   remainingSeconds,
   resumeTimer,
   segmentFills,
+  setRemaining,
   stageName,
   startStage,
-  stepperSeconds,
   tickTimer
 } from './cook-timer';
 
@@ -25,30 +24,6 @@ describe('cook timer state machine', () => {
     expect(state.phase).toBe('idle');
     expect(remainingSeconds(state, T0)).toBe(180);
     expect(isLive(state)).toBeFalse();
-  });
-
-  it('adjusts the length in minutes only before it starts', () => {
-    let state = adjustStage(createTimer(sides), 1);
-    expect(state.stageSeconds).toBe(240);
-    state = adjustStage(adjustStage(state, -1), -1);
-    expect(state.stageSeconds).toBe(120);
-    const running = startStage(state, T0);
-    expect(adjustStage(running, 1)).toBe(running);
-  });
-
-  it('never goes below one step or above three hours', () => {
-    let state = createTimer({ ...single, seconds: 60 });
-    state = adjustStage(state, -1);
-    expect(state.stageSeconds).toBe(60);
-    state = createTimer({ ...single, seconds: 3 * 3600 });
-    expect(adjustStage(state, 1).stageSeconds).toBe(3 * 3600);
-  });
-
-  it('steps by half a minute when the recipe time is not whole minutes', () => {
-    const half = createTimer({ ...single, seconds: 90 });
-    expect(stepperSeconds(half)).toBe(30);
-    expect(adjustStage(half, 1).stageSeconds).toBe(120);
-    expect(stepperSeconds(createTimer(sides))).toBe(60);
   });
 
   it('counts down on the wall clock', () => {
@@ -128,5 +103,23 @@ describe('cook timer state machine', () => {
     const running: TimerState = startStage(createTimer(sides), T0);
     const restored = JSON.parse(JSON.stringify(running)) as TimerState;
     expect(remainingSeconds(restored, T0 + 30_000)).toBe(150);
+  });
+
+  it('sets the time left of a running or paused timer and the length of one not started, and leaves a finished one alone', () => {
+    const running = startStage(createTimer(single), T0);
+    const moved = setRemaining(running, T0 + 60_000, 120);
+    expect(remainingSeconds(moved, T0 + 60_000)).toBe(120);
+    expect(moved.phase).toBe('running');
+    const paused = setRemaining(pauseTimer(running, T0 + 1000), T0 + 2000, 300);
+    expect(remainingSeconds(paused, T0 + 2000)).toBe(300);
+    expect(paused.phase).toBe('paused');
+    const idle = setRemaining(createTimer(single), T0, 5400);
+    expect(idle.stageSeconds).toBe(5400);
+    expect(idle.phase).toBe('idle');
+    expect(remainingSeconds(idle, T0)).toBe(5400);
+    expect(startStage(idle, T0).endsAtMs).toBe(T0 + 5_400_000);
+    const done = { ...createTimer(single), phase: 'done' as const };
+    expect(setRemaining(done, T0, 60)).toBe(done);
+    expect(remainingSeconds(setRemaining(running, T0, 999_999), T0)).toBe(12 * 3600);
   });
 });

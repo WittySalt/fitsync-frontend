@@ -1,29 +1,25 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { catchError, of, retry } from 'rxjs';
 
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog.component';
 import { CookAddNowComponent } from './cook-add-now.component';
 import { CookAlertComponent } from './cook-alert.component';
 import { CookAlsoTimingComponent, TimingChip } from './cook-also-timing.component';
 import { CookBannerComponent } from './cook-banner.component';
+import { CookCustomTimersComponent, CustomTimerView, NewTimer } from './cook-custom-timers.component';
 import { clockText } from './cook-format';
+import { CookFinishedComponent } from './cook-finished.component';
+import { minutesCooked } from './cook-finish-figures';
 import { CookIngredientsComponent } from './cook-ingredients.component';
-import {
-  hasAssignments,
-  ingredientsOf,
-  parseServings,
-  scaleFactor,
-  splitAtPhrase,
-  turnSubject,
-  usedCount,
-  usedIds
-} from './cook-recipe';
+import { addedCount, hasAssignments, ingredientsOf, parseServings, scaleFactor, splitAtPhrase, splitIngredients, topGroups, turnSubject } from './cook-recipe';
 import { CookRecipeService } from './cook-recipe.service';
 import { CookSessionService } from './cook-session.service';
 import { CookStepsComponent } from './cook-steps.component';
+import { CookTopbarComponent } from './cook-topbar.component';
 import { CookTimerComponent } from './cook-timer.component';
 import { CookWakeLock } from './cook-wake-lock';
-import { addMinute, adjustStage, pauseTimer, remainingSeconds, resumeTimer, segmentFills, stageName, startStage } from './cook-timer';
+import { addMinute, pauseTimer, remainingSeconds, resumeTimer, segmentFills, setRemaining, stageName, startStage } from './cook-timer';
 import { CookRecipe } from './cook.models';
 
 type Status = 'loading' | 'error' | 'ready';
@@ -40,9 +36,12 @@ type Status = 'loading' | 'error' | 'ready';
     CookAlertComponent,
     CookAlsoTimingComponent,
     CookBannerComponent,
+    CookCustomTimersComponent,
+    CookFinishedComponent,
     CookIngredientsComponent,
     CookStepsComponent,
     CookTimerComponent,
+    CookTopbarComponent,
     ConfirmDialogComponent
   ],
   templateUrl: './cook.page.html',
@@ -60,8 +59,17 @@ export class CookPage implements OnInit, OnDestroy {
   protected readonly servings = signal(1);
   protected readonly sheetOpen = signal(false);
   protected readonly leaving = signal(false);
+  /** True from Finish cooking on: the finish card is on screen. */
+  protected readonly finishing = signal(false);
+  protected readonly minutes = signal(1);
+  /** True while the cook is being recorded, between Finish cooking and the card. */
+  protected readonly recording = signal(false);
+  /** The All ingredients section under the step starts closed. */
+  protected readonly listOpen = signal(false);
   private recipeId = '';
   private resolveLeave: ((value: boolean) => void) | null = null;
+  /** Set by Finish cooking, so leaving afterwards ends the session instead of keeping it. */
+  private finished = false;
 
   protected readonly steps = computed(() => this.recipe()?.steps ?? []);
   protected readonly index = computed(() => Math.min(this.session.step(), Math.max(0, this.steps().length - 1)));
@@ -77,25 +85,36 @@ export class CookPage implements OnInit, OnDestroy {
     const step = this.step();
     return recipe && step ? ingredientsOf(step, recipe.ingredients) : [];
   });
-  protected readonly used = computed(() => usedIds(this.steps(), this.index()));
-  protected readonly usedTotal = computed(() => {
+  /** The ingredients ticked as added, from the session so the ticks survive a reload. */
+  protected readonly added = computed<ReadonlySet<string>>(() => new Set(this.session.data()?.added ?? []));
+  protected readonly lists = computed(() => {
     const recipe = this.recipe();
-    return recipe ? usedCount(recipe, this.index()) : 0;
+    return recipe ? splitIngredients(recipe) : { inSteps: [], loose: [] };
   });
-  /** "3 of 5 used", or the count alone when no step names its ingredients. */
-  protected readonly usedLabel = computed(() => {
-    const total = this.recipe()?.ingredients.length ?? 0;
-    return this.assigned() ? `${this.usedTotal()} of ${total} used` : `${total} ${total === 1 ? 'ingredient' : 'ingredients'}`;
+  protected readonly addedTotal = computed(() => {
+    const recipe = this.recipe();
+    return recipe ? addedCount(recipe, this.session.data()?.added ?? []) : 0;
   });
-  protected readonly sheetLabel = computed(() => {
-    const total = this.recipe()?.ingredients.length ?? 0;
-    return this.assigned() ? `${this.usedTotal()} of ${total} ingredients used` : `${total} ingredients`;
-  });
+  protected readonly addedLabel = computed(() => `${this.addedTotal()} of ${this.recipe()?.ingredients.length ?? 0} added`);
+  protected readonly sheetLabel = computed(() => `${this.addedTotal()} of ${this.recipe()?.ingredients.length ?? 0} ingredients added`);
   protected readonly text = computed(() => {
     const step = this.step();
     return step ? splitAtPhrase(step.text, step.timer?.phrase ?? '') : { before: '', match: '', after: '' };
   });
   protected readonly timer = computed(() => this.session.data()?.timers[this.index()] ?? null);
+  /** The timers the cook added to this step. */
+  protected readonly customs = computed<CustomTimerView[]>(() => {
+    const now = this.session.now();
+    return (this.session.data()?.customs ?? [])
+      .filter((custom) => custom.step === this.index())
+      .map((custom) => ({
+        id: custom.id,
+        name: custom.name,
+        clock: clockText(remainingSeconds(custom.state, now)),
+        minutesLeft: Math.max(1, Math.ceil(remainingSeconds(custom.state, now) / 60)),
+        phase: custom.state.phase
+      }));
+  });
   protected readonly subject = computed(() => {
     const recipe = this.recipe();
     const step = this.step();
@@ -110,8 +129,9 @@ export class CookPage implements OnInit, OnDestroy {
       .map((live) => {
         const fills = segmentFills(live.state, now);
         return {
+          key: live.key,
           step: live.step,
-          label: stageName(live.state) ?? `Step ${live.step + 1}`,
+          label: live.name !== null ? live.name || `Step ${live.step + 1} timer` : (stageName(live.state) ?? `Step ${live.step + 1}`),
           time: clockText(remainingSeconds(live.state, now)),
           share: 1 - (fills[live.state.stage] ?? fills[0])
         };
@@ -120,7 +140,7 @@ export class CookPage implements OnInit, OnDestroy {
   protected readonly runningCount = computed(() => this.session.liveTimers().length);
   protected readonly leaveMessage = computed(() => {
     const count = this.runningCount();
-    return count === 1 ? 'A timer is still running.' : 'Your timers are still running.';
+    return count === 1 ? 'The timer keeps running in a bar at the bottom of the screen.' : 'Timers keep running in a bar at the bottom of the screen.';
   });
   protected readonly leaveTitle = computed(() => {
     const count = this.runningCount();
@@ -150,7 +170,7 @@ export class CookPage implements OnInit, OnDestroy {
         }
         this.recipe.set(recipe);
         this.session.open(
-          { recipeId: this.recipeId, name: recipe.name, servings: this.servings() },
+          { recipeId: this.recipeId, name: recipe.name, servings: this.servings(), imageUrl: recipe.imageUrl },
           recipe.steps.map((step) => step.timer)
         );
         this.wake.hold();
@@ -173,23 +193,91 @@ export class CookPage implements OnInit, OnDestroy {
 
   protected next(): void {
     if (this.isLast()) {
-      this.close();
+      this.finish();
     } else {
       this.session.goTo(this.index() + 1);
     }
   }
 
-  /** Leaves cook mode for the recipe it came from; the guard asks about running timers. */
+  /**
+   * Leaves cook mode for the recipe it came from; the guard asks about running timers. The cook
+   * page takes the place of the recipe in the history, so the browser's Back button goes on to
+   * where the cook was before, and it asks the same question.
+   */
   protected close(): void {
-    void this.router.navigateByUrl(this.recipeId ? `/nutrition/recipes/${this.recipeId}` : '/nutrition');
+    void this.router.navigateByUrl(this.recipeId ? `/nutrition/recipes/${this.recipeId}` : '/nutrition', { replaceUrl: true });
+  }
+
+  /** Finish cooking: the card that thanks the cook and offers to log the meal. */
+  protected finish(): void {
+    const data = this.session.data();
+    if (this.recording()) {
+      return;
+    }
+    this.finished = true;
+    const started = data?.startedAt ?? Date.now();
+    const now = Date.now();
+    this.minutes.set(minutesCooked(started, now));
+    if (!data) {
+      this.finishing.set(true);
+      return;
+    }
+    // The cook is recorded first, once more if it fails; a failure still lets the card show.
+    this.recording.set(true);
+    this.recipes
+      .recordCook(this.recipeId, { clientCookId: data.cookId, servings: this.servings(), startedAt: new Date(started), finishedAt: new Date(now) })
+      .pipe(
+        retry(1),
+        catchError(() => of(undefined))
+      )
+      .subscribe(() => {
+        this.recording.set(false);
+        this.finishing.set(true);
+      });
+  }
+
+  protected readonly groups = computed(() => {
+    const recipe = this.recipe();
+    return recipe ? topGroups(recipe) : [];
+  });
+
+  protected markAll(on: boolean): void {
+    this.session.setAdded(
+      this.nowIngredients().map((ingredient) => ingredient.id),
+      on
+    );
+  }
+
+  protected toggleAdded(id: string): void {
+    this.session.toggleAdded(id);
+  }
+
+  protected addTimer(timer: NewTimer): void {
+    this.session.addCustom(this.index(), timer.name, timer.minutes);
+  }
+
+  protected pauseCustom(id: number): void {
+    this.session.actCustom(id, pauseTimer);
+  }
+
+  protected resumeCustom(id: number): void {
+    this.session.actCustom(id, resumeTimer);
+  }
+
+  protected minuteCustom(id: number): void {
+    this.session.actCustom(id, (state) => addMinute(state));
+  }
+
+  protected retimeCustom(id: number, seconds: number): void {
+    this.session.actCustom(id, (state, now) => setRemaining(state, now, seconds));
+  }
+
+  protected removeCustom(id: number): void {
+    this.session.removeCustom(id);
   }
 
   protected act(change: Parameters<CookSessionService['act']>[1]): void {
     this.session.act(this.index(), change);
-  }
-
-  protected adjust(direction: 1 | -1): void {
-    this.act((state) => adjustStage(state, direction));
   }
 
   protected start(): void {
@@ -204,6 +292,10 @@ export class CookPage implements OnInit, OnDestroy {
     this.act(resumeTimer);
   }
 
+  protected retime(seconds: number): void {
+    this.act((state, now) => setRemaining(state, now, seconds));
+  }
+
   protected addMinute(): void {
     this.act((state) => addMinute(state));
   }
@@ -214,7 +306,7 @@ export class CookPage implements OnInit, OnDestroy {
     if (!alert) {
       return;
     }
-    if (alert.kind === 'turn') {
+    if (alert.kind === 'turn' && alert.name === null) {
       this.session.act(alert.step, startStage);
     } else {
       this.session.goTo(alert.step);
@@ -224,7 +316,8 @@ export class CookPage implements OnInit, OnDestroy {
   /** Called by the route guard. With timers running it asks first; with none it simply lets go. */
   confirmLeave(): boolean | Promise<boolean> {
     if (!this.session.hasLive()) {
-      this.session.leave(false);
+      // Without timers the session stays for the Continue cooking banner, unless the cook finished.
+      this.session.leave(!this.finished);
       return true;
     }
     this.leaving.set(true);

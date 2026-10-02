@@ -188,7 +188,7 @@ export class CoachStore {
    * Only one turn runs at a time. A second send while one is in flight is ignored rather than
    * queued, because the second question was almost certainly written without the first answer.
    */
-  ask(question: string): void {
+  ask(question: string, about?: { recipeId?: string }): void {
     const text = question.trim();
     if (!text || this.status() === 'answering') {
       return;
@@ -198,7 +198,7 @@ export class CoachStore {
     this.pendingQuestion.set(text);
     this.liveSteps.set([]);
 
-    const context = this.buildContext();
+    const context = this.buildContext(about);
     const threadId = this.thread()?.thread.threadId;
     if (threadId) {
       this.stream(threadId, text, context);
@@ -218,12 +218,16 @@ export class CoachStore {
    * one to send. A surface the server does not know (the coach workspace itself, or an unmapped
    * page) sends no context at all, so the server falls back to its own default grounding.
    */
-  private buildContext(): CoachMessageContext | undefined {
-    const code = this.surface().code;
+  private buildContext(about?: { recipeId?: string }): CoachMessageContext | undefined {
+    // A question about a recipe is always a Nutrition question, whatever page the dock was opened from.
+    const code = about?.recipeId ? 'NUTRITION' : this.surface().code;
     if (!code) {
       return undefined;
     }
     const context: CoachMessageContext = { surface: code };
+    if (about?.recipeId) {
+      context.recipeId = about.recipeId;
+    }
     const reading = this.pinnedReading();
     if (reading?.readingId) {
       context.readingId = reading.readingId;

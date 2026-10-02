@@ -94,8 +94,12 @@ describe('EatCardComponent', () => {
     expect((el(fixture).querySelector('.log') as HTMLButtonElement).disabled).toBeTrue();
   });
 
-  it('links Start cooking to cook mode', () => {
-    expect(el(render()).querySelector('.cook')?.getAttribute('href')).toBe('/nutrition/recipes/r1/cook');
+  it('reports Start cooking, which the page answers with the Ready screen', () => {
+    const fixture = render();
+    let cooked = 0;
+    fixture.componentInstance.cook.subscribe(() => (cooked += 1));
+    (el(fixture).querySelector('.cook') as HTMLButtonElement).click();
+    expect(cooked).toBe(1);
   });
 
   it('offers Save and Make it mine for a library recipe, and tells a saved one', () => {

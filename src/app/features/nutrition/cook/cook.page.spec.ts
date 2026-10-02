@@ -99,9 +99,222 @@ describe('CookPage', () => {
     expect(Array.from(el.querySelectorAll('app-cook-add-now li strong')).map((n) => n.textContent)).toEqual(['Lime', 'Olive oil']);
     expect(text('.step')).toBe('Mix the lime and the oil.');
     expect(el.querySelectorAll('app-cook-steps li').length).toBe(3);
-    expect(text('app-cook-ingredients .count')).toBe('0 of 3 used');
+    expect(text('app-cook-ingredients .count')).toBe('0 of 3 added');
     expect(el.querySelector('app-cook-timer')).toBeNull();
     expect(session.viewing()).toBeTrue();
+  });
+
+  it('lists only the ingredients of the step, says so when a step adds nothing, and starts with the full list closed', () => {
+    setup();
+    load();
+    expect(Array.from(el.querySelectorAll('app-cook-add-now li strong')).map((n) => n.textContent)).toEqual(['Lime', 'Olive oil']);
+    expect(el.querySelector<HTMLDetailsElement>('details.under')?.open).toBeFalse();
+    expect(el.querySelector('.middle')?.firstElementChild?.tagName).toBe('APP-COOK-ADD-NOW');
+    click('.forward');
+    expect(Array.from(el.querySelectorAll('app-cook-add-now li strong')).map((n) => n.textContent)).toEqual(['Salmon']);
+    click('.forward');
+    expect(el.querySelectorAll('app-cook-add-now li').length).toBe(0);
+    expect(text('app-cook-add-now .quiet')).toBe('Nothing new to add in this step');
+    expect(el.querySelector('.middle')?.firstElementChild?.tagName).toBe('APP-COOK-ADD-NOW');
+  });
+
+  it('keeps the ticks of the step list and of the full list in step, and never blocks Next', () => {
+    setup();
+    load();
+    const box = (selector: string, index: number) => el.querySelectorAll<HTMLInputElement>(`${selector} input[type=checkbox]`)[index];
+    box('app-cook-add-now', 0).click();
+    fixture.detectChanges();
+    expect(session.data()!.added).toEqual(['i3']);
+    // The full list names the ingredients in the order the steps use them: lime, oil, salmon.
+    expect(box('aside app-cook-ingredients', 0).checked).toBeTrue();
+    expect(box('details app-cook-ingredients', 0).checked).toBeTrue();
+    expect(text('details.under summary')).toBe('All ingredients · 1 of 3 added');
+    box('aside app-cook-ingredients', 1).click();
+    fixture.detectChanges();
+    expect(box('app-cook-add-now', 1).checked).toBeTrue();
+    expect(text('app-cook-add-now .quiet')).toBe('All added');
+    box('details app-cook-ingredients', 0).click();
+    fixture.detectChanges();
+    expect(box('app-cook-add-now', 0).checked).toBeFalse();
+    click('.forward');
+    expect(text('app-cook-add-now .eyebrow')).toContain('Step 2 of 3');
+  });
+
+  it('keeps the ticks through a reload', () => {
+    setup();
+    load();
+    el.querySelectorAll<HTMLInputElement>('app-cook-add-now input[type=checkbox]')[1].click();
+    fixture.detectChanges();
+    fixture.destroy();
+    TestBed.resetTestingModule();
+    setup();
+    load();
+    expect(el.querySelectorAll<HTMLInputElement>('app-cook-add-now input[type=checkbox]')[1].checked).toBeTrue();
+    expect(text('details.under summary')).toBe('All ingredients · 1 of 3 added');
+  });
+
+  it('puts the ingredients no step names at the end of the full list', () => {
+    setup();
+    load(wire({ ingredients: [...(wire()['ingredients'] as unknown[]), { ingredientId: 'i4', foodName: 'Salt', displayText: 'salt', grams: 2, foodGroup: null, categoryCode: null }] }));
+    expect(text('aside app-cook-ingredients .rest')).toBe('Not in a step');
+    const names = Array.from(el.querySelectorAll('aside app-cook-ingredients .name')).map((n) => n.textContent);
+    expect(names[names.length - 1]).toBe('Salt');
+  });
+
+  it('adds a timer to any step, beside the one found in the text, and runs it like the others', () => {
+    setup();
+    load();
+    click('.forward');
+    expect(el.querySelector('app-cook-timer')).not.toBeNull();
+    click('app-cook-custom-timers .add');
+    const input = el.querySelector('app-cook-custom-timers input[name="timer-name"]') as HTMLInputElement;
+    input.value = 'Oven preheating';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    click('app-cook-custom-timers .start');
+    expect(session.data()!.customs.length).toBe(1);
+    expect(text('app-cook-custom-timers .item .name')).toBe('Oven preheating');
+    // The found timer is untouched and can still be started.
+    expect(session.data()!.timers[1].phase).toBe('idle');
+    // On another step it shows in Also timing and in the bar's live list.
+    click('.back');
+    expect(text('app-cook-also-timing .what')).toBe('Oven preheating');
+    expect(session.liveTimers().length).toBe(1);
+    // When it ends away from its step the green bar names it.
+    session.tickNow(Date.now() + 301_000);
+    fixture.detectChanges();
+    expect(text('app-cook-alert .text')).toBe('Step 2: Oven preheating is done');
+    click('app-cook-alert .action');
+    expect(text('app-cook-add-now .eyebrow')).toContain('Step 2 of 3');
+    expect(text('app-cook-custom-timers .item.done')).toContain('Oven preheating is done');
+    click('app-cook-custom-timers .item.done button');
+    expect(session.data()!.customs).toEqual([]);
+  });
+
+  it('offers + Add a timer on a step that has no timer of its own', () => {
+    setup();
+    load();
+    expect(el.querySelector('app-cook-timer')).toBeNull();
+    expect(text('app-cook-custom-timers .add')).toContain('Add a timer');
+  });
+
+  it('has an Exit control, and Previous step and Next step buttons; nothing else says Back', () => {
+    setup();
+    load();
+    expect(text('app-cook-topbar .exit')).toBe('Exit');
+    expect(el.querySelector('app-cook-topbar .exit')?.getAttribute('aria-label')).toBe('Exit cooking');
+    expect(text('.back')).toBe('\u2190 Previous step');
+    expect(text('.forward')).toBe('Next step \u2192');
+    expect(el.textContent).not.toMatch(/\bBack\b/);
+  });
+
+  it('marks every ingredient of the step as added with one tap, and clears them again', () => {
+    setup();
+    load();
+    click('app-cook-add-now .all');
+    expect(session.data()!.added.sort()).toEqual(['i2', 'i3']);
+    expect(text('app-cook-add-now .all')).toBe('Clear all');
+    click('app-cook-add-now .all');
+    expect(session.data()!.added).toEqual([]);
+  });
+
+  it('changes the time of a running timer by tapping it, and the new value becomes the time left', () => {
+    setup();
+    load();
+    click('.forward');
+    click('app-cook-timer .slot');
+    click('app-cook-timer button.time');
+    expect(el.querySelector('app-cook-retime')).not.toBeNull();
+    click('app-cook-retime button[aria-label="Longer"]');
+    click('app-cook-retime .set');
+    const left = session.data()!.timers[1].endsAtMs - Date.now();
+    expect(left).toBeGreaterThan(3 * 60_000);
+    expect(left).toBeLessThanOrEqual(4 * 60_000);
+    expect(el.querySelector('app-cook-retime')).toBeNull();
+  });
+
+  it('keeps the session for the Continue cooking banner when the cook leaves with nothing running', async () => {
+    setup();
+    load();
+    click('.forward');
+    expect(await fixture.componentInstance.confirmLeave()).toBeTrue();
+    expect(session.data()?.step).toBe(1);
+    expect(session.viewing()).toBeFalse();
+  });
+
+  describe('recording the cook', () => {
+    const recordUrl = '/api/v1/nutrition/recipes/r1/cooks';
+
+    function finishCooking(): void {
+      setup();
+      load(wire({ cookCount: 0 }));
+      spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+      click('app-cook-steps li button', 2);
+      click('.forward');
+    }
+
+    it('sends the cook with the id made at the start, the servings and the times, then shows the card', () => {
+      finishCooking();
+      expect(el.querySelector('app-cook-finished')).toBeNull();
+      const request = http.expectOne(recordUrl);
+      expect(request.request.body.clientCookId).toBe(session.data()!.cookId);
+      expect(request.request.body.servings).toBe(2);
+      expect(new Date(request.request.body.startedAt).getTime()).toBeLessThanOrEqual(new Date(request.request.body.finishedAt).getTime());
+      request.flush(null);
+      fixture.detectChanges();
+      expect(el.querySelector('app-cook-finished')).not.toBeNull();
+      expect(el.querySelector('app-cook-finished .earned')).not.toBeNull();
+    });
+
+    it('tries once more when it fails, with the same id, and still shows the card when it fails twice', () => {
+      finishCooking();
+      http.expectOne(recordUrl).flush('no', { status: 500, statusText: 'Server Error' });
+      const again = http.expectOne(recordUrl);
+      expect(again.request.body.clientCookId).toBe(session.data()!.cookId);
+      again.flush('no', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+      expect(el.querySelector('app-cook-finished')).not.toBeNull();
+    });
+
+    it('does not offer first time for a recipe cooked before, and sends nothing twice for a second tap', () => {
+      setup();
+      load(wire({ cookCount: 2 }));
+      spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+      click('app-cook-steps li button', 2);
+      click('.forward');
+      expect((el.querySelector('.forward') as HTMLButtonElement).disabled).toBeTrue();
+      http.expectOne(recordUrl).flush(null);
+      fixture.detectChanges();
+      expect(el.querySelector('app-cook-finished .earned')).toBeNull();
+    });
+  });
+
+  it('ends the session after Finish cooking', async () => {
+    setup();
+    load();
+    spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+    click('app-cook-steps li button', 2);
+    click('.forward');
+    expect(await fixture.componentInstance.confirmLeave()).toBeTrue();
+    expect(session.data()).toBeNull();
+  });
+
+  it('opens the finish card after the last step with the cooking figures, and Done goes back to the recipe', () => {
+    setup();
+    load(wire({ perServing: { kcal: 590 } }));
+    const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+    session.data.update((data) => (data ? { ...data, startedAt: Date.now() - 42 * 60_000 } : data));
+    click('app-cook-steps li button', 2);
+    expect(el.querySelector('app-cook-finished')).toBeNull();
+    click('.forward');
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
+    fixture.detectChanges();
+
+    expect(el.querySelector('app-cook-finished')).not.toBeNull();
+    expect(text('app-cook-finished .name')).toBe('Salmon salad');
+    expect(Array.from(el.querySelectorAll('app-cook-finished .facts div')).map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['42 min', '3 steps', '2 servings']);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(text('app-cook-finished .primary')).toBe('Log 2 servings · 1,180 kcal');
   });
 
   it('scales the amounts to the servings in the query', () => {
@@ -117,10 +330,10 @@ describe('CookPage', () => {
     expect((el.querySelector('.back') as HTMLButtonElement).disabled).toBeTrue();
     click('.forward');
     expect(text('app-cook-add-now .eyebrow')).toBe('Step 2 of 3 · add now');
-    expect(text('app-cook-ingredients .count')).toBe('2 of 3 used');
+    expect(text('app-cook-ingredients .count')).toBe('0 of 3 added');
     expect(el.querySelector('.step .phrase')?.textContent).toBe('3-4 mins');
     expect(el.querySelector('.phrase')?.tagName).toBe('SPAN');
-    expect(text('details.under summary')).toBe('Ingredients · 2 of 3 used');
+    expect(text('details.under summary')).toBe('All ingredients · 0 of 3 added');
     click('.back');
     expect(text('app-cook-add-now .eyebrow')).toBe('Step 1 of 3 · add now');
   });
@@ -200,13 +413,35 @@ describe('CookPage', () => {
     const answer = fixture.componentInstance.confirmLeave() as Promise<boolean>;
     fixture.detectChanges();
     expect(text('app-confirm-dialog h2')).toBe('1 timer is still running');
+    expect(text('app-confirm-dialog p')).toBe('The timer keeps running in a bar at the bottom of the screen.');
     const buttons = el.querySelectorAll('app-confirm-dialog button');
-    expect(buttons[0].textContent).toContain('Keep them running');
-    expect(buttons[1].textContent).toContain('Stop them');
+    expect(buttons[0].textContent).toContain('Keep it running');
+    expect(buttons[1].textContent).toContain('Stop it');
     (buttons[0] as HTMLElement).click();
     expect(await answer).toBeTrue();
     expect(session.viewing()).toBeFalse();
     expect(session.hasLive()).toBeTrue();
+  });
+
+  it('words the answers for one timer, and for more than one', async () => {
+    setup();
+    load();
+    click('.forward');
+    click('app-cook-timer .slot');
+    const first = fixture.componentInstance.confirmLeave() as Promise<boolean>;
+    fixture.detectChanges();
+    let labels = Array.from(el.querySelectorAll('app-confirm-dialog button')).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['Keep it running', 'Stop it']);
+    (el.querySelectorAll('app-confirm-dialog button')[0] as HTMLElement).click();
+    await first;
+
+    session.addCustom(1, 'Rice', 5);
+    const second = fixture.componentInstance.confirmLeave() as Promise<boolean>;
+    fixture.detectChanges();
+    labels = Array.from(el.querySelectorAll('app-confirm-dialog button')).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['Keep them running', 'Stop them']);
+    (el.querySelectorAll('app-confirm-dialog button')[0] as HTMLElement).click();
+    await second;
   });
 
   it('stops the timers on "Stop them"', async () => {
@@ -225,25 +460,32 @@ describe('CookPage', () => {
     setup();
     load();
     const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
-    click('app-cook-banner .close');
-    expect(navigate).toHaveBeenCalledWith(jasmine.stringMatching(/^\/nutrition\/recipes\/.+/));
+    click('app-cook-topbar .exit');
+    expect(navigate).toHaveBeenCalledWith(jasmine.stringMatching(/^\/nutrition\/recipes\/.+/), { replaceUrl: true });
     click('app-cook-steps li button', 2);
     click('.forward');
+    // Finish cooking records the cook, then opens the finish card; it leaves for the recipe when answered.
+    expect(navigate).toHaveBeenCalledTimes(1);
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
+    fixture.detectChanges();
+    click('app-cook-finished .quiet');
     expect(navigate).toHaveBeenCalledTimes(2);
   });
 
   it('degrades to a plain list when the steps carry no ingredient ids', () => {
     setup();
     load(wire({}, true));
-    expect(text('app-cook-ingredients .count')).toBe('3 ingredients');
+    expect(text('app-cook-ingredients .count')).toBe('0 of 3 added');
     expect(el.querySelectorAll('app-cook-add-now li').length).toBe(0);
-    expect(text('.handle')).toContain('3 ingredients');
+    expect(el.querySelector('app-cook-add-now .quiet')).toBeNull();
+    expect(el.querySelector('app-cook-ingredients .rest')).toBeNull();
+    expect(text('.handle')).toContain('0 of 3 ingredients added');
   });
 
   it('shows the phone sheet with the steps and ingredients', () => {
     setup();
     load();
-    expect(text('.handle')).toContain('All steps · 0 of 3 ingredients used');
+    expect(text('.handle')).toContain('All steps · 0 of 3 ingredients added');
     click('.handle');
     expect(el.querySelector('.sheet')).not.toBeNull();
     click('.sheet app-cook-steps li button', 1);

@@ -46,6 +46,9 @@ export function servingsText(servings: number): string {
 
 /** The grams of an ingredient: whole numbers from 10 g, one decimal below. */
 export function gramsText(grams: number): string {
+  if (grams <= 0) {
+    return 'to taste';
+  }
   const rounded = grams >= 10 ? Math.round(grams) : Math.round(grams * 10) / 10;
   return `${rounded} g`;
 }

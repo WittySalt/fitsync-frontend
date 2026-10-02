@@ -1,5 +1,6 @@
 import { FoodDetail } from '../../../core/fitsync.models';
-import { EditorRow, basisFactor, editorErrors, editorTotals, hasErrors, parseAmount, toDraft, totalsOf } from './recipes-editor';
+import { item, meal } from '../diary/diary-testing.spec';
+import { EditorRow, basisFactor, categoryCodeOf, editorErrors, editorTotals, hasErrors, moveItem, parseAmount, mealToRows, previewTags, rowGroups, toDraft, totalsOf } from './recipes-editor';
 import { perServing } from './recipes-testing.spec';
 
 function food(overrides: Partial<FoodDetail> = {}): FoodDetail {
@@ -125,5 +126,76 @@ describe('toDraft and parseAmount', () => {
     expect(parseAmount(' 80 ')).toBe(80);
     expect(parseAmount('')).toBeNull();
     expect(parseAmount('abc')).toBeNull();
+  });
+  describe('reordering, categories and the preview', () => {
+    it('moves an item to another place and leaves the list alone for a place that does not exist', () => {
+      expect(moveItem(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
+      expect(moveItem(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'c', 'b']);
+      expect(moveItem(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'b', 'c']);
+      expect(moveItem(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']);
+      expect(moveItem(['a', 'b', 'c'], 0, 3)).toEqual(['a', 'b', 'c']);
+      const original = ['a', 'b'];
+      expect(moveItem(original, 0, 1)).not.toBe(original);
+    });
+
+    it('turns a category name into its code', () => {
+      expect(categoryCodeOf('Meat & Poultry')).toBe('MEAT_POULTRY');
+      expect(categoryCodeOf('Nuts & Seeds')).toBe('NUTS_SEEDS');
+      expect(categoryCodeOf('Grains')).toBe('GRAINS');
+      expect(categoryCodeOf('')).toBeNull();
+      expect(categoryCodeOf(null)).toBeNull();
+    });
+
+    it('takes the three groups with the most grams', () => {
+      const rows = [
+        row({ key: 1, group: 'GRAINS', grams: 100 }),
+        row({ key: 2, group: 'DAIRY', grams: 480 }),
+        row({ key: 3, group: 'FRUIT', grams: 240 }),
+        row({ key: 4, group: 'NUTS', grams: 64 }),
+        row({ key: 5, group: null, grams: 900 })
+      ];
+      expect(rowGroups(rows)).toEqual(['DAIRY', 'FRUIT', 'GRAINS']);
+      expect(rowGroups([])).toEqual([]);
+    });
+
+    it('tags a recipe from its rows with the thresholds of the contract', () => {
+      const lentils = row({ detail: food({ calories: 300, proteinGrams: 25, fiberGrams: 11 }), grams: 100 });
+      expect(previewTags([lentils])).toEqual(['High protein', 'High fibre']);
+      const sweet = row({ detail: food({ calories: 400, proteinGrams: 1, sugarGrams: 60, sodiumMg: 700 }), grams: 100 });
+      expect(previewTags([sweet])).toEqual(['High sugar', 'High salt']);
+      expect(previewTags([row({ detail: food({ calories: 100, proteinGrams: 2 }) })])).toEqual([]);
+    });
+
+    it('says Vegetarian or Vegan only when every row has a category', () => {
+      const plain = food({ calories: 100, proteinGrams: 1 });
+      const veg = row({ detail: plain, categoryCode: 'VEGETABLES' });
+      const milk = row({ key: 2, detail: plain, categoryCode: 'DAIRY' });
+      const fish = row({ key: 3, detail: plain, categoryCode: 'SEAFOOD' });
+      expect(previewTags([veg])).toEqual(['Vegan']);
+      expect(previewTags([veg, milk])).toEqual(['Vegetarian']);
+      expect(previewTags([veg, fish])).toEqual([]);
+      expect(previewTags([veg, row({ key: 4, detail: plain, categoryCode: null })])).toEqual([]);
+    });
+
+    it('turns the foods of a meal into rows with the grams that were logged', () => {
+      const custom = item({ mealItemId: 'x', foodName: 'Aunt Mei soup', draft: { ...item().draft, foodCatalogItemId: null, customFoodId: 'c1' } });
+      const inServings = item({ mealItemId: 'y', foodName: 'Banana', gramsConsumed: null, draft: { ...item().draft, foodCatalogItemId: 'f2', unit: 'serving', quantity: 2 } });
+      const inGrams = item({ mealItemId: 'z', foodName: 'Rice', gramsConsumed: null, draft: { ...item().draft, foodCatalogItemId: 'f3', unit: 'g', quantity: 150 } });
+      const result = mealToRows(meal({ items: [item({ gramsConsumed: 203.37 }), custom, inServings, inGrams] }));
+      expect(result.left).toBe(1);
+      expect(result.rows.map((seed) => [seed.foodCatalogItemId, seed.name, seed.grams])).toEqual([
+        ['food-1', 'Greek yogurt', 203.4],
+        ['f2', 'Banana', null],
+        ['f3', 'Rice', 150]
+      ]);
+      expect(result.rows[0].group).toBe('DAIRY');
+      expect(mealToRows(meal({ items: [] }))).toEqual({ rows: [], left: 0 });
+    });
+
+    it('says nothing while a row has no amount or no figures', () => {
+      expect(previewTags([])).toEqual([]);
+      expect(previewTags([row({ grams: null })])).toEqual([]);
+      expect(previewTags([row({ detail: null })])).toEqual([]);
+    });
   });
 });

@@ -4,6 +4,7 @@ import { Subject, of, throwError } from 'rxjs';
 
 import { ToastService } from '../../../core/toast/toast.service';
 import { RecipeListComponent } from './recipe-list.component';
+import { RecipesLibraryState } from './recipes-library-state.service';
 import { RecipeCard, RecipePageOf } from './recipes.models';
 import { RecipesService } from './recipes.service';
 import { card, recipesServiceStub } from './recipes-testing.spec';
@@ -33,6 +34,108 @@ describe('RecipeListComponent', () => {
     Array.from(el(fixture).querySelectorAll<HTMLButtonElement>(`[aria-label="${group}"] button`));
   const lastQuery = () => service.list.calls.mostRecent().args[0];
   const cards = (count: number): RecipeCard[] => Array.from({ length: count }, (_, index) => card({ id: `r${index}`, name: `Recipe ${index}` }));
+
+  it('takes up search, filters and page again when the person comes back from a recipe', fakeAsync(() => {
+    const place = jasmine.createSpyObj<RecipesLibraryState>('RecipesLibraryState', ['take', 'keep']);
+    place.take.and.returnValue({ scope: 'library', q: 'salmon', category: 'Seafood', diet: 'VEGAN', saved: false, highProtein: true, sort: 'protein', page: 2, scrollY: 640 });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: RecipesService, useValue: service }, { provide: RecipesLibraryState, useValue: place }]
+    });
+    const scroll = spyOn(window, 'scrollTo');
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(place.take).toHaveBeenCalledWith('library');
+    expect(lastQuery()).toEqual(jasmine.objectContaining({ q: 'salmon', category: 'Seafood', diet: 'VEGAN', tag: 'HIGH_PROTEIN', page: 2 }));
+    expect((el(fixture).querySelector('input[type=search]') as HTMLInputElement).value).toBe('salmon');
+    expect(buttons(fixture, 'Show')[0].getAttribute('aria-pressed')).toBe('true');
+    expect(scroll).toHaveBeenCalledWith(0, 640);
+    expect(place.keep).toHaveBeenCalledWith(jasmine.objectContaining({ scope: 'library', q: 'salmon', page: 2, highProtein: true, sort: 'protein' }));
+    expect(lastQuery().sort).toBe('protein');
+  }));
+
+  it('starts at the top with no filters when there is nothing to come back to', fakeAsync(() => {
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+    expect(lastQuery()).toEqual(jasmine.objectContaining({ page: 0, q: '' }));
+    expect((el(fixture).querySelector('input[type=search]') as HTMLInputElement).value).toBe('');
+  }));
+
+  it('asks for the Fits today sort first and explains it with the numbers the server sent', fakeAsync(() => {
+    service.list.and.returnValue(of({ items: cards(2), page: 0, totalPages: 1, totalElements: 2, fit: { kcalLeft: 950, proteinShortGrams: 41, lowestNutrient: 'Vitamin D' } }));
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+
+    expect(lastQuery().sort).toBe('fit');
+    expect(buttons(fixture, 'Sort').map((button) => button.textContent?.trim())).toEqual(['Fits today', 'A to Z', 'Most protein']);
+    expect(buttons(fixture, 'Sort')[0].getAttribute('aria-pressed')).toBe('true');
+    expect(el(fixture).querySelector('.why')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('950 kcal left today, protein 41 g short, vitamin D lowest. Recipes that fit come first.');
+  }));
+
+  it('changes the sort, goes back to the first page and drops the line', fakeAsync(() => {
+    service.list.and.returnValue(of({ items: cards(2), page: 3, totalPages: 5, totalElements: 90, fit: { kcalLeft: 950, proteinShortGrams: null, lowestNutrient: null } }));
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+
+    buttons(fixture, 'Sort')[2].click();
+    tick();
+    fixture.detectChanges();
+
+    expect(lastQuery()).toEqual(jasmine.objectContaining({ sort: 'protein', page: 0 }));
+    expect(buttons(fixture, 'Sort')[2].getAttribute('aria-pressed')).toBe('true');
+    expect(el(fixture).querySelector('.why')).toBeNull();
+  }));
+
+  it('leaves Fits today out when the server sends no fit, and falls back to A to Z', fakeAsync(() => {
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+
+    expect(buttons(fixture, 'Sort').map((button) => button.textContent?.trim())).toEqual(['A to Z', 'Most protein']);
+    expect(buttons(fixture, 'Sort')[0].getAttribute('aria-pressed')).toBe('true');
+    expect(el(fixture).querySelector('.why')).toBeNull();
+  }));
+
+  it('shows the error panel when the server refuses the sort, and does not hide the sort', fakeAsync(() => {
+    service.list.and.callFake((query) => (query.sort ? throwError(() => new Error('bad sort')) : of({ items: cards(1), page: 0, totalPages: 1, totalElements: 1 })));
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+
+    expect(el(fixture).querySelector('app-state-panel')).not.toBeNull();
+    expect(lastQuery().sort).toBe('fit');
+  }));
+
+  it('sends no sort for My recipes and shows no sort control there', fakeAsync(() => {
+    const fixture = render('mine');
+    tick();
+    fixture.detectChanges();
+
+    expect(lastQuery().sort).toBeUndefined();
+    expect(el(fixture).querySelector('app-recipe-sort')).toBeNull();
+  }));
+
+  it('opens the Ready screen from the Cook button of a card and closes it again', fakeAsync(() => {
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+
+    (el(fixture).querySelector('app-recipe-card .cook') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('app-recipe-ready')).not.toBeNull();
+    expect(service.get).toHaveBeenCalledWith('r1');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('app-recipe-ready')).toBeNull();
+  }));
 
   it('shows skeletons while the library loads, then a card for each recipe', fakeAsync(() => {
     const pending = new Subject<RecipePageOf<RecipeCard>>();

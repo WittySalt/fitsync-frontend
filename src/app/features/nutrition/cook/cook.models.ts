@@ -30,6 +30,10 @@ export interface CookRecipe {
   id: string;
   name: string;
   imageUrl: string | null;
+  /** Calories in one serving, or null when the server sent none. */
+  kcalPerServing: number | null;
+  /** How many times it was cooked before this cook, 0 when the server sends none. */
+  cookCount: number;
   servings: number;
   ingredients: CookIngredient[];
   steps: CookStep[];
@@ -89,7 +93,8 @@ export function mapCookRecipe(wire: Wire): CookRecipe {
       id: String(item['ingredientId'] ?? ''),
       name,
       displayText: text(item['displayText']) || name,
-      grams: positive(item['grams']),
+      // 0 g stays 0, so the page can say "to taste"; a missing weight is still null.
+      grams: Number(item['grams']) === 0 && item['grams'] !== null && item['grams'] !== '' ? 0 : positive(item['grams']),
       foodGroup: asFoodGroup(text(item['foodGroup'])),
       categoryCode: text(item['categoryCode']) || null
     };
@@ -112,6 +117,8 @@ export function mapCookRecipe(wire: Wire): CookRecipe {
     id: String(wire['id'] ?? ''),
     name: text(wire['name']),
     imageUrl: text(wire['imageUrl']) || null,
+    kcalPerServing: positive((wire['perServing'] as Wire | null | undefined)?.['kcal']),
+    cookCount: Math.max(0, Math.round(Number(wire['cookCount']) || 0)),
     servings: positive(wire['servings']) ?? 1,
     ingredients,
     steps

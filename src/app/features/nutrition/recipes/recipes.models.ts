@@ -19,6 +19,16 @@ export interface RecipeCard {
   /** The plate groups with the most grams, largest first. They draw the cover when there is no photo. */
   topFoodGroups: FoodGroup[];
   favorite: boolean;
+  /** When the person last finished cooking it (an ISO moment), on the Cooked recently row; null otherwise. */
+  lastCookedAt: string | null;
+}
+
+/** What today leaves room for, sent with a list that is sorted by how well recipes fit (contract section 9). */
+export interface RecipeFit {
+  kcalLeft: number | null;
+  proteinShortGrams: number | null;
+  /** The vitamin or mineral the day is lowest on, by its display name. */
+  lowestNutrient: string | null;
 }
 
 export interface RecipePageOf<T> {
@@ -26,6 +36,8 @@ export interface RecipePageOf<T> {
   page: number;
   totalPages: number;
   totalElements: number;
+  /** Set when the server sorted by fit; null when it did not send it. */
+  fit?: RecipeFit | null;
 }
 
 export interface RecipeIngredient {
@@ -106,9 +118,14 @@ export interface RecipeDetail {
   dietFlags: string[];
   favorite: boolean;
   editable: boolean;
+  /** How many times the person finished cooking it, and when last (contract section 9.4). */
+  cookCount: number;
+  lastCookedAt: string | null;
 }
 
-export type RecipeScope = 'library' | 'mine' | 'favorites';
+export type RecipeScope = 'library' | 'mine' | 'favorites' | 'recent';
+
+export type RecipeSort = 'fit' | 'name' | 'protein';
 
 export interface RecipeQuery {
   scope: RecipeScope;
@@ -116,6 +133,7 @@ export interface RecipeQuery {
   q?: string;
   diet?: 'VEGETARIAN' | 'VEGAN';
   tag?: 'HIGH_PROTEIN' | 'HIGH_FIBRE' | 'HIGH_SUGAR' | 'HIGH_SALT';
+  sort?: RecipeSort;
   page?: number;
   size?: number;
 }

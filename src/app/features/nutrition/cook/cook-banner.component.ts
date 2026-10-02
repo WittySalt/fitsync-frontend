@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { servingsText } from './cook-format';
@@ -15,9 +15,6 @@ import { servingsText } from './cook-format';
     }
     <span class="shade" aria-hidden="true"></span>
     <div class="text">
-      <button type="button" class="close" aria-label="Leave cook mode" (click)="closed.emit()">
-        <app-food-glyph name="CLOSE" [size]="18" [strokeWidth]="2.2" />
-      </button>
       <div class="lines">
         <span class="kicker">Cooking</span>
         <strong class="name">{{ name() }}</strong>
@@ -33,7 +30,6 @@ export class CookBannerComponent {
   readonly servings = input(1);
   /** False when the browser has no Wake Lock API, so the page does not promise what it cannot do. */
   readonly screenStaysOn = input(true);
-  readonly closed = output<void>();
 
   protected readonly meta = computed(
     () => `${servingsText(this.servings())}${this.screenStaysOn() ? ' · the screen stays on' : ''}`

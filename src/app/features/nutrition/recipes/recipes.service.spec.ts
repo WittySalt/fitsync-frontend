@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { RecipeCard, RecipePageOf } from './recipes.models';
 import { MAX_SEARCH_LENGTH, RecipesService } from './recipes.service';
 
 describe('RecipesService', () => {
@@ -191,10 +192,46 @@ describe('RecipesService', () => {
     expect(failed).toBeTrue();
   });
 
+  it('reads the meals of the last 14 days with their foods, newest first, and leaves out empty ones', () => {
+    let meals: { mealId: string }[] = [];
+    service.recentMeals().subscribe((value) => (meals = value));
+    const request = http.expectOne((req) => req.url === `${base}/meals`);
+    const from = new Date(request.request.params.get('from') as string);
+    const to = new Date(request.request.params.get('to') as string);
+    const days = (to.getTime() - from.getTime()) / 86_400_000;
+    expect(days).toBeGreaterThan(13);
+    expect(days).toBeLessThanOrEqual(14);
+    expect(request.request.params.get('timezone')).toBeTruthy();
+    request.flush([
+      { mealId: 'old', consumedAt: '2026-09-20T12:00:00Z', items: [{ mealItemId: 'a', foodName: 'Rice' }] },
+      { mealId: 'empty', consumedAt: '2026-09-30T12:00:00Z', items: [] },
+      { mealId: 'new', consumedAt: '2026-10-01T12:00:00Z', items: [{ mealItemId: 'b', foodName: 'Oats' }] }
+    ]);
+    expect(meals.map((meal) => meal.mealId)).toEqual(['new', 'old']);
+  });
+
   it('sends the tag filter when given', () => {
     service.list({ scope: 'library', tag: 'HIGH_PROTEIN' }).subscribe();
     const request = http.expectOne((req) => req.url === `${base}/recipes`);
     expect(request.request.params.get('tag')).toBe('HIGH_PROTEIN');
+    request.flush({ content: [] });
+  });
+
+  it('sends the sort when given and reads the fit and lastCookedAt the server adds', () => {
+    let page: RecipePageOf<RecipeCard> | null = null;
+    service.list({ scope: 'recent', sort: 'fit', size: 6 }).subscribe((value) => (page = value));
+    const request = http.expectOne((req) => req.url === `${base}/recipes`);
+    expect(request.request.params.get('scope')).toBe('recent');
+    expect(request.request.params.get('sort')).toBe('fit');
+    request.flush({ content: [{ id: 'a', lastCookedAt: '2026-10-01T18:00:00Z' }], fit: { kcalLeft: 950 } });
+    expect(page!.items[0].lastCookedAt).toBe('2026-10-01T18:00:00Z');
+    expect(page!.fit).toEqual({ kcalLeft: 950, proteinShortGrams: null, lowestNutrient: null });
+  });
+
+  it('leaves the sort out when none is given', () => {
+    service.list({ scope: 'library' }).subscribe();
+    const request = http.expectOne((req) => req.url === `${base}/recipes`);
+    expect(request.request.params.has('sort')).toBeFalse();
     request.flush({ content: [] });
   });
 });

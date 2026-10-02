@@ -64,4 +64,9 @@ describe('cook recipe mapping', () => {
     const recipe = mapCookRecipe({ id: 'r', name: 'x', steps: [{ text: 'a', timers: [{ seconds: 60, maxSeconds: 60, eachSide: false, phrase: '1 min' }] }] });
     expect(recipe.steps[0].timer?.maxSeconds).toBeNull();
   });
+
+  it('keeps an ingredient of 0 g as 0 so it reads to taste, and a missing weight as null', () => {
+    const recipe = mapCookRecipe({ ingredients: [{ ingredientId: 'a', foodName: 'Salt', grams: 0 }, { ingredientId: 'b', foodName: 'Rice' }, { ingredientId: 'c', foodName: 'Oil', grams: 5 }] });
+    expect(recipe.ingredients.map((ingredient) => ingredient.grams)).toEqual([0, null, 5]);
+  });
 });

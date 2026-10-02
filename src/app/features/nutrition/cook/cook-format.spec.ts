@@ -30,4 +30,8 @@ describe('cook formatting', () => {
     expect(gramsText(56.4)).toBe('56 g');
     expect(gramsText(4.26)).toBe('4.3 g');
   });
+
+  it('writes 0 g as to taste', () => {
+    expect(gramsText(0)).toBe('to taste');
+  });
 });

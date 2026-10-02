@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 import { RecipeCoverComponent } from './recipe-cover.component';
-import { cardTags, heading, topGroupsOf } from './recipes-figures';
+import { cardTags, cookedLine, heading, topGroupsOf } from './recipes-figures';
 import { RecipeDetail } from './recipes.models';
 
 /** The top of a recipe page: the photo across the width with a dark gradient, and the category, name and tags over it. */
@@ -14,6 +14,9 @@ import { RecipeDetail } from './recipes.models';
     <div class="text">
       <span class="eyebrow">{{ eyebrow() }}</span>
       <h2>{{ recipe().name }}</h2>
+      @if (cooked(); as line) {
+        <span class="cooked">{{ line }}</span>
+      }
       @if (tags().length) {
         <div class="tags">
           @for (tag of tags(); track tag) {
@@ -31,4 +34,5 @@ export class RecipeHeroComponent {
   protected readonly groups = computed(() => topGroupsOf(this.recipe()));
   protected readonly eyebrow = computed(() => heading(this.recipe()));
   protected readonly tags = computed(() => cardTags(this.recipe()));
+  protected readonly cooked = computed(() => cookedLine(this.recipe().cookCount, this.recipe().lastCookedAt));
 }

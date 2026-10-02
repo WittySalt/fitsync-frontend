@@ -1,15 +1,16 @@
 import {
+  addedCount,
+  topGroups,
   hasAssignments,
   ingredientsOf,
   parseServings,
   scaleFactor,
   scaledGrams,
   splitAtPhrase,
+  splitIngredients,
   stepState,
   turnHeading,
-  turnSubject,
-  usedCount,
-  usedIds
+  turnSubject
 } from './cook-recipe';
 import { CookIngredient, CookRecipe, CookStep } from './cook.models';
 
@@ -28,6 +29,8 @@ const recipe: CookRecipe = {
   id: 'r1',
   name: 'Salmon salad',
   imageUrl: null,
+  kcalPerServing: 520,
+  cookCount: 0,
   servings: 2,
   ingredients: [salmon, oil, lime],
   steps: [step(1, ['i3']), step(2, ['i1', 'i2']), step(3, [])]
@@ -54,12 +57,26 @@ describe('cook recipe helpers', () => {
     expect(ingredientsOf(step(1, ['i2', 'zz', 'i1']), recipe.ingredients)).toEqual([oil, salmon]);
   });
 
-  it('counts an ingredient as used once an earlier step has it', () => {
-    expect([...usedIds(recipe.steps, 0)]).toEqual([]);
-    expect([...usedIds(recipe.steps, 1)]).toEqual(['i3']);
-    expect(usedCount(recipe, 1)).toBe(1);
-    expect(usedCount(recipe, 2)).toBe(3);
-    expect(usedCount(recipe, 5)).toBe(3);
+  it('orders the ingredients by the step that first uses them and sets the others apart', () => {
+    const extra = ingredient('i4', 'Salt');
+    const both = { ...recipe, ingredients: [extra, ...recipe.ingredients], steps: [step(1, ['i3']), step(2, ['i2', 'i1', 'i3'])] };
+    const split = splitIngredients(both);
+    expect(split.inSteps.map((item) => item.id)).toEqual(['i3', 'i2', 'i1']);
+    expect(split.loose.map((item) => item.id)).toEqual(['i4']);
+    expect(splitIngredients({ ...recipe, steps: [step(1, [])] }).inSteps).toEqual([]);
+  });
+
+  it('takes the three plate groups with the most grams', () => {
+    const more = {
+      ingredients: [ingredient('a', 'Rice', 'GRAINS', 300), ingredient('b', 'Salmon', 'PROTEIN', 200), ingredient('c', 'Milk', 'DAIRY', 50), ingredient('d', 'Salt', null, 500), ingredient('e', 'Oil', 'NUTS', 10), ingredient('f', 'Rice 2', 'GRAINS', 100)]
+    };
+    expect(topGroups(more)).toEqual(['GRAINS', 'PROTEIN', 'DAIRY']);
+    expect(topGroups({ ingredients: [] })).toEqual([]);
+  });
+
+  it('counts the ingredients ticked as added and ignores ids the recipe lacks', () => {
+    expect(addedCount(recipe, [])).toBe(0);
+    expect(addedCount(recipe, ['i1', 'zz', 'i3'])).toBe(2);
   });
 
   it('tells whether any step has ingredient ids', () => {

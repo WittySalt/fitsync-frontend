@@ -5,6 +5,7 @@ import {
   PerServing,
   RecipeCard,
   RecipeDetail,
+  RecipeFit,
   RecipeIngredient,
   RecipeNutrient,
   RecipePageOf,
@@ -51,7 +52,23 @@ export function mapRecipeCard(raw: Wire): RecipeCard {
     tags: words(raw['tags']),
     dietFlags: words(raw['dietFlags']),
     topFoodGroups: groups(raw['topFoodGroups']),
-    favorite: raw['favorite'] === true
+    favorite: raw['favorite'] === true,
+    lastCookedAt: text(raw['lastCookedAt'])
+  };
+}
+
+/** The fit block of a list, or null when the server sent none (an older backend). */
+export function mapFit(value: unknown): RecipeFit | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const raw = value as Wire;
+  const nutrient = raw['lowestNutrient'];
+  const lowest = typeof nutrient === 'object' && nutrient !== null ? text((nutrient as Wire)['displayName']) : text(nutrient);
+  return {
+    kcalLeft: num(raw['kcalLeft']),
+    proteinShortGrams: num(raw['proteinShortGrams']),
+    lowestNutrient: lowest
   };
 }
 
@@ -61,7 +78,8 @@ export function mapRecipePage(raw: Wire): RecipePageOf<RecipeCard> {
     items,
     page: num(raw['number']) ?? 0,
     totalPages: num(raw['totalPages']) ?? (items.length ? 1 : 0),
-    totalElements: num(raw['totalElements']) ?? items.length
+    totalElements: num(raw['totalElements']) ?? items.length,
+    fit: mapFit(raw['fit'])
   };
 }
 
@@ -160,7 +178,9 @@ export function mapRecipeDetail(raw: Wire): RecipeDetail {
     tags: words(raw['tags']),
     dietFlags: words(raw['dietFlags']),
     favorite: raw['favorite'] === true,
-    editable: raw['editable'] === true
+    editable: raw['editable'] === true,
+    cookCount: Math.max(0, Math.round(num(raw['cookCount']) ?? 0)),
+    lastCookedAt: text(raw['lastCookedAt'])
   };
 }
 

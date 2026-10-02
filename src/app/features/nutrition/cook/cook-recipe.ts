@@ -1,3 +1,4 @@
+import { FoodGroup } from '../../../shared/food/food-groups';
 import { CookIngredient, CookRecipe, CookStep } from './cook.models';
 
 const MIN_SERVINGS = 0.25;
@@ -25,17 +26,38 @@ export function ingredientsOf(step: CookStep, ingredients: readonly CookIngredie
     .filter((ingredient): ingredient is CookIngredient => !!ingredient);
 }
 
-/** The ids used in the steps before the current one (the index is 0-based). */
-export function usedIds(steps: readonly CookStep[], currentIndex: number): Set<string> {
-  const used = new Set<string>();
-  steps.slice(0, Math.max(0, currentIndex)).forEach((step) => step.ingredientIds.forEach((id) => used.add(id)));
-  return used;
+/**
+ * The ingredients in the order the steps first use them, then the ones no step names. When no step
+ * names any, they are all in the second list and the page shows them as one plain list.
+ */
+export function splitIngredients(recipe: CookRecipe): { inSteps: CookIngredient[]; loose: CookIngredient[] } {
+  const seen = new Set<string>();
+  const inSteps: CookIngredient[] = [];
+  for (const step of recipe.steps) {
+    for (const ingredient of ingredientsOf(step, recipe.ingredients)) {
+      if (!seen.has(ingredient.id)) {
+        seen.add(ingredient.id);
+        inSteps.push(ingredient);
+      }
+    }
+  }
+  return { inSteps, loose: recipe.ingredients.filter((ingredient) => !seen.has(ingredient.id)) };
 }
 
-/** How many of the recipe's ingredients are used before the current step. */
-export function usedCount(recipe: CookRecipe, currentIndex: number): number {
-  const used = usedIds(recipe.steps, currentIndex);
-  return recipe.ingredients.filter((ingredient) => used.has(ingredient.id)).length;
+/** The three plate groups with the most grams, for the cover of a recipe that has no photo. */
+export function topGroups(recipe: Pick<CookRecipe, 'ingredients'>): FoodGroup[] {
+  const grams = new Map<FoodGroup, number>();
+  for (const ingredient of recipe.ingredients) {
+    if (ingredient.foodGroup) {
+      grams.set(ingredient.foodGroup, (grams.get(ingredient.foodGroup) ?? 0) + (ingredient.grams ?? 0));
+    }
+  }
+  return [...grams.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([group]) => group);
+}
+
+/** How many of the recipe's ingredients are ticked as added. */
+export function addedCount(recipe: CookRecipe, added: readonly string[]): number {
+  return recipe.ingredients.filter((ingredient) => added.includes(ingredient.id)).length;
 }
 
 /** False while the backend sends no ingredient ids, so the page shows plain lists instead of progress. */

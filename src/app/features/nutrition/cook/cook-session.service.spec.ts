@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { CookTimerDef } from './cook.models';
 import { COOK_SESSION_KEY, CookSessionService } from './cook-session.service';
-import { adjustStage, startStage } from './cook-timer';
+import { pauseTimer, setRemaining, startStage } from './cook-timer';
 
 const sides: CookTimerDef = { seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins' };
 const single: CookTimerDef = { seconds: 600, maxSeconds: null, eachSide: false, phrase: '10 minutes' };
@@ -73,7 +73,7 @@ describe('CookSessionService', () => {
     service.goTo(1);
     service.tickNow(Date.now() + 181_000);
     expect(service.data()!.timers[0].phase).toBe('turn');
-    expect(service.alerts()).toEqual([{ step: 0, kind: 'turn', eachSide: true }]);
+    expect(service.alerts()).toEqual([{ key: 's0', step: 0, kind: 'turn', eachSide: true, name: null }]);
     expect(service.ended()?.kind).toBe('turn');
   });
 
@@ -113,13 +113,13 @@ describe('CookSessionService', () => {
     service.act(0, startStage);
     service.goTo(1);
     service.tickNow(Date.now() + 601_000);
-    service.dismissAlert(0);
+    service.dismissAlert('s0');
     expect(service.alerts()).toEqual([]);
   });
 
   it('changes the stage length only through the timer functions', () => {
     service.open(meta, [sides]);
-    service.act(0, (state) => adjustStage(state, 1));
+    service.act(0, (state, now) => setRemaining(state, now, 240));
     expect(service.data()!.timers[0].stageSeconds).toBe(240);
   });
 
@@ -136,6 +136,116 @@ describe('CookSessionService', () => {
     service.open(meta, [sides]);
     service.leave(true);
     expect(service.data()).toBeNull();
+  });
+
+  it('keeps a session with progress but no running timer, and takes it up again', () => {
+    service.open(meta, [null, sides, null]);
+    service.goTo(1);
+    service.toggleAdded('i1');
+    service.leave(true);
+    expect(service.hasProgress()).toBeTrue();
+    expect(service.data()?.step).toBe(1);
+    service.open(meta, [null, sides, null]);
+    expect(service.step()).toBe(1);
+    expect(service.data()?.added).toEqual(['i1']);
+    service.open({ ...meta, recipeId: 'other' }, [null, sides, null]);
+    expect(service.step()).toBe(0);
+    expect(service.data()?.added).toEqual([]);
+  });
+
+  it('remembers when cooking began and keeps it when the session is taken up again', () => {
+    const before = Date.now();
+    service.open(meta, [null, sides]);
+    const started = service.data()!.startedAt;
+    expect(started).toBeGreaterThanOrEqual(before);
+    service.goTo(1);
+    service.leave(true);
+    service.open(meta, [null, sides]);
+    expect(service.data()!.startedAt).toBe(started);
+    service.open({ ...meta, recipeId: 'other' }, [null, sides]);
+    expect(service.data()!.startedAt).toBeGreaterThanOrEqual(started);
+  });
+
+  it('makes a cook id when cooking starts and keeps it through leaving and a reload', () => {
+    service.open(meta, [null, sides]);
+    const id = service.data()!.cookId;
+    expect(id.length).toBeGreaterThan(8);
+    service.goTo(1);
+    service.leave(true);
+    service.open(meta, [null, sides]);
+    expect(service.data()!.cookId).toBe(id);
+    expect(create().data()!.cookId).toBe(id);
+    service.open({ ...meta, recipeId: 'other' }, [null, sides]);
+    expect(service.data()!.cookId).not.toBe(id);
+  });
+
+  it('ticks an ingredient and takes the tick off again, and keeps ticks through a reload', () => {
+    service.open(meta, [sides]);
+    service.toggleAdded('i1');
+    service.toggleAdded('i2');
+    service.toggleAdded('i1');
+    expect(service.data()?.added).toEqual(['i2']);
+    const again = create();
+    expect(again.data()?.added).toEqual(['i2']);
+    again.clear();
+  });
+
+  it('ticks or clears a group of ingredients at once', () => {
+    service.open(meta, [sides]);
+    service.toggleAdded('keep');
+    service.setAdded(['a', 'b'], true);
+    expect(service.data()?.added).toEqual(['keep', 'a', 'b']);
+    service.setAdded(['a', 'b'], true);
+    expect(service.data()?.added).toEqual(['keep', 'a', 'b']);
+    service.setAdded(['a', 'b'], false);
+    expect(service.data()?.added).toEqual(['keep']);
+  });
+
+  it('adds timers to a step, any number, next to the one found in the text', () => {
+    service.open({ ...meta, imageUrl: 'https://img/x.jpg' }, [sides, null]);
+    expect(service.data()?.stepCount).toBe(2);
+    expect(service.addCustom(0, ' Oven preheating ', 10)).toBeTrue();
+    expect(service.addCustom(0, '', 3)).toBeTrue();
+    expect(service.addCustom(1, 'Rice', 12)).toBeTrue();
+    const customs = service.data()!.customs;
+    expect(customs.map((c) => [c.id, c.step, c.name, c.state.phase])).toEqual([
+      [1, 0, 'Oven preheating', 'running'],
+      [2, 0, '', 'running'],
+      [3, 1, 'Rice', 'running']
+    ]);
+    expect(service.liveTimers().map((t) => t.key)).toEqual(['c2', 'c1', 'c3']);
+    expect(service.liveTimers().find((t) => t.key === 'c1')?.name).toBe('Oven preheating');
+    expect(service.hasLive()).toBeTrue();
+  });
+
+  it('refuses a timer with no sense in it', () => {
+    service.open(meta, [sides]);
+    expect(service.addCustom(0, 'x', 0)).toBeFalse();
+    expect(service.addCustom(0, 'x', 721)).toBeFalse();
+    expect(service.addCustom(5, 'x', 5)).toBeFalse();
+    expect(service.data()!.customs).toEqual([]);
+  });
+
+  it('changes and removes a timer the cook added', () => {
+    service.open(meta, [null]);
+    service.addCustom(0, 'Rice', 5);
+    service.actCustom(1, pauseTimer);
+    expect(service.data()!.customs[0].state.phase).toBe('paused');
+    service.removeCustom(1);
+    expect(service.data()!.customs).toEqual([]);
+  });
+
+  it('raises an alert when a timer the cook added ends on another step, and keeps it through a reload', () => {
+    service.open(meta, [null, null]);
+    service.addCustom(0, 'Oven preheating', 1);
+    service.goTo(1);
+    const again = create();
+    expect(again.data()!.customs.length).toBe(1);
+    again.tickNow(Date.now() + 61_000);
+    expect(again.alerts()).toEqual([{ key: 'c1', step: 0, kind: 'done', eachSide: false, name: 'Oven preheating' }]);
+    again.dismissAlert('c1');
+    expect(again.alerts()).toEqual([]);
+    again.clear();
   });
 
   it('ignores a broken stored record', () => {

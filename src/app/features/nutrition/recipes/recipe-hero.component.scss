@@ -82,3 +82,8 @@ h2 {
     font-size: 30px;
   }
 }
+
+.cooked {
+  font-size: 13px;
+  color: var(--text-on-hero-muted, var(--text-on-hero));
+}

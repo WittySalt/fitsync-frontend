@@ -43,9 +43,9 @@ import { RecipeDetail } from './recipes.models';
       </div>
     }
     <button class="log" type="button" [disabled]="busy()" (click)="log.emit()">Log {{ label() }} · {{ kcal() }} kcal</button>
-    <a class="cook" [routerLink]="['/nutrition/recipes', recipe().id, 'cook']">
+    <button class="cook" type="button" (click)="cook.emit()">
       <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5Z" /></svg>Start cooking
-    </a>
+    </button>
     <div class="pair">
       @if (recipe().editable) {
         <a class="small" [routerLink]="['/nutrition/recipes', recipe().id, 'edit']">Edit</a>
@@ -75,6 +75,8 @@ export class EatCardComponent {
   readonly mealType = model('LUNCH');
   readonly busy = input(false);
   readonly log = output<void>();
+  /** Start cooking: the page opens the Ready screen. */
+  readonly cook = output<void>();
   readonly favourite = output<void>();
   readonly makeMine = output<void>();
   readonly addToSaved = output<void>();

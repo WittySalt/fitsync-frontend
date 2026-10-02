@@ -1,4 +1,5 @@
 import { FoodDetail } from '../../../core/fitsync.models';
+import { DiaryMeal } from '../diary/diary.models';
 import { FoodGroup } from '../../../shared/food/food-groups';
 import { PerServing, RecipeDraft } from './recipes.models';
 
@@ -144,4 +145,116 @@ export function parseAmount(text: string): number | null {
   }
   const value = Number(trimmed);
   return Number.isFinite(value) ? value : null;
+}
+
+// ---- reordering, categories and the live preview
+
+/** A list with one item moved from one place to another. A place out of range leaves the list as it is. */
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
+    return [...items];
+  }
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+/**
+ * The category code a category name stands for: "Meat & Poultry" is MEAT_POULTRY. The food search
+ * names the category but sends no code, and the plate group and the icon come from the code.
+ */
+export function categoryCodeOf(name: string | null | undefined): string | null {
+  const code = (name ?? '').toUpperCase().replace(/[^A-Z]+/g, '_').replace(/^_+|_+$/g, '');
+  return code === '' ? null : code;
+}
+
+/** The three plate groups with the most grams among the rows, largest first. Rows without a group or an amount are left out. */
+export function rowGroups(rows: readonly EditorRow[]): FoodGroup[] {
+  const grams = new Map<FoodGroup, number>();
+  for (const row of rows) {
+    if (row.group) {
+      grams.set(row.group, (grams.get(row.group) ?? 0) + (row.grams ?? 0));
+    }
+  }
+  return [...grams.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([group]) => group);
+}
+
+const KCAL_PER_PROTEIN_GRAM = 4;
+const NON_VEGETARIAN = new Set(['MEAT_POULTRY', 'SEAFOOD']);
+const NON_VEGAN = new Set(['MEAT_POULTRY', 'SEAFOOD', 'DAIRY', 'EGGS']);
+
+/**
+ * The tags the recipe page will most likely show, worked out from the rows with the thresholds of
+ * API contract section 7.2 (per 100 g of the ingredients): protein at least 20% of the energy and 3 g,
+ * fibre 6 g, sugar over 22.5 g, sodium over 600 mg; Vegetarian and Vegan when every row has a
+ * category. Nothing is said while a row has no amount or no figures. The server's tags are the ones
+ * that count once the recipe is saved.
+ */
+export function previewTags(rows: readonly EditorRow[]): string[] {
+  if (rows.length === 0 || rows.some((row) => !row.detail || row.grams === null || !(row.grams > 0))) {
+    return [];
+  }
+  let weight = 0;
+  let kcal = 0;
+  let protein = 0;
+  let fibre = 0;
+  let sugar = 0;
+  let sodium = 0;
+  for (const row of rows) {
+    const detail = row.detail as FoodDetail;
+    const factor = basisFactor(detail, row.grams as number);
+    weight += row.grams as number;
+    kcal += detail.calories * factor;
+    protein += detail.proteinGrams * factor;
+    fibre += (detail.fiberGrams ?? 0) * factor;
+    sugar += (detail.sugarGrams ?? 0) * factor;
+    sodium += (detail.sodiumMg ?? 0) * factor;
+  }
+  const per100 = (value: number) => (value / weight) * 100;
+  const tags: string[] = [];
+  if (per100(protein) >= 3 && kcal > 0 && (protein * KCAL_PER_PROTEIN_GRAM) / kcal >= 0.2) {
+    tags.push('High protein');
+  }
+  if (per100(fibre) >= 6) {
+    tags.push('High fibre');
+  }
+  if (per100(sugar) > 22.5) {
+    tags.push('High sugar');
+  }
+  if (per100(sodium) > 600) {
+    tags.push('High salt');
+  }
+  if (rows.every((row) => row.categoryCode)) {
+    const codes = rows.map((row) => (row.categoryCode ?? '').toUpperCase());
+    if (!codes.some((code) => NON_VEGAN.has(code))) {
+      tags.push('Vegan');
+    } else if (!codes.some((code) => NON_VEGETARIAN.has(code))) {
+      tags.push('Vegetarian');
+    }
+  }
+  return tags;
+}
+
+/** An ingredient row taken from a food of a logged meal; the page gives it a key and loads its figures. */
+export type RowSeed = Omit<EditorRow, 'key' | 'detail'>;
+
+/**
+ * The foods of a logged meal as ingredient rows, with the grams that were logged. A food logged in
+ * servings has no weight and gets none, so the person fills it in. A custom food has no catalogue
+ * entry, which a recipe needs, so it is counted in `left` and not added.
+ */
+export function mealToRows(meal: Pick<DiaryMeal, 'items'>): { rows: RowSeed[]; left: number } {
+  const rows: RowSeed[] = [];
+  let left = 0;
+  for (const item of meal.items) {
+    const id = item.draft.foodCatalogItemId;
+    if (!id) {
+      left += 1;
+      continue;
+    }
+    const grams = item.gramsConsumed ?? (item.draft.unit.toLowerCase() === 'g' ? item.draft.quantity : null);
+    rows.push({ foodCatalogItemId: id, name: item.foodName, grams: grams !== null && grams > 0 ? Math.round(grams * 10) / 10 : null, group: item.foodGroup, categoryCode: item.categoryCode });
+  }
+  return { rows, left };
 }

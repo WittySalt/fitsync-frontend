@@ -2,7 +2,9 @@ import { Component, computed, effect, input, output, signal, untracked } from '@
 import { RouterLink } from '@angular/router';
 
 import { MEAL_SLOTS } from '../../dashboard/today/today-meals';
+import { CookContinueComponent } from '../cook/cook-continue.component';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
+import { CookedRecentlyComponent } from './cooked-recently.component';
 import { RecipeListComponent } from './recipe-list.component';
 import { SavedMealsComponent } from './saved-meals.component';
 
@@ -21,8 +23,9 @@ const SECTIONS: readonly { key: RecipeSection; label: string }[] = [
  */
 @Component({
   selector: 'app-recipes-tab',
-  imports: [FoodGlyphComponent, RecipeListComponent, RouterLink, SavedMealsComponent],
+  imports: [CookContinueComponent, CookedRecentlyComponent, FoodGlyphComponent, RecipeListComponent, RouterLink, SavedMealsComponent],
   template: `
+    <app-cook-continue />
     <div class="head">
       <div class="segmented" role="tablist" aria-label="Recipes">
         @for (entry of sections; track entry.key) {
@@ -49,6 +52,7 @@ const SECTIONS: readonly { key: RecipeSection; label: string }[] = [
     }
     @switch (current()) {
       @case ('library') {
+        <app-cooked-recently />
         <app-recipe-list scope="library" [logTo]="logTo()" />
       }
       @case ('mine') {

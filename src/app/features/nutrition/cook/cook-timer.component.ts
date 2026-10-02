@@ -4,6 +4,7 @@ import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { unlockSound } from './cook-alert-sound';
 import { clockText, durationText, rangeText } from './cook-format';
 import { turnHeading } from './cook-recipe';
+import { CookRetimeComponent } from './cook-retime.component';
 import { CookSegmentsComponent } from './cook-segments.component';
 import { TimerPhase, TimerState, remainingSeconds, segmentFills } from './cook-timer';
 
@@ -17,7 +18,7 @@ export const CELEBRATE_LOCK_MS = 1200;
  */
 @Component({
   selector: 'app-cook-timer',
-  imports: [CookSegmentsComponent, FoodGlyphComponent],
+  imports: [CookRetimeComponent, CookSegmentsComponent, FoodGlyphComponent],
   templateUrl: './cook-timer.component.html',
   styleUrl: './cook-timer.component.scss'
 })
@@ -35,9 +36,11 @@ export class CookTimerComponent implements OnDestroy {
   readonly paused = output<void>();
   readonly resumed = output<void>();
   readonly minuteAdded = output<void>();
-  readonly adjusted = output<1 | -1>();
+  /** The cook set a new time, in seconds: the time left, or the length before the start. */
+  readonly retimed = output<number>();
   readonly next = output<void>();
 
+  protected readonly editing = signal(false);
   protected readonly celebrating = signal(false);
   protected readonly locked = signal(false);
   private previous: TimerPhase | null = null;
@@ -48,6 +51,9 @@ export class CookTimerComponent implements OnDestroy {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   protected readonly phase = computed(() => this.state().phase);
+  protected readonly minutesLeft = computed(() => Math.max(1, Math.ceil(remainingSeconds(this.state(), this.now()) / 60)));
+  /** The recipe's own time in minutes, for Reset. */
+  protected readonly recipeMinutes = computed(() => Math.max(1, Math.round(this.state().recipeSeconds / 60)));
   protected readonly clock = computed(() => clockText(remainingSeconds(this.state(), this.now())));
   protected readonly fills = computed(() => segmentFills(this.state(), this.now()));
   protected readonly range = computed(() => {
@@ -84,7 +90,7 @@ export class CookTimerComponent implements OnDestroy {
   protected readonly startLabel = computed(() =>
     this.state().phase === 'turn' ? 'Start the second side' : this.state().eachSide ? 'Start the first side' : 'Start timer'
   );
-  protected readonly nextLabel = computed(() => (this.lastStep() ? 'Finish cooking' : 'Next step'));
+  protected readonly nextLabel = computed(() => (this.lastStep() ? 'Finish cooking' : 'Next step \u2192'));
 
   constructor() {
     effect(() => {
@@ -122,6 +128,11 @@ export class CookTimerComponent implements OnDestroy {
     } else {
       this.next.emit();
     }
+  }
+
+  protected retime(minutes: number): void {
+    this.editing.set(false);
+    this.retimed.emit(minutes * 60);
   }
 
   private celebrate(): void {

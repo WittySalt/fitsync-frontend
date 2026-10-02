@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, Observable, catchError, expand, map, of, reduce, shareReplay } from 'rxjs';
 
+import { DiaryMeal } from '../diary/diary.models';
+import { mapDiaryMeal } from '../diary/diary-mappers';
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { mapRecipeDetail, mapRecipePage, mapSavedMeal } from './recipes-mappers';
 import { RecipeCard, RecipeDetail, RecipeDraft, RecipePageOf, RecipeQuery, SavedMeal } from './recipes.models';
@@ -46,6 +48,9 @@ export class RecipesService {
     }
     if (query.tag) {
       params = params.set('tag', query.tag);
+    }
+    if (query.sort) {
+      params = params.set('sort', query.sort);
     }
     return this.http.get<Wire>(`${this.base}/recipes`, { params }).pipe(map((page) => mapRecipePage(page ?? {})));
   }
@@ -142,6 +147,22 @@ export class RecipesService {
         timezone: this.diary.timezone
       })
       .pipe(map((meal) => ({ mealId: typeof meal?.['mealId'] === 'string' ? meal['mealId'] : '' })));
+  }
+
+  /** The meals logged in the last days (today included), newest first, with their foods, to start a recipe from one. */
+  recentMeals(days = 14): Observable<DiaryMeal[]> {
+    const from = new Date();
+    from.setDate(from.getDate() - (days - 1));
+    from.setHours(0, 0, 0, 0);
+    const params = new HttpParams().set('from', from.toISOString()).set('to', new Date().toISOString()).set('timezone', this.diary.timezone);
+    return this.http.get<Wire[]>(`${this.base}/meals`, { params }).pipe(
+      map((meals) =>
+        (meals ?? [])
+          .map(mapDiaryMeal)
+          .filter((meal) => meal.items.length > 0)
+          .sort((a, b) => b.consumedAt.localeCompare(a.consumedAt))
+      )
+    );
   }
 
   // ---- saved meals

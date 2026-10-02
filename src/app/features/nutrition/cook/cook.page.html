@@ -1,6 +1,6 @@
 <div class="screen">
   @if (alert(); as current) {
-    <app-cook-alert [alert]="current" (acted)="answerAlert()" (later)="session.dismissAlert(current.step)" />
+    <app-cook-alert [alert]="current" (acted)="answerAlert()" (later)="session.dismissAlert(current.key)" />
   }
 
   @switch (status()) {
@@ -12,7 +12,7 @@
         <p>This recipe could not be opened for cooking.</p>
         <div class="state-actions">
           <button type="button" class="again" (click)="load()">Try again</button>
-          <button type="button" class="leave" (click)="close()">Back</button>
+          <button type="button" class="leave" (click)="close()">Exit</button>
         </div>
       </div>
     }
@@ -20,12 +20,12 @@
       @let r = recipe()!;
       @let s = step()!;
       <div class="page">
+        <app-cook-topbar [step]="index() + 1" [steps]="steps().length" (exited)="close()" />
         <app-cook-banner
           [name]="r.name"
           [imageUrl]="r.imageUrl"
           [servings]="servings()"
           [screenStaysOn]="wake.supported()"
-          (closed)="close()"
         />
 
         @if (chips().length > 0) {
@@ -38,7 +38,16 @@
           </aside>
 
           <main class="middle">
-            <app-cook-add-now [ingredients]="nowIngredients()" [stepNumber]="s.number" [stepCount]="steps().length" [factor]="factor()" />
+            <app-cook-add-now
+              [ingredients]="nowIngredients()"
+              [stepNumber]="s.number"
+              [stepCount]="steps().length"
+              [factor]="factor()"
+              [added]="added()"
+              [assigned]="assigned()"
+              (toggled)="toggleAdded($event)"
+              (allMarked)="markAll($event)"
+            />
 
             <p class="step">
               {{ text().before }}@if (text().match) {<span class="phrase">{{ text().match }}</span>}{{ text().after }}
@@ -55,24 +64,34 @@
                 (paused)="pause()"
                 (resumed)="resume()"
                 (minuteAdded)="addMinute()"
-                (adjusted)="adjust($event)"
+                (retimed)="retime($event)"
                 (next)="next()"
               />
             }
 
-            <details class="under">
-              <summary>Ingredients · {{ usedLabel() }}</summary>
-              <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" [bare]="true" />
+            <app-cook-custom-timers
+              [items]="customs()"
+              (added)="addTimer($event)"
+              (paused)="pauseCustom($event)"
+              (resumed)="resumeCustom($event)"
+              (minuteAdded)="minuteCustom($event)"
+              (removed)="removeCustom($event)"
+              (retimed)="retimeCustom($event.id, $event.seconds)"
+            />
+
+            <details class="under" [open]="listOpen()" (toggle)="listOpen.set($any($event.target).open)">
+              <summary>All ingredients · {{ addedLabel() }}</summary>
+              <app-cook-ingredients [ingredients]="lists().inSteps" [others]="lists().loose" [added]="added()" [factor]="factor()" [bare]="true" (toggled)="toggleAdded($event)" />
             </details>
 
             <div class="nav">
-              <button type="button" class="back" [disabled]="index() === 0" (click)="back()">Back</button>
-              <button type="button" class="forward" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step' }}</button>
+              <button type="button" class="back" [disabled]="index() === 0" (click)="back()">&larr; Previous step</button>
+              <button type="button" class="forward" [disabled]="recording()" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step \u2192' }}</button>
             </div>
           </main>
 
           <aside class="right" aria-label="Ingredients">
-            <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" />
+            <app-cook-ingredients [ingredients]="lists().inSteps" [others]="lists().loose" [added]="added()" [factor]="factor()" (toggled)="toggleAdded($event)" />
           </aside>
         </div>
 
@@ -88,19 +107,35 @@
           <button type="button" class="grip-button" aria-label="Close" (click)="sheetOpen.set(false)"><span class="grip"></span></button>
           <app-cook-steps [steps]="steps()" [current]="index()" (jumped)="jump($event)" />
           <div class="sheet-ingredients">
-            <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" />
+            <app-cook-ingredients [ingredients]="lists().inSteps" [others]="lists().loose" [added]="added()" [factor]="factor()" (toggled)="toggleAdded($event)" />
           </div>
         </section>
       }
     }
   }
 
+  @if (finishing()) {
+    @let finishedRecipe = recipe()!;
+    <app-cook-finished
+      [recipeId]="finishedRecipe.id"
+      [name]="finishedRecipe.name"
+      [imageUrl]="finishedRecipe.imageUrl"
+      [groups]="groups()"
+      [minutes]="minutes()"
+      [steps]="steps().length"
+      [servingsCooked]="servings()"
+      [kcalPerServing]="finishedRecipe.kcalPerServing"
+      [firstCook]="finishedRecipe.cookCount === 0"
+      (done)="close()"
+    />
+  }
+
   @if (leaving()) {
     <app-confirm-dialog
       [title]="leaveTitle()"
       [message]="leaveMessage()"
-      confirmLabel="Stop them"
-      cancelLabel="Keep them running"
+      [confirmLabel]="runningCount() === 1 ? 'Stop it' : 'Stop them'"
+      [cancelLabel]="runningCount() === 1 ? 'Keep it running' : 'Keep them running'"
       (confirmed)="answerLeave(false)"
       (cancelled)="answerLeave(true)"
     />

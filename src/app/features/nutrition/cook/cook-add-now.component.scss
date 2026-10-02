@@ -26,14 +26,77 @@ ul {
 li {
   flex: 1 1 180px;
   min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--tile) 45%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--tile) 14%, var(--surface));
+
+  &.added {
+    opacity: 0.6;
+  }
+}
+
+label {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--tile) 45%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--tile) 14%, var(--surface));
+  cursor: pointer;
+
+  input:focus-visible ~ .box {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+}
+
+.box {
+  flex: none;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent-text);
+
+  .added & {
+    border: 0;
+    background: var(--accent-subtle);
+  }
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.all {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+}
+
+.quiet {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 .icon {
@@ -69,6 +132,9 @@ li {
 @media (max-width: 560px) {
   li {
     flex-basis: 140px;
+  }
+
+  label {
     padding: 12px;
   }
 

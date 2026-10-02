@@ -50,6 +50,9 @@ export function gramsText(grams: number | null): string {
   if (grams === null) {
     return '';
   }
+  if (grams <= 0) {
+    return 'to taste';
+  }
   const value = grams >= 10 ? Math.round(grams) : Math.round(grams * 10) / 10;
   return `${value} g`;
 }
@@ -263,4 +266,125 @@ export function savedMealLine(meal: { items: readonly SavedMealItem[] }): string
   return meal.items
     .map((item) => (item.recipeId !== null ? `${item.foodName} · ${servingsLabel(item.recipeServings ?? item.quantity)}` : item.foodName))
     .join(', ');
+}
+
+// ---- before cooking
+
+export interface CookFigures {
+  steps: number;
+  /** How many steps hold a timer the recipe's text names. */
+  timers: number;
+  /** The time of those timers, added up (a timer for each side counts both sides). */
+  timerSeconds: number;
+}
+
+/** The three figures of the Ready screen, from the timers the server found in the steps. */
+export function cookFigures(recipe: Pick<RecipeDetail, 'steps'>): CookFigures {
+  let timers = 0;
+  let timerSeconds = 0;
+  for (const step of recipe.steps) {
+    const timer = step.timers[0];
+    if (timer) {
+      timers += 1;
+      timerSeconds += timer.seconds * (timer.eachSide ? 2 : 1);
+    }
+  }
+  return { steps: recipe.steps.length, timers, timerSeconds };
+}
+
+/** "about 15 min", "about 1 h 15 min", or "none" when no step names a time. */
+export function timersTotalText(seconds: number): string {
+  if (seconds <= 0) {
+    return 'none';
+  }
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `about ${hours > 0 ? `${hours} h${rest > 0 ? ` ${rest} min` : ''}` : `${rest} min`}`;
+}
+
+// ---- the library list
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+const DAY_MS = 86_400_000;
+
+/**
+ * When a recipe was last cooked, in words: "Cooked today", "Cooked yesterday", "Cooked Tuesday" within
+ * the last week, "Cooked last week" for the week before, then "Cooked 28 Sept". Days are the person's
+ * calendar days. Something that is not a date gives an empty string.
+ */
+export function cookedWhen(iso: string | null, now: Date = new Date()): string {
+  const moment = iso ? new Date(iso) : null;
+  if (!moment || Number.isNaN(moment.getTime())) {
+    return '';
+  }
+  const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const ago = Math.round((day(now) - day(moment)) / DAY_MS);
+  if (ago <= 0) {
+    return 'Cooked today';
+  }
+  if (ago === 1) {
+    return 'Cooked yesterday';
+  }
+  if (ago < 7) {
+    return `Cooked ${WEEKDAYS[moment.getDay()]}`;
+  }
+  if (ago < 14) {
+    return 'Cooked last week';
+  }
+  return `Cooked ${moment.getDate()} ${MONTHS[moment.getMonth()]}`;
+}
+
+/**
+ * The line under a recipe's title once it has been cooked: "Cooked 3 times · last on Tuesday". Days
+ * are the person's calendar days and read like Cooked recently ("today", "yesterday", a weekday, "last
+ * week", then a date). Nothing for a recipe never cooked.
+ */
+export function cookedLine(count: number, lastCookedAt: string | null, now: Date = new Date()): string {
+  if (count <= 0) {
+    return '';
+  }
+  const head = `Cooked ${count} ${count === 1 ? 'time' : 'times'}`;
+  const when = cookedWhen(lastCookedAt, now).replace(/^Cooked /, '');
+  if (!when) {
+    return head;
+  }
+  const phrase = when === 'last week' ? when : /^(today|yesterday)$/.test(when) ? `last ${when}` : `last on ${when}`;
+  return `${head} \u00b7 ${phrase}`;
+}
+
+export interface FitLine {
+  /** The figure in bold at the start, such as "950 kcal left today". */
+  lead: string;
+  /** The rest of the sentence, starting with a comma, or empty. */
+  rest: string;
+}
+
+function lowerFirst(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
+/**
+ * The line under the "Fits today" sort, built from the numbers the server sent with the list. A part
+ * the server left out is left out here; with none of them there is no line.
+ */
+export function fitLine(fit: { kcalLeft: number | null; proteinShortGrams: number | null; lowestNutrient: string | null } | null | undefined): FitLine | null {
+  if (!fit) {
+    return null;
+  }
+  const parts: string[] = [];
+  if (fit.kcalLeft !== null) {
+    parts.push(fit.kcalLeft > 0 ? `${Math.round(fit.kcalLeft).toLocaleString('en-US')} kcal left today` : 'No calories left today');
+  }
+  if (fit.proteinShortGrams !== null && fit.proteinShortGrams > 0) {
+    parts.push(`protein ${Math.round(fit.proteinShortGrams)} g short`);
+  }
+  if (fit.lowestNutrient) {
+    parts.push(`${lowerFirst(fit.lowestNutrient)} lowest`);
+  }
+  if (parts.length === 0) {
+    return null;
+  }
+  return { lead: parts[0], rest: `${parts.slice(1).map((part) => `, ${part}`).join('')}. Recipes that fit come first.` };
 }

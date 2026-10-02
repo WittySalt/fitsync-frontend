@@ -13,7 +13,9 @@ import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { AddToSavedDialogComponent } from './add-to-saved-dialog.component';
 import { EatCardComponent } from './eat-card.component';
 import { IngredientsCardComponent } from './ingredients-card.component';
+import { RecipeCoachRowComponent } from './recipe-coach-row.component';
 import { RecipeHeroComponent } from './recipe-hero.component';
+import { RecipeReadyComponent } from './recipe-ready.component';
 import { RecipeStepsComponent } from './recipe-steps.component';
 import { ServingHighlightsComponent } from './serving-highlights.component';
 import { SimilarRecipesComponent } from './similar-recipes.component';
@@ -40,7 +42,9 @@ interface TodayData {
     AddToSavedDialogComponent,
     EatCardComponent,
     IngredientsCardComponent,
+    RecipeCoachRowComponent,
     RecipeHeroComponent,
+    RecipeReadyComponent,
     RecipeStepsComponent,
     RouterLink,
     ServingHighlightsComponent,
@@ -49,7 +53,7 @@ interface TodayData {
   ],
   template: `
     <div class="page-grid recipe-page">
-      <a class="back" routerLink="/nutrition" [queryParams]="backQuery()">Recipes</a>
+      <a class="back" routerLink="/nutrition" [queryParams]="backQuery()" aria-label="Back to Recipes">&larr; Recipes</a>
       @let s = recipe();
       @if (s.status === 'loading') {
         <div class="skeleton hero-skeleton" aria-busy="true"></div>
@@ -84,10 +88,12 @@ interface TodayData {
               (favourite)="toggleFavorite(r)"
               (makeMine)="copy(r)"
               (addToSaved)="savedOpen.set(true)"
+              (cook)="readyOpen.set(true)"
             />
           </aside>
           <div class="main">
             <app-serving-highlights [perServing]="r.perServing" [tags]="r.tags" [fatTarget]="fatTarget()" [servingGrams]="servingGrams()" />
+            <app-recipe-coach-row [recipeId]="r.id" />
             <app-ingredients-card [recipeId]="r.id" [ingredients]="r.ingredients" [recipeServings]="r.servings" [servings]="servings()" />
             <app-recipe-steps [recipeId]="r.id" [steps]="r.steps" />
           </div>
@@ -95,9 +101,12 @@ interface TodayData {
         </div>
         <app-similar-recipes [cards]="similar()" [category]="r.category" />
         <div class="bar">
-          <a class="cook" [routerLink]="['/nutrition/recipes', r.id, 'cook']">Cook</a>
+          <button class="cook" type="button" (click)="readyOpen.set(true)">Cook</button>
           <button class="log" type="button" [disabled]="busy()" (click)="log(r)">Log {{ servingsText() }} · {{ kcal(scaled(r.perServing.kcal, servings())) }} kcal</button>
         </div>
+        @if (readyOpen()) {
+          <app-recipe-ready [recipeId]="r.id" [initialServings]="servings()" (closed)="readyOpen.set(false)" />
+        }
         @if (savedOpen()) {
           <app-add-to-saved-dialog [recipeId]="r.id" [recipeName]="r.name" [servings]="servings()" [mealType]="mealType()" (closed)="savedOpen.set(false)" />
         }
@@ -126,6 +135,7 @@ export class RecipePage {
   protected readonly mealType = signal(this.logTo ?? mealTypeByClock(new Date()));
   protected readonly busy = signal(false);
   protected readonly savedOpen = signal(false);
+  protected readonly readyOpen = signal(false);
 
   /** True when the server said there is no such recipe, which a retry cannot fix. */
   protected readonly missing = signal(false);

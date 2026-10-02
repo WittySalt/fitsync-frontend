@@ -1,6 +1,8 @@
 import { Component, computed, input, output } from '@angular/core';
 
 export interface TimingChip {
+  /** Tells two timers of one step apart. */
+  key: string;
   step: number;
   label: string;
   time: string;
@@ -17,7 +19,7 @@ const MAX_CHIPS = 2;
   selector: 'app-cook-also-timing',
   template: `
     <span class="label">Also timing</span>
-    @for (chip of shown(); track chip.step) {
+    @for (chip of shown(); track chip.key) {
       <button type="button" class="chip" [attr.aria-label]="chip.label + ', step ' + (chip.step + 1) + ', ' + chip.time + ' left'" (click)="jumped.emit(chip.step)">
         <svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
           <circle cx="14" cy="14" [attr.r]="radius" class="back" />

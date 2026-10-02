@@ -29,8 +29,8 @@ export class CookBarComponent {
     return this.session
       .liveTimers()
       .slice(0, MAX_SHOWN)
-      .map(({ step, state }) => {
-        const label = stageName(state) ?? `Step ${step + 1}`;
+      .map(({ step, state, name }) => {
+        const label = name !== null ? name || `Step ${step + 1} timer` : (stageName(state) ?? `Step ${step + 1}`);
         if (state.phase === 'turn') {
           return `Step ${step + 1}: turn it`;
         }

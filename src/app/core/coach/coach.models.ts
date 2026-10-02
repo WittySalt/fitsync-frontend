@@ -65,6 +65,8 @@ export type CoachSurfaceCode = 'HOME' | 'WORKOUT' | 'NUTRITION' | 'PROGRESS' | '
 export interface CoachMessageContext {
   surface: CoachSurfaceCode;
   readingId?: string;
+  /** The recipe a question is about, when it was asked from a recipe page. */
+  recipeId?: string;
   timezone?: string;
 }
 

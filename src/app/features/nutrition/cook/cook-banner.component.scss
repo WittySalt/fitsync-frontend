@@ -42,25 +42,6 @@
   padding: 0 24px;
 }
 
-.close {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--hero-glass-border);
-  border-radius: 12px;
-  background: var(--hero-glass);
-  color: var(--text-on-hero);
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: 2px solid var(--text-on-hero);
-    outline-offset: 2px;
-  }
-}
-
 .lines {
   min-width: 0;
   display: flex;
