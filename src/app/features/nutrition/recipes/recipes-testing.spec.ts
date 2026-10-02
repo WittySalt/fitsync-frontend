@@ -139,6 +139,7 @@ export function recipesServiceStub(): jasmine.SpyObj<RecipesService> {
     'remove',
     'setFavorite',
     'copy',
+    'recentMeals',
     'logRecipe',
     'savedMeals',
     'logSavedMeal',
@@ -152,6 +153,7 @@ export function recipesServiceStub(): jasmine.SpyObj<RecipesService> {
   stub.lookup.and.returnValue(of(detail()));
   stub.similar.and.returnValue(of([]));
   stub.savedMeals.and.returnValue(of([]));
+  stub.recentMeals.and.returnValue(of([]));
   stub.setFavorite.and.returnValue(of(undefined));
   stub.remove.and.returnValue(of(undefined));
   stub.logRecipe.and.returnValue(of({ mealId: 'm1' }));

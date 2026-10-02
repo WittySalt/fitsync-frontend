@@ -192,6 +192,24 @@ describe('RecipesService', () => {
     expect(failed).toBeTrue();
   });
 
+  it('reads the meals of the last 14 days with their foods, newest first, and leaves out empty ones', () => {
+    let meals: { mealId: string }[] = [];
+    service.recentMeals().subscribe((value) => (meals = value));
+    const request = http.expectOne((req) => req.url === `${base}/meals`);
+    const from = new Date(request.request.params.get('from') as string);
+    const to = new Date(request.request.params.get('to') as string);
+    const days = (to.getTime() - from.getTime()) / 86_400_000;
+    expect(days).toBeGreaterThan(13);
+    expect(days).toBeLessThanOrEqual(14);
+    expect(request.request.params.get('timezone')).toBeTruthy();
+    request.flush([
+      { mealId: 'old', consumedAt: '2026-09-20T12:00:00Z', items: [{ mealItemId: 'a', foodName: 'Rice' }] },
+      { mealId: 'empty', consumedAt: '2026-09-30T12:00:00Z', items: [] },
+      { mealId: 'new', consumedAt: '2026-10-01T12:00:00Z', items: [{ mealItemId: 'b', foodName: 'Oats' }] }
+    ]);
+    expect(meals.map((meal) => meal.mealId)).toEqual(['new', 'old']);
+  });
+
   it('sends the tag filter when given', () => {
     service.list({ scope: 'library', tag: 'HIGH_PROTEIN' }).subscribe();
     const request = http.expectOne((req) => req.url === `${base}/recipes`);

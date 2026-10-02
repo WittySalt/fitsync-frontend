@@ -6,10 +6,12 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { FoodDetail, FoodSearchResult } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
+import { item, meal } from '../diary/diary-testing.spec';
+import { EditorStartComponent } from './editor-start.component';
 import { IngredientPickerComponent } from './ingredient-picker.component';
 import { RecipeEditorPage } from './recipe-editor.page';
 import { RecipesService } from './recipes.service';
-import { detail, perServing, recipesServiceStub } from './recipes-testing.spec';
+import { card, detail, perServing, recipesServiceStub } from './recipes-testing.spec';
 
 const oatsDetail: FoodDetail = {
   foodId: 'f1',
@@ -229,6 +231,123 @@ describe('RecipeEditorPage', () => {
 
       expect(el(fixture).querySelector('[name="name"]')?.getAttribute('maxlength')).toBe('120');
       expect(el(fixture).querySelector('.steps textarea')?.getAttribute('maxlength')).toBe('1000');
+    });
+  });
+
+  describe('writing a recipe with the page beside it', () => {
+    const start = (fixture: ComponentFixture<RecipeEditorPage>) => fixture.debugElement.query(By.directive(EditorStartComponent)).componentInstance as EditorStartComponent;
+
+    it('shows the three ways to start for a new recipe and none when changing one', () => {
+      expect(el(render()).querySelector('app-editor-start')).not.toBeNull();
+      TestBed.resetTestingModule();
+      service.get.and.returnValue(of(detail({ id: 'r1', editable: true, scope: 'USER' })));
+      expect(el(render('r1')).querySelector('app-editor-start')).toBeNull();
+    });
+
+    it('draws the preview from what is typed: name, cover, tags, facts and a serving', () => {
+      const fixture = render();
+      type(fixture, '[name="name"]', 'Peanut banana oats');
+      addOats(fixture);
+      type(fixture, '.steps textarea', 'Stir the oats and simmer for 5 minutes.');
+
+      const preview = el(fixture).querySelector('app-recipe-preview') as HTMLElement;
+      expect(preview.querySelector('.title')?.textContent).toBe('Peanut banana oats');
+      expect(preview.querySelector('app-recipe-cover .fallback')).not.toBeNull();
+      expect(Array.from(preview.querySelectorAll('.facts div')).map((cell) => `${cell.querySelector('strong')?.textContent} ${cell.querySelector('span')?.textContent}`)).toEqual([
+        '2 servings',
+        '1 ingredient',
+        '1 step',
+        '1 timer'
+      ]);
+      expect(preview.querySelector('.tags')?.textContent).toContain('Vegan');
+      expect(el(fixture).querySelector('input[type=file]')).toBeNull();
+    });
+
+    it('gives a food added from the search its plate group, so it has an icon', () => {
+      const fixture = render();
+      addOats(fixture);
+      expect(el(fixture).querySelector('.rows li app-food-icon svg')).not.toBeNull();
+    });
+
+    it('reorders the ingredients and the steps, and saves them in the new order', () => {
+      data.getFoodDetail.and.callFake((id: string) => of({ ...oatsDetail, foodId: id, displayName: id }));
+      const fixture = render();
+      type(fixture, '[name="name"]', 'Oats');
+      const picker = fixture.debugElement.query(By.directive(IngredientPickerComponent)).componentInstance as IngredientPickerComponent;
+      picker.pick.emit({ ...oats, foodId: 'a', displayName: 'First' });
+      picker.pick.emit({ ...oats, foodId: 'b', displayName: 'Second' });
+      fixture.detectChanges();
+      (el(fixture).querySelectorAll('.rows li')[1].querySelector('.up') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(Array.from(el(fixture).querySelectorAll('.rows .name')).map((cell) => cell.textContent)).toEqual(['Second', 'First']);
+
+      type(fixture, '.steps li:first-child textarea', 'Mix.');
+      (el(fixture).querySelector('.steps ~ .link') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      type(fixture, '.steps li:last-child textarea', 'Serve.');
+      (el(fixture).querySelectorAll('.steps li')[1].querySelector('.up') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(Array.from(el(fixture).querySelectorAll<HTMLTextAreaElement>('.steps textarea')).map((box) => box.value)).toEqual(['Serve.', 'Mix.']);
+
+      submit(fixture);
+      expect(service.create).toHaveBeenCalledWith(jasmine.objectContaining({ steps: ['Serve.', 'Mix.'], ingredients: [jasmine.objectContaining({ foodCatalogItemId: 'b' }), jasmine.objectContaining({ foodCatalogItemId: 'a' })] }));
+    });
+
+    it('starts from a meal: its foods and grams become the ingredients, with their figures, and the meal name is the name', () => {
+      const fixture = render();
+      const logged = meal({ name: 'Dinner', items: [item({ gramsConsumed: 180 }), item({ mealItemId: 'c', foodName: 'Soup', draft: { ...item().draft, foodCatalogItemId: null, customFoodId: 'c1' } })] });
+
+      start(fixture).fromMeal.emit(logged);
+      fixture.detectChanges();
+
+      expect(Array.from(el(fixture).querySelectorAll('.rows .name')).map((cell) => cell.textContent)).toEqual(['Greek yogurt']);
+      expect((el(fixture).querySelector('.rows .grams input') as HTMLInputElement).value).toBe('180');
+      expect((el(fixture).querySelector('[name="name"]') as HTMLInputElement).value).toBe('Dinner');
+      expect(data.getFoodDetail).toHaveBeenCalledWith('food-1');
+      expect(macros(fixture)).toEqual(['342', '12 g', '61 g', '6 g']);
+      expect(toast.toasts().some((entry) => entry.type === 'info' && entry.message.includes('1 food you added by hand'))).toBeTrue();
+    });
+
+    it('keeps the name already typed and adds the meal after the foods already there', () => {
+      const fixture = render();
+      type(fixture, '[name="name"]', 'My own');
+      addOats(fixture);
+
+      start(fixture).fromMeal.emit(meal({ name: 'Dinner' }));
+      fixture.detectChanges();
+
+      expect(el(fixture).querySelectorAll('.rows li').length).toBe(2);
+      expect((el(fixture).querySelector('[name="name"]') as HTMLInputElement).value).toBe('My own');
+    });
+
+    it('asks for grams when a food of the meal was logged in servings', () => {
+      const fixture = render();
+      start(fixture).fromMeal.emit(meal({ items: [item({ gramsConsumed: null, draft: { ...item().draft, unit: 'serving', quantity: 2 } })] }));
+      fixture.detectChanges();
+
+      expect((el(fixture).querySelector('.rows .grams input') as HTMLInputElement).value).toBe('');
+      expect(toast.toasts().some((entry) => entry.message.includes('need an amount in grams'))).toBeTrue();
+    });
+
+    it('starts from a copy: copies the library recipe and opens the copy to change', () => {
+      service.copy.and.returnValue(of(detail({ id: 'copy-9', scope: 'USER', editable: true })));
+      const fixture = render();
+
+      start(fixture).recipeChosen.emit(card({ id: 'lib-1' }));
+
+      expect(service.copy).toHaveBeenCalledWith('lib-1');
+      expect(navigate).toHaveBeenCalledWith(['/nutrition/recipes', 'copy-9', 'edit']);
+      expect(toast.toasts().some((entry) => entry.type === 'success')).toBeTrue();
+    });
+
+    it('says so and stays when copying fails', () => {
+      service.copy.and.returnValue(throwError(() => new Error('no')));
+      const fixture = render();
+
+      start(fixture).recipeChosen.emit(card({ id: 'lib-1' }));
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(toast.toasts().some((entry) => entry.type === 'error')).toBeTrue();
     });
   });
 
