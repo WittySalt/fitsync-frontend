@@ -17,7 +17,7 @@ describe('NutrientPage', () => {
     sessionStorage.clear();
     service = jasmine.createSpyObj<NutrientsService>('NutrientsService', ['getAll', 'getOne']);
     service.getAll.and.callFake(() => of(overview()));
-    service.getOne.and.callFake((code: string) => of(detail({ tile: tile({ code, displayName: code === 'VITAMIN_E' ? 'Vitamin E' : 'Vitamin D' }) })));
+    service.getOne.and.callFake((code: string) => of(detail({ tile: tile({ code, displayName: code === 'VIT_E' ? 'Vitamin E' : 'Vitamin D' }) })));
     TestBed.configureTestingModule({
       providers: [
         { provide: NutrientsService, useValue: service },
@@ -29,7 +29,7 @@ describe('NutrientPage', () => {
     });
   });
 
-  async function open(url = '/nutrition/nutrients/VITAMIN_D?period=30d'): Promise<HTMLElement> {
+  async function open(url = '/nutrition/nutrients/VIT_D?period=30d'): Promise<HTMLElement> {
     harness = await RouterTestingHarness.create();
     await harness.navigateByUrl(url);
     harness.detectChanges();
@@ -39,7 +39,7 @@ describe('NutrientPage', () => {
 
   it('reads the nutrient of the URL for the period of the URL', async () => {
     await open();
-    expect(service.getOne).toHaveBeenCalledWith('VITAMIN_D', jasmine.any(String), jasmine.any(String));
+    expect(service.getOne).toHaveBeenCalledWith('VIT_D', jasmine.any(String), jasmine.any(String));
     const [, from, to] = service.getOne.calls.mostRecent().args;
     expect((new Date(to).getTime() - new Date(from).getTime()) / 86400000).toBe(29);
   });
@@ -93,7 +93,7 @@ describe('NutrientPage', () => {
 
   describe('back and the arrows', () => {
     it('goes back to All nutrients with the same period', async () => {
-      const el = await open('/nutrition/nutrients/VITAMIN_D?period=30d');
+      const el = await open('/nutrition/nutrients/VIT_D?period=30d');
       const back = el.querySelector<HTMLAnchorElement>('a.back');
       expect(back?.getAttribute('href')).toBe('/nutrition/nutrients?period=30d');
     });
@@ -115,7 +115,7 @@ describe('NutrientPage', () => {
     });
 
     it('steps through the table in order, replacing the history entry', async () => {
-      const el = await open('/nutrition/nutrients/VITAMIN_D?period=30d');
+      const el = await open('/nutrition/nutrients/VIT_D?period=30d');
       expect(el.querySelector('a[aria-label^="Previous nutrient"]')).toBeNull();
       expect(text(el.querySelector('.next-name'))).toContain('Vitamin E next');
       const router = TestBed.inject(Router);
@@ -123,9 +123,9 @@ describe('NutrientPage', () => {
       el.querySelector<HTMLAnchorElement>('a[aria-label^="Next nutrient"]')?.click();
       await harness.fixture.whenStable();
       harness.detectChanges();
-      expect(router.url).toBe('/nutrition/nutrients/VITAMIN_E?period=30d');
+      expect(router.url).toBe('/nutrition/nutrients/VIT_E?period=30d');
       expect(spy).not.toHaveBeenCalledWith(jasmine.anything(), jasmine.objectContaining({ replaceUrl: false }));
-      expect(service.getOne).toHaveBeenCalledWith('VITAMIN_E', jasmine.any(String), jasmine.any(String));
+      expect(service.getOne).toHaveBeenCalledWith('VIT_E', jasmine.any(String), jasmine.any(String));
       expect(el.querySelector('a[aria-label^="Previous nutrient"]')).not.toBeNull();
     });
 

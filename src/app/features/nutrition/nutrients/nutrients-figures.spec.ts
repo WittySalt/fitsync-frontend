@@ -91,9 +91,9 @@ describe('nutrient figures', () => {
 
     it('gives the order the arrows walk, with ends that have no neighbour', () => {
       const order = tableOrder(nutrients());
-      expect(order[0].code).toBe('VITAMIN_D');
-      expect(neighbours(order, 'VITAMIN_D')).toEqual({ previous: null, next: order[1] });
-      expect(neighbours(order, 'VITAMIN_E').previous?.code).toBe('VITAMIN_D');
+      expect(order[0].code).toBe('VIT_D');
+      expect(neighbours(order, 'VIT_D')).toEqual({ previous: null, next: order[1] });
+      expect(neighbours(order, 'VIT_E').previous?.code).toBe('VIT_D');
       expect(neighbours(order, 'SODIUM').next).toBeNull();
       expect(neighbours(order, 'UNKNOWN')).toEqual({ previous: null, next: null });
     });
@@ -104,7 +104,7 @@ describe('nutrient figures', () => {
       const summary = reachSummary(nutrients());
       expect(summary.total).toBe(6);
       expect(summary.reached).toBe(2);
-      expect(summary.lowest.map((item) => item.code)).toEqual(['VITAMIN_D', 'VITAMIN_E', 'POTASSIUM']);
+      expect(summary.lowest.map((item) => item.code)).toEqual(['VIT_D', 'VIT_E', 'POTASSIUM']);
     });
 
     it('leaves the unknown and the limits out of the lowest', () => {

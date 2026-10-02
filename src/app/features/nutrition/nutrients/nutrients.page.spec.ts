@@ -116,7 +116,7 @@ describe('NutrientsPage', () => {
     const el = await open('/nutrition/nutrients', 1000);
     el.querySelector<HTMLButtonElement>('app-nutrient-hero .chip')?.click();
     await harness.fixture.whenStable();
-    expect(TestBed.inject(Router).url).toContain('/nutrition/nutrients/VITAMIN_D');
+    expect(TestBed.inject(Router).url).toContain('/nutrition/nutrients/VIT_D');
   });
 
   it('shows a skeleton while it loads', async () => {

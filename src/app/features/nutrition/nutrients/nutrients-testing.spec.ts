@@ -4,7 +4,7 @@ import { NutrientDayValue, NutrientDetail, NutrientGroup, NutrientTileData, Nutr
 export function tile(overrides: Partial<NutrientTileData> = {}): NutrientTileData {
   const share = overrides.share === undefined ? 0.34 : overrides.share;
   return {
-    code: 'VITAMIN_D',
+    code: 'VIT_D',
     displayName: 'Vitamin D',
     unit: 'µg',
     groupCode: 'FAT_SOLUBLE',
@@ -34,9 +34,9 @@ const make = (code: string, name: string, symbol: string, group: NutrientGroup, 
 /** One nutrient of each kind, in table order. */
 export function nutrients(): NutrientTileData[] {
   return [
-    make('VITAMIN_D', 'Vitamin D', 'D', 'FAT_SOLUBLE', 0.34),
-    make('VITAMIN_E', 'Vitamin E', 'E', 'FAT_SOLUBLE', 0.61),
-    make('VITAMIN_C', 'Vitamin C', 'C', 'WATER_SOLUBLE', 1.04),
+    make('VIT_D', 'Vitamin D', 'D', 'FAT_SOLUBLE', 0.34),
+    make('VIT_E', 'Vitamin E', 'E', 'FAT_SOLUBLE', 0.61),
+    make('VIT_C', 'Vitamin C', 'C', 'WATER_SOLUBLE', 1.04),
     make('POTASSIUM', 'Potassium', 'K', 'MAJOR_MINERAL', 0.62, 19),
     make('IRON', 'Iron', 'Fe', 'TRACE_MINERAL', 1.88, 26),
     make('ZINC', 'Zinc', 'Zn', 'TRACE_MINERAL', null, 30),

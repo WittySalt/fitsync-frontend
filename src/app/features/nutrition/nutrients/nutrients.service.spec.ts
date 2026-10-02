@@ -24,16 +24,16 @@ describe('NutrientsService', () => {
     expect(request.request.params.get('from')).toBe('2026-09-26');
     expect(request.request.params.get('to')).toBe('2026-10-02');
     expect(request.request.params.get('timezone')).toBe(service.timezone);
-    request.flush({ daysLogged: 3, nutrients: [{ code: 'IRON', reference: 8, averageAmount: 4 }] });
+    request.flush({ daysLogged: 3, nutrients: [{ code: 'IRON', groupCode: 'TRACE_MINERAL', reference: 8, averageAmount: 4 }, { code: 'FIBER', groupCode: null, reference: 30 }] });
     expect(count).toBe(1);
   });
 
   it('reads one nutrient by its encoded code', () => {
     let name = '';
-    service.getOne('VITAMIN_D', '2026-10-02', '2026-10-02').subscribe((detail) => (name = detail.tile.displayName));
-    const request = http.expectOne((req) => req.url === '/api/v1/nutrition/nutrients/VITAMIN_D');
+    service.getOne('VIT_D', '2026-10-02', '2026-10-02').subscribe((detail) => (name = detail.tile.displayName));
+    const request = http.expectOne((req) => req.url === '/api/v1/nutrition/nutrients/VIT_D');
     expect(request.request.params.get('from')).toBe('2026-10-02');
-    request.flush({ code: 'VITAMIN_D', displayName: 'Vitamin D', reference: 15, guide: null });
+    request.flush({ code: 'VIT_D', displayName: 'Vitamin D', groupCode: 'FAT_SOLUBLE', reference: 15, guide: null });
     expect(name).toBe('Vitamin D');
   });
 

@@ -17,23 +17,13 @@ type Wire = Record<string, unknown>;
 const GROUPS: readonly NutrientGroup[] = ['FAT_SOLUBLE', 'WATER_SOLUBLE', 'MAJOR_MINERAL', 'TRACE_MINERAL', 'LIMIT'];
 
 /**
- * The group of a row. A server that sends no group code still gets its rows placed by kind, so the
- * table is never empty; limits and anything unrecognised go with the limits.
+ * The group of a row, or null for a nutrient the table does not show. The server sends no group
+ * code for fibre, cholesterol, alcohol and caffeine, so those are left out here rather than guessed
+ * into a group.
  */
-function groupOf(raw: Wire): NutrientGroup {
+function groupOf(raw: Wire): NutrientGroup | null {
   const code = text(raw['groupCode']);
-  const known = GROUPS.find((group) => group === code);
-  if (known) {
-    return known;
-  }
-  switch (raw['kind']) {
-    case 'VITAMIN':
-      return 'WATER_SOLUBLE';
-    case 'MINERAL':
-      return 'MAJOR_MINERAL';
-    default:
-      return 'LIMIT';
-  }
+  return GROUPS.find((group) => group === code) ?? null;
 }
 
 function mapDay(raw: Wire, reference: number): NutrientDayValue | null {
@@ -53,7 +43,8 @@ function mapDay(raw: Wire, reference: number): NutrientDayValue | null {
 export function mapNutrientTile(raw: Wire): NutrientTileData | null {
   const code = text(raw['code']);
   const reference = num(raw['reference']);
-  if (!code || reference === null || reference <= 0) {
+  const groupCode = groupOf(raw);
+  if (!code || reference === null || reference <= 0 || groupCode === null) {
     return null;
   }
   const average = num(raw['averageAmount']);
@@ -62,7 +53,7 @@ export function mapNutrientTile(raw: Wire): NutrientTileData | null {
     code,
     displayName: name,
     unit: text(raw['unit']) ?? '',
-    groupCode: groupOf(raw),
+    groupCode,
     symbol: text(raw['symbol']) ?? name.slice(0, 2),
     atomicNumber: num(raw['atomicNumber']),
     averageAmount: average,
@@ -142,7 +133,7 @@ export function mapNutrientGuide(raw: unknown): NutrientGuide | null {
   return empty ? null : guide;
 }
 
-/** The detail answer of a nutrient, or null when it has no code or no daily amount to measure against. */
+/** The detail answer of a nutrient, or null when it has no code, no group or no daily amount to measure against. */
 export function mapNutrientDetail(raw: Wire): NutrientDetail | null {
   const tile = mapNutrientTile(raw);
   if (!tile) {

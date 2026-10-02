@@ -2,7 +2,7 @@ import { mapNutrientDetail, mapNutrientGuide, mapNutrientTile, mapNutrientsOverv
 
 describe('nutrient mappers', () => {
   const wire = {
-    code: 'VITAMIN_D',
+    code: 'VIT_D',
     displayName: 'Vitamin D',
     unit: 'µg',
     groupCode: 'FAT_SOLUBLE',
@@ -17,7 +17,7 @@ describe('nutrient mappers', () => {
 
   it('maps a summary row with its group, symbol and days', () => {
     const tile = mapNutrientTile(wire);
-    expect(tile).toEqual(jasmine.objectContaining({ code: 'VITAMIN_D', groupCode: 'FAT_SOLUBLE', symbol: 'D', share: 0.34, atomicNumber: null }));
+    expect(tile).toEqual(jasmine.objectContaining({ code: 'VIT_D', groupCode: 'FAT_SOLUBLE', symbol: 'D', share: 0.34, atomicNumber: null }));
     expect(tile?.dayValues).toEqual([{ date: '2026-10-02', logged: true, amount: 7.5, share: 0.5 }]);
   });
 
@@ -37,11 +37,11 @@ describe('nutrient mappers', () => {
     expect(mapNutrientTile({ ...wire, reference: null })).toBeNull();
   });
 
-  it('places a row without a group code by its kind', () => {
-    const noGroup = { ...wire, groupCode: undefined };
-    expect(mapNutrientTile({ ...noGroup, kind: 'VITAMIN' })?.groupCode).toBe('WATER_SOLUBLE');
-    expect(mapNutrientTile({ ...noGroup, kind: 'MINERAL' })?.groupCode).toBe('MAJOR_MINERAL');
-    expect(mapNutrientTile({ ...noGroup, kind: 'LIMIT' })?.groupCode).toBe('LIMIT');
+  it('leaves out a nutrient the table does not show, which has no group code', () => {
+    expect(mapNutrientTile({ ...wire, groupCode: null, symbol: null })).toBeNull();
+    expect(mapNutrientTile({ ...wire, groupCode: 'SOMETHING_NEW' })).toBeNull();
+    const overview = mapNutrientsOverview({ nutrients: [wire, { ...wire, code: 'FIBER', groupCode: null, symbol: null }] });
+    expect(overview.nutrients.map((row) => row.code)).toEqual(['VIT_D']);
   });
 
   it('reads an overview and survives an empty answer', () => {
