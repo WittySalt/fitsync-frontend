@@ -44,6 +44,7 @@ function mapDay(raw: Wire): EnergyDay | null {
     resting: num(raw['resting']),
     workouts: num(raw['workouts']),
     workoutsEstimated: raw['workoutsEstimated'] === true,
+    today: raw['today'] === true,
     balance: num(raw['balance']),
     runningTotal: num(raw['runningTotal'])
   };

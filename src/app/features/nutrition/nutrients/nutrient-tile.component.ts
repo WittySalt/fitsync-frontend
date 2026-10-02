@@ -48,7 +48,7 @@ import { groupColour, sharePercent, tileFill, tileLabel, tileName, tileState } f
         </span>
       </span>
       <strong class="symbol">{{ nutrient().symbol }}</strong>
-      <span class="name">{{ name() }}</span>
+      <span class="name" [class.long]="name().length > 10">{{ name() }}</span>
     </button>
   `,
   styleUrl: './nutrient-tile.component.scss'

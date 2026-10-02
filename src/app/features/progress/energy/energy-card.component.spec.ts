@@ -6,7 +6,7 @@ import { EnergyApiService } from './energy-api.service';
 import { EnergyCardComponent } from './energy-card.component';
 import { EnergyWeek } from './energy.models';
 import { shiftWeek, thisMonday } from './energy-figures';
-import { energyWeek } from './energy-testing.spec';
+import { energyWeek, weekOnFriday } from './energy-testing.spec';
 import { toIsoDate } from '../../nutrition/diary/diary-time';
 
 describe('EnergyCardComponent', () => {
@@ -146,6 +146,18 @@ describe('EnergyCardComponent', () => {
       el.querySelectorAll<HTMLButtonElement>('app-energy-days .segmented button')[1].click();
       fixture.detectChanges();
       expect(el.querySelector('app-energy-days svg')?.getAttribute('aria-label')).toContain('Running total');
+    });
+  });
+
+  describe('today', () => {
+    it('draws today lighter with so far under it, and the adding up line stops at yesterday', () => {
+      api.getWeek.and.returnValue(of(weekOnFriday()));
+      const el = render();
+      expect(el.querySelectorAll('app-energy-days .eaten.sofar').length).toBe(1);
+      expect(text(el.querySelector('app-energy-days .labels'))).toContain('so far');
+      el.querySelectorAll<HTMLButtonElement>('app-energy-days .segmented button')[1].click();
+      fixture.detectChanges();
+      expect(el.querySelectorAll('app-energy-days .dot').length).toBe(4);
     });
   });
 

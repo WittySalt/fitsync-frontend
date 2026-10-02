@@ -56,6 +56,10 @@
   fill: var(--accent);
 }
 
+.eaten.sofar {
+  fill: color-mix(in srgb, var(--accent) 45%, var(--surface));
+}
+
 .area {
   fill: color-mix(in srgb, var(--accent) 12%, transparent);
 }

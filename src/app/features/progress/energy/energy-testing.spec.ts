@@ -12,7 +12,7 @@ export function days(): EnergyDay[] {
     const balance = BALANCES[index];
     const workouts = index === 1 ? 600 : index === 4 ? 300 : 0;
     if (balance === null) {
-      return { date, logged: false, eaten: null, resting: RESTING, workouts: 0, workoutsEstimated: false, balance: null, runningTotal: null };
+      return { date, logged: false, eaten: null, resting: RESTING, workouts: 0, workoutsEstimated: false, today: false, balance: null, runningTotal: null };
     }
     total += balance;
     return {
@@ -22,6 +22,7 @@ export function days(): EnergyDay[] {
       resting: RESTING,
       workouts,
       workoutsEstimated: index === 4,
+      today: false,
       balance,
       runningTotal: total
     };
@@ -53,6 +54,17 @@ export function energyWeek(overrides: Partial<EnergyWeek> = {}): EnergyWeek {
     ],
     ...overrides
   };
+}
+
+/** The board week seen on its Friday: Friday is today, with what was eaten so far, and the days after it have not happened. */
+export function weekOnFriday(): EnergyWeek {
+  const all = days().map((day, index): EnergyDay => {
+    if (index === 4) {
+      return { ...day, today: true, balance: null, runningTotal: null };
+    }
+    return index > 4 ? { ...day, logged: false, eaten: null, balance: null, runningTotal: null } : day;
+  });
+  return energyWeek({ days: all, daysLogged: 3 });
 }
 
 /** The same week as the server would send it. */

@@ -206,6 +206,8 @@ export interface DayColumn {
   logged: boolean;
   /** True when the workout calories of the day were estimated, shown as an approximate sign. */
   estimated: boolean;
+  /** Today, still going: what was eaten so far is drawn lighter and the label says "so far". */
+  today: boolean;
   /** The shadow: what the day used, as a percentage of the chart height. */
   shadow: number;
   /** What was eaten, drawn inside the shadow; null for a day that was not logged. */
@@ -242,16 +244,17 @@ export function dayColumns(week: EnergyWeek): DayColumns {
       label: weekdayOf(day.date),
       logged,
       estimated: day.workoutsEstimated,
+      today: day.today,
       shadow: (usedOf(day, week) / top) * 100,
       eaten: logged ? ((day.eaten ?? 0) / top) * 100 : null,
-      note: logged && day.balance !== null ? signedKcal(day.balance) : 'not logged'
+      note: day.today && logged ? 'so far' : logged && day.balance !== null ? signedKcal(day.balance) : 'not logged'
     };
   });
   return { top, grid, columns };
 }
 
 export function daysSummary(columns: readonly DayColumn[]): string {
-  const logged = columns.filter((column) => column.logged).length;
+  const logged = columns.filter((column) => column.logged && !column.today).length;
   const notes = columns.map((column) => `${column.label} ${column.note}`).join(', ');
   return `Each day of the week, food logged on ${logged} of ${columns.length} days. ${notes}.`;
 }
@@ -295,9 +298,12 @@ export function verticalScale(values: readonly number[], height: number, padTop:
 export function runningChart(week: EnergyWeek, width: number, height: number): RunningChart {
   const padX = 10;
   const count = week.days.length;
+  // The line stops at yesterday: today is not finished and the days after it have not happened.
+  const firstToday = week.days.findIndex((day) => day.today);
+  const counted = firstToday < 0 ? week.days : week.days.slice(0, firstToday);
   const x = (index: number): number => padX + ((width - padX * 2) * index) / Math.max(count, 1);
   const totals: { value: number; logged: boolean }[] = [{ value: 0, logged: true }];
-  for (const day of week.days) {
+  for (const day of counted) {
     const previous = totals[totals.length - 1].value;
     const logged = day.logged && day.runningTotal !== null;
     totals.push({ value: logged ? (day.runningTotal ?? previous) : previous, logged });
@@ -314,13 +320,13 @@ export function runningChart(week: EnergyWeek, width: number, height: number): R
       y: y(total.value),
       logged: total.logged,
       value: total.value,
-      label: index === 0 ? 'Start' : weekdayOf(week.days[index - 1].date)
+      label: index === 0 ? 'Start' : weekdayOf(counted[index - 1].date)
     })
   );
   const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${fixed(point.x)} ${fixed(point.y)}`).join(' ');
   const last = points[points.length - 1];
   const area = `${line} L${fixed(last.x)} ${fixed(y(0))} L${fixed(points[0].x)} ${fixed(y(0))} Z`;
-  const anyLogged = week.days.some((day) => day.logged);
+  const anyLogged = counted.some((day) => day.logged);
   return {
     points,
     line,
@@ -331,7 +337,8 @@ export function runningChart(week: EnergyWeek, width: number, height: number): R
 }
 
 export function runningSummary(chart: RunningChart, week: EnergyWeek): string {
-  const logged = week.days.filter((day) => day.logged).length;
+  const stop = week.days.findIndex((day) => day.today);
+  const logged = (stop < 0 ? week.days : week.days.slice(0, stop)).filter((day) => day.logged).length;
   return chart.end
     ? `Running total of the week, ${chart.end.text} after ${logged} logged days. Days without a food log add nothing.`
     : 'Running total of the week, no food logged yet.';

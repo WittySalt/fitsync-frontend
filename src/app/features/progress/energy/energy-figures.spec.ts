@@ -22,7 +22,7 @@ import {
   weeksChart,
   weeksSummary
 } from './energy-figures';
-import { energyWeek } from './energy-testing.spec';
+import { energyWeek, weekOnFriday } from './energy-testing.spec';
 
 describe('energy figures', () => {
   describe('the dial angle', () => {
@@ -182,6 +182,18 @@ describe('energy figures', () => {
       expect(columns().columns.filter((column) => column.estimated).map((column) => column.label)).toEqual(['Fri']);
     });
 
+    it('draws today with what was eaten so far and says so under it', () => {
+      const friday = dayColumns(weekOnFriday()).columns[4];
+      expect(friday.today).toBeTrue();
+      expect(friday.eaten).not.toBeNull();
+      expect(friday.note).toBe('so far');
+      expect(dayColumns(weekOnFriday()).columns[3].today).toBeFalse();
+    });
+
+    it('does not count today among the days logged in the text', () => {
+      expect(daysSummary(dayColumns(weekOnFriday()).columns)).toContain('food logged on 3 of 7 days');
+    });
+
     it('scales to the biggest day in steps of 500 with a gridline at each 1,000', () => {
       expect(columns().top).toBe(3000);
       expect(columns().grid.map((line) => line.kcal)).toEqual([1000, 2000, 3000]);
@@ -234,6 +246,13 @@ describe('energy figures', () => {
       expect(result.end).toBeNull();
       expect(new Set(result.points.map((point) => point.value))).toEqual(new Set([0]));
       expect(runningSummary(result, empty)).toBe('Running total of the week, no food logged yet.');
+    });
+
+    it('stops at yesterday: today and the days after it add no point', () => {
+      const result = runningChart(weekOnFriday(), 600, 170);
+      expect(result.points.map((point) => point.label)).toEqual(['Start', 'Mon', 'Tue', 'Wed', 'Thu']);
+      expect(result.end?.text).toBe('−544 kcal');
+      expect(runningSummary(result, weekOnFriday())).toContain('after 3 logged days');
     });
 
     it('has a text summary', () => {

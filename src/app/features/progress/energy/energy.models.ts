@@ -27,6 +27,8 @@ export interface EnergyDay {
   resting: number | null;
   workouts: number | null;
   workoutsEstimated: boolean;
+  /** Today, still going: eaten and workouts so far, no balance, and left out of every average. */
+  today: boolean;
   balance: number | null;
   runningTotal: number | null;
 }

@@ -21,6 +21,11 @@ describe('mapEnergyWeek', () => {
     expect(week?.days[0].logged).toBeFalse();
   });
 
+  it('marks today, which is still going', () => {
+    const week = mapEnergyWeek(energyWire({ days: [{ date: '2026-10-02', logged: true, eaten: 900, today: true }, { date: '2026-10-01', logged: true, eaten: 1800 }] }));
+    expect(week?.days.map((day) => day.today)).toEqual([true, false]);
+  });
+
   it('marks estimated workout days and the estimated resting figure', () => {
     const week = mapEnergyWeek(energyWire({ bmrEstimated: true }));
     expect(week?.bmrEstimated).toBeTrue();

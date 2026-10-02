@@ -30,7 +30,7 @@ const FALLBACK_WIDTH = 600;
         @for (column of columns().columns; track column.date; let index = $index) {
           <rect class="shadow" [class.empty]="!column.logged" [attr.x]="slot(index) - bar() / 2" [attr.y]="height() - (height() * column.shadow) / 100" [attr.width]="bar()" [attr.height]="(height() * column.shadow) / 100" rx="9"></rect>
           @if (column.eaten !== null) {
-            <rect class="eaten" [attr.x]="slot(index) - bar() / 2 + 5" [attr.y]="height() - (height() * column.eaten) / 100" [attr.width]="bar() - 10" [attr.height]="(height() * column.eaten) / 100" rx="6"></rect>
+            <rect class="eaten" [class.sofar]="column.today" [attr.x]="slot(index) - bar() / 2 + 5" [attr.y]="height() - (height() * column.eaten) / 100" [attr.width]="bar() - 10" [attr.height]="(height() * column.eaten) / 100" rx="6"></rect>
           }
         }
       </svg>
