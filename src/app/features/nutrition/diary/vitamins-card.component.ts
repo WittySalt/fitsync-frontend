@@ -1,5 +1,7 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 
+import { RouterLink } from '@angular/router';
+
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { Load, NutrientSummary } from './diary.models';
 import { VitaminsTodayComponent } from './vitamins-today.component';
@@ -16,7 +18,7 @@ const FAILURE = 'Vitamins and minerals could not load. Please retry.';
  */
 @Component({
   selector: 'app-vitamins-card',
-  imports: [StatePanelComponent, VitaminsTodayComponent, VitaminsWeekComponent],
+  imports: [RouterLink, StatePanelComponent, VitaminsTodayComponent, VitaminsWeekComponent],
   template: `
     <div class="head">
       <span class="eyebrow">Vitamins and minerals</span>
@@ -45,6 +47,7 @@ const FAILURE = 'Vitamins and minerals could not load. Please retry.';
         }
       </div>
     </div>
+    <a class="all" routerLink="/nutrition/nutrients">See all nutrients &rsaquo;</a>
   `,
   styleUrl: './vitamins-card.component.scss'
 })

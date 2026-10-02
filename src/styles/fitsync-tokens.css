@@ -91,6 +91,12 @@
   --food-spice:   #a8482a;
   --food-water:   #3b82c4;
 
+  /* ---------- NUTRIENT GROUPS (All nutrients): data colours, never used for app chrome ---------- */
+  --nutrient-fat-soluble:   #e8893a;
+  --nutrient-water-soluble: #f2b35e;
+  --nutrient-major-mineral: #4a8cc9;
+  --nutrient-trace-mineral: #86b7e3;
+
   /* ---------- TYPOGRAPHY ---------- */
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-sans:    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -208,6 +214,11 @@
   --food-sweets:  #e68ab2;
   --food-spice:   #d27a5a;
   --food-water:   #6aa9e8;
+
+  --nutrient-fat-soluble:   #f0a05e;
+  --nutrient-water-soluble: #f6c47e;
+  --nutrient-major-mineral: #74a9dc;
+  --nutrient-trace-mineral: #a3c9ec;
 }
 
 /* Optional: follow OS preference automatically when no explicit
@@ -249,6 +260,10 @@
     --food-sweets:  #e68ab2;
     --food-spice:   #d27a5a;
     --food-water:   #6aa9e8;
+    --nutrient-fat-soluble:   #f0a05e;
+    --nutrient-water-soluble: #f6c47e;
+    --nutrient-major-mineral: #74a9dc;
+    --nutrient-trace-mineral: #a3c9ec;
   }
 }
 

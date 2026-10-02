@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { LOADING, Load, NutrientDay, NutrientRow, NutrientSummary } from './diary.models';
 import { VitaminsCardComponent } from './vitamins-card.component';
@@ -42,6 +43,8 @@ const weekSummary = (): NutrientSummary =>
   });
 
 describe('VitaminsCardComponent', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+
   const ready = (data: NutrientSummary): Load<NutrientSummary> => ({ status: 'ready', data });
 
   function render(today: Load<NutrientSummary>, week: Load<NutrientSummary> = ready(weekSummary()), date = TODAY) {
@@ -54,6 +57,12 @@ describe('VitaminsCardComponent', () => {
     return fixture;
   }
   const el = (fixture: { nativeElement: unknown }): HTMLElement => fixture.nativeElement as HTMLElement;
+
+  it('ends with a link to all nutrients', () => {
+    const link = el(render(ready(summary()))).querySelector<HTMLAnchorElement>('a.all');
+    expect(link?.textContent).toContain('See all nutrients');
+    expect(link?.getAttribute('href')).toBe('/nutrition/nutrients');
+  });
 
   describe('the switch', () => {
     it('has Today and This week, starts on Today, and keeps both views in one stack', () => {

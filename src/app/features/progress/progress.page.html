@@ -47,6 +47,7 @@
 
   @if (selectedTab() === 'overview') {
     <section id="progress-panel-overview" class="progress-panel" role="tabpanel" aria-labelledby="progress-tab-overview">
+      <app-energy-card />
       <app-analytics-trend-charts />
       <app-analytics-comparison-card />
       <app-activity-heatmap [timezone]="accountData()?.user?.profile?.timezone ?? 'Asia/Singapore'" />

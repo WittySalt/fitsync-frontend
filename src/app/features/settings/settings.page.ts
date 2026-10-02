@@ -251,6 +251,11 @@ export class SettingsPage implements OnInit {
   });
 
   ngOnInit(): void {
+    // A link such as /settings?section=preferences opens that section.
+    const section = new URLSearchParams(this.router.url.split('?')[1] ?? '').get('section');
+    if (section) {
+      this.selectSection(section);
+    }
     this.load();
   }
 

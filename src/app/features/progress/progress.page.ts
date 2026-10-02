@@ -18,6 +18,7 @@ import { BodyPage } from '../body/body.page';
 import { ActivityHeatmapComponent } from './activity-heatmap.component';
 import { AnalyticsComparisonCardComponent } from './analytics-comparison-card.component';
 import { AnalyticsTrendChartsComponent } from './analytics-trend-charts.component';
+import { EnergyCardComponent } from './energy/energy-card.component';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
 interface GoalOption {
@@ -35,6 +36,7 @@ type ProgressTab = 'overview' | 'body' | 'goals';
     AnalyticsComparisonCardComponent,
     AnalyticsTrendChartsComponent,
     BodyPage,
+    EnergyCardComponent,
     ReactiveFormsModule,
     StatePanelComponent
   ],
