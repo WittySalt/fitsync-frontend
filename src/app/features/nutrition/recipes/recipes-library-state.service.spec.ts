@@ -7,7 +7,7 @@ import { RecipesLibraryState } from './recipes-library-state.service';
 @Component({ selector: 'app-blank', template: '' })
 class BlankComponent {}
 
-const snapshot = { scope: 'library' as const, q: 'salmon', category: 'Seafood', diet: null, saved: false, highProtein: true, page: 2 };
+const snapshot = { scope: 'library' as const, q: 'salmon', category: 'Seafood', diet: null, saved: false, highProtein: true, sort: 'name' as const, page: 2 };
 
 describe('RecipesLibraryState', () => {
   let state: RecipesLibraryState;

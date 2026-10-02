@@ -81,6 +81,16 @@ describe('CoachStore', () => {
     expect(store.pendingQuestion()).toBe('Should I train?');
   });
 
+  it('attaches the recipe a question is about to the context, for that question only', () => {
+    store.ask('Does this fit today?', { recipeId: 'r1' });
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Does this fit today?', { surface: 'HOME', recipeId: 'r1' });
+    stream.next({ name: 'answer', data: answer });
+    stream.complete();
+
+    store.ask('And tomorrow?');
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' });
+  });
+
   it('shows each step as it arrives, closing a tool when it finishes', () => {
     store.ask('Should I train?');
 

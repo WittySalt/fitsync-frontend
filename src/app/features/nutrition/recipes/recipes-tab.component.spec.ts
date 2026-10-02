@@ -33,6 +33,16 @@ describe('RecipesTabComponent', () => {
     expect(el(fixture).querySelector('.new')?.textContent).toContain('New recipe');
   });
 
+  it('shows Continue cooking above the sections and Cooked recently in the library only', () => {
+    const fixture = render();
+    expect(el(fixture).querySelector('app-cook-continue')).not.toBeNull();
+    expect(el(fixture).querySelector('app-cooked-recently')).not.toBeNull();
+    tabs(fixture)[1].click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('app-cooked-recently')).toBeNull();
+    expect(el(fixture).querySelector('app-cook-continue')).not.toBeNull();
+  });
+
   it('opens on the library', () => {
     const fixture = render();
 

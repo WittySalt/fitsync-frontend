@@ -47,6 +47,9 @@ export class RecipesService {
     if (query.tag) {
       params = params.set('tag', query.tag);
     }
+    if (query.sort) {
+      params = params.set('sort', query.sort);
+    }
     return this.http.get<Wire>(`${this.base}/recipes`, { params }).pipe(map((page) => mapRecipePage(page ?? {})));
   }
 

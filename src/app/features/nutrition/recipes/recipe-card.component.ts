@@ -1,6 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { RecipeCoverComponent } from './recipe-cover.component';
 import { cardTags, heading, isCaution } from './recipes-figures';
 import { RecipeCard } from './recipes.models';
@@ -8,11 +9,18 @@ import { RecipeCard } from './recipes.models';
 /** One recipe of the library or of My recipes: its cover, name, what a serving gives, tags and a heart to save it. */
 @Component({
   selector: 'app-recipe-card',
-  imports: [RouterLink, RecipeCoverComponent],
+  imports: [FoodGlyphComponent, RouterLink, RecipeCoverComponent],
   template: `
-    <a class="cover" [routerLink]="['/nutrition/recipes', card().id]" [queryParams]="query()" tabindex="-1" aria-hidden="true">
-      <app-recipe-cover [imageUrl]="card().imageUrl" [groups]="card().topFoodGroups" [credit]="true" ratio="16 / 9" />
-    </a>
+    <div class="media">
+      <a class="cover" [routerLink]="['/nutrition/recipes', card().id]" [queryParams]="query()" tabindex="-1" aria-hidden="true">
+        <app-recipe-cover [imageUrl]="card().imageUrl" [groups]="card().topFoodGroups" [credit]="true" ratio="16 / 9" />
+      </a>
+      @if (cookable()) {
+        <button class="cook" type="button" [attr.aria-label]="'Cook ' + card().name" (click)="cook.emit(card())">
+          <app-food-glyph name="PLAY" [size]="13" [strokeWidth]="2.4" />Cook
+        </button>
+      }
+    </div>
     <div class="body">
       <div class="top">
         <a class="name" [routerLink]="['/nutrition/recipes', card().id]" [queryParams]="query()">
@@ -54,7 +62,10 @@ export class RecipeCardComponent {
   readonly logTo = input<string | null>(null);
   /** The heart saves library recipes only. */
   readonly heart = input(true);
+  /** A Cook button on the cover opens the Ready screen; left out where a card should only open the recipe. */
+  readonly cookable = input(true);
   readonly favourite = output<RecipeCard>();
+  readonly cook = output<RecipeCard>();
 
   protected readonly grey = isCaution;
   protected readonly query = computed(() => (this.logTo() ? { logTo: this.logTo() } : null));

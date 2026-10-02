@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 
+import { CoachStore } from '../../../core/coach/coach.store';
 import { ToastService } from '../../../core/toast/toast.service';
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { diaryServiceStub, nutrientRow, spoken, summary } from '../diary/diary-testing.spec';
@@ -32,6 +33,7 @@ describe('RecipePage', () => {
         provideRouter([]),
         { provide: RecipesService, useValue: service },
         { provide: NutritionDiaryService, useValue: diary },
+        { provide: CoachStore, useValue: jasmine.createSpyObj<CoachStore>('CoachStore', ['open', 'ask']) },
         { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: 'r1' })), snapshot: { queryParamMap: convertToParamMap(query) } } }
       ]
     });
@@ -217,8 +219,26 @@ describe('RecipePage', () => {
       expect(service.logRecipe).toHaveBeenCalled();
     });
 
-    it('links Cook in the bar to cook mode', () => {
-      expect(el(render()).querySelector('.bar .cook')?.getAttribute('href')).toBe('/nutrition/recipes/r1/cook');
+    it('opens the Ready screen from Cook in the bar and from Start cooking, with the servings chosen', () => {
+      const fixture = render();
+      click(fixture, '[aria-label="More servings"]');
+      expect(el(fixture).querySelector('app-recipe-ready')).toBeNull();
+
+      click(fixture, '.bar .cook');
+      expect(el(fixture).querySelector('app-recipe-ready')).not.toBeNull();
+      expect(el(fixture).querySelector('app-recipe-ready .row')?.textContent).toContain('1.25 of 4');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('app-recipe-ready')).toBeNull();
+
+      click(fixture, 'app-eat-card .cook');
+      expect(el(fixture).querySelector('app-recipe-ready')).not.toBeNull();
+    });
+
+    it('has the coach row with the recipe it is about', () => {
+      const element = el(render());
+      expect(element.querySelector('app-recipe-coach-row h3')?.textContent).toContain('Ask your coach about this recipe');
+      expect(element.querySelectorAll('app-recipe-coach-row button').length).toBe(3);
     });
   });
 

@@ -20,6 +20,7 @@ export function card(overrides: Partial<RecipeCard> = {}): RecipeCard {
     dietFlags: [],
     topFoodGroups: ['VEG', 'PROTEIN', 'FRUIT'],
     favorite: false,
+    lastCookedAt: null,
     ...overrides
   };
 }

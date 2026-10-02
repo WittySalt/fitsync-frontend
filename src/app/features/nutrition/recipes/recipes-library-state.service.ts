@@ -2,6 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
 import { filter } from 'rxjs';
 
+import { RecipeSort } from './recipes.models';
+
 export interface LibrarySnapshot {
   scope: 'library' | 'mine';
   q: string;
@@ -9,6 +11,7 @@ export interface LibrarySnapshot {
   diet: 'VEGETARIAN' | 'VEGAN' | null;
   saved: boolean;
   highProtein: boolean;
+  sort: RecipeSort;
   page: number;
   /** How far the page was scrolled when the cook left it, in pixels. */
   scrollY: number;

@@ -23,6 +23,15 @@ describe('recipe mappers', () => {
     expect(mapped.cuisine).toBeNull();
   });
 
+  it('maps lastCookedAt and the fit block of a list, and tolerates their absence', () => {
+    expect(mapRecipeCard({ id: 'a', lastCookedAt: '2026-10-01T18:30:00Z' }).lastCookedAt).toBe('2026-10-01T18:30:00Z');
+    expect(mapRecipeCard({ id: 'a' }).lastCookedAt).toBeNull();
+    const page = mapRecipePage({ content: [], fit: { kcalLeft: 950, proteinShortGrams: 41, lowestNutrient: { displayName: 'Vitamin D' } } });
+    expect(page.fit).toEqual({ kcalLeft: 950, proteinShortGrams: 41, lowestNutrient: 'Vitamin D' });
+    expect(mapRecipePage({ content: [], fit: { lowestNutrient: 'Zinc' } }).fit).toEqual({ kcalLeft: null, proteinShortGrams: null, lowestNutrient: 'Zinc' });
+    expect(mapRecipePage({ content: [], fit: 'no' }).fit).toBeNull();
+  });
+
   it('uses a photo only when it is a web address', () => {
     expect(safeImageUrl('https://x.example/a.jpg')).toBe('https://x.example/a.jpg');
     expect(safeImageUrl('javascript:alert(1)')).toBeNull();
@@ -38,7 +47,7 @@ describe('recipe mappers', () => {
   });
 
   it('maps an empty answer to an empty page', () => {
-    expect(mapRecipePage({})).toEqual({ items: [], page: 0, totalPages: 0, totalElements: 0 });
+    expect(mapRecipePage({})).toEqual({ items: [], page: 0, totalPages: 0, totalElements: 0, fit: null });
   });
 
   it('maps a detail, taking the cook mode step fields as optional', () => {

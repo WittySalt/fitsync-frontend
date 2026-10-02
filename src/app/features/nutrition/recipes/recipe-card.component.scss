@@ -9,8 +9,37 @@
   font-variant-numeric: tabular-nums;
 }
 
+.media {
+  position: relative;
+}
+
 .cover {
   display: block;
+}
+
+.cook {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  height: 34px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(15, 23, 42, 0.15));
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 .body {

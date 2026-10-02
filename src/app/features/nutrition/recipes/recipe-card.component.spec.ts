@@ -28,6 +28,21 @@ describe('RecipeCardComponent', () => {
     expect(Array.from(element.querySelectorAll('.tags span')).map((tag) => tag.textContent)).toEqual(['High protein', 'Vegetarian']);
   });
 
+  it('has a Cook button on the cover that reports the card, and can be left out', () => {
+    const fixture = render(card({ name: 'Pad Thai' }));
+    const emitted: RecipeCard[] = [];
+    fixture.componentInstance.cook.subscribe((value) => emitted.push(value));
+    const button = el(fixture).querySelector('.cook') as HTMLButtonElement;
+    expect(button.textContent?.trim()).toBe('Cook');
+    expect(button.getAttribute('aria-label')).toBe('Cook Pad Thai');
+    button.click();
+    expect(emitted.map((value) => value.name)).toEqual(['Pad Thai']);
+
+    fixture.componentRef.setInput('cookable', false);
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('.cook')).toBeNull();
+  });
+
   it('draws High sugar and High salt grey', () => {
     const element = el(render(card({ tags: ['High sugar', 'High protein'] })));
     const tags = Array.from(element.querySelectorAll('.tags span'));

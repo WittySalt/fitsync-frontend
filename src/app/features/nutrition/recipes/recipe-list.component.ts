@@ -9,7 +9,10 @@ import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { LOADING, Load } from '../diary/diary.models';
 import { RecipeCardComponent } from './recipe-card.component';
-import { RecipeCard, RecipePageOf, RecipeScope } from './recipes.models';
+import { RecipeReadyComponent } from './recipe-ready.component';
+import { RecipeSortComponent } from './recipe-sort.component';
+import { fitLine } from './recipes-figures';
+import { RecipeCard, RecipePageOf, RecipeScope, RecipeSort } from './recipes.models';
 import { LibrarySnapshot, RecipesLibraryState } from './recipes-library-state.service';
 import { MAX_SEARCH_LENGTH, RecipesService } from './recipes.service';
 
@@ -27,6 +30,7 @@ interface ListRequest {
   diet: Diet | null;
   saved: boolean;
   highProtein: boolean;
+  sort: RecipeSort;
   page: number;
   nonce: number;
 }
@@ -38,7 +42,7 @@ interface ListRequest {
  */
 @Component({
   selector: 'app-recipe-list',
-  imports: [FoodGlyphComponent, PagerComponent, RecipeCardComponent, RouterLink, StatePanelComponent],
+  imports: [FoodGlyphComponent, PagerComponent, RecipeCardComponent, RecipeReadyComponent, RecipeSortComponent, RouterLink, StatePanelComponent],
   template: `
     <label class="search">
       <app-food-glyph name="SEARCH" [size]="18" [strokeWidth]="2" />
@@ -66,6 +70,9 @@ interface ListRequest {
         <button type="button" [class.on]="saved()" [attr.aria-pressed]="saved()" (click)="toggleSaved()">Saved</button>
       </div>
     }
+    @if (isLibrary()) {
+      <app-recipe-sort [value]="shownSort()" [fitOffered]="fitOffered()" [line]="shownSort() === 'fit' ? line() : null" (chosen)="chooseSort($event)" />
+    }
     @let s = state();
     @if (s.status === 'loading') {
       <div class="grid" aria-busy="true">
@@ -89,7 +96,7 @@ interface ListRequest {
       <span class="count">{{ countLine() }}</span>
       <div class="grid">
         @for (card of s.data.items; track card.id) {
-          <app-recipe-card [card]="card" [logTo]="logTo()" [heart]="isLibrary()" (favourite)="toggleFavorite($event)" />
+          <app-recipe-card [card]="card" [logTo]="logTo()" [heart]="isLibrary()" (favourite)="toggleFavorite($event)" (cook)="readyFor.set($event)" />
         }
       </div>
       <app-pager
@@ -101,6 +108,9 @@ interface ListRequest {
         [pageSize]="pageSize"
         (pageChange)="goTo($event)"
       />
+    }
+    @if (readyFor(); as chosen) {
+      <app-recipe-ready [recipeId]="chosen.id" (closed)="readyFor.set(null)" />
     }
   `,
   styleUrl: './recipe-list.component.scss',
@@ -129,11 +139,21 @@ export class RecipeListComponent {
   protected readonly diet = signal<Diet | null>(null);
   protected readonly saved = signal(false);
   protected readonly highProtein = signal(false);
+  protected readonly sort = signal<RecipeSort>('fit');
+  /** False once a list came back without the fit block, so the server cannot sort that way. */
+  protected readonly fitOffered = signal(true);
+  protected readonly readyFor = signal<RecipeCard | null>(null);
   protected readonly page = signal(0);
   protected readonly categories = signal<string[]>([]);
   /** The diet chips already cover Vegan and Vegetarian, so those two are left out of the categories. */
   protected readonly shownCategories = computed(() => this.categories().filter((name) => !DIET_CATEGORIES.has(name.toLowerCase())));
   protected readonly state = signal<Load<RecipePageOf<RecipeCard>>>(LOADING);
+  /** Fits today stands in for A to Z when the server sends no fit, so the control never shows a sort that did not happen. */
+  protected readonly shownSort = computed<RecipeSort>(() => (this.sort() === 'fit' && !this.fitOffered() ? 'name' : this.sort()));
+  protected readonly line = computed(() => {
+    const state = this.state();
+    return state.status === 'ready' ? fitLine(state.data.fit) : null;
+  });
 
   protected readonly isLibrary = computed(() => this.scope() === 'library');
   protected readonly filtered = computed(() => !!this.q() || this.category() !== null || this.diet() !== null || this.saved() || this.highProtein());
@@ -146,6 +166,7 @@ export class RecipeListComponent {
     diet: this.isLibrary() ? this.diet() : null,
     saved: this.isLibrary() && this.saved(),
     highProtein: this.isLibrary() && this.highProtein(),
+    sort: this.sort(),
     page: this.page(),
     nonce: this.nonce()
   }));
@@ -170,6 +191,9 @@ export class RecipeListComponent {
       )
       .subscribe((state) => {
         this.state.set(state);
+        if (state.status === 'ready' && this.isLibrary() && this.sort() === 'fit') {
+          this.fitOffered.set(!!state.data.fit);
+        }
         if (state.status === 'ready' && this.pendingScroll > 0) {
           const top = this.pendingScroll;
           this.pendingScroll = 0;
@@ -194,7 +218,7 @@ export class RecipeListComponent {
       const request = this.request();
       const scope = this.scope();
       untracked(() =>
-        this.place.keep({ scope, q: request.q, category: request.category, diet: request.diet, saved: request.saved, highProtein: request.highProtein, page: request.page })
+        this.place.keep({ scope, q: request.q, category: request.category, diet: request.diet, saved: request.saved, highProtein: request.highProtein, sort: request.sort, page: request.page })
       );
     });
     this.service
@@ -206,7 +230,12 @@ export class RecipeListComponent {
   private fetch(request: ListRequest): Observable<RecipePageOf<RecipeCard>> {
     const scope: RecipeScope = !this.isLibrary() ? 'mine' : request.saved ? 'favorites' : 'library';
     const base = { scope, q: request.q, category: request.category ?? undefined, diet: request.diet ?? undefined };
-    return this.service.list({ ...base, tag: request.highProtein ? 'HIGH_PROTEIN' : undefined, page: request.page, size: LIST_PAGE_SIZE });
+    const query = { ...base, tag: request.highProtein ? ('HIGH_PROTEIN' as const) : undefined, page: request.page, size: LIST_PAGE_SIZE };
+    if (!this.isLibrary()) {
+      return this.service.list(query);
+    }
+    // A server that does not know the sort answers without it, so the list still loads.
+    return this.service.list({ ...query, sort: request.sort }).pipe(catchError(() => this.service.list(query)));
   }
 
   protected onSearch(event: Event): void {
@@ -217,6 +246,11 @@ export class RecipeListComponent {
 
   protected chooseCategory(name: string | null): void {
     this.category.set(name);
+    this.page.set(0);
+  }
+
+  protected chooseSort(sort: RecipeSort): void {
+    this.sort.set(sort);
     this.page.set(0);
   }
 
@@ -293,6 +327,7 @@ export class RecipeListComponent {
     this.diet.set(back.diet);
     this.saved.set(back.saved);
     this.highProtein.set(back.highProtein);
+    this.sort.set(back.sort);
     this.page.set(back.page);
     this.pendingScroll = back.scrollY;
   }
@@ -304,6 +339,7 @@ export class RecipeListComponent {
     this.diet.set(null);
     this.saved.set(false);
     this.highProtein.set(false);
+    this.sort.set('fit');
     this.page.set(0);
   }
 }

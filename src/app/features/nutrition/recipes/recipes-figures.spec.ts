@@ -3,6 +3,10 @@ import { nutrientRow, summary } from '../diary/diary-testing.spec';
 import {
   cardTags,
   clampServings,
+  cookFigures,
+  cookedWhen,
+  fitLine,
+  timersTotalText,
   fallbackCover,
   goodSources,
   gramsText,
@@ -258,5 +262,44 @@ describe('ticks', () => {
 
   it('finds the session store in a browser', () => {
     expect(sessionStore()).not.toBeNull();
+  });
+
+  it('adds up the timers of the steps for the Ready screen, both sides of a side-by-side timer', () => {
+    const timer = (seconds: number, eachSide = false) => ({ seconds, maxSeconds: seconds, eachSide, phrase: '' });
+    const step = (timers: ReturnType<typeof timer>[]) => ({ stepNumber: 1, text: 'x', title: null, ingredientIds: [], timers });
+    expect(cookFigures({ steps: [step([]), step([timer(180, true)]), step([timer(300), timer(60)])] })).toEqual({ steps: 3, timers: 2, timerSeconds: 660 });
+    expect(cookFigures({ steps: [] })).toEqual({ steps: 0, timers: 0, timerSeconds: 0 });
+  });
+
+  it('words a total of timers', () => {
+    expect(timersTotalText(0)).toBe('none');
+    expect(timersTotalText(20)).toBe('about 1 min');
+    expect(timersTotalText(900)).toBe('about 15 min');
+    expect(timersTotalText(3600)).toBe('about 1 h');
+    expect(timersTotalText(4500)).toBe('about 1 h 15 min');
+  });
+
+  it('says when a recipe was last cooked, by the calendar day', () => {
+    const now = new Date(2026, 9, 3, 9, 0);
+    const at = (day: number, hour = 20) => new Date(2026, 8, day, hour).toISOString();
+    expect(cookedWhen(new Date(2026, 9, 3, 1).toISOString(), now)).toBe('Cooked today');
+    expect(cookedWhen(new Date(2026, 9, 2, 23).toISOString(), now)).toBe('Cooked yesterday');
+    expect(cookedWhen(new Date(2026, 9, 1, 12).toISOString(), now)).toBe('Cooked Thursday');
+    expect(cookedWhen(at(25), now)).toBe('Cooked last week');
+    expect(cookedWhen(at(15), now)).toBe('Cooked 15 Sept');
+    expect(cookedWhen(null, now)).toBe('');
+    expect(cookedWhen('not a date', now)).toBe('');
+  });
+
+  it('builds the line under Fits today from what the server sent, leaving out what is missing', () => {
+    expect(fitLine({ kcalLeft: 950, proteinShortGrams: 41, lowestNutrient: 'Vitamin D' })).toEqual({
+      lead: '950 kcal left today',
+      rest: ', protein 41 g short, vitamin D lowest. Recipes that fit come first.'
+    });
+    expect(fitLine({ kcalLeft: 1250.4, proteinShortGrams: 0, lowestNutrient: null })).toEqual({ lead: '1,250 kcal left today', rest: '. Recipes that fit come first.' });
+    expect(fitLine({ kcalLeft: -20, proteinShortGrams: null, lowestNutrient: null })?.lead).toBe('No calories left today');
+    expect(fitLine({ kcalLeft: null, proteinShortGrams: 12, lowestNutrient: null })).toEqual({ lead: 'protein 12 g short', rest: '. Recipes that fit come first.' });
+    expect(fitLine({ kcalLeft: null, proteinShortGrams: null, lowestNutrient: null })).toBeNull();
+    expect(fitLine(null)).toBeNull();
   });
 });

@@ -166,7 +166,9 @@ aside {
     .cook {
       flex: 1 1 0;
       border: 1.5px solid var(--border-accent);
+      background: var(--surface);
       color: var(--accent-text);
+      cursor: pointer;
     }
 
     .log {
