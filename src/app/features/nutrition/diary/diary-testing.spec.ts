@@ -20,6 +20,8 @@ export function item(overrides: Partial<DiaryItem> = {}): DiaryItem {
     foodGroup: 'DAIRY',
     gramsConsumed: 200,
     waterMl: null,
+    recipeId: null,
+    recipeServings: null,
     draft: {
       foodCatalogItemId: 'food-1',
       customFoodId: null,

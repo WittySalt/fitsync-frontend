@@ -50,6 +50,8 @@ describe('MealsCardComponent', () => {
     fixture.componentInstance.deleteMeal.subscribe((part: MealPart) => seen.push(`delete ${part.mealIds.join()}`));
     fixture.componentInstance.logUsual.subscribe((value) => seen.push(`usual ${value.sourceMealId}`));
     element.querySelectorAll<HTMLButtonElement>('.add')[2].click();
+    fixture.detectChanges();
+    (element.querySelector('.add-menu [role="menuitem"]') as HTMLButtonElement).click();
     (element.querySelector('.more') as HTMLButtonElement).click();
     fixture.detectChanges();
     (element.querySelector('.menu .delete') as HTMLButtonElement).click();

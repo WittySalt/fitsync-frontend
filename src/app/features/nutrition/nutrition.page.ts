@@ -4,23 +4,24 @@ import { ActivatedRoute } from '@angular/router';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 import { DiaryDayComponent } from './diary/diary-day.component';
 import { DiaryWeekComponent } from './diary/diary-week.component';
-import { LOADING, Load, RangeDay } from './diary/diary.models';
+import { AddRequest, LOADING, Load, RangeDay } from './diary/diary.models';
 import { whole } from './diary/diary-figures';
 import { dayLabel, toIsoDate, weekOf } from './diary/diary-time';
 import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent } from './meal-builder.component';
+import { RecipeSection, RecipesTabComponent } from './recipes/recipes-tab.component';
 
 /** The meal types a deep link may preselect in the meal builder. */
 const LINKABLE_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
 
 /**
  * The Nutrition page: a head like the Workout page's (title, date and target, the coach reading, a
- * week card), then the Diary. Recipes and Insights will join the Diary as tabs when they are built.
+ * week card), then the Diary, with Recipes as a second tab. Insights will join them when it is built.
  * The meal builder opens from a meal's Add, or from a link that names a meal type.
  */
 @Component({
   selector: 'app-nutrition-page',
-  imports: [InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent],
+  imports: [InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent, RecipesTabComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })
@@ -31,12 +32,15 @@ export class NutritionPage implements OnInit {
   private readonly builder = viewChild(MealBuilderComponent);
   // The meal type a link or an Add button asked for, held until the builder exists to take it.
   private pendingMealType: string | null = null;
+  private pendingQuickAdd = false;
 
   readonly today = toIsoDate(new Date());
   readonly dates = weekOf(this.today);
 
-  /** The tabs of the page. The bar shows only when there is more than the Diary to switch to. */
-  readonly tabs = signal<readonly string[]>(['diary']);
+  readonly tab = signal<'diary' | 'recipes'>('diary');
+  /** The Recipes section to open on, from a link, and the meal being picked for, from a meal's Add menu. */
+  readonly recipeSection = signal<RecipeSection>('library');
+  readonly logTo = signal<string | null>(null);
   readonly view = signal<'diary' | 'log'>('diary');
   readonly selectedDate = signal(this.today);
   readonly range = signal<Load<RangeDay[]>>(LOADING);
@@ -57,7 +61,15 @@ export class NutritionPage implements OnInit {
 
   constructor() {
     // The link is read once. Only a known meal type opens the builder; anything else is ignored.
-    const requested = (this.route.snapshot.queryParamMap.get('log') ?? '').toUpperCase();
+    const query = this.route.snapshot.queryParamMap;
+    const requested = (query.get('log') ?? '').toUpperCase();
+    const section = query.get('section');
+    if (query.get('tab') === 'recipes') {
+      this.tab.set('recipes');
+      this.recipeSection.set(section === 'mine' || section === 'saved' ? section : 'library');
+    }
+    const logTo = (query.get('logTo') ?? '').toUpperCase();
+    this.logTo.set(LINKABLE_MEAL_TYPES.includes(logTo) ? logTo : null);
     if (LINKABLE_MEAL_TYPES.includes(requested)) {
       this.pendingMealType = requested;
       this.view.set('log');
@@ -67,8 +79,20 @@ export class NutritionPage implements OnInit {
       if (builder && this.pendingMealType !== null) {
         const mealType = this.pendingMealType;
         this.pendingMealType = null;
+        const quick = this.pendingQuickAdd;
+        this.pendingQuickAdd = false;
         // Set after the builder has rendered, so the form does not change under a view that was already checked.
-        untracked(() => afterNextRender(() => builder.setMealType(mealType), { injector: this.injector }));
+        untracked(() =>
+          afterNextRender(
+            () => {
+              builder.setMealType(mealType);
+              if (quick) {
+                builder.openQuickAdd(mealType);
+              }
+            },
+            { injector: this.injector }
+          )
+        );
       }
     });
   }
@@ -101,6 +125,26 @@ export class NutritionPage implements OnInit {
   startLog(mealType: string): void {
     this.pendingMealType = LINKABLE_MEAL_TYPES.includes(mealType) ? mealType : null;
     this.view.set('log');
+  }
+
+  setTab(tab: 'diary' | 'recipes'): void {
+    this.tab.set(tab);
+    this.logTo.set(null);
+    if (tab === 'diary') {
+      this.view.set('diary');
+    }
+  }
+
+  /** A meal's Add menu: Quick add opens the builder with its quick form, the others go to Recipes for that meal. */
+  startFrom(request: AddRequest): void {
+    if (request.source === 'quick') {
+      this.pendingQuickAdd = true;
+      this.startLog(request.slot);
+      return;
+    }
+    this.logTo.set(LINKABLE_MEAL_TYPES.includes(request.slot) ? request.slot : null);
+    this.recipeSection.set(request.source === 'saved' ? 'saved' : 'library');
+    this.tab.set('recipes');
   }
 
   backToDiary(): void {

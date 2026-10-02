@@ -41,6 +41,28 @@ describe('RecipesService', () => {
     request.flush({ content: [] });
   });
 
+  it('walks every page of a query, fifty cards at a time', () => {
+    let ids: string[] = [];
+    service.listAll({ scope: 'library', diet: 'VEGAN' }).subscribe((cards) => (ids = cards.map((entry) => entry.id)));
+    const first = http.expectOne((req) => req.params.get('page') === '0');
+    expect(first.request.params.get('size')).toBe('50');
+    expect(first.request.params.get('diet')).toBe('VEGAN');
+    first.flush({ content: [{ id: 'a' }], number: 0, totalPages: 2 });
+    http.expectOne((req) => req.params.get('page') === '1').flush({ content: [{ id: 'b' }], number: 1, totalPages: 2 });
+
+    expect(ids).toEqual(['a', 'b']);
+  });
+
+  it('stops walking at twelve pages', () => {
+    let count = 0;
+    service.listAll({ scope: 'library' }).subscribe((cards) => (count = cards.length));
+    for (let page = 0; page < 12; page++) {
+      http.expectOne((req) => req.params.get('page') === String(page)).flush({ content: [{ id: 'p' + page }], number: page, totalPages: 40 });
+    }
+
+    expect(count).toBe(12);
+  });
+
   it('walks the pages of the library once to find the categories', () => {
     const seen: string[][] = [];
     service.categories().subscribe((value) => seen.push(value));

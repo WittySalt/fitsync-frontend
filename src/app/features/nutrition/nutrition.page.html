@@ -6,40 +6,55 @@
     </div>
   </header>
 
-  <app-insight-panel surface="NUTRITION" />
+  @if (tab() === 'diary') {
+    <app-insight-panel surface="NUTRITION" />
 
-  @if (range().status === 'loading') {
-    <div class="skeleton week-skeleton" aria-busy="true"></div>
-  } @else {
-    <app-diary-week
-      [days]="days()"
-      [dates]="dates"
-      [today]="today"
-      [selected]="selectedDate()"
-      [target]="targetCalories()"
-      [failed]="range().status === 'error'"
-      (pick)="showDay($event)"
-      (retry)="loadRange()"
-    />
+    @if (range().status === 'loading') {
+      <div class="skeleton week-skeleton" aria-busy="true"></div>
+    } @else {
+      <app-diary-week
+        [days]="days()"
+        [dates]="dates"
+        [today]="today"
+        [selected]="selectedDate()"
+        [target]="targetCalories()"
+        [failed]="range().status === 'error'"
+        (pick)="showDay($event)"
+        (retry)="loadRange()"
+      />
+    }
   }
 
-  @if (tabs().length > 1) {
-    <div class="segmented nutrition-tabs" role="tablist" aria-label="Nutrition sections">
-      <button
-        id="nutrition-tab-diary"
-        type="button"
-        role="tab"
-        [class.active]="view() === 'diary'"
-        [attr.aria-selected]="view() === 'diary'"
-        aria-controls="nutrition-panel-diary"
-        (click)="backToDiary()"
-      >
-        Diary
-      </button>
-    </div>
-  }
+  <div class="segmented nutrition-tabs" role="tablist" aria-label="Nutrition sections">
+    <button
+      id="nutrition-tab-diary"
+      type="button"
+      role="tab"
+      [class.active]="tab() === 'diary'"
+      [attr.aria-selected]="tab() === 'diary'"
+      aria-controls="nutrition-panel-diary"
+      (click)="setTab('diary')"
+    >
+      Diary
+    </button>
+    <button
+      id="nutrition-tab-recipes"
+      type="button"
+      role="tab"
+      [class.active]="tab() === 'recipes'"
+      [attr.aria-selected]="tab() === 'recipes'"
+      aria-controls="nutrition-panel-recipes"
+      (click)="setTab('recipes')"
+    >
+      Recipes
+    </button>
+  </div>
 
-  @if (view() === 'diary') {
+  @if (tab() === 'recipes') {
+    <section id="nutrition-panel-recipes" role="tabpanel" aria-labelledby="nutrition-tab-recipes">
+      <app-recipes-tab [section]="recipeSection()" [logTo]="logTo()" (cancelLog)="logTo.set(null)" />
+    </section>
+  } @else if (view() === 'diary') {
     <section id="nutrition-panel-diary" role="tabpanel" aria-labelledby="nutrition-tab-diary">
       <app-diary-day
         [date]="selectedDate()"
@@ -49,6 +64,7 @@
         [refresh]="refresh()"
         (changed)="refreshRange()"
         (addMeal)="startLog($event)"
+        (addFrom)="startFrom($event)"
       />
     </section>
   } @else {

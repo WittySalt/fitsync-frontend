@@ -24,6 +24,9 @@ export interface DiaryItem {
   foodGroup: FoodGroup | null;
   gramsConsumed: number | null;
   waterMl: number | null;
+  /** The recipe the item was logged from and the servings of it, null for a food logged by hand. */
+  recipeId: string | null;
+  recipeServings: number | null;
   /** The item as a draft, which is what saving a meal as a template sends back. */
   draft: MealItemDraft;
 }
@@ -183,4 +186,13 @@ export interface FrequentDrink {
   name: string;
   calories: number;
   draft: MealItemDraft;
+}
+
+/** Where an Add menu entry leads: the meal builder (search or quick add), the recipes, or the saved meals. */
+export type AddSource = 'recipes' | 'saved' | 'quick';
+
+export interface AddRequest {
+  /** The meal type the person is adding to. */
+  slot: string;
+  source: AddSource;
 }

@@ -120,3 +120,48 @@ export function groupsOf(items: readonly DiaryItem[]): Set<FoodGroup> {
   }
   return found;
 }
+
+/** A food on its own, or the foods of one recipe in one meal drawn as a single row. */
+export type DiaryRow =
+  | { kind: 'food'; item: DiaryItem }
+  | {
+      kind: 'recipe';
+      recipeId: string;
+      /** The servings logged, null when the server did not say. */
+      servings: number | null;
+      items: DiaryItem[];
+      calories: number;
+      proteinGrams: number;
+      carbsGrams: number;
+      fatGrams: number;
+    };
+
+/**
+ * The rows of a part: the items of one meal that came from the same recipe are one row, placed
+ * where the recipe's first item was. Items of different meals are never joined, so a recipe logged
+ * twice in a day stays two rows.
+ */
+export function diaryRows(meals: readonly DiaryMeal[]): DiaryRow[] {
+  const rows: DiaryRow[] = [];
+  for (const meal of meals) {
+    const open = new Map<string, Extract<DiaryRow, { kind: 'recipe' }>>();
+    for (const item of meal.items) {
+      if (item.recipeId === null) {
+        rows.push({ kind: 'food', item });
+        continue;
+      }
+      let row = open.get(item.recipeId);
+      if (!row) {
+        row = { kind: 'recipe', recipeId: item.recipeId, servings: item.recipeServings, items: [], calories: 0, proteinGrams: 0, carbsGrams: 0, fatGrams: 0 };
+        open.set(item.recipeId, row);
+        rows.push(row);
+      }
+      row.items.push(item);
+      row.calories += item.calories;
+      row.proteinGrams += item.proteinGrams;
+      row.carbsGrams += item.carbsGrams;
+      row.fatGrams += item.fatGrams;
+    }
+  }
+  return rows;
+}

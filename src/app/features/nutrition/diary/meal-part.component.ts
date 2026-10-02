@@ -5,7 +5,9 @@ import { FoodIconComponent } from '../../../shared/food/food-icon.component';
 import { groupForCategory } from '../../../shared/food/food-groups';
 import { UsualMeal } from '../../../core/fitsync.models';
 import { FoodRowComponent } from './food-row.component';
-import { MealPart, macroSplit } from './diary-food';
+import { RecipeRowComponent } from './recipe-row.component';
+import { DiaryRow, MealPart, diaryRows, macroSplit } from './diary-food';
+import { AddSource } from './diary.models';
 import { whole } from './diary-figures';
 
 /** The names of a usual meal as a sentence: at most three, otherwise two and how many more. */
@@ -24,7 +26,7 @@ export function usualNames(meal: UsualMeal): string {
  */
 @Component({
   selector: 'app-meal-part',
-  imports: [FoodRowComponent, FoodGlyphComponent, FoodIconComponent],
+  imports: [FoodRowComponent, FoodGlyphComponent, FoodIconComponent, RecipeRowComponent],
   template: `
     <div class="head">
       <div class="title">
@@ -41,9 +43,26 @@ export function usualNames(meal: UsualMeal): string {
         }
       </div>
       <div class="actions">
-        <button class="add" type="button" [disabled]="busy()" (click)="add.emit()">
-          <app-food-glyph name="PLUS" [size]="14" [strokeWidth]="2.6" />Add
-        </button>
+        <span class="more-wrap">
+          <button
+            class="add"
+            type="button"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="addMenuOpen()"
+            [disabled]="busy()"
+            (click)="toggleAddMenu($event)"
+          >
+            <app-food-glyph name="PLUS" [size]="14" [strokeWidth]="2.6" />Add
+          </button>
+          @if (addMenuOpen()) {
+            <div class="menu add-menu" role="menu" [attr.aria-label]="'Add to ' + part().label">
+              <button type="button" role="menuitem" (click)="chooseAdd('search')">Search foods</button>
+              <button type="button" role="menuitem" (click)="chooseAdd('recipes')">From recipes</button>
+              <button type="button" role="menuitem" (click)="chooseAdd('saved')">From saved meals</button>
+              <button type="button" role="menuitem" (click)="chooseAdd('quick')">Quick add</button>
+            </div>
+          }
+        </span>
         @if (part().logged) {
           <span class="more-wrap">
             <button
@@ -72,8 +91,12 @@ export function usualNames(meal: UsualMeal): string {
     </div>
     @if (part().logged) {
       <div class="rows">
-        @for (item of part().items; track $index) {
-          <app-food-row [item]="item" />
+        @for (row of rows(); track $index) {
+          @if (row.kind === 'recipe') {
+            <app-recipe-row [row]="row" />
+          } @else {
+            <app-food-row [item]="row.item" />
+          }
         }
       </div>
     } @else if (usual(); as meal) {
@@ -103,7 +126,10 @@ export class MealPartComponent {
   /** The person's usual meal for this part, when they have one. */
   readonly usual = input<UsualMeal | null>(null);
   readonly busy = input(false);
+  /** Search foods, the first entry of the Add menu. */
   readonly add = output<void>();
+  /** The other entries of the Add menu. */
+  readonly addFrom = output<AddSource>();
   readonly logAgain = output<void>();
   readonly saveAsMeal = output<void>();
   readonly deleteMeal = output<void>();
@@ -111,6 +137,7 @@ export class MealPartComponent {
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly menuOpen = signal(false);
+  protected readonly addMenuOpen = signal(false);
 
   protected readonly sub = computed(() => {
     const part = this.part();
@@ -124,13 +151,30 @@ export class MealPartComponent {
     return part.logged ? macroSplit(part.proteinGrams, part.carbsGrams, part.fatGrams) : null;
   });
 
+  protected readonly rows = computed<DiaryRow[]>(() => diaryRows(this.part().meals));
   protected readonly groupOf = groupForCategory;
   protected readonly names = usualNames;
   protected readonly kcal = whole;
 
   protected toggleMenu(event: Event): void {
     event.stopPropagation();
+    this.addMenuOpen.set(false);
     this.menuOpen.update((open) => !open);
+  }
+
+  protected toggleAddMenu(event: Event): void {
+    event.stopPropagation();
+    this.menuOpen.set(false);
+    this.addMenuOpen.update((open) => !open);
+  }
+
+  protected chooseAdd(source: AddSource | 'search'): void {
+    this.addMenuOpen.set(false);
+    if (source === 'search') {
+      this.add.emit();
+    } else {
+      this.addFrom.emit(source);
+    }
   }
 
   protected choose(action: 'log' | 'save' | 'delete'): void {
@@ -146,13 +190,15 @@ export class MealPartComponent {
 
   @HostListener('document:click', ['$event'])
   protected onDocumentClick(event: Event): void {
-    if (this.menuOpen() && !this.host.nativeElement.contains(event.target as Node)) {
+    if ((this.menuOpen() || this.addMenuOpen()) && !this.host.nativeElement.contains(event.target as Node)) {
       this.menuOpen.set(false);
+      this.addMenuOpen.set(false);
     }
   }
 
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
     this.menuOpen.set(false);
+    this.addMenuOpen.set(false);
   }
 }

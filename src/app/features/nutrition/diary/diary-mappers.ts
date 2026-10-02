@@ -116,6 +116,8 @@ export function mapDiaryItem(raw: Wire): DiaryItem {
     foodGroup: asFoodGroup(text(raw['foodGroup'])),
     gramsConsumed,
     waterMl: num(raw['waterMl']),
+    recipeId: text(raw['recipeId']),
+    recipeServings: num(raw['recipeServings']),
     draft
   };
 }

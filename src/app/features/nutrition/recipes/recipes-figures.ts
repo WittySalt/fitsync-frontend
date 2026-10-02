@@ -1,6 +1,6 @@
 import { FoodGroup, groupColour } from '../../../shared/food/food-groups';
 import { DiarySummary, NutrientSummary } from '../diary/diary.models';
-import { PerServing, RecipeCard, RecipeDetail, RecipeIngredient, RecipeNutrient } from './recipes.models';
+import { PerServing, RecipeCard, RecipeDetail, RecipeIngredient, RecipeNutrient, SavedMealItem } from './recipes.models';
 
 export const SERVING_STEP = 0.25;
 export const MIN_SERVINGS = 0.25;
@@ -231,4 +231,16 @@ export function sessionStore(): Storage | null {
   } catch {
     return null;
   }
+}
+
+/** The tags that say a recipe is higher in something. They are drawn grey, never red. */
+export function isCaution(tag: string): boolean {
+  return tag === 'High sugar' || tag === 'High salt';
+}
+
+/** The foods of a saved meal as one line. A recipe in it reads as its name and its servings. */
+export function savedMealLine(meal: { items: readonly SavedMealItem[] }): string {
+  return meal.items
+    .map((item) => (item.recipeId !== null ? `${item.foodName} · ${servingsLabel(item.recipeServings ?? item.quantity)}` : item.foodName))
+    .join(', ');
 }

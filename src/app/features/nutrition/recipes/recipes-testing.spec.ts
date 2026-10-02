@@ -126,6 +126,7 @@ export function savedMeal(overrides: Partial<SavedMeal> = {}): SavedMeal {
 export function recipesServiceStub(): jasmine.SpyObj<RecipesService> {
   const stub = jasmine.createSpyObj<RecipesService>('RecipesService', [
     'list',
+    'listAll',
     'categories',
     'get',
     'lookup',
@@ -143,6 +144,7 @@ export function recipesServiceStub(): jasmine.SpyObj<RecipesService> {
     'addRecipeToSavedMeal'
   ]);
   stub.list.and.returnValue(of({ items: [card()], page: 0, totalPages: 1, totalElements: 1 }));
+  stub.listAll.and.returnValue(of([card()]));
   stub.categories.and.returnValue(of(['Breakfast', 'Seafood']));
   stub.get.and.returnValue(of(detail()));
   stub.lookup.and.returnValue(of(detail()));

@@ -8,7 +8,7 @@ import { UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog.component';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
-import { DiarySummary, DiaryMeal, FrequentDrink, LOADING, Load, NutrientSummary, RangeDay, WaterDay } from './diary.models';
+import { AddRequest, DiarySummary, DiaryMeal, FrequentDrink, LOADING, Load, NutrientSummary, RangeDay, WaterDay } from './diary.models';
 import { MealPart } from './diary-food';
 import { dayLabel } from './diary-time';
 import { loggedMoment } from './diary-water';
@@ -54,6 +54,7 @@ const DAY_SPAN_HOURS = 16;
               [usual]="usual()"
               [busy]="busy()"
               (addMeal)="addMeal.emit($event)"
+              (addFrom)="addFrom.emit($event)"
               (logAgain)="logAgain($event)"
               (saveAsMeal)="saveAsMeal($event)"
               (deleteMeal)="confirming.set($event)"
@@ -157,6 +158,8 @@ export class DiaryDayComponent {
   readonly changed = output<void>();
   /** The person wants to log food for this meal type. */
   readonly addMeal = output<string>();
+  /** The person chose recipes, saved meals or quick add from a meal's Add menu. */
+  readonly addFrom = output<AddRequest>();
 
   protected readonly summary = signal<Load<DiarySummary>>(LOADING);
   protected readonly meals = signal<Load<DiaryMeal[]>>(LOADING);

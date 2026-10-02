@@ -13,6 +13,8 @@ import { diaryServiceStub, item, meal, rangeDay } from './diary/diary-testing.sp
 import { toIsoDate } from './diary/diary-time';
 import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent } from './meal-builder.component';
+import { recipesServiceStub } from './recipes/recipes-testing.spec';
+import { RecipesService } from './recipes/recipes.service';
 import { NutritionPage } from './nutrition.page';
 
 // The page carries an insight panel. Its store is real; only the wire is stubbed. The reading is
@@ -98,6 +100,7 @@ describe('NutritionPage', () => {
         { provide: CoachApiService, useValue: coachApiStub },
         provideRouter([{ path: '**', children: [] }]),
         { provide: NutritionDiaryService, useValue: diary },
+        { provide: RecipesService, useValue: recipesServiceStub() },
         { provide: FitSyncDataService, useValue: dataService },
         { provide: AccountDataService, useValue: { getCurrentUser: () => of({ preferences: { nutrition: { waterGoalMl: 2500 } } }) } }
       ]
@@ -172,21 +175,96 @@ describe('NutritionPage', () => {
     expect(coachApiStub.getReading).toHaveBeenCalledWith('NUTRITION', jasmine.any(String));
   });
 
-  it('shows the week card and hides the tab bar while the Diary is the only tab', () => {
+  it('shows the week card, the Diary and a tab bar with Diary and Recipes', () => {
     const compiled = render().nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('app-diary-week').length).toBe(1);
-    expect(compiled.querySelector('.nutrition-tabs')).toBeNull();
     expect(compiled.querySelector('app-diary-day')).not.toBeNull();
+    const tabs = Array.from(compiled.querySelectorAll('.nutrition-tabs [role="tab"]')).map((tab) => tab.textContent?.trim());
+    expect(tabs).toEqual(['Diary', 'Recipes']);
   });
 
-  it('shows the tab bar once there is more than one tab', () => {
+  it('opens the Recipes tab without the coach reading and the week card, and goes back to the Diary', () => {
     const fixture = render();
-    fixture.componentInstance.tabs.set(['diary', 'recipes']);
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    compiled.querySelectorAll<HTMLButtonElement>('.nutrition-tabs button')[1].click();
     fixture.detectChanges();
 
-    const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nutrition-tabs [role="tab"]')).map((tab) => tab.textContent?.trim());
-    expect(tabs).toEqual(['Diary']);
+    expect(compiled.querySelector('app-recipes-tab')).not.toBeNull();
+    expect(compiled.querySelector('app-diary-day')).toBeNull();
+    expect(compiled.querySelector('app-diary-week')).toBeNull();
+    expect(compiled.querySelector('app-insight-panel')).toBeNull();
+
+    compiled.querySelectorAll<HTMLButtonElement>('.nutrition-tabs button')[0].click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('app-diary-day')).not.toBeNull();
+    expect(compiled.querySelector('app-recipes-tab')).toBeNull();
+  });
+
+  describe('links to the Recipes tab', () => {
+    async function open(query: string): Promise<ComponentFixture<NutritionPage>> {
+      await TestBed.inject(Router).navigateByUrl(`/nutrition${query}`);
+      return render();
+    }
+
+    it('opens on Recipes, in the section and for the meal the link names', async () => {
+      const fixture = await open('?tab=recipes&section=saved&logTo=lunch');
+
+      expect(fixture.componentInstance.tab()).toBe('recipes');
+      expect(fixture.componentInstance.recipeSection()).toBe('saved');
+      expect(fixture.componentInstance.logTo()).toBe('LUNCH');
+    });
+
+    it('falls back to the library and ignores a meal type it does not know', async () => {
+      const fixture = await open('?tab=recipes&section=odd&logTo=FASTING');
+
+      expect(fixture.componentInstance.recipeSection()).toBe('library');
+      expect(fixture.componentInstance.logTo()).toBeNull();
+    });
+
+    it('stays on the Diary when the link names no tab', async () => {
+      expect((await open('')).componentInstance.tab()).toBe('diary');
+    });
+  });
+
+  it('sends From recipes and From saved meals to Recipes for that meal', () => {
+    const fixture = render();
+
+    fixture.componentInstance.startFrom({ slot: 'LUNCH', source: 'recipes' });
+    expect(fixture.componentInstance.tab()).toBe('recipes');
+    expect(fixture.componentInstance.recipeSection()).toBe('library');
+    expect(fixture.componentInstance.logTo()).toBe('LUNCH');
+
+    fixture.componentInstance.startFrom({ slot: 'DINNER', source: 'saved' });
+    expect(fixture.componentInstance.recipeSection()).toBe('saved');
+    expect(fixture.componentInstance.logTo()).toBe('DINNER');
+  });
+
+  it('shows who the pick is for in Recipes and drops it on Cancel', () => {
+    const fixture = render();
+    fixture.componentInstance.startFrom({ slot: 'LUNCH', source: 'recipes' });
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.context')?.textContent).toContain('Lunch');
+    (compiled.querySelector('.context button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.context')).toBeNull();
+  });
+
+  it('opens the builder with its quick add form from Quick add', () => {
+    const fixture = render();
+
+    fixture.componentInstance.startFrom({ slot: 'SNACK', source: 'quick' });
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const builder = fixture.debugElement.query(By.directive(MealBuilderComponent));
+    expect(fixture.componentInstance.view()).toBe('log');
+    expect(builder.componentInstance.quickAddOpen()).toBeTrue();
+    expect(builder.componentInstance.quickAddForm.controls.mealType.value).toBe('SNACK');
   });
 
   it('asks for the Monday to Sunday week that holds today', () => {
@@ -231,6 +309,8 @@ describe('NutritionPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     compiled.querySelectorAll<HTMLButtonElement>('.add')[2].click();
+    fixture.detectChanges();
+    (compiled.querySelector('.add-menu [role="menuitem"]') as HTMLButtonElement).click();
     fixture.detectChanges();
     fixture.detectChanges();
 

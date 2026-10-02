@@ -9,15 +9,17 @@ import {
   heading,
   higherIn,
   ingredientGrams,
+  isCaution,
   loadTicks,
   saveTicks,
+  savedMealLine,
   servingsLabel,
   sessionStore,
   stepServings,
   todayFit,
   topGroupsOf
 } from './recipes-figures';
-import { card, detail, ingredient, perServing } from './recipes-testing.spec';
+import { card, detail, ingredient, perServing, savedMeal } from './recipes-testing.spec';
 
 function today(rows: ReturnType<typeof nutrientRow>[]): NutrientSummary {
   return { daysLogged: 1, referenceLabel: null, focusCodes: [], itemsLogged: null, itemsWithoutNutrients: null, nutrients: rows };
@@ -181,6 +183,33 @@ describe('card text', () => {
   it('joins the category and the cuisine, whichever there is', () => {
     expect(heading(card())).toBe('Seafood · British');
     expect(heading(card({ cuisine: null }))).toBe('Seafood');
+  });
+});
+
+describe('card tags and saved meal lines', () => {
+  it('marks High sugar and High salt as the ones drawn grey', () => {
+    expect(isCaution('High sugar')).toBeTrue();
+    expect(isCaution('High salt')).toBeTrue();
+    expect(isCaution('High protein')).toBeFalse();
+  });
+
+  it('writes the foods of a saved meal as one line, a recipe as its name and servings', () => {
+    const line = savedMealLine(
+      savedMeal({
+        items: [
+          { templateItemId: 'a', foodName: 'Salad', quantity: 1, unit: 'serving', calories: 1, recipeId: 'r1', recipeServings: 1.5, categoryCode: null, foodGroup: null },
+          { templateItemId: 'b', foodName: 'Coffee', quantity: 1, unit: 'serving', calories: 1, recipeId: null, recipeServings: null, categoryCode: null, foodGroup: null }
+        ]
+      })
+    );
+
+    expect(line).toBe('Salad · 1.5 servings, Coffee');
+  });
+
+  it('falls back to the quantity when a recipe item has no servings of its own', () => {
+    const line = savedMealLine(savedMeal({ items: [{ templateItemId: 'a', foodName: 'Salad', quantity: 2, unit: 'serving', calories: 1, recipeId: 'r1', recipeServings: null, categoryCode: null, foodGroup: null }] }));
+
+    expect(line).toBe('Salad · 2 servings');
   });
 });
 

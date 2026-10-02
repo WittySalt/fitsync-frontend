@@ -2,7 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 
 import { UsualMeal } from '../../../core/fitsync.models';
 import { slotForMealType, usualCombination } from '../../dashboard/today/today-meals';
-import { DiaryMeal } from './diary.models';
+import { AddRequest, DiaryMeal } from './diary.models';
 import { MealPart, mealParts } from './diary-food';
 import { MealPartComponent } from './meal-part.component';
 
@@ -17,6 +17,7 @@ import { MealPartComponent } from './meal-part.component';
         [usual]="usualFor(part)"
         [busy]="busy()"
         (add)="addMeal.emit(part.slot)"
+        (addFrom)="addFrom.emit({ slot: part.slot, source: $event })"
         (logAgain)="logAgain.emit(part)"
         (saveAsMeal)="saveAsMeal.emit(part)"
         (deleteMeal)="deleteMeal.emit(part)"
@@ -51,6 +52,8 @@ export class MealsCardComponent {
   readonly usual = input<UsualMeal[]>([]);
   readonly busy = input(false);
   readonly addMeal = output<string>();
+  /** A recipes, saved meals or quick add entry of a meal's Add menu. */
+  readonly addFrom = output<AddRequest>();
   readonly logAgain = output<MealPart>();
   readonly saveAsMeal = output<MealPart>();
   readonly deleteMeal = output<MealPart>();

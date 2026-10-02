@@ -5,6 +5,8 @@ import { MealPart, mealParts } from './diary-food';
 import { MealPartComponent, usualNames } from './meal-part.component';
 import { FoodRowComponent } from './food-row.component';
 import { item, meal, spoken as text } from './diary-testing.spec';
+import { recipesServiceStub } from '../recipes/recipes-testing.spec';
+import { RecipesService } from '../recipes/recipes.service';
 
 const usualDinner: UsualMeal = {
   mealType: 'DINNER',
@@ -51,12 +53,68 @@ describe('MealPartComponent', () => {
     expect(element.textContent).toContain('High protein');
   });
 
-  it('emits add from the Add button', () => {
+  it('opens an Add menu with Search foods, From recipes, From saved meals and Quick add', () => {
     const fixture = render(lunch());
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.add-menu')).toBeNull();
+
+    (element.querySelector('.add') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const entries = Array.from(element.querySelectorAll<HTMLButtonElement>('.add-menu [role="menuitem"]'));
+    expect(entries.map((entry) => entry.textContent?.trim())).toEqual(['Search foods', 'From recipes', 'From saved meals', 'Quick add']);
+    expect((element.querySelector('.add') as HTMLButtonElement).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('emits add for Search foods and addFrom for the other entries, closing the menu each time', () => {
+    const fixture = render(lunch());
+    const element = fixture.nativeElement as HTMLElement;
     let added = 0;
+    const sources: string[] = [];
     fixture.componentInstance.add.subscribe(() => (added += 1));
-    (fixture.nativeElement.querySelector('.add') as HTMLButtonElement).click();
+    fixture.componentInstance.addFrom.subscribe((source) => sources.push(source));
+    const choose = (index: number) => {
+      (element.querySelector('.add') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      element.querySelectorAll<HTMLButtonElement>('.add-menu [role="menuitem"]')[index].click();
+      fixture.detectChanges();
+    };
+
+    [0, 1, 2, 3].forEach(choose);
+
     expect(added).toBe(1);
+    expect(sources).toEqual(['recipes', 'saved', 'quick']);
+    expect(element.querySelector('.add-menu')).toBeNull();
+  });
+
+  it('opens one menu at a time and closes it on Escape', () => {
+    const fixture = render(lunch());
+    const element = fixture.nativeElement as HTMLElement;
+    (element.querySelector('.add') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (element.querySelector('.more') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(element.querySelectorAll('.menu').length).toBe(1);
+    expect(element.querySelector('.add-menu')).toBeNull();
+
+    (element.querySelector('.add') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(element.querySelector('.menu')).toBeNull();
+  });
+
+  it('shows the foods of one recipe as one row with a Show ingredients toggle', () => {
+    const recipeItem = (id: string, calories: number) => item({ mealItemId: id, foodName: id, calories, recipeId: 'r1', recipeServings: 1 });
+    const part = mealParts([
+      meal({ mealId: 'm1', mealType: 'LUNCH', consumedAt: new Date(2026, 9, 2, 12, 30).toISOString(), items: [recipeItem('Salmon', 300), item({ mealItemId: 'x', foodName: 'Tea', calories: 2 }), recipeItem('Avocado', 312)] })
+    ])[1];
+    TestBed.configureTestingModule({ providers: [{ provide: RecipesService, useValue: recipesServiceStub() }] });
+    const element = render(part).nativeElement as HTMLElement;
+
+    expect(element.querySelectorAll('app-recipe-row').length).toBe(1);
+    expect(element.querySelectorAll('app-food-row').length).toBe(1);
+    expect(element.querySelector('app-recipe-row .kcal')?.textContent).toBe('612');
   });
 
   it('opens a menu with Log again now, Save as a meal and a red Delete, and no Edit', () => {

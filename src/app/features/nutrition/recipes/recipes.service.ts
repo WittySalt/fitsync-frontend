@@ -10,8 +10,8 @@ type Wire = Record<string, unknown>;
 
 /** The most characters the server takes in a search, kept on both sides. */
 export const MAX_SEARCH_LENGTH = 80;
-const CATEGORY_PAGE_SIZE = 50;
-const CATEGORY_PAGE_LIMIT = 12;
+const WALK_PAGE_SIZE = 50;
+const WALK_PAGE_LIMIT = 12;
 
 export interface LogRecipeRequest {
   servings: number;
@@ -47,19 +47,20 @@ export class RecipesService {
     return this.http.get<Wire>(`${this.base}/recipes`, { params }).pipe(map((page) => mapRecipePage(page ?? {})));
   }
 
+  /** Every card of a query, from walking its pages (50 at a time, at most 12 pages). */
+  listAll(query: Omit<RecipeQuery, 'page' | 'size'>): Observable<RecipeCard[]> {
+    return this.list({ ...query, size: WALK_PAGE_SIZE }).pipe(
+      expand((page, index) =>
+        page.page + 1 < page.totalPages && index + 1 < WALK_PAGE_LIMIT ? this.list({ ...query, size: WALK_PAGE_SIZE, page: page.page + 1 }) : EMPTY
+      ),
+      reduce((cards, page) => cards.concat(page.items), [] as RecipeCard[])
+    );
+  }
+
   /** The categories the library holds, from walking its pages once. A failure gives none, so the chips just stay at All. */
   categories(): Observable<string[]> {
-    this.categoriesOnce ??= this.list({ scope: 'library', size: CATEGORY_PAGE_SIZE }).pipe(
-      expand((page, index) =>
-        page.page + 1 < page.totalPages && index + 1 < CATEGORY_PAGE_LIMIT
-          ? this.list({ scope: 'library', size: CATEGORY_PAGE_SIZE, page: page.page + 1 })
-          : EMPTY
-      ),
-      reduce((found, page) => {
-        page.items.forEach((card) => card.category && found.add(card.category));
-        return found;
-      }, new Set<string>()),
-      map((found) => [...found].sort((a, b) => a.localeCompare(b))),
+    this.categoriesOnce ??= this.listAll({ scope: 'library' }).pipe(
+      map((cards) => [...new Set(cards.map((card) => card.category).filter((name): name is string => !!name))].sort((a, b) => a.localeCompare(b))),
       catchError(() => of([] as string[])),
       shareReplay(1)
     );

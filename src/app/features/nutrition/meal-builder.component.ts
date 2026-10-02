@@ -588,6 +588,14 @@ export class MealBuilderComponent implements OnInit {
     });
   }
 
+  /** Opens the quick add form, for a meal type when one is given. */
+  openQuickAdd(mealType?: string): void {
+    if (mealType) {
+      this.quickAddForm.controls.mealType.setValue(mealType);
+    }
+    this.quickAddOpen.set(true);
+  }
+
   toggleQuickAdd(): void {
     this.quickAddOpen.update((value) => !value);
   }

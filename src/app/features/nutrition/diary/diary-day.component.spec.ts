@@ -198,6 +198,8 @@ describe('DiaryDayComponent', () => {
       const added: string[] = [];
       fixture.componentInstance.addMeal.subscribe((type) => added.push(type));
       qa<HTMLButtonElement>(fixture, '.meal-part .add, app-meal-part .add')[2].click();
+      fixture.detectChanges();
+      q<HTMLButtonElement>(fixture, '.add-menu [role="menuitem"]').click();
       expect(added).toEqual(['DINNER']);
     });
 
