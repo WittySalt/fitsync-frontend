@@ -1,6 +1,6 @@
 # GitHub Actions — CI/CD variables & secrets
 
-Pipelines ported from GitLab CI to GitHub Actions.
+GitHub Actions is the only CI/CD for this repo (the old GitLab CI/CD has been retired).
 
 - **CI** (`ci.yml`) needs **no** variables or secrets — green out of the box
   (typecheck, headless-Chrome unit tests + coverage, production build, gitleaks

@@ -1,5 +1,4 @@
 # CD: frontend infra (Terraform) + deploy the SPA to S3 + CloudFront.
-# Ported from .gitlab-cd.yml.
 #
 # DORMANT BY DEFAULT. Gated on the `AWS_ROLE_ARN` repository variable — while it
 # is empty the whole workflow is skipped and the repo stays green. AWS auth uses
