@@ -142,7 +142,7 @@ export function nutrientView(row: NutrientRow): NutrientView {
     words: row.aboveUpperLimit && row.upperLimit !== null
       ? `Above the upper limit of ${amountText(row.upperLimit, row.unit)}.`
       : row.richestUsualFood
-        ? `The richest of the foods you often eat is ${row.richestUsualFood.toLowerCase()}.`
+        ? `Among foods you often eat, ${row.richestUsualFood.toLowerCase()} has the most.`
         : ''
   };
 }

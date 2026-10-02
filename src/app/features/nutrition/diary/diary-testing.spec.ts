@@ -129,6 +129,7 @@ export function nutrientRow(overrides: Partial<NutrientRow> = {}): NutrientRow {
     upperLimit: 100,
     aboveUpperLimit: false,
     richestUsualFood: null,
+    days: [],
     ...overrides
   };
 }

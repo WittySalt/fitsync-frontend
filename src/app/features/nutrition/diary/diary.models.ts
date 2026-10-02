@@ -125,6 +125,14 @@ export interface WaterDay {
   drinkEntries: DrinkEntry[];
 }
 
+/** One day of a nutrient in a week summary. The share is the day's amount over the daily reference. */
+export interface NutrientDay {
+  date: string;
+  logged: boolean;
+  amount: number | null;
+  share: number | null;
+}
+
 export interface NutrientRow {
   code: string;
   displayName: string;
@@ -138,6 +146,8 @@ export interface NutrientRow {
   upperLimit: number | null;
   aboveUpperLimit: boolean;
   richestUsualFood: string | null;
+  /** Per-day figures, sent for a range of days. Empty when the backend sends none. */
+  days: NutrientDay[];
 }
 
 export interface NutrientSummary {

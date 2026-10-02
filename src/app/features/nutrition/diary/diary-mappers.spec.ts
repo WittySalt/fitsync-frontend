@@ -187,6 +187,27 @@ describe('mapNutrientSummary', () => {
     expect(summary.nutrients[0].richestUsualFood).toBe('Salmon');
   });
 
+  it('maps the days of a week, working out a missing share and dropping a day without a date', () => {
+    const summary = mapNutrientSummary({
+      nutrients: [
+        {
+          code: 'IRON',
+          averageAmount: 4,
+          reference: 8,
+          share: 0.5,
+          days: [{ date: '2026-09-28', logged: true, amount: 4, share: 0.5 }, { date: '2026-09-29', logged: true, amount: 2 }, { date: '2026-09-30', logged: false, amount: null }, { logged: true }]
+        },
+        { code: 'ZINC', averageAmount: 1, reference: 11 }
+      ]
+    });
+    expect(summary.nutrients[0].days).toEqual([
+      { date: '2026-09-28', logged: true, amount: 4, share: 0.5 },
+      { date: '2026-09-29', logged: true, amount: 2, share: 0.25 },
+      { date: '2026-09-30', logged: false, amount: null, share: null }
+    ]);
+    expect(summary.nutrients[1].days).toEqual([]);
+  });
+
   it('reads the reference range and leaves it null when the backend sends none', () => {
     expect(mapNutrientSummary({ referenceRange: 'BLENDED', nutrients: [] }).referenceRange).toBe('BLENDED');
     expect(mapNutrientSummary({ nutrients: [] }).referenceRange).toBeNull();

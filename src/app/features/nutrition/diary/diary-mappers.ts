@@ -9,6 +9,7 @@ import {
   DrinkDetail,
   DrinkOption,
   FrequentDrink,
+  NutrientDay,
   NutrientRow,
   NutrientSummary,
   ProteinByMealView,
@@ -231,6 +232,15 @@ export function mapWaterDay(raw: Wire, date: string): WaterDay {
   };
 }
 
+function mapNutrientDay(raw: Wire, reference: number): NutrientDay | null {
+  const date = text(raw['date']);
+  if (!date) {
+    return null;
+  }
+  const amount = num(raw['amount']);
+  return { date, logged: raw['logged'] === true, amount, share: amount === null ? null : (num(raw['share']) ?? amount / reference) };
+}
+
 function mapNutrientRow(raw: Wire): NutrientRow | null {
   const code = text(raw['code']);
   const reference = num(raw['reference']);
@@ -250,7 +260,8 @@ function mapNutrientRow(raw: Wire): NutrientRow | null {
     met: raw['met'] === true,
     upperLimit: num(raw['upperLimit']),
     aboveUpperLimit: raw['aboveUpperLimit'] === true,
-    richestUsualFood: text(raw['richestUsualFood'])
+    richestUsualFood: text(raw['richestUsualFood']),
+    days: list(raw['days']).map((day) => mapNutrientDay(day, reference)).filter((day): day is NutrientDay => day !== null)
   };
 }
 

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Subject, of, throwError } from 'rxjs';
+import { NEVER, Subject, of, throwError } from 'rxjs';
 
 import { AccountDataService } from '../../../core/account-data.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
@@ -68,7 +68,8 @@ describe('DiaryDayComponent', () => {
       expect(diary.getSummary).toHaveBeenCalledWith('2026-10-01');
       expect(diary.getMeals).toHaveBeenCalledWith('2026-10-01');
       expect(diary.getWater).toHaveBeenCalledWith('2026-10-01');
-      expect(diary.getNutrients).toHaveBeenCalledWith('2026-09-25', '2026-10-01');
+      expect(diary.getNutrients).toHaveBeenCalledWith('2026-10-01', '2026-10-01');
+      expect(diary.getNutrients).toHaveBeenCalledWith('2026-09-28', '2026-10-04');
       expect(diary.frequentDrinks).toHaveBeenCalledWith(2);
     });
 
@@ -131,14 +132,24 @@ describe('DiaryDayComponent', () => {
       expect(diary.getMeals.calls.count()).toBe(before + 1);
     });
 
-    it('loads the vitamins again for Today and for the seven days', () => {
+    it('loads the day for Today and its Monday to Sunday week for This week, and keeps the week while the day stays inside it', () => {
       const fixture = render();
-      (qa<HTMLButtonElement>(fixture, '.toggle button')[1]).click();
+      expect(diary.getNutrients.calls.allArgs()).toEqual([[TODAY, TODAY], ['2026-09-28', '2026-10-04']]);
+      fixture.componentRef.setInput('date', '2026-10-01');
       fixture.detectChanges();
-      expect(diary.getNutrients.calls.mostRecent().args).toEqual([TODAY, TODAY]);
-      (qa<HTMLButtonElement>(fixture, '.toggle button')[0]).click();
+      expect(diary.getNutrients.calls.allArgs().slice(2)).toEqual([['2026-10-01', '2026-10-01']]);
+      fixture.componentRef.setInput('date', '2026-10-06');
       fixture.detectChanges();
-      expect(diary.getNutrients.calls.mostRecent().args).toEqual(['2026-09-26', TODAY]);
+      expect(diary.getNutrients.calls.allArgs().slice(3)).toEqual([['2026-10-06', '2026-10-06'], ['2026-10-05', '2026-10-11']]);
+    });
+
+    it('keeps showing the previous vitamins while the next day is on its way', () => {
+      const fixture = render();
+      diary.getNutrients.and.returnValue(NEVER);
+      fixture.componentRef.setInput('date', '2026-10-01');
+      fixture.detectChanges();
+      expect(q(fixture, 'app-vitamins-card .skeleton')).toBeNull();
+      expect(q(fixture, 'app-vitamins-card app-vitamins-today')).not.toBeNull();
     });
   });
 

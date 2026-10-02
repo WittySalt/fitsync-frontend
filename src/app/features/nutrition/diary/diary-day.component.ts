@@ -10,7 +10,7 @@ import { ConfirmDialogComponent } from '../../../shared/confirm-dialog.component
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { DiarySummary, DiaryMeal, FrequentDrink, LOADING, Load, NutrientSummary, RangeDay, WaterDay } from './diary.models';
 import { MealPart } from './diary-food';
-import { addDays, dayLabel } from './diary-time';
+import { dayLabel } from './diary-time';
 import { loggedMoment } from './diary-water';
 import { AddDrinkDialogComponent } from './add-drink-dialog.component';
 import { BalanceCardComponent } from './balance-card.component';
@@ -20,10 +20,12 @@ import { WaterAdd } from './drink-water-panel.component';
 import { MealsCardComponent } from './meals-card.component';
 import { NutritionDiaryService } from './nutrition-diary.service';
 import { PlateCardComponent } from './plate-card.component';
-import { VitaminsCardComponent, NutrientPeriod } from './vitamins-card.component';
+import { VitaminsCardComponent } from './vitamins-card.component';
+import { weekRange } from './vitamins-week';
 import { WaterCardComponent } from './water-card.component';
 
 const UNDO_MS = 6000;
+const VITAMINS_FAILURE = 'Vitamins and minerals could not load. Please retry.';
 const DAY_START_HOUR = 6;
 const DAY_SPAN_HOURS = 16;
 
@@ -114,7 +116,7 @@ const DAY_SPAN_HOURS = 16;
           }
         </div>
         <div class="slot c-vitamins">
-          <app-vitamins-card [state]="nutrients()" [(period)]="period" (retry)="loadNutrients()" />
+          <app-vitamins-card [state]="nutrients()" [week]="weekNutrients()" [date]="date()" [today]="today()" (retry)="retryNutrients()" />
         </div>
       </div>
     </div>
@@ -160,7 +162,7 @@ export class DiaryDayComponent {
   protected readonly meals = signal<Load<DiaryMeal[]>>(LOADING);
   protected readonly water = signal<Load<WaterDay>>(LOADING);
   protected readonly nutrients = signal<Load<NutrientSummary>>(LOADING);
-  protected readonly period = signal<NutrientPeriod>('week');
+  protected readonly weekNutrients = signal<Load<NutrientSummary>>(LOADING);
   protected readonly usual = signal<UsualMeal[]>([]);
   protected readonly frequent = signal<FrequentDrink[]>([]);
   protected readonly waterGoal = signal<number | null>(null);
@@ -168,6 +170,7 @@ export class DiaryDayComponent {
   protected readonly confirming = signal<MealPart | null>(null);
   protected readonly dialogOpen = signal(false);
 
+  private readonly weekStart = computed(() => weekRange(this.date()).monday);
   protected readonly isToday = computed(() => this.date() === this.today());
   protected readonly label = computed(() => dayLabel(this.date()));
   protected readonly items = computed(() => {
@@ -186,6 +189,8 @@ export class DiaryDayComponent {
 
   // A reload that starts while an older one is still on its way makes the older answer stale.
   private generation = 0;
+  // The vitamin loads count on their own: a day change must not make the week answer stale while the week stays the same.
+  private readonly stamps = { today: 0, week: 0 };
 
   constructor() {
     effect(() => {
@@ -194,10 +199,15 @@ export class DiaryDayComponent {
       untracked(() => this.loadDay());
     });
     effect(() => {
-      this.period();
       this.date();
       this.refresh();
       untracked(() => this.loadNutrients());
+    });
+    // Tracks the Monday only, so moving between the days of one week keeps the week that is already loaded.
+    effect(() => {
+      this.weekStart();
+      this.refresh();
+      untracked(() => this.loadWeekNutrients());
     });
     this.data
       .getUsualMeals()
@@ -225,10 +235,21 @@ export class DiaryDayComponent {
     this.fetch(this.water, this.service.getWater(this.date()), 'Water could not load. Please retry.', silent);
   }
 
+  /** The selected day alone. The old figures stay on screen while the new ones are on their way. */
   protected loadNutrients(silent = false): void {
-    const to = this.date();
-    const from = this.period() === 'week' ? addDays(to, -6) : to;
-    this.fetch(this.nutrients, this.service.getNutrients(from, to), 'Vitamins and minerals could not load. Please retry.', silent);
+    const day = this.date();
+    this.fetch(this.nutrients, this.service.getNutrients(day, day), VITAMINS_FAILURE, silent, 'today');
+  }
+
+  /** The week of the selected day, Monday to Sunday. */
+  protected loadWeekNutrients(silent = false): void {
+    const { monday, sunday } = weekRange(this.date());
+    this.fetch(this.weekNutrients, this.service.getNutrients(monday, sunday), VITAMINS_FAILURE, silent, 'week');
+  }
+
+  protected retryNutrients(): void {
+    this.loadNutrients();
+    this.loadWeekNutrients();
   }
 
   private loadDay(): void {
@@ -251,23 +272,29 @@ export class DiaryDayComponent {
     this.loadMeals(true);
     this.loadWater(true);
     this.loadNutrients(true);
+    this.loadWeekNutrients(true);
     this.loadFrequent();
     this.changed.emit();
   }
 
-  private fetch<T>(target: WritableSignal<Load<T>>, source: Observable<T>, failure: string, silent: boolean): void {
-    const generation = this.generation;
-    if (!silent) {
+  private fetch<T>(target: WritableSignal<Load<T>>, source: Observable<T>, failure: string, silent: boolean, stamp?: 'today' | 'week'): void {
+    const current = (): number => (stamp ? this.stamps[stamp] : this.generation);
+    if (stamp) {
+      this.stamps[stamp] += 1;
+    }
+    const expected = current();
+    // The vitamin cards keep their previous figures while a refetch runs instead of falling back to a skeleton.
+    if (!silent && !(stamp && target().status === 'ready')) {
       target.set(LOADING);
     }
     source.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
-        if (generation === this.generation) {
+        if (current() === expected) {
           target.set({ status: 'ready', data });
         }
       },
       error: () => {
-        if (generation === this.generation && !silent) {
+        if (current() === expected && !silent) {
           target.set({ status: 'error', message: failure });
         }
       }

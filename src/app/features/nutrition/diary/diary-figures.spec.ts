@@ -130,7 +130,7 @@ describe('nutrientView and splitNutrients', () => {
     const view = nutrientView(nutrientRow({ richestUsualFood: 'Salmon' }));
     expect(view.percent).toBe(34);
     expect(view.amount).toBe('5.1 of 15 µg');
-    expect(view.words).toBe('The richest of the foods you often eat is salmon.');
+    expect(view.words).toBe('Among foods you often eat, salmon has the most.');
   });
 
   it('says above the upper limit instead of a food when over the limit', () => {
