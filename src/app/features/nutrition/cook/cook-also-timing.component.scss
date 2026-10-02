@@ -1,0 +1,69 @@
+:host {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+}
+
+circle {
+  fill: none;
+  stroke-width: 3.5;
+}
+
+.back {
+  stroke: var(--border);
+}
+
+.ring {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.what {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.when {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.more {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}

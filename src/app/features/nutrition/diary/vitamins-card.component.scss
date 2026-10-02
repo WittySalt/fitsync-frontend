@@ -1,0 +1,112 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.switch {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+
+  button {
+    flex: 1 1 0;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+
+    &.active {
+      border-color: var(--border-accent);
+      background: var(--surface);
+      color: var(--accent-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+  }
+}
+
+/* Both views sit in one grid cell; the cell takes the height of the shown view and eases to it on a switch. */
+.stack {
+  display: grid;
+  align-items: start;
+  overflow: hidden;
+  transition: height 200ms ease;
+}
+
+.view {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 150ms ease,
+    visibility 0s linear 150ms;
+
+  &.shown {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 150ms ease;
+  }
+}
+
+.skeleton {
+  min-height: 220px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--surface-sunken), var(--surface), var(--surface-sunken));
+  background-size: 240% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -240% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+
+  .stack,
+  .view,
+  .view.shown {
+    transition: none;
+  }
+}
+
+@media (max-width: 520px) {
+  :host {
+    padding: 18px;
+  }
+}

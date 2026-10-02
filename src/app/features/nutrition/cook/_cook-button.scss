@@ -1,0 +1,29 @@
+// The wide round button of cook mode, drawn with the app's theme tokens.
+@mixin cook-button($filled: true) {
+  width: 100%;
+  height: 46px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  @if $filled {
+    border: 0;
+    background: var(--accent);
+    color: var(--text-on-accent);
+  } @else {
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+}

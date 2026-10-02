@@ -13,7 +13,8 @@ import {
   CreateBodyMetricRequest,
   SecurityOverview,
   formatDeletionDate,
-  initialsFor
+  initialsFor,
+  normalizeReferenceRange
 } from './account-data.service';
 
 describe('AccountDataService', () => {
@@ -31,6 +32,24 @@ describe('AccountDataService', () => {
 
   afterEach(() => {
     httpTesting.verify();
+  });
+
+  it('treats a missing reference range as PROFILE when reading and saving preferences', () => {
+    const prefs = { nutrition: { dietaryPattern: '300001', mealFrequency: 3, calorieTrackingMode: '310002', macroPreference: '320001', waterGoalMl: 2000, nutrientReferenceRange: null } } as unknown as AccountPreferences;
+    let saved: AccountPreferences | undefined;
+    service.updatePreferences(prefs).subscribe((value) => { saved = value; });
+
+    const request = httpTesting.expectOne('/api/v1/users/me/preferences');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body.nutrition.nutrientReferenceRange).toBe('PROFILE');
+    request.flush({ nutrition: { ...prefs.nutrition, nutrientReferenceRange: 'BLENDED' } });
+    expect(saved?.nutrition.nutrientReferenceRange).toBe('BLENDED');
+  });
+
+  it('normalizes unknown reference range values to PROFILE', () => {
+    expect(normalizeReferenceRange(undefined)).toBe('PROFILE');
+    expect(normalizeReferenceRange('MALE')).toBe('MALE');
+    expect(normalizeReferenceRange('OTHER')).toBe('PROFILE');
   });
 
   it('lists body metrics with the backend history query parameters', () => {
@@ -133,7 +152,7 @@ describe('AccountDataService', () => {
     });
     const preferencesRequest = httpTesting.expectOne('/api/v1/users/me/preferences');
     expect(preferencesRequest.request.method).toBe('PUT');
-    expect(preferencesRequest.request.body).toEqual(preferences);
+    expect(preferencesRequest.request.body).toEqual({ ...preferences, nutrition: { ...preferences.nutrition, nutrientReferenceRange: 'PROFILE' } });
     preferencesRequest.flush(preferences);
 
     expect(profileResult?.displayName).toBe('Updated User');

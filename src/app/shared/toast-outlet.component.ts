@@ -15,6 +15,9 @@ import { ToastService } from '../core/toast/toast.service';
         >
           <span class="toast-dot" aria-hidden="true"></span>
           <span class="toast-msg">{{ toast.message }}</span>
+          @if (toast.action; as action) {
+            <button type="button" class="toast-action" (click)="toastService.runAction(toast.id)">{{ action.label }}</button>
+          }
           <button type="button" class="toast-close" aria-label="Dismiss notification" (click)="toastService.dismiss(toast.id)">
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path fill="currentColor" d="m12 10.6 5-5 1.4 1.4-5 5 5 5L17 18.4l-5-5-5 5L5.6 17l5-5-5-5L7 5.6l5 5Z" />
@@ -81,6 +84,24 @@ import { ToastService } from '../core/toast/toast.service';
         min-width: 0;
         font-size: 14px;
         line-height: 1.4;
+      }
+
+      .toast-action {
+        flex: 0 0 auto;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: var(--radius-sm, 6px);
+        background: transparent;
+        color: var(--accent-text);
+        font: inherit;
+        font-size: 14px;
+        font-weight: var(--fw-bold);
+        cursor: pointer;
+      }
+
+      .toast-action:hover {
+        background: var(--accent-subtle);
       }
 
       .toast-close {

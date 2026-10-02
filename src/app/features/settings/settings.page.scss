@@ -405,6 +405,18 @@ button.danger-action {
   }
 }
 
+.range-field {
+  display: grid;
+  gap: 6px;
+
+  .field-note {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+}
+
 .settings-editor.single {
   grid-template-columns: 1fr;
 }

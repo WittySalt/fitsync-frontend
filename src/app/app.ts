@@ -6,6 +6,7 @@ import { AccountDataService, AccountSummary } from './core/account-data.service'
 import { AuthService } from './core/auth/auth.service';
 import { ThemeService } from './core/theme/theme.service';
 import { CoachStore } from './core/coach/coach.store';
+import { CookBarComponent } from './features/nutrition/cook/cook-bar.component';
 import { WorkoutBarComponent } from './features/workout/workout-bar.component';
 import { WorkoutConflictDialogComponent } from './features/workout/workout-conflict-dialog.component';
 import { WorkoutLiveService } from './features/workout/workout-live.service';
@@ -21,6 +22,7 @@ import { ToastOutletComponent } from './shared/toast-outlet.component';
     ToastOutletComponent,
     CoachDockComponent,
     WorkoutBarComponent,
+    CookBarComponent,
     WorkoutConflictDialogComponent
   ],
   templateUrl: './app.html',
@@ -55,6 +57,11 @@ export class App implements OnInit {
   /** The admin area brings its own layout, so the member navigation and coach dock stay out of it. */
   protected isAdminRoute(): boolean {
     return /^\/admin(?:[/?#]|$)/.test(this.router.url);
+  }
+
+  /** Cook mode is a full-screen view of its own, so the shell's navigation and docks stay out of it. */
+  protected isCookRoute(): boolean {
+    return /^\/nutrition\/recipes\/[^/?#]+\/cook(?:[/?#]|$)/.test(this.router.url);
   }
 
   ngOnInit(): void {

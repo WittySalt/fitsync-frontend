@@ -1,0 +1,85 @@
+// Shared by the Water and Drink tabs of the add dialog.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  > span:first-child,
+  .label {
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+}
+
+.input,
+.search {
+  box-sizing: border-box;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-secondary);
+
+  input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.unit {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.hint,
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.add {
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

@@ -4,6 +4,7 @@ import { adminGuard, authGuard } from './core/auth/auth.guard';
 import { AuthCallbackPage } from './features/auth/auth-callback.page';
 import { LoginPage } from './features/auth/login.page';
 import { LogoutCallbackPage } from './features/auth/logout-callback.page';
+import { cookLeaveGuard } from './features/nutrition/cook/cook-leave.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -39,6 +40,31 @@ export const routes: Routes = [
     loadComponent: () => import('./features/nutrition/nutrition.page').then((module) => module.NutritionPage),
     canActivate: [authGuard],
     title: 'FitSync Nutrition'
+  },
+  {
+    path: 'nutrition/recipes/:id/cook',
+    loadComponent: () => import('./features/nutrition/cook/cook.page').then((module) => module.CookPage),
+    canActivate: [authGuard],
+    canDeactivate: [cookLeaveGuard],
+    title: 'FitSync Cook mode'
+  },
+  {
+    path: 'nutrition/recipes/new',
+    loadComponent: () => import('./features/nutrition/recipes/recipe-editor.page').then((module) => module.RecipeEditorPage),
+    canActivate: [authGuard],
+    title: 'FitSync New recipe'
+  },
+  {
+    path: 'nutrition/recipes/:id/edit',
+    loadComponent: () => import('./features/nutrition/recipes/recipe-editor.page').then((module) => module.RecipeEditorPage),
+    canActivate: [authGuard],
+    title: 'FitSync Edit recipe'
+  },
+  {
+    path: 'nutrition/recipes/:id',
+    loadComponent: () => import('./features/nutrition/recipes/recipe.page').then((module) => module.RecipePage),
+    canActivate: [authGuard],
+    title: 'FitSync Recipe'
   },
   {
     path: 'progress',

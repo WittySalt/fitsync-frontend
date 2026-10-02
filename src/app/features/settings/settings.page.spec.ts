@@ -400,6 +400,24 @@ describe('SettingsPage', () => {
     expect(component.accountMenuOpen()).toBeFalse();
   });
 
+  it('shows the four reference range options and the menstruation note unless female is chosen', () => {
+    const component = fixture.componentInstance;
+    component.selectedSection.set('preferences');
+    component.startEdit('nutrition');
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    const select = Array.from(root.querySelectorAll('select')).find((el) => el.getAttribute('formControlName') === 'nutrientReferenceRange') as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.textContent?.trim())).toEqual(['Based on my profile', 'Female ranges', 'Male ranges', 'Blended ranges']);
+    expect(component.nutritionForm.controls.nutrientReferenceRange.value).toBe('PROFILE');
+    expect(root.textContent).toContain('Daily amounts in nutrition science are set for female and male bodies.');
+    expect(root.querySelector('[data-testid="range-menstruate-note"]')).not.toBeNull();
+
+    component.nutritionForm.controls.nutrientReferenceRange.setValue('FEMALE');
+    fixture.detectChanges();
+    expect(root.querySelector('[data-testid="range-menstruate-note"]')).toBeNull();
+  });
+
   it('handles edit cancellation', () => {
     const component = fixture.componentInstance;
 
@@ -453,11 +471,11 @@ describe('SettingsPage', () => {
       })
     }));
 
-    component.nutritionForm.patchValue({ mealFrequency: '4', waterGoalMl: '2800' });
+    component.nutritionForm.patchValue({ mealFrequency: '4', waterGoalMl: '2800', nutrientReferenceRange: 'FEMALE' });
     component.savePreferences('nutrition');
 
     expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
-      nutrition: jasmine.objectContaining({ mealFrequency: 4, waterGoalMl: 2800 })
+      nutrition: jasmine.objectContaining({ mealFrequency: 4, waterGoalMl: 2800, nutrientReferenceRange: 'FEMALE' })
     }));
 
     component.notificationsForm.patchValue({

@@ -1,0 +1,108 @@
+<div class="screen">
+  @if (alert(); as current) {
+    <app-cook-alert [alert]="current" (acted)="answerAlert()" (later)="session.dismissAlert(current.step)" />
+  }
+
+  @switch (status()) {
+    @case ('loading') {
+      <p class="state" role="status" aria-busy="true">Getting the recipe ready</p>
+    }
+    @case ('error') {
+      <div class="state" role="alert">
+        <p>This recipe could not be opened for cooking.</p>
+        <div class="state-actions">
+          <button type="button" class="again" (click)="load()">Try again</button>
+          <button type="button" class="leave" (click)="close()">Back</button>
+        </div>
+      </div>
+    }
+    @case ('ready') {
+      @let r = recipe()!;
+      @let s = step()!;
+      <div class="page">
+        <app-cook-banner
+          [name]="r.name"
+          [imageUrl]="r.imageUrl"
+          [servings]="servings()"
+          [screenStaysOn]="wake.supported()"
+          (closed)="close()"
+        />
+
+        @if (chips().length > 0) {
+          <app-cook-also-timing [chips]="chips()" (jumped)="jump($event)" />
+        }
+
+        <div class="layout">
+          <aside class="left" aria-label="All steps">
+            <app-cook-steps [steps]="steps()" [current]="index()" (jumped)="jump($event)" />
+          </aside>
+
+          <main class="middle">
+            <app-cook-add-now [ingredients]="nowIngredients()" [stepNumber]="s.number" [stepCount]="steps().length" [factor]="factor()" />
+
+            <p class="step">
+              {{ text().before }}@if (text().match) {<span class="phrase">{{ text().match }}</span>}{{ text().after }}
+            </p>
+
+            @if (timer(); as t) {
+              <app-cook-timer
+                [state]="t"
+                [now]="session.now()"
+                [stepKey]="index()"
+                [subject]="subject()"
+                [lastStep]="isLast()"
+                (started)="start()"
+                (paused)="pause()"
+                (resumed)="resume()"
+                (minuteAdded)="addMinute()"
+                (adjusted)="adjust($event)"
+                (next)="next()"
+              />
+            }
+
+            <details class="under">
+              <summary>Ingredients · {{ usedLabel() }}</summary>
+              <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" [bare]="true" />
+            </details>
+
+            <div class="nav">
+              <button type="button" class="back" [disabled]="index() === 0" (click)="back()">Back</button>
+              <button type="button" class="forward" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step' }}</button>
+            </div>
+          </main>
+
+          <aside class="right" aria-label="Ingredients">
+            <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" />
+          </aside>
+        </div>
+
+        <button type="button" class="handle" aria-haspopup="dialog" (click)="sheetOpen.set(true)">
+          <span class="grip" aria-hidden="true"></span>
+          <span>All steps · <span class="green">{{ sheetLabel() }}</span></span>
+        </button>
+      </div>
+
+      @if (sheetOpen()) {
+        <div class="sheet-backdrop" (click)="sheetOpen.set(false)" aria-hidden="true"></div>
+        <section class="sheet" role="dialog" aria-modal="true" aria-label="All steps and ingredients">
+          <button type="button" class="grip-button" aria-label="Close" (click)="sheetOpen.set(false)"><span class="grip"></span></button>
+          <app-cook-steps [steps]="steps()" [current]="index()" (jumped)="jump($event)" />
+          <div class="sheet-ingredients">
+            <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" />
+          </div>
+        </section>
+      }
+    }
+  }
+
+  @if (leaving()) {
+    <app-confirm-dialog
+      [title]="leaveTitle()"
+      [message]="leaveMessage()"
+      confirmLabel="Stop them"
+      cancelLabel="Keep them running"
+      (confirmed)="answerLeave(false)"
+      (cancelled)="answerLeave(true)"
+    />
+  }
+</div>

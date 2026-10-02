@@ -1,0 +1,211 @@
+// Laid out by its own width: the days and the figures side by side on a wide page, stacked on a phone.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  container-type: inline-size;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.range {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  align-items: center;
+  gap: 28px;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.day {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 12px;
+  }
+}
+
+.weekday,
+.caption {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.weekday {
+  font-weight: var(--fw-semibold);
+}
+
+.caption {
+  height: 18px;
+}
+
+.caption.far {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.now {
+  font-weight: var(--fw-bold);
+  color: var(--accent-text);
+}
+
+.tile {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 100%;
+  height: 40px;
+  border: 1.5px solid var(--surface-sunken);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+
+  &.logged {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
+  &.today {
+    border: 1.5px dashed var(--accent);
+    background: var(--surface-tint);
+  }
+}
+
+.fill {
+  position: absolute;
+  inset: auto 0 0;
+  background: var(--accent);
+}
+
+.today .fill {
+  background: var(--accent-subtle);
+}
+
+.selected .tile {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.selected .weekday {
+  color: var(--accent-text);
+  font-weight: var(--fw-bold);
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding-left: 28px;
+  border-left: 1px solid var(--border);
+}
+
+.figure {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: var(--fw-semibold);
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
+.failed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+
+  button {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+  }
+}
+
+@container (max-width: 760px) {
+  :host {
+    padding: 18px;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .days {
+    gap: 6px;
+  }
+
+  .caption {
+    font-size: 11px;
+  }
+
+  .figures {
+    padding: 14px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

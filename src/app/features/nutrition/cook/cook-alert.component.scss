@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 16px;
+  background: var(--accent-text);
+  color: var(--text-on-accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.text {
+  flex: 1 1 200px;
+}
+
+button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--text-on-accent);
+    outline-offset: 2px;
+  }
+}
+
+.action {
+  border: 0;
+  background: var(--text-on-accent);
+  color: var(--accent-text);
+}
+
+.later {
+  border: 1px solid color-mix(in srgb, var(--text-on-accent) 55%, transparent);
+  background: transparent;
+  color: var(--text-on-accent);
+}

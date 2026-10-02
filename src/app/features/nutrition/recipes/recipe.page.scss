@@ -1,0 +1,181 @@
+:host {
+  display: block;
+}
+
+.back {
+  justify-self: start;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--accent-text);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero-skeleton {
+  min-height: 300px;
+  border-radius: 24px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-areas:
+    'facts aside'
+    'main aside';
+  gap: 18px 22px;
+  align-items: start;
+}
+
+.facts {
+  grid-area: facts;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+
+    &:first-child {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+
+  strong {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: var(--fw-semibold);
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
+aside {
+  grid-area: aside;
+  position: sticky;
+  top: 16px;
+}
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.bar {
+  display: none;
+}
+
+// The layout is measured by its own width, so the side menu and window size both count.
+.layout-box {
+  container: recipe / inline-size;
+  min-width: 0;
+}
+
+@container recipe (max-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'facts'
+      'aside'
+      'main';
+  }
+
+  aside {
+    position: static;
+  }
+}
+
+// Narrow: the facts make two rows of two, so no label touches the next one.
+@container recipe (max-width: 620px) {
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 14px 16px;
+
+    div:nth-child(odd) {
+      padding-left: 0;
+      border-left: 0;
+    }
+
+    strong {
+      font-size: 20px;
+    }
+  }
+}
+
+@media (max-width: 860px) {
+  .recipe-page {
+    padding-bottom: 84px;
+  }
+
+  .bar {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 84px;
+    z-index: 19;
+    box-sizing: border-box;
+    display: flex;
+    gap: 8px;
+    max-width: calc(100vw - 24px);
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+
+    .cook,
+    .log {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 46px;
+      box-sizing: border-box;
+      border-radius: 13px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: var(--fw-bold);
+      text-decoration: none;
+    }
+
+    .cook {
+      flex: 1 1 0;
+      border: 1.5px solid var(--border-accent);
+      color: var(--accent-text);
+    }
+
+    .log {
+      flex: 2 1 0;
+      border: 0;
+      background: var(--accent);
+      color: var(--text-on-accent);
+      cursor: pointer;
+
+      &:disabled {
+        opacity: 0.6;
+      }
+    }
+  }
+}

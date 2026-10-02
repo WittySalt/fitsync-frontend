@@ -1,312 +1,43 @@
 .nutrition-page {
-  #nutrition-panel-today {
-    display: grid;
-    gap: 16px;
-  }
-
-  .nutrition-hero,
-  .nutrition-workspace,
-  .planning-grid {
-    display: grid;
-    gap: 16px;
-  }
-
-  .nutrition-hero {
-    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
-  }
-
-  .planning-grid {
-    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-  }
-
-  .calorie-panel,
-  .macro-panel,
-  .timeline-panel,
-  .guidance-panel {
-    padding: 20px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .calorie-panel {
-    min-height: 260px;
-    display: grid;
-    align-content: space-between;
-    background: linear-gradient(135deg, var(--surface), var(--surface-tint));
-  }
-
-  .calorie-row {
-    display: flex;
-    justify-content: space-between;
+  .nutrition-header {
     align-items: center;
-    gap: 22px;
-
-    h2 {
-      margin: 10px 0 4px;
-      font-size: var(--text-5xl);
-      line-height: 0.9;
-    }
-
-    p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-weight: var(--fw-bold);
-    }
   }
 
-  .calorie-ring {
-    --value: 0%;
-    width: 118px;
-    height: 118px;
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at center, var(--surface) 58%, transparent 59%),
-      conic-gradient(var(--amber-500) var(--value), var(--surface-sunken) 0);
-
-    strong {
-      font-size: 22px;
-    }
-  }
-
-  .target-empty {
-    max-width: 190px;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-    text-align: right;
-
-    strong,
-    a {
-      display: block;
-    }
-
-    a {
-      margin-top: 8px;
-    }
-  }
-
-  .budget-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 20px;
-
-    div {
-      min-width: 0;
-      padding: 12px;
-      border-radius: var(--radius-md);
-      background: var(--surface-sunken);
-      border: 1px solid var(--border);
-    }
-
-    span {
-      display: block;
-      color: var(--text-secondary);
-      font-size: 12px;
-      font-weight: var(--fw-bold);
-    }
-
-    strong {
-      display: block;
-      margin-top: 4px;
-      overflow-wrap: anywhere;
-    }
-  }
-
-  .macro-panel,
-  .timeline-panel,
-  .guidance-panel {
-    h2 {
-      margin: 6px 0 0;
-    }
-  }
-
-  .macro-list,
-  .timeline-list,
-  .note-list {
-    display: grid;
-    gap: 12px;
-  }
-
-  .macro-row {
-    display: grid;
-    grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1fr);
-    gap: 18px;
-    align-items: center;
-    padding: 14px;
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-
-    strong,
-    span {
-      display: block;
-    }
-
-    span {
-      margin-top: 4px;
-      color: var(--text-secondary);
-      font-size: 13px;
-    }
-  }
-
-  .macro-bar {
-    height: 10px;
-    margin-top: 8px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: var(--surface-sunken);
-
-    i {
-      display: block;
-      height: 100%;
-      border-radius: inherit;
-      background: var(--accent);
-    }
-  }
-
-  .macro-bar.protein i,
-  .macro-bar.fat i {
-    background: var(--blue-500);
-  }
-
-  .macro-bar.carbs i {
-    background: var(--amber-500);
-  }
-
-  .macro-empty {
-    font-weight: var(--fw-semibold);
-  }
-
-  .target-link {
-    display: inline-block;
-    margin-top: 8px;
-  }
-
-  .timeline-row {
-    display: grid;
-    grid-template-columns: 76px minmax(0, 1fr) minmax(92px, auto);
-    gap: 14px;
-    align-items: center;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-
-    strong,
-    span {
-      display: block;
-    }
-
-    span {
-      margin-top: 4px;
-      color: var(--text-secondary);
-      font-size: 13px;
-    }
-
-    > div:last-child {
-      text-align: right;
-    }
-  }
-
-  .time-badge {
-    min-height: 42px;
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-md);
-    background: var(--surface);
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: var(--fw-bold);
-  }
-
-  .quick-food-chip {
-    margin-top: 8px;
-    padding: 7px 12px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
+  .head-line {
+    margin: 6px 0 0;
     color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
 
-    &:hover {
-      border-color: var(--border-accent);
-      background: var(--accent-subtle);
-      color: var(--accent-text);
+  .week-skeleton {
+    min-height: 168px;
+    border-radius: 24px;
+  }
+
+  .nutrition-tabs {
+    width: fit-content;
+    border: 0;
+
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
     }
   }
 
-  .note-list {
-    grid-template-columns: 1fr;
+  .nutrition-workspace {
+    display: grid;
+    gap: 16px;
+  }
 
-    article {
-      padding: 14px;
-      border-radius: var(--radius-md);
-      background: var(--surface-sunken);
-    }
+  .log-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 
-    span {
-      color: var(--text-secondary);
-      font-size: 12px;
-      font-weight: var(--fw-bold);
-      text-transform: uppercase;
-    }
-
-    strong {
-      display: block;
-      margin: 5px 0;
-      font-size: 22px;
-    }
-
-    p {
+    h2 {
       margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.45;
-    }
-
-    article.success {
-      border: 1px solid var(--border-accent);
-    }
-
-    article.warning {
-      border: 1px solid var(--amber-500);
-    }
-  }
-}
-
-@media (max-width: 1040px) {
-  .nutrition-page {
-    .nutrition-hero,
-    .planning-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-}
-
-@media (max-width: 700px) {
-  .nutrition-page {
-    .calorie-row {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
-    .target-empty {
-      max-width: none;
-      text-align: left;
-    }
-
-    .budget-strip,
-    .macro-row,
-    .timeline-row {
-      grid-template-columns: 1fr;
-    }
-
-    .timeline-row > div:last-child {
-      text-align: left;
+      font-size: var(--text-2xl);
     }
   }
 }

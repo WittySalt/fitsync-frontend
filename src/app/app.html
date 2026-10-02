@@ -1,7 +1,7 @@
 @if (isAuthRoute() || isAdminRoute()) {
   <router-outlet />
 } @else {
-<div class="app-shell">
+<div class="app-shell" [class.cook-open]="isCookRoute()">
   <aside class="sidebar" aria-label="Primary navigation">
     <a class="brand" routerLink="/dashboard" aria-label="FitSync home">
       <span class="brand-mark">F</span>
@@ -114,6 +114,7 @@
   <!-- The coach: always mounted, docks to the right edge, never opens itself. -->
   <app-coach-dock />
   <app-workout-bar />
+  <app-cook-bar />
   <app-workout-conflict-dialog />
 
   <nav class="bottom-nav" aria-label="Mobile navigation">

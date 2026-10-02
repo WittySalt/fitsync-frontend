@@ -1,0 +1,192 @@
+@use './cook-button' as button;
+
+:host {
+  display: block;
+}
+
+.timer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+// Every phase fits this height, so the button below never moves.
+.head {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+}
+
+.intro {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.stepper {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.round {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.time {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+
+  &.dim {
+    color: var(--text-secondary);
+  }
+}
+
+.link {
+  border: 0;
+  background: none;
+  padding: 6px 2px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.round:focus-visible,
+.link:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.done {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-on-accent);
+
+  &.pop {
+    animation: pop 0.4s ease-out;
+  }
+}
+
+// The time fades out where the tick comes in.
+.fading {
+  position: absolute;
+  left: 0;
+  animation: fade-out 0.2s ease-out forwards;
+}
+
+.slot {
+  @include button.cook-button(true);
+  transition: opacity 0.3s;
+
+  &.outline {
+    @include button.cook-button(false);
+  }
+
+  &.locked {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &.ready {
+    animation: glow 0.6s ease-out;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+
+  to {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick.pop,
+  .slot.ready {
+    animation: none;
+  }
+
+  .fading {
+    display: none;
+  }
+
+  .slot {
+    transition: none;
+  }
+}

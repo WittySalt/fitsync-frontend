@@ -242,6 +242,13 @@
                 <label>Calorie mode<select formControlName="calorieTrackingMode">@for (option of calorieModeOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
                 <label>Macro preference<select formControlName="macroPreference">@for (option of macroOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
                 <label>Water goal (ml)<input type="number" formControlName="waterGoalMl" min="0" max="10000" /></label>
+                <div class="wide range-field">
+                  <label>Nutrient reference ranges<select formControlName="nutrientReferenceRange">@for (option of referenceRangeOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
+                  <p class="field-note">Daily amounts in nutrition science are set for female and male bodies. Choose the ranges that fit your body, or keep the blended ones.</p>
+                  @if (nutritionForm.controls.nutrientReferenceRange.value !== 'FEMALE') {
+                    <p class="field-note" data-testid="range-menstruate-note">If you menstruate, the female ranges suit iron better.</p>
+                  }
+                </div>
                 <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'nutrition'">Save nutrition</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
               </form>
             } @else {
@@ -251,6 +258,7 @@
                 <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Calorie mode</span><strong>{{ labelFor(account.user.preferences.nutrition.calorieTrackingMode) }}</strong><em>Edit</em></button>
                 <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Macro preference</span><strong>{{ labelFor(account.user.preferences.nutrition.macroPreference) }}</strong><em>Edit</em></button>
                 <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Water goal</span><strong>{{ account.user.preferences.nutrition.waterGoalMl ? account.user.preferences.nutrition.waterGoalMl + ' ml' : 'Not set' }}</strong><em>Edit</em></button>
+                <button class="field-row" type="button" (click)="startEdit('nutrition')"><span>Nutrient reference ranges</span><strong>{{ referenceRangeLabel(account.user.preferences.nutrition.nutrientReferenceRange) }}</strong><em>Edit</em></button>
               </div>
             }
           </article>
