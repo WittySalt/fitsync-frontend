@@ -129,7 +129,7 @@ export class CookPage implements OnInit, OnDestroy {
   protected readonly runningCount = computed(() => this.session.liveTimers().length);
   protected readonly leaveMessage = computed(() => {
     const count = this.runningCount();
-    return count === 1 ? 'A timer is still running.' : 'Your timers are still running.';
+    return count === 1 ? 'The timer keeps running in a bar at the bottom of the screen.' : 'Timers keep running in a bar at the bottom of the screen.';
   });
   protected readonly leaveTitle = computed(() => {
     const count = this.runningCount();

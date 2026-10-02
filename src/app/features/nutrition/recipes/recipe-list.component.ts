@@ -234,8 +234,7 @@ export class RecipeListComponent {
     if (!this.isLibrary()) {
       return this.service.list(query);
     }
-    // A server that does not know the sort answers without it, so the list still loads.
-    return this.service.list({ ...query, sort: request.sort }).pipe(catchError(() => this.service.list(query)));
+    return this.service.list({ ...query, sort: request.sort });
   }
 
   protected onSearch(event: Event): void {

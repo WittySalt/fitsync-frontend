@@ -91,7 +91,8 @@ export function mapCookRecipe(wire: Wire): CookRecipe {
       id: String(item['ingredientId'] ?? ''),
       name,
       displayText: text(item['displayText']) || name,
-      grams: positive(item['grams']),
+      // 0 g stays 0, so the page can say "to taste"; a missing weight is still null.
+      grams: Number(item['grams']) === 0 && item['grams'] !== null && item['grams'] !== '' ? 0 : positive(item['grams']),
       foodGroup: asFoodGroup(text(item['foodGroup'])),
       categoryCode: text(item['categoryCode']) || null
     };

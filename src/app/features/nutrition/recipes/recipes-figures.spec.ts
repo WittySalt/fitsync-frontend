@@ -260,6 +260,12 @@ describe('ticks', () => {
     expect(() => saveTicks(full, 'a', new Set(['i1']))).not.toThrow();
   });
 
+  it('writes 0 g as to taste', () => {
+    expect(gramsText(0)).toBe('to taste');
+    expect(gramsText(null)).toBe('');
+    expect(gramsText(12.4)).toBe('12 g');
+  });
+
   it('finds the session store in a browser', () => {
     expect(sessionStore()).not.toBeNull();
   });

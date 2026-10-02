@@ -219,7 +219,8 @@ export class CoachStore {
    * page) sends no context at all, so the server falls back to its own default grounding.
    */
   private buildContext(about?: { recipeId?: string }): CoachMessageContext | undefined {
-    const code = this.surface().code;
+    // A question about a recipe is always a Nutrition question, whatever page the dock was opened from.
+    const code = about?.recipeId ? 'NUTRITION' : this.surface().code;
     if (!code) {
       return undefined;
     }

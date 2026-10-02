@@ -103,14 +103,14 @@ describe('RecipeListComponent', () => {
     expect(el(fixture).querySelector('.why')).toBeNull();
   }));
 
-  it('asks again without the sort when the server refuses it', fakeAsync(() => {
+  it('shows the error panel when the server refuses the sort, and does not hide the sort', fakeAsync(() => {
     service.list.and.callFake((query) => (query.sort ? throwError(() => new Error('bad sort')) : of({ items: cards(1), page: 0, totalPages: 1, totalElements: 1 })));
     const fixture = render();
     tick();
     fixture.detectChanges();
 
-    expect(el(fixture).querySelectorAll('app-recipe-card').length).toBe(1);
-    expect(lastQuery().sort).toBeUndefined();
+    expect(el(fixture).querySelector('app-state-panel')).not.toBeNull();
+    expect(lastQuery().sort).toBe('fit');
   }));
 
   it('sends no sort for My recipes and shows no sort control there', fakeAsync(() => {

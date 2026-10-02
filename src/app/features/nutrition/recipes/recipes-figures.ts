@@ -50,6 +50,9 @@ export function gramsText(grams: number | null): string {
   if (grams === null) {
     return '';
   }
+  if (grams <= 0) {
+    return 'to taste';
+  }
   const value = grams >= 10 ? Math.round(grams) : Math.round(grams * 10) / 10;
   return `${value} g`;
 }

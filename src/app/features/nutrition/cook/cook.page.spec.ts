@@ -335,6 +335,7 @@ describe('CookPage', () => {
     const answer = fixture.componentInstance.confirmLeave() as Promise<boolean>;
     fixture.detectChanges();
     expect(text('app-confirm-dialog h2')).toBe('1 timer is still running');
+    expect(text('app-confirm-dialog p')).toBe('The timer keeps running in a bar at the bottom of the screen.');
     const buttons = el.querySelectorAll('app-confirm-dialog button');
     expect(buttons[0].textContent).toContain('Keep them running');
     expect(buttons[1].textContent).toContain('Stop them');

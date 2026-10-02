@@ -83,7 +83,7 @@ describe('CoachStore', () => {
 
   it('attaches the recipe a question is about to the context, for that question only', () => {
     store.ask('Does this fit today?', { recipeId: 'r1' });
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Does this fit today?', { surface: 'HOME', recipeId: 'r1' });
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Does this fit today?', { surface: 'NUTRITION', recipeId: 'r1' });
     stream.next({ name: 'answer', data: answer });
     stream.complete();
 
