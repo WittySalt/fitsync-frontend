@@ -1,0 +1,230 @@
+@use './cook-button' as button;
+
+// Cook mode covers the app shell: a full-screen view of its own that follows the app's theme.
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: block;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.screen {
+  min-height: 100%;
+}
+
+.page {
+  max-width: 1052px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.state {
+  margin: 0;
+  padding: 64px 22px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.state-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.again {
+  @include button.cook-button(true);
+  width: auto;
+  padding: 0 22px;
+}
+
+.leave {
+  @include button.cook-button(false);
+  width: auto;
+  padding: 0 22px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr) 210px;
+  gap: 26px;
+  align-items: start;
+}
+
+.left {
+  padding-right: 18px;
+  border-right: 1px solid var(--border);
+}
+
+.right {
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+}
+
+.middle {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.step {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.42;
+  color: var(--text-primary);
+}
+
+// The timer phrase is coloured, not a button.
+.phrase {
+  color: var(--accent-text);
+  border-bottom: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  white-space: nowrap;
+}
+
+.nav {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+
+.back,
+.forward {
+  height: 52px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+}
+
+.back {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-primary);
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.forward {
+  border: 0;
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.handle,
+.sheet,
+.sheet-backdrop {
+  display: none;
+}
+
+// A phone: the step comes first, the steps and ingredients move into the sheet.
+@media (max-width: 860px) {
+  .page {
+    padding: 14px 14px 24px;
+    gap: 18px;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .left,
+  .right {
+    display: none;
+  }
+
+  .step {
+    font-size: 23px;
+  }
+
+  .handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .green {
+    color: var(--accent-text);
+  }
+
+  .grip {
+    width: 32px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--border-strong);
+  }
+
+  .sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .sheet {
+    position: fixed;
+    inset: auto 0 0;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 10px 14px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 24px 24px 0 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+
+  .grip-button {
+    align-self: center;
+    padding: 8px 20px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .sheet-ingredients {
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet {
+    animation: rise 0.22s ease-out;
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
