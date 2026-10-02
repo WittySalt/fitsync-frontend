@@ -2,7 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { NutrientTileData } from './nutrients.models';
-import { groupColour, sharePercent, tileFill, tileLabel, tileState } from './nutrients-figures';
+import { groupColour, sharePercent, tileFill, tileLabel, tileName, tileState } from './nutrients-figures';
 
 /**
  * One nutrient as a tile of the periodic table: the symbol large, the name below, an atomic number
@@ -33,7 +33,7 @@ import { groupColour, sharePercent, tileFill, tileLabel, tileState } from './nut
         <span class="value">
           @switch (state()) {
             @case ('reached') {
-              <app-food-glyph name="CHECK" [size]="11" [strokeWidth]="3" />{{ percent() }}%
+              <app-food-glyph class="tick" name="CHECK" [size]="11" [strokeWidth]="3" />{{ percent() }}%
             }
             @case ('over') {
               over
@@ -48,7 +48,7 @@ import { groupColour, sharePercent, tileFill, tileLabel, tileState } from './nut
         </span>
       </span>
       <strong class="symbol">{{ nutrient().symbol }}</strong>
-      <span class="name">{{ nutrient().displayName }}</span>
+      <span class="name">{{ name() }}</span>
     </button>
   `,
   styleUrl: './nutrient-tile.component.scss'
@@ -63,6 +63,7 @@ export class NutrientTileComponent {
   protected readonly state = computed(() => tileState(this.nutrient()));
   protected readonly fill = computed(() => tileFill(this.nutrient()));
   protected readonly percent = computed(() => sharePercent(this.nutrient()));
+  protected readonly name = computed(() => tileName(this.nutrient()));
   protected readonly label = computed(() => tileLabel(this.nutrient()));
   protected readonly colour = computed(() => groupColour(this.nutrient().groupCode));
 }

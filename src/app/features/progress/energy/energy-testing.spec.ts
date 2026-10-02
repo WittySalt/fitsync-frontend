@@ -38,7 +38,7 @@ export function energyWeek(overrides: Partial<EnergyWeek> = {}): EnergyWeek {
     bmrEstimated: false,
     restingFactor: 1.2,
     average: { eaten: 2123, resting: RESTING, workouts: 396, used: 2364, balance: -241 },
-    mealSplit: { breakfast: 480, lunch: 690, dinner: 760, snack: 193 },
+    mealSplit: { breakfast: 480, lunch: 690, dinner: 760, snack: 193, other: 0 },
     weeklyKgEquivalent: -0.22,
     days: days(),
     weeks: [

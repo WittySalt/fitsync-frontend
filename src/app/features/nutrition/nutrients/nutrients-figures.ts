@@ -10,9 +10,19 @@ export const PERIODS: readonly { key: PeriodKey; label: string; days: number }[]
 
 export const DEFAULT_PERIOD: PeriodKey = '7d';
 
-/** The period named in the URL, or the default for anything unreadable. */
+/**
+ * The period named in the URL query, `?period=`. The links write `today`, `7d` and `30d`, and a
+ * hand-typed `1`, `7`, `30`, `7days` or `30 days` reads the same; anything else is the default.
+ */
 export function parsePeriod(value: string | null | undefined): PeriodKey {
-  return PERIODS.find((period) => period.key === value)?.key ?? DEFAULT_PERIOD;
+  const key = (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (key === 'today' || key === '1' || key === '1d' || key === '1day') {
+    return 'today';
+  }
+  if (key === '30' || key === '30d' || key === '30days') {
+    return '30d';
+  }
+  return key === '7' || key === '7d' || key === '7days' ? '7d' : DEFAULT_PERIOD;
 }
 
 /** The first and last local day of a period ending today, and how many days that is. */
@@ -264,4 +274,9 @@ export function topSources<T>(sources: readonly T[], count = 3): T[] {
 /** A name in the middle of a sentence: "Vitamin D" reads "vitamin D". */
 export function lowerFirst(name: string): string {
   return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/** The name on a tile: the full display name, except "Saturated fat", which is "Sat. fat" there. */
+export function tileName(nutrient: NutrientTileData): string {
+  return nutrient.displayName === 'Saturated fat' ? 'Sat. fat' : nutrient.displayName;
 }

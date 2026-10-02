@@ -16,6 +16,7 @@ import {
   tableOrder,
   tileFill,
   tileLabel,
+  tileName,
   tileState
 } from './nutrients-figures';
 import { day, nutrients, tile } from './nutrients-testing.spec';
@@ -27,6 +28,19 @@ describe('nutrient figures', () => {
       expect(parsePeriod('nonsense')).toBe('7d');
       expect(parsePeriod('today')).toBe('today');
       expect(parsePeriod('30d')).toBe('30d');
+    });
+
+    it('reads a hand-typed period too', () => {
+      expect(parsePeriod('30')).toBe('30d');
+      expect(parsePeriod('30 days')).toBe('30d');
+      expect(parsePeriod('7')).toBe('7d');
+      expect(parsePeriod('1')).toBe('today');
+      expect(parsePeriod('TODAY')).toBe('today');
+    });
+
+    it('names a tile in full, except saturated fat', () => {
+      expect(tileName(tile({ displayName: 'Vitamin B12' }))).toBe('Vitamin B12');
+      expect(tileName(tile({ displayName: 'Saturated fat' }))).toBe('Sat. fat');
     });
 
     it('counts back from today', () => {

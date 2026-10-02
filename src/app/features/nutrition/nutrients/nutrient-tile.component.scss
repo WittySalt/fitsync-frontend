@@ -1,6 +1,7 @@
 :host {
   display: block;
   min-width: 0;
+  container-type: inline-size;
 }
 
 .tile {
@@ -108,11 +109,24 @@
 }
 
 .name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 11px;
+  line-height: 1.15;
   color: var(--text-secondary);
+}
+
+/* A narrow tile loses the tick (the tint and the green percentage still say reached) and tightens up. */
+@container (max-width: 83px) {
+  .tick {
+    display: none;
+  }
+
+  .tile {
+    padding: 7px 5px;
+  }
+
+  .name {
+    font-size: 10px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

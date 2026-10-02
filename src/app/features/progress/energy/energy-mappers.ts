@@ -27,7 +27,7 @@ function mapAverage(raw: unknown): EnergyAverage | null {
 function mapSplit(raw: unknown): MealSplit | null {
   const wire = object(raw);
   return wire
-    ? { breakfast: num(wire['breakfast']), lunch: num(wire['lunch']), dinner: num(wire['dinner']), snack: num(wire['snack']) }
+    ? { breakfast: num(wire['breakfast']), lunch: num(wire['lunch']), dinner: num(wire['dinner']), snack: num(wire['snack']), other: num(wire['other']) }
     : null;
 }
 

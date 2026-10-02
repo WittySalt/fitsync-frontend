@@ -76,6 +76,10 @@
   background: color-mix(in srgb, var(--accent) 25%, var(--surface));
 }
 
+[data-part='other'] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
 [data-part='resting'] {
   background: var(--border-strong);
 }

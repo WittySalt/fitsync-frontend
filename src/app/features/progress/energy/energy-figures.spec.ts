@@ -112,6 +112,13 @@ describe('energy figures', () => {
       expect(bars?.used.map((part) => part.label)).toEqual(['Resting × 1.2', 'Workouts']);
     });
 
+    it('adds an Other segment only when meals without a type are above zero', () => {
+      const split = { breakfast: 480, lunch: 690, dinner: 760, snack: 193 };
+      expect(energyBars(energyWeek({ mealSplit: { ...split, other: 0 } }))?.eaten.map((part) => part.key)).not.toContain('other');
+      const withOther = energyBars(energyWeek({ mealSplit: { ...split, other: 120 } }));
+      expect(withOther?.eaten.map((part) => part.label)).toEqual(['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Other']);
+    });
+
     it('names a segment inside it only when it has room', () => {
       const bars = energyBars(energyWeek());
       expect(bars?.eaten.find((part) => part.key === 'breakfast')?.showLabel).toBeTrue();

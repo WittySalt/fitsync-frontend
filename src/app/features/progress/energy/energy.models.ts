@@ -15,6 +15,8 @@ export interface MealSplit {
   lunch: number | null;
   dinner: number | null;
   snack: number | null;
+  /** Meals logged without a type; shown only when above zero. */
+  other: number | null;
 }
 
 export interface EnergyDay {

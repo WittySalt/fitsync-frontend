@@ -144,7 +144,8 @@ const MEAL_LABELS: readonly [keyof NonNullable<EnergyWeek['mealSplit']>, string]
   ['breakfast', 'Breakfast'],
   ['lunch', 'Lunch'],
   ['dinner', 'Dinner'],
-  ['snack', 'Snacks']
+  ['snack', 'Snacks'],
+  ['other', 'Other']
 ];
 /** A segment at least this wide (percent) has room for its name inside. */
 const LABEL_FROM = 16;
