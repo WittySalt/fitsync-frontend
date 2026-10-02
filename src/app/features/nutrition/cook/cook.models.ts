@@ -1,4 +1,5 @@
 import { FoodGroup, asFoodGroup } from '../../../shared/food/food-groups';
+import { clipName, labelForPhrase } from '../recipes/recipes-timers';
 
 /** A time written in a step: `seconds` is the lower end of a range and `maxSeconds` the upper end. */
 export interface CookTimerDef {
@@ -7,6 +8,8 @@ export interface CookTimerDef {
   eachSide: boolean;
   /** The text as written in the step, so the page can colour it. */
   phrase: string;
+  /** The name of the timer, such as "Brown patties". The server sends it; the page works it out when it is missing. */
+  label?: string;
 }
 
 export interface CookIngredient {
@@ -71,7 +74,7 @@ export function titleFromText(stepText: string): string {
   return (space > 0 ? head.slice(0, space) : head).trim();
 }
 
-function mapTimer(wire: Wire | undefined): CookTimerDef | null {
+function mapTimer(wire: Wire | undefined, label: (phrase: string) => string): CookTimerDef | null {
   const seconds = positive(wire?.['seconds']);
   if (!wire || seconds === null) {
     return null;
@@ -81,7 +84,8 @@ function mapTimer(wire: Wire | undefined): CookTimerDef | null {
     seconds,
     maxSeconds: max !== null && max > seconds ? max : null,
     eachSide: wire['eachSide'] === true,
-    phrase: text(wire['phrase'])
+    phrase: text(wire['phrase']),
+    label: clipName(text(wire['label'])) || label(text(wire['phrase']))
   };
 }
 
@@ -110,7 +114,13 @@ export function mapCookRecipe(wire: Wire): CookRecipe {
         text: body,
         title: text(item['title']) || titleFromText(body),
         ingredientIds: ids,
-        timer: mapTimer(list(item['timers'])[0])
+        timer: mapTimer(list(item['timers'])[0], (phrase) =>
+          labelForPhrase(body, phrase, {
+            ingredient: ids.map((id) => ingredients.find((ingredient) => ingredient.id === id)).find((ingredient) => !!ingredient)?.name,
+            title: text(item['title']),
+            stepNumber: index + 1
+          })
+        )
       };
     });
   return {

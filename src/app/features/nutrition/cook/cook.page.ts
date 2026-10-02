@@ -14,12 +14,13 @@ import { minutesCooked } from './cook-finish-figures';
 import { CookIngredientsComponent } from './cook-ingredients.component';
 import { addedCount, hasAssignments, ingredientsOf, parseServings, scaleFactor, splitAtPhrase, splitIngredients, topGroups, turnSubject } from './cook-recipe';
 import { CookRecipeService } from './cook-recipe.service';
-import { CookSessionService } from './cook-session.service';
+import { CookSessionService, LiveTimer } from './cook-session.service';
 import { CookStepsComponent } from './cook-steps.component';
 import { CookTopbarComponent } from './cook-topbar.component';
 import { CookTimerComponent } from './cook-timer.component';
 import { CookWakeLock } from './cook-wake-lock';
-import { addMinute, pauseTimer, remainingSeconds, resumeTimer, segmentFills, setRemaining, stageName, startStage } from './cook-timer';
+import { suggestTimerName } from '../recipes/recipes-timers';
+import { addMinute, isLive, pauseTimer, remainingSeconds, resumeTimer, segmentFills, setRemaining, stageName, startStage } from './cook-timer';
 import { CookRecipe } from './cook.models';
 
 type Status = 'loading' | 'error' | 'ready';
@@ -102,6 +103,22 @@ export class CookPage implements OnInit, OnDestroy {
     return step ? splitAtPhrase(step.text, step.timer?.phrase ?? '') : { before: '', match: '', after: '' };
   });
   protected readonly timer = computed(() => this.session.data()?.timers[this.index()] ?? null);
+  /** The name "+ Add a timer" starts with: the step's found timer, else the step's text, else its title. */
+  protected readonly suggestion = computed(() => {
+    const recipe = this.recipe();
+    const step = this.step();
+    if (!recipe || !step) {
+      return '';
+    }
+    const found = this.timer()?.label || step.timer?.label;
+    const first = ingredientsOf(step, recipe.ingredients)[0]?.name;
+    return found || suggestTimerName(step.text, { ingredient: first, title: step.title }) || '';
+  });
+  /** The time "+ Add a timer" starts with: the step's found time while that timer is not running, else 5 min. */
+  protected readonly defaultMinutes = computed(() => {
+    const found = this.timer();
+    return found && !isLive(found) ? Math.max(1, Math.round(found.recipeSeconds / 60)) : 5;
+  });
   /** The timers the cook added to this step. */
   protected readonly customs = computed<CustomTimerView[]>(() => {
     const now = this.session.now();
@@ -131,7 +148,7 @@ export class CookPage implements OnInit, OnDestroy {
         return {
           key: live.key,
           step: live.step,
-          label: live.name !== null ? live.name || `Step ${live.step + 1} timer` : (stageName(live.state) ?? `Step ${live.step + 1}`),
+          label: this.chipLabel(live),
           time: clockText(remainingSeconds(live.state, now)),
           share: 1 - (fills[live.state.stage] ?? fills[0])
         };
@@ -146,6 +163,14 @@ export class CookPage implements OnInit, OnDestroy {
     const count = this.runningCount();
     return `${count} ${count === 1 ? 'timer is' : 'timers are'} still running`;
   });
+
+  protected chipLabel(live: LiveTimer): string {
+    if (live.name !== null) {
+      return live.name || `Step ${live.step + 1} timer`;
+    }
+    const named = live.state.label;
+    return named ? `Step ${live.step + 1} · ${named}` : (stageName(live.state) ?? `Step ${live.step + 1}`);
+  }
 
   ngOnInit(): void {
     this.recipeId = this.route.snapshot.paramMap.get('id') ?? '';

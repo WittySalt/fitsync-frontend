@@ -1,5 +1,8 @@
 <section class="timer" aria-label="Timer">
   <div class="head" aria-live="polite">
+    @if (label()) {
+      <span class="name">{{ label() }}</span>
+    }
     @switch (phase()) {
       @case ('idle') {
         <div class="row">

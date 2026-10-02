@@ -36,6 +36,14 @@ describe('CookTimerComponent', () => {
     expect(Array.from(el.querySelectorAll('.round')).every((button) => button.querySelector('svg') !== null && !button.textContent?.trim())).toBeTrue();
   });
 
+  it('shows the name of a found timer above its time, in every phase', () => {
+    const named = createTimer({ ...single, label: 'Brown patties' });
+    expect(show(named).querySelector('.name')?.textContent).toBe('Brown patties');
+    expect(show(startStage(named, T0)).querySelector('.name')?.textContent).toBe('Brown patties');
+    expect(show(tickTimer(startStage(named, T0), T0 + 600_000).state, T0 + 600_000).querySelector('.name')?.textContent).toBe('Brown patties');
+    expect(show(createTimer(single)).querySelector('.name')).toBeNull();
+  });
+
   it('shows only the length for one stage and "Start timer"', () => {
     const el = show(createTimer(single));
     expect(el.querySelector('.intro')?.textContent?.trim()).toBe('10 min');

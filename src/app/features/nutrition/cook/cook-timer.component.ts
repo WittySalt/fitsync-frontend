@@ -50,6 +50,7 @@ export class CookTimerComponent implements OnDestroy {
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  protected readonly label = computed(() => this.state().label ?? '');
   protected readonly phase = computed(() => this.state().phase);
   protected readonly minutesLeft = computed(() => Math.max(1, Math.ceil(remainingSeconds(this.state(), this.now()) / 60)));
   /** The recipe's own time in minutes, for Reset. */

@@ -3,7 +3,7 @@ import { Component, ElementRef, Injector, afterNextRender, inject, input, output
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { DragList } from './drag-list';
 import { STEPS_MAX, STEP_MAX } from './recipes-editor';
-import { findTimer, timerFoundText } from './recipes-timers';
+import { findTimer, timerFoundText, timerLabel } from './recipes-timers';
 import { ReorderComponent } from './reorder.component';
 
 /**
@@ -23,7 +23,7 @@ import { ReorderComponent } from './reorder.component';
           <span class="number" aria-hidden="true">{{ i + 1 }}</span>
           <div class="body">
             <textarea rows="2" [attr.aria-label]="'Step ' + (i + 1)" [attr.maxlength]="stepMax" [value]="step" (input)="typed(i, $event)"></textarea>
-            @if (timerNote(step); as note) {
+            @if (timerNote(step, i); as note) {
               <span class="found"><app-food-glyph name="CLOCK" [size]="13" [strokeWidth]="2.2" />{{ note }}</span>
             }
           </div>
@@ -60,9 +60,10 @@ export class EditorStepsComponent {
     this.changed.emit({ index, text: (event.target as HTMLTextAreaElement).value });
   }
 
-  protected timerNote(text: string): string | null {
+  /** "A 5 min timer was found · Simmer the sauce": the same name cook mode shows for the timer. */
+  protected timerNote(text: string, index: number): string | null {
     const timer = findTimer(text);
-    return timer ? timerFoundText(timer) : null;
+    return timer ? `${timerFoundText(timer)} · ${timerLabel(text, { stepNumber: index + 1 })}` : null;
   }
 
   /** Move up or down from the keyboard; the focus follows the step to its new place. */

@@ -11,6 +11,8 @@ export type TimerPhase = 'idle' | 'running' | 'paused' | 'turn' | 'done';
 export interface TimerState {
   eachSide: boolean;
   phrase: string;
+  /** The name of the timer, such as "Brown patties"; missing in a session saved before names existed. */
+  label?: string;
   /** What the recipe says, for the range note. */
   recipeSeconds: number;
   recipeMaxSeconds: number | null;
@@ -36,6 +38,7 @@ export function createTimer(def: CookTimerDef): TimerState {
   return {
     eachSide: def.eachSide,
     phrase: def.phrase,
+    label: def.label ?? '',
     recipeSeconds: def.seconds,
     recipeMaxSeconds: def.maxSeconds,
     stageSeconds: def.seconds,
