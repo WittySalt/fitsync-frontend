@@ -49,7 +49,7 @@ interface TodayData {
   ],
   template: `
     <div class="page-grid recipe-page">
-      <a class="back" routerLink="/nutrition" [queryParams]="backQuery()">Recipes</a>
+      <a class="back" routerLink="/nutrition" [queryParams]="backQuery()" aria-label="Back to Recipes">&larr; Recipes</a>
       @let s = recipe();
       @if (s.status === 'loading') {
         <div class="skeleton hero-skeleton" aria-busy="true"></div>

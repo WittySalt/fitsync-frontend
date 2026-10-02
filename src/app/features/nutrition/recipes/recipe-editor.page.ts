@@ -44,7 +44,7 @@ const DEFAULT_GRAMS = 100;
   imports: [ConfirmDialogComponent, FoodGlyphComponent, FoodIconComponent, IngredientPickerComponent, RouterLink, StatePanelComponent],
   template: `
     <div class="page-grid editor-page">
-      <a class="back" routerLink="/nutrition" [queryParams]="{ tab: 'recipes', section: 'mine' }">Recipes</a>
+      <a class="back" routerLink="/nutrition" [queryParams]="{ tab: 'recipes', section: 'mine' }" aria-label="Back to your recipes">&larr; Back</a>
       @let s = loaded();
       @if (s.status === 'loading') {
         <div class="skeleton tall" aria-busy="true"></div>

@@ -1,6 +1,6 @@
 <div class="screen">
   @if (alert(); as current) {
-    <app-cook-alert [alert]="current" (acted)="answerAlert()" (later)="session.dismissAlert(current.step)" />
+    <app-cook-alert [alert]="current" (acted)="answerAlert()" (later)="session.dismissAlert(current.key)" />
   }
 
   @switch (status()) {
@@ -38,7 +38,15 @@
           </aside>
 
           <main class="middle">
-            <app-cook-add-now [ingredients]="nowIngredients()" [stepNumber]="s.number" [stepCount]="steps().length" [factor]="factor()" />
+            <app-cook-add-now
+              [ingredients]="nowIngredients()"
+              [stepNumber]="s.number"
+              [stepCount]="steps().length"
+              [factor]="factor()"
+              [added]="added()"
+              [assigned]="assigned()"
+              (toggled)="toggleAdded($event)"
+            />
 
             <p class="step">
               {{ text().before }}@if (text().match) {<span class="phrase">{{ text().match }}</span>}{{ text().after }}
@@ -60,9 +68,18 @@
               />
             }
 
-            <details class="under">
-              <summary>Ingredients · {{ usedLabel() }}</summary>
-              <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" [bare]="true" />
+            <app-cook-custom-timers
+              [items]="customs()"
+              (added)="addTimer($event)"
+              (paused)="pauseCustom($event)"
+              (resumed)="resumeCustom($event)"
+              (minuteAdded)="minuteCustom($event)"
+              (removed)="removeCustom($event)"
+            />
+
+            <details class="under" [open]="listOpen()" (toggle)="listOpen.set($any($event.target).open)">
+              <summary>All ingredients · {{ addedLabel() }}</summary>
+              <app-cook-ingredients [ingredients]="lists().inSteps" [others]="lists().loose" [added]="added()" [factor]="factor()" [bare]="true" (toggled)="toggleAdded($event)" />
             </details>
 
             <div class="nav">
@@ -72,7 +89,7 @@
           </main>
 
           <aside class="right" aria-label="Ingredients">
-            <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" />
+            <app-cook-ingredients [ingredients]="lists().inSteps" [others]="lists().loose" [added]="added()" [factor]="factor()" (toggled)="toggleAdded($event)" />
           </aside>
         </div>
 
@@ -88,7 +105,7 @@
           <button type="button" class="grip-button" aria-label="Close" (click)="sheetOpen.set(false)"><span class="grip"></span></button>
           <app-cook-steps [steps]="steps()" [current]="index()" (jumped)="jump($event)" />
           <div class="sheet-ingredients">
-            <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" />
+            <app-cook-ingredients [ingredients]="lists().inSteps" [others]="lists().loose" [added]="added()" [factor]="factor()" (toggled)="toggleAdded($event)" />
           </div>
         </section>
       }

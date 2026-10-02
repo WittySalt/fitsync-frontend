@@ -30,6 +30,8 @@ export interface CookRecipe {
   id: string;
   name: string;
   imageUrl: string | null;
+  /** Calories in one serving, or null when the server sent none. */
+  kcalPerServing: number | null;
   servings: number;
   ingredients: CookIngredient[];
   steps: CookStep[];
@@ -112,6 +114,7 @@ export function mapCookRecipe(wire: Wire): CookRecipe {
     id: String(wire['id'] ?? ''),
     name: text(wire['name']),
     imageUrl: text(wire['imageUrl']) || null,
+    kcalPerServing: positive((wire['perServing'] as Wire | null | undefined)?.['kcal']),
     servings: positive(wire['servings']) ?? 1,
     ingredients,
     steps

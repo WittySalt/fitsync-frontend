@@ -1,7 +1,7 @@
 :host {
   position: relative;
   display: block;
-  height: 120px;
+  height: 140px;
   overflow: hidden;
   border-radius: 22px;
   background: var(--gradient-hero);
@@ -37,22 +37,28 @@
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 14px;
-  padding: 0 24px;
+  padding: 0 24px 16px;
 }
 
-.close {
-  flex: none;
-  width: 40px;
-  height: 40px;
+.return {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 1;
+  height: 36px;
+  padding: 0 14px 0 10px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   border: 1px solid var(--hero-glass-border);
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--hero-glass);
   color: var(--text-on-hero);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
 
   &:focus-visible {
@@ -93,11 +99,15 @@
 
 @media (max-width: 759px) {
   :host {
-    height: 92px;
+    height: 124px;
   }
 
   .text {
-    padding: 0 16px;
+    padding: 0 16px 12px;
+  }
+
+  .return {
+    left: 12px;
   }
 
   .name {

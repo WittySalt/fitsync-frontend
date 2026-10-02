@@ -3,6 +3,9 @@
 }
 
 .back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   justify-self: start;
   font-size: 13px;
   font-weight: var(--fw-semibold);

@@ -5,6 +5,9 @@ import { CookAlert } from './cook-session.service';
 /** What the green bar says for a timer that ended on another step. */
 export function alertText(alert: CookAlert): string {
   const step = alert.step + 1;
+  if (alert.name !== null) {
+    return `Step ${step}: ${alert.name || 'your timer'} is done`;
+  }
   if (alert.kind === 'turn') {
     return `Step ${step}: the first side is done`;
   }

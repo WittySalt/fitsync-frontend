@@ -104,5 +104,31 @@ export const GLYPHS: Record<string, readonly GlyphShape[]> = {
   CLOCK: [
     { cx: 12, cy: 12, r: 8.5 },
     { d: 'M12 7.5V12l3 2' }
+  ],
+  ARROW_LEFT: [
+    { d: 'M19 12H5' },
+    { d: 'M11 6l-6 6 6 6' }
+  ],
+  CHEVRON_UP: [
+    { d: 'M6 15l6-6 6 6' }
+  ],
+  CHEVRON_DOWN: [
+    { d: 'M6 9l6 6 6-6' }
+  ],
+  PLAY: [
+    { d: 'M8 5.5v13l10.5-6.5Z' }
+  ],
+  SPARK: [
+    { d: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z' },
+    { d: 'M19 15v4' },
+    { d: 'M17 17h4' }
+  ],
+  DRAG: [
+    { cx: 9, cy: 7, r: 1 },
+    { cx: 15, cy: 7, r: 1 },
+    { cx: 9, cy: 12, r: 1 },
+    { cx: 15, cy: 12, r: 1 },
+    { cx: 9, cy: 17, r: 1 },
+    { cx: 15, cy: 17, r: 1 }
   ]
 };

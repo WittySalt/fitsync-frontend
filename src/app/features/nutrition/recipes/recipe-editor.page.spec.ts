@@ -71,6 +71,12 @@ describe('RecipeEditorPage', () => {
     return fixture;
   }
 
+  it('has a Back link to the recipes tab', () => {
+    const back = el(render()).querySelector('.back') as HTMLAnchorElement;
+    expect(back.textContent).toBe('\u2190 Back');
+    expect(back.getAttribute('href')).toBe('/nutrition?tab=recipes&section=mine');
+  });
+
   const el = (fixture: ComponentFixture<RecipeEditorPage>) => fixture.nativeElement as HTMLElement;
   const type = (fixture: ComponentFixture<RecipeEditorPage>, selector: string, value: string) => {
     const input = el(fixture).querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;

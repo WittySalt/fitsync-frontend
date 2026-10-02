@@ -67,7 +67,7 @@ describe('RecipePage', () => {
   it('has a Recipes link back that opens the tab', () => {
     const back = el(render()).querySelector('.back') as HTMLAnchorElement;
 
-    expect(back.textContent).toBe('Recipes');
+    expect(back.textContent).toBe('\u2190 Recipes');
     expect(back.getAttribute('href')).toBe('/nutrition?tab=recipes');
   });
 
