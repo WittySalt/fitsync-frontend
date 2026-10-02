@@ -1,0 +1,15 @@
+@if (visible()) {
+  <div class="bar">
+    <button class="resume" type="button" [attr.aria-label]="accessibleName()" (click)="resume()">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="name">{{ name() }}</span>
+      @for (item of items(); track $index) {
+        <span class="item" [class.later]="!$first" aria-hidden="true">{{ item }}</span>
+      }
+      @if (extra() > 0) {
+        <span class="item later" aria-hidden="true">+{{ extra() }}</span>
+      }
+    </button>
+    <button class="back" type="button" (click)="resume()">Back to cooking</button>
+  </div>
+}

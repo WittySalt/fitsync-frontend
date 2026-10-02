@@ -9,6 +9,17 @@
   overflow-x: clip;
 }
 
+.app-shell.cook-open {
+  .sidebar,
+  .topbar,
+  .bottom-nav,
+  app-coach-dock,
+  app-workout-bar,
+  app-cook-bar {
+    display: none;
+  }
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
