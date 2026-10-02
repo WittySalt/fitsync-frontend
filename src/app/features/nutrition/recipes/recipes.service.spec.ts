@@ -4,7 +4,6 @@ import { TestBed } from '@angular/core/testing';
 
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { MAX_SEARCH_LENGTH, RecipesService } from './recipes.service';
-import { savedMeal } from './recipes-testing.spec';
 
 describe('RecipesService', () => {
   let service: RecipesService;
@@ -174,32 +173,28 @@ describe('RecipesService', () => {
     request.flush({});
   });
 
-  it('rebuilds a saved meal with the recipe added and deletes the old one only after that worked', () => {
+  it('appends a recipe to a saved meal with one call', () => {
     let done = false;
-    service.addRecipeToSavedMeal(savedMeal(), 'r1', 1).subscribe(() => (done = true));
-    const create = http.expectOne({ method: 'POST', url: `${base}/meal-templates` });
-    expect(create.request.body.items.length).toBe(1);
-    expect(create.request.body.recipeItems).toEqual([{ recipeId: 'r1', servings: 1 }]);
-    http.expectNone({ method: 'DELETE', url: `${base}/meal-templates/t1` });
-    create.flush({});
-    http.expectOne({ method: 'DELETE', url: `${base}/meal-templates/t1` }).flush(null);
+    service.addRecipeToSavedMeal('t1', 'r1', 2).subscribe(() => (done = true));
+    const request = http.expectOne({ method: 'POST', url: `${base}/meal-templates/t1/recipe-items` });
+    expect(request.request.body).toEqual({ recipeId: 'r1', servings: 2 });
+    request.flush({});
 
     expect(done).toBeTrue();
   });
 
-  it('keeps the old saved meal when the new one could not be saved', () => {
+  it('fails when the server refuses the recipe for a saved meal', () => {
     let failed = false;
-    service.addRecipeToSavedMeal(savedMeal(), 'r1', 1).subscribe({ error: () => (failed = true) });
-    http.expectOne({ method: 'POST', url: `${base}/meal-templates` }).flush('no', { status: 400, statusText: 'Bad Request' });
-    http.expectNone({ method: 'DELETE', url: `${base}/meal-templates/t1` });
+    service.addRecipeToSavedMeal('t1', 'r1', 1).subscribe({ error: () => (failed = true) });
+    http.expectOne({ method: 'POST', url: `${base}/meal-templates/t1/recipe-items` }).flush('no', { status: 400, statusText: 'Bad Request' });
 
     expect(failed).toBeTrue();
   });
 
-  it('refuses to rebuild a saved meal that holds a food it cannot name', () => {
-    let failed = false;
-    service.addRecipeToSavedMeal(savedMeal({ raw: [{ foodName: 'Quick add', quantity: 1 }] }), 'r1', 1).subscribe({ error: () => (failed = true) });
-
-    expect(failed).toBeTrue();
+  it('sends the tag filter when given', () => {
+    service.list({ scope: 'library', tag: 'HIGH_PROTEIN' }).subscribe();
+    const request = http.expectOne((req) => req.url === `${base}/recipes`);
+    expect(request.request.params.get('tag')).toBe('HIGH_PROTEIN');
+    request.flush({ content: [] });
   });
 });

@@ -49,7 +49,7 @@ describe('AddToSavedDialogComponent', () => {
     fixture.detectChanges();
     add(fixture).click();
 
-    expect(service.addRecipeToSavedMeal).toHaveBeenCalledWith(savedMeal(), 'r1', 1.5);
+    expect(service.addRecipeToSavedMeal).toHaveBeenCalledWith('t1', 'r1', 1.5);
     expect(toast.toasts().some((entry) => entry.message === 'Added to Usual breakfast.')).toBeTrue();
     expect(closed).toBe(1);
   });

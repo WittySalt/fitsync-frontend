@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { EMPTY, Observable, catchError, expand, map, of, reduce, shareReplay, switchMap } from 'rxjs';
+import { EMPTY, Observable, catchError, expand, map, of, reduce, shareReplay } from 'rxjs';
 
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { mapRecipeDetail, mapRecipePage, mapSavedMeal } from './recipes-mappers';
@@ -43,6 +43,9 @@ export class RecipesService {
     }
     if (query.diet) {
       params = params.set('diet', query.diet);
+    }
+    if (query.tag) {
+      params = params.set('tag', query.tag);
     }
     return this.http.get<Wire>(`${this.base}/recipes`, { params }).pipe(map((page) => mapRecipePage(page ?? {})));
   }
@@ -165,50 +168,11 @@ export class RecipesService {
       .pipe(map(() => undefined));
   }
 
-  /**
-   * Puts a recipe into a saved meal that exists. The server has no call to change a saved meal, so
-   * a new one is made with everything the old one held plus the recipe, and the old one is deleted
-   * only after the new one was saved.
-   */
-  addRecipeToSavedMeal(meal: SavedMeal, recipeId: string, servings: number): Observable<void> {
-    const foods = meal.raw.filter((entry) => !entry['recipeId']);
-    if (foods.some((entry) => !entry['foodCatalogItemId'] && !entry['customFoodId'])) {
-      return new Observable((subscriber) => subscriber.error(new Error('A saved meal with a quick-add food cannot take a recipe.')));
-    }
-    const recipeItems = [
-      ...meal.items
-        .filter((item) => item.recipeId !== null)
-        .map((item) => ({ recipeId: item.recipeId as string, servings: item.recipeServings ?? item.quantity })),
-      { recipeId, servings }
-    ];
-    const items = foods.map((entry) => ({
-      foodCatalogItemId: entry['foodCatalogItemId'] ?? null,
-      customFoodId: entry['customFoodId'] ?? null,
-      foodServingId: entry['foodServingId'] ?? null,
-      foodName: entry['foodName'],
-      brandName: entry['brandName'] ?? null,
-      quantity: entry['quantity'],
-      unit: entry['unit'],
-      snapshotServingLabel: entry['snapshotServingLabel'] ?? null,
-      calories: entry['calories'],
-      proteinGrams: entry['proteinGrams'],
-      carbsGrams: entry['carbsGrams'],
-      fatGrams: entry['fatGrams'],
-      fiberGrams: entry['fiberGrams'] ?? null,
-      sugarGrams: entry['sugarGrams'] ?? null,
-      sodiumMg: entry['sodiumMg'] ?? null
-    }));
+  /** Appends a recipe to a saved meal that exists; the server adds it and returns the meal. */
+  addRecipeToSavedMeal(templateId: string, recipeId: string, servings: number): Observable<void> {
     return this.http
-      .post(`${this.base}/meal-templates`, {
-        name: meal.name,
-        mealType: meal.mealType === 'MEAL' ? null : meal.mealType,
-        ...(items.length ? { items } : {}),
-        recipeItems
-      })
-      .pipe(
-        switchMap(() => this.http.delete(`${this.base}/meal-templates/${encodeURIComponent(meal.templateId)}`)),
-        map(() => undefined)
-      );
+      .post(`${this.base}/meal-templates/${encodeURIComponent(templateId)}/recipe-items`, { recipeId, servings })
+      .pipe(map(() => undefined));
   }
 
   private body(draft: RecipeDraft): Wire {

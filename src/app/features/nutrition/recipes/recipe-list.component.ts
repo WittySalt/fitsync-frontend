@@ -31,8 +31,7 @@ interface ListRequest {
 /**
  * The library and My recipes as a grid of cards: a search that waits for a pause in typing, category
  * and filter chips for the library, paging, and a skeleton, an empty state and an error of its own.
- * The server filters by name, category, diet and saved. High protein is a tag, so that chip walks
- * the pages of the same query once and filters the cards before paging them here.
+ * The server filters and pages by name, category, diet, saved and the High protein tag.
  */
 @Component({
   selector: 'app-recipe-list',
@@ -174,17 +173,7 @@ export class RecipeListComponent {
   private fetch(request: ListRequest): Observable<RecipePageOf<RecipeCard>> {
     const scope: RecipeScope = !this.isLibrary() ? 'mine' : request.saved ? 'favorites' : 'library';
     const base = { scope, q: request.q, category: request.category ?? undefined, diet: request.diet ?? undefined };
-    if (!request.highProtein) {
-      return this.service.list({ ...base, page: request.page, size: LIST_PAGE_SIZE });
-    }
-    return this.service.listAll(base).pipe(
-      map((cards) => {
-        const matching = cards.filter((card) => card.tags.includes('High protein'));
-        const totalPages = Math.ceil(matching.length / LIST_PAGE_SIZE);
-        const page = Math.min(request.page, Math.max(totalPages - 1, 0));
-        return { items: matching.slice(page * LIST_PAGE_SIZE, (page + 1) * LIST_PAGE_SIZE), page, totalPages, totalElements: matching.length };
-      })
-    );
+    return this.service.list({ ...base, tag: request.highProtein ? 'HIGH_PROTEIN' : undefined, page: request.page, size: LIST_PAGE_SIZE });
   }
 
   protected onSearch(event: Event): void {

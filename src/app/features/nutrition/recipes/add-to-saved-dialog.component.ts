@@ -111,7 +111,7 @@ export class AddToSavedDialogComponent {
     const request =
       choice === 'new' || !chosen
         ? this.service.createSavedMealWithRecipe(this.name().trim().slice(0, NAME_LIMIT), this.mealType(), this.recipeId(), this.servings())
-        : this.service.addRecipeToSavedMeal(chosen, this.recipeId(), this.servings());
+        : this.service.addRecipeToSavedMeal(chosen.templateId, this.recipeId(), this.servings());
     request.subscribe({
       next: () => {
         this.busy.set(false);

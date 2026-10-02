@@ -131,20 +131,22 @@ describe('RecipeListComponent', () => {
     expect(lastQuery().scope).toBe('favorites');
   }));
 
-  it('filters High protein by walking the pages once and paging the matches here', fakeAsync(() => {
-    const protein = Array.from({ length: 20 }, (_, index) => card({ id: `p${index}`, tags: ['High protein'] }));
-    service.listAll.and.returnValue(of([...protein, card({ id: 'x', tags: ['High fibre'] })]));
+  it('sends the HIGH_PROTEIN tag from the chip and goes back to the first page', fakeAsync(() => {
+    service.list.and.returnValue(of({ items: cards(18), page: 0, totalPages: 3, totalElements: 50 }));
     const fixture = render();
     tick();
     fixture.detectChanges();
+    (el(fixture).querySelector('.step.next') as HTMLButtonElement).click();
+    tick();
+    fixture.detectChanges();
+    expect(lastQuery().page).toBe(1);
 
     buttons(fixture, 'Show')[0].click();
     tick();
     fixture.detectChanges();
 
-    expect(service.listAll).toHaveBeenCalledWith(jasmine.objectContaining({ scope: 'library' }));
-    expect(el(fixture).querySelectorAll('app-recipe-card').length).toBe(18);
-    expect(el(fixture).querySelector('app-pager')?.textContent).toContain('20 recipes');
+    expect(lastQuery().tag).toBe('HIGH_PROTEIN');
+    expect(lastQuery().page).toBe(0);
   }));
 
   it('moves between pages with the pager', fakeAsync(() => {

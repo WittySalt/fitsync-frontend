@@ -113,6 +113,7 @@ export interface RecipeQuery {
   category?: string;
   q?: string;
   diet?: 'VEGETARIAN' | 'VEGAN';
+  tag?: 'HIGH_PROTEIN' | 'HIGH_FIBRE' | 'HIGH_SUGAR' | 'HIGH_SALT';
   page?: number;
   size?: number;
 }
