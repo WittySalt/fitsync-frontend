@@ -112,6 +112,22 @@
     }
   }
 
+  @if (finishing()) {
+    @let finishedRecipe = recipe()!;
+    <app-cook-finished
+      [recipeId]="finishedRecipe.id"
+      [name]="finishedRecipe.name"
+      [imageUrl]="finishedRecipe.imageUrl"
+      [groups]="groups()"
+      [minutes]="minutes()"
+      [steps]="steps().length"
+      [servingsCooked]="servings()"
+      [recipeServings]="finishedRecipe.servings"
+      [kcalPerServing]="finishedRecipe.kcalPerServing"
+      (done)="close()"
+    />
+  }
+
   @if (leaving()) {
     <app-confirm-dialog
       [title]="leaveTitle()"

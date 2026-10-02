@@ -8,8 +8,10 @@ import { CookAlsoTimingComponent, TimingChip } from './cook-also-timing.componen
 import { CookBannerComponent } from './cook-banner.component';
 import { CookCustomTimersComponent, CustomTimerView, NewTimer } from './cook-custom-timers.component';
 import { clockText } from './cook-format';
+import { CookFinishedComponent } from './cook-finished.component';
+import { minutesCooked } from './cook-finish-figures';
 import { CookIngredientsComponent } from './cook-ingredients.component';
-import { addedCount, hasAssignments, ingredientsOf, parseServings, scaleFactor, splitAtPhrase, splitIngredients, turnSubject } from './cook-recipe';
+import { addedCount, hasAssignments, ingredientsOf, parseServings, scaleFactor, splitAtPhrase, splitIngredients, topGroups, turnSubject } from './cook-recipe';
 import { CookRecipeService } from './cook-recipe.service';
 import { CookSessionService } from './cook-session.service';
 import { CookStepsComponent } from './cook-steps.component';
@@ -33,6 +35,7 @@ type Status = 'loading' | 'error' | 'ready';
     CookAlsoTimingComponent,
     CookBannerComponent,
     CookCustomTimersComponent,
+    CookFinishedComponent,
     CookIngredientsComponent,
     CookStepsComponent,
     CookTimerComponent,
@@ -53,6 +56,9 @@ export class CookPage implements OnInit, OnDestroy {
   protected readonly servings = signal(1);
   protected readonly sheetOpen = signal(false);
   protected readonly leaving = signal(false);
+  /** True from Finish cooking on: the finish card is on screen. */
+  protected readonly finishing = signal(false);
+  protected readonly minutes = signal(1);
   /** The All ingredients section under the step starts closed. */
   protected readonly listOpen = signal(false);
   private recipeId = '';
@@ -176,8 +182,7 @@ export class CookPage implements OnInit, OnDestroy {
 
   protected next(): void {
     if (this.isLast()) {
-      this.finished = true;
-      this.close();
+      this.finish();
     } else {
       this.session.goTo(this.index() + 1);
     }
@@ -191,6 +196,19 @@ export class CookPage implements OnInit, OnDestroy {
   protected close(): void {
     void this.router.navigateByUrl(this.recipeId ? `/nutrition/recipes/${this.recipeId}` : '/nutrition', { replaceUrl: true });
   }
+
+  /** Finish cooking: the card that thanks the cook and offers to log the meal. */
+  protected finish(): void {
+    this.finished = true;
+    const started = this.session.data()?.startedAt ?? Date.now();
+    this.minutes.set(minutesCooked(started, Date.now()));
+    this.finishing.set(true);
+  }
+
+  protected readonly groups = computed(() => {
+    const recipe = this.recipe();
+    return recipe ? topGroups(recipe) : [];
+  });
 
   protected toggleAdded(id: string): void {
     this.session.toggleAdded(id);

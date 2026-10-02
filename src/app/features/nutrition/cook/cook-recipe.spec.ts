@@ -1,5 +1,6 @@
 import {
   addedCount,
+  topGroups,
   hasAssignments,
   ingredientsOf,
   parseServings,
@@ -62,6 +63,14 @@ describe('cook recipe helpers', () => {
     expect(split.inSteps.map((item) => item.id)).toEqual(['i3', 'i2', 'i1']);
     expect(split.loose.map((item) => item.id)).toEqual(['i4']);
     expect(splitIngredients({ ...recipe, steps: [step(1, [])] }).inSteps).toEqual([]);
+  });
+
+  it('takes the three plate groups with the most grams', () => {
+    const more = {
+      ingredients: [ingredient('a', 'Rice', 'GRAINS', 300), ingredient('b', 'Salmon', 'PROTEIN', 200), ingredient('c', 'Milk', 'DAIRY', 50), ingredient('d', 'Salt', null, 500), ingredient('e', 'Oil', 'NUTS', 10), ingredient('f', 'Rice 2', 'GRAINS', 100)]
+    };
+    expect(topGroups(more)).toEqual(['GRAINS', 'PROTEIN', 'DAIRY']);
+    expect(topGroups({ ingredients: [] })).toEqual([]);
   });
 
   it('counts the ingredients ticked as added and ignores ids the recipe lacks', () => {

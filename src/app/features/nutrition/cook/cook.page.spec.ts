@@ -223,6 +223,22 @@ describe('CookPage', () => {
     expect(session.data()).toBeNull();
   });
 
+  it('opens the finish card after the last step with the cooking figures, and Done goes back to the recipe', () => {
+    setup();
+    load(wire({ perServing: { kcal: 590 } }));
+    const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+    session.data.update((data) => (data ? { ...data, startedAt: Date.now() - 42 * 60_000 } : data));
+    click('app-cook-steps li button', 2);
+    expect(el.querySelector('app-cook-finished')).toBeNull();
+    click('.forward');
+
+    expect(el.querySelector('app-cook-finished')).not.toBeNull();
+    expect(text('app-cook-finished .name')).toBe('Salmon salad');
+    expect(Array.from(el.querySelectorAll('app-cook-finished .facts div')).map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['42 min', '3 steps', '2 servings']);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(text('app-cook-finished .primary')).toBe('Log 2 servings · 1,180 kcal');
+  });
+
   it('scales the amounts to the servings in the query', () => {
     setup('1');
     load();
@@ -348,6 +364,9 @@ describe('CookPage', () => {
     expect(navigate).toHaveBeenCalledWith(jasmine.stringMatching(/^\/nutrition\/recipes\/.+/), { replaceUrl: true });
     click('app-cook-steps li button', 2);
     click('.forward');
+    // Finish cooking opens the finish card; it leaves for the recipe when answered.
+    expect(navigate).toHaveBeenCalledTimes(1);
+    click('app-cook-finished .quiet');
     expect(navigate).toHaveBeenCalledTimes(2);
   });
 

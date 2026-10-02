@@ -29,6 +29,8 @@ export interface CookSessionData {
   /** For the Continue cooking banner on the Recipes tab. */
   imageUrl: string | null;
   stepCount: number;
+  /** When cooking began, in epoch milliseconds, for the minutes on the finish card. */
+  startedAt: number;
 }
 
 /** A timer that ended while its step was not on screen, shown until it is answered. */
@@ -142,7 +144,8 @@ export class CookSessionService {
       customs: resume ? kept.customs.filter((custom) => custom.step < defs.length) : [],
       added: resume ? kept.added : [],
       imageUrl: meta.imageUrl ?? null,
-      stepCount: defs.length
+      stepCount: defs.length,
+      startedAt: resume ? kept.startedAt : Date.now()
     });
     this.viewing.set(true);
     this.tickNow();
@@ -328,7 +331,8 @@ export class CookSessionService {
           customs: Array.isArray(parsed.customs) ? parsed.customs : [],
           added: Array.isArray(parsed.added) ? parsed.added.filter((id): id is string => typeof id === 'string') : [],
           imageUrl: typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
-          stepCount: typeof parsed.stepCount === 'number' ? parsed.stepCount : 0
+          stepCount: typeof parsed.stepCount === 'number' ? parsed.stepCount : 0,
+          startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : Date.now()
         } as CookSessionData;
       }
     } catch {

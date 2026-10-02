@@ -123,6 +123,13 @@ export const GLYPHS: Record<string, readonly GlyphShape[]> = {
     { d: 'M19 15v4' },
     { d: 'M17 17h4' }
   ],
+  STAR: [
+    { d: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9Z' }
+  ],
+  UNDO: [
+    { d: 'M9 14L4 9l5-5' },
+    { d: 'M4 9h10a6 6 0 0 1 0 12h-3' }
+  ],
   DRAG: [
     { cx: 9, cy: 7, r: 1 },
     { cx: 15, cy: 7, r: 1 },

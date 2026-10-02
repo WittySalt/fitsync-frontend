@@ -1,3 +1,4 @@
+import { FoodGroup } from '../../../shared/food/food-groups';
 import { CookIngredient, CookRecipe, CookStep } from './cook.models';
 
 const MIN_SERVINGS = 0.25;
@@ -41,6 +42,17 @@ export function splitIngredients(recipe: CookRecipe): { inSteps: CookIngredient[
     }
   }
   return { inSteps, loose: recipe.ingredients.filter((ingredient) => !seen.has(ingredient.id)) };
+}
+
+/** The three plate groups with the most grams, for the cover of a recipe that has no photo. */
+export function topGroups(recipe: Pick<CookRecipe, 'ingredients'>): FoodGroup[] {
+  const grams = new Map<FoodGroup, number>();
+  for (const ingredient of recipe.ingredients) {
+    if (ingredient.foodGroup) {
+      grams.set(ingredient.foodGroup, (grams.get(ingredient.foodGroup) ?? 0) + (ingredient.grams ?? 0));
+    }
+  }
+  return [...grams.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([group]) => group);
 }
 
 /** How many of the recipe's ingredients are ticked as added. */

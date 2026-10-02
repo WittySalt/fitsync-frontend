@@ -153,6 +153,19 @@ describe('CookSessionService', () => {
     expect(service.data()?.added).toEqual([]);
   });
 
+  it('remembers when cooking began and keeps it when the session is taken up again', () => {
+    const before = Date.now();
+    service.open(meta, [null, sides]);
+    const started = service.data()!.startedAt;
+    expect(started).toBeGreaterThanOrEqual(before);
+    service.goTo(1);
+    service.leave(true);
+    service.open(meta, [null, sides]);
+    expect(service.data()!.startedAt).toBe(started);
+    service.open({ ...meta, recipeId: 'other' }, [null, sides]);
+    expect(service.data()!.startedAt).toBeGreaterThanOrEqual(started);
+  });
+
   it('ticks an ingredient and takes the tick off again, and keeps ticks through a reload', () => {
     service.open(meta, [sides]);
     service.toggleAdded('i1');
