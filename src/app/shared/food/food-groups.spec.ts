@@ -31,6 +31,7 @@ describe('food groups', () => {
     expect(groupColour(null, 'spices')).toBe('var(--food-spice)');
     expect(groupColour('VEG', 'SPICES')).toBe('var(--food-veg)');
     expect(groupColour(null, 'DAIRY')).not.toBe('var(--food-spice)');
+    expect(iconFor(null, 'HERBS')).toBeNull();
     expect(groupForCategory(undefined)).toBeNull();
   });
 

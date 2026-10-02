@@ -77,6 +77,7 @@
               (resumed)="resumeCustom($event)"
               (minuteAdded)="minuteCustom($event)"
               (removed)="removeCustom($event)"
+              (retimed)="retimeCustom($event.id, $event.seconds)"
             />
 
             <details class="under" [open]="listOpen()" (toggle)="listOpen.set($any($event.target).open)">

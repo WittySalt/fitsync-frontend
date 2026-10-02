@@ -43,8 +43,15 @@
 }
 
 .time {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: 18px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
 
   &.dim {
     color: var(--text-secondary);
@@ -88,6 +95,10 @@
     opacity: 0.4;
     cursor: default;
   }
+}
+
+.retime {
+  flex: 1 0 100%;
 }
 
 .stepper {

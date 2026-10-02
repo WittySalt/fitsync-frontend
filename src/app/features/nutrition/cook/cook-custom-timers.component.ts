@@ -1,6 +1,7 @@
 import { Component, input, output, signal } from '@angular/core';
 
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
+import { CookRetimeComponent } from './cook-retime.component';
 import { unlockSound } from './cook-alert-sound';
 import { CUSTOM_MAX_MINUTES, CUSTOM_NAME_MAX } from './cook-session.service';
 import { TimerPhase } from './cook-timer';
@@ -10,6 +11,8 @@ export interface CustomTimerView {
   id: number;
   name: string;
   clock: string;
+  /** The minutes left, rounded up, where the time stepper starts. */
+  minutesLeft: number;
   phase: TimerPhase;
 }
 
@@ -26,7 +29,7 @@ const DEFAULT_MINUTES = 5;
  */
 @Component({
   selector: 'app-cook-custom-timers',
-  imports: [FoodGlyphComponent],
+  imports: [CookRetimeComponent, FoodGlyphComponent],
   template: `
     @for (item of items(); track item.id) {
       <div class="item" [class.done]="item.phase === 'done'" role="group" [attr.aria-label]="label(item)">
@@ -37,7 +40,7 @@ const DEFAULT_MINUTES = 5;
         } @else {
           <app-food-glyph name="CLOCK" [size]="18" />
           <span class="name">{{ label(item) }}</span>
-          <strong class="time" [class.dim]="item.phase === 'paused'">{{ item.clock }}</strong>
+          <button type="button" class="time" [class.dim]="item.phase === 'paused'" aria-label="Change the time" [attr.aria-expanded]="editing() === item.id" (click)="editing.set(editing() === item.id ? null : item.id)">{{ item.clock }}</button>
           <button type="button" class="link" (click)="minuteAdded.emit(item.id)">+1 min</button>
           <button type="button" class="link" (click)="item.phase === 'paused' ? resumed.emit(item.id) : paused.emit(item.id)">
             {{ item.phase === 'paused' ? 'Resume' : 'Pause' }}
@@ -45,6 +48,9 @@ const DEFAULT_MINUTES = 5;
           <button type="button" class="drop" [attr.aria-label]="'Remove ' + label(item)" (click)="removed.emit(item.id)">
             <app-food-glyph name="CLOSE" [size]="14" [strokeWidth]="2.4" />
           </button>
+          @if (editing() === item.id) {
+            <app-cook-retime class="retime" [minutes]="item.minutesLeft" (applied)="retime(item.id, $event)" />
+          }
         }
       </div>
     }
@@ -83,15 +89,23 @@ export class CookCustomTimersComponent {
   readonly resumed = output<number>();
   readonly minuteAdded = output<number>();
   readonly removed = output<number>();
+  /** The cook set a new time left for a timer, in seconds. */
+  readonly retimed = output<{ id: number; seconds: number }>();
 
   protected readonly nameMax = CUSTOM_NAME_MAX;
   protected readonly maxMinutes = CUSTOM_MAX_MINUTES;
+  protected readonly editing = signal<number | null>(null);
   protected readonly open = signal(false);
   protected readonly minutes = signal(DEFAULT_MINUTES);
   protected readonly name = signal('');
 
   protected label(item: CustomTimerView): string {
     return item.name || 'Timer';
+  }
+
+  protected retime(id: number, minutes: number): void {
+    this.editing.set(null);
+    this.retimed.emit({ id, seconds: minutes * 60 });
   }
 
   protected submit(event: Event): void {

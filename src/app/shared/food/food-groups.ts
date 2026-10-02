@@ -38,8 +38,8 @@ export function foodGroupInfo(group: FoodGroup | null | undefined): FoodGroupInf
   return FOOD_GROUPS.find((entry) => entry.key === group) ?? null;
 }
 
-/** Spices and herbs are not a plate group (the backend files them under OTHER), so they have a colour and a drawing of their own. */
-const SEASONING_CATEGORIES: ReadonlySet<string> = new Set(['SPICES', 'HERBS', 'HERBS_SPICES', 'SEASONINGS']);
+/** Spices are not a plate group (the backend files them under OTHER), so they have a colour and a drawing of their own. */
+const SEASONING_CATEGORIES: ReadonlySet<string> = new Set(['SPICES']);
 
 export function isSeasoning(categoryCode: string | null | undefined): boolean {
   return SEASONING_CATEGORIES.has((categoryCode ?? '').toUpperCase());

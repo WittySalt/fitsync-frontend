@@ -102,7 +102,13 @@ export class CookPage implements OnInit, OnDestroy {
     const now = this.session.now();
     return (this.session.data()?.customs ?? [])
       .filter((custom) => custom.step === this.index())
-      .map((custom) => ({ id: custom.id, name: custom.name, clock: clockText(remainingSeconds(custom.state, now)), phase: custom.state.phase }));
+      .map((custom) => ({
+        id: custom.id,
+        name: custom.name,
+        clock: clockText(remainingSeconds(custom.state, now)),
+        minutesLeft: Math.max(1, Math.ceil(remainingSeconds(custom.state, now) / 60)),
+        phase: custom.state.phase
+      }));
   });
   protected readonly subject = computed(() => {
     const recipe = this.recipe();
@@ -235,6 +241,10 @@ export class CookPage implements OnInit, OnDestroy {
 
   protected minuteCustom(id: number): void {
     this.session.actCustom(id, (state) => addMinute(state));
+  }
+
+  protected retimeCustom(id: number, seconds: number): void {
+    this.session.actCustom(id, (state, now) => setRemaining(state, now, seconds));
   }
 
   protected removeCustom(id: number): void {

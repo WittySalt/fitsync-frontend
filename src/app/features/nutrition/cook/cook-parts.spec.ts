@@ -126,8 +126,8 @@ describe('cook mode parts', () => {
   it('shows a timer the cook added, answers its buttons and starts a new one from the form', () => {
     const fixture = TestBed.createComponent(CookCustomTimersComponent);
     fixture.componentRef.setInput('items', [
-      { id: 1, name: 'Oven preheating', clock: '9:58', phase: 'running' },
-      { id: 2, name: '', clock: '0:00', phase: 'done' }
+      { id: 1, name: 'Oven preheating', clock: '9:58', minutesLeft: 10, phase: 'running' },
+      { id: 2, name: '', clock: '0:00', minutesLeft: 1, phase: 'done' }
     ]);
     const events: string[] = [];
     const created: NewTimer[] = [];
@@ -143,9 +143,9 @@ describe('cook mode parts', () => {
     expect(items[0].textContent).toContain('9:58');
     expect(items[1].textContent).toContain('Timer is done');
     const buttons = items[0].querySelectorAll<HTMLButtonElement>('button');
-    buttons[0].click();
     buttons[1].click();
     buttons[2].click();
+    buttons[3].click();
     items[1].querySelector<HTMLButtonElement>('button')?.click();
     expect(events).toEqual(['plus 1', 'pause 1', 'remove 1', 'remove 2']);
     el.querySelector<HTMLButtonElement>('.add')?.click();
@@ -180,6 +180,24 @@ describe('cook mode parts', () => {
     expect(all().textContent).toBe('Clear all');
     all().click();
     expect(seen).toEqual([true, false]);
+  });
+
+  it('changes the time of a timer the cook added by tapping it, like the one found in a step', () => {
+    const fixture = TestBed.createComponent(CookCustomTimersComponent);
+    fixture.componentRef.setInput('items', [{ id: 4, name: 'Rice', clock: '4:10', minutesLeft: 5, phase: 'paused' }]);
+    const seen: { id: number; seconds: number }[] = [];
+    fixture.componentInstance.retimed.subscribe((value) => seen.push(value));
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('button.time') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('.value, app-cook-retime')).not.toBeNull();
+    (el.querySelector('app-cook-retime button[aria-label="More minutes"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (el.querySelector('app-cook-retime .set') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(seen).toEqual([{ id: 4, seconds: 360 }]);
+    expect(el.querySelector('app-cook-retime')).toBeNull();
   });
 
   it('shows 0 g as to taste on the second line and never repeats the line as written under the name', () => {
