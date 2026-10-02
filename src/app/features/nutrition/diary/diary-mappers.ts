@@ -28,7 +28,7 @@ export function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function text(value: unknown): string | null {
+export function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
@@ -36,7 +36,7 @@ function flag(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
 
-function list(value: unknown): Wire[] {
+export function list(value: unknown): Wire[] {
   return Array.isArray(value) ? value.filter((entry): entry is Wire => typeof entry === 'object' && entry !== null) : [];
 }
 
