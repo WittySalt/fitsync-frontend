@@ -85,6 +85,9 @@ export const GLYPHS: Record<string, readonly GlyphShape[]> = {
     { d: 'M12 5v14' },
     { d: 'M5 12h14' }
   ],
+  MINUS: [
+    { d: 'M5 12h14' }
+  ],
   SEARCH: [
     { cx: 11, cy: 11, r: 7 },
     { d: 'M20 20l-3.5-3.5' }

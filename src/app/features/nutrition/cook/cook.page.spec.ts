@@ -120,6 +120,7 @@ describe('CookPage', () => {
     expect(text('app-cook-ingredients .count')).toBe('2 of 3 used');
     expect(el.querySelector('.step .phrase')?.textContent).toBe('3-4 mins');
     expect(el.querySelector('.phrase')?.tagName).toBe('SPAN');
+    expect(text('details.under summary')).toBe('Ingredients · 2 of 3 used');
     click('.back');
     expect(text('app-cook-add-now .eyebrow')).toBe('Step 1 of 3 · add now');
   });

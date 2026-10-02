@@ -7,6 +7,7 @@ import {
   goodSources,
   gramsText,
   heading,
+  fatTargetOf,
   higherIn,
   ingredientGrams,
   isCaution,
@@ -79,6 +80,16 @@ describe('highlights', () => {
   it('names fat above 30% of the fat target, with its share of the day', () => {
     expect(higherIn(perServing({ fatGrams: 49 }), [], 70)).toEqual([{ name: 'Fat', detail: '49 g, 70% of a day' }]);
     expect(higherIn(perServing({ fatGrams: 20 }), [], 70)).toEqual([]);
+  });
+
+  it('measures fat against the account target, or 30% of the calorie target without one', () => {
+    expect(fatTargetOf(summary({ targetFatGrams: 70, targetCalories: 2000 }))).toBe(70);
+    expect(fatTargetOf(summary({ targetFatGrams: null, targetCalories: 2100 }))).toBe(70);
+    expect(fatTargetOf(summary({ targetFatGrams: null, targetCalories: null }))).toBeNull();
+    expect(fatTargetOf(null)).toBeNull();
+    expect(higherIn(perServing({ fatGrams: 46 }), [], fatTargetOf(summary({ targetFatGrams: null, targetCalories: 2100 })))).toEqual([
+      { name: 'Fat', detail: '46 g, 66% of a day' }
+    ]);
   });
 
   it('leaves fat out when there is no fat target', () => {

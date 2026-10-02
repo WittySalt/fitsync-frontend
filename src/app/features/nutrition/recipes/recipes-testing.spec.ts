@@ -50,6 +50,7 @@ export function ingredient(overrides: Partial<RecipeIngredient> = {}): RecipeIng
     displayText: '400g Salmon',
     foodCatalogItemId: 'f1',
     foodName: 'Salmon',
+    name: 'Salmon',
     grams: 400,
     foodGroup: 'PROTEIN',
     categoryCode: 'SEAFOOD',
@@ -73,7 +74,7 @@ export function detail(overrides: Partial<RecipeDetail> = {}): RecipeDetail {
     imageCredit: 'TheMealDB',
     ingredients: [
       ingredient(),
-      ingredient({ ingredientId: 'i2', displayText: '3 Avocado', foodName: 'Avocado', grams: 453, foodGroup: 'FRUIT', categoryCode: 'FRUITS' })
+      ingredient({ ingredientId: 'i2', displayText: '3 Avocado', foodName: 'Avocado', name: 'Avocado', grams: 453, foodGroup: 'FRUIT', categoryCode: 'FRUITS' })
     ],
     steps: [
       { stepNumber: 1, text: 'Season the salmon.', title: null, ingredientIds: [], timers: [] },

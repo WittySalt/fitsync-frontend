@@ -65,6 +65,15 @@ describe('RecipeListComponent', () => {
     expect(buttons(fixture, 'Category')[2].getAttribute('aria-pressed')).toBe('true');
   }));
 
+  it('leaves Vegan and Vegetarian out of the categories, since the diet chips cover them', fakeAsync(() => {
+    service.categories.and.returnValue(of(['Breakfast', 'Vegan', 'Seafood', 'Vegetarian']));
+    const fixture = render();
+    tick();
+    fixture.detectChanges();
+
+    expect(buttons(fixture, 'Category').map((button) => button.textContent?.trim())).toEqual(['All', 'Breakfast', 'Seafood']);
+  }));
+
   it('waits for a pause in typing before searching, and caps the box at 80 characters', fakeAsync(() => {
     const fixture = render();
     tick();

@@ -18,6 +18,8 @@ const SKELETONS = [0, 1, 2, 3, 4, 5];
 
 type Diet = 'VEGETARIAN' | 'VEGAN';
 
+const DIET_CATEGORIES: ReadonlySet<string> = new Set(['vegan', 'vegetarian']);
+
 interface ListRequest {
   q: string;
   category: string | null;
@@ -51,7 +53,7 @@ interface ListRequest {
     @if (isLibrary()) {
       <div class="chips" role="group" aria-label="Category">
         <button type="button" [class.on]="category() === null" [attr.aria-pressed]="category() === null" (click)="chooseCategory(null)">All</button>
-        @for (name of categories(); track name) {
+        @for (name of shownCategories(); track name) {
           <button type="button" [class.on]="category() === name" [attr.aria-pressed]="category() === name" (click)="chooseCategory(name)">{{ name }}</button>
         }
       </div>
@@ -123,6 +125,8 @@ export class RecipeListComponent {
   protected readonly highProtein = signal(false);
   protected readonly page = signal(0);
   protected readonly categories = signal<string[]>([]);
+  /** The diet chips already cover Vegan and Vegetarian, so those two are left out of the categories. */
+  protected readonly shownCategories = computed(() => this.categories().filter((name) => !DIET_CATEGORIES.has(name.toLowerCase())));
   protected readonly state = signal<Load<RecipePageOf<RecipeCard>>>(LOADING);
 
   protected readonly isLibrary = computed(() => this.scope() === 'library');

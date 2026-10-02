@@ -13,10 +13,12 @@ import { CookIngredient } from './cook.models';
   selector: 'app-cook-ingredients',
   imports: [FoodGlyphComponent],
   template: `
-    <div class="head">
-      <h2 class="eyebrow">Ingredients</h2>
-      <span class="count">{{ count() }}</span>
-    </div>
+    @if (!bare()) {
+      <div class="head">
+        <h2 class="eyebrow">Ingredients</h2>
+        <span class="count">{{ count() }}</span>
+      </div>
+    }
     <ul>
       @for (ingredient of ingredients(); track ingredient.id) {
         @let used = isUsed(ingredient);
@@ -41,6 +43,8 @@ export class CookIngredientsComponent {
   readonly used = input.required<ReadonlySet<string>>();
   readonly factor = input(1);
   readonly assigned = input(true);
+  /** Leaves the heading out, for a place that already has one. */
+  readonly bare = input(false);
 
   protected readonly count = computed(() => {
     const total = this.ingredients().length;

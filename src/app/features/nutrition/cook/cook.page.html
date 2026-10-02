@@ -60,6 +60,11 @@
               />
             }
 
+            <details class="under">
+              <summary>Ingredients · {{ usedLabel() }}</summary>
+              <app-cook-ingredients [ingredients]="r.ingredients" [used]="used()" [factor]="factor()" [assigned]="assigned()" [bare]="true" />
+            </details>
+
             <div class="nav">
               <button type="button" class="back" [disabled]="index() === 0" (click)="back()">Back</button>
               <button type="button" class="forward" (click)="next()">{{ isLast() ? 'Finish cooking' : 'Next step' }}</button>

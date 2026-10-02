@@ -86,7 +86,6 @@
 // The timer phrase is coloured, not a button.
 .phrase {
   color: var(--accent-text);
-  border-bottom: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
   white-space: nowrap;
 }
 
@@ -124,8 +123,28 @@
 
 .forward {
   border: 0;
-  background: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+// The ingredients under the step, for the middle widths only.
+.under {
+  display: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+
+  summary {
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-primary);
+  }
+
+  app-cook-ingredients {
+    padding: 0 16px 14px;
+  }
 }
 
 .handle,
@@ -134,8 +153,23 @@
   display: none;
 }
 
+// A tablet or a narrow window: steps and step side by side, the ingredients fold under the step.
+@media (max-width: 1179px) {
+  .layout {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+
+  .right {
+    display: none;
+  }
+
+  .under {
+    display: block;
+  }
+}
+
 // A phone: the step comes first, the steps and ingredients move into the sheet.
-@media (max-width: 860px) {
+@media (max-width: 759px) {
   .page {
     padding: 14px 14px 24px;
     gap: 18px;
@@ -146,7 +180,8 @@
   }
 
   .left,
-  .right {
+  .right,
+  .under {
     display: none;
   }
 

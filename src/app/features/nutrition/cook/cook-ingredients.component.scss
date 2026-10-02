@@ -21,8 +21,10 @@
 
 .count {
   color: var(--accent-text);
+  flex: none;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 ul {

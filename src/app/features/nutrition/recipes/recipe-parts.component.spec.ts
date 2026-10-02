@@ -137,7 +137,7 @@ describe('ServingHighlightsComponent', () => {
 });
 
 describe('IngredientsCardComponent', () => {
-  const rows = [ingredient(), ingredient({ ingredientId: 'i2', displayText: '3 Avocado', grams: 453, foodGroup: 'FRUIT', categoryCode: 'FRUITS' })];
+  const rows = [ingredient(), ingredient({ ingredientId: 'i2', displayText: '3 Avocado', name: 'Avocado', grams: 453, foodGroup: 'FRUIT', categoryCode: 'FRUITS' })];
 
   beforeEach(() => {
     sessionStorage.removeItem('fitsync.recipe.ticks.r1');
@@ -148,10 +148,10 @@ describe('IngredientsCardComponent', () => {
     mount(IngredientsCardComponent, { recipeId: 'r1', ingredients: rows, recipeServings: 4, servings: 1, ...inputs });
   const grams = (fixture: ComponentFixture<unknown>) => Array.from(html(fixture).querySelectorAll('.grams')).map((cell) => cell.textContent);
 
-  it('shows the line as written and the grams for the chosen servings', () => {
+  it('shows the friendly name and the grams for the chosen servings', () => {
     const fixture = make();
 
-    expect(Array.from(html(fixture).querySelectorAll('.text')).map((cell) => cell.textContent)).toEqual(['400g Salmon', '3 Avocado']);
+    expect(Array.from(html(fixture).querySelectorAll('.text')).map((cell) => cell.textContent)).toEqual(['Salmon', 'Avocado']);
     expect(grams(fixture)).toEqual(['100 g', '113 g']);
   });
 

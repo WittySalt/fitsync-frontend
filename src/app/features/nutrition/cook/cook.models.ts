@@ -84,7 +84,7 @@ function mapTimer(wire: Wire | undefined): CookTimerDef | null {
 /** Reads the recipe detail; a step without title, ingredientIds or timers still works. */
 export function mapCookRecipe(wire: Wire): CookRecipe {
   const ingredients = list(wire['ingredients']).map((item): CookIngredient => {
-    const name = text(item['foodName']) || text(item['displayText']);
+    const name = text(item['name']) || text(item['foodName']) || text(item['displayText']);
     return {
       id: String(item['ingredientId'] ?? ''),
       name,

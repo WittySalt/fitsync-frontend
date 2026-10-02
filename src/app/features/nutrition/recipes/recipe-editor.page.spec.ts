@@ -234,7 +234,7 @@ describe('RecipeEditorPage', () => {
         scope: 'USER',
         servings: 4,
         editable: true,
-        ingredients: [{ ingredientId: 'i1', displayText: 'Rolled oats', foodCatalogItemId: 'f1', foodName: 'Rolled oats', grams: 160, foodGroup: 'GRAINS', categoryCode: 'GRAINS' }],
+        ingredients: [{ ingredientId: 'i1', displayText: 'Rolled oats', foodCatalogItemId: 'f1', foodName: 'Rolled oats', name: 'Rolled oats', grams: 160, foodGroup: 'GRAINS', categoryCode: 'GRAINS' }],
         steps: [{ stepNumber: 1, text: 'Stir.', title: null, ingredientIds: [], timers: [] }],
         perServing: perServing({ kcal: 152, proteinGrams: 5, carbsGrams: 27, fatGrams: 3 })
       });

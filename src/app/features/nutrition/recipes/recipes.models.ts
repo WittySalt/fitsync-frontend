@@ -34,6 +34,8 @@ export interface RecipeIngredient {
   displayText: string;
   foodCatalogItemId: string | null;
   foodName: string;
+  /** The friendly name from the server, the food name when it sends none. Shown everywhere. */
+  name: string;
   /** The weight the nutrition counts, null when it cannot be worked out. */
   grams: number | null;
   foodGroup: FoodGroup | null;

@@ -82,6 +82,11 @@ export class CookPage implements OnInit, OnDestroy {
     const recipe = this.recipe();
     return recipe ? usedCount(recipe, this.index()) : 0;
   });
+  /** "3 of 5 used", or the count alone when no step names its ingredients. */
+  protected readonly usedLabel = computed(() => {
+    const total = this.recipe()?.ingredients.length ?? 0;
+    return this.assigned() ? `${this.usedTotal()} of ${total} used` : `${total} ${total === 1 ? 'ingredient' : 'ingredients'}`;
+  });
   protected readonly sheetLabel = computed(() => {
     const total = this.recipe()?.ingredients.length ?? 0;
     return this.assigned() ? `${this.usedTotal()} of ${total} ingredients used` : `${total} ingredients`;

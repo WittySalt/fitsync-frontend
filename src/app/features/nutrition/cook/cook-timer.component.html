@@ -5,8 +5,8 @@
         <div class="row">
           <span class="intro">{{ intro() }}</span>
           <span class="stepper">
-            <button type="button" class="round" aria-label="Shorter" (click)="adjusted.emit(-1)">-</button>
-            <button type="button" class="round" aria-label="Longer" (click)="adjusted.emit(1)">+</button>
+            <button type="button" class="round" aria-label="Shorter" (click)="adjusted.emit(-1)"><app-food-glyph name="MINUS" [size]="16" [strokeWidth]="2.6" /></button>
+            <button type="button" class="round" aria-label="Longer" (click)="adjusted.emit(1)"><app-food-glyph name="PLUS" [size]="16" [strokeWidth]="2.6" /></button>
           </span>
         </div>
         @if (range()) {

@@ -17,7 +17,7 @@ import { RecipeHeroComponent } from './recipe-hero.component';
 import { RecipeStepsComponent } from './recipe-steps.component';
 import { ServingHighlightsComponent } from './serving-highlights.component';
 import { SimilarRecipesComponent } from './similar-recipes.component';
-import { TodayFit, scaled, servingsLabel, todayFit } from './recipes-figures';
+import { TodayFit, fatTargetOf, scaled, servingsLabel, todayFit } from './recipes-figures';
 import { RecipeCard, RecipeDetail } from './recipes.models';
 import { RecipesService } from './recipes.service';
 
@@ -65,6 +65,7 @@ interface TodayData {
       } @else {
         @let r = s.data;
         <app-recipe-hero [recipe]="r" />
+        <div class="layout-box">
         <div class="layout">
           <div class="facts" aria-label="Facts">
             <div><strong>{{ r.servings }}</strong><span>servings</span></div>
@@ -90,6 +91,7 @@ interface TodayData {
             <app-ingredients-card [recipeId]="r.id" [ingredients]="r.ingredients" [recipeServings]="r.servings" [servings]="servings()" />
             <app-recipe-steps [recipeId]="r.id" [steps]="r.steps" />
           </div>
+        </div>
         </div>
         <app-similar-recipes [cards]="similar()" [category]="r.category" />
         <div class="bar">
@@ -140,7 +142,7 @@ export class RecipePage {
   });
   protected readonly fatTarget = computed(() => {
     const day = this.todayData();
-    return day.status === 'ready' ? day.data.summary.targetFatGrams : null;
+    return day.status === 'ready' ? fatTargetOf(day.data.summary) : null;
   });
   /** The weight of one serving, when every ingredient has a weight. */
   protected readonly servingGrams = computed(() => {

@@ -64,7 +64,7 @@ export class IngredientsCardComponent {
   protected readonly rows = computed(() =>
     this.ingredients().map((ingredient) => ({
       id: ingredient.ingredientId,
-      text: ingredient.displayText,
+      text: ingredient.name,
       group: ingredient.foodGroup,
       category: ingredient.categoryCode,
       done: this.ticks().has(ingredient.ingredientId),

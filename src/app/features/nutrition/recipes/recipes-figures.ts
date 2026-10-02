@@ -68,6 +68,26 @@ export function goodSources(nutrients: readonly RecipeNutrient[]): Highlight[] {
     .map((entry) => ({ name: entry.displayName, percent: Math.round((entry.share ?? 0) * 100) }));
 }
 
+/** The share of a day's calories that fat makes up when the account has no fat target of its own. */
+export const DEFAULT_FAT_ENERGY_SHARE = 0.3;
+const KCAL_PER_FAT_GRAM = 9;
+
+/**
+ * The fat target "higher in" measures against: the account's own, or, when none was projected
+ * yet, 30% of the calorie target as grams of fat. Null when there is neither.
+ */
+export function fatTargetOf(summary: DiarySummary | null): number | null {
+  if (!summary) {
+    return null;
+  }
+  if (summary.targetFatGrams !== null && summary.targetFatGrams > 0) {
+    return summary.targetFatGrams;
+  }
+  return summary.targetCalories !== null && summary.targetCalories > 0
+    ? Math.round((summary.targetCalories * DEFAULT_FAT_ENERGY_SHARE) / KCAL_PER_FAT_GRAM)
+    : null;
+}
+
 export interface WatchItem {
   name: string;
   detail: string;

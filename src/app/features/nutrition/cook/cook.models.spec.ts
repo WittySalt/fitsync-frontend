@@ -40,6 +40,17 @@ describe('cook recipe mapping', () => {
     expect(recipe.imageUrl).toBe('https://img/x.jpg');
   });
 
+  it('names a cook ingredient by the friendly name, then the food name', () => {
+    const recipe = mapCookRecipe({
+      id: 'r1',
+      ingredients: [
+        { ingredientId: 'i1', name: 'Salmon', foodName: 'Salmon, Atlantic, farmed, raw', displayText: 'x' },
+        { ingredientId: 'i2', foodName: 'Lime', displayText: 'lime' }
+      ]
+    });
+    expect(recipe.ingredients.map((entry) => entry.name)).toEqual(['Salmon', 'Lime']);
+  });
+
   it('degrades when the steps have no title, ingredientIds or timers', () => {
     const recipe = mapCookRecipe({ id: 'r1', name: 'Plain', steps: [{ stepNumber: 1, text: 'Boil the water. Add salt.' }] });
     expect(recipe.servings).toBe(1);

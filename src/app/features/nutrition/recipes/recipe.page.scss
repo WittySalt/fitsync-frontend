@@ -88,7 +88,13 @@ aside {
   display: none;
 }
 
-@media (max-width: 860px) {
+// The layout is measured by its own width, so the side menu and window size both count.
+.layout-box {
+  container: recipe / inline-size;
+  min-width: 0;
+}
+
+@container recipe (max-width: 960px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -100,12 +106,15 @@ aside {
   aside {
     position: static;
   }
+}
 
+// Narrow: the facts make two rows of two, so no label touches the next one.
+@container recipe (max-width: 620px) {
   .facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 14px 16px;
 
-    div:nth-child(3) {
+    div:nth-child(odd) {
       padding-left: 0;
       border-left: 0;
     }
@@ -114,7 +123,9 @@ aside {
       font-size: 20px;
     }
   }
+}
 
+@media (max-width: 860px) {
   .recipe-page {
     padding-bottom: 84px;
   }

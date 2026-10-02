@@ -44,6 +44,17 @@ describe('cook mode parts', () => {
     expect(el.querySelectorAll('li.used').length).toBe(1);
   });
 
+  it('leaves the heading out when bare', () => {
+    const fixture = TestBed.createComponent(CookIngredientsComponent);
+    fixture.componentRef.setInput('ingredients', [ingredient('a', 'Salmon', 200)]);
+    fixture.componentRef.setInput('used', new Set<string>());
+    fixture.componentRef.setInput('bare', true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.head')).toBeNull();
+    expect(el.querySelectorAll('li').length).toBe(1);
+  });
+
   it('shows a plain list without a count when no step has ingredients', () => {
     const fixture = TestBed.createComponent(CookIngredientsComponent);
     fixture.componentRef.setInput('ingredients', [ingredient('a', 'Salmon', 200)]);

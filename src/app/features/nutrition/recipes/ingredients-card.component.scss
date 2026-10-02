@@ -123,6 +123,7 @@ li {
 .grams {
   flex: none;
   font-size: 14px;
+  white-space: nowrap;
 }
 
 @media (max-width: 560px) {

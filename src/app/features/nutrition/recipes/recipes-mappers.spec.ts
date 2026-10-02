@@ -60,6 +60,8 @@ describe('recipe mappers', () => {
     });
 
     expect(mapped.ingredients[0].displayText).toBe('Salmon');
+    expect(mapped.ingredients[0].name).toBe('Salmon');
+    expect(mapRecipeDetail({ ingredients: [{ foodName: 'Salmon, Atlantic, farmed, raw', name: 'Salmon' }] }).ingredients[0].name).toBe('Salmon');
     expect(mapped.steps[0].timers).toEqual([]);
     expect(mapped.steps[1].stepNumber).toBe(2);
     expect(mapped.steps[1].timers).toEqual([{ seconds: 60, maxSeconds: 60, eachSide: false, phrase: '1 min' }]);

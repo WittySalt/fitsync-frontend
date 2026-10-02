@@ -72,6 +72,7 @@ function mapIngredient(raw: Wire): RecipeIngredient {
     displayText: text(raw['displayText']) ?? foodName,
     foodCatalogItemId: text(raw['foodCatalogItemId']),
     foodName,
+    name: text(raw['name']) ?? foodName,
     grams: num(raw['grams']),
     foodGroup: asFoodGroup(text(raw['foodGroup'])),
     categoryCode: text(raw['categoryCode'])

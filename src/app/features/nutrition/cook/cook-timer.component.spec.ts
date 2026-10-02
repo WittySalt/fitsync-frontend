@@ -34,6 +34,7 @@ describe('CookTimerComponent', () => {
     expect(el.querySelector('.note')?.textContent).toContain('The recipe says 3 to 4 min');
     expect(slot(el).textContent).toContain('Start the first side');
     expect(el.querySelectorAll('.round').length).toBe(2);
+    expect(Array.from(el.querySelectorAll('.round')).every((button) => button.querySelector('svg') !== null && !button.textContent?.trim())).toBeTrue();
   });
 
   it('shows only the length for one stage and "Start timer"', () => {
