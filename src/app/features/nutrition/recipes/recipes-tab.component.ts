@@ -43,7 +43,7 @@ const SECTIONS: readonly { key: RecipeSection; label: string }[] = [
     </div>
     @if (slotLabel(); as label) {
       <div class="context" role="status">
-        <span>Picking for <strong>{{ label }}</strong>. Open a recipe, or log a saved meal.</span>
+        <span>Log to <strong>{{ label }}</strong>. Open a recipe, or log a saved meal.</span>
         <button type="button" (click)="cancelLog.emit()">Cancel</button>
       </div>
     }

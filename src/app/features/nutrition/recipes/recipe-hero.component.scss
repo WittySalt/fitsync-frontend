@@ -1,0 +1,84 @@
+:host {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 24px;
+  color: #fff;
+}
+
+.photo {
+  min-height: 240px;
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 35%, rgba(15, 23, 42, 0.72) 100%);
+}
+
+.text {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.05;
+  color: #fff;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+  }
+}
+
+@media (max-width: 860px) {
+  :host {
+    border-radius: 0;
+    margin: 0 -16px;
+  }
+
+  .photo {
+    min-height: 260px;
+    aspect-ratio: auto;
+  }
+
+  .text {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+  }
+
+  h2 {
+    font-size: 30px;
+  }
+}
