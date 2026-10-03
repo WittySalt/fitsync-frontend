@@ -88,8 +88,16 @@
   max-width: 300px;
 }
 
+.figure-block {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  justify-content: center;
+  align-items: center;
+  column-gap: 16px;
+  max-width: 100%;
+}
+
 .figure-pic {
-  width: min(100%, 260px);
   pointer-events: none;
 }
 
@@ -104,19 +112,65 @@
   gap: 14px;
 }
 
-.heat-key {
+.legend {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
-  gap: 4px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   justify-content: center;
   font-size: var(--pg-chart);
   color: var(--text-secondary);
 }
 
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend li span {
+  color: var(--text-secondary);
+}
+
+.legend .strength {
+  color: var(--kind-strength);
+}
+
+.legend .cardio {
+  color: var(--kind-cardio);
+}
+
+.legend .sport {
+  color: var(--kind-sport);
+}
+
+.legend .mobility {
+  color: var(--kind-mobility);
+}
+
+/* The hard-sets scale: four stacked swatches beside the BACK figure, above 20 at the top. */
+.scale {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.scale li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+}
+
 .figure-caption {
+  grid-column: 1 / -1;
   margin: 8px 0 0;
   text-align: center;
   font-size: var(--pg-chart);
@@ -126,7 +180,7 @@
 @container (min-width: 520px) {
   .pair {
     display: grid;
-    grid-template-columns: 300px minmax(140px, 260px);
+    grid-template-columns: 300px max-content;
     justify-content: start;
     align-items: start;
     gap: 24px 32px;
@@ -136,7 +190,8 @@
     align-items: flex-start;
   }
 
-  .heat-key {
+  .legend,
+  .figure-block {
     justify-content: start;
   }
 
@@ -151,7 +206,7 @@
 
 @container (min-width: 900px) {
   .pair {
-    grid-template-columns: 300px 260px minmax(0, 1fr);
+    grid-template-columns: 300px max-content minmax(0, 1fr);
   }
 
   .rows {
@@ -161,10 +216,9 @@
 }
 
 .swatch {
-  display: inline-block;
+  flex: none;
   width: 10px;
-  height: 10px;
-  margin-right: 6px;
+  height: 22px;
   border-radius: 3px;
 }
 

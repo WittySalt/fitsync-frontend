@@ -14,15 +14,14 @@ const BLOCK_MAX = 260;
 
 /**
  * The height each view is drawn at. Given the height of the column beside it, the block of views and
- * labels matches that column (between 160 and 260 px) but never grows wider than its width allows;
+ * labels matches that column (between 160 and 260 px) and its width follows from that;
  * without one, the views keep their aspect to the width, between 140 and 200 px.
  */
 export function figureHeight(width: number, blockHeight: number | null = null): number {
-  const byWidth = Math.round(((width - VIEW_GAP) / 2) * 2.2);
   if (blockHeight === null || blockHeight <= 0) {
-    return Math.min(200, Math.max(140, byWidth));
+    return Math.min(200, Math.max(140, Math.round(((width - VIEW_GAP) / 2) * 2.2)));
   }
-  return Math.min(Math.max(BLOCK_MIN, Math.min(BLOCK_MAX, blockHeight)) - LABEL_ROOM, Math.max(byWidth, 100));
+  return Math.max(BLOCK_MIN, Math.min(BLOCK_MAX, blockHeight)) - LABEL_ROOM;
 }
 
 /** The muscle figure pair, sized to the width it is given and never wider than it. A picture only. */
@@ -31,7 +30,7 @@ export function figureHeight(width: number, blockHeight: number | null = null): 
   imports: [MuscleFigureComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<app-muscle-figure [setsByGroup]="sets()" [interactive]="false" [height]="height()" />`,
-  styles: `:host { display: block; width: 100%; }`
+  styles: `:host { display: block; width: max-content; max-width: 100%; }`
 })
 export class FitFigureComponent {
   readonly sets = input.required<Record<string, number>>();

@@ -23,18 +23,34 @@
           <div class="box pair">
             <div class="left" (appObserveHeight)="leftHeight.set($event)">
               <app-log-strip [to]="progress.period.to" [days]="progress.calendar" label="The last 28 days, a tile for each day you trained" />
-              @if (hasMuscles()) {
-                <ul class="heat-key">
+              <ul class="legend">
+                @for (item of legend(); track item.kind) {
+                  <li [class]="item.kind.toLowerCase()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      @for (part of glyphs[item.kind]; track $index) {
+                        @switch (part.tag) {
+                          @case ('path') { <path [attr.d]="part.d"></path> }
+                          @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                          @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+                        }
+                      }
+                    </svg>
+                    <span>{{ item.name }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+            @if (hasMuscles()) {
+              <div class="figure-block">
+                <div class="figure-pic" aria-hidden="true">
+                  <app-fit-figure [sets]="sets()" [blockHeight]="leftHeight()" />
+                </div>
+                <ul class="scale">
                   @for (entry of key; track entry.level) {
                     <li><i [class]="'swatch ' + entry.level"></i>{{ entry.label }}</li>
                   }
                 </ul>
                 <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
-              }
-            </div>
-            @if (hasMuscles()) {
-              <div class="figure-pic" aria-hidden="true">
-                <app-fit-figure [sets]="sets()" [blockHeight]="leftHeight()" />
               </div>
             }
             <div class="rows">

@@ -86,6 +86,7 @@ describe('ProgressPage', () => {
   let api: jasmine.SpyObj<ProgressApiService>;
   let store: FakeCoachStore;
   let getReading: jasmine.Spy;
+  let nutrientsRead: jasmine.Spy;
   let harness: RouterTestingHarness;
   let fixture: ComponentFixture<unknown>;
   let el: HTMLElement;
@@ -110,6 +111,7 @@ describe('ProgressPage', () => {
     api.getGoal.and.callFake(() => of(road()));
     api.getReviews.and.callFake(() => of(REVIEWS));
     store = new FakeCoachStore();
+    nutrientsRead = jasmine.createSpy('getAll').and.callFake(() => throwError(() => new Error('off')));
     getReading = jasmine.createSpy('getReading').and.callFake(() => of(reading));
     scrolled = [];
     spyOn(Element.prototype, 'scrollIntoView').and.callFake(function (this: Element) {
@@ -119,7 +121,7 @@ describe('ProgressPage', () => {
       providers: [
         provideRouter([{ path: 'progress', component: ProgressPage }]),
         { provide: ProgressApiService, useValue: api },
-        { provide: NutrientsService, useValue: { getAll: () => throwError(() => new Error('off')) } },
+        { provide: NutrientsService, useValue: { getAll: nutrientsRead } },
         { provide: CoachStore, useValue: store },
         { provide: CoachApiService, useValue: { getReading } },
         { provide: FitSyncDataService, useValue: { getWeeklyTrainingInsight: () => of(INSIGHT) } },
@@ -209,6 +211,12 @@ describe('ProgressPage', () => {
     expect(TestBed.inject(Router).url).toBe('/progress?period=3m');
     expect(text(el.querySelector('.eyebrow'))).toBe('Progress · The last 3 months · 5 Jul to 3 Oct');
     expect(el.querySelector('.periods a[aria-current="true"]')?.textContent?.trim()).toBe('3 months');
+  });
+
+  it('reads the petals for the last 30 days whatever the period', async () => {
+    await open('/progress?period=1y');
+    expect(nutrientsRead).toHaveBeenCalledWith('2026-09-04', TODAY);
+    expect(api.getFood).toHaveBeenCalledWith('2025-10-05', TODAY);
   });
 
   it('reads a 1 year period from the address with the year in the eyebrow', async () => {

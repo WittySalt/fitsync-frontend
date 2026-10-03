@@ -6,6 +6,7 @@ import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { dailyObservations } from '../../dashboard/brief/brief-observations';
 
+import { DAY_KIND_GLYPHS } from '../../dashboard/brief/day-kind-icons';
 import { HEAT_KEY } from '../../../shared/charts/muscle-figure/muscle-figure';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
@@ -68,7 +69,18 @@ export class TrainingCardComponent {
   });
   protected readonly sets = computed<Record<string, number>>(() => Object.fromEntries((this.data()?.muscles.groups ?? []).map((group) => [group.group, group.setsPerWeek])));
   protected readonly hasMuscles = computed(() => Object.values(this.sets()).some((value) => value > 0));
-  protected readonly key = HEAT_KEY;
+  /** The hard-sets scale as a column: above 20 at the top, under 6 at the bottom. */
+  protected readonly key = [...HEAT_KEY].reverse();
+  protected readonly glyphs = DAY_KIND_GLYPHS;
+  /** The kinds the strip's legend names: the three always, Mobility only when a day of it was logged. */
+  protected readonly legend = computed(() => {
+    const kinds = [
+      { kind: 'STRENGTH' as const, name: 'Strength' },
+      { kind: 'CARDIO' as const, name: 'Cardio' },
+      { kind: 'SPORT' as const, name: 'Sport' }
+    ];
+    return this.data()?.calendar.some((day) => day.kind === 'MOBILITY') ? [...kinds, { kind: 'MOBILITY' as const, name: 'Mobility' }] : kinds;
+  });
   /** The height of the strip, key and caption, which the figures match. */
   protected readonly leftHeight = signal(0);
 

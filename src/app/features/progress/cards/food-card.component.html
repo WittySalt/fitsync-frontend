@@ -33,7 +33,7 @@
             @if (overview(); as o) {
               <div class="petals">
                 <div class="petal-pic"><app-nutrient-petals [nutrients]="o.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reach()!.reached + ' of ' + reach()!.total + ' nutrients reached'" /></div>
-                <span class="petal-caption">{{ reach()!.reached }} of {{ reach()!.total }} reached</span>
+                <span class="petal-caption">{{ reach()!.reached }} of {{ reach()!.total }} reached{{ longPeriod() ? ', the last 30 days' : '' }}</span>
               </div>
             }
           </div>

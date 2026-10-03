@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
 
-import { formatNumber } from '../../../shared/progress/progress-format';
+import { formatNumber, lastDays } from '../../../shared/progress/progress-format';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { NutrientPetalsComponent } from '../../nutrition/nutrients/nutrient-petals.component';
@@ -65,7 +65,8 @@ export class FoodCardComponent {
     { initialValue: { status: 'loading' } as FoodState }
   );
   protected readonly nutrients = toSignal(
-    toObservable(this.period).pipe(
+    // Nutrition sums nutrients over 31 days at most, so the petals always read the last 30 days.
+    toObservable(computed(() => lastDays(30, this.period().to))).pipe(
       switchMap(({ from, to }) =>
         this.nutrientsApi.getAll(from, to).pipe(catchError(() => of(null)))
       )
@@ -99,6 +100,8 @@ export class FoodCardComponent {
     const overview = this.nutrients();
     return overview && overview.daysLogged > 0 && reachSummary(overview.nutrients).total > 0 ? overview : null;
   });
+  /** The petals cover 30 days whatever the period; the caption says so when the period is longer. */
+  protected readonly longPeriod = computed(() => this.days() > 30);
   protected readonly reach = computed(() => {
     const overview = this.overview();
     return overview ? reachSummary(overview.nutrients) : null;
