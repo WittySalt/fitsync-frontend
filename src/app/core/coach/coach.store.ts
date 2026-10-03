@@ -109,9 +109,12 @@ export class CoachStore {
    */
   readonly pinnedCard = signal<CoachCardContext | null>(null);
 
-  askAboutCard(card: CoachCardContext): void {
+  askAboutCard(card: CoachCardContext, prefill?: string): void {
     this.pinnedReading.set(null);
     this.pinnedCard.set({ ...card });
+    if (prefill) {
+      this.composerPrefill.set(prefill);
+    }
     this.open();
   }
 
@@ -367,13 +370,17 @@ export class CoachStore {
    */
   private buildContext(about?: { recipeId?: string }): CoachMessageContext | undefined {
     // A question about a recipe is always a Nutrition question, whatever page the dock was opened from.
-    const code = about?.recipeId ? 'NUTRITION' : this.surface().code;
+    const card = about?.recipeId ? null : this.pinnedCard();
+    const code = about?.recipeId ? 'NUTRITION' : (this.surface().code ?? (card ? 'PROGRESS' : null));
     if (!code) {
       return undefined;
     }
     const context: CoachMessageContext = { surface: code };
     if (about?.recipeId) {
       context.recipeId = about.recipeId;
+    }
+    if (card) {
+      context.card = { ...card };
     }
     const reading = this.pinnedReading();
     if (reading?.readingId) {

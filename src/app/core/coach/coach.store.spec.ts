@@ -91,6 +91,23 @@ describe('CoachStore', () => {
     expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' }, jasmine.any(String));
   });
 
+  it('pins a Progress card, opens the dock and sends the card with each question until let go', () => {
+    const card = { kind: 'STRENGTH' as const, from: '2026-09-06', to: '2026-10-03' };
+    store.askAboutCard(card, 'Is my strength going up?');
+    expect(store.dockOpen()).toBeTrue();
+    expect(store.composerPrefill()).toBe('Is my strength going up?');
+    expect(api.streamMessage).not.toHaveBeenCalled();
+
+    store.ask('Is my strength going up?');
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Is my strength going up?', { surface: 'HOME', card }, jasmine.any(String));
+    stream.next({ name: 'answer', data: answer });
+    stream.complete();
+
+    store.letGoOfCard();
+    store.ask('And tomorrow?');
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' }, jasmine.any(String));
+  });
+
   it('shows each step as it arrives, closing a tool when it finishes', () => {
     store.ask('Should I train?');
 
