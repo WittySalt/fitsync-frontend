@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Surface } from '../../core/coach/coach-context.service';
-import { CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
+import { CoachCardContext, CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStatus, CoachStore, LiveStep } from '../../core/coach/coach.store';
 import { CoachDockComponent, isTypingOutsideDock } from './coach-dock.component';
 
@@ -44,6 +44,7 @@ class FakeStore {
   latestDraft = signal<SessionDraftView | null>(null);
   composerPrefill = signal<string | null>(null);
   pinnedReading = signal<CoachReading | null>(null);
+  pinnedCard = signal<CoachCardContext | null>(null);
   availableReading = signal<CoachReading | null>(null);
   citedTurns = signal<ReadonlyMap<string, CoachReading>>(new Map());
   surface = signal<Surface>(SURFACE);
@@ -69,6 +70,7 @@ class FakeStore {
   askAbout = jasmine.createSpy('askAbout');
   askAboutReading = jasmine.createSpy('askAboutReading');
   letGoOfReading = jasmine.createSpy('letGoOfReading');
+  letGoOfCard = jasmine.createSpy('letGoOfCard');
   openHistory = jasmine.createSpy('openHistory').and.callFake(() => this.historyOpen.set(true));
   closeHistory = jasmine.createSpy('closeHistory').and.callFake(() => this.historyOpen.set(false));
   loadMoreHistory = jasmine.createSpy('loadMoreHistory');

@@ -221,6 +221,18 @@ describe('toCoachReading', () => {
     expect(reading.facts).toEqual([{ number: 1, key: '', label: '', value: '50', unit: '', numericValue: null, note: '', detail: '' }]);
   });
 
+  it('keeps the Progress card a fact cites, and only a known one', () => {
+    const reading = toCoachReading('PROGRESS', {
+      status: 'RESTING',
+      facts: [
+        { number: 1, value: '0.41', card: 'GOAL' } as never,
+        { number: 2, value: '4', card: 'SOMETHING' } as never
+      ]
+    });
+    expect(reading.facts[0].card).toBe('GOAL');
+    expect('card' in reading.facts[1]).toBeFalse();
+  });
+
   it('drops a lift without two real weights', () => {
     const reading = toCoachReading('WORKOUT', {
       status: 'RESTING',

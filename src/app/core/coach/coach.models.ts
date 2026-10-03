@@ -84,12 +84,29 @@ export interface CoachThreadDetail {
 /** Which page a question is asked from, and optionally which reading it is about. */
 export type CoachSurfaceCode = 'HOME' | 'WORKOUT' | 'NUTRITION' | 'PROGRESS' | 'PROFILE';
 
+/** The kinds of Progress card a question can be asked from (contract section 4.1). */
+export type CoachCardKind = 'GOAL' | 'TRAINING' | 'FOOD' | 'STRENGTH' | 'CARDIO' | 'SPORT' | 'EXERCISE';
+
+/**
+ * The card a question was asked from, with the days it showed. Only the kind, the id and the dates
+ * go to the server; it reads the figures itself with the caller's token.
+ */
+export interface CoachCardContext {
+  kind: CoachCardKind;
+  /** The exercise id or the activity key, for the cards that have one. */
+  id?: string;
+  from: string;
+  to: string;
+}
+
 /** Sent with a question so the server can ground its answer without the client resending facts. */
 export interface CoachMessageContext {
   surface: CoachSurfaceCode;
   readingId?: string;
   /** The recipe a question is about, when it was asked from a recipe page. */
   recipeId?: string;
+  /** The Progress card a question was asked from. */
+  card?: CoachCardContext;
 }
 
 /** The answer the plain endpoint returns, and the payload of the stream's final `answer` event. */
@@ -215,6 +232,8 @@ export interface ReadingFact {
   numericValue: number | null;
   note: string;
   detail: string;
+  /** The Progress card this fact cites (contract section 4.3); absent on other surfaces and older servers. */
+  card?: 'GOAL' | 'TRAINING' | 'FOOD' | null;
 }
 
 export interface CoachReadingText {

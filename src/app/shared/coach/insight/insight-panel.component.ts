@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, OnDestroy, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, catchError, of, timer } from 'rxjs';
 
 import { CoachApiService } from '../../../core/coach/coach-api.service';
-import { CoachReading, ReadingSurface } from '../../../core/coach/coach.models';
+import { CoachReading, ReadingFact, ReadingSurface } from '../../../core/coach/coach.models';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { NutritionInsightsPage, ProgressInsight } from '../../../core/fitsync.models';
@@ -50,6 +50,8 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly surface = input.required<ReadingSurface>();
+  /** A fact that cites a Progress card was chosen, so the page can scroll to that card. */
+  readonly factChosen = output<ReadingFact>();
 
   readonly loading = signal(true);
   readonly failed = signal(false);
@@ -140,6 +142,13 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   open(): void {
     this.folded.set(false);
     this.shownUnfolded = true;
+  }
+
+  /** Only a fact that names a card leads anywhere; the others are plain figures. */
+  chooseFact(fact: ReadingFact): void {
+    if (fact.card) {
+      this.factChosen.emit(fact);
+    }
   }
 
   toggleWorking(): void {

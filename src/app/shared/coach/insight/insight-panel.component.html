@@ -129,7 +129,16 @@
           </div>
           <ul class="fact-list">
             @for (fact of facts(); track fact.number) {
-              <li class="fact">
+              <li
+                class="fact"
+                [class.linked]="!!fact.card"
+                [attr.role]="fact.card ? 'button' : null"
+                [attr.tabindex]="fact.card ? 0 : null"
+                [attr.aria-label]="fact.card ? 'Fact ' + fact.number + ', ' + fact.label + ': show the card' : null"
+                (click)="chooseFact(fact)"
+                (keydown.enter)="chooseFact(fact)"
+                (keydown.space)="$event.preventDefault(); chooseFact(fact)"
+              >
                 <span class="fact-number">{{ fact.number }}</span>
                 <div class="fact-text">
                   <span class="fact-label">{{ fact.label }}</span>

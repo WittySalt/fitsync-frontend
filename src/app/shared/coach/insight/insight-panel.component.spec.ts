@@ -142,6 +142,21 @@ describe('InsightPanelComponent', () => {
     expect(api.getReading).toHaveBeenCalledOnceWith('WORKOUT');
   });
 
+  it('lets a fact that cites a Progress card be chosen, by click or by key, and leaves the others plain', () => {
+    const cited = { ...progressReady, facts: [{ ...progressReady.facts[0], card: 'GOAL' as const }, progressReady.facts[1]] };
+    api.getReading.and.returnValue(of(cited));
+    render('PROGRESS');
+    const chosen: string[] = [];
+    fixture.componentInstance.factChosen.subscribe((fact) => chosen.push(`${fact.number}:${fact.card}`));
+    const facts = element.querySelectorAll<HTMLElement>('.fact');
+    expect(facts[0].getAttribute('role')).toBe('button');
+    expect(facts[1].getAttribute('role')).toBeNull();
+    facts[0].click();
+    facts[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    facts[1].click();
+    expect(chosen).toEqual(['1:GOAL', '1:GOAL']);
+  });
+
   it('shows the reading with its headline, its body and when it was written', () => {
     render();
     expect(text('.reading-headline')).toBe('Your lifts grew while your sessions stayed the same length.');

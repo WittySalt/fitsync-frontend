@@ -5,6 +5,7 @@ import { CoachApiService, limitFromError } from './coach-api.service';
 import { CoachContextService } from './coach-context.service';
 import {
   AcceptSessionDraftResponse,
+  CoachCardContext,
   CoachMessageContext,
   CoachMessageResponse,
   CoachProgressEvent,
@@ -91,12 +92,31 @@ export class CoachStore {
   readonly citedTurns = signal<ReadonlyMap<string, CoachReading>>(new Map());
 
   askAboutReading(reading: CoachReading): void {
+    // One subject at a time: a reading pinned after a card takes the card's place.
+    this.pinnedCard.set(null);
     this.pinnedReading.set(reading);
     this.open();
   }
 
   letGoOfReading(): void {
     this.pinnedReading.set(null);
+  }
+
+  /**
+   * The Progress card a question is about: its kind, id and days. Like a reading, pinning opens the
+   * dock and sends nothing; the card's own questions are offered, and the context goes with the
+   * next question so the server reads the same figures the card showed.
+   */
+  readonly pinnedCard = signal<CoachCardContext | null>(null);
+
+  askAboutCard(card: CoachCardContext): void {
+    this.pinnedReading.set(null);
+    this.pinnedCard.set({ ...card });
+    this.open();
+  }
+
+  letGoOfCard(): void {
+    this.pinnedCard.set(null);
   }
 
   /**
@@ -128,6 +148,13 @@ export class CoachStore {
       const reading = this.pinnedReading();
       if (reading && this.surface().code !== reading.surface) {
         this.pinnedReading.set(null);
+      }
+    });
+
+    // A card belongs to Progress and its pages, so it goes when the person leaves them.
+    effect(() => {
+      if (this.pinnedCard() && this.surface().code !== 'PROGRESS') {
+        this.pinnedCard.set(null);
       }
     });
   }
@@ -351,6 +378,10 @@ export class CoachStore {
     const reading = this.pinnedReading();
     if (reading?.readingId) {
       context.readingId = reading.readingId;
+    }
+    const card = this.pinnedCard();
+    if (card && !about?.recipeId) {
+      context.card = { kind: card.kind, ...(card.id ? { id: card.id } : {}), from: card.from, to: card.to };
     }
     return context;
   }
