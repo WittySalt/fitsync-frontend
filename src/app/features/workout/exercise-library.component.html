@@ -376,6 +376,7 @@
               <span class="card-label">Exercise detail</span>
               <h3>{{ exercise.name }}</h3>
             </div>
+            <a class="text-link" [routerLink]="['/progress/training/exercises', exercise.exerciseId]">Your progress &rsaquo;</a>
             <button class="button secondary" type="button" (click)="clearSelectedExercise()">&larr; Back to library</button>
           </div>
 

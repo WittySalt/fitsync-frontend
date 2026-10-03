@@ -1,0 +1,99 @@
+<main class="page">
+  <a class="back" routerLink="/progress/training" [queryParams]="backQuery()">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>
+    Training
+  </a>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="skeletons" aria-busy="true" aria-label="Loading the activity">
+        <div class="skeleton"></div>
+        <div class="skeleton tall"></div>
+      </div>
+    }
+    @case ('error') {
+      <app-state-panel title="Activity unavailable" message="This activity could not load. Please retry." actionLabel="Retry" [error]="true" (action)="retry()" />
+    }
+    @default {
+      @if (data(); as activity) {
+        <div class="title">
+          <app-kind-tile [kind]="activity.kind" [size]="52" />
+          <div>
+            <h1>{{ activity.name }}</h1>
+            <span>{{ subtitle() }}</span>
+          </div>
+        </div>
+        <app-period-switch [code]="period.code()" (changed)="period.select($event)" />
+
+        @if (activity.sessions.length || activity.weekly.length) {
+          <dl class="figures">
+            @for (tile of tiles(); track tile.label) {
+              <div>
+                <dt>{{ tile.label }}</dt>
+                <dd class="value">{{ tile.value }}</dd>
+                <dd class="note">{{ tile.note }}</dd>
+              </div>
+            }
+          </dl>
+
+          @if (card(); as subject) {
+            <section class="coach" aria-label="What the numbers say">
+              @if (activity.summary.length) {
+                <app-summary-lines [lines]="activity.summary" [context]="activity.context" />
+              }
+              <div class="asks">
+                @for (question of questions(); track question) {
+                  <app-ask-chip [card]="subject" [question]="question" />
+                }
+              </div>
+            </section>
+          }
+
+          <app-section-card title="Each week" sub="minutes, Monday to Sunday" [card]="card()">
+            @if (activity.weekly.length) {
+              <app-week-bars [weeks]="activity.weekly" [kind]="activity.kind" />
+            } @else {
+              <p class="quiet">Not enough data yet.</p>
+            }
+          </app-section-card>
+
+          <div class="row">
+            <app-section-card title="Each session" sub="minutes as bars, effort as the line" [card]="card()">
+              @if (activity.sessions.length) {
+                <app-session-chart [sessions]="activity.sessions" />
+              } @else {
+                <p class="quiet">Not enough data yet.</p>
+              }
+            </app-section-card>
+            <app-section-card title="When you train" sub="start time of each session">
+              @if (activity.whenGrid.length) {
+                <app-when-grid [entries]="activity.whenGrid" />
+              } @else {
+                <p class="quiet">Not enough data yet.</p>
+              }
+            </app-section-card>
+          </div>
+
+          <app-section-card title="Sessions" sub="each opens the session page from Workout History">
+            <ul class="sessions">
+              @for (row of rows(); track row.id) {
+                <li>
+                  <a [routerLink]="['/workout/sessions', row.id]">
+                    <span class="date">{{ row.date }}</span>
+                    <span class="line">{{ row.line }}</span>
+                    <span class="kcal">{{ row.kcal }}</span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+                  </a>
+                </li>
+              }
+            </ul>
+          </app-section-card>
+        } @else {
+          <app-section-card title="Not enough data yet" [card]="card()">
+            <p class="quiet">No {{ activity.name.toLowerCase() }} sessions in this period.</p>
+          </app-section-card>
+        }
+      }
+    }
+  }
+</main>

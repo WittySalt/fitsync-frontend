@@ -2,6 +2,7 @@ import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, EventEmitter, OnInit, Output, WritableSignal, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -35,7 +36,7 @@ interface HistoryTrend {
 
 @Component({
   selector: 'app-exercise-library',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, FsChartComponent, StatePanelComponent, ExerciseVideoComponent, PagerComponent],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, RouterLink, FsChartComponent, StatePanelComponent, ExerciseVideoComponent, PagerComponent],
   templateUrl: './exercise-library.component.html',
   styleUrl: './exercise-library.component.scss'
 })
