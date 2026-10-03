@@ -5,6 +5,7 @@ import { AuthCallbackPage } from './features/auth/auth-callback.page';
 import { LoginPage } from './features/auth/login.page';
 import { LogoutCallbackPage } from './features/auth/logout-callback.page';
 import { cookLeaveGuard } from './features/nutrition/cook/cook-leave.guard';
+import { progressTabRedirect } from './features/progress/progress-redirect.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -79,20 +80,40 @@ export const routes: Routes = [
     title: 'FitSync Recipe'
   },
   {
-    path: 'progress',
-    loadComponent: () => import('./features/progress/progress.page').then((module) => module.ProgressPage),
+    path: 'progress/goal',
+    loadComponent: () => import('./features/progress/goal/goal.page').then((module) => module.GoalPage),
     canActivate: [authGuard],
-    title: 'FitSync Progress'
+    title: 'FitSync Goal'
   },
   {
-    // Body metrics now live inside the Progress hub as a sub-tab. This alias keeps
-    // existing /body links and bookmarks working: ProgressPage opens the Body tab
-    // when the active URL is /body.
-    path: 'body',
-    loadComponent: () => import('./features/progress/progress.page').then((module) => module.ProgressPage),
+    path: 'progress/food',
+    loadComponent: () => import('./features/progress/food/food.page').then((module) => module.FoodPage),
     canActivate: [authGuard],
-    title: 'FitSync Body Metrics'
+    title: 'FitSync Food'
   },
+  {
+    path: 'progress/reviews',
+    loadComponent: () => import('./features/progress/reviews/reviews.page').then((module) => module.ReviewsPage),
+    canActivate: [authGuard],
+    title: 'FitSync Weekly reviews'
+  },
+  {
+    // The Training page, an activity and an exercise: /progress/training, /activities/:key and
+    // /exercises/:exerciseId under it.
+    path: 'progress/training',
+    loadChildren: () => import('./features/progress/training/training.routes').then((module) => module.TRAINING_ROUTES),
+    canActivate: [authGuard]
+  },
+  {
+    // One page with a jump bar. The old tabs redirect: ?tab=body and ?tab=goals open the Goal page.
+    path: 'progress',
+    pathMatch: 'full',
+    loadComponent: () => import('./features/progress/progress.page').then((module) => module.ProgressPage),
+    canActivate: [authGuard, progressTabRedirect],
+    title: 'FitSync Progress'
+  },
+  // Body metrics moved to the Goal page; old /body links and bookmarks still arrive there.
+  { path: 'body', pathMatch: 'full', redirectTo: 'progress/goal' },
   {
     path: 'me',
     loadComponent: () => import('./features/profile/profile.page').then((module) => module.ProfilePage),

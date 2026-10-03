@@ -1,186 +1,72 @@
+:host {
+  display: block;
+}
+
 .progress-page {
-  .progress-header {
-    align-items: center;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+h1 {
+  margin: 0;
+  font: 600 30px/1.2 var(--font-display);
+  color: var(--text-primary);
+}
+
+.head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.anchor {
+  scroll-margin-top: 64px;
+}
+
+.anchor:empty {
+  display: none;
+}
+
+/* The Training card is the other worktree's; the ring goes on its slot. */
+.training {
+  border-radius: 22px;
+  transition: box-shadow var(--dur-base) var(--ease-standard);
+}
+
+.training.ringed {
+  box-shadow: 0 0 0 3px var(--accent-subtle), 0 0 0 4px var(--border-accent);
+}
+
+@media (max-width: 640px) {
+  .progress-page {
+    gap: var(--space-5);
   }
 
-  .progress-tabs {
-    justify-self: start;
-  }
-
-  .progress-panel {
-    display: grid;
-    gap: 18px;
-  }
-
-  .progress-skeleton,
-  .goal-list {
-    display: grid;
-    gap: 14px;
-  }
-
-  .goals-card {
-    margin-bottom: 24px;
-  }
-
-  .goal-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px) auto;
-    align-items: center;
-    gap: 16px;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-
-    strong,
-    span {
-      display: block;
-    }
-
-    span {
-      margin-top: 4px;
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-    }
-  }
-
-  .goal-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .danger-text {
-    border-color: var(--danger);
-    color: var(--danger-hover);
-  }
-
-  .inactive-goals {
-    margin-top: 18px;
-
-    h3 {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-      font-weight: var(--fw-bold);
-    }
-  }
-
-  .goal-progress {
-    display: grid;
-    gap: 8px;
-
-    > span {
-      margin: 0;
-      color: var(--accent-text);
-      font-weight: var(--fw-bold);
-      text-align: right;
-    }
-  }
-
-  .progress-track {
-    height: 10px;
-    overflow: hidden;
-    border-radius: var(--radius-full);
-    background: var(--surface);
-
-    i {
-      display: block;
-      height: 100%;
-      border-radius: inherit;
-      background: var(--accent);
-    }
-  }
-
-  .goal-editor {
-    display: grid;
-    gap: 16px;
-    margin-top: 18px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-  }
-
-  .sub-card-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-
-    h3 {
-      margin: 4px 0 0;
-    }
-  }
-
-  .editor-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-
-    label {
-      display: grid;
-      gap: 6px;
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-      font-weight: var(--fw-bold);
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      min-height: 42px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 9px 10px;
-      color: var(--text-primary);
-      background: var(--surface);
-      font: inherit;
-      font-weight: var(--fw-regular);
-    }
-
-    textarea {
-      resize: vertical;
-    }
-
-    .wide {
-      grid-column: 1 / -1;
-    }
-  }
-
-  .editor-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .section-error {
-    margin: 0;
-    color: var(--danger);
-    font-size: var(--text-sm);
-    font-weight: var(--fw-bold);
+  h1 {
+    font-size: 26px;
   }
 }
 
-@media (max-width: 680px) {
-  .progress-page {
-    .progress-header,
-    .goal-row {
-      align-items: stretch;
-      grid-template-columns: 1fr;
-    }
-
-    .progress-header {
-      flex-direction: column;
-    }
-
-    .goal-progress > span {
-      text-align: left;
-    }
-
-    .editor-grid {
-      grid-template-columns: 1fr;
-    }
+@media (prefers-reduced-motion: reduce) {
+  .training {
+    transition: none;
   }
 }
