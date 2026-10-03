@@ -66,7 +66,7 @@
   container-type: inline-size;
 }
 
-/* Under 640 px the strip stacks above the figure; from 640 they sit side by side. */
+/* Under 520 px the strip stacks above the figure, both centred; from 520 they sit side by side. */
 .pair {
   display: flex;
   flex-direction: column;
@@ -75,6 +75,7 @@
 
 .pair > app-log-strip {
   max-width: 300px;
+  align-self: center;
 }
 
 /* Stacked, the figure pair sits centred under the strip. */
@@ -102,7 +103,7 @@
   color: var(--text-secondary);
 }
 
-@container (min-width: 640px) {
+@container (min-width: 520px) {
   .pair {
     flex-direction: row;
     align-items: flex-start;
@@ -111,13 +112,14 @@
 
   .pair > app-log-strip {
     flex: 0 0 300px;
+    align-self: flex-start;
   }
 
   .figure-block {
     flex: 1 1 0;
     align-self: flex-start;
     width: auto;
-    min-width: 120px;
+    min-width: 140px;
   }
 }
 

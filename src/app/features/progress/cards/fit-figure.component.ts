@@ -8,7 +8,7 @@ const VIEW_GAP = 18;
 
 /** The tallest and the shortest a view is drawn; the pair keeps its aspect between them. */
 export function figureHeight(width: number): number {
-  return Math.min(200, Math.max(120, Math.round(((width - VIEW_GAP) / 2) * 2.2)));
+  return Math.min(200, Math.max(140, Math.round(((width - VIEW_GAP) / 2) * 2.2)));
 }
 
 /** The muscle figure pair, sized to the width it is given and never wider than it. A picture only. */

@@ -121,13 +121,13 @@ describe('the contents navigation', () => {
 });
 
 describe('the muscle figure beside the log strip', () => {
-  it('keeps its aspect to the width it is given, never under 120 px tall and never wider than the box', () => {
+  it('keeps its aspect to the width it is given, never under 140 px tall and never wider than the box', () => {
     expect(figureHeight(170)).toBe(167);
-    expect(figureHeight(100)).toBe(120);
+    expect(figureHeight(100)).toBe(140);
     expect(figureHeight(900)).toBe(200);
-    for (const width of [128, 150, 170, 220]) {
+    for (const width of [150, 170, 188, 220]) {
       const view = Math.round((figureHeight(width) * 100) / 220);
-      expect(view * 2 + 18).toBeLessThanOrEqual(Math.max(width, 128));
+      expect(view * 2 + 18).toBeLessThanOrEqual(Math.max(width, 156));
     }
   });
 });

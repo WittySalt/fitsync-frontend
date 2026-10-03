@@ -92,15 +92,18 @@ export interface LogCell {
   kind: string | null;
   record: boolean;
   future: boolean;
+  today: boolean;
+  /** The day of the month, drawn in the tile under the glyph. */
+  day: string;
 }
 
 export interface LogGeometry {
   pitch: number;
-  radius: number;
+  /** The side of a day's tile. */
+  tile: number;
   cells: LogCell[];
   weeks: { label: string; y: number }[];
   initials: string[];
-  keyY: number;
   height: number;
 }
 
@@ -125,9 +128,8 @@ export function logGeometry(to: string, days: readonly CalendarDay[], width: num
     for (let column = 0; column < 7; column += 1) {
       const date = addDays(monday, column);
       const entry = byDate.get(date);
-      cells.push({ date, x: LABEL_COLUMN + column * pitch + pitch / 2, y, kind: entry?.kind ?? null, record: entry?.record ?? false, future: date > to });
+      cells.push({ date, x: LABEL_COLUMN + column * pitch + pitch / 2, y, kind: entry?.kind ?? null, record: entry?.record ?? false, future: date > to, today: date === to, day: String(Number(date.slice(8))) });
     }
   }
-  const keyY = HEAD + 4 * pitch + 20;
-  return { pitch, radius: Math.min(11, pitch / 2 - 3), cells, weeks, initials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], keyY, height: keyY + 8 };
+  return { pitch, tile: pitch - 4, cells, weeks, initials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], height: HEAD + 4 * pitch + 2 };
 }
