@@ -78,8 +78,10 @@
 
 .contents-row {
   position: sticky;
-  top: 56px;
+  top: var(--progress-sticky-top, 0px);
   z-index: 10;
+  box-sizing: border-box;
+  width: 100%;
   margin: -12px 0;
   padding: 10px 0;
   background: var(--bg);

@@ -1,4 +1,4 @@
-<div class="shell" [class.railed]="railed()">
+<div class="shell" [class.railed]="railed()" [style.--progress-sticky-top.px]="stickyTop()">
   <aside class="rail-col" [hidden]="!railed()">
     <app-contents-nav variant="rail" [active]="active()" (chosen)="scrollTo($event)" />
   </aside>

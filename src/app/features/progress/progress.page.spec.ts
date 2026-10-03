@@ -18,7 +18,7 @@ import { mapReviews } from './progress-api.mappers';
 import { GoalProgress, GoalRoad } from './progress-api.models';
 import { ProgressApiService } from './progress-api.service';
 import { progressTabRedirect } from './progress-redirect.guard';
-import { READING_POLL_MS, ProgressPage } from './progress.page';
+import { READING_POLL_MS, ProgressPage, stickyHeaderHeight } from './progress.page';
 import { TODAY, goalData, progressApi, timezoneStub } from './progress-testing.spec';
 import { TrainingApiService } from './training/training-api.service';
 import { trainingFixture } from './training/training-fixture.spec';
@@ -354,6 +354,25 @@ describe('ProgressPage', () => {
       await open();
       expect(text(el.querySelector('app-food-card app-state-panel'))).toContain('Try again');
     });
+  });
+});
+
+describe('the sticky offset of the contents row', () => {
+  function shell(style: string): HTMLElement {
+    const host = document.createElement('div');
+    host.innerHTML = `<header class="topbar" style="height: 58px; ${style}"></header>`;
+    document.body.appendChild(host);
+    return host;
+  }
+
+  it('is the top bar height when the bar sticks, and 0 when it scrolls away or is absent', () => {
+    let host = shell('position: sticky; top: 0');
+    expect(stickyHeaderHeight(document)).toBe(58);
+    host.remove();
+    host = shell('position: static');
+    expect(stickyHeaderHeight(document)).toBe(0);
+    host.remove();
+    expect(stickyHeaderHeight(document)).toBe(0);
   });
 });
 

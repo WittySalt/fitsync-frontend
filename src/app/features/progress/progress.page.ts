@@ -23,6 +23,13 @@ import { GoalProgress, WeeklyReview } from './progress-api.models';
 import { ProgressApiService } from './progress-api.service';
 import { periodRange } from './training/training-period';
 
+/** The height of the app shell's top bar when it sticks or is fixed; 0 when it scrolls away or is absent. */
+export function stickyHeaderHeight(root: Document): number {
+  const bar = root.querySelector<HTMLElement>('header.topbar');
+  const position = bar && root.defaultView ? root.defaultView.getComputedStyle(bar).position : '';
+  return bar && (position === 'sticky' || position === 'fixed') ? Math.round(bar.getBoundingClientRect().height) : 0;
+}
+
 export const READING_POLL_MS = 3000;
 export const READING_POLL_LIMIT = 8;
 
@@ -91,6 +98,8 @@ export class ProgressPage {
   // Where the reader is.
   protected readonly active = signal<SectionId>('goal');
   protected readonly railed = signal(false);
+  /** Where the sticky contents row sticks: under the app's top bar when that bar sticks, else at the top. */
+  protected readonly stickyTop = signal(0);
 
   protected readonly verdict = computed(() => verdictFor(pageState(this.goal(), this.today)));
   protected readonly sentence = computed(() => {
@@ -115,6 +124,7 @@ export class ProgressPage {
     this.loadReading();
     this.loadWeek();
     afterNextRender(() => {
+      this.stickyTop.set(stickyHeaderHeight(this.document));
       const stop = watchSections(this.document, this.answer()?.nativeElement ?? null, {
         onSection: (id) => this.active.set(id),
         onAnswerOut: (out) => this.railed.set(out)
