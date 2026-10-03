@@ -6,20 +6,32 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
-import { AnalyticsActivityCalendarResponse } from '../../core/analytics.models';
-import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
+import { FitSyncDataService, HomeDashboardData } from '../../core/fitsync-data.service';
+import { NutritionSummary } from '../../core/fitsync.models';
 import { DashboardPage } from './dashboard.page';
 
-const activityCalendar: AnalyticsActivityCalendarResponse = {
-  from: '2026-06-01',
-  to: '2026-06-30',
-  days: [
-    { date: '2026-06-20', workoutCount: 1, workoutMinutes: 45 },
-    { date: '2026-06-24', workoutCount: 2, workoutMinutes: 80 }
-  ]
+const nutrition: NutritionSummary = {
+  totalCalories: 1850,
+  targetCalories: 2200,
+  totalProteinGrams: 120,
+  targetProteinGrams: 150,
+  totalCarbsGrams: 0,
+  targetCarbsGrams: null,
+  totalFatGrams: 0,
+  targetFatGrams: null,
+  mealCount: 1,
+  totalFiberGrams: null,
+  totalSugarGrams: null,
+  totalSodiumMg: null,
+  fiberTargetGrams: null,
+  sugarLimitGrams: null,
+  sodiumLimitMg: null,
+  fiberTargetMet: null,
+  sugarWithinLimit: null,
+  sodiumWithinLimit: null
 };
 
-const dashboardData: DashboardData = {
+const dashboardData: HomeDashboardData = {
   profile: {
     displayName: 'Wang Xu',
     firstName: 'Wang',
@@ -29,41 +41,13 @@ const dashboardData: DashboardData = {
     timezone: 'Asia/Singapore',
     onboardingCompleted: true
   },
-  nutrition: {
-    totalCalories: 1850,
-    targetCalories: 2200,
-    totalProteinGrams: 120,
-    targetProteinGrams: 150,
-    totalCarbsGrams: 0,
-    targetCarbsGrams: null,
-    totalFatGrams: 0,
-    targetFatGrams: null,
-    mealCount: 1,
-    totalFiberGrams: null,
-    totalSugarGrams: null,
-    totalSodiumMg: null,
-    fiberTargetGrams: null,
-    sugarLimitGrams: null,
-    sodiumLimitMg: null,
-    fiberTargetMet: null,
-    sugarWithinLimit: null,
-    sodiumWithinLimit: null
-  },
   workout: {
     todayWorkoutCount: 1,
     weekWorkoutCount: 7,
     weekWorkoutMinutes: 300,
-    activeStreakDays: 7
-  },
-  latestWorkout: null,
-  latestMeal: {
-    mealId: 'meal-1',
-    mealType: 'LUNCH',
-    name: 'Chicken rice',
-    totalCalories: 640,
-    totalProteinGrams: 48,
-    consumedAt: '2026-06-21T12:30:00Z',
-    itemCount: 1
+    activeStreakDays: 7,
+    currentStreakDays: 4,
+    minutesThisWeek: 135
   },
   latestBodyMetric: {
     weightKg: 77,
@@ -111,40 +95,35 @@ describe('DashboardPage', () => {
 
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
-      'getDashboard',
-      'getDailyNutritionSummary',
+      'getHomeDashboard',
+      'loadDailyNutritionSummary',
       'getWorkoutSessionsInRange',
       'getGoals',
       'getActivePlan',
       'getWeeklyTrainingInsight',
-      'getMealsForDay'
+      'getMealsForDay',
+      'getUsualMeals'
     ]);
-    dataService.getDashboard.and.returnValue(of(dashboardData));
-    dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    dataService.getHomeDashboard.and.returnValue(of(dashboardData));
+    dataService.loadDailyNutritionSummary.and.returnValue(of(nutrition));
     dataService.getMealsForDay.and.returnValue(of([]));
+    dataService.getUsualMeals.and.returnValue(of([]));
     // The coach brief loads independently of the rest of the dashboard; these specs are not
     // about the brief itself (see coach-brief.component.spec.ts), so it is given a quiet,
     // empty week and no active plan unless a test says otherwise.
     dataService.getWorkoutSessionsInRange.and.returnValue(of([]));
     dataService.getGoals.and.returnValue(of([]));
     dataService.getActivePlan.and.returnValue(of(null));
-    // The brief treats a failed insight as no insight, which keeps these page tests about the page.
     dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('not under test')));
-    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', [
-      'getActivityCalendar',
-      'getAchievements',
-      'getSummaryCompare'
-    ]);
-    analyticsApi.getActivityCalendar.and.returnValue(of(activityCalendar));
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getAchievements', 'getSummaryCompare']);
     // The Earned section loads on its own (see earned.component.spec.ts); these page specs only
-    // need it to settle quietly, so its requests fail and it shows its own failed state.
+    // need it to settle quietly.
     analyticsApi.getAchievements.and.returnValue(throwError(() => new Error('not under test')));
     analyticsApi.getSummaryCompare.and.returnValue(throwError(() => new Error('not under test')));
 
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
       providers: [
-        // The page carries a coach anchor, whose store reaches HttpClient through the API client.
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: CoachApiService, useValue: coachApiStub },
@@ -164,206 +143,53 @@ describe('DashboardPage', () => {
     jasmine.clock().uninstall();
   });
 
-  it('renders analytics dashboard streak, latest goal values, and humanized timestamps', () => {
-    fixture.detectChanges();
-
-    const text = pageText();
-    expect(text).toContain('Active streak');
-    expect(text).toContain('7 days');
-    expect(text).toContain('7 workouts · 300 min in 7 days');
-    expect(text).toContain('Today');
-    expect(text).not.toContain('2026-06-24T00:05:00.512709Z');
-    expect(text).not.toContain('2026-06-21T12:30:00Z');
-    expect(goalRowText().length).toBe(1);
-    expect(goalRowText()[0]).toContain('Calories 1,900 of 2,000 kcal');
-    // A daily amount carries no date, whatever the goal record holds.
-    expect(goalRowText()[0]).not.toContain('by 31 Aug 2026');
-    expect(text).not.toContain('Complete setup');
-  });
-
-  it('leads with weekly workout totals when active streak is zero', () => {
-    dataService.getDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        workout: {
-          todayWorkoutCount: 0,
-          weekWorkoutCount: 5,
-          weekWorkoutMinutes: 210,
-          activeStreakDays: 0
-        }
-      })
-    );
-
-    fixture.detectChanges();
-
-    const text = pageText();
-    expect(text).toContain('Last 7 days');
-    expect(text).toContain('5 workouts · 210 min');
-    expect(text).not.toContain('0 days');
-  });
-
-  it('renders a start workout empty state when the latest session has no completed work', () => {
-    dataService.getDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        latestWorkout: {
-          name: 'Draft workout',
-          workoutType: 'STRENGTH',
-          status: 'COMPLETED',
-          startedAt: '2026-06-24T10:00:00Z',
-          durationMinutes: 0,
-          caloriesBurned: 0,
-          completedAt: '2026-06-24T10:00:00Z',
-          exerciseCount: 0
-        }
-      })
-    );
-
+  it('shows the brief, the Today card and Earned, and nothing else', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('No completed workout yet');
-    expect(compiled.querySelector<HTMLAnchorElement>('.empty-workout-state a')?.getAttribute('href')).toBe('/workout');
+    const brief = compiled.querySelector('app-coach-brief');
+    expect(brief?.nextElementSibling?.tagName.toLowerCase()).toBe('app-today-card');
+    expect(brief?.nextElementSibling?.nextElementSibling?.tagName.toLowerCase()).toBe('app-earned');
+    expect(compiled.querySelector('app-earned')?.nextElementSibling).toBeNull();
+    expect(compiled.querySelector('app-activity-heatmap')).toBeNull();
+    expect(compiled.querySelector('.metric-card')).toBeNull();
+    expect(compiled.querySelector('.activity-link-card')).toBeNull();
+    expect(pageText()).not.toContain('Latest Workout');
+    expect(pageText()).not.toContain('Alice');
+    expect(pageText()).not.toContain('Complete setup');
   });
 
-  it('renders the latest workout empty state for non-completed sessions', () => {
-    dataService.getDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        latestWorkout: {
-          name: 'Cancelled workout',
-          workoutType: 'STRENGTH',
-          status: 'CANCELLED',
-          startedAt: '2026-06-24T10:00:00Z',
-          durationMinutes: 0,
-          caloriesBurned: 0,
-          completedAt: '',
-          exerciseCount: 4
-        }
-      })
-    );
-
+  it('passes the profile through to the brief', () => {
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('No completed workout yet');
-    expect(compiled.textContent).not.toContain('Cancelled workout');
+    expect(fixture.nativeElement.querySelector('app-coach-brief').textContent).toContain('Wang');
   });
 
-  it('renders friendly empty states for new users without NaN', () => {
-    const emptyNutrition = {
-      ...dashboardData.nutrition,
-      totalCalories: 0,
-      targetCalories: null,
-      totalProteinGrams: 0,
-      targetProteinGrams: null
-    };
-    dataService.getDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        profile: {
-          ...dashboardData.profile,
-          onboardingCompleted: false
-        },
-        nutrition: emptyNutrition,
-        latestBodyMetric: null,
-        goals: []
-      })
-    );
-    dataService.getDailyNutritionSummary.and.returnValue(of(emptyNutrition));
-
+  it('reads the goals once and hands them to the brief', () => {
     fixture.detectChanges();
 
-    const text = pageText();
-    expect(text).toContain('No measurement yet');
-    expect(text).toContain('No goals yet');
-    expect(text).toContain('Workout consistency');
-    expect(text).toContain('Complete setup');
-    expect(text).not.toContain('NaN');
+    expect(dataService.getHomeDashboard).toHaveBeenCalledTimes(1);
+    expect(dataService.getGoals).not.toHaveBeenCalled();
   });
 
-  it('replaces the protein stat with a compact workout heatmap link', () => {
+  it('asks for the day summary of the profile zone, not of the browser', () => {
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const heatmapCard = compiled.querySelector<HTMLAnchorElement>('.heatmap-metric');
-    expect(heatmapCard?.getAttribute('href')).toBe('/progress');
-    expect(heatmapCard?.textContent).toContain('Last five weeks');
-    expect(heatmapCard?.textContent).toContain('3 workouts · 125 min');
-    expect(compiled.textContent).not.toContain('Daily target progress');
+    expect(dataService.loadDailyNutritionSummary).toHaveBeenCalledWith('2026-06-24', 'Asia/Singapore');
+    expect(dataService.getMealsForDay.calls.mostRecent().args[1]).toBe('Asia/Singapore');
+    expect(dataService.getUsualMeals).toHaveBeenCalledWith('Asia/Singapore');
   });
 
-  it('links dashboard cards to their related sections', () => {
-    dataService.getDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        latestWorkout: {
-          name: 'Upper body strength',
-          workoutType: 'STRENGTH',
-          status: 'COMPLETED',
-          startedAt: '2026-06-24T09:00:00Z',
-          completedAt: '2026-06-24T10:00:00Z',
-          durationMinutes: 60,
-          caloriesBurned: 320,
-          exerciseCount: 6
-        }
-      })
-    );
-
+  it('turns the Earned card to the dashboard minutes and the streak', () => {
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector<HTMLAnchorElement>('.metric-card.streak')?.getAttribute('href')).toBe('/workout');
-    expect(compiled.querySelector<HTMLAnchorElement>('.heatmap-metric')?.getAttribute('href')).toBe('/progress');
-
-    const activityLinks = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.activity-link-card'));
-    expect(activityLinks.map((link) => link.getAttribute('href'))).toEqual(['/workout']);
-  });
-
-  it('renders missing latest workout duration and calories without fake zeroes', () => {
-    dataService.getDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        latestWorkout: {
-          name: 'Upper body strength',
-          workoutType: 'STRENGTH',
-          status: 'COMPLETED',
-          startedAt: '2026-06-24T09:00:00Z',
-          completedAt: '',
-          durationMinutes: null,
-          caloriesBurned: null,
-          exerciseCount: 6
-        }
-      })
-    );
-
-    fixture.detectChanges();
-
-    const latestWorkoutCard = (fixture.nativeElement as HTMLElement).querySelector('.activity-link-card')?.textContent ?? '';
-    expect(latestWorkoutCard).toContain('STRENGTH · —');
-    expect(latestWorkoutCard).toContain('Not recorded');
-    expect(latestWorkoutCard).not.toContain('0 min');
-  });
-
-  it('links the Goals tab to goal management', () => {
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector<HTMLAnchorElement>('app-today-goals a')?.getAttribute('href')).toBe('/me#goal-lifecycle');
-  });
-
-  it('renders the coach brief in place of the old hero panel, with the profile passed through', () => {
-    fixture.detectChanges();
-
-    const brief = fixture.nativeElement.querySelector('app-coach-brief');
-    expect(brief).toBeTruthy();
-    expect(brief.textContent).toContain('Wang');
-    expect(fixture.nativeElement.querySelector('.hero-panel')).toBeNull();
-    expect(fixture.nativeElement.querySelector('app-coach-anchor')).toBeNull();
+    const earned = (fixture.nativeElement as HTMLElement).querySelector('app-earned')?.textContent ?? '';
+    expect(earned).toContain('2 h 15 min');
+    expect(earned).toContain('4 days in a row');
   });
 
   it('renders the protein goal row from the active goal and the Food budget from the daily summary', () => {
-    dataService.getDashboard.and.returnValue(
+    dataService.getHomeDashboard.and.returnValue(
       of({
         ...dashboardData,
         goals: [
@@ -382,75 +208,72 @@ describe('DashboardPage', () => {
         ]
       })
     );
-    dataService.getDailyNutritionSummary.and.returnValue(
-      of({
-        ...dashboardData.nutrition,
-        totalProteinGrams: 7.47,
-        targetProteinGrams: 155
-      })
+    dataService.loadDailyNutritionSummary.and.returnValue(of({ ...nutrition, totalProteinGrams: 7.47, targetProteinGrams: 155 }));
+
+    fixture.detectChanges();
+
+    expect(goalRowText()[0]).toContain('Protein 140 of 140 g');
+    expect(pageText()).toContain('7 of 155 g');
+  });
+
+  it('keeps only the latest evaluation of a goal type', () => {
+    fixture.detectChanges();
+
+    expect(goalRowText().length).toBe(1);
+    expect(goalRowText()[0]).toContain('Calories 1,900 of 2,000 kcal');
+  });
+
+  it('renders friendly empty states for new users without NaN', () => {
+    dataService.getHomeDashboard.and.returnValue(
+      of({ ...dashboardData, profile: { ...dashboardData.profile, onboardingCompleted: false }, latestBodyMetric: null, goals: [] })
+    );
+    dataService.loadDailyNutritionSummary.and.returnValue(
+      of({ ...nutrition, totalCalories: 0, targetCalories: null, totalProteinGrams: 0, targetProteinGrams: null })
     );
 
     fixture.detectChanges();
 
     const text = pageText();
-    expect(goalRowText()[0]).toContain('Protein 140 of 140 g');
-    expect(goalRowText()[0]).not.toContain('by 31 Aug 2026');
-    // The goal row keeps the goal's own 140 g. The budget bar on the Food tab is the daily summary's.
-    expect(text).toContain('7 of 155 g');
-    expect(text).not.toContain('155g');
+    expect(text).toContain('No measurement yet');
+    expect(text).toContain('No goals yet');
+    expect(text).toContain('Complete setup');
+    expect(text).not.toContain('NaN');
   });
 
-  it('places the Today card directly below the brief and drops the four cards it replaces', () => {
+  it('links the Goals tab to goal management', () => {
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const brief = compiled.querySelector('app-coach-brief');
-    expect(brief?.nextElementSibling?.tagName.toLowerCase()).toBe('app-today-card');
-    expect(compiled.querySelector('.metric-card.calories')).toBeNull();
-    expect(compiled.querySelector('.metric-card.body')).toBeNull();
-    expect(compiled.querySelector('.goals-card')).toBeNull();
-    expect(compiled.querySelector('.metrics-grid')).toBeNull();
-    expect(compiled.textContent).not.toContain('Latest Meal');
-    expect(compiled.textContent).not.toContain('Latest body metric');
+    expect(fixture.nativeElement.querySelector('app-today-goals a')?.getAttribute('href')).toBe('/me#goal-lifecycle');
   });
 
-  it('mounts the Earned section directly after the Today card and before the remaining cards', () => {
+  it('shows the Food error panel with a retry when the day summary fails, not an empty day', () => {
+    dataService.loadDailyNutritionSummary.and.returnValue(throwError(() => new Error('down')));
+
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const today = compiled.querySelector('app-today-card');
-    const earned = today?.nextElementSibling;
-    expect(earned?.tagName.toLowerCase()).toBe('app-earned');
-    expect(earned?.nextElementSibling?.classList).toContain('card-row');
-    expect(analyticsApi.getAchievements).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the heatmap, the last 7 days and the latest workout together in one row of three', () => {
-    fixture.detectChanges();
-
-    const row = (fixture.nativeElement as HTMLElement).querySelector('.card-row-grid');
-    expect(row?.children.length).toBe(3);
-    expect(row?.querySelector('.heatmap-metric')).toBeTruthy();
-    expect(row?.querySelector('.metric-card.streak')).toBeTruthy();
-    expect(row?.textContent).toContain('Latest Workout');
+    expect(fixture.componentInstance.nutritionFailed()).toBeTrue();
+    const food = (fixture.nativeElement as HTMLElement).querySelector('#today-panel-food');
+    expect(food?.textContent).toContain('This could not be loaded.');
+    expect(food?.querySelector('button.retry')).toBeTruthy();
+    expect(food?.textContent).not.toContain('Calories');
   });
 
   it('reloads the nutrition summary from the card without reloading the whole page', () => {
-    dataService.getDailyNutritionSummary.and.returnValue(throwError(() => new Error('down')));
+    dataService.loadDailyNutritionSummary.and.returnValue(throwError(() => new Error('down')));
     fixture.detectChanges();
     expect(fixture.componentInstance.nutritionFailed()).toBeTrue();
 
-    dataService.getDashboard.calls.reset();
-    dataService.getDailyNutritionSummary.and.returnValue(of(dashboardData.nutrition));
+    dataService.getHomeDashboard.calls.reset();
+    dataService.loadDailyNutritionSummary.and.returnValue(of(nutrition));
     fixture.componentInstance.loadNutrition();
 
     expect(fixture.componentInstance.nutritionFailed()).toBeFalse();
-    expect(fixture.componentInstance.nutritionSummary()).toEqual(dashboardData.nutrition);
-    expect(dataService.getDashboard).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.nutritionSummary()).toEqual(nutrition);
+    expect(dataService.getHomeDashboard).not.toHaveBeenCalled();
   });
 
   it('renders the dashboard error state', () => {
-    dataService.getDashboard.and.returnValue(throwError(() => new Error('Unable to load dashboard data.')));
+    dataService.getHomeDashboard.and.returnValue(throwError(() => new Error('Unable to load dashboard data.')));
 
     fixture.detectChanges();
 
@@ -459,29 +282,21 @@ describe('DashboardPage', () => {
     expect(text).toContain('Unable to load dashboard data.');
   });
 
-  function pageText(): string {
-    return (fixture.nativeElement as HTMLElement).textContent ?? '';
-  }
-
-  // --- regression: functional-defects-2026-09-26, defects 5, 6 and 7 --------------------------
-
   it('captions the body metric with the measurement date, not a re-formatted label', () => {
-    // The value used to be overwritten with its own display label before rendering, and the
-    // template then formatted it a second time. new Date("5 Jul") parses to the year 2001 under
-    // V8's legacy parser, so a measurement taken in 2026 rendered as "5 Jul 2001".
-    dataService.getDashboard.and.returnValue(
+    // A measurement date used to be overwritten with its own display label and formatted twice;
+    // new Date("5 Jul") parses to the year 2001 under V8's legacy parser.
+    dataService.getHomeDashboard.and.returnValue(
       of({ ...dashboardData, latestBodyMetric: { weightKg: 71.1, bodyFatRate: 21.4, bmi: 22.4, measuredAt: '2026-05-20' } })
     );
 
     fixture.detectChanges();
 
-    const text = pageText();
-    expect(text).not.toContain('2001');
-    expect(text).toContain('Weighed 20 May');
+    expect(pageText()).not.toContain('2001');
+    expect(pageText()).toContain('Weighed 20 May');
   });
 
   it('renders a goal past its target date as overdue and drops the progress claim', () => {
-    dataService.getDashboard.and.returnValue(
+    dataService.getHomeDashboard.and.returnValue(
       of({
         ...dashboardData,
         goals: [
@@ -504,13 +319,12 @@ describe('DashboardPage', () => {
 
     fixture.detectChanges();
 
-    const rows = goalRowText();
-    expect(rows[0]).not.toContain('was due 31 May 2026');
-    expect(rows[0]).not.toContain('by 31 May');
-    expect(rows[0])
-      .withContext('claiming progress against a deadline that has passed is the defect')
-      .not.toContain('% complete');
+    expect(goalRowText()[0]).withContext('claiming progress against a passed deadline is the defect').not.toContain('% complete');
   });
+
+  function pageText(): string {
+    return (fixture.nativeElement as HTMLElement).textContent ?? '';
+  }
 
   function goalRowText(): string[] {
     // Angular drops the whitespace between elements, so neighbouring texts are joined with a space.

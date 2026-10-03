@@ -21,6 +21,10 @@ export interface AnalyticsDashboardWorkout {
   weekWorkoutCount: number;
   weekWorkoutMinutes: number;
   activeStreakDays: number;
+  /** Consecutive days with a session, ending today or yesterday. Absent on an older backend. */
+  currentStreakDays?: number | null;
+  /** Minutes trained Monday to Sunday this week in the person's zone. Absent on an older backend. */
+  minutesThisWeek?: number | null;
 }
 
 export interface AnalyticsDashboardNutrition {
@@ -155,6 +159,9 @@ export interface AnalyticsMetricComparison {
   previous: number | null;
   delta: number | null;
   deltaPct: number | null;
+  /** The same figure for a day on which food was logged, so a week with fewer logged days is not
+   *  read as eating less. Sent for nutrition metrics only, and absent on an older backend. */
+  averagePerLoggedDay?: AnalyticsMetricComparison | null;
 }
 
 export interface AnalyticsWorkoutComparison {
@@ -169,6 +176,8 @@ export interface AnalyticsNutritionComparison {
   totalProteinGrams: AnalyticsMetricComparison;
   totalCarbsGrams: AnalyticsMetricComparison;
   totalFatGrams: AnalyticsMetricComparison;
+  /** How many days had food logged in each window; absent on an older backend. */
+  daysLogged?: AnalyticsMetricComparison | null;
 }
 
 export interface AnalyticsSummaryCompareResponse {

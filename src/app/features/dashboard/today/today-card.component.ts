@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, Eleme
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { defer } from 'rxjs';
 
-import { DashboardData, FitSyncDataService } from '../../../core/fitsync-data.service';
+import { FitSyncDataService, HomeDashboardData } from '../../../core/fitsync-data.service';
 import { DayMeal, NutritionSummary, UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
 import { BRIEF_NOW } from '../brief/brief-time';
@@ -32,7 +32,7 @@ export class TodayCardComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   /** The dashboard snapshot, or null while it loads or when it failed. */
-  readonly dashboard = input<DashboardData | null>(null);
+  readonly dashboard = input<HomeDashboardData | null>(null);
   /** Today's nutrition summary, or null while it loads or when it failed. */
   readonly nutrition = input<NutritionSummary | null>(null);
   readonly loading = input(false);
@@ -57,6 +57,8 @@ export class TodayCardComponent implements OnInit {
 
   readonly activeTab = computed<TodayTab>(() => this.picked() ?? this.decided() ?? 'food');
   readonly foodMeals = this.meals.asReadonly();
+  /** The profile's zone, which decides which day the meals and the usual meals are read for. */
+  private readonly zone = computed(() => this.dashboard()?.profile.timezone ?? null);
 
   readonly foodLoading = computed(
     () => this.mealsState() === 'loading' || (this.nutrition() === null && !this.nutritionFailed())
@@ -95,7 +97,7 @@ export class TodayCardComponent implements OnInit {
   loadMeals(): void {
     this.mealsState.set('loading');
     this.dataService
-      .getMealsForDay(this.now())
+      .getMealsForDay(this.now(), this.zone())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (meals) => {
@@ -109,7 +111,7 @@ export class TodayCardComponent implements OnInit {
   // The usual meals only add suggestions, so a failure leaves the card as it is without them.
   private loadUsualMeals(): void {
     // The call is deferred so that any failure, even one thrown before a request exists, is caught.
-    defer(() => this.dataService.getUsualMeals())
+    defer(() => this.dataService.getUsualMeals(this.zone() ?? undefined))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (meals) => this.usualMeals.set(meals),
@@ -142,7 +144,7 @@ export class TodayCardComponent implements OnInit {
   private refreshAfterLogging(): void {
     this.now.set(this.clock());
     this.dataService
-      .getMealsForDay(this.now())
+      .getMealsForDay(this.now(), this.zone())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (meals) => this.meals.set(meals),

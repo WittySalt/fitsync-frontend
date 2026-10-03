@@ -108,6 +108,9 @@
         @if (view() === 'week' && observations().length) {
           <app-coach-noticed [observations]="observations()" />
         }
+        @if (insightFailed()) {
+          <app-quiet-notice message="Training figures could not be loaded" (retry)="loadInsight()" />
+        }
       </div>
 
       <div class="brief-panel">

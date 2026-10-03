@@ -63,10 +63,14 @@ export class AnalyticsApiService {
     });
   }
 
-  getSummaryCompare(period: AnalyticsComparePeriod): Observable<AnalyticsSummaryCompareResponse> {
-    return this.http.get<AnalyticsSummaryCompareResponse>(`${this.analyticsBaseUrl}/summary/compare`, {
-      params: new HttpParams().set('period', period)
-    });
+  /** Compares this period so far with the same days of the one before. The timezone, when known,
+   *  tells the server which day is today. */
+  getSummaryCompare(period: AnalyticsComparePeriod, timezone?: string | null): Observable<AnalyticsSummaryCompareResponse> {
+    let params = new HttpParams().set('period', period);
+    if (timezone) {
+      params = params.set('timezone', timezone);
+    }
+    return this.http.get<AnalyticsSummaryCompareResponse>(`${this.analyticsBaseUrl}/summary/compare`, { params });
   }
 
   getActivityCalendar(from: string, to: string): Observable<AnalyticsActivityCalendarResponse> {

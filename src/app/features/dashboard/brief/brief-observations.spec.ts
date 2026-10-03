@@ -317,6 +317,41 @@ describe('dailyObservations - volume (rule C)', () => {
   });
 });
 
+describe('dailyObservations - volume against last week by the same weekday', () => {
+  const now = new Date('2026-10-03T00:10:00Z');
+  const same = (volumeKg: number, sessionsWithVolume = 1) => ({ completedSessions: 1, totalMinutes: 40, volumeKg, sessionsWithVolume });
+  const volume = { thisWeekKg: 1923, previousWeekKg: 3846, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 1, previousWeekSessionsWithVolume: 2 };
+  const read = (fixture: WeeklyTrainingInsight) => dailyObservations(fixture, now, TZ).find((o) => o.id === 'volume');
+
+  it('compares with last week up to the same weekday, not with all of last week', () => {
+    const observation = read(insight({ referenceDate: '2026-10-03', volume, previousWeekSameDays: same(1900) }))!;
+    expect(observation.fact).toBe('You have lifted about the same as by this point last week.');
+    expect(observation.note).toBe('1,923 kg so far, against 1,900 kg by this point last week.');
+  });
+
+  it('says how much more and how much less, in the same words', () => {
+    expect(read(insight({ referenceDate: '2026-10-03', volume, previousWeekSameDays: same(1000) }))!.fact).toBe(
+      'You have lifted 1.9 times as much as by this point last week.'
+    );
+    expect(read(insight({ referenceDate: '2026-10-03', volume, previousWeekSameDays: same(3000) }))!.fact).toBe(
+      'You have lifted 64% of what you had by this point last week.'
+    );
+  });
+
+  it('names the sessions when the counts differ', () => {
+    const observation = read(insight({ referenceDate: '2026-10-03', volume, previousWeekSameDays: same(1000, 2) }))!;
+    expect(observation.note).toBe('1,923 kg over one session so far, against 1,000 kg over two sessions by this point last week.');
+  });
+
+  it('is left out when last week had no weight by this point', () => {
+    expect(read(insight({ referenceDate: '2026-10-03', volume, previousWeekSameDays: same(0, 0) }))).toBeUndefined();
+  });
+
+  it('keeps the whole-week comparison on a backend that sends no same-day figures', () => {
+    expect(read(insight({ referenceDate: '2026-10-03', volume }))!.fact).toBe("You lifted 50% of last week's weight.");
+  });
+});
+
 describe('dailyObservations - week so far (rule D)', () => {
   const now = new Date('2026-09-27T00:10:00Z');
 

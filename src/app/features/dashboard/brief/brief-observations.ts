@@ -1,4 +1,4 @@
-import { DayKind, MuscleGroupCode, MuscleGroupInsight, WeeklyTrainingInsight } from '../../../core/fitsync.models';
+import { DayKind, MuscleGroupCode, MuscleGroupInsight, PreviousWeekSameDays, WeeklyTrainingInsight } from '../../../core/fitsync.models';
 import { formatDuration, formatKm, formatPace } from './brief-duration';
 import { numberWord } from './brief-copy';
 import { joinLabels, muscleLabel } from './brief-muscles';
@@ -174,8 +174,36 @@ function mostRecentPhrase(lastTrainedOn: string | null, referenceDate: string): 
   return `on ${weekdayFull(lastTrainedOn)}`;
 }
 
+/** This week's weight so far against last week's by the same weekday. Nothing is said when last
+ *  week had no weight by this point, because a ratio against nothing means nothing. */
+function sameDaysVolumeObservation(insight: WeeklyTrainingInsight, same: PreviousWeekSameDays): BriefObservation | null {
+  const v = insight.volume;
+  if (v.thisWeekKg <= 0 || same.volumeKg <= 0) {
+    return null;
+  }
+  const ratio = v.thisWeekKg / same.volumeKg;
+  let fact: string;
+  if (ratio >= 1.15) {
+    fact = `You have lifted ${formatRatio(ratio)} times as much as by this point last week.`;
+  } else if (ratio <= 0.85) {
+    fact = `You have lifted ${formatPercent(ratio)}% of what you had by this point last week.`;
+  } else {
+    fact = `You have lifted about the same as by this point last week.`;
+  }
+  const sessions = (count: number): string => `${numberWord(count)} ${plural('session', count)}`;
+  const note =
+    v.thisWeekSessionsWithVolume !== same.sessionsWithVolume
+      ? `${formatKg(v.thisWeekKg)} kg over ${sessions(v.thisWeekSessionsWithVolume)} so far, against ${formatKg(same.volumeKg)} kg over ${sessions(same.sessionsWithVolume)} by this point last week.`
+      : `${formatKg(v.thisWeekKg)} kg so far, against ${formatKg(same.volumeKg)} kg by this point last week.`;
+  return { id: 'volume', icon: 'volume', fact, note, muscle: null };
+}
+
 function volumeObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
   const v = insight.volume;
+
+  if (v.thisWeekKg > 0 && insight.previousWeekSameDays) {
+    return sameDaysVolumeObservation(insight, insight.previousWeekSameDays);
+  }
 
   if (v.thisWeekKg > 0 && v.previousWeekKg > 0) {
     const ratio = v.thisWeekKg / v.previousWeekKg;

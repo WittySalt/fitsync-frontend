@@ -647,6 +647,15 @@ export interface WeeklyVolume {
   previousWeekSessionsWithVolume: number;
 }
 
+/** Last week's figures up to the same weekday as today, so a week that is half over is set against
+ *  half of the one before and not against all of it. */
+export interface PreviousWeekSameDays {
+  completedSessions: number;
+  totalMinutes: number;
+  volumeKg: number;
+  sessionsWithVolume: number;
+}
+
 export interface WeeklyTrainingInsight {
   timezone: string;
   referenceDate: string;
@@ -667,6 +676,9 @@ export interface WeeklyTrainingInsight {
   /** The time of day the person usually starts training, as the backend sends it ("18:30", 24-hour).
    *  Null when the records do not show a usual time; absent on a response from before the field. */
   usualStartTime?: string | null;
+  /** Last week up to the same weekday. Absent on a backend from before the field, and the volume
+   *  line then falls back to the whole of last week. */
+  previousWeekSameDays?: PreviousWeekSameDays | null;
 }
 
 /** The four kinds of training day, plus the two states a day can be in without one. */

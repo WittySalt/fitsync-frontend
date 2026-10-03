@@ -1265,6 +1265,70 @@ describe('FitSyncDataService', () => {
     ]);
   });
 
+  it('reads the Home dashboard from three requests, with no latest meal or workout', () => {
+    let result: unknown;
+    service.getHomeDashboard().subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush({
+      ...dashboardAnalytics,
+      workout: { ...dashboardAnalytics.workout, currentStreakDays: 4, minutesThisWeek: 135 }
+    });
+    httpTesting
+      .expectOne((req) => req.url === '/api/v1/analytics/goals/progress' && req.params.get('status') === 'ACTIVE')
+      .flush(activeGoalProgress);
+    httpTesting.expectOne('/api/v1/users/me').flush({ profile: { displayName: 'Wang Xu', timezone: 'Europe/London' }, activeGoals: [] });
+    httpTesting.expectNone('/api/v1/workouts/sessions/latest');
+    httpTesting.expectNone('/api/v1/nutrition/meals/latest');
+
+    const home = result as { profile: { timezone: string }; workout: { currentStreakDays: number; minutesThisWeek: number } };
+    expect(home.profile.timezone).toBe('Europe/London');
+    expect(home.workout.currentStreakDays).toBe(4);
+    expect(home.workout.minutesThisWeek).toBe(135);
+    expect(result).not.toEqual(jasmine.objectContaining({ nutrition: jasmine.anything() }));
+  });
+
+  it('fails the Home dashboard with one message when a request fails', () => {
+    let message = '';
+    service.getHomeDashboard().subscribe({ error: (error: Error) => (message = error.message) });
+
+    httpTesting.expectOne('/api/v1/analytics/dashboard').flush('nope', { status: 500, statusText: 'Server Error' });
+    // The requests that were still open when the first one failed are answered or already cancelled.
+    httpTesting.match(() => true).forEach((request) => (request.cancelled ? undefined : request.flush({ profile: {}, goals: [] })));
+
+    expect(message).toBe('Unable to load dashboard data. Please retry.');
+  });
+
+  it('passes a failed daily summary on as an error when the caller asks to see it', () => {
+    let failed = false;
+    service.loadDailyNutritionSummary('2026-06-24', 'Europe/London').subscribe({ error: () => (failed = true) });
+
+    const request = httpTesting.expectOne(
+      (req) => req.url === '/api/v1/nutrition/summary/daily' && req.params.get('date') === '2026-06-24' && req.params.get('timezone') === 'Europe/London'
+    );
+    request.flush('nope', { status: 500, statusText: 'Server Error' });
+
+    expect(failed).toBeTrue();
+  });
+
+  it('still turns a failed daily summary into an empty one for the other callers', () => {
+    let result: { totalCalories: number } | undefined;
+    service.getDailyNutritionSummary(new Date(2026, 5, 24), 'Asia/Singapore').subscribe((value) => (result = value));
+
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/summary/daily').flush('nope', { status: 500, statusText: 'Server Error' });
+
+    expect(result?.totalCalories).toBe(0);
+  });
+
+  it('fetches the meals of the day the given zone is in, from its midnight to its last millisecond', () => {
+    service.getMealsForDay(new Date('2026-10-02T17:30:00Z'), 'Asia/Singapore').subscribe();
+
+    const request = httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals');
+    // 01:30 on 3 October in Singapore, so the day is the 3rd there and began at 16:00 UTC on the 2nd.
+    expect(request.request.params.get('from')).toBe('2026-10-02T16:00:00.000Z');
+    expect(request.request.params.get('to')).toBe('2026-10-03T15:59:59.999Z');
+    request.flush([]);
+  });
+
   it('lets a failed day-meals request through so the card can offer a retry', () => {
     let failed = false;
     service.getMealsForDay().subscribe({ error: () => (failed = true) });
@@ -1597,6 +1661,35 @@ describe('FitSyncDataService', () => {
       for (const bad of ['18:30:00', '6:30', '24:00', '18:61', 'evening', '', 1830, {}, ['18:30']]) {
         expect(insightWith({ usualStartTime: bad })?.usualStartTime).withContext(JSON.stringify(bad)).toBeNull();
       }
+    });
+  });
+
+  describe('previousWeekSameDays', () => {
+    function insightWith(extra: Record<string, unknown>): WeeklyTrainingInsight | undefined {
+      let result: WeeklyTrainingInsight | undefined;
+      service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+      httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({ muscleGroups: [], volume: {}, ...extra });
+      return result;
+    }
+
+    it('maps the figures of last week up to the same weekday', () => {
+      expect(insightWith({ previousWeekSameDays: { completedSessions: 1, totalMinutes: 40, volumeKg: 1900, sessionsWithVolume: 1 } })?.previousWeekSameDays).toEqual({
+        completedSessions: 1,
+        totalMinutes: 40,
+        volumeKg: 1900,
+        sessionsWithVolume: 1
+      });
+    });
+
+    it('turns a missing or malformed number into zero and a missing object into null', () => {
+      expect(insightWith({ previousWeekSameDays: { volumeKg: 'x' } })?.previousWeekSameDays).toEqual({
+        completedSessions: 0,
+        totalMinutes: 0,
+        volumeKg: 0,
+        sessionsWithVolume: 0
+      });
+      expect(insightWith({})?.previousWeekSameDays).toBeNull();
+      expect(insightWith({ previousWeekSameDays: null })?.previousWeekSameDays).toBeNull();
     });
   });
 

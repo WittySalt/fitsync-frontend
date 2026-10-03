@@ -386,6 +386,31 @@ describe('CoachBriefComponent', () => {
     expect(element.querySelector('.headline')?.textContent).toContain('Four for four!');
   });
 
+  it('says the training figures could not be loaded, with a retry, when the insight fails', () => {
+    dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('offline')));
+    setup();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('app-quiet-notice')?.textContent).toContain('Training figures could not be loaded');
+
+    dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight));
+    element.querySelector<HTMLButtonElement>('app-quiet-notice button')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('app-quiet-notice')).toBeNull();
+    expect(element.querySelector('app-coach-noticed')).toBeTruthy();
+  });
+
+  it('shows no notice when the insight loads', () => {
+    setup();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-quiet-notice')).toBeNull();
+  });
+
+  it('takes the weekly target from the goals the page passes and does not read them again', () => {
+    dataService.getGoals.calls.reset();
+    setup({ goals: [{ goalType: 'WORKOUT_FREQUENCY', status: 'ACTIVE', targetValue: 6, targetUnit: 'sessions/week', targetDate: '', progressRatio: 0 }] });
+    expect(dataService.getGoals).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.weeklyTarget()).toBe(6);
+  });
+
   it('names the panel after the training when no group belongs to a plan', () => {
     dataService.getWeeklyTrainingInsight.and.returnValue(
       of({ ...weeklyInsight, muscleGroups: weeklyInsight.muscleGroups.map((entry) => ({ ...entry, inActivePlan: false })) })

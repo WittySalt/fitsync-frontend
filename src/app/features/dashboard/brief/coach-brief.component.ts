@@ -5,7 +5,8 @@ import { Router, RouterLink } from '@angular/router';
 import { CoachContextService } from '../../../core/coach/coach-context.service';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
-import { DayInsight, DayKind, TodayInsight, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession } from '../../../core/fitsync.models';
+import { DayInsight, DayKind, Goal, TodayInsight, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession } from '../../../core/fitsync.models';
+import { QuietNoticeComponent } from '../../../shared/quiet-notice.component';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { briefHeadline, quickQuestions } from './brief-copy';
 import { formatDuration } from './brief-duration';
@@ -43,6 +44,7 @@ const WORKOUT_FREQUENCY_GOAL_TYPE = 'WORKOUT_FREQUENCY';
     MonthNavComponent,
     MonthPanelComponent,
     MuscleWheelComponent,
+    QuietNoticeComponent,
     RouterLink,
     StatePanelComponent,
     TodayRowComponent
@@ -71,6 +73,9 @@ export class CoachBriefComponent implements OnInit {
   readonly caloriesTarget = input<number | null>(null);
   /** The focus areas chosen at setup, from the profile the page already loaded. */
   readonly focusAreas = input<readonly string[]>([]);
+  /** The goals the page has already read. With them the brief takes the weekly target from this
+   *  list; without them (null) it reads the goals itself. */
+  readonly goals = input<readonly Goal[] | null>(null);
 
   // The brief always opens in the week view: it is about today, so the choice is not remembered.
   readonly view = signal<'week' | 'month'>('week');
@@ -86,6 +91,9 @@ export class CoachBriefComponent implements OnInit {
   // The weekly insight feeds the wheel and the observations. It stays null when its request fails,
   // and the brief then shows the week's count on the panel and leaves the observations out.
   readonly insight = signal<WeeklyTrainingInsight | null>(null);
+  // True after the weekly insight failed, so the brief can say the figures are missing instead of
+  // quietly drawing the sessions-only version as if it were the whole story.
+  readonly insightFailed = signal(false);
 
   // The week strip is built from the insight's day-kinds `days` once the backend sends them; until
   // then it falls back to the sessions-only week it always knew how to build, so an insight
@@ -291,16 +299,24 @@ export class CoachBriefComponent implements OnInit {
 
     this.loadInsight();
 
-    this.dataService.getGoals().subscribe({
-      next: (goals) => {
-        const active = goals.find((goal) => goal.goalType === WORKOUT_FREQUENCY_GOAL_TYPE && goal.status === 'ACTIVE');
-        this.weeklyTarget.set(active?.targetValue ?? null);
-      },
-      // Goals are a soft dependency: no target simply means the headline drops the goal copy.
-      error: () => this.weeklyTarget.set(null)
-    });
+    // When the page hands over the goals it already read, they are not read a second time.
+    const known = this.goals();
+    if (known !== null) {
+      this.weeklyTarget.set(this.weeklyTargetOf(known));
+    } else {
+      this.dataService.getGoals().subscribe({
+        next: (goals) => this.weeklyTarget.set(this.weeklyTargetOf(goals)),
+        // Goals are a soft dependency: no target simply means the headline drops the goal copy.
+        error: () => this.weeklyTarget.set(null)
+      });
+    }
 
     this.loadActivePlan();
+  }
+
+  private weeklyTargetOf(goals: readonly { goalType: string; status: string; targetValue: number | null }[]): number | null {
+    const active = goals.find((goal) => goal.goalType === WORKOUT_FREQUENCY_GOAL_TYPE && goal.status === 'ACTIVE');
+    return active?.targetValue ?? null;
   }
 
   /** Runs when a first session has just become the active plan. The page stays on screen, and
@@ -310,13 +326,17 @@ export class CoachBriefComponent implements OnInit {
     this.loadActivePlan();
   }
 
-  private loadInsight(): void {
+  loadInsight(): void {
+    this.insightFailed.set(false);
     this.dataService.getWeeklyTrainingInsight(this.timezone()).subscribe({
       next: (insight) => {
         this.insight.set(insight);
         this.coachContext.setTodayKind(insight.today?.kind ?? null);
       },
-      error: () => this.insight.set(null)
+      error: () => {
+        this.insight.set(null);
+        this.insightFailed.set(true);
+      }
     });
   }
 
