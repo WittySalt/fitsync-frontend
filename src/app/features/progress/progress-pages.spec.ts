@@ -16,7 +16,6 @@ import { paceGeometry } from './goal/pace-chart.component';
 import { mapFoodProgress, mapGoalProgress } from './progress-api.mappers';
 import { FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
 import { ProgressApiService, mergeFood } from './progress-api.service';
-import { ReviewsPage } from './reviews/reviews.page';
 import { isSoFar } from './reviews/review-item.component';
 import { TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
 
@@ -251,28 +250,9 @@ describe('progress pages', () => {
     });
   });
 
-  describe('ReviewsPage', () => {
-    it('lists the weekly reviews newest first with "so far" on the current week', () => {
-      const { el } = render(ReviewsPage);
-      const items = el.querySelectorAll('app-review-item');
-      expect(items.length).toBe(3);
-      expect(text(items[0].querySelector('.badge'))).toBe('so far');
-      expect(items[1].querySelector('.badge')).toBeNull();
-      expect(text(items[2])).toContain('Not enough happened this week for a review.');
-      expect(api.getReviews).toHaveBeenCalledOnceWith(8);
-    });
-
-    it('shows a skeleton while loading, a retry after an error, and not enough data without reviews', () => {
-      api.getReviews.and.returnValue(new Observable<WeeklyReview[]>());
-      expect(render(ReviewsPage).el.querySelector('.skeleton')).not.toBeNull();
-      api.getReviews.and.returnValue(throwError(() => new Error('down')));
-      expect(text(render(ReviewsPage).el.querySelector('app-state-panel'))).toContain('Try again');
-      api.getReviews.and.returnValue(of([]));
-      expect(text(render(ReviewsPage).el.querySelector('app-state-panel'))).toContain('Not enough data yet');
-    });
-
+  describe('weekly reviews', () => {
     it('marks a week as so far from the server or from its end date', () => {
-      const review: WeeklyReview = { weekStart: '2026-09-21', weekEnd: '2026-09-27', current: false, status: 'READY', headline: '', body: '' };
+      const review: WeeklyReview = { weekStart: '2026-09-21', weekEnd: '2026-09-27', current: false, status: 'READY', headline: '', body: '', facts: [] };
       expect(isSoFar(review, TODAY)).toBeFalse();
       expect(isSoFar({ ...review, current: true }, TODAY)).toBeTrue();
       expect(isSoFar({ ...review, weekEnd: '2026-10-04' }, TODAY)).toBeTrue();

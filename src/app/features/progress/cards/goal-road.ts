@@ -1,4 +1,4 @@
-import { shortDateLabel } from '../../../shared/date-label';
+import { parseLocalDate, shortDateLabel } from '../../../shared/date-label';
 import { daysBetween, formatNumber } from '../../../shared/progress/progress-format';
 import { SummaryLine } from '../../../shared/progress/progress.models';
 import { GoalProgress, GoalRoad, OtherGoal, RoadState, RoadTick } from '../progress-api.models';
@@ -45,6 +45,11 @@ export function pageState(goal: GoalProgress | null, today: string): VerdictStat
 
 export function hasWeightData(goal: GoalProgress): boolean {
   return goal.hero.nowKg !== null || goal.weight.daily.length > 0 || goal.weight.weekly.length > 0;
+}
+
+/** "25 Nov": a day and a month, never a year; the card's dates all fall inside the goal's own span. */
+function day(key: string | null | undefined): string {
+  return key ? shortDateLabel(key, parseLocalDate(key)) : '';
 }
 
 function nowOf(goal: GoalProgress): number | null {
@@ -225,7 +230,7 @@ function stalledSince(goal: GoalProgress, road: GoalRoad): string | null {
 
 /** The weight road's headline and caption for each state (spec 1.4). */
 export function roadHeadline(goal: GoalProgress, road: GoalRoad): CardHeadline {
-  const date = (key: string | null): string => shortDateLabel(key);
+  const date = (key: string | null): string => day(key);
   const target = `${formatNumber(road.targetKg, road.targetKg % 1 ? 1 : 0)} kg`;
   const early = road.projectedDate && road.targetDate ? daysBetween(road.projectedDate, road.targetDate) : null;
   const base = { figure: `${formatNumber(road.distanceKg, 1)} kg`, tail: `to ${target}` };
@@ -259,7 +264,7 @@ export interface PictureNote {
 
 /** The one caption line under the road. */
 export function roadNote(road: GoalRoad): PictureNote {
-  const date = shortDateLabel(road.projectedDate);
+  const date = day(road.projectedDate);
   const gap = road.projectedDate && road.targetDate ? daysBetween(road.projectedDate, road.targetDate) : null;
   switch (road.state) {
     case 'AHEAD':
@@ -427,7 +432,7 @@ export interface RoadGeometry {
 
 function tickDate(tick: RoadTick, crossed: boolean): string | null {
   const key = crossed ? tick.crossedOn : tick.projectedOn;
-  return key ? shortDateLabel(key) : null;
+  return key ? day(key) : null;
 }
 
 /** Pixel positions for the road at the width it is drawn at, with labels thinned so none touch. */
@@ -458,9 +463,8 @@ export function roadGeometry(road: GoalRoad, width: number): RoadGeometry {
       lastKg = x;
     }
     let date = tickDate(tick, crossed);
-    const clipped = x - 28 < 0 || x + 28 > width;
     const touchesToday = Math.abs(x - todayX) < MIN_DATE_GAP;
-    if (date !== null && (x - lastDate < MIN_DATE_GAP || clipped || touchesToday)) {
+    if (date !== null && (x - lastDate < MIN_DATE_GAP || touchesToday)) {
       date = null;
     }
     if (date !== null) {
@@ -525,8 +529,8 @@ export function keepGeometry(road: GoalRoad, width: number): KeepGeometry {
     targetY: y(road.targetKg),
     points,
     line: points.map((point) => `${point.x},${point.y}`).join(' '),
-    firstDate: shortDateLabel(weeks[0]?.weekStart),
-    lastDate: shortDateLabel(weeks.at(-1)?.weekStart)
+    firstDate: day(weeks[0]?.weekStart),
+    lastDate: day(weeks.at(-1)?.weekStart)
   };
 }
 
@@ -563,7 +567,7 @@ export function stripGeometry(items: { date: string; state: 'MET' | 'MISSED' | '
     })),
     stripWidth: perRow * pitch,
     rows,
-    firstDate: shortDateLabel(items[0]?.date),
-    lastDate: shortDateLabel(items.at(-1)?.date)
+    firstDate: day(items[0]?.date),
+    lastDate: day(items.at(-1)?.date)
   };
 }
