@@ -38,11 +38,11 @@ import { DotDay } from './progress.models';
     .dot[data-state='MISSED'] { background: var(--surface); border: 1.5px solid var(--text-secondary); }
     .dot[data-state='NOT_LOGGED'] { background: var(--surface-sunken); border: 1px solid var(--text-muted); }
     .dot[data-state='FUTURE'] { border: 1px dashed var(--border-strong); }
-    .dates { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); }
-    .key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--text-xs); color: var(--text-secondary); }
+    .dates { display: flex; justify-content: space-between; font-size: var(--pg-chart); color: var(--text-secondary); }
+    .key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--pg-chart); color: var(--text-secondary); }
     .key span { display: inline-flex; align-items: center; gap: 5px; }
     .key .dot { width: 8px; }
-    .none { margin: 0; font-size: var(--text-xs); color: var(--text-secondary); }
+    .none { margin: 0; font-size: var(--pg-chart); color: var(--text-secondary); }
   `
 })
 export class DotStripComponent {

@@ -83,13 +83,23 @@ describe('Training detail pages', () => {
       fixture.detectChanges();
       const host = fixture.nativeElement as HTMLElement;
       expect(api.getActivity.calls.mostRecent().args[0]).toBe('SPORT:badminton');
-      expect(host.querySelector('h1')?.textContent).toContain('Badminton');
+      expect(host.querySelector('.eyebrow')?.textContent).toContain('TRAINING · BADMINTON · THE LAST 4 WEEKS');
+      expect(host.querySelector('h1')?.textContent).toBe('Every week.');
+      expect(host.querySelector('.sentence')?.textContent).toContain('4 sessions and 4 h 05 in four weeks, 5 weeks in a row.');
       expect(host.textContent).toContain('4 h 05');
       expect(host.textContent).toContain('6.1 of 10');
       expect(host.textContent).toContain('70 min');
       expect(host.querySelector('app-week-bars')).not.toBeNull();
       expect(host.querySelector('app-session-chart')).not.toBeNull();
       expect(host.querySelectorAll('app-when-grid [role="cell"].many').length).toBe(1);
+      expect(host.querySelector('#when .sentence')?.textContent).toContain('You train most on Sundays around 15:00.');
+      expect(Array.from(host.querySelectorAll('app-contents-rail .item')).map((item) => item.textContent?.trim())).toEqual([
+        'What the numbers say',
+        'Each week',
+        'Each session',
+        'When you train',
+        'Sessions'
+      ]);
       const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.sessions a')).map((link) => link.getAttribute('href'));
       expect(links).toEqual(['/workout/sessions/s-9', '/workout/sessions/s-8']);
       expect(host.textContent).toContain('520 kcal');
@@ -99,7 +109,7 @@ describe('Training detail pages', () => {
       api.getActivity.and.returnValue(of(ACTIVITY));
       const fixture = TestBed.createComponent(ActivityPage);
       fixture.detectChanges();
-      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.coach app-ask-chip button')?.click();
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('app-ask-chip button')?.click();
       const [card, question] = coach.askAboutCard.calls.mostRecent().args;
       expect(card).toEqual(jasmine.objectContaining({ kind: 'SPORT', id: 'SPORT:badminton' }));
       expect(question).toBe('Should I eat more on badminton days?');
@@ -121,7 +131,8 @@ describe('Training detail pages', () => {
       const fixture = TestBed.createComponent(ExercisePage);
       fixture.detectChanges();
       const host = fixture.nativeElement as HTMLElement;
-      expect(host.querySelector('h1')?.textContent).toContain('Deadlift');
+      expect(host.querySelector('h1')?.textContent).toBe('Getting stronger.');
+      expect(host.querySelector('.sentence')?.textContent).toContain('Deadlift stands at an estimated best single of 93.3 kg');
       expect(host.textContent).toContain('Back, legs and glutes · barbell · 14 sessions since 7 Aug');
       expect(host.textContent).toContain('93.3 kg');
       expect(host.textContent).toContain('+12.0 kg since 7 Aug');
@@ -140,7 +151,7 @@ describe('Training detail pages', () => {
       const fixture = TestBed.createComponent(ExercisePage);
       fixture.detectChanges();
       const host = fixture.nativeElement as HTMLElement;
-      const buttons = Array.from(host.querySelectorAll<HTMLButtonElement>('app-segmented button'));
+      const buttons = Array.from(host.querySelectorAll<HTMLButtonElement>('#series app-ink-switch button'));
       buttons.find((button) => button.textContent?.trim() === 'Volume')?.click();
       fixture.detectChanges();
       expect(host.textContent).toContain('Not enough data yet');
@@ -154,8 +165,8 @@ describe('Training detail pages', () => {
       const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
       const fixture = TestBed.createComponent(ExercisePage);
       fixture.detectChanges();
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-segmented button'))
-        .find((button) => button.textContent?.trim() === '1Y')
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button'))
+        .find((button) => button.textContent?.trim() === '1 year')
         ?.click();
       expect(navigate.calls.mostRecent().args[1]?.queryParams).toEqual({ period: '1y' });
     });

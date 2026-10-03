@@ -165,7 +165,8 @@
 .content-frame {
   min-width: 0;
   max-width: 100vw;
-  overflow-x: hidden;
+  // Clip, not hidden: hidden would make the frame a scroll container and a sticky rail inside it would never stick.
+  overflow-x: clip;
   // The bar of a workout in progress sets this space while it is showing, so no last control hides behind it.
   padding: 32px 32px calc(32px + var(--workout-bar-space, 0px));
 }

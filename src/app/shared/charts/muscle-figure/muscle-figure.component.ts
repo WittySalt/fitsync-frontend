@@ -33,7 +33,10 @@ export class MuscleFigureComponent {
   readonly selected = input<string | null>(null);
   /** The height of each view in pixels; the board draws it at 220, and never under 140. */
   readonly height = input(220);
-  /** False draws the figure as a picture only, with no buttons, as on the Progress card. */
+  /**
+   * False draws the figure as a picture only, as on the Progress card, where the card is the link: no
+   * buttons, no tap handlers, nothing to focus, and its labels hidden from a screen reader.
+   */
   readonly interactive = input(true);
 
   readonly groupSelected = output<string>();

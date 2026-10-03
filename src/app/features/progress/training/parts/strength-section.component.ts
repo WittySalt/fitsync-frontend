@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
-import { LadderComponent, LadderRung, SectionCardComponent, ladderRungs } from '../../../../shared/progress';
-import { E1RM_FORMULA, LEVEL_NAMES, ladderPosition } from '../lift-math';
+import { DetailSectionComponent, LadderComponent, LadderRung, ladderRungs } from '../../../../shared/progress';
+import { E1RM_FORMULA, LEVEL_NAMES, ladderPosition, liftChangePct } from '../lift-math';
 import { Lift } from '../training.models';
-import { kg } from '../training-format';
+import { kg, signedPct } from '../training-format';
 import { LiftCardComponent } from './lift-card.component';
 
 export interface LadderRow {
@@ -31,9 +31,9 @@ export function ladderRow(lift: Lift): LadderRow | null {
 /** Strength: four lift cards, the key to their dots, and each lift on the relative-strength ladder (board 18a). */
 @Component({
   selector: 'app-strength-section',
-  imports: [LadderComponent, LiftCardComponent, SectionCardComponent],
+  imports: [DetailSectionComponent, LadderComponent, LiftCardComponent],
   template: `
-    <app-section-card title="Strength" sub="Estimated best single, from your heaviest sets" [quiet]="formula" [context]="card()">
+    <app-detail-section name="Strength" anchor="strength" [sentence]="sentence()" [context]="card()" [ask]="ask()">
       @if (lifts().length) {
         <div class="lifts">
           @for (lift of lifts(); track lift.exerciseId || lift.name) {
@@ -47,7 +47,6 @@ export function ladderRow(lift: Lift): LadderRow | null {
         <div class="ladder">
           <div class="titles">
             <strong>Relative strength</strong>
-            <span>Estimated best single divided by your body weight{{ weightNote() ? ', ' + weightNote() : '' }}</span>
           </div>
           @if (rows().length) {
             <ul class="rows">
@@ -61,7 +60,6 @@ export function ladderRow(lift: Lift): LadderRow | null {
                 </li>
               }
             </ul>
-            <span class="note">Levels are a rough guide, not a target.</span>
           } @else {
             <p class="note">Not enough data yet. Log a body weight on Me to see where each lift sits.</p>
           }
@@ -69,7 +67,7 @@ export function ladderRow(lift: Lift): LadderRow | null {
       } @else {
         <p class="empty">Not enough data yet. A lift shows here once a barbell or dumbbell exercise has three sessions in this period.</p>
       }
-    </app-section-card>
+    </app-detail-section>
   `,
   styleUrl: './strength-section.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -78,7 +76,21 @@ export class StrengthSectionComponent {
   readonly lifts = input<readonly Lift[]>([]);
   readonly card = input<CoachCardContext | null>(null);
 
-  protected readonly formula = E1RM_FORMULA;
+  /** The one sentence under the name: the lift that moved most, in its estimated best single. */
+  protected readonly sentence = computed(() => {
+    const moved = this.lifts()
+      .map((lift) => ({ lift, pct: liftChangePct(lift) }))
+      .filter((entry): entry is { lift: Lift; pct: number } => entry.pct !== null)
+      .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))[0];
+    const now = moved?.lift.e1rm.at(-1)?.value;
+    if (!moved || now === undefined) {
+      return 'Estimated best single of each main lift, from your heaviest sets.';
+    }
+    return `${moved.lift.name} is ${signedPct(moved.pct).startsWith('−') ? 'down' : 'up'} ${signedPct(moved.pct).replace(/^[+−]/, '')} to an estimated best single of ${kg(now)} kg.`;
+  });
+  protected readonly ask = computed(
+    () => `How are my estimated best singles and strength levels worked out? Each is ${E1RM_FORMULA}, from my heaviest sets. The ladder divides it by my body weight${this.weightNote() ? ', ' + this.weightNote() : ''}, and levels are a rough guide, not a target.`
+  );
   protected readonly rows = computed(() => this.lifts().map(ladderRow).filter((row): row is LadderRow => row !== null));
   protected readonly weightNote = computed(() => {
     const weight = this.lifts().find((lift) => lift.bodyWeightKg !== null)?.bodyWeightKg;

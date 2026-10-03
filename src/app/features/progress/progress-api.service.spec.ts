@@ -128,9 +128,12 @@ describe('progress mappers', () => {
       current: false,
       status: 'NONE',
       headline: '',
-      body: ''
+      body: '',
+      facts: []
     });
     expect(mapReviews('x')).toEqual([]);
+    const facts = mapReviews([{ weekStart: '2026-09-28', status: 'READY', facts: [{ key: 'SESSIONS', label: 'Sessions', value: '4', unit: 'sessions', note: 'Same', detail: 'as last week' }, { key: 'X' }, 'no'] }])[0].facts;
+    expect(facts).toEqual([{ key: 'SESSIONS', label: 'Sessions', value: '4', unit: 'sessions', note: 'Same', detail: 'as last week' }]);
     expect(mapReviews([{ weekStart: '2026-09-28', status: 'READY', body: 'Two sessions [1] and less food [2].', current: true }])[0].body).toBe(
       'Two sessions and less food.'
     );

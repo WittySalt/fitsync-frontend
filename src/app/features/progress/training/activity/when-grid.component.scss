@@ -16,13 +16,13 @@
 }
 
 .hour {
-  font-size: 11px;
+  font-size: var(--pg-eyebrow);
   color: var(--text-secondary);
   text-align: center;
 }
 
 .day {
-  font-size: 11px;
+  font-size: var(--pg-eyebrow);
   font-weight: var(--fw-bold);
   color: var(--text-secondary);
 }
@@ -40,7 +40,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   span {

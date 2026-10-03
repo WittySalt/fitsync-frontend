@@ -35,13 +35,13 @@
   }
 
   dt {
-    font-size: 12px;
+    font-size: var(--pg-chart);
     color: var(--text-secondary);
   }
 
   dd {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--pg-name);
     font-weight: var(--fw-bold);
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
@@ -50,7 +50,7 @@
 
 .hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--pg-control);
   line-height: 1.5;
   color: var(--text-secondary);
 }

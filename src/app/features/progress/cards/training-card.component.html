@@ -1,0 +1,75 @@
+<app-progress-card name="Training" link="/progress/training" askPrefill="Ask about your training" [context]="context()" [coachLine]="coachLine()">
+  <div card-headline>
+    @if (headline(); as h) {
+      <strong class="figure">{{ h.figure }}</strong>
+      <p class="caption">{{ h.caption }}</p>
+    } @else if (state().status === 'loading') {
+      <div class="skeleton head-skeleton" aria-busy="true" aria-label="Loading training"></div>
+    }
+  </div>
+
+  <div card-picture class="picture">
+    @switch (state().status) {
+      @case ('loading') {
+        <div class="skeleton box" aria-busy="true"></div>
+      }
+      @case ('error') {
+        <app-state-panel title="Training could not load" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry()" />
+      }
+      @default {
+        @if (empty()) {
+          <p class="empty">Not enough data yet. Sessions in this period fill this card.</p>
+        } @else if (data(); as progress) {
+          <div class="box pair" [class.stacked]="stacked()" (appObserveWidth)="rowWidth.set($event)">
+            <div class="left" (appObserveHeight)="leftHeight.set($event)">
+              <app-log-strip [to]="progress.period.to" [days]="progress.calendar" label="The last 28 days, a tile for each day you trained" />
+              <ul class="legend">
+                @for (item of legend(); track item.kind) {
+                  <li [class]="item.kind.toLowerCase()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      @for (part of glyphs[item.kind]; track $index) {
+                        @switch (part.tag) {
+                          @case ('path') { <path [attr.d]="part.d"></path> }
+                          @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+                          @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+                        }
+                      }
+                    </svg>
+                    <span>{{ item.name }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+            @if (hasMuscles()) {
+              <div class="figure-block">
+                <div class="figure-pic" aria-hidden="true">
+                  <app-fit-figure [sets]="sets()" [blockHeight]="leftHeight()" [maxHeight]="figureCap()" />
+                </div>
+                <ul class="scale">
+                  @for (entry of key; track entry.level) {
+                    <li><i [class]="'swatch ' + entry.level"></i>{{ entry.label }}</li>
+                  }
+                </ul>
+                <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
+              </div>
+            }
+            <div class="rows">
+              @for (row of rows(); track row.key) {
+                <section class="activity">
+                  <div class="activity-head">
+                    <i [class]="'dot ' + row.kind.toLowerCase()" aria-hidden="true"></i>
+                    <strong>{{ row.name }}</strong>
+                    @if (row.meta) {
+                      <span class="meta">{{ row.meta }}</span>
+                    }
+                  </div>
+                  <app-summary-list [lines]="row.lines" />
+                </section>
+              }
+            </div>
+          </div>
+        }
+      }
+    }
+  </div>
+</app-progress-card>

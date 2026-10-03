@@ -2,22 +2,9 @@
   display: block;
 }
 
-.food-page {
-  width: 100%;
-  max-width: 880px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.periods {
-  align-self: flex-end;
-}
-
 .block {
   height: 160px;
-  border-radius: 22px;
+  border-radius: 20px;
 }
 
 .block.tall {
@@ -31,14 +18,13 @@
   flex-wrap: wrap;
 
   strong {
-    font: 600 30px/1.1 var(--font-display);
+    font: 600 var(--pg-figure) / 1.1 var(--font-display);
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
   }
 
   span {
-    font-size: var(--text-sm);
-    font-weight: var(--fw-semibold);
+    font: 400 var(--pg-text) var(--font-sans);
     color: var(--text-secondary);
   }
 }
@@ -54,60 +40,36 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 16px;
+  padding-top: 20px;
   border-top: 1px solid var(--border);
 
   strong {
-    font-size: var(--text-sm);
+    font: 500 var(--pg-control) var(--font-sans);
     color: var(--text-primary);
   }
 }
 
 .quiet {
   margin: 0;
-  font-size: var(--text-xs);
-  line-height: 1.5;
+  font: 400 var(--pg-chart) / 1.5 var(--font-sans);
   color: var(--text-secondary);
-}
-
-.summary {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
 }
 
 .macros {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 24px;
 }
 
 .macro {
   min-width: 0;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.macro-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
 
   strong {
-    font-size: 15px;
+    font: 500 var(--pg-control) var(--font-sans);
     color: var(--text-primary);
-  }
-
-  span {
-    font-size: 11px;
-    font-weight: var(--fw-semibold);
-    color: var(--text-secondary);
   }
 }
 
@@ -115,15 +77,5 @@
   .energy,
   .macros {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .periods {
-    align-self: stretch;
-    display: flex;
-    width: auto;
-
-    button {
-      flex: 1 1 0;
-    }
   }
 }

@@ -24,7 +24,6 @@ import { KindTileComponent } from './kind-tile.component';
       <div class="chart">
         <app-step-chart [points]="steps()" [from]="from()" [to]="to()" [max]="top()" [kind]="activity().kind" />
       </div>
-      <span class="caption">Total time, rising with each session</span>
     </a>
   `,
   styleUrl: './activity-card.component.scss',

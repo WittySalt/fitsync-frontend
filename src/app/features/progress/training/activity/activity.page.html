@@ -1,99 +1,77 @@
-<main class="page">
-  <a class="back" routerLink="/progress/training" [queryParams]="backQuery()">
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>
-    Training
-  </a>
-
-  @switch (state().status) {
-    @case ('loading') {
-      <div class="skeletons" aria-busy="true" aria-label="Loading the activity">
-        <div class="skeleton"></div>
-        <div class="skeleton tall"></div>
-      </div>
-    }
-    @case ('error') {
-      <app-state-panel title="Activity unavailable" message="This activity could not load. Please retry." actionLabel="Retry" [error]="true" (action)="retry()" />
-    }
-    @default {
-      @if (data(); as activity) {
-        <div class="title">
-          <app-kind-tile [kind]="activity.kind" [size]="52" />
-          <div>
-            <h1>{{ activity.name }}</h1>
-            <span>{{ subtitle() }}</span>
-          </div>
-        </div>
-        <app-period-switch [code]="period.code()" (changed)="period.select($event)" />
-
-        @if (activity.sessions.length || activity.weekly.length) {
-          <dl class="figures">
-            @for (tile of tiles(); track tile.label) {
-              <div>
-                <dt>{{ tile.label }}</dt>
-                <dd class="value">{{ tile.value }}</dd>
-                <dd class="note">{{ tile.note }}</dd>
-              </div>
-            }
-          </dl>
-
-          @if (card(); as subject) {
-            <section class="coach" aria-label="What the numbers say">
-              @if (activity.summary.length) {
-                <app-summary-lines [lines]="activity.summary" [context]="activity.context" />
-              }
-              <div class="asks">
-                @for (question of questions(); track question) {
-                  <app-ask-chip [card]="subject" [question]="question" />
-                }
-              </div>
-            </section>
-          }
-
-          <app-section-card title="Each week" sub="minutes, Monday to Sunday" [context]="card()">
-            @if (activity.weekly.length) {
-              <app-week-bars [bars]="weekBars()" label="Minutes each week" />
-            } @else {
-              <p class="quiet">Not enough data yet.</p>
-            }
-          </app-section-card>
-
-          <div class="row">
-            <app-section-card title="Each session" sub="minutes as bars, effort as the line" [context]="card()">
-              @if (activity.sessions.length) {
-                <app-session-chart [sessions]="activity.sessions" />
-              } @else {
-                <p class="quiet">Not enough data yet.</p>
-              }
-            </app-section-card>
-            <app-section-card title="When you train" sub="start time of each session">
-              @if (activity.whenGrid.length) {
-                <app-when-grid [entries]="activity.whenGrid" />
-              } @else {
-                <p class="quiet">Not enough data yet.</p>
-              }
-            </app-section-card>
-          </div>
-
-          <app-section-card title="Sessions" sub="each opens the session page from Workout History">
-            <ul class="sessions">
-              @for (row of rows(); track row.id) {
-                <li>
-                  <a [routerLink]="['/workout/sessions', row.id]">
-                    <span class="date">{{ row.date }}</span>
-                    <span class="line">{{ row.line }}</span>
-                    <span class="kcal">{{ row.kcal }}</span>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
-                  </a>
-                </li>
-              }
-            </ul>
-          </app-section-card>
-        } @else {
-          <app-section-card title="Not enough data yet" [context]="card()">
-            <p class="quiet">No {{ activity.name.toLowerCase() }} sessions in this period.</p>
-          </app-section-card>
-        }
-      }
-    }
+<app-detail-layout>
+  @if (data()) {
+    <app-detail-head detailHead [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="tiles()" fallback="/progress/training" backLabel="Training">
+      <app-ink-switch headPeriod label="Period" [options]="periodOptions" [value]="period.code()" (picked)="choose($event)" />
+    </app-detail-head>
   }
-</main>
+  @if (hasSessions()) {
+    <app-contents-rail detailRail [items]="sections" label="Sections of this activity" />
+  }
+
+  @if (data(); as activity) {
+    @if (activity.sessions.length || activity.weekly.length) {
+      <app-detail-section name="What the numbers say" anchor="summary">
+        @if (activity.summary.length) {
+          <app-summary-lines [lines]="activity.summary" [context]="activity.context" />
+        }
+        @if (card(); as subject) {
+          <div class="asks">
+            @for (question of questions(); track question) {
+              <app-ask-chip [card]="subject" [question]="question" />
+            }
+          </div>
+        }
+      </app-detail-section>
+
+      <app-detail-section name="Each week" anchor="weeks" [sentence]="weekLine()" [context]="card()" ask="Which weeks did I train most? The bars are minutes, Monday to Sunday.">
+        @if (activity.weekly.length) {
+          <app-week-bars [bars]="weekBars()" label="Minutes each week" />
+        } @else {
+          <p class="quiet">Not enough data yet.</p>
+        }
+      </app-detail-section>
+
+      <app-detail-section name="Each session" anchor="sessions-chart" [sentence]="sessionLine()" [context]="card()" ask="How is my effort changing from session to session? The bars are minutes and the line is effort from 1 to 10.">
+        @if (activity.sessions.length) {
+          <app-session-chart [sessions]="activity.sessions" />
+        } @else {
+          <p class="quiet">Not enough data yet.</p>
+        }
+      </app-detail-section>
+
+      <app-detail-section name="When you train" anchor="when" [sentence]="whenLine()" [context]="card()" ask="When do I usually train? Each cell is the start time of my sessions, darker when there are more.">
+        @if (activity.whenGrid.length) {
+          <app-when-grid [entries]="activity.whenGrid" />
+        } @else {
+          <p class="quiet">Not enough data yet.</p>
+        }
+      </app-detail-section>
+
+      <app-detail-section name="Sessions" anchor="sessions" [sentence]="sessionsLine()">
+        <ul class="sessions">
+          @for (row of rows(); track row.id) {
+            <li>
+              <a [routerLink]="['/workout/sessions', row.id]">
+                <span class="date">{{ row.date }}</span>
+                <span class="line">{{ row.line }}</span>
+                <span class="kcal">{{ row.kcal }}</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+              </a>
+            </li>
+          }
+        </ul>
+      </app-detail-section>
+    } @else {
+      <app-detail-section name="Not enough data yet" [context]="card()">
+        <p class="quiet">No {{ activity.name.toLowerCase() }} sessions in this period.</p>
+      </app-detail-section>
+    }
+  } @else if (state().status === 'error') {
+    <app-state-panel title="Activity unavailable" message="This activity could not load. Please retry." actionLabel="Retry" [error]="true" (action)="retry()" />
+  } @else {
+    <div class="skeletons" aria-busy="true" aria-label="Loading the activity">
+      <div class="skeleton"></div>
+      <div class="skeleton tall"></div>
+    </div>
+  }
+</app-detail-layout>

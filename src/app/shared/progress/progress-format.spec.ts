@@ -1,4 +1,4 @@
-import { daysBetween, formatNumber, hoursAndMinutes, isDateKey, lastDays, pointLabel, shiftDay, signed, textWidth, trendWord } from './progress-format';
+import { daysBetween, formatNumber, hasEarlier, hoursAndMinutes, isDateKey, lastDays, periodEyebrow, pointLabel, shiftDay, signed, textWidth, trendWord } from './progress-format';
 import { arr, bool, compared, list, mapDotDays, mapHighlights, mapSeries, mapSummaryLines, num, obj, str } from './progress-mappers';
 
 describe('progress format', () => {
@@ -70,5 +70,24 @@ describe('progress mappers', () => {
     expect(mapSeries([{ weekStart: '2026-09-07', avg: 2 }], 'weekStart', 'avg')).toEqual([{ label: '2026-09-07', value: 2 }]);
     expect(mapSummaryLines([{ text: 'Volume 1.9 t', trend: 'STEADY' }, { trend: 'UP' }])).toEqual([{ text: 'Volume 1.9 t', trend: 'STEADY' }]);
     expect(mapDotDays([{ date: '2026-09-04', state: 'MET' }, { date: '2026-09-05', state: 'ODD' }])).toEqual([{ date: '2026-09-04', state: 'MET' }]);
+  });
+});
+
+describe('period wording', () => {
+  const reference = new Date(2026, 9, 3);
+
+  it('writes the eyebrow with the period in words and the dates', () => {
+    expect(periodEyebrow('Goal', '4w', '2026-09-06', '2026-10-03', reference)).toBe('GOAL · THE LAST 4 WEEKS · 6 SEPT TO 3 OCT');
+  });
+
+  it('carries the year on both dates when the period crosses New Year', () => {
+    expect(periodEyebrow('Food', '1y', '2025-10-05', '2026-10-03', reference)).toBe('FOOD · THE LAST YEAR · 5 OCT 2025 TO 3 OCT 2026');
+  });
+
+  it('compares only with an earlier figure that is there and not zero', () => {
+    expect(hasEarlier(10, 8)).toBeTrue();
+    expect(hasEarlier(10, null)).toBeFalse();
+    expect(hasEarlier(10, 0)).toBeFalse();
+    expect(hasEarlier(null, 8)).toBeFalse();
   });
 });

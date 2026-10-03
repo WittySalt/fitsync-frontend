@@ -23,7 +23,7 @@
 .note,
 .quiet {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 }
 
@@ -52,7 +52,7 @@
 
   &.axis {
     cursor: default;
-    font-size: 11px;
+    font-size: var(--pg-eyebrow);
     font-weight: var(--fw-bold);
     color: var(--text-secondary);
   }
@@ -69,19 +69,19 @@
 }
 
 .label {
-  font-size: 13px;
+  font-size: var(--pg-control);
   color: var(--text-primary);
   white-space: nowrap;
 }
 
 .axis .label,
 .axis .value {
-  font-size: 11px;
+  font-size: var(--pg-eyebrow);
   color: var(--text-secondary);
 }
 
 .value {
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -93,7 +93,7 @@
 
   span {
     position: absolute;
-    font-size: 10px;
+    font-size: var(--pg-eyebrow);
     transform: translateX(-50%);
   }
 
@@ -140,7 +140,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   span {

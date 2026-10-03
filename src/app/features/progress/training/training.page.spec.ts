@@ -5,7 +5,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { TrainingApiService } from './training-api.service';
 import { trainingFixture } from './training-fixture.spec';
-import { TrainingPage, heroTiles } from './training.page';
+import { TrainingPage, heroTiles, trainingSentence, trainingVerdict } from './training.page';
 import { TrainingProgress } from './training.models';
 import { mapTrainingProgress } from './training-mappers';
 
@@ -45,17 +45,26 @@ describe('TrainingPage', () => {
     host.querySelector<HTMLButtonElement>('app-state-panel button')?.click();
     fixture.detectChanges();
     expect(api.getTraining).toHaveBeenCalledTimes(2);
-    expect(host.querySelector('app-progress-hero')).not.toBeNull();
+    expect(host.querySelector('app-detail-head')).not.toBeNull();
   });
 
   it('draws every section of the board from a full response', () => {
     api.getTraining.and.returnValue(of(trainingFixture()));
     const host = create();
-    for (const selector of ['app-progress-hero', 'app-highlights', 'app-activity-card', 'app-strength-section', 'app-muscle-figure', 'app-load-chart', 'app-training-calendar', 'app-records-section']) {
+    for (const selector of ['app-detail-head', 'app-contents-rail', 'app-highlights', 'app-activity-card', 'app-strength-section', 'app-muscle-figure', 'app-load-chart', 'app-training-calendar', 'app-records-section']) {
       expect(host.querySelector(selector)).withContext(selector).not.toBeNull();
     }
-    expect(host.textContent).toContain('worked out as weight × (1 + reps ÷ 30)');
-    expect(host.textContent).toContain('this week so far');
+    expect(host.textContent).toContain('The lighter bar is this week so far');
+    expect(Array.from(host.querySelectorAll('app-detail-section h2')).map((h) => h.textContent?.trim())).toEqual([
+      'Highlights',
+      'By activity',
+      'Strength',
+      'Hard sets a week by group',
+      'Training load',
+      'Training log',
+      'Records'
+    ]);
+    expect(host.querySelector('.hero, app-progress-hero')).toBeNull();
     expect(host.textContent).toContain('Fresh');
     expect(host.querySelectorAll('app-activity-card').length).toBe(2);
     expect(host.querySelector('app-activity-card a')?.getAttribute('href')).toBe('/progress/training/activities/STRENGTH');
@@ -101,10 +110,37 @@ describe('TrainingPage', () => {
   it('asks the coach about a section with its kind and period', () => {
     api.getTraining.and.returnValue(of(trainingFixture()));
     const host = create();
-    host.querySelector<HTMLButtonElement>('app-strength-section app-section-card .ask')?.click();
-    const [card] = coach.askAboutCard.calls.mostRecent().args;
+    host.querySelector<HTMLButtonElement>('app-strength-section app-detail-section .ask')?.click();
+    const [card, prefill] = coach.askAboutCard.calls.mostRecent().args;
     expect(card.kind).toBe('STRENGTH');
     expect(card.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The formula that used to sit beside the title now goes into the question.
+    expect(prefill).toContain('worked out as weight × (1 + reps ÷ 30)');
+  });
+
+  it('opens with the verdict, one sentence and the four figures, the period as ink text, and no green block', () => {
+    api.getTraining.and.returnValue(of(trainingFixture()));
+    const host = create();
+    expect(host.querySelector('app-detail-head h1')?.textContent?.trim()).toBe('Strong month.');
+    expect(host.querySelector('app-detail-head .eyebrow')?.textContent).toContain('TRAINING · THE LAST 4 WEEKS');
+    expect(host.querySelector('app-detail-head .sentence')?.textContent).toContain('15 sessions and 11 h 50 in four weeks');
+    expect(host.querySelectorAll('app-detail-head dt').length).toBe(4);
+    expect(Array.from(host.querySelectorAll('app-detail-head app-ink-switch button')).map((b) => b.textContent?.trim())).toEqual(['4 weeks', '3 months', '1 year']);
+    expect(host.querySelector('app-detail-head app-ink-switch button.on')?.textContent?.trim()).toBe('4 weeks');
+  });
+
+  it('gives the month a verdict from its records and its sessions, scaled to a longer period', () => {
+    const base = trainingFixture();
+    const hero = (sessions: number, records: number) => ({ ...base, hero: { ...base.hero, sessions: { value: sessions, previous: 3 }, records: { ...base.hero.records, value: records } } });
+    expect(trainingVerdict(hero(15, 3), '4w')).toEqual({ text: 'Strong month.', tone: 'good' });
+    expect(trainingVerdict(hero(3, 0), '4w')).toEqual({ text: 'Quiet month.', tone: 'ink' });
+    expect(trainingVerdict(hero(8, 2), '4w')).toEqual({ text: 'Steady month.', tone: 'good' });
+    // A longer period is judged by sessions a week over the weeks that have a session.
+    const weeksOf = (count: number, sessions: number) => ({ ...hero(sessions, 0), calendar: Array.from({ length: count }, (_, k) => ({ ...base.calendar[0], date: new Date(Date.parse('2026-01-05T00:00:00Z') + k * 7 * 86_400_000).toISOString().slice(0, 10) })) });
+    expect(trainingVerdict(weeksOf(10, 31), '1y').text).toBe('Strong year.');
+    expect(trainingVerdict(weeksOf(10, 20), '1y').text).toBe('Steady year.');
+    expect(trainingVerdict(weeksOf(10, 12), '3m').text).toBe('Quiet quarter.');
+    expect(trainingSentence(hero(15, 3), '3m')).toContain('in three months, 3 new records');
   });
 
   it('says there is not enough data yet when the period holds no session', () => {
@@ -112,6 +148,16 @@ describe('TrainingPage', () => {
     const host = create();
     expect(host.textContent).toContain('Not enough data yet');
     expect(host.querySelector('app-strength-section')).toBeNull();
+  });
+
+  it('says there is no earlier data when the period before has none, never a percentage from zero', () => {
+    const base = trainingFixture();
+    const bare = { ...base, hero: { ...base.hero, sessions: { value: 3, previous: null }, load: { ...base.hero.load, value: 900, previous: 0 } } };
+    const contexts = heroTiles(bare).map((tile) => tile.context);
+    expect(contexts[0]).toBe('No earlier data');
+    expect(contexts[2]).toBe('No earlier data');
+    const empty = { ...base, hero: { ...base.hero, sessions: { value: 31, previous: 0 }, minutes: { value: 1500, previous: 0 } } };
+    expect(heroTiles(empty).map((tile) => tile.context).slice(0, 2)).toEqual(['No earlier data', 'No earlier data']);
   });
 
   it('writes the hero figures with their change on the period before', () => {

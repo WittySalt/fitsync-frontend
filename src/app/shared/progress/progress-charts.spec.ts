@@ -34,9 +34,10 @@ describe('SmallTrendComponent', () => {
     expect(el.querySelector('svg')?.getAttribute('aria-label')).toContain('from 150 on 10 Aug to 136 g on 28 Sept');
   });
 
-  it('draws in a narrower box when given a width', () => {
+  it('draws at the pixel width it is given, so its text is never scaled', () => {
     const el = render(SmallTrendComponent, { points, width: 170, height: 28, showDates: false });
     expect(el.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 170 28');
+    expect(el.querySelector('svg')?.hasAttribute('preserveAspectRatio')).toBeFalse();
     expect(el.querySelector('.dates')).toBeNull();
     const g = smallTrendGeometry([1, 2], 28, 'a', 'b', null, '', 170)!;
     expect(g.end.x).toBeLessThan(170);
@@ -130,7 +131,7 @@ describe('WeekBarsComponent', () => {
       signed: true
     });
     expect(Array.from(el.querySelectorAll('.value')).map((v) => text(v))).toEqual(['−180', '−279']);
-    expect(text(el.querySelector('.now'))).toBe('this week');
+    expect(text(el.querySelector('.key'))).toBe('The lighter bar is this week so far.');
     expect(el.querySelector('rect.current')).not.toBeNull();
     expect(el.querySelector('line.zero')).not.toBeNull();
   });
@@ -144,12 +145,41 @@ describe('WeekBarsComponent', () => {
     expect(text(el.querySelector('.value'))).toBe('3 of 4');
   });
 
-  it('thins the week labels out when there are more than six', () => {
+  it('thins the week labels out when there are more than six and none are dated', () => {
     const bars = Array.from({ length: 8 }, (_, i) => ({ label: `W${i}`, value: i + 1 }));
-    const g = weekBarsGeometry(bars, 160, false, '')!;
-    expect(g.bars.filter((b) => b.showLabel).length).toBe(4);
-    expect(g.bars[7].showLabel).toBeTrue();
+    const g = weekBarsGeometry(bars, 160, false, '', 320)!;
+    expect(g.labels.length).toBe(4);
+    expect(g.labels.at(-1)?.text).toBe('W7');
     expect(niceStep(279)).toBe(100);
+  });
+
+  it('names weeks by the period: every week for four, month starts for a year', () => {
+    const weeks = (first: string, count: number) =>
+      Array.from({ length: count }, (_, k) => {
+        const weekStart = new Date(Date.parse(`${first}T00:00:00Z`) + k * 7 * 86_400_000).toISOString().slice(0, 10);
+        return { label: weekStart, weekStart, value: k + 1 };
+      });
+    expect(weekBarsGeometry(weeks('2026-09-07', 4), 160, false, '', 320)!.labels.map((l) => l.text)).toEqual(['7 Sept', '14 Sept', '21 Sept', '28 Sept']);
+    const year = weekBarsGeometry(weeks('2025-10-06', 52), 160, false, '', 600)!;
+    expect(year.labels.every((l) => !/^d/.test(l.text))).toBeTrue();
+    expect(year.labels.map((l) => l.text)).toContain('Jan 2026');
+  });
+
+  it('starts the series at the first week that has a figure', () => {
+    const bars = [
+      { label: 'a', value: null },
+      { label: 'b', value: null },
+      { label: 'c', value: 5 },
+      { label: 'd', value: 7 }
+    ];
+    expect(weekBarsGeometry(bars, 160, false, '', 320)!.bars.length).toBe(2);
+  });
+
+  it('writes the value over the last bar only when the slots are narrow', () => {
+    const bars = Array.from({ length: 52 }, (_, i) => ({ label: `W${i}`, value: i + 1 }));
+    const g = weekBarsGeometry(bars, 160, false, '', 320)!;
+    expect(g.bars.filter((b) => b.showValue).length).toBe(1);
+    expect(g.bars[51].showValue).toBeTrue();
   });
 
   it('says not enough data yet without values', () => {
@@ -172,13 +202,20 @@ describe('LadderComponent', () => {
     const el = render(LadderComponent, { ratio: 1.12, rungs: ladderRungs('Squat') });
     expect(text(el.querySelector('.mark-text'))).toBe('1.12 × body weight');
     expect(el.querySelectorAll('.rung').length).toBe(4);
-    expect(text(el)).toContain('Intermediate');
+    expect(text(el)).toContain('Novice');
+    expect(ladderGeometry(1.12, ladderRungs('Squat'), 640)!.rungs.every((rung) => rung.showLabel)).toBeTrue();
   });
 
   it('keeps the marker on the track past the last rung', () => {
     const g = ladderGeometry(3, ladderRungs('Squat'))!;
     expect(g.marker.x).toBeLessThanOrEqual(g.x1);
     expect(g.marker.anchor).toBe('end');
+  });
+
+  it('leaves out a level name that would touch the one before it', () => {
+    const g = ladderGeometry(1, ladderRungs('Squat'), 180)!;
+    expect(g.rungs.some((rung) => !rung.showLabel)).toBeTrue();
+    expect(g.rungs.every((rung) => rung.ratioText.endsWith('×'))).toBeTrue();
   });
 
   it('says not enough data yet without a ratio', () => {

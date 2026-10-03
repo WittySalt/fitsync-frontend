@@ -81,7 +81,10 @@ describe('MuscleFigureComponent', () => {
     fixture.componentRef.setInput('interactive', false);
     fixture.detectChanges();
     expect(host.querySelectorAll('[role="button"]').length).toBe(0);
-    expect(host.querySelectorAll('svg[role="img"]').length).toBe(2);
+    expect(host.querySelectorAll('svg[aria-hidden="true"]').length).toBe(2);
+    expect(host.querySelectorAll('svg[role], svg[aria-label]').length).toBe(0);
+    expect(host.querySelectorAll('[tabindex], title').length).toBe(0);
+    expect(Array.from(host.querySelectorAll('figcaption')).every((caption) => caption.getAttribute('aria-hidden') === 'true')).toBeTrue();
   });
 
   it('never draws smaller than 140 px', () => {

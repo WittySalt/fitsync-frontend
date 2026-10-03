@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
 
+import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { formatNumber, signed } from '../../../shared/progress/progress-format';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
-import { SectionCardComponent } from '../../../shared/progress/section-card.component';
 import { SmallTrendComponent } from '../../../shared/progress/small-trend.component';
 import { BodyPage } from '../../body/body.page';
 import { BodySeries, GoalProgress } from '../progress-api.models';
@@ -15,16 +15,16 @@ interface BodyTile {
 }
 
 /**
- * Body on the Goal page (board 19a): body fat, waist and BMI, each with its change and a small
+ * Body on the Goal page (board 20c): body fat, waist and BMI, each with its change and a small
  * trend. They replace the old Body tab; recording a measurement opens the same form as before,
  * here, under the tiles.
  */
 @Component({
   selector: 'app-goal-body-section',
-  imports: [BodyPage, SectionCardComponent, SmallTrendComponent],
+  imports: [BodyPage, DetailSectionComponent, SmallTrendComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-section-card title="Body" sub="measured over the same weeks" [context]="context()">
+    <app-detail-section name="Body" anchor="body" [sentence]="sentence()" [context]="context()" ask="What do my waist, body fat and BMI say about the weight I lost?">
       <div class="tiles">
         @for (tile of tiles(); track tile.name) {
           <article class="tile">
@@ -36,10 +36,7 @@ interface BodyTile {
             </div>
             @if (tile.series && tile.series.series.length >= 2) {
               <span class="value">{{ end(tile) }}@if (tile.unit) {<span class="unit"> {{ tile.unit }}</span>}</span>
-              <app-small-trend [points]="points(tile)" [digits]="1" [height]="44" [label]="tile.name" />
-              @if (tile.series.context) {
-                <span class="quiet">{{ tile.series.context }}</span>
-              }
+              <app-small-trend [points]="points(tile)" [digits]="1" [height]="64" [label]="tile.name" />
             } @else {
               <span class="quiet">Not enough data yet</span>
             }
@@ -47,8 +44,8 @@ interface BodyTile {
         }
       </div>
       <div class="actions">
-        <button type="button" class="record" (click)="openMeasurements()">+ Record a measurement</button>
-        <button type="button" class="all" [attr.aria-expanded]="measurementsOpen()" (click)="toggleMeasurements()">
+        <button type="button" class="link" (click)="openMeasurements()">Record a measurement ›</button>
+        <button type="button" class="link" [attr.aria-expanded]="measurementsOpen()" (click)="toggleMeasurements()">
           {{ measurementsOpen() ? 'Hide measurements' : 'All measurements ›' }}
         </button>
       </div>
@@ -57,22 +54,22 @@ interface BodyTile {
           <app-body-page [embedded]="true" />
         </div>
       }
-    </app-section-card>
+    </app-detail-section>
   `,
   styles: `
     :host { display: block; }
-    .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .tile { box-sizing: border-box; min-width: 0; padding: 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-    .top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-    .top strong { font-size: 15px; color: var(--text-primary); }
-    .change { font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-    .value { font: 600 24px var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    .unit { font: 500 13px var(--font-sans); color: var(--text-secondary); }
-    .quiet { font-size: var(--text-xs); line-height: 1.5; color: var(--text-secondary); }
-    .actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .record { min-height: 36px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--accent-subtle); background: var(--surface-tint); color: var(--accent-text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .all { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 700; color: var(--accent-text); cursor: pointer; }
-    .record:focus-visible, .all:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }
+    .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+    .tile { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+    .top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; height: 24px; }
+    .top strong { font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); }
+    .change { font: 500 var(--pg-control) var(--font-sans); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .value { font: 600 var(--pg-chip-figure) var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .unit { font: 500 var(--pg-control) var(--font-sans); color: var(--text-secondary); }
+    .quiet { font: 400 var(--pg-chart) / 1.5 var(--font-sans); color: var(--text-secondary); }
+    .actions { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+    .link { padding: 0; border: 0; background: none; font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); cursor: pointer; }
+    .link:hover { text-decoration: underline; text-underline-offset: 4px; }
+    .link:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 3px; border-radius: 4px; }
     @media (max-width: 640px) { .tiles { grid-template-columns: minmax(0, 1fr); } }
   `
 })
@@ -81,6 +78,7 @@ export class GoalBodySectionComponent {
   private readonly measurementsRef = viewChild<ElementRef<HTMLElement>>('measurements');
 
   readonly body = input.required<GoalProgress['body']>();
+  readonly sentence = input('');
   readonly context = input<ProgressCardContext | null>(null);
 
   readonly measurementsOpen = signal(false);
@@ -88,8 +86,8 @@ export class GoalBodySectionComponent {
   protected readonly tiles = computed<BodyTile[]>(() => {
     const body = this.body();
     return [
-      { name: 'Body fat', unit: '%', changeUnit: 'points', series: body.bodyFat },
       { name: 'Waist', unit: 'cm', changeUnit: 'cm', series: body.waist },
+      { name: 'Body fat', unit: '%', changeUnit: 'points', series: body.bodyFat },
       { name: 'BMI', unit: '', changeUnit: '', series: body.bmi }
     ];
   });

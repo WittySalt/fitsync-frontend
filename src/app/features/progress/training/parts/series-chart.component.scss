@@ -9,7 +9,7 @@
 
 svg {
   display: block;
-  width: 100%;
+  max-width: 100%;
   height: auto;
   overflow: visible;
 
@@ -29,7 +29,7 @@ svg {
 .line {
   fill: none;
   stroke: var(--line);
-  stroke-width: 2.2;
+  stroke-width: 2;
   stroke-linejoin: round;
 }
 
@@ -46,7 +46,7 @@ svg {
 }
 
 .first {
-  font-size: 11px;
+  font-size: var(--pg-chart);
   font-weight: var(--fw-semibold);
 }
 

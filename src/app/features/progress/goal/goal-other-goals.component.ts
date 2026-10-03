@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 
 import { shortDateLabel } from '../../../shared/date-label';
+import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { DotStripComponent } from '../../../shared/progress/dot-strip.component';
-import { formatNumber } from '../../../shared/progress/progress-format';
-import { ProgressCardContext } from '../../../shared/progress/progress.models';
-import { SectionCardComponent } from '../../../shared/progress/section-card.component';
+import { daysBetween, formatNumber, shiftDay } from '../../../shared/progress/progress-format';
+import { DotDay, ProgressCardContext } from '../../../shared/progress/progress.models';
 import { OtherGoal } from '../progress-api.models';
 
 const NAMES: Record<string, string> = {
@@ -20,38 +20,50 @@ const NAMES: Record<string, string> = {
 const AT_LEAST = new Set(['PROTEIN', 'WORKOUT_FREQUENCY']);
 
 /**
- * The goals other than weight (board 19a), each with how often it was met: a dot a day for the food
- * goals and a box a week for sessions. Goals are changed on Me, never here.
+ * One dot for each day from `from` to `to`, the days the server did not report as not logged, so a
+ * strip covers exactly the window its section names whatever the server sent.
+ */
+export function windowDays(days: readonly DotDay[], from: string, to: string): DotDay[] {
+  const known = new Map(days.map((day) => [day.date, day.state]));
+  const count = Math.max(daysBetween(from, to), 0) + 1;
+  return Array.from({ length: count }, (_, k) => {
+    const date = shiftDay(from, k);
+    return { date, state: known.get(date) ?? 'NOT_LOGGED' };
+  });
+}
+
+/**
+ * The goals other than weight (board 20c): each one a row of three columns, its name and target,
+ * how often it was met in a fixed column, and the dots of the window the section names (a box a
+ * week for sessions), with dates at the two ends only. Goals are changed on Me, never here.
  */
 @Component({
   selector: 'app-goal-other-goals',
-  imports: [DotStripComponent, RouterLink, SectionCardComponent],
+  imports: [DetailSectionComponent, DotStripComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-section-card title="Other goals" [sub]="sub()" [context]="context()">
+    <app-detail-section name="Other goals" anchor="other-goals" [sentence]="sentence()" [context]="context()" ask="Which of my other goals am I missing most, and what would help?">
       @if (rows().length) {
         <div class="rows">
           @for (row of rows(); track row.type) {
             <div class="row">
               <div class="name">
-                <strong>{{ row.name }}</strong>
-                <span>{{ row.rule }}</span>
+                <span class="goal">{{ row.name }}</span>
+                <span class="rule">{{ row.rule }}</span>
               </div>
               <span class="count">
                 @if (row.met !== null) {
-                  <strong>{{ row.met }}</strong> of {{ row.of }}
+                  {{ row.met }} of {{ row.of }}
                 }
               </span>
               <div class="visual">
                 @if (row.weeks.length) {
                   <div class="weeks">
                     @for (week of row.weeks; track week.weekStart) {
-                      <span class="week">
-                        <span class="box" [class.met]="week.met">{{ week.value }}</span>
-                        <span class="label">{{ week.label }}</span>
-                      </span>
+                      <span class="box" [class.met]="week.met">{{ week.value }}</span>
                     }
                   </div>
+                  <div class="ends"><span>{{ row.weeks[0].label }}</span><span>{{ row.weeks[row.weeks.length - 1].label }}</span></div>
                 } @else {
                   <app-dot-strip [days]="row.days" />
                 }
@@ -59,50 +71,52 @@ const AT_LEAST = new Set(['PROTEIN', 'WORKOUT_FREQUENCY']);
             </div>
           }
         </div>
+        <div class="foot">
+          <span class="key">
+            <span><i class="met"></i>met</span><span><i class="missed"></i>missed</span><span><i class="none"></i>not logged</span>
+          </span>
+          <a routerLink="/me" fragment="goal-lifecycle">Change goals in Me ›</a>
+        </div>
       } @else {
         <p class="empty">No other goals yet. Calories, protein, carbs, fat and sessions can be set in Me.</p>
       }
-      <div class="foot">
-        <span class="key">
-          <span><i class="met"></i>met</span><span><i class="missed"></i>missed</span><span><i class="none"></i>not logged</span>
-        </span>
-        <a routerLink="/me" fragment="goal-lifecycle">Change goals in Me ›</a>
-      </div>
-    </app-section-card>
+    </app-detail-section>
   `,
   styles: `
     :host { display: block; }
     .rows { display: flex; flex-direction: column; }
-    .row { display: grid; grid-template-columns: 200px 90px minmax(0, 1fr); align-items: center; gap: 18px; padding: 12px 0; }
+    .row { display: grid; grid-template-columns: 220px 160px minmax(0, 1fr); align-items: center; gap: 24px; padding: 16px 0; }
     .row + .row { border-top: 1px solid var(--border); }
-    .name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-    .name strong { font-size: var(--text-sm); color: var(--text-primary); }
-    .name span, .label, .key { font-size: var(--text-xs); color: var(--text-secondary); }
-    .count { font-size: 13px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .count strong { color: var(--text-primary); }
-    .weeks { display: flex; gap: 6px; max-width: 260px; }
-    .week { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-    .label { font-size: 10px; white-space: nowrap; }
-    .box { width: 100%; height: 22px; box-sizing: border-box; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1.5px solid var(--text-secondary); color: var(--text-primary); }
+    .name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .goal { font: 400 var(--pg-text) var(--font-sans); color: var(--text-primary); }
+    .rule { font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .count { font: 400 var(--pg-text) var(--font-sans); color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .visual { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .weeks { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+    .box { height: 24px; box-sizing: border-box; border-radius: 4px; display: flex; align-items: center; justify-content: center; font: 600 var(--pg-chart) var(--font-sans); border: 1px solid var(--text-secondary); color: var(--text-primary); }
     .box.met { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent); }
+    .ends { display: flex; justify-content: space-between; font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
     .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .key { display: flex; gap: 12px; }
+    .key { display: flex; gap: 12px; font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
     .key span { display: inline-flex; align-items: center; gap: 5px; }
     .key i { width: 8px; height: 8px; box-sizing: border-box; border-radius: 50%; }
     .key .met { background: var(--accent); }
     .key .missed { border: 1.5px solid var(--text-secondary); }
     .key .none { background: var(--surface-sunken); border: 1px solid var(--text-muted); }
-    a { font-size: 13px; font-weight: 700; color: var(--accent-text); text-decoration: none; }
-    .empty { margin: 0; font-size: 13px; color: var(--text-secondary); }
-    @media (max-width: 640px) {
-      .row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    a { font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 4px; }
+    .empty { margin: 0; font: 400 var(--pg-text) var(--font-sans); color: var(--text-secondary); }
+    @media (max-width: 760px) {
+      .row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; }
       .visual { grid-column: 1 / -1; }
     }
   `
 })
 export class GoalOtherGoalsComponent {
   readonly goals = input.required<readonly OtherGoal[]>();
-  readonly sub = input('');
+  /** The first and last day of the window the section names, which every strip covers exactly. */
+  readonly from = input.required<string>();
+  readonly to = input.required<string>();
   readonly context = input<ProgressCardContext | null>(null);
 
   protected readonly rows = computed(() =>
@@ -118,15 +132,37 @@ export class GoalOtherGoalsComponent {
         met: week.value >= (week.target ?? goal.target ?? Infinity)
       }));
       const metWeeks = weeks.filter((week) => week.met).length;
+      const name = NAMES[goal.type] ?? goal.type.charAt(0) + goal.type.slice(1).toLowerCase().replace(/_/g, ' ');
       return {
         type: goal.type,
-        name: NAMES[goal.type] ?? goal.type.charAt(0) + goal.type.slice(1).toLowerCase().replace(/_/g, ' '),
+        name,
         rule: target ? `${target} · ${rule}` : rule,
         met: weekly ? (weeks.length ? metWeeks : goal.metDays) : goal.metDays,
         of: weekly ? `${weeks.length || (goal.loggedDays ?? 0)} weeks` : `${goal.loggedDays ?? 0} logged days`,
-        days: goal.days,
+        days: windowDays(goal.days, this.from(), this.to()),
         weeks: weekly ? weeks : []
       };
     })
   );
+
+  /** The one sentence under the name: the goal met least often, and how the sessions went. */
+  protected readonly sentence = computed(() => {
+    const goals = this.goals();
+    if (!goals.length) {
+      return '';
+    }
+    const daily = goals
+      .filter((goal) => goal.type !== 'WORKOUT_FREQUENCY' && (goal.loggedDays ?? 0) > 0 && goal.metDays !== null)
+      .sort((a, b) => (a.metDays! / a.loggedDays!) - (b.metDays! / b.loggedDays!))[0];
+    const sessions = goals.find((goal) => goal.type === 'WORKOUT_FREQUENCY' && goal.weeks.length > 0);
+    const parts: string[] = [];
+    if (daily) {
+      parts.push(`${NAMES[daily.type] ?? daily.type} was met on ${daily.metDays} of ${daily.loggedDays} logged days.`);
+    }
+    if (sessions) {
+      const met = sessions.weeks.filter((week) => week.value >= (week.target ?? sessions.target ?? Infinity)).length;
+      parts.push(`Sessions reached the target in ${met} of ${sessions.weeks.length} weeks.`);
+    }
+    return parts.join(' ') || 'Nothing is logged against these goals yet.';
+  });
 }

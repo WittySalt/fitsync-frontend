@@ -1,0 +1,62 @@
+<app-progress-card name="Goal" link="/progress/goal" askPrefill="Ask about your goal" [context]="context()" [coachLine]="coachLine()">
+  <div card-headline>
+    @if (loading()) {
+      <div class="skeleton head-skeleton" aria-busy="true" aria-label="Loading your goal"></div>
+    } @else if (view(); as v) {
+      <div class="figure-row">
+        <strong class="figure">{{ v.headline.figure }}</strong>
+        @if (v.headline.tail) {
+          <span class="tail">{{ v.headline.tail }}</span>
+        }
+      </div>
+      <p class="caption">{{ v.headline.caption }}</p>
+    }
+  </div>
+
+  <div card-lines>
+    @if (view(); as v) {
+      <app-summary-list [lines]="v.lines" />
+    }
+  </div>
+
+  <div card-picture class="picture">
+    @if (loading()) {
+      <div class="skeleton box" aria-busy="true"></div>
+    } @else if (failed()) {
+      <app-state-panel title="Your goal could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry.emit()" />
+    } @else if (view(); as v) {
+      <div class="box">
+        @switch (v.picture) {
+          @case ('ROAD') {
+            <app-road-chart [road]="v.road" [label]="v.label" />
+          }
+          @case ('KEEP') {
+            <app-keep-chart [road]="v.road!" [label]="v.label" />
+          }
+          @case ('HABIT') {
+            <app-strip-chart [items]="v.strip" [target]="v.stripTarget" [share]="v.stripShare" [label]="v.label" />
+          }
+          @default {
+            <app-road-chart [road]="null" [label]="v.label" />
+          }
+        }
+      </div>
+      @if (v.note; as note) {
+        <p class="note">
+          {{ note.text }}
+          @if (note.link; as link) {
+            <a class="note-link" [routerLink]="link.href" [fragment]="link.fragment">{{ link.label }}</a>
+          }
+        </p>
+      }
+      @if (v.pills.length) {
+        <div class="also">
+          <span class="also-label">Also</span>
+          @for (pill of v.pills; track pill.name) {
+            <span class="pill">{{ pill.name }} · <strong>{{ pill.figure }}</strong></span>
+          }
+        </div>
+      }
+    }
+  </div>
+</app-progress-card>

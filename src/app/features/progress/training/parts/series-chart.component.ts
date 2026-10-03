@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
+import { measureWidth } from '../../../../shared/progress/measure-width';
 import { E1rmPoint } from '../training.models';
 import { seriesChart } from './chart-geometry';
 
@@ -19,11 +20,8 @@ export class SeriesChartComponent {
   readonly bestBefore = input<number | null>(null);
   readonly unit = input('kg');
   readonly height = input(136);
-  readonly width = input(320);
-  readonly compact = input(false);
   readonly label = input('');
 
-  protected readonly chart = computed(() =>
-    seriesChart(this.points(), { width: this.width(), height: this.height(), bestBefore: this.bestBefore(), unit: this.unit(), compact: this.compact() })
-  );
+  protected readonly width = measureWidth(320);
+  protected readonly chart = computed(() => seriesChart(this.points(), { width: this.width(), height: this.height(), bestBefore: this.bestBefore(), unit: this.unit() }));
 }

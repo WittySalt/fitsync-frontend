@@ -5,7 +5,6 @@ import { Router, provideRouter } from '@angular/router';
 import { CoachStore } from '../../core/coach/coach.store';
 import { HighlightsComponent, highlightChart } from './highlights.component';
 import { JumpBarComponent } from './jump-bar.component';
-import { ProgressHeroComponent } from './progress-hero.component';
 import { ProgressCardContext } from './progress.models';
 import { SectionCardComponent } from './section-card.component';
 import { SummaryLinesComponent } from './summary-lines.component';
@@ -92,31 +91,6 @@ describe('progress sections', () => {
     });
   });
 
-  describe('ProgressHeroComponent', () => {
-    it('shows the back link, the title and the four figures with their comparisons', () => {
-      const { el } = render(ProgressHeroComponent, {
-        eyebrow: 'Goal',
-        title: '68 kg by 11 Dec',
-        sub: 'Each change is compared with the 4 weeks before.',
-        stats: [
-          { label: 'Now', value: '71.2', unit: 'kg', context: '−1.6 kg on 4 weeks before' },
-          { label: 'Days left', value: '69' }
-        ]
-      });
-      expect(text(el.querySelector('.back'))).toBe('Progress');
-      expect(el.querySelector('.back')?.getAttribute('href')).toBe('/progress');
-      expect(text(el.querySelector('h1'))).toBe('68 kg by 11 Dec');
-      expect(el.querySelectorAll('.stat').length).toBe(2);
-      expect(text(el.querySelector('.stat dt'))).toBe('Now');
-      expect(text(el.querySelector('.stat .value'))).toBe('71.2 kg');
-      expect(text(el.querySelector('.stat .context'))).toBe('−1.6 kg on 4 weeks before');
-    });
-
-    it('hides the back link when asked', () => {
-      expect(render(ProgressHeroComponent, { eyebrow: 'x', title: 'y', back: null }).el.querySelector('.back')).toBeNull();
-    });
-  });
-
   describe('JumpBarComponent', () => {
     it('marks the active section and says which one was chosen', () => {
       const { fixture, el } = render(JumpBarComponent, {
@@ -143,7 +117,7 @@ describe('progress sections', () => {
     ];
 
     it('draws each finding with its kicker and the right kind of chart', () => {
-      const { el } = render(HighlightsComponent, { highlights, sub: 'one finding each' });
+      const { el } = render(HighlightsComponent, { highlights });
       const cards = el.querySelectorAll('.card');
       expect(cards.length).toBe(4);
       expect(text(cards[0].querySelector('.kicker'))).toBe('Pace');
@@ -166,8 +140,12 @@ describe('progress sections', () => {
       fixture.detectChanges();
       expect(el.querySelector('.grid.open')).not.toBeNull();
       expect(el.querySelector('.more')).toBeNull();
-      el.querySelector<HTMLButtonElement>('.ask')!.click();
-      expect(coach.askAboutCard).toHaveBeenCalledOnceWith(card);
+      expect(text(el.querySelector('h2'))).toBe('Highlights');
+      expect(el.querySelector('.sub')).toBeNull();
+      const ask = el.querySelector<HTMLButtonElement>('.ask')!;
+      expect(text(ask)).toBe('Ask');
+      ask.click();
+      expect(coach.askAboutCard).toHaveBeenCalledOnceWith(card, jasmine.stringContaining('What stands out'));
     });
 
     it('writes values with the page format, at most four, and scales a single bar against a shared top', () => {

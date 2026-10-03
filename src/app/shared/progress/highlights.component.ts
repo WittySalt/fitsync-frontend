@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 
-import { CoachStore } from '../../core/coach/coach.store';
+import { DetailSectionComponent } from './detail-section.component';
 import { formatNumber, isDateKey, signed } from './progress-format';
 import { Highlight, ProgressCardContext, SeriesPoint } from './progress.models';
 import { SmallTrendComponent } from './small-trend.component';
@@ -59,21 +59,10 @@ function barRows(series: readonly SeriesPoint[], unit: string, format: Highlight
  */
 @Component({
   selector: 'app-highlights',
-  imports: [SmallTrendComponent],
+  imports: [DetailSectionComponent, SmallTrendComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="highlights" aria-labelledby="highlights-title">
-      <header class="head">
-        <div>
-          <h2 id="highlights-title">Highlights</h2>
-          @if (sub()) {
-            <span class="sub">{{ sub() }}</span>
-          }
-        </div>
-        @if (context()) {
-          <button type="button" class="ask" (click)="askCoach()">Ask</button>
-        }
-      </header>
+    <app-detail-section name="Highlights" anchor="highlights" [context]="context()" [ask]="ask()">
       @if (cards().length) {
         <div class="grid" [class.open]="expanded()">
           @for (card of cards(); track card.code + $index) {
@@ -107,28 +96,23 @@ function barRows(series: readonly SeriesPoint[], unit: string, format: Highlight
       } @else {
         <p class="none">Not enough data yet. Highlights appear once there is a period to compare.</p>
       }
-    </section>
+    </app-detail-section>
   `,
   styles: `
     :host { display: block; scroll-margin-top: 64px; }
-    .highlights { display: flex; flex-direction: column; gap: 10px; }
-    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-    h2 { margin: 0; font-size: 17px; color: var(--text-primary); }
-    .sub { font-size: 13px; color: var(--text-secondary); }
-    .ask { height: 30px; padding: 0 11px; border-radius: 10px; border: 1px solid var(--accent-subtle); background: var(--surface); font: inherit; font-size: var(--text-xs); font-weight: 700; color: var(--accent-text); cursor: pointer; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .card { box-sizing: border-box; min-width: 0; padding: 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-    .kicker { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-text); }
-    .title { font-size: 15px; line-height: 1.35; color: var(--text-primary); }
+    .card { box-sizing: border-box; min-width: 0; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .kicker { font: 700 var(--pg-eyebrow) var(--font-sans); letter-spacing: var(--pg-eyebrow-tracking); text-transform: uppercase; color: var(--text-secondary); }
+    .title { font: 600 var(--pg-text) / 1.4 var(--font-sans); color: var(--text-primary); }
     .chart { min-height: 66px; display: flex; flex-direction: column; justify-content: center; margin-top: auto; }
     .bars { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; }
-    .bar-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-primary); }
+    .bar-label { font: 500 var(--pg-chart) var(--font-sans); color: var(--text-primary); }
     .track { height: 10px; border-radius: 5px; background: var(--surface-sunken); overflow: hidden; }
     .track i { display: block; height: 100%; border-radius: 5px; background: var(--accent); }
-    .bar-value { font-size: var(--text-xs); font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    .foot { font-size: var(--text-xs); color: var(--text-secondary); }
-    .more { display: none; align-self: flex-start; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 700; color: var(--accent-text); cursor: pointer; }
-    .none { margin: 0; font-size: 13px; color: var(--text-secondary); }
+    .bar-value { font: 600 var(--pg-chart) var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .foot { font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
+    .more { display: none; align-self: flex-start; border: 0; background: none; padding: 0; font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); cursor: pointer; }
+    .none { margin: 0; font: 400 var(--pg-text) var(--font-sans); color: var(--text-secondary); }
     @media (max-width: 640px) {
       .grid { grid-template-columns: minmax(0, 1fr); }
       .grid:not(.open) .card:nth-child(n + 3) { display: none; }
@@ -137,11 +121,10 @@ function barRows(series: readonly SeriesPoint[], unit: string, format: Highlight
   `
 })
 export class HighlightsComponent {
-  private readonly coach = inject(CoachStore);
-
   readonly highlights = input.required<readonly Highlight[]>();
-  readonly sub = input('');
   readonly context = input<ProgressCardContext | null>(null);
+  /** What Ask puts in the composer. */
+  readonly ask = input('What stands out in these findings, and what should I do about it?');
   /** How values are written; numbers with their unit when not given. */
   readonly format = input<HighlightFormat | null>(null);
   /** A shared top for the bars, so one value reads against a usual scale rather than filling the track. */
@@ -168,10 +151,4 @@ export class HighlightsComponent {
       })
   );
 
-  askCoach(): void {
-    const context = this.context();
-    if (context) {
-      this.coach.askAboutCard(context);
-    }
-  }
 }

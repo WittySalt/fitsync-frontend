@@ -28,10 +28,10 @@ import { SummaryLine } from './progress.models';
     :host { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
-    .text { font-size: var(--text-xs); line-height: 18px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .text { font-size: var(--pg-text); line-height: 18px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
     strong { color: var(--text-primary); }
-    .trend { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
-    .context { margin: 0; padding-top: 4px; border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--text-secondary); }
+    .trend { font-size: var(--pg-control); font-weight: 500; color: var(--text-secondary); }
+    .context { margin: 0; padding-top: 4px; border-top: 1px solid var(--border); font-size: var(--pg-chart); color: var(--text-secondary); }
     .none { border: 0; padding: 0; }
   `
 })

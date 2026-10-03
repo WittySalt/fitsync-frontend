@@ -16,7 +16,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   span {
@@ -59,12 +59,12 @@
   gap: 2px;
 
   strong {
-    font-size: 15px;
+    font-size: var(--pg-text);
     color: var(--text-primary);
   }
 
   span {
-    font-size: 13px;
+    font-size: var(--pg-control);
     color: var(--text-secondary);
   }
 }
@@ -87,13 +87,13 @@
 
 .note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 }
 
 .empty {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--pg-text);
   color: var(--text-secondary);
 }
 

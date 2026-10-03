@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { shortDateLabel } from '../../../shared/date-label';
+import { PlacedLabel, timeAxisLabels } from '../../../shared/progress/chart-axis';
+import { measureWidth } from '../../../shared/progress/measure-width';
 import { daysBetween, formatNumber, shiftDay } from '../../../shared/progress/progress-format';
 import { GoalProgress, WeightGoal } from '../progress-api.models';
 
 const WIDTH = 600;
-const X0 = 44;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+const X0 = 52;
 
 type Weight = GoalProgress['weight'];
 
@@ -17,7 +18,8 @@ interface Pt {
 
 export interface WeightChartGeometry {
   ticks: { y: number; text: string }[];
-  months: { x: number; text: string }[];
+  /** Week dates or month names along the bottom, none touching the one before. */
+  labels: PlacedLabel[];
   dots: Pt[];
   line: string;
   first: Pt & { text: string };
@@ -35,7 +37,7 @@ export interface WeightChartGeometry {
  * The weight chart: each week's average as the line, each weigh-in as a grey dot, the carried-forward
  * pace as a dashed line to the goal, the goal as a dashed level with its date, and a quiet line at
  * today. On the card the dots and the coach's mark are left out and the goal label sits top right,
- * clear of the projection.
+ * clear of the projection. `width` is the pixel width the chart is drawn at.
  */
 export function weightChartGeometry(
   weight: Weight,
@@ -43,7 +45,8 @@ export function weightChartGeometry(
   today: string,
   height: number,
   cardView: boolean,
-  compact: boolean
+  compact: boolean,
+  width = WIDTH
 ): WeightChartGeometry | null {
   const weeks = weight.weekly.map((w) => ({ date: shiftDay(w.weekStart, 3), kg: w.avgKg }));
   const line = weeks.length >= 2 ? weeks : weight.daily.map((d) => ({ date: d.date, kg: d.kg }));
@@ -62,25 +65,15 @@ export function weightChartGeometry(
   const step = Math.max(...kgs) - Math.min(...kgs) > 6 ? 2 : 1;
   const lo = Math.floor((Math.min(...kgs) - 0.5) / step) * step;
   const hi = Math.ceil((Math.max(...kgs) + 0.5) / step) * step;
-  const x1 = WIDTH - (cardView ? 8 : 10);
+  const x1 = width - 12;
   const top = 26;
-  const bottom = height - 22;
+  const bottom = height - 26;
   const span = Math.max(daysBetween(d0, d1), 1);
   const x = (date: string) => X0 + ((x1 - X0) * daysBetween(d0, date)) / span;
   const y = (kg: number) => top + ((bottom - top) * (hi - kg)) / (hi - lo || 1);
   const ticks: WeightChartGeometry['ticks'] = [];
   for (let v = lo + step; v < hi; v += step) {
     ticks.push({ y: y(v), text: `${formatNumber(v)} kg` });
-  }
-  const months: WeightChartGeometry['months'] = [];
-  let cursor = `${d0.slice(0, 8)}01`;
-  while (cursor <= d1) {
-    if (cursor >= d0) {
-      const month = MONTHS[Number(cursor.slice(5, 7)) - 1];
-      months.push({ x: x(cursor), text: compact ? month : `1 ${month}` });
-    }
-    const [yy, mm] = cursor.split('-').map(Number);
-    cursor = mm === 12 ? `${yy + 1}-01-01` : `${yy}-${String(mm + 1).padStart(2, '0')}-01`;
   }
   const lastDaily = weight.daily.at(-1);
   const nowPoint = lastDaily ? { date: lastDaily.date, kg: lastDaily.kg } : line[line.length - 1];
@@ -89,7 +82,7 @@ export function weightChartGeometry(
   const mark = !cardView && weight.rateChangeMark ? weeks.find((w) => w.date >= weight.rateChangeMark!.date) ?? null : null;
   return {
     ticks,
-    months,
+    labels: timeAxisLabels(d0, d1, x),
     dots: cardView ? [] : weight.daily.map((d) => ({ x: x(d.date), y: y(d.kg) })),
     line: line.map((p) => `${x(p.date).toFixed(1)},${y(p.kg).toFixed(1)}`).join(' '),
     first: { x: x(line[0].date), y: y(line[0].kg), text: formatNumber(line[0].kg, 1) },
@@ -107,7 +100,7 @@ export function weightChartGeometry(
         : {
             y: y(target),
             text: goal?.byDate ? `Goal ${formatNumber(target, 1)} kg by ${shortDateLabel(goal.byDate, reference)}` : `Goal ${formatNumber(target, 1)} kg`,
-            labelY: cardView ? top - 12 : y(target) - 8,
+            labelY: cardView ? top - 12 : y(target) - 6,
             byX: goal?.byDate ? x(goal.byDate) : null
           },
     today: today >= d0 && today <= d1 ? x(today) : null,
@@ -123,7 +116,7 @@ export function weightChartGeometry(
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (geometry(); as g) {
-      <svg [attr.viewBox]="'0 0 600 ' + height()" role="img" [attr.aria-label]="summary()">
+      <svg [attr.viewBox]="'0 0 ' + width() + ' ' + height()" [style.width.px]="width()" role="img" [attr.aria-label]="summary()">
         @for (tick of g.ticks; track $index) {
           <line class="grid" [attr.x1]="g.x0" [attr.x2]="g.x1" [attr.y1]="tick.y" [attr.y2]="tick.y"></line>
           <text class="axis" [attr.x]="g.x0 - 8" [attr.y]="tick.y" text-anchor="end" dominant-baseline="central">{{ tick.text }}</text>
@@ -135,7 +128,7 @@ export function weightChartGeometry(
           }
         }
         @for (dot of g.dots; track $index) {
-          <circle class="dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="2.2"></circle>
+          <circle class="dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="2"></circle>
         }
         @if (g.goal; as goal) {
           <line class="goal" [attr.x1]="g.x0" [attr.x2]="g.x1" [attr.y1]="goal.y" [attr.y2]="goal.y"></line>
@@ -147,21 +140,21 @@ export function weightChartGeometry(
         <polyline class="line" [attr.points]="g.line"></polyline>
         @if (g.projection; as p) {
           <polyline class="projection" [attr.points]="p.line"></polyline>
-          <circle class="end" [attr.cx]="p.end.x" [attr.cy]="p.end.y" r="4.5"></circle>
+          <circle class="end" [attr.cx]="p.end.x" [attr.cy]="p.end.y" r="3"></circle>
           <text class="label halo" [attr.x]="p.end.x" [attr.y]="p.end.y + 18" text-anchor="end">{{ p.text }}</text>
         }
         <circle class="start" [attr.cx]="g.first.x" [attr.cy]="g.first.y" r="3"></circle>
         <text class="axis halo" [attr.x]="g.first.x + 2" [attr.y]="g.first.y - 10">{{ g.first.text }}</text>
-        <circle class="now" [attr.cx]="g.now.x" [attr.cy]="g.now.y" r="4.5"></circle>
+        <circle class="now" [attr.cx]="g.now.x" [attr.cy]="g.now.y" r="3"></circle>
         <text class="label strong halo" [attr.x]="g.now.x - 8" [attr.y]="g.now.y + 16" text-anchor="end">{{ g.now.text }}</text>
         @if (g.mark; as m) {
           <line class="mark-line" [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="m.y - 30" [attr.y2]="m.y - 6"></line>
-          <rect class="mark" [attr.x]="m.x - 9" [attr.y]="m.y - 48" width="18" height="18" rx="6"></rect>
+          <rect class="mark" [attr.x]="m.x - 9" [attr.y]="m.y - 48" width="18" height="18" rx="4"></rect>
           <text class="mark-c" [attr.x]="m.x" [attr.y]="m.y - 39" text-anchor="middle" dominant-baseline="central">C</text>
           <text class="label halo" [attr.x]="m.x + 14" [attr.y]="m.y - 39" dominant-baseline="central">{{ m.text }}</text>
         }
-        @for (month of g.months; track $index) {
-          <text class="axis" [attr.x]="month.x" [attr.y]="height() - 5" text-anchor="middle">{{ month.text }}</text>
+        @for (label of g.labels; track $index) {
+          <text class="axis" [attr.x]="label.x" [attr.y]="height() - 6" [attr.text-anchor]="label.anchor">{{ label.text }}</text>
         }
         <line class="base" [attr.x1]="g.x0" [attr.x2]="g.x1" [attr.y1]="g.bottom" [attr.y2]="g.bottom"></line>
       </svg>
@@ -171,26 +164,26 @@ export function weightChartGeometry(
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    svg { display: block; width: 100%; height: auto; overflow: visible; }
-    .grid { stroke: var(--border); }
-    .base { stroke: var(--border-strong); }
+    svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+    .grid { stroke: var(--border); stroke-width: 1; }
+    .base { stroke: var(--border-strong); stroke-width: 1; }
     .today { stroke: var(--border-strong); stroke-dasharray: 2 3; }
     .dot { fill: var(--border-strong); }
-    .goal { stroke: var(--accent-text); stroke-dasharray: 4 4; }
+    .goal { stroke: var(--accent-text); stroke-width: 1; stroke-dasharray: 4 4; }
     .goal-tick { stroke: var(--accent-text); stroke-width: 2; }
-    .line { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+    .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
     .projection { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 3 5; }
-    .start, .now { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
-    .end { fill: var(--accent); }
+    .start { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+    .now, .end { fill: var(--accent); }
     .mark { fill: var(--accent); }
-    .mark-line { stroke: var(--text-primary); }
-    .mark-c { font: 700 11px var(--font-sans); fill: var(--text-on-accent); }
-    text { font: 400 10px var(--font-sans); fill: var(--text-secondary); }
-    .label { font-size: 11px; font-weight: 600; fill: var(--text-primary); }
-    .strong { font-weight: 700; }
-    .goal-text { font-size: 11px; font-weight: 700; fill: var(--accent-text); }
+    .mark-line { stroke: var(--text-primary); stroke-width: 1; }
+    .mark-c { font: 700 var(--pg-chart) var(--font-sans); fill: var(--text-on-accent); }
+    text { font: 400 var(--pg-chart) var(--font-sans); fill: var(--text-secondary); }
+    .label { font-weight: 500; fill: var(--text-primary); }
+    .strong { font-weight: 600; }
+    .goal-text { font-weight: 600; fill: var(--accent-text); }
     .halo { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
-    .none { margin: 0; font-size: 13px; color: var(--text-secondary); }
+    .none { margin: 0; font-size: var(--pg-text); color: var(--text-secondary); }
   `
 })
 export class GoalWeightChartComponent {
@@ -201,8 +194,9 @@ export class GoalWeightChartComponent {
   readonly cardView = input(false);
   readonly compact = input(false);
 
+  protected readonly width = measureWidth(WIDTH);
   protected readonly geometry = computed(() =>
-    weightChartGeometry(this.weight(), this.goal(), this.today(), this.height(), this.cardView(), this.compact())
+    weightChartGeometry(this.weight(), this.goal(), this.today(), this.height(), this.cardView(), this.compact(), this.width())
   );
 
   protected readonly summary = computed(() => {

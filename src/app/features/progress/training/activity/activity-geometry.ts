@@ -1,5 +1,6 @@
 import { ActivitySession } from '../training.models';
-import { GridLine, Pt, TextMark } from '../parts/chart-geometry';
+import { dropColliding } from '../../../../shared/progress/chart-axis';
+import { GridLine, Pt, TextMark, axisGutter } from '../parts/chart-geometry';
 import { shortDate } from '../training-format';
 
 const r1 = (value: number): number => Math.round(value * 10) / 10;
@@ -11,7 +12,6 @@ function niceTop(max: number, step: number): number {
 export interface SessionColumn {
   bar: { x: number; y: number; width: number; height: number };
   minutes: TextMark;
-  date: TextMark;
   effort: (Pt & { text: string; estimated: boolean }) | null;
 }
 
@@ -20,22 +20,24 @@ export interface SessionChart {
   height: number;
   x0: number;
   grid: GridLine[];
+  /** The session dates under the bars; one that would touch the one before is left out. */
+  dates: TextMark[];
   columns: SessionColumn[];
   effortLine: string;
 }
 
 /** Minutes as bars on the lower axis and effort as a line in its own band above, every value written (board 17c). */
-export function sessionChart(sessions: readonly ActivitySession[], width = 520, height = 200): SessionChart | null {
+export function sessionChart(sessions: readonly ActivitySession[], width = 520, height = 210): SessionChart | null {
   const rows = [...sessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt)).slice(-10);
   if (!rows.length) {
     return null;
   }
-  const x0 = 40;
+  const x0 = axisGutter([`${niceTop(Math.max(...rows.map((row) => row.minutes)), 30)} min`]);
   const slot = (width - x0) / rows.length;
-  const bandTop = 18;
-  const bandBottom = 58;
-  const barTop = 72;
-  const barBottom = height - 20;
+  const bandTop = 24;
+  const bandBottom = 64;
+  const barTop = 82;
+  const barBottom = height - 26;
   const efforts = rows.map((row) => row.effort).filter((value): value is number => value !== null);
   const lowEffort = Math.max(0, Math.min(4, ...efforts) - 0);
   const highEffort = Math.min(10, Math.max(lowEffort + 5, ...efforts));
@@ -45,11 +47,10 @@ export function sessionChart(sessions: readonly ActivitySession[], width = 520, 
   const grid = [0, top / 3, (top * 2) / 3, top].map((value, index, all) => ({ y: r1(my(value)), label: index === all.length - 1 ? `${Math.round(value)} min` : String(Math.round(value)) }));
   const columns = rows.map((row, index) => {
     const cx = x0 + slot * index + slot / 2;
-    const barWidth = Math.min(34, slot * 0.56);
+    const barWidth = Math.min(36, slot * 0.56);
     return {
       bar: { x: r1(cx - barWidth / 2), y: r1(my(row.minutes)), width: r1(barWidth), height: r1(my(0) - my(row.minutes)) },
       minutes: { x: r1(cx), y: r1(my(row.minutes) + 14), text: String(Math.round(row.minutes)), anchor: 'middle' as const },
-      date: { x: r1(cx), y: height - 4, text: shortDate(row.startedAt.slice(0, 10)), anchor: 'middle' as const },
       effort: row.effort === null ? null : { x: r1(cx), y: r1(ey(row.effort)), text: String(Math.round(row.effort)), estimated: row.estimatedEffort }
     };
   });
@@ -58,7 +59,10 @@ export function sessionChart(sessions: readonly ActivitySession[], width = 520, 
     .filter((point): point is Pt & { text: string; estimated: boolean } => point !== null)
     .map((point) => `${point.x},${point.y}`)
     .join(' ');
-  return { width, height, x0, grid, columns, effortLine };
+  const dates = dropColliding(
+    rows.map((row, index) => ({ x: x0 + slot * index + slot / 2, text: shortDate(row.startedAt.slice(0, 10)), anchor: 'middle' as const }))
+  ).map((mark) => ({ x: r1(mark.x), y: height - 6, text: mark.text, anchor: mark.anchor }));
+  return { width, height, x0, grid, dates, columns, effortLine };
 }
 
 /** The when-you-train grid: weekdays by five start hours, a cell darker with more sessions. */
@@ -82,4 +86,21 @@ export function whenCells(entries: readonly { weekday: number; hour: number; cou
     cells[entry.weekday][nearest] += entry.count;
   }
   return cells;
+}
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** The weekday and start hour with the most sessions, for the sentence under "When you train"; null with none. */
+export function busiestSlot(entries: readonly { weekday: number; hour: number; count: number }[]): { day: string; hour: number } | null {
+  const cells = whenCells(entries);
+  let best: { day: number; slot: number; count: number } | null = null;
+  cells.forEach((row, day) => {
+    row.forEach((count, slot) => {
+      if (count > 0 && (best === null || count > best.count)) {
+        best = { day, slot, count };
+      }
+    });
+  });
+  const found = best as { day: number; slot: number; count: number } | null;
+  return found ? { day: WEEKDAYS[found.day], hour: GRID_HOURS[found.slot] } : null;
 }

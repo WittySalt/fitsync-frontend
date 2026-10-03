@@ -5,8 +5,10 @@
         viewBox="0 0 100 220"
         [attr.width]="width()"
         [attr.height]="drawHeight()"
-        [attr.role]="interactive() ? 'group' : 'img'"
-        [attr.aria-label]="item.name + ' of the body, muscles coloured by hard sets a week'"
+        [attr.role]="interactive() ? 'group' : null"
+        [attr.aria-label]="interactive() ? item.name + ' of the body, muscles coloured by hard sets a week' : null"
+        [attr.aria-hidden]="interactive() ? null : 'true'"
+        [attr.focusable]="interactive() ? null : 'false'"
       >
         <g class="silhouette" aria-hidden="true">
           @for (pass of [0, 1]; track pass) {
@@ -51,7 +53,7 @@
           }
         </g>
       </svg>
-      <figcaption>{{ item.name }}</figcaption>
+      <figcaption [attr.aria-hidden]="interactive() ? null : 'true'">{{ item.name }}</figcaption>
     </figure>
   }
 </div>

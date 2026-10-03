@@ -1,0 +1,116 @@
+:host {
+  display: block;
+}
+
+.figure {
+  font: 600 var(--pg-figure) / 1.1 var(--font-display);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  margin: 6px 0 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.picture {
+  container-type: inline-size;
+}
+
+/* The picture row, by its width W. W under 700: the bars take the full width and the petals block,
+   240 px, is centred under them. From 700: the bars block starts at the left edge and takes
+   W - 300 - 48, the 300 px petals block ends at the right edge; both start at the top. */
+.pair {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.bars {
+  min-width: 0;
+}
+
+.petals {
+  align-self: center;
+  width: 240px;
+}
+
+.petal-pic {
+  width: 240px;
+  margin: 0 auto;
+}
+
+.petal-line {
+  margin: 8px 0 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+
+.key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.key i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.key .vit {
+  background: var(--nutrient-water-soluble);
+}
+
+.key .min {
+  background: var(--nutrient-major-mineral);
+}
+
+@container (min-width: 700px) {
+  .pair {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 48px;
+  }
+
+  .bars {
+    flex: 1 1 0;
+  }
+
+  .petals {
+    flex: none;
+    align-self: flex-start;
+    width: 300px;
+    margin-left: auto;
+  }
+
+  .petal-pic {
+    width: 220px;
+  }
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--pg-text);
+  color: var(--text-secondary);
+}
+
+.skeleton {
+  border-radius: 12px;
+}
+
+.head-skeleton {
+  height: 56px;
+}
+
+.box.skeleton {
+  height: 160px;
+}

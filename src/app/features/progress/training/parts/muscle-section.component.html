@@ -1,9 +1,8 @@
-<app-section-card title="Hard sets a week by group" [sub]="'on average, against a usual ' + muscles().usualRange.low + ' to ' + muscles().usualRange.high" [context]="card()">
+<app-detail-section name="Hard sets a week by group" anchor="muscles" [sentence]="sentence()" [context]="card()" [ask]="ask()">
   @if (hasData()) {
     <div class="layout">
       <div class="figure">
         <app-muscle-figure [setsByGroup]="sets()" [selected]="selected()" (groupSelected)="toggle($event)" />
-        <span class="hint">Tap a muscle to see the exercises that trained its group.</span>
       </div>
       <div class="list">
         <div class="row axis" aria-hidden="true">
@@ -23,7 +22,6 @@
             <span class="value">{{ row.text }}</span>
           </button>
         }
-        <span class="note">{{ note }}</span>
       </div>
     </div>
     @if (selected(); as group) {
@@ -38,4 +36,4 @@
   } @else {
     <p class="quiet">Not enough data yet. Log sets of strength exercises to see each muscle group here.</p>
   }
-</app-section-card>
+</app-detail-section>

@@ -1,0 +1,81 @@
+:host {
+  display: block;
+}
+
+.figure-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 8px;
+}
+
+.figure {
+  font: 600 var(--pg-figure) / 1.1 var(--font-display);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tail {
+  font: 600 var(--pg-figure-tail) / 1.2 var(--font-display);
+  color: var(--text-primary);
+}
+
+.caption {
+  margin: 6px 0 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.skeleton.box {
+  height: 126px;
+}
+
+.note {
+  margin: 16px 0 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.note-link {
+  position: relative;
+  z-index: 1;
+  margin-left: 6px;
+  font-size: var(--pg-control);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.also {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.also-label {
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.pill {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pill strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skeleton {
+  border-radius: 12px;
+}
+
+.head-skeleton {
+  height: 56px;
+}
