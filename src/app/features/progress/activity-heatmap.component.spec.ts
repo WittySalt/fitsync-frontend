@@ -278,8 +278,10 @@ describe('ActivityHeatmapComponent', () => {
       root().querySelector<HTMLButtonElement>('app-session-calendar .calendar-toolbar button')?.click();
       fixture.detectChanges();
       expect(dataService.getWorkoutSessionsInRange).toHaveBeenCalledTimes(1);
-      // The page range starts on 3 September, and September is the month shown, so the previous one is August.
-      expect(dataService.getWorkoutSessionsInRange.calls.mostRecent().args[0]).toContain('2026-08-31');
+      // October is the month shown, so the previous one starts at local midnight on 1 September. The
+      // request carries that instant in UTC, so it is read back as a local date to stay zone independent.
+      const from = new Date(dataService.getWorkoutSessionsInRange.calls.mostRecent().args[0] as string);
+      expect([from.getFullYear(), from.getMonth() + 1, from.getDate()]).toEqual([2026, 9, 1]);
     });
 
     it('opens the session detail from a chip', () => {
