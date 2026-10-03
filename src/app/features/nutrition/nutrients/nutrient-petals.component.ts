@@ -26,6 +26,9 @@ const SIZE = 290;
       <circle class="hub" [attr.cx]="centre()" [attr.cy]="centre()" [attr.r]="geometry().innerRadius - 3"></circle>
       <text class="big" [attr.x]="centre()" [attr.y]="centre() - 7" text-anchor="middle">{{ reached() }}/{{ total() }}</text>
       <text class="small" [attr.x]="centre()" [attr.y]="centre() + 12" text-anchor="middle">reached</text>
+      @if (ringLabel()) {
+        <text class="ring-label" [attr.x]="centre()" [attr.y]="centre() - geometry().ringRadius - 4" text-anchor="middle">{{ ringLabel() }}</text>
+      }
     </svg>
   `,
   styles: [
@@ -64,6 +67,14 @@ const SIZE = 290;
         fill: var(--text-primary);
       }
 
+      .ring-label {
+        font: 400 10px var(--font-sans);
+        fill: var(--text-secondary);
+        stroke: var(--surface);
+        stroke-width: 3px;
+        paint-order: stroke;
+      }
+
       .small {
         font: 400 10px var(--font-sans);
         fill: var(--text-secondary);
@@ -76,6 +87,8 @@ export class NutrientPetalsComponent {
   readonly reached = input.required<number>();
   readonly total = input.required<number>();
   readonly summary = input('');
+  /** A label just outside the dashed ring at 12 o'clock, for a chart that explains its own ring. */
+  readonly ringLabel = input('');
 
   protected readonly size = SIZE;
   protected readonly centre = computed(() => SIZE / 2);

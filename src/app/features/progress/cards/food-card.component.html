@@ -32,11 +32,11 @@
             }
             @if (overview(); as o) {
               <div class="petals">
-                <div class="petal-pic"><app-nutrient-petals [nutrients]="o.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reach()!.reached + ' of ' + reach()!.total + ' nutrients reached'" /></div>
-                <div class="key">
+                <div class="petal-pic"><app-nutrient-petals [nutrients]="o.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" ringLabel="100%" [summary]="reach()!.reached + ' of ' + reach()!.total + ' nutrients reached'" /></div>
+                <p class="petal-line">Petal length is the share of the daily amount. Past the dashed ring is met{{ longPeriod() ? ', the last 30 days' : '' }}.</p>
+                <div class="petal-line key">
                   <span><i class="vit"></i>vitamins</span>
                   <span><i class="min"></i>minerals</span>
-                  <span>· past the dashed ring is met{{ longPeriod() ? ', the last 30 days' : '' }}</span>
                 </div>
               </div>
             }
