@@ -1,0 +1,157 @@
+:host {
+  display: block;
+}
+
+.ladder {
+  display: flex;
+  flex-direction: column;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+
+  strong {
+    font-size: 15px;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 212px;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--border);
+
+  &.head {
+    align-items: end;
+    padding: 0 0 6px;
+    border: 0;
+  }
+}
+
+.bands,
+.segments {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.bands span,
+.value-head {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.value-head {
+  text-align: left;
+}
+
+.name {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.track {
+  position: relative;
+  height: 32px;
+}
+
+.segments span {
+  height: 14px;
+  background: var(--surface-sunken);
+
+  &:nth-child(2) { background: var(--surface-tint); }
+  &:nth-child(3) { background: var(--accent-subtle); }
+  &:nth-child(4) { background: var(--accent-subtle); filter: saturate(1.6); }
+  &:first-child { border-radius: 7px 0 0 7px; }
+  &:last-child { border-radius: 0 7px 7px 0; }
+}
+
+.tick {
+  position: absolute;
+  top: 18px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  position: absolute;
+  top: -3px;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--accent-text);
+}
+
+.value {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
+.note {
+  margin: 0;
+  padding-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
+
+    &.head {
+      grid-template-columns: minmax(0, 1fr);
+
+      > :not(.bands) {
+        display: none;
+      }
+    }
+  }
+
+  .track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .value {
+    align-items: flex-end;
+  }
+}

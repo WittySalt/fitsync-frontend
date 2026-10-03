@@ -1,0 +1,31 @@
+@use 'training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+
+  @include palette.chart-text;
+}
+
+.unit {
+  font-weight: var(--fw-semibold);
+}
+
+.strength { fill: var(--kind-strength); }
+.cardio { fill: var(--kind-cardio); }
+.sport { fill: var(--kind-sport); }
+.mobility { fill: var(--kind-mobility); }
+.none { fill: var(--border); }
+
+.current {
+  opacity: 0.5;
+}

@@ -1,0 +1,50 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+}
+
+.text {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend {
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.context {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

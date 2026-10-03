@@ -1,0 +1,76 @@
+// Colours of the Training charts: one green per kind of session, a dark green for records and the
+// fitness line, slate for fatigue. No red anywhere; amber belongs to "under" on the muscle figure.
+@mixin light-kinds {
+  --kind-strength: #15803d;
+  --kind-cardio: #4ade80;
+  --kind-sport: #0f766e;
+  --kind-mobility: #a3e635;
+  --record: #14532d;
+  --line: #16a34a;
+  --line-soft: rgba(22, 163, 74, 0.08);
+  --fatigue: #475569;
+  --halo: #ffffff;
+}
+
+@mixin dark-kinds {
+  --kind-strength: #22c55e;
+  --kind-cardio: #86efac;
+  --kind-sport: #2dd4bf;
+  --kind-mobility: #bef264;
+  --record: #bbf7d0;
+  --line: #4ade80;
+  --line-soft: rgba(74, 222, 128, 0.12);
+  --fatigue: #94a3b8;
+  --halo: #1c2533;
+}
+
+@mixin training-palette {
+  :host {
+    @include light-kinds;
+  }
+
+  :host-context([data-theme='dark']) {
+    @include dark-kinds;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :host-context(:root:not([data-theme='light'])) {
+      @include dark-kinds;
+    }
+  }
+}
+
+@mixin chart-text {
+  text {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    fill: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .grid {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .ink {
+    fill: var(--text-primary);
+    font-weight: var(--fw-bold);
+    font-size: 11px;
+  }
+
+  .halo {
+    stroke: var(--halo);
+    stroke-width: 3;
+    paint-order: stroke;
+  }
+}
+
+@mixin card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}

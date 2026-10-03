@@ -1,0 +1,146 @@
+@use 'training-palette' as palette;
+@use '../../../../shared/charts/muscle-figure/muscle-palette' as heat;
+
+@include heat.muscle-palette;
+
+:host {
+  display: block;
+}
+
+.highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+h2 {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  color: var(--text-primary);
+}
+
+.sub,
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.item {
+  @include palette.card;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kicker {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.title {
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.chart {
+  display: flex;
+  align-items: center;
+  height: 66px;
+  margin-top: auto;
+
+  > * {
+    flex: 1;
+  }
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.bar-label,
+.bar-value {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.track {
+  position: relative;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+}
+
+.band {
+  position: absolute;
+  inset: 0 20% 0 40%;
+  background: var(--heat-band);
+}
+
+.fill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: var(--radius-full);
+
+  &.under { background: var(--heat-under); }
+  &.low { background: var(--heat-low); }
+  &.in { background: var(--heat-in); }
+  &.over { background: var(--heat-over); }
+}
+
+.foot {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.more {
+  display: none;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .highlights:not(.open) .extra {
+    display: none;
+  }
+
+  .more {
+    display: inline;
+  }
+}

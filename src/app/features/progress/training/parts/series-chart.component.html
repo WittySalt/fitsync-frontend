@@ -1,0 +1,28 @@
+@if (chart(); as c) {
+  <svg [attr.viewBox]="'0 0 ' + c.width + ' ' + c.height" role="img" [attr.aria-label]="label() || 'From ' + c.first.text + ' to ' + c.last.text">
+    @for (line of c.grid; track $index) {
+      <line class="grid" [attr.x1]="c.x0" [attr.x2]="c.x1" [attr.y1]="line.y" [attr.y2]="line.y"></line>
+      <text [attr.x]="c.x0 - 8" [attr.y]="line.y" text-anchor="end" dominant-baseline="central">{{ line.label }}</text>
+    }
+    @if (c.before; as before) {
+      <line class="before" [attr.x1]="c.x0" [attr.x2]="c.x1" [attr.y1]="before.y" [attr.y2]="before.y"></line>
+      <line class="before" [attr.x1]="c.x0 + 6" [attr.x2]="c.x0 + 20" y1="11" y2="11"></line>
+      <text class="halo" [attr.x]="c.x0 + 24" y="11" dominant-baseline="central">{{ before.label }}</text>
+    }
+    <polygon class="area" [attr.points]="c.area"></polygon>
+    <polyline class="line" [attr.points]="c.line"></polyline>
+    @for (dot of c.dots; track $index) {
+      <circle [class]="dot.record ? 'record' : 'session'" [attr.cx]="dot.x" [attr.cy]="dot.y" [attr.r]="dot.record ? 4.6 : 3">
+        <title>{{ dot.label }}</title>
+      </circle>
+    }
+    <text class="halo first" [attr.x]="c.first.x" [attr.y]="c.first.y" text-anchor="start">{{ c.first.text }}</text>
+    @if (c.dots.length > 1) {
+      <text class="halo ink" [attr.x]="c.last.x" [attr.y]="c.last.y" text-anchor="end">{{ c.last.text }}</text>
+    }
+    <line class="axis" [attr.x1]="c.x0" [attr.x2]="c.x1" [attr.y1]="c.bottom" [attr.y2]="c.bottom"></line>
+    @for (date of c.dates; track $index) {
+      <text [attr.x]="date.x" [attr.y]="date.y" [attr.text-anchor]="date.anchor">{{ date.text }}</text>
+    }
+  </svg>
+}

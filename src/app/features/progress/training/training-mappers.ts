@@ -205,7 +205,7 @@ function mapCalendarDay(value: unknown): CalendarDay | null {
   if (!isDate(wire['date'])) {
     return null;
   }
-  return { date: day(wire['date']), kind: kindOf(wire['kind']), minutes: zero(wire['minutes']), record: bool(wire['record']) };
+  return { date: day(wire['date']), kind: kindOf(wire['kind']), minutes: zero(wire['minutes']), record: bool(wire['record']), sessionId: text(wire['sessionId']) || null };
 }
 
 function mapRecord(value: unknown): RecordEntry | null {

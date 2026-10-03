@@ -129,6 +129,8 @@ export interface CalendarDay {
   kind: TrainingKind;
   minutes: number;
   record: boolean;
+  /** The day's session when the backend names it; the day then opens that session's page. */
+  sessionId: string | null;
 }
 
 export interface RecordEntry {

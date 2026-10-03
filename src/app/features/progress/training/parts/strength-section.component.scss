@@ -1,0 +1,62 @@
+@use 'training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+}
+
+.lifts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  i {
+    box-sizing: border-box;
+    border-radius: 50%;
+  }
+
+  .record {
+    width: 10px;
+    height: 10px;
+    background: var(--record);
+  }
+
+  .session {
+    width: 8px;
+    height: 8px;
+    border: 2px solid var(--line);
+    background: var(--surface);
+  }
+}
+
+.ladder {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+  .lifts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,47 @@
+@use 'training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+
+  @include palette.chart-text;
+}
+
+.unit {
+  font-weight: var(--fw-semibold);
+}
+
+.strength { fill: var(--kind-strength); }
+.cardio { fill: var(--kind-cardio); }
+.sport { fill: var(--kind-sport); }
+.mobility { fill: var(--kind-mobility); }
+
+.current rect {
+  opacity: 0.5;
+}
+
+.fitness,
+.fatigue {
+  fill: none;
+  stroke-linejoin: round;
+}
+
+.fitness {
+  stroke: var(--record);
+  stroke-width: 2.5;
+}
+
+.fatigue {
+  stroke: var(--fatigue);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}

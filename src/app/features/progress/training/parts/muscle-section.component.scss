@@ -1,0 +1,165 @@
+@use '../../../../shared/charts/muscle-figure/muscle-palette' as heat;
+
+@include heat.muscle-palette;
+
+:host {
+  display: block;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 256px minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hint,
+.note,
+.quiet {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hint {
+  text-align: center;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 10px;
+  height: 26px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &.axis {
+    cursor: default;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    color: var(--text-secondary);
+  }
+
+  &:not(.axis):hover,
+  &.on {
+    background: var(--surface-sunken);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.axis .label,
+.axis .value {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticks {
+  position: relative;
+  height: 14px;
+
+  span {
+    position: absolute;
+    font-size: 10px;
+    transform: translateX(-50%);
+  }
+
+  .end {
+    right: 0;
+    transform: none;
+  }
+}
+
+.track {
+  position: relative;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--heat-band);
+}
+
+.fill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: var(--radius-full);
+}
+
+.under { background: var(--heat-under); }
+.low { background: var(--heat-low); }
+.in { background: var(--heat-in); }
+.over { background: var(--heat-over); }
+
+.key i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .band-key {
+    background: var(--heat-band);
+  }
+}
+
+@media (max-width: 700px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .row {
+    grid-template-columns: 96px minmax(0, 1fr) 54px;
+  }
+}

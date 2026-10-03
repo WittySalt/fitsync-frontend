@@ -1,0 +1,38 @@
+<div class="ladder">
+  <div class="titles">
+    <strong>Relative strength</strong>
+    <span>Estimated best single divided by your body weight{{ weightNote() ? ', ' + weightNote() : '' }}</span>
+  </div>
+  @if (rows().length) {
+    <div class="row head" aria-hidden="true">
+      <span></span>
+      <div class="bands">
+        @for (band of bands; track band) {
+          <span>{{ band }}</span>
+        }
+      </div>
+      <span class="value-head">Times body weight, level</span>
+    </div>
+    <ul>
+      @for (row of rows(); track row.name) {
+        <li class="row" [attr.aria-label]="row.aria">
+          <strong class="name">{{ row.name }}</strong>
+          <div class="track" aria-hidden="true">
+            <div class="segments"><span></span><span></span><span></span><span></span></div>
+            @for (tick of row.ticks; track tick.at) {
+              <span class="tick" [style.left.%]="tick.at">{{ tick.label }}</span>
+            }
+            <span class="dot" [style.left.%]="row.position"></span>
+          </div>
+          <div class="value">
+            <strong>{{ row.ratio }} · {{ row.level }}</strong>
+            <span>next: {{ row.next }}</span>
+          </div>
+        </li>
+      }
+    </ul>
+    <span class="note">Levels are a rough guide, not a target.</span>
+  } @else {
+    <p class="note">Not enough data yet. Log a body weight on Me to see where each lift sits.</p>
+  }
+</div>
