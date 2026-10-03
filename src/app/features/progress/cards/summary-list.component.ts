@@ -9,7 +9,7 @@ import { SummaryLine } from '../../../shared/progress/progress.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (lines().length) {
-      <ul>
+      <ul [class.cols]="columns()">
         @for (line of lines(); track $index) {
           <li>
             <span class="text">@if (line.figure) {<strong>{{ line.figure }}</strong>}{{ line.figure && line.text ? ' ' : '' }}{{ line.text }}</span>
@@ -28,12 +28,14 @@ import { SummaryLine } from '../../../shared/progress/progress.models';
     .text { font-size: var(--pg-text); line-height: 1.45; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
     strong { font-weight: 600; color: var(--text-primary); }
     .trend { font-size: var(--pg-control); font-weight: 500; color: var(--text-secondary); }
-    @container (min-width: 662px) { ul { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; } }
+    @container (min-width: 662px) { ul.cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; } }
     .none { margin: 0; font-size: var(--pg-text); color: var(--text-secondary); }
   `
 })
 export class SummaryListComponent {
   readonly lines = input.required<readonly SummaryLine[]>();
+  /** Two columns when the card is wide; the Training activity groups stay in one. */
+  readonly columns = input(true);
 
   protected word(trend: string): string {
     return trendWord(trend);

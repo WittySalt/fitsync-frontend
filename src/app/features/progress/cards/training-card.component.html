@@ -8,21 +8,6 @@
     }
   </div>
 
-  <div card-lines>
-    @for (row of rows(); track row.key) {
-      <section class="activity">
-        <div class="activity-head">
-          <i [class]="'dot ' + row.kind.toLowerCase()" aria-hidden="true"></i>
-          <strong>{{ row.name }}</strong>
-          @if (row.meta) {
-            <span class="meta">{{ row.meta }}</span>
-          }
-        </div>
-        <app-summary-list [lines]="row.lines" />
-      </section>
-    }
-  </div>
-
   <div card-picture class="picture">
     @switch (state().status) {
       @case ('loading') {
@@ -50,6 +35,20 @@
                 <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
               </div>
             }
+            <div class="rows">
+              @for (row of rows(); track row.key) {
+                <section class="activity">
+                  <div class="activity-head">
+                    <i [class]="'dot ' + row.kind.toLowerCase()" aria-hidden="true"></i>
+                    <strong>{{ row.name }}</strong>
+                    @if (row.meta) {
+                      <span class="meta">{{ row.meta }}</span>
+                    }
+                  </div>
+                  <app-summary-list [lines]="row.lines" [columns]="false" />
+                </section>
+              }
+            </div>
           </div>
         }
       }

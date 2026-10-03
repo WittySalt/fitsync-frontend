@@ -125,6 +125,11 @@
   min-width: 0;
 }
 
+.headline:empty,
+.lines:empty {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .card {
     padding: var(--pg-card-pad-phone);
