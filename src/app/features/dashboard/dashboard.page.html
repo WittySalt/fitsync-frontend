@@ -26,13 +26,7 @@
       [goals]="dashboard.goals"
     />
 
-    <app-today-card
-      [dashboard]="dashboard"
-      [nutrition]="nutritionSummary()"
-      [nutritionFailed]="nutritionFailed()"
-      (retryDashboard)="load()"
-      (retryNutrition)="loadNutrition()"
-    />
+    <app-today-card [nutrition]="nutritionSummary()" [nutritionFailed]="nutritionFailed()" (retryNutrition)="loadNutrition()" />
 
     <app-earned
       [minutesThisWeek]="dashboard.workout?.minutesThisWeek ?? null"

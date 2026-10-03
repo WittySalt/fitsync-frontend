@@ -191,7 +191,7 @@ describe('DashboardPage', () => {
     expect(earned).toContain('4 days in a row');
   });
 
-  it('renders the protein goal row from the active goal and the Food budget from the daily summary', () => {
+  it('renders the Food budget from the daily summary', () => {
     dataService.getHomeDashboard.and.returnValue(
       of({
         ...dashboardData,
@@ -215,16 +215,9 @@ describe('DashboardPage', () => {
 
     fixture.detectChanges();
 
-    expect(goalRowText()[0]).toContain('Protein 140 of 140 g');
     expect(pageText()).toContain('7 of 155 g');
   });
 
-  it('keeps only the latest evaluation of a goal type', () => {
-    fixture.detectChanges();
-
-    expect(goalRowText().length).toBe(1);
-    expect(goalRowText()[0]).toContain('Calories 1,900 of 2,000 kcal');
-  });
 
   it('renders friendly empty states for new users without NaN', () => {
     dataService.getHomeDashboard.and.returnValue(
@@ -237,16 +230,17 @@ describe('DashboardPage', () => {
     fixture.detectChanges();
 
     const text = pageText();
-    expect(text).toContain('No measurement yet');
-    expect(text).toContain('No goals yet');
     expect(text).toContain('Complete setup');
     expect(text).not.toContain('NaN');
   });
 
-  it('links the Goals tab to goal management', () => {
+  it('links Body and goals to the Goal page, where the body and goals now live', () => {
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('app-today-goals a')?.getAttribute('href')).toBe('/me#goal-lifecycle');
+    const link = (fixture.nativeElement as HTMLElement).querySelector('app-today-card a.more');
+    expect(link?.getAttribute('href')).toBe('/progress/goal');
+    expect(link?.textContent?.trim()).toBe('Body and goals ›');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-today-goals, app-today-body, .head [role="tablist"]')).toBeNull();
   });
 
   it('shows the Food error panel with a retry when the day summary fails, not an empty day', () => {
@@ -285,62 +279,10 @@ describe('DashboardPage', () => {
     expect(text).toContain('Unable to load dashboard data.');
   });
 
-  it('captions the body metric with the measurement date, not a re-formatted label', () => {
-    // A measurement date used to be overwritten with its own display label and formatted twice;
-    // new Date("5 Jul") parses to the year 2001 under V8's legacy parser.
-    dataService.getHomeDashboard.and.returnValue(
-      of({ ...dashboardData, latestBodyMetric: { weightKg: 71.1, bodyFatRate: 21.4, bmi: 22.4, measuredAt: '2026-05-20' } })
-    );
 
-    fixture.detectChanges();
-
-    expect(pageText()).not.toContain('2001');
-    expect(pageText()).toContain('Weighed 20 May');
-  });
-
-  it('renders a goal past its target date as overdue and drops the progress claim', () => {
-    dataService.getHomeDashboard.and.returnValue(
-      of({
-        ...dashboardData,
-        goals: [
-          {
-            goalId: 'goal-protein',
-            goalType: 'PROTEIN',
-            targetValue: 140,
-            targetUnit: 'g',
-            targetDate: '2026-05-31',
-            status: 'ACTIVE',
-            progressRatio: 0.44,
-            onTrack: true,
-            expired: true,
-            currentValue: 62,
-            lastEvaluatedAt: '2026-06-24T00:05:00Z'
-          }
-        ]
-      })
-    );
-
-    fixture.detectChanges();
-
-    expect(goalRowText()[0]).withContext('claiming progress against a passed deadline is the defect').not.toContain('% complete');
-  });
 
   function pageText(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
-  function goalRowText(): string[] {
-    // Angular drops the whitespace between elements, so neighbouring texts are joined with a space.
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('app-today-goals .goal')).map((row) => {
-      const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
-      const parts: string[] = [];
-      for (let text = walker.nextNode(); text; text = walker.nextNode()) {
-        const value = (text.textContent ?? '').replace(/\s+/g, ' ').trim();
-        if (value) {
-          parts.push(value);
-        }
-      }
-      return parts.join(' ');
-    });
-  }
 });
