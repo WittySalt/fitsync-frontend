@@ -1,0 +1,55 @@
+@use 'training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+
+  @include palette.chart-text;
+}
+
+.before {
+  stroke: var(--fatigue);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.area {
+  fill: var(--line-soft);
+}
+
+.line {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.record {
+  fill: var(--record);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.session {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1.8;
+}
+
+.first {
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+}
+
+.axis {
+  stroke: var(--border);
+}

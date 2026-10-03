@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Surface } from '../../core/coach/coach-context.service';
-import { CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
+import { CoachCardContext, CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStatus, CoachStore, LiveStep } from '../../core/coach/coach.store';
 import { CoachDockComponent, MATCH_MEDIA, isBuildRequest } from './coach-dock.component';
 
@@ -78,6 +78,7 @@ class FakeCoachStore {
   latestDraft = signal<SessionDraftView | null>(null);
   composerPrefill = signal<string | null>(null);
   pinnedReading = signal<CoachReading | null>(null);
+  pinnedCard = signal<CoachCardContext | null>(null);
   availableReading = signal<CoachReading | null>(null);
   citedTurns = signal<ReadonlyMap<string, CoachReading>>(new Map());
   surface = signal<Surface>(WORKOUT_SURFACE);
@@ -114,6 +115,7 @@ class FakeCoachStore {
   askAbout = jasmine.createSpy('askAbout');
   askAboutReading = jasmine.createSpy('askAboutReading').and.callFake((reading: CoachReading) => this.pinnedReading.set(reading));
   letGoOfReading = jasmine.createSpy('letGoOfReading').and.callFake(() => this.pinnedReading.set(null));
+  letGoOfCard = jasmine.createSpy('letGoOfCard').and.callFake(() => this.pinnedCard.set(null));
 }
 
 function turn(overrides: Partial<CoachTurn>): CoachTurn {
@@ -464,5 +466,57 @@ describe('CoachDockComponent — first screen', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
 
     expect(store.toggle).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** A Progress card pinned from its Ask button: the chip, the card's own questions and the composer's words. */
+describe('CoachDockComponent — pinned card', () => {
+  let fixture: ComponentFixture<CoachDockComponent>;
+  let element: HTMLElement;
+  let store: FakeCoachStore;
+  const card: CoachCardContext = { kind: 'TRAINING', from: '2026-09-06', to: '2026-10-03' };
+
+  function render(): void {
+    fixture = TestBed.createComponent(CoachDockComponent);
+    fixture.detectChanges();
+    element = fixture.nativeElement as HTMLElement;
+  }
+  const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+  beforeEach(async () => {
+    store = new FakeCoachStore();
+    store.surface.set({ id: 'progress', label: 'Progress', inlineTypes: [], suggestions: [{ text: 'How am I doing?', generative: false }], code: 'PROGRESS' });
+    await TestBed.configureTestingModule({
+      imports: [CoachDockComponent],
+      providers: [provideRouter([]), { provide: CoachStore, useValue: store }]
+    }).compileComponents();
+  });
+
+  it('pins a small chip with the card and its days, like the recipe pin', () => {
+    store.pinnedCard.set(card);
+    render();
+    expect(text(element.querySelector('app-card-pin strong'))).toBe('Training');
+    expect(text(element.querySelector('app-card-pin .text span'))).toContain('from Progress');
+    expect(text(element.querySelector('.looking'))).toContain('one card pinned');
+  });
+
+  it('offers the questions of the card kind and sends the one picked', () => {
+    store.pinnedCard.set(card);
+    render();
+    const suggestions = Array.from(element.querySelectorAll('.sugg-text')).map((s) => text(s));
+    expect(suggestions).toEqual(['Which muscles have I trained least?', 'Why was last week full?', "How do this month's minutes compare?"]);
+    element.querySelector<HTMLButtonElement>('.sugg')!.click();
+    expect(store.ask).toHaveBeenCalledWith('Which muscles have I trained least?');
+  });
+
+  it('asks about the card in the composer and lets go of it', () => {
+    store.pinnedCard.set({ ...card, kind: 'FOOD' });
+    render();
+    expect(element.querySelector('input')?.getAttribute('placeholder')).toBe('Ask about your food');
+    element.querySelector<HTMLButtonElement>('app-card-pin .release')!.click();
+    fixture.detectChanges();
+    expect(store.letGoOfCard).toHaveBeenCalled();
+    expect(element.querySelector('app-card-pin')).toBeNull();
+    expect(text(element.querySelector('.sugg-text'))).toBe('How am I doing?');
   });
 });

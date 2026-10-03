@@ -1,0 +1,63 @@
+<div class="calendar">
+  <div class="top">
+    <strong>{{ view().title }}</strong>
+    @if (view().pages > 1) {
+      <span class="nav">
+        <button type="button" aria-label="Earlier month" [disabled]="index() === 0" (click)="move(-1)">&lsaquo;</button>
+        <button type="button" aria-label="Later month" [disabled]="index() >= view().pages - 1" (click)="move(1)">&rsaquo;</button>
+      </span>
+    }
+  </div>
+  <div class="grid" role="list" [attr.aria-label]="'Days trained, ' + view().title">
+    @for (initial of initials; track $index) {
+      <span class="head" aria-hidden="true">{{ initial }}</span>
+    }
+    @for (cell of view().cells; track cell.date) {
+      @if (cell.state === 'trained' && interactive()) {
+        <a
+          role="listitem"
+          class="cell trained"
+          [routerLink]="cell.sessionId ? ['/workout/sessions', cell.sessionId] : ['/workout']"
+          [queryParams]="cell.sessionId ? null : { tab: 'history' }"
+          [attr.aria-label]="cell.aria"
+        >
+          @if (cell.record) {
+            <span class="record"></span>
+          }
+          <ng-container *ngTemplateOutlet="glyphTpl; context: { $implicit: cell.kind }" />
+          <span class="num">{{ cell.label }}</span>
+        </a>
+      } @else {
+        <span role="listitem" [class]="'cell ' + cell.state" [attr.aria-label]="cell.aria">
+          @if (cell.state === 'trained') {
+            @if (cell.record) {
+              <span class="record"></span>
+            }
+            <ng-container *ngTemplateOutlet="glyphTpl; context: { $implicit: cell.kind }" />
+          }
+          <span class="num">{{ cell.label }}</span>
+        </span>
+      }
+    }
+  </div>
+  @if (showKey()) {
+    <div class="key" aria-hidden="true">
+      @for (entry of keyKinds; track entry.kind) {
+        <span><i class="chip"><ng-container *ngTemplateOutlet="glyphTpl; context: { $implicit: entry.kind }" /></i>{{ entry.label }}</span>
+      }
+      <span><i class="dot"></i>New record</span>
+    </div>
+  }
+</div>
+
+<ng-template #glyphTpl let-kind>
+  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    @for (part of glyph(kind); track $index) {
+      @switch (part.tag) {
+        @case ('path') { <path [attr.d]="part.d"></path> }
+        @case ('circle') { <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle> }
+        @case ('rect') { <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect> }
+      }
+    }
+  </svg>
+</ng-template>

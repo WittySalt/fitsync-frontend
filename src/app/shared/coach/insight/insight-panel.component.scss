@@ -302,6 +302,15 @@
   gap: 10px;
 }
 
+.fact.linked {
+  cursor: pointer;
+}
+
+.fact.linked:hover,
+.fact.linked:focus-visible {
+  border-color: var(--accent);
+}
+
 .fact {
   flex: 1 1 0;
   min-height: 64px;

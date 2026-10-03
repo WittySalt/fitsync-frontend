@@ -1,0 +1,76 @@
+@use '../parts/training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+
+  @include palette.chart-text;
+}
+
+.unit {
+  font-weight: var(--fw-semibold);
+}
+
+.bar {
+  fill: var(--accent-subtle);
+}
+
+.effort {
+  fill: none;
+  stroke: var(--kind-sport);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.point {
+  fill: var(--surface);
+  stroke: var(--kind-sport);
+  stroke-width: 2;
+
+  &.estimated {
+    stroke-dasharray: 2 2;
+  }
+}
+
+.value {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  fill: var(--kind-sport);
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--accent-subtle);
+}
+
+.ln {
+  width: 16px;
+  border-top: 2.5px solid var(--kind-sport);
+}

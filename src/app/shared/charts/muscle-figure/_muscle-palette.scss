@@ -1,0 +1,36 @@
+// The colours of hard sets a week, shared by the figure and every list or key beside it. Amber is
+// only ever "under"; the greens run from a few sets to past the usual range. The dark theme keeps
+// the same order with lighter greens, so "above 20" still reads as the strongest.
+@mixin light-heat {
+  --heat-under: #fde68a;
+  --heat-low: #bbf7d0;
+  --heat-in: #16a34a;
+  --heat-over: #14532d;
+  --heat-band: #dcfce7;
+  --heat-outline: #14532d;
+}
+
+@mixin dark-heat {
+  --heat-under: #e8b84a;
+  --heat-low: #2c6a43;
+  --heat-in: #22c55e;
+  --heat-over: #86efac;
+  --heat-band: rgba(34, 197, 94, 0.16);
+  --heat-outline: #f1f5f9;
+}
+
+@mixin muscle-palette {
+  :host {
+    @include light-heat;
+  }
+
+  :host-context([data-theme='dark']) {
+    @include dark-heat;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :host-context(:root:not([data-theme='light'])) {
+      @include dark-heat;
+    }
+  }
+}

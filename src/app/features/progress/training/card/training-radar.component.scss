@@ -1,0 +1,49 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  max-width: 270px;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font-sans);
+}
+
+.ring {
+  fill: none;
+  stroke: var(--border);
+}
+
+.shape {
+  fill: var(--accent-subtle);
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.dot,
+.bar {
+  fill: var(--accent);
+}
+
+.name {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  fill: var(--text-primary);
+}
+
+.count {
+  font-size: 10px;
+  fill: var(--text-secondary);
+}
+
+.caption {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,41 @@
+<app-section-card title="Hard sets a week by group" [sub]="'on average, against a usual ' + muscles().usualRange.low + ' to ' + muscles().usualRange.high" [context]="card()">
+  @if (hasData()) {
+    <div class="layout">
+      <div class="figure">
+        <app-muscle-figure [setsByGroup]="sets()" [selected]="selected()" (groupSelected)="toggle($event)" />
+        <span class="hint">Tap a muscle to see the exercises that trained its group.</span>
+      </div>
+      <div class="list">
+        <div class="row axis" aria-hidden="true">
+          <span class="label">Muscle group</span>
+          <span class="ticks">
+            @for (tick of ticks; track tick.value) {
+              <span [style.left.%]="tick.at">{{ tick.value }}</span>
+            }
+            <span class="end">25</span>
+          </span>
+          <span class="value">A week</span>
+        </div>
+        @for (row of rows(); track row.group) {
+          <button type="button" class="row" [class.on]="selected() === row.group" [attr.aria-pressed]="selected() === row.group" [attr.aria-label]="row.label + ', ' + row.text + ' a week'" (click)="toggle(row.group)">
+            <span class="label">{{ row.label }}</span>
+            <span class="track"><span class="band" [style.left.%]="band().left" [style.width.%]="band().width"></span><span [class]="'fill ' + row.level" [style.width.%]="row.width"></span></span>
+            <span class="value">{{ row.text }}</span>
+          </button>
+        }
+        <span class="note">{{ note }}</span>
+      </div>
+    </div>
+    @if (selected(); as group) {
+      <app-muscle-group-detail aria-live="polite" [group]="group" [sets]="pickedSets()" [range]="muscles().usualRange" [note]="note" (closed)="selected.set(null)" />
+    }
+    <div class="key">
+      @for (entry of key; track entry.level) {
+        <span><i [class]="entry.level"></i>{{ entry.label }}</span>
+      }
+      <span><i class="band-key"></i>usual range, {{ muscles().usualRange.low }} to {{ muscles().usualRange.high }}</span>
+    </div>
+  } @else {
+    <p class="quiet">Not enough data yet. Log sets of strength exercises to see each muscle group here.</p>
+  }
+</app-section-card>

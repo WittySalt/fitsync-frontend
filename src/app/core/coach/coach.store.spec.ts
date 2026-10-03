@@ -91,6 +91,23 @@ describe('CoachStore', () => {
     expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' }, jasmine.any(String));
   });
 
+  it('pins a Progress card, opens the dock and sends the card with each question until let go', () => {
+    const card = { kind: 'STRENGTH' as const, from: '2026-09-06', to: '2026-10-03' };
+    store.askAboutCard(card, 'Is my strength going up?');
+    expect(store.dockOpen()).toBeTrue();
+    expect(store.composerPrefill()).toBe('Is my strength going up?');
+    expect(api.streamMessage).not.toHaveBeenCalled();
+
+    store.ask('Is my strength going up?');
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Is my strength going up?', { surface: 'HOME', card }, jasmine.any(String));
+    stream.next({ name: 'answer', data: answer });
+    stream.complete();
+
+    store.letGoOfCard();
+    store.ask('And tomorrow?');
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' }, jasmine.any(String));
+  });
+
   it('shows each step as it arrives, closing a tool when it finishes', () => {
     store.ask('Should I train?');
 
@@ -439,5 +456,82 @@ describe('CoachStore — pinned reading', () => {
 
     expect(store.pinnedReading()).toBe(workoutReading);
     expect(store.citedTurns().size).toBe(0);
+  });
+});
+
+/** The Progress card Ask: pinning a card, sending its context, and dropping it off Progress. */
+describe('CoachStore — pinned card', () => {
+  let store: CoachStore;
+  let api: jasmine.SpyObj<CoachApiService>;
+  let surface: WritableSignal<Surface>;
+  const progressSurface: Surface = { id: 'progress', label: 'Progress', inlineTypes: [], suggestions: [], code: 'PROGRESS' };
+  const homeSurface: Surface = { id: 'dashboard', label: 'Home', inlineTypes: [], suggestions: [], code: 'HOME' };
+  const thread = { threadId: 't1', title: null, turnCount: 0, lastActiveAt: '', createdAt: '' };
+  const reading: CoachReading = {
+    surface: 'PROGRESS',
+    status: 'READY',
+    readingId: 'r9',
+    period: 'LAST_28_DAYS',
+    periodStart: '2026-09-06',
+    periodEnd: '2026-10-03',
+    facts: [],
+    reading: { headline: 'On course.', body: 'Body.', citations: [], source: 'MODEL', generatedAt: null },
+    lifts: []
+  };
+
+  beforeEach(() => {
+    surface = signal(progressSurface);
+    api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['listRecommendations', 'createThread', 'getThread', 'sendMessage', 'streamMessage']);
+    api.listRecommendations.and.returnValue(of([]));
+    api.createThread.and.returnValue(of(thread));
+    api.getThread.and.returnValue(of({ thread, turns: [] }));
+    api.streamMessage.and.returnValue(new Subject<CoachStreamEvent>().asObservable());
+    TestBed.configureTestingModule({
+      providers: [{ provide: CoachApiService, useValue: api }, { provide: CoachContextService, useValue: { surface } }]
+    });
+    store = TestBed.inject(CoachStore);
+  });
+
+  it('pins the card and opens the dock, sending nothing', () => {
+    store.askAboutCard({ kind: 'GOAL', from: '2026-09-06', to: '2026-10-03' });
+    expect(store.pinnedCard()).toEqual({ kind: 'GOAL', from: '2026-09-06', to: '2026-10-03' });
+    expect(store.dockOpen()).toBeTrue();
+    expect(api.streamMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends the card kind, id and days with the next question', () => {
+    store.askAboutCard({ kind: 'EXERCISE', id: 'ex-1', from: '2026-07-01', to: '2026-10-03' });
+    store.ask('When should I add weight?');
+    expect(api.streamMessage).toHaveBeenCalledWith(
+      't1',
+      'When should I add weight?',
+      { surface: 'PROGRESS', card: { kind: 'EXERCISE', id: 'ex-1', from: '2026-07-01', to: '2026-10-03' } },
+      jasmine.any(String)
+    );
+  });
+
+  it('leaves the id out when the card has none, and sends no card once let go', () => {
+    store.askAboutCard({ kind: 'FOOD', from: '2026-09-04', to: '2026-10-03' });
+    store.ask('Why has my protein drifted?');
+    expect(api.streamMessage.calls.mostRecent().args[2]).toEqual({ surface: 'PROGRESS', card: { kind: 'FOOD', from: '2026-09-04', to: '2026-10-03' } });
+    store.letGoOfCard();
+    store.status.set('idle');
+    store.ask('Anything else?');
+    expect(api.streamMessage.calls.mostRecent().args[2]).toEqual({ surface: 'PROGRESS' });
+  });
+
+  it('keeps one subject at a time between a reading and a card', () => {
+    store.askAboutReading(reading);
+    store.askAboutCard({ kind: 'TRAINING', from: '2026-09-06', to: '2026-10-03' });
+    expect(store.pinnedReading()).toBeNull();
+    store.askAboutReading(reading);
+    expect(store.pinnedCard()).toBeNull();
+  });
+
+  it('drops the card when the person leaves Progress', () => {
+    store.askAboutCard({ kind: 'GOAL', from: '2026-09-06', to: '2026-10-03' });
+    surface.set(homeSurface);
+    TestBed.inject(ApplicationRef).tick();
+    expect(store.pinnedCard()).toBeNull();
   });
 });

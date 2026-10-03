@@ -361,6 +361,11 @@ function finiteOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/** A fact's card is kept only when it names one of the three Progress cards. */
+function isCitedCard(card: unknown): card is 'GOAL' | 'TRAINING' | 'FOOD' {
+  return card === 'GOAL' || card === 'TRAINING' || card === 'FOOD';
+}
+
 export function toCoachReading(surface: ReadingSurface, response: Partial<CoachReading> | null | undefined): CoachReading {
   const status = READING_STATUSES.find((candidate) => candidate === response?.status) ?? 'EMPTY';
   const text = response?.reading;
@@ -386,7 +391,8 @@ export function toCoachReading(surface: ReadingSurface, response: Partial<CoachR
         unit: fact.unit ?? '',
         numericValue: finiteOrNull(fact.numericValue),
         note: fact.note ?? '',
-        detail: fact.detail ?? ''
+        detail: fact.detail ?? '',
+        ...(isCitedCard(fact.card) ? { card: fact.card } : {})
       })),
     reading:
       hasText && text

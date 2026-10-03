@@ -1,0 +1,51 @@
+<main class="page">
+  <a class="back" routerLink="/progress" [queryParams]="{ section: 'training' }">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>
+    Progress
+  </a>
+  <app-period-switch [code]="period.code()" (changed)="period.select($event)" />
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="skeletons" aria-busy="true" aria-label="Loading training progress">
+        <div class="skeleton hero-skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton tall"></div>
+      </div>
+    }
+    @case ('error') {
+      <app-state-panel title="Training unavailable" message="Training progress could not load. Please retry." actionLabel="Retry" [error]="true" (action)="retry()" />
+    }
+    @default {
+      @if (data(); as progress) {
+        <app-progress-hero eyebrow="Training" [title]="title()" [sub]="note()" [stats]="tiles()" [back]="null" />
+        @if (empty()) {
+          <app-section-card title="Not enough data yet" [context]="cards().training">
+            <p class="quiet">No sessions in this period. Finished sessions fill this page, from the hero to the records.</p>
+            <a class="button secondary start" routerLink="/workout">Open Workout</a>
+          </app-section-card>
+        } @else {
+          <app-highlights [highlights]="progress.highlights" [sub]="highlightsSub()" [format]="unitValue" [barMax]="25" />
+
+          <app-section-card title="By activity" sub="tap one to open it" [bare]="true">
+            @if (progress.activities.length) {
+              <div class="activities">
+                @for (activity of progress.activities; track activity.key) {
+                  <app-activity-card [activity]="activity" [from]="progress.period.from" [to]="progress.period.to" [top]="activityTop()" [period]="period.code()" />
+                }
+              </div>
+            } @else {
+              <p class="quiet">Not enough data yet.</p>
+            }
+          </app-section-card>
+
+          <app-strength-section [lifts]="progress.lifts" [card]="cards().strength" />
+          <app-muscle-section [muscles]="progress.muscles" [card]="cards().muscles" />
+          <app-load-section [load]="progress.load" [today]="period.today()" [estimatedShare]="progress.hero.load.estimatedShare" [card]="cards().load" />
+          <app-log-section [from]="progress.period.from" [to]="progress.period.to" [days]="progress.calendar" [card]="cards().log" />
+          <app-records-section [records]="progress.records" [card]="cards().records" />
+        }
+      }
+    }
+  }
+</main>

@@ -1,210 +1,29 @@
-<div class="page-grid progress-page">
-  <header class="page-header progress-header">
-    <div>
-      <p class="eyebrow">Progress</p>
-      <h1>Your progress</h1>
-      <p>Training, nutrition, body and goals in one place.</p>
-    </div>
+<div class="progress-page">
+  <header class="head">
+    <span class="eyebrow">Progress</span>
+    <h1>Is it working?</h1>
+    <p>{{ periodLabel }}</p>
   </header>
 
-  @if (selectedTab() === 'overview') {
-    <app-insight-panel surface="PROGRESS" />
-  }
+  <app-jump-bar [items]="sections" [active]="active()" label="Sections of Progress" (chosen)="jump($event)" />
 
-  <div class="segmented progress-tabs" role="tablist" aria-label="Progress sections">
-    <button
-      id="progress-tab-overview"
-      type="button"
-      role="tab"
-      [class.active]="selectedTab() === 'overview'"
-      [attr.aria-selected]="selectedTab() === 'overview'"
-      aria-controls="progress-panel-overview"
-      (click)="selectTab('overview')"
-    >
-      Overview
-    </button>
-    <button
-      id="progress-tab-body"
-      type="button"
-      role="tab"
-      [class.active]="selectedTab() === 'body'"
-      [attr.aria-selected]="selectedTab() === 'body'"
-      aria-controls="progress-panel-body"
-      (click)="selectTab('body')"
-    >
-      Body
-    </button>
-    <button
-      id="progress-tab-goals"
-      type="button"
-      role="tab"
-      [class.active]="selectedTab() === 'goals'"
-      [attr.aria-selected]="selectedTab() === 'goals'"
-      aria-controls="progress-panel-goals"
-      (click)="selectTab('goals')"
-    >
-      Goals
-    </button>
+  <section id="progress-summary" class="anchor" aria-label="Summary">
+    <app-insight-panel surface="PROGRESS" (factChosen)="showCard($event)" />
+  </section>
+
+  <div id="progress-goal" class="anchor">
+    <app-goal-card [period]="goalPeriod" [askPeriod]="fourWeeks" [factNumber]="factNumbers().GOAL ?? null" [ringed]="ringed() === 'GOAL'" />
   </div>
 
-  @if (selectedTab() === 'overview') {
-    <section id="progress-panel-overview" class="progress-panel" role="tabpanel" aria-labelledby="progress-tab-overview">
-      <app-progress-range
-        [range]="range()"
-        [activeDays]="activeDays()"
-        (presetChosen)="choosePreset($event)"
-        (customChosen)="chooseCustomRange($event)"
-      />
-      <app-energy-card />
-      <app-analytics-trend-charts [range]="range()" />
-      <app-analytics-comparison-card />
-      <app-activity-heatmap [range]="range()" />
-    </section>
-  } @else if (selectedTab() === 'body') {
-    <section id="progress-panel-body" role="tabpanel" aria-labelledby="progress-tab-body">
-      <app-body-page [embedded]="true" />
-    </section>
-  } @else {
-    <section id="progress-panel-goals" class="summary-card goals-card" role="tabpanel" aria-labelledby="progress-tab-goals">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Goals</span>
-          <h2>Active goal progress</h2>
-        </div>
-        <button class="button secondary compact" type="button" data-testid="add-goal" (click)="startGoalCreate()">Add goal</button>
-      </div>
+  <div id="progress-training" class="anchor training" [class.ringed]="ringed() === 'TRAINING'">
+    <app-training-card [from]="fourWeeks.from" [to]="fourWeeks.to" [citation]="factNumbers().TRAINING ?? null" />
+  </div>
 
-      <ng-template #goalRow let-goal>
-        <article class="goal-row">
-          <div>
-            <strong>{{ goalLabel(goal) }}</strong>
-            <span>{{ formatGoalValue(goal) }} · {{ goalDate(goal) }}</span>
-            <span>{{ goalStatus(goal) }}</span>
-          </div>
-          <div class="goal-progress">
-            <span>{{ goalProgress(goal) }}%</span>
-            <div class="progress-track" aria-hidden="true">
-              <i [style.width.%]="goalProgress(goal)"></i>
-            </div>
-          </div>
-          <div class="goal-actions">
-            <button
-              class="button secondary compact"
-              type="button"
-              [attr.data-testid]="'edit-goal-' + goal.goalType"
-              (click)="startGoalEdit(goal.goalType)"
-            >
-              Edit
-            </button>
-            <button
-              class="button secondary compact danger-text"
-              type="button"
-              [attr.data-testid]="'delete-goal-' + goal.goalType"
-              [attr.aria-label]="'Delete ' + goalLabel(goal) + ' goal'"
-              (click)="askDeleteGoal(goal.goalType)"
-            >
-              Delete goal
-            </button>
-          </div>
-        </article>
-      </ng-template>
+  <div id="progress-food" class="anchor">
+    <app-food-card [period]="foodPeriod" [factNumber]="factNumbers().FOOD ?? null" [ringed]="ringed() === 'FOOD'" />
+  </div>
 
-      @if (loading()) {
-        <div class="progress-skeleton" aria-label="Loading goal progress" aria-busy="true">
-          <div class="skeleton"></div>
-        </div>
-      } @else if (error()) {
-        <app-state-panel
-          title="Goal progress unavailable"
-          [message]="error() ?? 'Unable to load goal progress.'"
-          actionLabel="Retry"
-          [error]="true"
-          (action)="load()"
-        />
-      } @else {
-        @if (activeGoals().length) {
-          <div class="goal-list">
-            @for (goal of activeGoals(); track goal.goalType) {
-              <ng-container *ngTemplateOutlet="goalRow; context: { $implicit: goal }" />
-            }
-          </div>
-        } @else {
-          <app-state-panel title="No active goals" message="Set one measurable target to compare progress over time." />
-        }
-
-        @if (inactiveGoals().length) {
-          <div class="goal-list inactive-goals" role="group" aria-labelledby="not-active-heading">
-            <h3 id="not-active-heading">Not active</h3>
-            @for (goal of inactiveGoals(); track goal.goalType) {
-              <ng-container *ngTemplateOutlet="goalRow; context: { $implicit: goal }" />
-            }
-          </div>
-        }
-      }
-
-      @if (editingGoalType()) {
-        <form #goalEditor class="goal-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
-          <div class="sub-card-header">
-            <div>
-              <span class="card-label">Goal editor</span>
-              <h3>{{ activeGoal(goalForm.controls.goalType.value) ? 'Edit goal' : 'Add goal' }}</h3>
-            </div>
-          </div>
-          @if (goalSaveError(); as message) {
-            <p class="section-error">{{ message }}</p>
-          }
-          <div class="editor-grid">
-            <label>
-              Goal type
-              <select formControlName="goalType" (change)="startGoalEdit(goalForm.controls.goalType.value)">
-                @for (option of goalTypeOptions; track option.value) {
-                  <option [value]="option.value">{{ option.label }}</option>
-                }
-              </select>
-            </label>
-            <label>
-              Target value
-              <input type="number" formControlName="targetValue" min="0" />
-            </label>
-            <label>
-              Target unit
-              <input formControlName="targetUnit" />
-            </label>
-            <label>
-              Target date
-              <input type="date" formControlName="targetDate" />
-            </label>
-            <label>
-              Status
-              <select formControlName="status">
-                @for (option of goalStatusOptions; track option.value) {
-                  <option [value]="option.value">{{ option.label }}</option>
-                }
-              </select>
-            </label>
-            <label class="wide">
-              Notes
-              <textarea rows="2" formControlName="notes"></textarea>
-            </label>
-          </div>
-          <div class="editor-actions">
-            <button class="button primary" type="submit" [disabled]="savingGoal()">{{ savingGoal() ? 'Saving...' : 'Save goal' }}</button>
-            <button class="button secondary" type="button" (click)="cancelGoalEdit()">Cancel</button>
-          </div>
-        </form>
-      }
-    </section>
-
-    @if (confirmingDelete(); as type) {
-      <app-confirm-dialog
-        title="Delete this goal?"
-        [message]="'The ' + goalLabel({ goalType: type }) + ' goal leaves your goals and progress. You can add it again later.'"
-        confirmLabel="Delete goal"
-        [danger]="true"
-        [busy]="deletingGoal()"
-        (confirmed)="confirmDeleteGoal()"
-        (cancelled)="cancelDeleteGoal()"
-      />
-    }
-  }
+  <div id="progress-reviews" class="anchor">
+    <app-reviews-card [today]="today" />
+  </div>
 </div>

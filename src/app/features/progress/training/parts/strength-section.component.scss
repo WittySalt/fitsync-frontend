@@ -1,0 +1,105 @@
+@use 'training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+}
+
+.lifts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  i {
+    box-sizing: border-box;
+    border-radius: 50%;
+  }
+
+  .record {
+    width: 10px;
+    height: 10px;
+    background: var(--record);
+  }
+
+  .session {
+    width: 8px;
+    height: 8px;
+    border: 2px solid var(--line);
+    background: var(--surface);
+  }
+}
+
+.ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.titles,
+.row-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    font-size: 15px;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+}
+
+.rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+  .lifts,
+  .rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

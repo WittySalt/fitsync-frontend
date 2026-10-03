@@ -1,0 +1,52 @@
+<div class="goal-page">
+  <app-progress-hero eyebrow="Goal" [title]="title()" sub="Each change is compared with the 4 weeks before." [stats]="stats()" />
+
+  @if (loading() && !data()) {
+    <div class="skeleton block" aria-busy="true" aria-label="Loading your goal"></div>
+    <div class="skeleton block tall" aria-hidden="true"></div>
+  } @else if (failed()) {
+    <app-state-panel title="Your goal could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="load()" />
+  } @else if (data(); as goal) {
+    <app-highlights [highlights]="goal.highlights" sub="one finding each, from these four weeks" [context]="context()" />
+
+    <app-section-card title="Weight" [sub]="weightSub()" [context]="context()">
+      <div class="segmented ranges" role="group" aria-label="How far back the chart goes">
+        @for (option of ranges; track option.key) {
+          <button type="button" [class.active]="range() === option.key" [attr.aria-pressed]="range() === option.key" (click)="chooseRange(option.key)">{{ option.label }}</button>
+        }
+      </div>
+      <div [attr.aria-busy]="loading()">
+        <app-goal-weight-chart [weight]="goal.weight" [goal]="goal.goal" [today]="today" [height]="280" />
+      </div>
+      <div class="legend">
+        <span><i class="dot"></i>A weigh-in</span>
+        <span><i class="line"></i>Weekly average</span>
+        <span><i class="dash"></i>At this pace</span>
+        <span><i class="dash goal"></i>Goal</span>
+      </div>
+      <p class="quiet">Daily weigh-ins move with water and salt from one morning to the next, so read the weekly line.</p>
+      <details class="folded">
+        <summary>How the date is worked out</summary>
+        <p>{{ method() }}</p>
+      </details>
+    </app-section-card>
+
+    <app-goal-body-section [body]="goal.body" [context]="context()" />
+
+    <app-section-card title="Pace" [sub]="paceSub()" [context]="context()">
+      <app-pace-chart [weeks]="goal.pace.weeks" [height]="200" />
+      <div class="legend">
+        <span><i class="dash"></i>Expected from your food log</span>
+        <span><i class="line slate"></i>On the scale</span>
+      </div>
+      <p class="quiet">
+        The log adds up what you ate minus resting energy × 1.2 and workouts, at 7,700 kcal a kilo. Days without a food log are not counted, so the
+        log reads low.
+      </p>
+    </app-section-card>
+
+    <div id="other-goals" class="anchor">
+      <app-goal-other-goals [goals]="goal.otherGoals" [sub]="otherSub()" [context]="context()" />
+    </div>
+  }
+</div>

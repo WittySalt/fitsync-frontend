@@ -1,4 +1,5 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { HttpErrorResponse, HttpEventType, HttpResponse, HttpUploadProgressEvent } from '@angular/common/http';
 import { of, Subject, throwError } from 'rxjs';
 
@@ -127,6 +128,7 @@ describe('ExerciseLibraryComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ExerciseLibraryComponent],
       providers: [
+        provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
         { provide: ToastService, useValue: toast }
       ]

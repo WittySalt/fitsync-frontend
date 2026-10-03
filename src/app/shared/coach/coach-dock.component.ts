@@ -17,7 +17,9 @@ import {
 import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
-import { CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
+import { CoachCardContext, CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
+import { CardPinComponent } from './card-pin.component';
+import { CARD_LABELS, cardPlaceholder, cardQuestions } from './card-questions';
 import { CoachHistoryComponent } from './coach-history.component';
 import { CoachTraceComponent } from './coach-trace.component';
 import { questionsFor } from './insight/reading-questions';
@@ -56,7 +58,7 @@ interface DockSuggestion {
  */
 @Component({
   selector: 'app-coach-dock',
-  imports: [RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent, CoachHistoryComponent],
+  imports: [CardPinComponent, RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent, CoachHistoryComponent],
   template: `
     @if (!store.dockOpen()) {
       @if (!sidebarVisible()) {
@@ -92,6 +94,8 @@ interface DockSuggestion {
           <p class="looking">
             @if (store.pinnedReading()) {
               Looking at <b>{{ pinnedLabel(store.pinnedReading()!) }}</b> · one reading pinned
+            } @else if (store.pinnedCard(); as card) {
+              Looking at <b>{{ cardLabel(card) }}</b> · one card pinned
             } @else {
               Looking at <b>{{ store.surface().label }}</b>
               @if (store.inlineRecommendations().length) {
@@ -121,6 +125,8 @@ interface DockSuggestion {
                 }
               </div>
             </section>
+          } @else if (store.pinnedCard(); as card) {
+            <app-card-pin [card]="card" (release)="store.letGoOfCard()" />
           } @else if (empty && store.availableReading(); as reading) {
             <button type="button" class="reading-row" (click)="store.askAboutReading(reading)">
               <span class="reading-text">
@@ -135,7 +141,7 @@ interface DockSuggestion {
 
           @if (empty) {
             <ng-container [ngTemplateOutlet]="suggestionList" />
-            @if (!store.pinnedReading() && store.orderedRecommendations().length) {
+            @if (!store.pinnedReading() && !store.pinnedCard() && store.orderedRecommendations().length) {
               <section class="earlier">
                 <button type="button" class="earlier-toggle" [attr.aria-expanded]="earlierOpen()" (click)="earlierOpen.set(!earlierOpen())">
                   <span class="earlier-title">Earlier notes</span>
@@ -219,7 +225,7 @@ interface DockSuggestion {
               type="text"
               [value]="draft()"
               (input)="draft.set(input.value)"
-              [placeholder]="store.pinnedReading() ? 'Ask about this reading' : 'Ask, or ask it to build something…'"
+              [placeholder]="composerPlaceholder()"
               autocomplete="off"
               aria-label="Ask the coach"
               [disabled]="store.status() === 'answering' || store.limited()"
@@ -1010,6 +1016,10 @@ export class CoachDockComponent {
    * is one, otherwise the page's own.
    */
   protected readonly suggestions = computed<DockSuggestion[]>(() => {
+    const card = this.store.pinnedCard();
+    if (card) {
+      return cardQuestions(card).slice(0, 3).map((text) => ({ text, draft: false }));
+    }
     const reading = this.store.pinnedReading();
     if (reading) {
       return questionsFor(reading)
@@ -1030,6 +1040,19 @@ export class CoachDockComponent {
       this.store.ask(suggestion.text);
     }
     this.draft.set('');
+  }
+
+  /** What the composer invites while a reading or a card is pinned. */
+  protected readonly composerPlaceholder = computed(() => {
+    const card = this.store.pinnedCard();
+    if (card) {
+      return cardPlaceholder(card);
+    }
+    return this.store.pinnedReading() ? 'Ask about this reading' : 'Ask, or ask it to build something…';
+  });
+
+  protected cardLabel(card: CoachCardContext): string {
+    return CARD_LABELS[card.kind] ?? 'Card';
   }
 
   /** The pinned card's headline, or a fallback for a reading that is facts only. */
