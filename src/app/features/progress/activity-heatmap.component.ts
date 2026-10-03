@@ -8,8 +8,10 @@ import { dateKeyInZone, dayBoundsInZone, profileTimezone } from '../../core/zone
 import { dateRangeLabel, shortDateLabel } from '../../shared/date-label';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { SessionDetailComponent } from '../workout/session-detail.component';
+import { SessionCalendarComponent } from './session-calendar.component';
 import { DateRange } from './progress-range';
 
+type HeatmapView = 'calendar' | 'month' | 'week';
 type DayState = 'idle' | 'loading' | 'ready' | 'failed';
 
 interface DaySession {
@@ -52,7 +54,7 @@ const keyOf = (date: Date): string => date.toISOString().slice(0, 10);
  */
 @Component({
   selector: 'app-activity-heatmap',
-  imports: [StatePanelComponent, SessionDetailComponent],
+  imports: [StatePanelComponent, SessionDetailComponent, SessionCalendarComponent],
   templateUrl: './activity-heatmap.component.html',
   styleUrl: './activity-heatmap.component.scss'
 })
@@ -65,6 +67,13 @@ export class ActivityHeatmapComponent {
   readonly timezone = input('Asia/Singapore');
 
   readonly weekdays = WEEKDAYS;
+  readonly viewOptions: { value: HeatmapView; label: string }[] = [
+    { value: 'calendar', label: 'Calendar' },
+    { value: 'month', label: 'Month' },
+    { value: 'week', label: 'Week' }
+  ];
+  /** Calendar follows the range of the page. Month and Week are the session calendars, which browse on their own. */
+  readonly view = signal<HeatmapView>('calendar');
   readonly legendLevels = [0, 1, 2, 3, 4];
 
   readonly data = signal<AnalyticsActivityCalendarResponse | null>(null);

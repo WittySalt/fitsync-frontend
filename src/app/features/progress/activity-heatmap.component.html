@@ -4,9 +4,22 @@
       <span class="card-label">Analytics</span>
       <h2>Workout activity</h2>
     </div>
-    <span class="date-caption">{{ rangeText() }}</span>
+    @if (view() === 'calendar') {
+      <span class="date-caption">{{ rangeText() }}</span>
+    }
   </div>
 
+  <div class="view-switch" role="group" aria-label="How to show the activity">
+    @for (option of viewOptions; track option.value) {
+      <button type="button" [class.active]="view() === option.value" [attr.aria-pressed]="view() === option.value" (click)="view.set(option.value)">
+        {{ option.label }}
+      </button>
+    }
+  </div>
+
+  @if (view() !== 'calendar') {
+    <app-session-calendar [mode]="view() === 'week' ? 'week' : 'month'" [timezone]="timezone()" />
+  } @else {
   @if (loading()) {
     <div class="heatmap-skeleton" aria-busy="true" aria-label="Loading workout activity">
       <div class="skeleton"></div>
@@ -97,5 +110,6 @@
         (repeated)="handleSessionRepeated($event)"
       />
     }
+  }
   }
 </section>

@@ -235,4 +235,74 @@ describe('ActivityHeatmapComponent', () => {
     expect(root().textContent).toContain('No workouts in this range');
     expect(root().querySelector('.month')).toBeNull();
   });
+
+  describe('the Calendar / Month / Week switch', () => {
+    function buttons(): HTMLButtonElement[] {
+      return Array.from(root().querySelectorAll<HTMLButtonElement>('.view-switch button'));
+    }
+
+    it('offers Calendar, Month and Week, with Calendar selected and driven by the page range', () => {
+      fixture.detectChanges();
+
+      expect(buttons().map((button) => button.textContent?.trim())).toEqual(['Calendar', 'Month', 'Week']);
+      expect(buttons().map((button) => button.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+      expect(root().querySelector('app-session-calendar')).toBeNull();
+      expect(root().querySelector('.date-caption')?.textContent?.trim()).toBe('3 Sept to 3 Oct');
+    });
+
+    it('shows the week calendar, with its All day row, from Week', () => {
+      fixture.detectChanges();
+
+      buttons()[2].click();
+      fixture.detectChanges();
+
+      expect(buttons()[2].getAttribute('aria-pressed')).toBe('true');
+      expect(root().querySelector('app-session-calendar .week-calendar')).not.toBeNull();
+      expect(root().querySelector('app-session-calendar .all-day-row')).not.toBeNull();
+      expect(root().querySelector('.month')).toBeNull();
+      expect(root().querySelector('.date-caption')).toBeNull();
+    });
+
+    it('shows the month calendar with session chips from Month, browsing beyond the page range', () => {
+      dataService.getWorkoutSessionsInRange.and.returnValue(of([{ ...session, startedAt: '2026-10-02T02:00:00Z', completedAt: '2026-10-02T03:00:00Z' }]));
+      fixture.detectChanges();
+
+      buttons()[1].click();
+      fixture.detectChanges();
+
+      expect(root().querySelector('app-session-calendar .month-calendar-grid')).not.toBeNull();
+      expect(root().querySelector('.month-session-chip')?.textContent).toContain('Upper body');
+
+      dataService.getWorkoutSessionsInRange.calls.reset();
+      root().querySelector<HTMLButtonElement>('app-session-calendar .calendar-toolbar button')?.click();
+      fixture.detectChanges();
+      expect(dataService.getWorkoutSessionsInRange).toHaveBeenCalledTimes(1);
+      // The page range starts on 3 September, and September is the month shown, so the previous one is August.
+      expect(dataService.getWorkoutSessionsInRange.calls.mostRecent().args[0]).toContain('2026-08-31');
+    });
+
+    it('opens the session detail from a chip', () => {
+      dataService.getWorkoutSessionsInRange.and.returnValue(of([{ ...session, startedAt: '2026-10-02T02:00:00Z', completedAt: '2026-10-02T03:00:00Z' }]));
+      fixture.detectChanges();
+      buttons()[1].click();
+      fixture.detectChanges();
+
+      root().querySelector<HTMLButtonElement>('.month-session-chip')?.click();
+      fixture.detectChanges();
+
+      expect(root().querySelector('app-session-calendar app-session-detail')).not.toBeNull();
+    });
+
+    it('returns to the calendar of the range, keeping the shared empty state', () => {
+      analyticsApi.getActivityCalendar.and.returnValue(of({ ...calendar, days: [] }));
+      fixture.detectChanges();
+      buttons()[2].click();
+      fixture.detectChanges();
+      buttons()[0].click();
+      fixture.detectChanges();
+
+      expect(root().querySelector('app-session-calendar')).toBeNull();
+      expect(root().textContent).toContain('No workouts in this range');
+    });
+  });
 });
