@@ -97,11 +97,13 @@ export class ContentsRailComponent {
   }
 
   private read(ids: readonly string[]): void {
-    const tops = ids
+    const found = ids
       .map((id) => ({ id, element: document.getElementById(id) }))
       .filter((entry): entry is { id: string; element: HTMLElement } => entry.element !== null)
-      .map((entry) => ({ id: entry.id, top: entry.element.getBoundingClientRect().top }));
-    const atEnd = window.scrollY > 0 && Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 2;
+      .map((entry) => ({ id: entry.id, rect: entry.element.getBoundingClientRect() }));
+    const tops = found.map((entry) => ({ id: entry.id, top: entry.rect.top }));
+    // The foot of the page: the last section ends inside the window and the page has scrolled.
+    const atEnd = window.scrollY > 0 && found.length > 0 && found[found.length - 1].rect.bottom <= window.innerHeight + 2;
     this.current.set(currentSection(tops, CURRENT_LINE, atEnd));
   }
 

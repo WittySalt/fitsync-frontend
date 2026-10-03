@@ -36,8 +36,8 @@ describe('goal figures', () => {
     expect(goalTitle(goal)).toBe('68.0 kg by 11 Dec');
     expect(daysEarly(goal)).toBe(16);
     expect(goalHeroStats(goal).map((s) => `${s.label}|${s.value}|${s.context}`)).toEqual([
-      'Now|71.2|−1.6 kg on 4 weeks before',
-      'A week|−0.41|was −0.28',
+      'Now|71.2|−1.6 kg in 4 weeks',
+      'A week|−0.41|was −0.28 kg a week',
       'Projected|25 Nov|was 10 Jan 2027',
       'Days left|69|to 11 Dec'
     ]);

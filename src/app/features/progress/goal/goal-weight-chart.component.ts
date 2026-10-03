@@ -100,7 +100,7 @@ export function weightChartGeometry(
         : {
             y: y(target),
             text: goal?.byDate ? `Goal ${formatNumber(target, 1)} kg by ${shortDateLabel(goal.byDate, reference)}` : `Goal ${formatNumber(target, 1)} kg`,
-            labelY: cardView ? top - 12 : y(target) - 8,
+            labelY: cardView ? top - 12 : y(target) - 6,
             byX: goal?.byDate ? x(goal.byDate) : null
           },
     today: today >= d0 && today <= d1 ? x(today) : null,

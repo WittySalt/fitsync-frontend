@@ -99,18 +99,18 @@ export function goalHeroStats(goal: GoalProgress): HeroStat[] {
       label: 'Now',
       value: hero.nowKg === null ? '–' : formatNumber(hero.nowKg, 1),
       unit: hero.nowKg === null ? '' : 'kg',
-      context: hero.nowKg === null ? '' : hero.changeKg === null ? NO_EARLIER_DATA : `${signed(hero.changeKg)} kg on 4 weeks before`
+      context: hero.nowKg === null ? '' : hero.changeKg == null ? NO_EARLIER_DATA : `${signed(hero.changeKg)} kg in 4 weeks`
     },
     {
       label: 'A week',
       value: hero.weeklyRate.value === null ? '–' : signed(hero.weeklyRate.value, 2),
       unit: hero.weeklyRate.value === null ? '' : 'kg',
-      context: hero.weeklyRate.value === null ? '' : hero.weeklyRate.previous === null ? NO_EARLIER_DATA : `was ${signed(hero.weeklyRate.previous, 2)}`
+      context: hero.weeklyRate.value === null ? '' : hero.weeklyRate.previous == null ? NO_EARLIER_DATA : `was ${signed(hero.weeklyRate.previous, 2)} kg a week`
     },
     {
       label: 'Projected',
       value: hero.projectedDate.value ? date(hero.projectedDate.value) : '–',
-      context: !hero.projectedDate.value ? '' : hero.projectedDate.previous ? `was ${date(hero.projectedDate.previous)}` : NO_EARLIER_DATA
+      context: !hero.projectedDate.value ? '' : hero.projectedDate.previous != null ? `was ${date(hero.projectedDate.previous)}` : NO_EARLIER_DATA
     },
     {
       label: 'Days left',

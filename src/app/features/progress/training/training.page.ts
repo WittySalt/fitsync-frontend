@@ -23,7 +23,7 @@ import { MuscleSectionComponent } from './parts/muscle-section.component';
 import { RecordsSectionComponent } from './parts/records-section.component';
 import { StrengthSectionComponent } from './parts/strength-section.component';
 import { TrainingApiService } from './training-api.service';
-import { grouped, heroChange, heroTime, plural, unitValue } from './training-format';
+import { grouped, heroChange, heroTime, mondayOf, plural, unitValue } from './training-format';
 import { shownData, useLoad, usePeriod } from './training-load';
 import { PERIODS, PeriodCode } from './training-period';
 import { TrainingProgress } from './training.models';
@@ -46,7 +46,7 @@ function against(value: number | null, previous: number | null, kind: 'count' | 
   if (value === null) {
     return '';
   }
-  if (previous === null || (kind === 'pct' && previous <= 0)) {
+  if (previous === null || previous <= 0) {
     return NO_EARLIER_DATA;
   }
   return heroChange(value, previous, kind);
@@ -71,22 +71,32 @@ const PERIOD_NOUNS: Record<PeriodCode, { noun: string; within: string }> = {
   '1y': { noun: 'year', within: 'in the year' }
 };
 
+/** The weeks of the period with at least one session, from the trained days, else from the load. */
+export function activeWeeks(progress: TrainingProgress): number {
+  const fromDays = new Set(progress.calendar.map((day) => mondayOf(day.date))).size;
+  return fromDays || progress.load.weeks.filter((week) => week.total > 0).length;
+}
+
 /**
- * The page's answer: strong with three new records in a month, quiet under four sessions, steady
- * otherwise. A longer period scales both thresholds by its length in weeks.
+ * The page's answer. A month (four weeks) is strong with three new records, quiet under four
+ * sessions, steady otherwise. A longer period is judged by sessions a week over the weeks that have
+ * at least one: strong at 3 or more, steady at 1.5 or more, quiet below.
  */
 export function trainingVerdict(progress: TrainingProgress, code: PeriodCode): { text: string; tone: 'good' | 'ink' } {
-  const weeks = PERIODS.find((option) => option.code === code)?.weeks ?? 4;
   const noun = PERIOD_NOUNS[code].noun;
   const sessions = progress.hero.sessions.value ?? 0;
-  const records = progress.hero.records.value ?? 0;
-  if (records >= Math.ceil((3 * weeks) / 4)) {
+  if (code === '4w') {
+    if ((progress.hero.records.value ?? 0) >= 3) {
+      return { text: `Strong ${noun}.`, tone: 'good' };
+    }
+    return sessions < 4 ? { text: `Quiet ${noun}.`, tone: 'ink' } : { text: `Steady ${noun}.`, tone: 'good' };
+  }
+  const weeks = activeWeeks(progress);
+  const perWeek = weeks ? sessions / weeks : 0;
+  if (perWeek >= 3) {
     return { text: `Strong ${noun}.`, tone: 'good' };
   }
-  if (sessions < weeks) {
-    return { text: `Quiet ${noun}.`, tone: 'ink' };
-  }
-  return { text: `Steady ${noun}.`, tone: 'good' };
+  return perWeek >= 1.5 ? { text: `Steady ${noun}.`, tone: 'good' } : { text: `Quiet ${noun}.`, tone: 'ink' };
 }
 
 /** The sentence under the verdict, from the page's own figures. */

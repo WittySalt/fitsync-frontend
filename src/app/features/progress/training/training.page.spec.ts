@@ -135,8 +135,11 @@ describe('TrainingPage', () => {
     expect(trainingVerdict(hero(15, 3), '4w')).toEqual({ text: 'Strong month.', tone: 'good' });
     expect(trainingVerdict(hero(3, 0), '4w')).toEqual({ text: 'Quiet month.', tone: 'ink' });
     expect(trainingVerdict(hero(8, 2), '4w')).toEqual({ text: 'Steady month.', tone: 'good' });
-    expect(trainingVerdict(hero(12, 2), '3m').text).toBe('Quiet quarter.');
-    expect(trainingVerdict(hero(60, 40), '1y').text).toBe('Strong year.');
+    // A longer period is judged by sessions a week over the weeks that have a session.
+    const weeksOf = (count: number, sessions: number) => ({ ...hero(sessions, 0), calendar: Array.from({ length: count }, (_, k) => ({ ...base.calendar[0], date: new Date(Date.parse('2026-01-05T00:00:00Z') + k * 7 * 86_400_000).toISOString().slice(0, 10) })) });
+    expect(trainingVerdict(weeksOf(10, 31), '1y').text).toBe('Strong year.');
+    expect(trainingVerdict(weeksOf(10, 20), '1y').text).toBe('Steady year.');
+    expect(trainingVerdict(weeksOf(10, 12), '3m').text).toBe('Quiet quarter.');
     expect(trainingSentence(hero(15, 3), '3m')).toContain('in three months, 3 new records');
   });
 
@@ -153,6 +156,8 @@ describe('TrainingPage', () => {
     const contexts = heroTiles(bare).map((tile) => tile.context);
     expect(contexts[0]).toBe('No earlier data');
     expect(contexts[2]).toBe('No earlier data');
+    const empty = { ...base, hero: { ...base.hero, sessions: { value: 31, previous: 0 }, minutes: { value: 1500, previous: 0 } } };
+    expect(heroTiles(empty).map((tile) => tile.context).slice(0, 2)).toEqual(['No earlier data', 'No earlier data']);
   });
 
   it('writes the hero figures with their change on the period before', () => {
