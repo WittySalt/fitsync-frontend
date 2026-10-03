@@ -45,6 +45,8 @@ export interface JumpItem {
 /** One week of a bar chart. Segments, when given, stack by key (STRENGTH, CARDIO, SPORT, MOBILITY). */
 export interface WeekBar {
   label: string;
+  /** The Monday of the week (YYYY-MM-DD); with it on every bar the axis names weeks by the period. */
+  weekStart?: string;
   value: number | null;
   segments?: { key: string; value: number }[];
   /** The week still under way, drawn lighter. */

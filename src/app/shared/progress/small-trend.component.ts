@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
+import { measureWidth } from './measure-width';
 import { formatNumber, pointLabel, textWidth } from './progress-format';
 import { SeriesPoint } from './progress.models';
 
 const WIDTH = 300;
+const SIZE = 12;
 
 export interface SmallTrendGeometry {
   line: string;
@@ -29,8 +31,8 @@ export function smallTrendGeometry(
   if (values.length < 2) {
     return null;
   }
-  const left = textWidth(startText) + 8;
-  const right = textWidth(endText, 11, true) + 8;
+  const left = textWidth(startText, SIZE) + 10;
+  const right = textWidth(endText, SIZE, true) + 10;
   const scale = target === null ? values : [...values, target];
   const lo = Math.min(...scale);
   const hi = Math.max(...scale);
@@ -48,8 +50,9 @@ export function smallTrendGeometry(
 
 /**
  * A small trend line with its start value on the left, its end value on the right, the first and
- * last dates underneath and, when given, a dashed target line with a haloed label. Fewer than two
- * points say so in words; an empty chart is never drawn.
+ * last dates underneath and, when given, a dashed target line with a haloed label. It draws at the
+ * pixel width of its host, so its text is never scaled. Fewer than two points say so in words; an
+ * empty chart is never drawn.
  */
 @Component({
   selector: 'app-small-trend',
@@ -57,16 +60,16 @@ export function smallTrendGeometry(
   template: `
     @if (geometry(); as g) {
       <figure class="trend">
-        <svg [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="summary()" preserveAspectRatio="xMidYMid meet">
+        <svg [attr.viewBox]="'0 0 ' + width() + ' ' + height()" [style.width.px]="width()" role="img" [attr.aria-label]="summary()">
           @if (g.target; as t) {
             <line class="target" [attr.x1]="t.x1" [attr.x2]="t.x2" [attr.y1]="t.y" [attr.y2]="t.y"></line>
             <text class="target-text halo" [attr.x]="t.x2 - 2" [attr.y]="t.y - 5" text-anchor="end">{{ t.text }}</text>
           }
           <polyline class="line" [attr.points]="g.line"></polyline>
-          <circle class="first" [attr.cx]="g.start.x" [attr.cy]="g.start.y" r="2.5"></circle>
+          <circle class="first" [attr.cx]="g.start.x" [attr.cy]="g.start.y" r="3"></circle>
           <circle class="last" [attr.cx]="g.end.x" [attr.cy]="g.end.y" r="3"></circle>
-          <text class="start" [attr.x]="g.start.x - 6" [attr.y]="g.start.y" text-anchor="end" dominant-baseline="central">{{ g.start.text }}</text>
-          <text class="end" [attr.x]="g.end.x + 6" [attr.y]="g.end.y" dominant-baseline="central">{{ g.end.text }}</text>
+          <text class="start" [attr.x]="g.start.x - 8" [attr.y]="g.start.y" text-anchor="end" dominant-baseline="central">{{ g.start.text }}</text>
+          <text class="end" [attr.x]="g.end.x + 8" [attr.y]="g.end.y" dominant-baseline="central">{{ g.end.text }}</text>
         </svg>
         @if (showDates()) {
           <figcaption class="dates"><span>{{ firstLabel() }}</span><span>{{ lastLabel() }}</span></figcaption>
@@ -79,17 +82,17 @@ export function smallTrendGeometry(
   styles: `
     :host { display: block; min-width: 0; }
     .trend { margin: 0; display: flex; flex-direction: column; gap: 2px; }
-    svg { display: block; width: 100%; height: auto; overflow: visible; }
+    svg { display: block; max-width: 100%; height: auto; overflow: visible; }
     .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-    .first { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+    .first { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
     .last { fill: var(--accent); }
-    .target { stroke: var(--accent-text); stroke-dasharray: 4 4; }
-    text { font: 500 11px var(--font-sans); fill: var(--text-secondary); }
-    .end { font-weight: 700; fill: var(--text-primary); }
-    .target-text { font-size: 10px; font-weight: 600; fill: var(--accent-text); }
+    .target { stroke: var(--accent-text); stroke-width: 1; stroke-dasharray: 4 4; }
+    text { font: 400 var(--pg-chart) var(--font-sans); fill: var(--text-secondary); }
+    .end { font-weight: 600; fill: var(--text-primary); }
+    .target-text { font-weight: 500; fill: var(--accent-text); }
     .halo { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
-    .dates { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); padding: 0 8px; }
-    .none { margin: 0; font-size: var(--text-xs); color: var(--text-secondary); }
+    .dates { display: flex; justify-content: space-between; font-size: var(--pg-chart); color: var(--text-secondary); }
+    .none { margin: 0; font-size: var(--pg-chart); color: var(--text-secondary); }
   `
 })
 export class SmallTrendComponent {
@@ -103,10 +106,13 @@ export class SmallTrendComponent {
   readonly target = input<number | null>(null);
   readonly targetText = input<string | null>(null);
   readonly height = input(56);
-  /** The drawing's width in its own units; a narrow slot keeps its text legible with a smaller one. */
-  readonly width = input(WIDTH);
+  /** A fixed width in pixels for a slot that is not the host's width; the host's own width when not given. */
+  readonly fixedWidth = input<number | null>(null, { alias: 'width' });
   readonly showDates = input(true);
   readonly label = input('');
+
+  private readonly measured = measureWidth(WIDTH);
+  protected readonly width = computed(() => this.fixedWidth() ?? this.measured());
 
   protected readonly geometry = computed(() => {
     const points = this.points();

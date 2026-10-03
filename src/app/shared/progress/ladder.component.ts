@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-import { formatNumber } from './progress-format';
+import { dropColliding } from './chart-axis';
+import { measureWidth } from './measure-width';
+import { formatNumber, textWidth } from './progress-format';
 import { LadderRung } from './progress.models';
 
 const WIDTH = 300;
@@ -32,25 +34,29 @@ export function ladderRungs(liftName: string): LadderRung[] {
 }
 
 export interface LadderGeometry {
-  rungs: { x: number; ratioText: string; label: string }[];
+  rungs: { x: number; ratioText: string; label: string; showLabel: boolean }[];
   marker: { x: number; text: string; anchor: 'start' | 'middle' | 'end' };
   fill: number;
   x0: number;
   x1: number;
 }
 
-export function ladderGeometry(ratio: number, rungs: readonly LadderRung[]): LadderGeometry | null {
+export function ladderGeometry(ratio: number, rungs: readonly LadderRung[], width = WIDTH): LadderGeometry | null {
   if (!rungs.length || !Number.isFinite(ratio) || ratio < 0) {
     return null;
   }
   const x0 = 6;
-  const x1 = WIDTH - 6;
+  const x1 = width - 6;
   const top = Math.max(rungs[rungs.length - 1].ratio * 1.12, ratio * 1.05);
   const x = (r: number) => x0 + ((x1 - x0) * Math.min(r, top)) / top;
   const mx = x(ratio);
+  const markerText = `${formatNumber(ratio, 2)} × body weight`;
+  const room = textWidth(markerText, 12, true) / 2 + 4;
+  // A level name that would touch the one before it is left out; its ratio stays.
+  const named = dropColliding(rungs.map((rung) => ({ x: x(rung.ratio), text: rung.label, anchor: 'middle' as const })));
   return {
-    rungs: rungs.map((rung) => ({ x: x(rung.ratio), ratioText: `${formatNumber(rung.ratio, 2)}×`, label: rung.label })),
-    marker: { x: mx, text: `${formatNumber(ratio, 2)} × body weight`, anchor: mx < 60 ? 'start' : mx > WIDTH - 60 ? 'end' : 'middle' },
+    rungs: rungs.map((rung) => ({ x: x(rung.ratio), ratioText: `${formatNumber(rung.ratio, 2)}×`, label: rung.label, showLabel: named.some((n) => n.x === x(rung.ratio)) })),
+    marker: { x: mx, text: markerText, anchor: mx < room ? 'start' : mx > width - room ? 'end' : 'middle' },
     fill: mx - x0,
     x0,
     x1
@@ -63,16 +69,18 @@ export function ladderGeometry(ratio: number, rungs: readonly LadderRung[]): Lad
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (geometry(); as g) {
-      <svg viewBox="0 0 300 70" role="img" [attr.aria-label]="summary()">
-        <text class="mark-text" [attr.x]="g.marker.x" y="11" [attr.text-anchor]="g.marker.anchor">{{ g.marker.text }}</text>
-        <rect class="track" [attr.x]="g.x0" y="22" [attr.width]="g.x1 - g.x0" height="10" rx="5"></rect>
-        <rect class="fill" [attr.x]="g.x0" y="24" [attr.width]="g.fill" height="6" rx="3"></rect>
+      <svg [attr.viewBox]="'0 0 ' + width() + ' 80'" [style.width.px]="width()" role="img" [attr.aria-label]="summary()">
+        <text class="mark-text" [attr.x]="g.marker.x" y="12" [attr.text-anchor]="g.marker.anchor">{{ g.marker.text }}</text>
+        <rect class="track" [attr.x]="g.x0" y="28" [attr.width]="g.x1 - g.x0" height="10" rx="5"></rect>
+        <rect class="fill" [attr.x]="g.x0" y="30" [attr.width]="g.fill" height="6" rx="3"></rect>
         @for (rung of g.rungs; track $index) {
-          <line class="rung" [attr.x1]="rung.x" [attr.x2]="rung.x" y1="18" y2="36"></line>
-          <text class="ratio" [attr.x]="rung.x" y="49" text-anchor="middle">{{ rung.ratioText }}</text>
-          <text class="level" [attr.x]="rung.x" y="63" text-anchor="middle">{{ rung.label }}</text>
+          <line class="rung" [attr.x1]="rung.x" [attr.x2]="rung.x" y1="24" y2="42"></line>
+          <text class="ratio" [attr.x]="rung.x" y="58" text-anchor="middle">{{ rung.ratioText }}</text>
+          @if (rung.showLabel) {
+            <text class="level" [attr.x]="rung.x" y="74" text-anchor="middle">{{ rung.label }}</text>
+          }
         }
-        <circle class="marker" [attr.cx]="g.marker.x" cy="27" r="6"></circle>
+        <circle class="marker" [attr.cx]="g.marker.x" cy="33" r="5"></circle>
       </svg>
     } @else {
       <p class="none">Not enough data yet</p>
@@ -80,15 +88,15 @@ export function ladderGeometry(ratio: number, rungs: readonly LadderRung[]): Lad
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    svg { display: block; width: 100%; height: auto; overflow: visible; }
+    svg { display: block; max-width: 100%; height: auto; overflow: visible; }
     .track { fill: var(--surface-sunken); }
     .fill { fill: var(--accent); }
-    .rung { stroke: var(--text-secondary); stroke-width: 1.5; }
+    .rung { stroke: var(--text-secondary); stroke-width: 1; }
     .marker { fill: var(--accent-text); stroke: var(--surface); stroke-width: 2; }
-    text { font: 400 10px var(--font-sans); fill: var(--text-secondary); }
-    .mark-text { font-size: 11px; font-weight: 700; fill: var(--text-primary); }
-    .level { font-weight: 600; }
-    .none { margin: 0; font-size: var(--text-xs); color: var(--text-secondary); }
+    text { font: 400 var(--pg-chart) var(--font-sans); fill: var(--text-secondary); }
+    .mark-text { font-weight: 600; fill: var(--text-primary); }
+    .level { font-weight: 500; }
+    .none { margin: 0; font-size: var(--pg-chart); color: var(--text-secondary); }
   `
 })
 export class LadderComponent {
@@ -96,9 +104,11 @@ export class LadderComponent {
   readonly rungs = input.required<readonly LadderRung[]>();
   readonly label = input('Strength ladder');
 
+  protected readonly width = measureWidth(WIDTH);
+
   protected readonly geometry = computed(() => {
     const ratio = this.ratio();
-    return ratio === null ? null : ladderGeometry(ratio, this.rungs());
+    return ratio === null ? null : ladderGeometry(ratio, this.rungs(), this.width());
   });
   protected readonly summary = computed(() => {
     const ratio = this.ratio();
