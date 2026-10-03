@@ -149,5 +149,13 @@ export const routes: Routes = [
       }
     ]
   },
-  { path: '**', redirectTo: 'dashboard' }
+  {
+    // An unknown address shows the shared placeholder inside the app frame. The guard still sends
+    // visitors who are not signed in to the sign-in page.
+    path: '**',
+    loadComponent: () => import('./shared/pages/placeholder.page').then((module) => module.PlaceholderPage),
+    canActivate: [authGuard],
+    data: { placeholder: 'missing' },
+    title: 'FitSync Page not found'
+  }
 ];
