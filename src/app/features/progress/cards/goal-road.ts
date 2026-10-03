@@ -350,12 +350,23 @@ function minus(value: number, digits: number): string {
   return Number(text) === 0 ? text : `${value < 0 ? '−' : '+'}${text}`;
 }
 
-export function roadSummaryLines(goal: GoalProgress, road: GoalRoad | null, loggedDaysOfPeriod: { logged: number; days: number } | null): SummaryLine[] {
+/** The period the response was read for, as the lines name it: "in 4 weeks", "in 3 months", "in a year". */
+export interface Span {
+  words: string;
+  days: number;
+}
+
+export const FOUR_WEEKS: Span = { words: '4 weeks', days: 28 };
+
+export function roadSummaryLines(goal: GoalProgress, road: GoalRoad | null, loggedDaysOfPeriod: { logged: number; days: number } | null, span: Span = FOUR_WEEKS): SummaryLine[] {
   const lines: SummaryLine[] = [];
   const now = road?.nowKg ?? nowOf(goal);
   if (now !== null) {
-    const change = road && road.startDate ? road.nowKg - road.startKg : (goal.hero.changeKg ?? null);
-    const since = road && road.startDate ? `since ${monthName(road.startDate)}` : 'in 4 weeks';
+    // The response covers the period, so its change is the change over that period; the road's own
+    // start only stands in when the server sent no change.
+    const sinceStart = road && road.startDate ? road.nowKg - road.startKg : null;
+    const change = goal.hero.changeKg ?? sinceStart;
+    const since = goal.hero.changeKg !== null || !road?.startDate ? `in ${span.words}` : `since ${monthName(road.startDate)}`;
     if (change === null || Math.abs(change) < 0.05) {
       lines.push({ figure: `${formatNumber(now, 1)} kg`, text: 'today', trend: 'steady' });
     } else {
@@ -373,9 +384,9 @@ export function roadSummaryLines(goal: GoalProgress, road: GoalRoad | null, logg
   const waist = bodyDelta(goal.body.waist);
   const fat = bodyDelta(goal.body.bodyFat);
   if (waist !== null) {
-    lines.push({ figure: `Waist ${minus(waist, 1)} cm`, text: 'in 4 weeks', trend: move(waist, 0.3) });
+    lines.push({ figure: `Waist ${minus(waist, 1)} cm`, text: `in ${span.words}`, trend: move(waist, 0.3) });
   } else if (fat !== null) {
-    lines.push({ figure: `Body fat ${minus(fat, 1)} points`, text: 'in 4 weeks', trend: move(fat, 0.2) });
+    lines.push({ figure: `Body fat ${minus(fat, 1)} points`, text: `in ${span.words}`, trend: move(fat, 0.2) });
   } else if (loggedDaysOfPeriod) {
     lines.push({ figure: `Logged ${loggedDaysOfPeriod.logged} of ${loggedDaysOfPeriod.days} days`, text: '', trend: '' });
   }

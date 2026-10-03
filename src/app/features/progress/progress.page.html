@@ -38,7 +38,7 @@
     </div>
 
     <div id="progress-goal" class="section">
-      <app-goal-card [goal]="goal()" [loading]="goalLoading()" [failed]="goalFailed()" [today]="today" [askPeriod]="range()" (retry)="loadGoal()" />
+      <app-goal-card [goal]="goal()" [loading]="goalLoading()" [failed]="goalFailed()" [today]="today" [askPeriod]="range()" [span]="span()" (retry)="loadGoal()" />
     </div>
 
     <div id="progress-training" class="section">

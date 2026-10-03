@@ -11,12 +11,14 @@ export interface PeriodOption {
   days: number;
   /** How the Training headline names the period: "Trained in these 4 weeks". */
   trained: string;
+  /** How a line says it: "in 4 weeks", "in 3 months", "in a year". */
+  span: string;
 }
 
 export const PERIODS: readonly PeriodOption[] = [
-  { key: '4w', label: '4 weeks', words: 'The last 4 weeks', days: 28, trained: 'these 4 weeks' },
-  { key: '3m', label: '3 months', words: 'The last 3 months', days: 91, trained: 'these 3 months' },
-  { key: '1y', label: '1 year', words: 'The last year', days: 364, trained: 'this year' }
+  { key: '4w', label: '4 weeks', words: 'The last 4 weeks', days: 28, trained: 'these 4 weeks', span: '4 weeks' },
+  { key: '3m', label: '3 months', words: 'The last 3 months', days: 91, trained: 'these 3 months', span: '3 months' },
+  { key: '1y', label: '1 year', words: 'The last year', days: 364, trained: 'this year', span: 'a year' }
 ];
 
 export function periodOf(value: string | null | undefined): PeriodOption {

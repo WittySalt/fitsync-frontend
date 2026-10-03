@@ -217,9 +217,9 @@ describe('ProgressPage', () => {
     expect(api.getGoal).toHaveBeenCalledWith('2025-10-05', TODAY);
   });
 
-  it('asks the goal for about three months and each card for its own days', async () => {
+  it('reads the goal for the period itself and each card for its own days', async () => {
     await open();
-    expect(api.getGoal).toHaveBeenCalledWith('2026-07-05', TODAY);
+    expect(api.getGoal).toHaveBeenCalledWith('2026-09-06', TODAY);
     expect(api.getFood).toHaveBeenCalledWith('2026-09-04', TODAY);
   });
 

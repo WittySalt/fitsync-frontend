@@ -3,6 +3,8 @@ import { daysBetween, formatNumber } from '../../../shared/progress/progress-for
 import { GoalProgress, GoalRoad, OtherGoal } from '../progress-api.models';
 import {
   AlsoPill,
+  FOUR_WEEKS,
+  Span,
   CardHeadline,
   PictureNote,
   alsoPills,
@@ -40,16 +42,15 @@ export interface GoalView {
 
 const EMPTY_HEADLINE: CardHeadline = { figure: 'No goal yet', tail: '', caption: 'Set one in Me' };
 
-function weighIns(goal: GoalProgress, today: string): { logged: number; days: number } | null {
-  const days = 28;
+function weighIns(goal: GoalProgress, today: string, days: number): { logged: number; days: number } | null {
   const logged = goal.weight.daily.filter((day) => daysBetween(day.date, today) >= 0 && daysBetween(day.date, today) < days).length;
   return logged > 0 ? { logged, days } : null;
 }
 
-export function goalCardView(goal: GoalProgress, today: string): GoalView {
+export function goalCardView(goal: GoalProgress, today: string, span: Span = FOUR_WEEKS): GoalView {
   const lead = leadOf(goal);
   const road = roadOf(goal, today);
-  const lines = roadSummaryLines(goal, road, weighIns(goal, today));
+  const lines = roadSummaryLines(goal, road, weighIns(goal, today, span.days), span);
   const pills = alsoPills(goal, lead);
   const none = { habit: null, strip: [], stripTarget: '', stripShare: '', note: null, road: null };
 

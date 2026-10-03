@@ -62,8 +62,9 @@ export class ProgressPage {
   protected readonly eyebrow = computed(() => eyebrowText(this.period(), this.today));
   /** The days Training reads and every Ask sends. */
   protected readonly range = computed(() => periodRange(this.period().key, this.today));
-  /** About three months at least, so the road has the weigh-ins that lead to now. */
-  protected readonly goalWindow = computed(() => lastDays(Math.max(91, this.period().days), this.today));
+  /** The goal is read for the period itself, so its comparisons have an earlier period to compare with. */
+  protected readonly goalWindow = computed(() => lastDays(this.period().days, this.today));
+  protected readonly span = computed(() => ({ words: this.period().span, days: this.period().days }));
   /** Food reads the 30 days its page reads, or the whole period when that is longer. */
   protected readonly foodWindow = computed(() => lastDays(Math.max(30, this.period().days), this.today));
   protected readonly foodDays = computed(() => Math.max(30, this.period().days));
