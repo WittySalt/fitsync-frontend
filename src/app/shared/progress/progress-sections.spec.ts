@@ -143,7 +143,7 @@ describe('progress sections', () => {
     ];
 
     it('draws each finding with its kicker and the right kind of chart', () => {
-      const { el } = render(HighlightsComponent, { highlights, sub: 'one finding each' });
+      const { el } = render(HighlightsComponent, { highlights });
       const cards = el.querySelectorAll('.card');
       expect(cards.length).toBe(4);
       expect(text(cards[0].querySelector('.kicker'))).toBe('Pace');
@@ -166,8 +166,12 @@ describe('progress sections', () => {
       fixture.detectChanges();
       expect(el.querySelector('.grid.open')).not.toBeNull();
       expect(el.querySelector('.more')).toBeNull();
-      el.querySelector<HTMLButtonElement>('.ask')!.click();
-      expect(coach.askAboutCard).toHaveBeenCalledOnceWith(card);
+      expect(text(el.querySelector('h2'))).toBe('Highlights');
+      expect(el.querySelector('.sub')).toBeNull();
+      const ask = el.querySelector<HTMLButtonElement>('.ask')!;
+      expect(text(ask)).toBe('Ask about this');
+      ask.click();
+      expect(coach.askAboutCard).toHaveBeenCalledOnceWith(card, jasmine.stringContaining('What stands out'));
     });
 
     it('writes values with the page format, at most four, and scales a single bar against a shared top', () => {

@@ -7,7 +7,12 @@ import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { PeriodCode, periodOption, periodRange } from './training-period';
 
 /** Where a page's read stands: loading skeletons, the data, or an error with a retry. */
-export type Load<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; message: string };
+export type Load<T> = { status: 'loading'; previous: T | null } | { status: 'ready'; data: T } | { status: 'error'; message: string };
+
+/** The data to show for a state: the answer, or the one before while the next is on its way. */
+export function shownData<T>(state: Load<T>): T | null {
+  return state.status === 'ready' ? state.data : state.status === 'loading' ? state.previous : null;
+}
 
 /**
  * The period of a Training page, read from `?period=` and written back to it, with today's date in
@@ -33,7 +38,7 @@ export function usePeriod() {
  * runs it again with the same inputs.
  */
 export function useLoad<K, T>(key: Signal<K | null>, read: (key: K) => Observable<T>, failure: string) {
-  const state = signal<Load<T>>({ status: 'loading' });
+  const state = signal<Load<T>>({ status: 'loading', previous: null });
   const attempt = signal(0);
   let running: Subscription | null = null;
   inject(DestroyRef).onDestroy(() => running?.unsubscribe());
@@ -46,7 +51,7 @@ export function useLoad<K, T>(key: Signal<K | null>, read: (key: K) => Observabl
         state.set({ status: 'error', message: failure });
         return;
       }
-      state.set({ status: 'loading' });
+      state.set({ status: 'loading', previous: shownData(state()) });
       running = read(current).subscribe({
         next: (data) => state.set({ status: 'ready', data }),
         error: () => state.set({ status: 'error', message: failure })

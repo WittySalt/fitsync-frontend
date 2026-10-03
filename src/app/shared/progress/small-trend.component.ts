@@ -60,7 +60,7 @@ export function smallTrendGeometry(
   template: `
     @if (geometry(); as g) {
       <figure class="trend">
-        <svg [attr.viewBox]="'0 0 ' + width() + ' ' + height()" [style.width.px]="width()" role="img" [attr.aria-label]="summary()">
+        <svg [attr.viewBox]="'0 0 ' + drawWidth() + ' ' + height()" [style.width.px]="drawWidth()" role="img" [attr.aria-label]="summary()">
           @if (g.target; as t) {
             <line class="target" [attr.x1]="t.x1" [attr.x2]="t.x2" [attr.y1]="t.y" [attr.y2]="t.y"></line>
             <text class="target-text halo" [attr.x]="t.x2 - 2" [attr.y]="t.y - 5" text-anchor="end">{{ t.text }}</text>
@@ -107,12 +107,12 @@ export class SmallTrendComponent {
   readonly targetText = input<string | null>(null);
   readonly height = input(56);
   /** A fixed width in pixels for a slot that is not the host's width; the host's own width when not given. */
-  readonly fixedWidth = input<number | null>(null, { alias: 'width' });
+  readonly width = input<number | null>(null);
   readonly showDates = input(true);
   readonly label = input('');
 
   private readonly measured = measureWidth(WIDTH);
-  protected readonly width = computed(() => this.fixedWidth() ?? this.measured());
+  protected readonly drawWidth = computed(() => this.width() ?? this.measured());
 
   protected readonly geometry = computed(() => {
     const points = this.points();
@@ -125,7 +125,7 @@ export class SmallTrendComponent {
     const end = this.endText() ?? `${formatNumber(values[values.length - 1], this.digits())}${unit}`;
     const target = this.target();
     const targetText = this.targetText() ?? (target === null ? '' : `target ${formatNumber(target, this.digits())}${unit}`);
-    return smallTrendGeometry(values, this.height(), start, end, target, targetText, this.width());
+    return smallTrendGeometry(values, this.height(), start, end, target, targetText, this.drawWidth());
   });
 
   protected readonly firstLabel = computed(() => pointLabel(this.points()[0]?.label ?? ''));
