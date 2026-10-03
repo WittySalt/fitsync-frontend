@@ -23,8 +23,8 @@ describe('RecipeCoachRowComponent', () => {
     expect(el.querySelector('h3')?.textContent?.trim()).toBe('Ask your coach about this recipe');
     expect(Array.from(el.querySelectorAll('button')).map((button) => button.textContent?.trim())).toEqual([
       'Does this fit today?',
-      'Make it higher in protein',
-      'Something with less fat'
+      'Could this be higher in protein?',
+      'Is there something with less fat?'
     ]);
   });
 
@@ -32,6 +32,6 @@ describe('RecipeCoachRowComponent', () => {
     const el = render();
     el.querySelectorAll('button')[1].click();
     expect(coach.open).toHaveBeenCalledTimes(1);
-    expect(coach.ask).toHaveBeenCalledWith('Make it higher in protein', { recipeId: 'r7' });
+    expect(coach.ask).toHaveBeenCalledWith('Could this be higher in protein?', { recipeId: 'r7' });
   });
 });

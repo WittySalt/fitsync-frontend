@@ -93,9 +93,9 @@ const SURFACES: Record<SurfaceId, Surface> = {
     label: 'Nutrition, this week',
     inlineTypes: ['NUTRITION_GAP'],
     suggestions: [
-      { text: 'Am I eating enough vegetables?', generative: false },
-      { text: 'Where are my calories coming from?', generative: false },
-      { text: 'What should I eat tonight?', generative: false }
+      { text: 'How did I eat this week?', generative: false },
+      { text: 'Which nutrient am I lowest in?', generative: false },
+      { text: 'What could I cook tonight that fits?', generative: false }
     ],
     code: 'NUTRITION'
   },
@@ -115,7 +115,7 @@ const SURFACES: Record<SurfaceId, Surface> = {
     inlineTypes: ['GOAL_PACE'],
     suggestions: [
       { text: 'Is my target realistic?', generative: false },
-      { text: 'Which goal needs attention?', generative: false }
+      { text: 'Am I on pace for my goals?', generative: false }
     ],
     code: 'PROFILE'
   },

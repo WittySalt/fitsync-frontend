@@ -39,24 +39,35 @@ describe('questionsFor', () => {
     }
   });
 
-  it('skips the day-off candidate when the label does not have the expected shape', () => {
-    const questions = questionsFor(reading([fact({ key: 'MOST_TRAINED', label: 'Core sessions', note: 'Every one' })]));
+  it('reads the day-off question from the numbers, so a reworded note changes nothing', () => {
+    const questions = questionsFor(
+      reading([fact({ key: 'MOST_TRAINED', label: 'Sessions with core work', value: '4', unit: 'of 4', numericValue: 4, note: 'All of them' })])
+    );
+    expect(questions[0]).toEqual({ text: 'Should my core get a day off?', makesDraft: false });
+  });
+
+  it('skips the day-off candidate when the group was not in every session', () => {
+    const questions = questionsFor(
+      reading([fact({ key: 'MOST_TRAINED', label: 'Sessions with core work', value: '3', unit: 'of 4', numericValue: 3, note: 'Every one' })])
+    );
     expect(questions).toEqual([BUILD_QUESTION]);
   });
 
-  it('skips the day-off candidate when the note is not "Every one"', () => {
-    const questions = questionsFor(reading([fact({ key: 'MOST_TRAINED', label: 'Sessions with core work', note: '3 of 4' })]));
-    expect(questions).toEqual([BUILD_QUESTION]);
+  it('falls back to neutral wording when the label names no group', () => {
+    const questions = questionsFor(reading([fact({ key: 'MOST_TRAINED', label: 'Core sessions', note: '' })]));
+    expect(questions[0]).toEqual({ text: 'Should my most-trained muscle get a day off?', makesDraft: false });
   });
 
-  it('offers a next-lift question when the load moved per session rose', () => {
-    const questions = questionsFor(reading([fact({ key: 'VOLUME_PER_SESSION', note: 'Up 12%' })]));
-    expect(questions).toEqual([{ text: 'What should I lift next time?', makesDraft: false }, BUILD_QUESTION]);
+  it('offers a next-lift question without reading the note, and skips it when the load fell', () => {
+    const rose = fact({ key: 'VOLUME_PER_SESSION', numericValue: 1923, detail: '1,700 kg the week before', note: 'Higher' });
+    expect(questionsFor(reading([rose]))[0]).toEqual({ text: 'What should I lift next time?', makesDraft: false });
+
+    const fell = fact({ key: 'VOLUME_PER_SESSION', numericValue: 1500, detail: '1,700 kg the week before', note: 'Up' });
+    expect(questionsFor(reading([fell]))).toEqual([BUILD_QUESTION]);
   });
 
-  it('skips the next-lift candidate when the volume note does not start with Up', () => {
-    const questions = questionsFor(reading([fact({ key: 'VOLUME_PER_SESSION', note: 'Unchanged' })]));
-    expect(questions).toEqual([BUILD_QUESTION]);
+  it('offers the next-lift question when the fact carries no comparison to read', () => {
+    expect(questionsFor(reading([fact({ key: 'VOLUME_PER_SESSION', note: 'Unchanged' })]))[0].text).toBe('What should I lift next time?');
   });
 
   it('names the lift in the beat-the-record question', () => {
