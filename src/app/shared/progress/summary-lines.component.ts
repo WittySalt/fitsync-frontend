@@ -12,7 +12,7 @@ import { SummaryLine } from './progress.models';
       <ul class="lines">
         @for (line of lines(); track $index) {
           <li class="line">
-            <span class="text">@if (line.figure) {<strong>{{ line.figure }}</strong> }{{ line.text }}</span>
+            <span class="text">@if (line.figure) {<strong>{{ line.figure }}</strong>}{{ (line.figure ? ' ' : '') + line.text }}</span>
             <span class="trend">{{ word(line.trend) }}</span>
           </li>
         }

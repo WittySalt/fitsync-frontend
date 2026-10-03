@@ -495,8 +495,8 @@ describe('CoachDockComponent — pinned card', () => {
   it('pins a small chip with the card and its days, like the recipe pin', () => {
     store.pinnedCard.set(card);
     render();
-    expect(text(element.querySelector('.card-pin strong'))).toBe('Training');
-    expect(text(element.querySelector('.card-pin-text span'))).toContain('from Progress');
+    expect(text(element.querySelector('app-card-pin strong'))).toBe('Training');
+    expect(text(element.querySelector('app-card-pin .text span'))).toContain('from Progress');
     expect(text(element.querySelector('.looking'))).toContain('one card pinned');
   });
 
@@ -513,10 +513,10 @@ describe('CoachDockComponent — pinned card', () => {
     store.pinnedCard.set({ ...card, kind: 'FOOD' });
     render();
     expect(element.querySelector('input')?.getAttribute('placeholder')).toBe('Ask about your food');
-    element.querySelector<HTMLButtonElement>('.card-pin-release')!.click();
+    element.querySelector<HTMLButtonElement>('app-card-pin .release')!.click();
     fixture.detectChanges();
     expect(store.letGoOfCard).toHaveBeenCalled();
-    expect(element.querySelector('.card-pin')).toBeNull();
+    expect(element.querySelector('app-card-pin')).toBeNull();
     expect(text(element.querySelector('.sugg-text'))).toBe('How am I doing?');
   });
 });

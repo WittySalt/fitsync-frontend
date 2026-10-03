@@ -18,7 +18,8 @@ import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
 import { CoachCardContext, CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
-import { CARD_LABELS, cardPeriod, cardPlaceholder, cardQuestions } from './card-questions';
+import { CardPinComponent } from './card-pin.component';
+import { CARD_LABELS, cardPlaceholder, cardQuestions } from './card-questions';
 import { CoachHistoryComponent } from './coach-history.component';
 import { CoachTraceComponent } from './coach-trace.component';
 import { questionsFor } from './insight/reading-questions';
@@ -57,7 +58,7 @@ interface DockSuggestion {
  */
 @Component({
   selector: 'app-coach-dock',
-  imports: [RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent, CoachHistoryComponent],
+  imports: [CardPinComponent, RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent, CoachHistoryComponent],
   template: `
     @if (!store.dockOpen()) {
       @if (!sidebarVisible()) {
@@ -125,14 +126,7 @@ interface DockSuggestion {
               </div>
             </section>
           } @else if (store.pinnedCard(); as card) {
-            <section class="card-pin" aria-label="The card you are asking about">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"></path></svg>
-              <span class="card-pin-text">
-                <strong>{{ cardLabel(card) }}</strong>
-                <span>{{ cardPeriod(card) }}</span>
-              </span>
-              <button type="button" class="card-pin-release" (click)="store.letGoOfCard()">Let go</button>
-            </section>
+            <app-card-pin [card]="card" (release)="store.letGoOfCard()" />
           } @else if (empty && store.availableReading(); as reading) {
             <button type="button" class="reading-row" (click)="store.askAboutReading(reading)">
               <span class="reading-text">
@@ -501,36 +495,6 @@ interface DockSuggestion {
         font-weight: var(--fw-bold);
         font-variant-numeric: tabular-nums;
         overflow-wrap: anywhere;
-      }
-      .card-pin {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: var(--surface-tint);
-        border: 1px solid var(--accent-subtle);
-        color: var(--accent-text);
-      }
-      .card-pin-text {
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        font-size: 12px;
-      }
-      .card-pin-text strong {
-        font-size: 13px;
-      }
-      .card-pin-release {
-        border: 0;
-        background: none;
-        min-height: 32px;
-        font: inherit;
-        font-size: 12px;
-        font-weight: var(--fw-semibold);
-        color: var(--accent-text);
-        cursor: pointer;
       }
       .reading-row {
         box-sizing: border-box;
@@ -1089,10 +1053,6 @@ export class CoachDockComponent {
 
   protected cardLabel(card: CoachCardContext): string {
     return CARD_LABELS[card.kind] ?? 'Card';
-  }
-
-  protected cardPeriod(card: CoachCardContext): string {
-    return cardPeriod(card);
   }
 
   /** The pinned card's headline, or a fallback for a reading that is facts only. */
