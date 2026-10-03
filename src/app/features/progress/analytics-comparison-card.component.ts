@@ -2,7 +2,9 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
 import {
+  AnalyticsAveragePerLoggedDay,
   AnalyticsComparePeriod,
+  AnalyticsDaysLogged,
   AnalyticsMetricComparison,
   AnalyticsSummaryCompareResponse
 } from '../../core/analytics.models';
@@ -33,6 +35,12 @@ const WINDOW_NAMES: Record<AnalyticsComparePeriod, { current: string; previous: 
   MONTH: { current: 'This month so far', previous: 'Last month, same days' }
 };
 
+/** When the current window is already over there is nothing "so far" about it. */
+const FINISHED_NAMES: Record<AnalyticsComparePeriod, { current: string; previous: string }> = {
+  WEEK: { current: 'This week', previous: 'Last week' },
+  MONTH: { current: 'This month', previous: 'Last month' }
+};
+
 @Component({
   selector: 'app-analytics-comparison-card',
   imports: [StatePanelComponent],
@@ -55,7 +63,10 @@ export class AnalyticsComparisonCardComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly windowNames = computed(() => WINDOW_NAMES[this.data()?.period ?? this.selectedPeriod()]);
+  readonly windowNames = computed(() => {
+    const period = this.data()?.period ?? this.selectedPeriod();
+    return this.data()?.currentToDate === false ? FINISHED_NAMES[period] : WINDOW_NAMES[period];
+  });
 
   readonly comparisonGroups = computed<ComparisonGroup[]>(() => {
     const data = this.data();
@@ -64,34 +75,47 @@ export class AnalyticsComparisonCardComponent implements OnInit {
     }
 
     // Food is compared by what a logged day held, so a week with fewer logged days is not read as
-    // eating less. An answer without those figures falls back to the totals.
+    // eating less. An answer without those figures falls back to the totals. A side with no logged
+    // day has no figure, which reads as n/a.
     const nutrition = data.nutrition;
-    const perDay = (metric: AnalyticsMetricComparison): { metric: AnalyticsMetricComparison; suffix: string } =>
-      metric.averagePerLoggedDay ? { metric: metric.averagePerLoggedDay, suffix: ', a logged day' } : { metric, suffix: '' };
-    const food = (label: string, metric: AnalyticsMetricComparison, unit: string): ComparisonRow => {
-      const chosen = perDay(metric);
-      return { label: `${label}${chosen.suffix}`, metric: chosen.metric, unit, showChange: true };
-    };
+    const average = nutrition.averagePerLoggedDay;
+    const noFigure: AnalyticsMetricComparison = { current: null, previous: null, delta: null, deltaPct: null };
+    const food = (
+      label: string,
+      total: AnalyticsMetricComparison,
+      perDay: keyof AnalyticsAveragePerLoggedDay,
+      unit: string
+    ): ComparisonRow =>
+      average
+        ? { label: `${label}, a logged day`, metric: average[perDay] ?? noFigure, unit, showChange: true }
+        : { label, metric: total, unit, showChange: true };
+    const daysRow = (label: string, days: AnalyticsDaysLogged): ComparisonRow => ({
+      label,
+      metric: { current: days.current, previous: days.previous, delta: null, deltaPct: null },
+      unit: 'days',
+      showChange: false
+    });
     const nutritionRows = [
-      food('Calories consumed', nutrition.totalCaloriesConsumed, 'kcal'),
-      food('Protein', nutrition.totalProteinGrams, 'g'),
-      food('Carbs', nutrition.totalCarbsGrams, 'g'),
-      food('Fat', nutrition.totalFatGrams, 'g')
+      food('Calories consumed', nutrition.totalCaloriesConsumed, 'calories', 'kcal'),
+      food('Protein', nutrition.totalProteinGrams, 'proteinGrams', 'g'),
+      food('Carbs', nutrition.totalCarbsGrams, 'carbsGrams', 'g'),
+      food('Fat', nutrition.totalFatGrams, 'fatGrams', 'g')
     ];
     if (nutrition.daysLogged) {
-      nutritionRows.push({ label: 'Days logged', metric: nutrition.daysLogged, unit: 'days', showChange: false });
+      nutritionRows.push(daysRow('Days logged', nutrition.daysLogged));
+    }
+    const workoutRows: ComparisonRow[] = [
+      { label: 'Completed workouts', metric: data.workout.completedWorkoutCount, unit: '', showChange: true },
+      { label: 'Workout minutes', metric: data.workout.totalWorkoutMinutes, unit: 'min', showChange: true },
+      { label: 'Calories burned', metric: data.workout.totalCaloriesBurned, unit: 'kcal', showChange: true },
+      { label: 'Exercises completed', metric: data.workout.totalExerciseCount, unit: '', showChange: true }
+    ];
+    if (data.workout.daysLogged) {
+      workoutRows.push(daysRow('Days with a workout', data.workout.daysLogged));
     }
 
     return [
-      {
-        title: 'Workout',
-        rows: [
-          { label: 'Completed workouts', metric: data.workout.completedWorkoutCount, unit: '', showChange: true },
-          { label: 'Workout minutes', metric: data.workout.totalWorkoutMinutes, unit: 'min', showChange: true },
-          { label: 'Calories burned', metric: data.workout.totalCaloriesBurned, unit: 'kcal', showChange: true },
-          { label: 'Exercises completed', metric: data.workout.totalExerciseCount, unit: '', showChange: true }
-        ]
-      },
+      { title: 'Workout', rows: workoutRows },
       { title: 'Nutrition', rows: nutritionRows }
     ];
   });

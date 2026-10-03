@@ -645,15 +645,10 @@ export interface WeeklyVolume {
   weekBeforePreviousKg: number;
   thisWeekSessionsWithVolume: number;
   previousWeekSessionsWithVolume: number;
-}
-
-/** Last week's figures up to the same weekday as today, so a week that is half over is set against
- *  half of the one before and not against all of it. */
-export interface PreviousWeekSameDays {
-  completedSessions: number;
-  totalMinutes: number;
-  volumeKg: number;
-  sessionsWithVolume: number;
+  /** Last week's weight up to the same weekday as today, and its sessions with weight. Missing on a
+   *  backend from before the field; the volume line is then left out. */
+  previousWeekSameDaysKg?: number;
+  previousWeekSameDaysSessionsWithVolume?: number;
 }
 
 export interface WeeklyTrainingInsight {
@@ -676,9 +671,9 @@ export interface WeeklyTrainingInsight {
   /** The time of day the person usually starts training, as the backend sends it ("18:30", 24-hour).
    *  Null when the records do not show a usual time; absent on a response from before the field. */
   usualStartTime?: string | null;
-  /** Last week up to the same weekday. Absent on a backend from before the field, and the volume
-   *  line then falls back to the whole of last week. */
-  previousWeekSameDays?: PreviousWeekSameDays | null;
+  /** Last week up to the same weekday: sessions and minutes. Absent on a backend from before it. */
+  previousWeekSameDaysCompletedSessions?: number;
+  previousWeekSameDaysTotalMinutes?: number;
 }
 
 /** The four kinds of training day, plus the two states a day can be in without one. */

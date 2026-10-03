@@ -1,4 +1,4 @@
-import { DayKind, MuscleGroupCode, MuscleGroupInsight, PreviousWeekSameDays, WeeklyTrainingInsight } from '../../../core/fitsync.models';
+import { DayKind, MuscleGroupCode, MuscleGroupInsight, WeeklyTrainingInsight } from '../../../core/fitsync.models';
 import { formatDuration, formatKm, formatPace } from './brief-duration';
 import { numberWord } from './brief-copy';
 import { joinLabels, muscleLabel } from './brief-muscles';
@@ -176,12 +176,14 @@ function mostRecentPhrase(lastTrainedOn: string | null, referenceDate: string): 
 
 /** This week's weight so far against last week's by the same weekday. Nothing is said when last
  *  week had no weight by this point, because a ratio against nothing means nothing. */
-function sameDaysVolumeObservation(insight: WeeklyTrainingInsight, same: PreviousWeekSameDays): BriefObservation | null {
+function sameDaysVolumeObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
   const v = insight.volume;
-  if (v.thisWeekKg <= 0 || same.volumeKg <= 0) {
+  const sameKg = v.previousWeekSameDaysKg ?? 0;
+  const sameSessions = v.previousWeekSameDaysSessionsWithVolume ?? 0;
+  if (v.thisWeekKg <= 0 || sameKg <= 0) {
     return null;
   }
-  const ratio = v.thisWeekKg / same.volumeKg;
+  const ratio = v.thisWeekKg / sameKg;
   let fact: string;
   if (ratio >= 1.15) {
     fact = `You have lifted ${formatRatio(ratio)} times as much as by this point last week.`;
@@ -192,40 +194,18 @@ function sameDaysVolumeObservation(insight: WeeklyTrainingInsight, same: Previou
   }
   const sessions = (count: number): string => `${numberWord(count)} ${plural('session', count)}`;
   const note =
-    v.thisWeekSessionsWithVolume !== same.sessionsWithVolume
-      ? `${formatKg(v.thisWeekKg)} kg over ${sessions(v.thisWeekSessionsWithVolume)} so far, against ${formatKg(same.volumeKg)} kg over ${sessions(same.sessionsWithVolume)} by this point last week.`
-      : `${formatKg(v.thisWeekKg)} kg so far, against ${formatKg(same.volumeKg)} kg by this point last week.`;
+    v.thisWeekSessionsWithVolume !== sameSessions
+      ? `${formatKg(v.thisWeekKg)} kg over ${sessions(v.thisWeekSessionsWithVolume)} so far, against ${formatKg(sameKg)} kg over ${sessions(sameSessions)} by this point last week.`
+      : `${formatKg(v.thisWeekKg)} kg so far, against ${formatKg(sameKg)} kg by this point last week.`;
   return { id: 'volume', icon: 'volume', fact, note, muscle: null };
 }
 
 function volumeObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
   const v = insight.volume;
 
-  if (v.thisWeekKg > 0 && insight.previousWeekSameDays) {
-    return sameDaysVolumeObservation(insight, insight.previousWeekSameDays);
-  }
-
-  if (v.thisWeekKg > 0 && v.previousWeekKg > 0) {
-    const ratio = v.thisWeekKg / v.previousWeekKg;
-    let fact: string;
-    if (ratio >= 1.15) {
-      fact = `You lifted ${formatRatio(ratio)} times last week's weight.`;
-    } else if (ratio <= 0.85) {
-      fact = `You lifted ${formatPercent(ratio)}% of last week's weight.`;
-    } else {
-      fact = `You lifted about the same weight as last week.`;
-    }
-
-    let note: string;
-    if (v.thisWeekSessionsWithVolume !== v.previousWeekSessionsWithVolume) {
-      note =
-        `${formatKg(v.thisWeekKg)} kg over ${numberWord(v.thisWeekSessionsWithVolume)} ` +
-        `${plural('session', v.thisWeekSessionsWithVolume)} this week against ${formatKg(v.previousWeekKg)} kg over ` +
-        `${numberWord(v.previousWeekSessionsWithVolume)}.`;
-    } else {
-      note = `${formatKg(v.thisWeekKg)} kg this week against ${formatKg(v.previousWeekKg)} kg.`;
-    }
-    return { id: 'volume', icon: 'volume', fact, note, muscle: null };
+  if (v.thisWeekKg > 0) {
+    // Set against last week by the same weekday, and left out when that figure is missing or zero.
+    return sameDaysVolumeObservation(insight);
   }
 
   if (v.thisWeekKg === 0 && v.previousWeekKg > 0) {

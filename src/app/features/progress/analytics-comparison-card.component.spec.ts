@@ -42,14 +42,14 @@ const loggedDayComparison: AnalyticsSummaryCompareResponse = {
   ...weekComparison,
   nutrition: {
     ...weekComparison.nutrition,
-    totalCaloriesConsumed: {
-      current: 5400,
-      previous: 7600,
-      delta: -2200,
-      deltaPct: -28.9,
-      averagePerLoggedDay: perLoggedDay(1800, 1900, -5.3)
-    },
-    daysLogged: { current: 3, previous: 4, delta: -1, deltaPct: -25 }
+    totalCaloriesConsumed: { current: 5400, previous: 7600, delta: -2200, deltaPct: -28.9 },
+    daysLogged: { current: 3, previous: 4 },
+    averagePerLoggedDay: {
+      calories: perLoggedDay(1800, 1900, -5.3),
+      proteinGrams: perLoggedDay(110, 100, 10),
+      carbsGrams: null,
+      fatGrams: perLoggedDay(60, 60, 0)
+    }
   }
 };
 
@@ -132,6 +132,30 @@ describe('AnalyticsComparisonCardComponent', () => {
     expect(text()).toContain('Days logged');
     expect(text()).toContain('3 days');
     expect(text()).toContain('4 days');
+  });
+
+  it('reads a metric with no logged day on a side as n/a and shows the days with a workout', () => {
+    analyticsApi.getSummaryCompare.and.returnValue(
+      of({ ...loggedDayComparison, workout: { ...loggedDayComparison.workout, daysLogged: { current: 2, previous: 3 } } })
+    );
+    fixture.detectChanges();
+
+    const carbs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.comparison-row')).find((row) =>
+      row.textContent?.includes('Carbs')
+    );
+    expect(carbs?.textContent).toContain('Carbs, a logged day');
+    expect(carbs?.textContent).toContain('n/a');
+    expect(text()).toContain('Days with a workout');
+    expect(text()).toContain('2 days');
+  });
+
+  it('drops "so far" and "same days" when the current window is already over', () => {
+    analyticsApi.getSummaryCompare.and.returnValue(of({ ...weekComparison, currentToDate: false }));
+    fixture.detectChanges();
+
+    expect(text()).toContain('This week: 22 to 24 Jun');
+    expect(text()).toContain('Last week: 15 to 17 Jun');
+    expect(text()).not.toContain('so far');
   });
 
   it('keeps the totals and leaves the days-logged row out for a server that sends no per-day figures', () => {

@@ -90,7 +90,6 @@ import {
   MonthlyTrainingInsight,
   UpdateExerciseRequest,
   WeeklyTrainingInsight,
-  PreviousWeekSameDays,
   WeightSeriesPoint,
   UsualMeal
 } from './fitsync.models';
@@ -364,19 +363,6 @@ export function normalizeFocusAreas(values: unknown): string[] {
  *  means the records show no usual time, so the brief says nothing about it. */
 export function mapUsualStartTime(value: unknown): string | null {
   return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
-}
-
-/** Last week up to the same weekday, or null when the backend does not send it. */
-export function mapPreviousWeekSameDays(entry: Partial<PreviousWeekSameDays> | null | undefined): PreviousWeekSameDays | null {
-  if (!entry || typeof entry !== 'object') {
-    return null;
-  }
-  return {
-    completedSessions: safeInsightNumber(entry.completedSessions),
-    totalMinutes: safeInsightNumber(entry.totalMinutes),
-    volumeKg: safeInsightNumber(entry.volumeKg),
-    sessionsWithVolume: safeInsightNumber(entry.sessionsWithVolume)
-  };
 }
 
 function mapNextTraining(entry: Partial<NextTraining> | null | undefined): NextTraining | null {
@@ -1160,13 +1146,16 @@ export class FitSyncDataService {
             previousWeekKg: safeInsightNumber(response.volume?.previousWeekKg),
             weekBeforePreviousKg: safeInsightNumber(response.volume?.weekBeforePreviousKg),
             thisWeekSessionsWithVolume: safeInsightNumber(response.volume?.thisWeekSessionsWithVolume),
-            previousWeekSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSessionsWithVolume)
+            previousWeekSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSessionsWithVolume),
+            previousWeekSameDaysKg: safeInsightNumber(response.volume?.previousWeekSameDaysKg),
+            previousWeekSameDaysSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSameDaysSessionsWithVolume)
           },
           days: mapDays(response.days),
           today: mapTodayInsight(response.today),
           nextTraining: mapNextTraining(response.nextTraining),
           usualStartTime: mapUsualStartTime(response.usualStartTime),
-          previousWeekSameDays: mapPreviousWeekSameDays(response.previousWeekSameDays)
+          previousWeekSameDaysCompletedSessions: safeInsightNumber(response.previousWeekSameDaysCompletedSessions),
+          previousWeekSameDaysTotalMinutes: safeInsightNumber(response.previousWeekSameDaysTotalMinutes)
         }))
       );
   }

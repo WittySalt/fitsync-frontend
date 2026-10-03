@@ -1664,7 +1664,7 @@ describe('FitSyncDataService', () => {
     });
   });
 
-  describe('previousWeekSameDays', () => {
+  describe('last week up to the same weekday', () => {
     function insightWith(extra: Record<string, unknown>): WeeklyTrainingInsight | undefined {
       let result: WeeklyTrainingInsight | undefined;
       service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
@@ -1672,24 +1672,22 @@ describe('FitSyncDataService', () => {
       return result;
     }
 
-    it('maps the figures of last week up to the same weekday', () => {
-      expect(insightWith({ previousWeekSameDays: { completedSessions: 1, totalMinutes: 40, volumeKg: 1900, sessionsWithVolume: 1 } })?.previousWeekSameDays).toEqual({
-        completedSessions: 1,
-        totalMinutes: 40,
-        volumeKg: 1900,
-        sessionsWithVolume: 1
+    it('maps the same-day figures of the volume and the week', () => {
+      const result = insightWith({
+        volume: { previousWeekSameDaysKg: 1900, previousWeekSameDaysSessionsWithVolume: 1 },
+        previousWeekSameDaysCompletedSessions: 2,
+        previousWeekSameDaysTotalMinutes: 80
       });
+      expect(result?.volume.previousWeekSameDaysKg).toBe(1900);
+      expect(result?.volume.previousWeekSameDaysSessionsWithVolume).toBe(1);
+      expect(result?.previousWeekSameDaysCompletedSessions).toBe(2);
+      expect(result?.previousWeekSameDaysTotalMinutes).toBe(80);
     });
 
-    it('turns a missing or malformed number into zero and a missing object into null', () => {
-      expect(insightWith({ previousWeekSameDays: { volumeKg: 'x' } })?.previousWeekSameDays).toEqual({
-        completedSessions: 0,
-        totalMinutes: 0,
-        volumeKg: 0,
-        sessionsWithVolume: 0
-      });
-      expect(insightWith({})?.previousWeekSameDays).toBeNull();
-      expect(insightWith({ previousWeekSameDays: null })?.previousWeekSameDays).toBeNull();
+    it('turns missing or malformed figures into zero', () => {
+      const result = insightWith({ volume: { previousWeekSameDaysKg: 'x' } });
+      expect(result?.volume.previousWeekSameDaysKg).toBe(0);
+      expect(result?.previousWeekSameDaysTotalMinutes).toBe(0);
     });
   });
 

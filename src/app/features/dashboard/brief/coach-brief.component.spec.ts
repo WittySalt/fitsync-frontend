@@ -88,7 +88,7 @@ const weeklyInsight: WeeklyTrainingInsight = {
     group('LEGS', 2, true, '2026-09-25'),
     group('CARDIO', 2, false, '2026-09-26', 1)
   ],
-  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1 },
+  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1, previousWeekSameDaysKg: 1716, previousWeekSameDaysSessionsWithVolume: 1 },
   days: null,
   today: null,
   nextTraining: null
@@ -372,7 +372,7 @@ describe('CoachBriefComponent', () => {
     expect(facts).toEqual([
       'Chest, back and legs have had two days off.',
       'Your core has worked eight sessions running.',
-      "You lifted 2.2 times last week's weight."
+      'You have lifted 2.2 times as much as by this point last week.'
     ]);
   });
 
@@ -704,7 +704,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
       previousWeekCompletedSessions: 0,
       previousWeekTotalMinutes: 0,
       muscleGroups: [],
-      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0, previousWeekSameDaysKg: 0, previousWeekSameDaysSessionsWithVolume: 0 },
       days,
       today,
       nextTraining

@@ -20,6 +20,8 @@
       [error]="true"
       (action)="load()"
     />
+  } @else if (empty()) {
+    <app-state-panel title="No workouts in this range" message="Log a workout to fill this in, or choose a longer range." />
   } @else {
     <div class="months" role="group" [attr.aria-label]="'Workout activity, ' + rangeText()">
       @for (month of months(); track month.label) {
@@ -33,16 +35,14 @@
           <ul class="grid" [attr.aria-label]="month.label + ' workout activity'">
             @for (week of month.weeks; track $index) {
               @for (cell of week; track cell.date) {
-                @if (cell.inMonth) {
-                  <li
-                    class="cell intensity-{{ cell.level }}"
-                    [class.muted]="!cell.inRange"
-                    [class.today]="cell.today"
-                    [attr.title]="cell.tooltip"
-                    [attr.aria-label]="cell.tooltip"
-                  ></li>
-                } @else {
+                @if (!cell.inMonth) {
                   <li class="blank" aria-hidden="true"></li>
+                } @else if (cell.hasActivity) {
+                  <li class="cell intensity-{{ cell.level }}" [class.muted]="!cell.inRange" [class.today]="cell.today" [class.selected]="selectedDate() === cell.date" [attr.title]="cell.tooltip">
+                    <button type="button" class="open" [attr.aria-label]="cell.tooltip + '. Show the sessions.'" [attr.aria-pressed]="selectedDate() === cell.date" (click)="openDay(cell.date)"></button>
+                  </li>
+                } @else {
+                  <li class="cell intensity-0" [class.muted]="!cell.inRange" [class.today]="cell.today" [attr.title]="cell.tooltip" [attr.aria-label]="cell.tooltip"></li>
                 }
               }
             }
@@ -58,5 +58,44 @@
       }
       <span>More</span>
     </div>
+
+    @if (selectedDate()) {
+      <div class="day" aria-live="polite">
+        <div class="day-head">
+          <h3>{{ dayTitle() }}</h3>
+          <button type="button" class="button secondary compact" (click)="closeDay()">Close</button>
+        </div>
+        @if (dayState() === 'loading') {
+          <div class="skeleton day-skeleton" aria-busy="true" aria-label="Loading the sessions"></div>
+        } @else if (dayState() === 'failed') {
+          <app-state-panel
+            title="Sessions unavailable"
+            message="Unable to load the sessions of this day."
+            actionLabel="Retry"
+            [error]="true"
+            (action)="openDay(selectedDate() ?? '')"
+          />
+        } @else if (daySessions().length) {
+          @for (entry of daySessions(); track entry.session.sessionId ?? entry.timeLabel) {
+            <button type="button" class="session" (click)="openSession(entry.session)">
+              <span>{{ entry.timeLabel }}</span>
+              <strong>{{ entry.title }}</strong>
+            </button>
+          }
+        } @else {
+          <p class="none">No sessions logged for this day.</p>
+        }
+      </div>
+    }
+
+    @if (selectedSessionId(); as sessionId) {
+      <app-session-detail
+        [sessionId]="sessionId"
+        (closed)="closeSessionDetail()"
+        (updated)="handleSessionUpdated($event)"
+        (deleted)="handleSessionDeleted()"
+        (repeated)="handleSessionRepeated($event)"
+      />
+    }
   }
 </section>
