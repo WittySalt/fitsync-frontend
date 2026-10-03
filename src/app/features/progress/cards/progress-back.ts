@@ -17,11 +17,12 @@ export class ProgressBack {
     return typeof id === 'number' && id > 1;
   }
 
-  back(): void {
+  /** Steps back when there is an entry to step back to, else opens `fallback` (Progress by default). */
+  back(fallback = '/progress'): void {
     if (this.hasEntryInApp()) {
       this.location.back();
     } else {
-      void this.router.navigateByUrl('/progress');
+      void this.router.navigateByUrl(fallback);
     }
   }
 }
