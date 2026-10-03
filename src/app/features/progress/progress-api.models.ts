@@ -7,6 +7,12 @@ export interface Compared<T> {
   previous: T | null;
 }
 
+/** The days a response describes and the days before it that every comparison uses. */
+export interface PeriodPair {
+  period: { from: string; to: string } | null;
+  previous: { from: string; to: string } | null;
+}
+
 export interface DatedValue {
   date: string;
   value: number;
@@ -36,7 +42,7 @@ export interface OtherGoal {
   weeks: { weekStart: string; value: number; target: number | null }[];
 }
 
-export interface GoalProgress {
+export interface GoalProgress extends PeriodPair {
   goal: WeightGoal | null;
   hero: {
     nowKg: number | null;
@@ -66,9 +72,10 @@ export interface MacroTrend {
   series: { weekStart: string; value: number }[];
 }
 
+/** A food group's share of the plate, by calories (analytics stores no grams; drinks are left out). */
 export interface PlateShare {
   group: string;
-  grams: number | null;
+  kcal: number | null;
   share: number;
 }
 
@@ -76,10 +83,13 @@ export interface FoodNutrition {
   mealTimes: { mealType: string; medianMinuteOfDay: number; p25: number | null; p75: number | null; count: number }[];
   topFoods: { foodCatalogItemId: string | null; name: string; foodGroup: string | null; categoryCode: string | null; times: number }[];
   cooks: { count: number; last: { recipeId: string | null; name: string; finishedAt: string | null } | null } | null;
+  /** The last 31 days of the period at most, which the lowest nutrients and the habits cover. */
+  recentWindow: { from: string; to: string } | null;
   lowestNutrients: { code: string; displayName: string; share: number }[];
+  habits: { loggedDays: number | null; fibreMetDays: number | null; waterMetDays: number | null };
 }
 
-export interface FoodProgress {
+export interface FoodProgress extends PeriodPair {
   hero: {
     eatenPerDay: Compared<number>;
     proteinPerDay: Compared<number>;
@@ -93,7 +103,8 @@ export interface FoodProgress {
   };
   macros: { protein: MacroTrend | null; carbs: MacroTrend | null; fat: MacroTrend | null; summary: SummaryLine[] };
   plate: { basis: string; current: PlateShare[]; previous: PlateShare[]; changes: { group: string; deltaPoints: number }[] };
-  meals: { share: { mealType: string; sharePct: number; deltaPoints: number | null }[] };
+  meals: { share: { mealType: string; sharePct: number; deltaPoints: number | null; kcalPerDay: number | null }[] };
+  /** Fibre and water come from nutrition and cover its recent window; water is null while no goal is known. */
   habits: { waterMetDays: number | null; fibreMetDays: number | null; loggedDays: number | null };
   /** What only nutrition knows; null when that read failed, so its sections say so. */
   nutrition: FoodNutrition | null;
@@ -105,6 +116,8 @@ export type ReviewStatus = 'READY' | 'WRITING' | 'NONE';
 export interface WeeklyReview {
   weekStart: string;
   weekEnd: string;
+  /** The week still under way, reviewed "so far". */
+  current: boolean;
   status: ReviewStatus;
   headline: string;
   body: string;

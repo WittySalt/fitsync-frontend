@@ -3,7 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 
 import { mapFoodNutrition, mapFoodProgress, mapGoalProgress, mapReviews } from './progress-api.mappers';
-import { FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
+import { dateRangeLabel } from '../../shared/date-label';
+import { FoodNutrition, FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
 
 /**
  * The reads behind the Goal page, the Food page and the weekly reviews. Each sends only `from` and
@@ -29,13 +30,45 @@ export class ProgressApiService {
         map(mapFoodNutrition),
         catchError(() => of(null))
       )
-    }).pipe(map(({ analytics, nutrition }) => ({ ...analytics, nutrition })));
+    }).pipe(map(({ analytics, nutrition }) => mergeFood(analytics, nutrition)));
   }
 
   /** The last `weeks` weekly reviews, newest first. */
   getReviews(weeks = 8): Observable<WeeklyReview[]> {
     return this.http.get<unknown>('/api/v1/coach/reviews', { params: new HttpParams().set('weeks', weeks) }).pipe(map(mapReviews));
   }
+}
+
+/**
+ * Analytics has no micronutrients and no water or fibre, so the lowest nutrient finding and those two
+ * habits come from nutrition. Their days are nutrition's recent window, so its logged days go with them.
+ */
+export function mergeFood(analytics: Omit<FoodProgress, 'nutrition'>, nutrition: FoodNutrition | null): FoodProgress {
+  const habits = nutrition
+    ? {
+        waterMetDays: nutrition.habits.waterMetDays,
+        fibreMetDays: nutrition.habits.fibreMetDays,
+        loggedDays: nutrition.habits.loggedDays ?? analytics.habits.loggedDays
+      }
+    : { waterMetDays: null, fibreMetDays: null, loggedDays: analytics.habits.loggedDays };
+  const lowest = nutrition?.lowestNutrients[0];
+  const highlights =
+    lowest && analytics.highlights.length < 4 && !analytics.highlights.some((h) => h.code === 'LOWEST_NUTRIENT')
+      ? [
+          ...analytics.highlights,
+          {
+            code: 'LOWEST_NUTRIENT',
+            title: `${lowest.displayName} is the furthest short, ${Math.round(lowest.share * 100)}% of the daily amount.`,
+            series: [
+              { label: lowest.displayName, value: Math.round(lowest.share * 100) },
+              { label: 'Daily amount', value: 100 }
+            ],
+            unit: '%',
+            context: nutrition?.recentWindow ? `On average, ${dateRangeLabel(nutrition.recentWindow.from, nutrition.recentWindow.to)}` : 'On average'
+          }
+        ]
+      : analytics.highlights;
+  return { ...analytics, highlights, habits, nutrition };
 }
 
 function period(from: string, to: string): HttpParams {

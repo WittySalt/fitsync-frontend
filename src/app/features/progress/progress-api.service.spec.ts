@@ -39,6 +39,11 @@ describe('ProgressApiService', () => {
     nutrition.flush(NUTRITION_WIRE);
     expect(result!.hero.daysLogged.value).toBe(26);
     expect(result!.nutrition?.lowestNutrients[0].displayName).toBe('Vitamin D');
+    expect(result!.habits).toEqual({ waterMetDays: null, fibreMetDays: 11, loggedDays: 26 });
+    const lowest = result!.highlights.find((h) => h.code === 'LOWEST_NUTRIENT')!;
+    expect(lowest.title).toBe('Vitamin D is the furthest short, 34% of the daily amount.');
+    expect(lowest.context).toContain('3 Sept to 3 Oct');
+    expect(result!.period).toEqual({ from: '2026-09-04', to: '2026-10-03' });
   });
 
   it('keeps the food page when only nutrition fails', () => {
@@ -47,6 +52,8 @@ describe('ProgressApiService', () => {
     http.expectOne((req) => req.url === '/api/v1/analytics/progress/food').flush(FOOD_WIRE);
     http.expectOne((req) => req.url === '/api/v1/nutrition/progress/food').flush('down', { status: 503, statusText: 'Down' });
     expect(result!.nutrition).toBeNull();
+    expect(result!.habits.fibreMetDays).toBeNull();
+    expect(result!.highlights.some((h) => h.code === 'LOWEST_NUTRIENT')).toBeFalse();
     expect(result!.hero.eatenPerDay.value).toBe(2123);
   });
 
@@ -73,6 +80,8 @@ describe('progress mappers', () => {
   it('reads every part of the goal response', () => {
     const goal = mapGoalProgress(GOAL_WIRE);
     expect(goal.goal).toEqual({ type: 'WEIGHT', targetKg: 68, byDate: '2026-12-11' });
+    expect(goal.previous).toEqual({ from: '2026-04-05', to: '2026-07-04' });
+    expect(goal.hero.projectedDate.previous).toBe('2027-01-10');
     expect(goal.weight.weekly.length).toBe(2);
     expect(goal.weight.rateChangeMark?.text).toBe('Faster from 14 Sept');
     expect(goal.body.bmi).toBeNull();
@@ -96,7 +105,9 @@ describe('progress mappers', () => {
     expect(food.energy.weeklyBalance[1]).toEqual({ weekStart: '2026-09-28', balance: -279, daysLogged: 5, current: true });
     expect(food.macros.fat).toBeNull();
     expect(food.macros.summary).toEqual([{ text: 'Protein 150 → 136 g a day', trend: 'DOWN' }]);
-    expect(food.plate.current[1]).toEqual({ group: 'GRAINS', grams: null, share: 27 });
+    expect(food.plate.current[0]).toEqual({ group: 'VEG', kcal: 9900, share: 18 });
+    expect(food.plate.current[1]).toEqual({ group: 'GRAINS', kcal: null, share: 27 });
+    expect(food.meals.share[0].kcalPerDay).toBe(807);
     expect(food.meals.share[1].deltaPoints).toBeNull();
     expect(mapFoodProgress({}).hero.eatenPerDay).toEqual({ value: null, previous: null });
   });
@@ -105,6 +116,8 @@ describe('progress mappers', () => {
     const nutrition = mapFoodNutrition(NUTRITION_WIRE);
     expect(nutrition.mealTimes[0].medianMinuteOfDay).toBe(1160);
     expect(nutrition.cooks?.last?.name).toBe('Algerian Kefta');
+    expect(nutrition.recentWindow).toEqual({ from: '2026-09-03', to: '2026-10-03' });
+    expect(nutrition.habits.waterMetDays).toBeNull();
     expect(mapFoodNutrition({}).cooks).toBeNull();
   });
 
@@ -112,10 +125,14 @@ describe('progress mappers', () => {
     expect(mapReviews({ reviews: [{ weekStart: '2026-09-28', status: 'ODD' }] })[0]).toEqual({
       weekStart: '2026-09-28',
       weekEnd: '2026-09-28',
+      current: false,
       status: 'NONE',
       headline: '',
       body: ''
     });
     expect(mapReviews('x')).toEqual([]);
+    expect(mapReviews([{ weekStart: '2026-09-28', status: 'READY', body: 'Two sessions [1] and less food [2].', current: true }])[0].body).toBe(
+      'Two sessions and less food.'
+    );
   });
 });

@@ -1,3 +1,4 @@
+import { withoutCitations } from '../../shared/coach/insight/reading-text';
 import { arr, bool, compared, list, mapDotDays, mapHighlights, mapSummaryLines, num, obj, str } from '../../shared/progress/progress-mappers';
 import { mapEnergyWeek } from './energy/energy-mappers';
 import {
@@ -17,6 +18,13 @@ import {
  * on its own, so a server that sends part of a response still fills what it sent; nothing is made
  * up for what it did not.
  */
+
+function range(value: unknown): { from: string; to: string } | null {
+  const wire = obj(value);
+  const from = str(wire?.['from']);
+  const to = str(wire?.['to']);
+  return from && to ? { from, to } : null;
+}
 
 function bodySeries(value: unknown): BodySeries | null {
   const wire = obj(value);
@@ -59,6 +67,8 @@ export function mapGoalProgress(response: unknown): GoalProgress {
   const body = obj(wire['body']) ?? {};
   const mark = obj(weight['rateChangeMark']);
   return {
+    period: range(wire['period']),
+    previous: range(wire['previous']),
     goal: goal ? { type: str(goal['type']) ?? 'WEIGHT', targetKg: num(goal['targetKg']), byDate: str(goal['byDate']) } : null,
     hero: {
       nowKg: num(hero['nowKg']),
@@ -119,7 +129,7 @@ function plateShares(value: unknown): PlateShare[] {
   return list(value, (item) => {
     const group = str(item['group']);
     const share = num(item['share']);
-    return group && share !== null ? { group, grams: num(item['grams']), share } : null;
+    return group && share !== null ? { group, kcal: num(item['kcal']), share } : null;
   });
 }
 
@@ -135,6 +145,8 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
   const habits = obj(wire['habits']) ?? {};
   const thisWeek = obj(energy['thisWeek']);
   return {
+    period: range(wire['period']),
+    previous: range(wire['previous']),
     hero: {
       eatenPerDay: compared(hero['eatenPerDay'], num),
       proteinPerDay: compared(hero['proteinPerDay'], num),
@@ -164,7 +176,7 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
       share: list(obj(wire['meals'])?.['share'], (item) => {
         const mealType = str(item['mealType']);
         const sharePct = num(item['sharePct']);
-        return mealType && sharePct !== null ? { mealType, sharePct, deltaPoints: num(item['deltaPoints']) } : null;
+        return mealType && sharePct !== null ? { mealType, sharePct, deltaPoints: num(item['deltaPoints']), kcalPerDay: num(item['kcalPerDay']) } : null;
       })
     },
     habits: { waterMetDays: num(habits['waterMetDays']), fibreMetDays: num(habits['fibreMetDays']), loggedDays: num(habits['loggedDays']) }
@@ -176,7 +188,10 @@ export function mapFoodNutrition(response: unknown): FoodNutrition {
   const wire = obj(response) ?? {};
   const cooks = obj(wire['cooks']);
   const last = obj(cooks?.['last']);
+  const habits = obj(wire['habits']) ?? {};
   return {
+    recentWindow: range(wire['recentWindow']),
+    habits: { loggedDays: num(habits['loggedDays']), fibreMetDays: num(habits['fibreMetDays']), waterMetDays: num(habits['waterMetDays']) },
     mealTimes: list(wire['mealTimes'], (item) => {
       const mealType = str(item['mealType']);
       const median = num(item['medianMinuteOfDay']);
@@ -223,9 +238,11 @@ export function mapReviews(response: unknown): WeeklyReview[] {
     return {
       weekStart,
       weekEnd: str(item['weekEnd']) ?? weekStart,
+      current: bool(item['current']),
       status: REVIEW_STATUSES.find((status) => status === item['status']) ?? 'NONE',
       headline: str(item['headline']) ?? '',
-      body: str(item['body']) ?? ''
+      // The list has no fact chips, so the body's citation markers are left out rather than shown as "[1]".
+      body: withoutCitations(str(item['body']) ?? '').trim()
     };
   }).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
 }
