@@ -130,4 +130,12 @@ describe('the muscle figure beside the log strip', () => {
       expect(view * 2 + 18).toBeLessThanOrEqual(Math.max(width, 156));
     }
   });
+
+  it('matches the column beside it, between 160 and 260 px for the block of views and labels', () => {
+    expect(figureHeight(260, 260)).toBe(240);
+    expect(figureHeight(260, 300)).toBe(240);
+    expect(figureHeight(260, 100)).toBe(140);
+    expect(figureHeight(260, 200)).toBe(180);
+    expect(figureHeight(140, 260)).toBe(134);
+  });
 });

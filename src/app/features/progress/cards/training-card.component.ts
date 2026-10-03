@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 
@@ -13,6 +13,7 @@ import { TrainingApiService } from '../training/training-api.service';
 import { useLoad } from '../training/training-load';
 import { FitFigureComponent } from './fit-figure.component';
 import { trainingCoachLine } from './card-lines';
+import { ObserveHeightDirective } from './observe-height.directive';
 import { LogStripComponent } from './log-strip.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -24,7 +25,7 @@ import { activityRows, trainingHeadline } from './training-figures';
  */
 @Component({
   selector: 'app-training-card',
-  imports: [FitFigureComponent, LogStripComponent, ProgressCardComponent, StatePanelComponent, SummaryListComponent],
+  imports: [FitFigureComponent, LogStripComponent, ObserveHeightDirective, ProgressCardComponent, StatePanelComponent, SummaryListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './training-card.component.html',
   styleUrl: './training-card.component.scss'
@@ -68,6 +69,8 @@ export class TrainingCardComponent {
   protected readonly sets = computed<Record<string, number>>(() => Object.fromEntries((this.data()?.muscles.groups ?? []).map((group) => [group.group, group.setsPerWeek])));
   protected readonly hasMuscles = computed(() => Object.values(this.sets()).some((value) => value > 0));
   protected readonly key = HEAT_KEY;
+  /** The height of the strip, key and caption, which the figures match. */
+  protected readonly leftHeight = signal(0);
 
   protected retry(): void {
     this.read.retry();

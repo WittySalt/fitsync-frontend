@@ -21,18 +21,20 @@
           <p class="empty">Not enough data yet. Sessions in this period fill this card.</p>
         } @else if (data(); as progress) {
           <div class="box pair">
-            <app-log-strip [to]="progress.period.to" [days]="progress.calendar" label="The last 28 days, a dot for each day you trained" />
-            @if (hasMuscles()) {
-              <div class="figure-block">
-                <div class="figure-pic" aria-hidden="true">
-                  <app-fit-figure [sets]="sets()" />
-                </div>
+            <div class="left" (appObserveHeight)="leftHeight.set($event)">
+              <app-log-strip [to]="progress.period.to" [days]="progress.calendar" label="The last 28 days, a tile for each day you trained" />
+              @if (hasMuscles()) {
                 <ul class="heat-key">
                   @for (entry of key; track entry.level) {
                     <li><i [class]="'swatch ' + entry.level"></i>{{ entry.label }}</li>
                   }
                 </ul>
                 <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
+              }
+            </div>
+            @if (hasMuscles()) {
+              <div class="figure-pic" aria-hidden="true">
+                <app-fit-figure [sets]="sets()" [blockHeight]="leftHeight()" />
               </div>
             }
             <div class="rows">
