@@ -211,7 +211,11 @@ describe('progress pages', () => {
       expect(el.querySelector('#weight app-goal-weight-chart svg')).not.toBeNull();
       expect(el.querySelector('#other-goals app-goal-other-goals, app-goal-other-goals #other-goals')).not.toBeNull();
       expect(el.querySelector('details')).toBeNull();
-      expect(api.getGoal).toHaveBeenCalledOnceWith('2026-07-05', TODAY);
+      // Two reads: the page's own four weeks, and the weight chart's three months.
+      expect(api.getGoal).toHaveBeenCalledTimes(2);
+      expect(api.getGoal).toHaveBeenCalledWith('2026-09-06', TODAY);
+      expect(api.getGoal).toHaveBeenCalledWith('2026-07-05', TODAY);
+      expect(texts(el, 'app-detail-head app-ink-switch button')).toEqual(['4 weeks', '3 months', '1 year']);
     });
 
     it('keeps what the old subtitles and notes said in the Ask text of the section', () => {
@@ -247,8 +251,8 @@ describe('progress pages', () => {
       expect(texts(rows[0] as HTMLElement, '.name > *')).toEqual(['Protein a day', '140 g · at least']);
       expect(text(rows[0].querySelector('.count'))).toBe('19 of 26 logged days');
       expect(rows[0].querySelector('app-dot-strip')).not.toBeNull();
-      expect(rows[0].querySelectorAll('.strip .dot').length).toBe(30);
-      expect(texts(rows[0] as HTMLElement, '.dates span')).toEqual(['4 Sept', '3 Oct']);
+      expect(rows[0].querySelectorAll('.strip .dot').length).toBe(28);
+      expect(texts(rows[0] as HTMLElement, '.dates span')).toEqual(['6 Sept', '3 Oct']);
       expect(text(rows[1].querySelector('.count'))).toBe('1 of 2 weeks');
       expect(rows[1].querySelectorAll('.box.met').length).toBe(1);
       expect(texts(rows[1] as HTMLElement, '.ends span')).toEqual(['7 Sept', '28 Sept']);
@@ -260,9 +264,32 @@ describe('progress pages', () => {
       const { fixture, el } = render(GoalPage);
       const buttons = el.querySelectorAll<HTMLButtonElement>('#weight app-ink-switch button');
       expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+      const before = texts(el, 'app-detail-head dd');
+      const pageReads = api.getGoal.calls.allArgs().filter(([from]) => from === '2026-09-06').length;
       buttons[2].click();
       fixture.detectChanges();
       expect(api.getGoal).toHaveBeenCalledWith('2025-10-04', TODAY);
+      // The chart range reads for the chart only: the figures and the page read stay as they were.
+      expect(api.getGoal.calls.allArgs().filter(([from]) => from === '2026-09-06').length).toBe(pageReads);
+      expect(texts(el, 'app-detail-head dd')).toEqual(before);
+    });
+
+    it('reads the page again for a longer period, and the head figures follow it', () => {
+      const { fixture, el } = render(GoalPage);
+      el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button')[1].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(api.getGoal).toHaveBeenCalledWith('2026-07-05', TODAY);
+      expect(text(el.querySelector('app-detail-head .eyebrow'))).toContain('THE LAST 3 MONTHS');
+      expect(text(el.querySelector('app-detail-head .sentence'))).toContain('in three months');
+      expect(el.querySelector('app-detail-head')).not.toBeNull();
+    });
+
+    it('keeps the compared figures when the chart has a longer range than the page', () => {
+      const { el } = render(GoalPage);
+      expect(texts(el, 'app-detail-head .context')).toContain('−1.6 kg in 4 weeks');
+      expect(texts(el, 'app-detail-head .context')).toContain('was −0.28 kg a week');
+      expect(texts(el, 'app-detail-head .context')).not.toContain('No earlier data');
     });
 
     it('scrolls to the other goals when the address asks for them', () => {

@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 import { UserTimezoneService } from '../../../core/user-timezone.service';
@@ -15,6 +14,8 @@ import { JumpItem, ProgressCardContext } from '../../../shared/progress/progress
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { GoalProgress } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
+import { shownData, useLoad, usePeriod } from '../training/training-load';
+import { PERIODS } from '../training/training-period';
 import { GoalBodySectionComponent } from './goal-body-section.component';
 import { PACE_ASK, bodySentence, goalHeroStats, goalSentence, goalVerdict, paceSentence, weightAsk, weightSentence } from './goal-figures';
 import { GoalOtherGoalsComponent } from './goal-other-goals.component';
@@ -64,36 +65,43 @@ export const GOAL_SECTIONS: readonly JumpItem[] = [
   styleUrl: './goal.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class GoalPage implements OnInit {
+export class GoalPage {
   private readonly api = inject(ProgressApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly injector = inject(Injector);
-  private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly periodOptions = PERIODS.map((option) => ({ value: option.code, label: option.label }));
   protected readonly rangeOptions = WEIGHT_RANGES.map((range) => ({ value: range.key, label: range.label }));
   protected readonly sections = GOAL_SECTIONS;
   readonly today = inject(UserTimezoneService).dateKey();
-  readonly fourWeeks = lastDays(28, this.today);
+  /** The page's period: the head's figures, highlights, body, pace and other goals all read this window. */
+  readonly period = usePeriod();
+  private readonly read = useLoad(this.period.range, (range) => this.api.getGoal(range.from, range.to), 'The goal could not load.');
+  /** The weight chart's own range; it never changes the figures above it. */
   readonly range = signal<RangeKey>('3m');
-  readonly loading = signal(true);
-  readonly failed = signal(false);
-  readonly data = signal<GoalProgress | null>(null);
+  private readonly weightRead = signal<GoalProgress['weight'] | null>(null);
+  readonly loading = computed(() => this.read.state().status === 'loading');
+  readonly failed = computed(() => this.read.state().status === 'error');
+  readonly data = computed(() => shownData(this.read.state()));
   private scrolledToFragment = false;
 
-  readonly period = computed(() => lastDays(WEIGHT_RANGES.find((r) => r.key === this.range())!.days, this.today));
-  readonly context = computed<ProgressCardContext>(() => ({ kind: 'GOAL', ...this.fourWeeks }));
-  readonly eyebrow = periodEyebrow('Goal', '4w', this.fourWeeks.from, this.fourWeeks.to);
+  /** The weight series for the chart: the chart range's own read, else the page read's. */
+  readonly weight = computed(() => this.weightRead() ?? this.data()?.weight ?? null);
+  readonly weightWindow = computed(() => lastDays(WEIGHT_RANGES.find((r) => r.key === this.range())!.days, this.today));
+  readonly context = computed<ProgressCardContext>(() => ({ kind: 'GOAL', ...this.period.range() }));
+  readonly eyebrow = computed(() => periodEyebrow('Goal', this.period.code(), this.period.range().from, this.period.range().to));
+  private readonly span = computed(() => ({ '4w': ['4 weeks', 'four weeks'], '3m': ['3 months', 'three months'], '1y': ['the year', 'the year'] })[this.period.code()]);
   readonly verdict = computed(() => {
     const data = this.data();
     return data ? goalVerdict(data, this.today) : { text: '', tone: 'ink' as const };
   });
   readonly sentence = computed(() => {
     const data = this.data();
-    return data ? goalSentence(data) : '';
+    return data ? goalSentence(data, this.span()[1]) : '';
   });
   readonly stats = computed(() => {
     const data = this.data();
-    return data ? goalHeroStats(data) : [];
+    return data ? goalHeroStats(data, this.span()[0]) : [];
   });
   readonly weightLine = computed(() => {
     const data = this.data();
@@ -109,7 +117,7 @@ export class GoalPage implements OnInit {
   });
   protected readonly paceAsk = PACE_ASK;
   /** The window the Other goals section names, which its strips cover exactly. */
-  readonly otherWindow = lastDays(30, this.today);
+  readonly otherWindow = computed(() => this.period.range());
 
   /** "How the date is worked out", from the figures the page shows; Ask puts it in the composer. */
   readonly method = computed(() => {
@@ -134,36 +142,39 @@ export class GoalPage implements OnInit {
   });
   protected readonly weightPrompt = computed(() => weightAsk(this.method()));
 
-  ngOnInit(): void {
-    this.load();
+  constructor() {
+    // The chart's range is its own read; only its weight series is used.
+    effect((onCleanup) => {
+      const { from, to } = this.weightWindow();
+      const sub = this.api.getGoal(from, to).subscribe({
+        next: (goal) => untracked(() => this.weightRead.set(goal.weight)),
+        error: () => untracked(() => this.weightRead.set(null))
+      });
+      onCleanup(() => sub.unsubscribe());
+    });
+    effect(() => {
+      if (this.data()) {
+        untracked(() => this.scrollToFragment());
+      }
+    });
   }
 
   chooseRange(key: string): void {
     const next = WEIGHT_RANGES.find((range) => range.key === key)?.key;
-    if (next && next !== this.range()) {
+    if (next) {
       this.range.set(next);
-      this.load();
+    }
+  }
+
+  choosePeriod(code: string): void {
+    const option = PERIODS.find((period) => period.code === code);
+    if (option) {
+      this.period.select(option.code);
     }
   }
 
   load(): void {
-    const { from, to } = this.period();
-    this.loading.set(true);
-    this.failed.set(false);
-    this.api
-      .getGoal(from, to)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (goal) => {
-          this.data.set(goal);
-          this.loading.set(false);
-          this.scrollToFragment();
-        },
-        error: () => {
-          this.failed.set(true);
-          this.loading.set(false);
-        }
-      });
+    this.read.retry();
   }
 
   /** `/progress/goal#other-goals`, where the old Goals tab now leads, scrolls once the page is there. */

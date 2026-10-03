@@ -92,14 +92,14 @@ export function goalSummaryContext(goal: GoalProgress): string {
  * The Goal page's four figures (board 19a). A figure the server did not send shows a dash, and a
  * figure with nothing earlier to compare with says so instead of showing a change.
  */
-export function goalHeroStats(goal: GoalProgress): HeroStat[] {
+export function goalHeroStats(goal: GoalProgress, span = '4 weeks'): HeroStat[] {
   const { hero } = goal;
   return [
     {
       label: 'Now',
       value: hero.nowKg === null ? '–' : formatNumber(hero.nowKg, 1),
       unit: hero.nowKg === null ? '' : 'kg',
-      context: hero.nowKg === null ? '' : hero.changeKg == null ? NO_EARLIER_DATA : `${signed(hero.changeKg)} kg in 4 weeks`
+      context: hero.nowKg === null ? '' : hero.changeKg == null ? NO_EARLIER_DATA : `${signed(hero.changeKg)} kg in ${span}`
     },
     {
       label: 'A week',
@@ -180,11 +180,11 @@ function projectedClause(goal: GoalProgress): string {
 }
 
 /** The sentence under the verdict, from the figures of the page: where the weight is, and where it is going. */
-export function goalSentence(goal: GoalProgress): string {
+export function goalSentence(goal: GoalProgress, span = 'four weeks'): string {
   const { nowKg, changeKg } = goal.hero;
   const parts: string[] = [];
   if (nowKg !== null) {
-    const moved = changeKg !== null && Math.abs(changeKg) >= 0.05 ? `, ${changeKg < 0 ? 'down' : 'up'} ${formatNumber(Math.abs(changeKg), 1)} kg in four weeks` : '';
+    const moved = changeKg !== null && Math.abs(changeKg) >= 0.05 ? `, ${changeKg < 0 ? 'down' : 'up'} ${formatNumber(Math.abs(changeKg), 1)} kg in ${span}` : '';
     parts.push(`${formatNumber(nowKg, 1)} kg now${moved}.`);
   }
   const clause = projectedClause(goal);

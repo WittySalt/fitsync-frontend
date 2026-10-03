@@ -1,6 +1,8 @@
 <app-detail-layout>
   @if (data()) {
-    <app-detail-head detailHead [eyebrow]="eyebrow" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="stats()" />
+    <app-detail-head detailHead [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="stats()">
+      <app-ink-switch headPeriod label="Period" [options]="periodOptions" [value]="period.code()" (picked)="choosePeriod($event)" />
+    </app-detail-head>
   }
   @if (data()) {
     <app-contents-rail detailRail [items]="sections" label="Sections of the Goal page" />
@@ -11,7 +13,7 @@
     <app-detail-section name="Weight" anchor="weight" [sentence]="weightLine()" [context]="context()" [ask]="weightPrompt()">
       <app-ink-switch sectionControl label="How far back the chart goes" [options]="rangeOptions" [value]="range()" (picked)="chooseRange($event)" />
       <div [attr.aria-busy]="loading()">
-        <app-goal-weight-chart [weight]="goal.weight" [goal]="goal.goal" [today]="today" [height]="280" />
+        <app-goal-weight-chart [weight]="weight() ?? goal.weight" [goal]="goal.goal" [today]="today" [height]="280" />
       </div>
       <div class="legend">
         <span><i class="dot"></i>A weigh-in</span>
@@ -31,7 +33,7 @@
       </div>
     </app-detail-section>
 
-    <app-goal-other-goals [goals]="goal.otherGoals" [from]="otherWindow.from" [to]="otherWindow.to" [context]="context()" />
+    <app-goal-other-goals [goals]="goal.otherGoals" [from]="otherWindow().from" [to]="otherWindow().to" [context]="context()" />
   } @else if (failed()) {
     <app-state-panel title="Your goal could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="load()" />
   } @else {
