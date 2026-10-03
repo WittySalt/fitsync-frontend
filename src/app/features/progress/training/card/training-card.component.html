@@ -1,0 +1,83 @@
+<article class="card" tabindex="-1" (click)="open($event)" (keydown.enter)="open($event)" aria-labelledby="training-card-title">
+  <header class="head">
+    <div class="titles">
+      <div class="title-row">
+        @if (citation() !== null) {
+          <span class="cite" [attr.title]="'Fact ' + citation() + ' in the coach\'s reading'">{{ citation() }}</span>
+        }
+        <a id="training-card-title" class="title" routerLink="/progress/training">Training</a>
+      </div>
+      @if (citation() !== null) {
+        <span class="cite-caption">Fact {{ citation() }} in your coach's reading</span>
+      }
+      @if (daysLine()) {
+        <span class="line">{{ daysLine() }}</span>
+      }
+    </div>
+    <div class="actions">
+      <app-ask-chip [card]="card()" subject="Training" />
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+    </div>
+  </header>
+
+  @switch (state().status) {
+    @case ('loading') {
+      <div class="skeleton tall" aria-busy="true" aria-label="Loading training"></div>
+    }
+    @case ('error') {
+      <div class="message" role="alert">
+        <p>Training could not load.</p>
+        <button type="button" class="button secondary" (click)="retry()">Retry</button>
+      </div>
+    }
+    @default {
+      @if (empty()) {
+        <p class="message">Not enough data yet. Sessions in this period fill this card.</p>
+      } @else if (data(); as progress) {
+        <div class="top">
+          <app-training-calendar [from]="progress.period.from" [to]="progress.period.to" [days]="progress.calendar" [showKey]="false" [interactive]="false" />
+          @if (radar(); as figures) {
+            @if (figures.muscles.length) {
+              <app-training-radar [muscles]="figures.muscles" [caption]="figures.caption" />
+            }
+          }
+        </div>
+
+        <div class="blocks">
+          @if (strength() || lifts().length) {
+            <section class="block">
+              <div class="block-head">
+                <app-kind-tile kind="STRENGTH" [size]="28" />
+                <strong>Strength</strong>
+                @if (strength(); as activity) {
+                  <span>{{ line(activity) }}</span>
+                }
+              </div>
+              @for (row of lifts(); track row.key) {
+                <div class="lift">
+                  <div class="lift-name"><span>{{ row.name }}</span><span class="sub">{{ row.sub }}</span></div>
+                  <app-small-trend [values]="row.values" [start]="row.start" [end]="row.end" [width]="170" [height]="28" [label]="row.name + ', est. best single from ' + row.start + ' to ' + row.end" />
+                  <span class="change">{{ row.change }}</span>
+                </div>
+              }
+            </section>
+          }
+          @for (activity of others(); track activity.key) {
+            <section class="block">
+              <div class="block-head">
+                <app-kind-tile [kind]="activity.kind" [size]="28" />
+                <strong>{{ activity.name }}</strong>
+                <span>{{ line(activity) }}</span>
+              </div>
+              <app-summary-lines [lines]="activity.summary" />
+            </section>
+          }
+        </div>
+
+        @if (records()) {
+          <p class="records">{{ records() }}</p>
+        }
+      }
+    }
+  }
+</article>
