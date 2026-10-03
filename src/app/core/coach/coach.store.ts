@@ -380,15 +380,11 @@ export class CoachStore {
       context.recipeId = about.recipeId;
     }
     if (card) {
-      context.card = { ...card };
+      context.card = { kind: card.kind, ...(card.id ? { id: card.id } : {}), from: card.from, to: card.to };
     }
     const reading = this.pinnedReading();
     if (reading?.readingId) {
       context.readingId = reading.readingId;
-    }
-    const card = this.pinnedCard();
-    if (card && !about?.recipeId) {
-      context.card = { kind: card.kind, ...(card.id ? { id: card.id } : {}), from: card.from, to: card.to };
     }
     return context;
   }

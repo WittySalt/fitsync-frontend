@@ -16,7 +16,7 @@
   </div>
 
   <div id="progress-training" class="anchor training" [class.ringed]="ringed() === 'TRAINING'">
-    <app-training-card />
+    <app-training-card [from]="fourWeeks.from" [to]="fourWeeks.to" [citation]="factNumbers().TRAINING ?? null" />
   </div>
 
   <div id="progress-food" class="anchor">
