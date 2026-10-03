@@ -8,9 +8,13 @@ import {
   CoachMessageContext,
   CoachMessageResponse,
   CoachReading,
+  CoachLimit,
   CoachStreamEvent,
+  CoachSurfaceCode,
   CoachThread,
   CoachThreadDetail,
+  CoachThreadPage,
+  CoachThreadSummary,
   DraftMetrics,
   ReadingStatus,
   ReadingSurface,
@@ -67,13 +71,35 @@ export class CoachApiService {
   }
 
   getThread(threadId: string): Observable<CoachThreadDetail> {
-    return this.http.get<CoachThreadDetail>(`${this.coachBaseUrl}/threads/${threadId}`);
+    return this.http
+      .get<CoachThreadDetail>(`${this.coachBaseUrl}/threads/${threadId}`)
+      .pipe(map((detail) => toThreadDetail(threadId, detail)));
+  }
+
+  /** One page of the user's earlier conversations, newest first. Archived ones are not listed. */
+  listThreadPage(page: number, size: number): Observable<CoachThreadPage> {
+    const params = new HttpParams().set('page', page).set('size', size);
+    return this.http
+      .get<unknown>(`${this.coachBaseUrl}/threads`, { params })
+      .pipe(map((body) => toThreadPage(body, page, size)));
+  }
+
+  /** Archives a conversation. The server keeps the row; the list stops showing it. */
+  archiveThread(threadId: string): Observable<void> {
+    return this.http.delete<void>(`${this.coachBaseUrl}/threads/${threadId}`);
   }
 
   /** The plain, non-streaming turn. The fallback when the stream cannot be opened. */
-  sendMessage(threadId: string, message: string, context?: CoachMessageContext): Observable<CoachMessageResponse> {
+  sendMessage(
+    threadId: string,
+    message: string,
+    context?: CoachMessageContext,
+    clientTurnId?: string
+  ): Observable<CoachMessageResponse> {
     return this.http
-      .post<RawMessageResponse>(`${this.coachBaseUrl}/threads/${threadId}/messages`, messageBody(message, context))
+      .post<RawMessageResponse>(`${this.coachBaseUrl}/threads/${threadId}/messages`, messageBody(message, context, clientTurnId), {
+        headers: idempotencyHeaders(clientTurnId)
+      })
       .pipe(map(toMessageResponse));
   }
 
@@ -84,12 +110,18 @@ export class CoachApiService {
    * could not finish arrives as an `error` event, because that is what the server sends and the
    * store treats the two differently.
    */
-  streamMessage(threadId: string, message: string, context?: CoachMessageContext): Observable<CoachStreamEvent> {
+  streamMessage(
+    threadId: string,
+    message: string,
+    context?: CoachMessageContext,
+    clientTurnId?: string
+  ): Observable<CoachStreamEvent> {
     return new Observable<CoachStreamEvent>((subscriber) => {
       const controller = new AbortController();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        Accept: 'text/event-stream'
+        Accept: 'text/event-stream',
+        ...idempotencyHeaders(clientTurnId)
       };
       const token = this.auth.getAccessToken();
       if (token) {
@@ -99,10 +131,13 @@ export class CoachApiService {
       fetch(`${this.coachBaseUrl}/threads/${threadId}/messages/stream`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(messageBody(message, context)),
+        body: JSON.stringify(messageBody(message, context, clientTurnId)),
         signal: controller.signal
       })
         .then(async (response) => {
+          if (response.status === 429) {
+            throw new CoachLimitError(toCoachLimit(await readJson(response)));
+          }
           if (!response.ok || !response.body) {
             throw new Error(`Coach stream failed with status ${response.status}`);
           }
@@ -180,9 +215,127 @@ export function toStreamEvent(name: string, data: string): CoachStreamEvent | nu
   }
 }
 
-/** The body the server expects: `context` is left out entirely when there is none to send. */
-function messageBody(message: string, context?: CoachMessageContext): { message: string; context?: CoachMessageContext } {
-  return context ? { message, context } : { message };
+/**
+ * The body the server expects: `context` and `clientTurnId` are left out entirely when there is
+ * none to send. The id travels in the body as well as in the `Idempotency-Key` header, because a
+ * proxy in front of the gateway may drop a header it does not know and cannot drop a body field.
+ */
+function messageBody(
+  message: string,
+  context?: CoachMessageContext,
+  clientTurnId?: string
+): { message: string; context?: CoachMessageContext; clientTurnId?: string } {
+  return { message, ...(context ? { context } : {}), ...(clientTurnId ? { clientTurnId } : {}) };
+}
+
+function idempotencyHeaders(clientTurnId?: string): Record<string, string> {
+  return clientTurnId ? { 'Idempotency-Key': clientTurnId } : {};
+}
+
+/** Raised by the stream call when the server answers 429, so the store can tell it from a broken connection. */
+export class CoachLimitError extends Error {
+  constructor(readonly limit: CoachLimit) {
+    super(limit.message);
+  }
+}
+
+const DEFAULT_RETRY_SECONDS = 60;
+const MAX_RETRY_SECONDS = 24 * 60 * 60;
+
+/**
+ * Reads the 429 body `{code: 'COACH_LIMIT', retryAfterSeconds, message}` defensively: a missing
+ * message becomes a plain sentence, and a missing or absurd wait becomes a minute.
+ */
+export function toCoachLimit(body: unknown): CoachLimit {
+  const raw = (body && typeof body === 'object' ? body : {}) as { retryAfterSeconds?: unknown; message?: unknown };
+  const seconds =
+    typeof raw.retryAfterSeconds === 'number' && Number.isFinite(raw.retryAfterSeconds) ? raw.retryAfterSeconds : DEFAULT_RETRY_SECONDS;
+  const message =
+    typeof raw.message === 'string' && raw.message.trim()
+      ? raw.message.trim()
+      : 'You have reached the coach limit for now. Try again a little later.';
+  return { message, retryAfterSeconds: Math.min(MAX_RETRY_SECONDS, Math.max(1, Math.ceil(seconds))) };
+}
+
+/** The limit a failed call carries, from either the stream (CoachLimitError) or HttpClient (status 429), else null. */
+export function limitFromError(error: unknown): CoachLimit | null {
+  if (error instanceof CoachLimitError) {
+    return error.limit;
+  }
+  const failure = error as { status?: number; error?: unknown } | null;
+  return failure?.status === 429 ? toCoachLimit(failure.error) : null;
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+const SURFACE_CODES: CoachSurfaceCode[] = ['HOME', 'WORKOUT', 'NUTRITION', 'PROGRESS', 'PROFILE'];
+
+/** One history row, tolerant of the id and time fields going by either the thread's or the list's names. */
+function toThreadSummary(raw: unknown): CoachThreadSummary | null {
+  const row = raw as Record<string, unknown> | null;
+  const id = row?.['threadId'] ?? row?.['id'];
+  if (typeof id !== 'string' || !id) {
+    return null;
+  }
+  const surface = String(row?.['surface'] ?? '').toUpperCase();
+  const when = row?.['lastMessageAt'] ?? row?.['lastActiveAt'] ?? row?.['createdAt'];
+  const title = row?.['title'];
+  const turns = row?.['turnCount'];
+  return {
+    threadId: id,
+    title: typeof title === 'string' && title.trim() ? title.trim() : null,
+    surface: SURFACE_CODES.find((code) => code === surface) ?? null,
+    lastMessageAt: typeof when === 'string' ? when : null,
+    turnCount: typeof turns === 'number' && Number.isFinite(turns) ? turns : 0
+  };
+}
+
+/**
+ * A page of history from a Spring `Page` (`content`, `last`, `totalPages`), a bare array, or an
+ * `items` list. When the server says nothing about more pages, a full page is taken to mean there is one.
+ */
+export function toThreadPage(body: unknown, page: number, size: number): CoachThreadPage {
+  const obj = body as Record<string, unknown> | null;
+  const rows: unknown[] = Array.isArray(body)
+    ? body
+    : Array.isArray(obj?.['content'])
+      ? (obj['content'] as unknown[])
+      : Array.isArray(obj?.['items'])
+        ? (obj['items'] as unknown[])
+        : [];
+  const items = rows.map(toThreadSummary).filter((row): row is CoachThreadSummary => row !== null);
+  let hasMore = rows.length >= size;
+  if (typeof obj?.['hasMore'] === 'boolean') {
+    hasMore = obj['hasMore'];
+  } else if (typeof obj?.['hasNext'] === 'boolean') {
+    hasMore = obj['hasNext'];
+  } else if (typeof obj?.['last'] === 'boolean') {
+    hasMore = !obj['last'];
+  } else if (typeof obj?.['totalPages'] === 'number') {
+    hasMore = page + 1 < obj['totalPages'];
+  }
+  return { items, page, hasMore: hasMore && rows.length > 0 };
+}
+
+/** A thread with its turns, the id filled in from the request when the body names it `id` or leaves it out. */
+function toThreadDetail(threadId: string, raw: CoachThreadDetail | null): CoachThreadDetail {
+  const thread = (raw?.thread ?? {}) as Partial<CoachThread> & { id?: string; lastMessageAt?: string };
+  return {
+    thread: {
+      threadId: thread.threadId ?? thread.id ?? threadId,
+      title: thread.title ?? null,
+      turnCount: thread.turnCount ?? 0,
+      lastActiveAt: thread.lastActiveAt ?? thread.lastMessageAt ?? '',
+      createdAt: thread.createdAt ?? ''
+    },
+    turns: (raw?.turns ?? []).map((turn) => ({ ...turn, tools: turn.tools ?? [] }))
+  };
 }
 
 /** Everything a server that predates `pinnedReadingId` still sends. */
