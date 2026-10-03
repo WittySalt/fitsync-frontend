@@ -22,7 +22,7 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
       <div class="nutrients">
         @if (overview(); as data) {
           <div class="petals">
-            <app-nutrient-petals [nutrients]="data.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reachText()" />
+            <app-nutrient-petals [tooltip]="true" [nutrients]="data.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reachText()" />
           </div>
         }
         <div class="side">
