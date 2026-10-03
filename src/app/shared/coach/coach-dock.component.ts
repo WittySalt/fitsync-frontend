@@ -1,9 +1,24 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, DestroyRef, ElementRef, HostListener, InjectionToken, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  InjectionToken,
+  Injector,
+  ViewChild,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
 import { CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
+import { CoachHistoryComponent } from './coach-history.component';
 import { CoachTraceComponent } from './coach-trace.component';
 import { questionsFor } from './insight/reading-questions';
 import { ReadingSegment, readingSegments, withoutCitations } from './insight/reading-text';
@@ -41,7 +56,7 @@ interface DockSuggestion {
  */
 @Component({
   selector: 'app-coach-dock',
-  imports: [RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent],
+  imports: [RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent, CoachHistoryComponent],
   template: `
     @if (!store.dockOpen()) {
       @if (!sidebarVisible()) {
@@ -52,13 +67,25 @@ interface DockSuggestion {
       }
     } @else {
       @let empty = !store.turns().length && !store.pendingQuestion();
-      <aside class="dock dock-wide" aria-label="Coach" role="complementary">
+      <aside
+        class="dock dock-wide"
+        [class.kb]="viewport() !== null"
+        [style.--dock-vh]="viewport() ? viewport()!.height + 'px' : null"
+        [style.--dock-kb]="viewport() ? viewport()!.inset + 'px' : null"
+        aria-label="Coach"
+        role="complementary"
+      >
+        <div class="sr" aria-live="polite" aria-atomic="true">{{ announcement() }}</div>
         <div class="dock-head">
           <div class="dock-title">
             <span class="mark" aria-hidden="true">C</span>
             <strong>Coach</strong>
-            @if (store.turns().length) {
-              <button type="button" class="tgl" (click)="store.newThread()" title="Start a new conversation">New</button>
+            <button type="button" class="tgl" [attr.aria-pressed]="store.historyOpen()" (click)="toggleHistory()" title="Earlier conversations">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              History
+            </button>
+            @if (store.turns().length || store.historyOpen()) {
+              <button type="button" class="tgl" (click)="startNew()" title="Start a new conversation">New</button>
             }
             <button type="button" class="tgl close" (click)="store.close()" aria-label="Close the coach">×</button>
           </div>
@@ -74,6 +101,9 @@ interface DockSuggestion {
           </p>
         </div>
 
+        @if (store.historyOpen()) {
+          <app-coach-history />
+        } @else {
         <div class="feed" #feed>
           @if (store.pinnedReading(); as pinned) {
             <section class="pinned" aria-label="The reading you are asking about">
@@ -123,7 +153,7 @@ interface DockSuggestion {
             }
           }
 
-          <div class="thread" aria-live="polite">
+          <div class="thread">
             @for (turn of store.turns(); track turn.turnId) {
               @if (turn.role === 'USER') {
                 <div class="turn-q">{{ turn.content }}</div>
@@ -142,7 +172,7 @@ interface DockSuggestion {
                   <div class="step" [class.done]="step.kind === 'TOOL_FINISHED'">
                     @if (step.kind === 'THINKING') {
                       <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-                      <span>thinking</span>
+                      <span>Thinking</span>
                     } @else {
                       <span class="tick" aria-hidden="true">{{ step.kind === 'TOOL_FINISHED' ? '✓' : '…' }}</span>
                       <b>{{ step.tool }}</b>
@@ -153,7 +183,7 @@ interface DockSuggestion {
                   </div>
                 }
                 @if (!store.liveSteps().length) {
-                  <div class="step"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>connecting</span></div>
+                  <div class="step"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Connecting</span></div>
                 }
               </div>
             }
@@ -166,8 +196,12 @@ interface DockSuggestion {
               </div>
             }
 
+            @if (store.limitNotice(); as notice) {
+              <div class="turn-a warn" role="status">{{ notice }}</div>
+            }
+
             @if (store.error(); as error) {
-              <div class="turn-a warn">{{ error }}</div>
+              <div class="turn-a warn" role="alert">{{ error }}</div>
             }
           </div>
         </div>
@@ -188,22 +222,23 @@ interface DockSuggestion {
               [placeholder]="store.pinnedReading() ? 'Ask about this reading' : 'Ask, or ask it to build something…'"
               autocomplete="off"
               aria-label="Ask the coach"
-              [disabled]="store.status() === 'answering'"
+              [disabled]="store.status() === 'answering' || store.limited()"
             />
-            <button type="submit" class="send" [disabled]="store.status() === 'answering' || !draft().trim()">Send</button>
+            <button type="submit" class="send" [disabled]="store.status() === 'answering' || store.limited() || !draft().trim()">Send</button>
           </form>
           <p class="envelope">
             The coach reads your computed facts, recent training and the exercise and food catalogues.
             It does not write to your data; accepting a draft does.
           </p>
         </div>
+        }
       </aside>
     }
 
     <ng-template #suggestionList>
       <div class="suggs">
         @for (s of suggestions(); track s.text) {
-          <button type="button" class="sugg" (click)="pick(s)" [disabled]="store.status() === 'answering'">
+          <button type="button" class="sugg" (click)="pick(s)" [disabled]="store.status() === 'answering' || store.limited()">
             <span class="sugg-text">{{ s.text }}</span>
             @if (s.draft) {
               <span class="draft-pill">Makes a draft</span>
@@ -322,6 +357,22 @@ interface DockSuggestion {
         min-width: 44px;
         min-height: 44px;
         border-radius: var(--radius-sm);
+      }
+      .tgl[aria-pressed='true'] {
+        background: var(--surface-sunken);
+        color: var(--text-primary);
+      }
+      .tgl svg {
+        vertical-align: -2px;
+        margin-right: 3px;
+      }
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
       .tgl.close {
         font-size: 16px;
@@ -774,9 +825,17 @@ interface DockSuggestion {
         outline-offset: 1px;
       }
       @media (max-width: 640px) {
+        .dock-foot {
+          padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        }
+        .dock.kb .dock-foot {
+          padding-bottom: 12px;
+        }
         .dock {
           top: auto;
           height: 82vh;
+          max-height: var(--dock-vh, 100vh);
+          bottom: var(--dock-kb, 0px);
           width: 100vw;
           border-left: 0;
           border-top: 1px solid var(--border);
@@ -802,8 +861,21 @@ export class CoachDockComponent {
   /** True while the shell's sidebar is showing, which carries the coach entry in place of the floating button. */
   protected readonly sidebarVisible = signal(false);
 
+  /** Set while the on-screen keyboard covers part of the screen, so the sheet shrinks and rides above it. */
+  protected readonly viewport = signal<{ height: number; inset: number } | null>(null);
+
+  /** The latest answer, in a live region of its own, so a screen reader reads each new answer once and not the whole thread. */
+  protected readonly announcement = signal('');
+
   @ViewChild('feed') private feed?: ElementRef<HTMLDivElement>;
   @ViewChild('input') private input?: ElementRef<HTMLInputElement>;
+
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** What had focus when the dock opened, so closing can give it back. */
+  private opener: HTMLElement | null = null;
+  private wasOpen = false;
+  private wasAnswering = false;
 
   constructor() {
     const query = inject(MATCH_MEDIA)(SIDEBAR_QUERY);
@@ -813,6 +885,24 @@ export class CoachDockComponent {
       query.addEventListener?.('change', onChange);
       inject(DestroyRef).onDestroy(() => query.removeEventListener?.('change', onChange));
     }
+    this.watchVisualViewport();
+    // Opening moves focus into the dock; closing gives it back to whatever opened it.
+    effect(() => {
+      const open = this.store.dockOpen();
+      untracked(() => this.onOpenChange(open));
+    });
+    // A finished turn is announced once. Opening an old conversation changes the thread without
+    // changing the status, so it is not read out.
+    effect(() => {
+      const answering = this.store.status() === 'answering';
+      untracked(() => {
+        if (this.wasAnswering && !answering) {
+          const last = [...this.store.turns()].reverse().find((turn) => turn.role === 'ASSISTANT');
+          this.announcement.set(last ? withoutCitations(last.content) : '');
+        }
+        this.wasAnswering = answering;
+      });
+    });
     // A card's "Ask about this" lands here: pre-fill, never send.
     effect(() => {
       const prefill = this.store.composerPrefill();
@@ -834,6 +924,60 @@ export class CoachDockComponent {
         }
       });
     });
+  }
+
+  /** Tracks the visual viewport, which shrinks when a phone's keyboard opens while the layout viewport does not. */
+  private watchVisualViewport(): void {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!vv) {
+      return;
+    }
+    const update = (): void => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      this.viewport.set(inset > KEYBOARD_MIN_INSET ? { height: Math.round(vv.height), inset: Math.round(inset) } : null);
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    inject(DestroyRef).onDestroy(() => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    });
+  }
+
+  private onOpenChange(open: boolean): void {
+    if (open === this.wasOpen) {
+      return;
+    }
+    this.wasOpen = open;
+    if (open) {
+      const active = document.activeElement;
+      this.opener = active instanceof HTMLElement && active !== document.body ? active : null;
+      // The history list moves focus to itself when it is what the dock opens on.
+      afterNextRender(() => (this.store.historyOpen() ? undefined : this.input?.nativeElement.focus()), { injector: this.injector });
+    } else {
+      const opener = this.opener;
+      this.opener = null;
+      afterNextRender(
+        () => {
+          const target = opener?.isConnected ? opener : opener ? this.host.nativeElement.querySelector<HTMLElement>('.launch') : null;
+          target?.focus();
+        },
+        { injector: this.injector }
+      );
+    }
+  }
+
+  protected toggleHistory(): void {
+    if (this.store.historyOpen()) {
+      this.store.closeHistory();
+    } else {
+      this.store.openHistory();
+    }
+  }
+
+  protected startNew(): void {
+    this.store.newThread();
+    this.store.closeHistory();
   }
 
   protected submit(event: Event): void {
@@ -929,6 +1073,11 @@ export class CoachDockComponent {
 
   private handleKeydown(event: KeyboardEvent): void {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      // Typing somewhere else on the page keeps the browser's own shortcut; only the dock's own
+      // composer, where the shortcut closes the dock, still answers to it.
+      if (isTypingOutsideDock(event.target)) {
+        return;
+      }
       event.preventDefault();
       this.store.toggle();
       return;
@@ -937,6 +1086,18 @@ export class CoachDockComponent {
       this.store.close();
     }
   }
+}
+
+/** The keyboard is taken to be open when the visual viewport is this much shorter than the window. */
+const KEYBOARD_MIN_INSET = 120;
+
+/** True when the key press came from a text field, or editable content, that is not inside the dock. */
+export function isTypingOutsideDock(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const editable = target.isContentEditable || target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') !== null;
+  return editable && target.closest('.dock') === null;
 }
 
 /**

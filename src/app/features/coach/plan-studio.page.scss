@@ -258,59 +258,6 @@
   align-items: center;
 }
 
-.reject {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  label {
-    font-size: var(--text-sm);
-    font-weight: var(--fw-semibold);
-    color: var(--text-primary);
-  }
-
-  input {
-    min-width: 0;
-    min-height: 44px;
-    box-sizing: border-box;
-    padding: 9px 10px;
-    font-size: var(--text-sm);
-    color: var(--text-primary);
-    background: var(--surface-sunken);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-  }
-}
-
-.reject-actions {
-  display: flex;
-  gap: 9px;
-  flex-wrap: wrap;
-}
-
-/* Red is reserved for the one button that sets something aside. */
-.button.danger {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: var(--white);
-}
-
-.button.danger:hover {
-  background: var(--danger-hover);
-}
-
-/* The danger red is light in dark mode, so the label turns dark to stay readable. */
-:host-context([data-theme='dark']) .button.danger {
-  color: var(--slate-900);
-}
-
-@media (prefers-color-scheme: dark) {
-  :host-context(:root:not([data-theme='light'])) .button.danger {
-    color: var(--slate-900);
-  }
-}
-
 .accepted {
   width: 100%;
   background: var(--accent-subtle);

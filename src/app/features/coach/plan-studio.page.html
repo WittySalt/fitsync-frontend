@@ -111,21 +111,7 @@
           <footer class="studio-foot">
             @if (draft.status === 'DRAFT') {
               @if (rejecting()) {
-                <form class="reject" (submit)="$event.preventDefault(); reject(draft)">
-                  <label for="reject-reason">Reason, if you want to say (optional)</label>
-                  <input
-                    id="reject-reason"
-                    type="text"
-                    maxlength="500"
-                    autocomplete="off"
-                    [value]="reason()"
-                    (input)="reason.set($any($event.target).value)"
-                  />
-                  <div class="reject-actions">
-                    <button class="button danger" type="submit">Set it aside</button>
-                    <button class="button secondary" type="button" (click)="cancelReject()">Keep it</button>
-                  </div>
-                </form>
+                <app-plan-reject (confirm)="reject(draft, $event)" (cancel)="cancelReject()" />
               } @else {
                 <button class="button primary" type="button" [disabled]="accepting()" (click)="accept(draft)">
                   {{ accepting() ? 'Starting…' : 'Start this session' }}

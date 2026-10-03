@@ -146,8 +146,7 @@ describe('PlanStudioPage', () => {
     expect(api.rejectSessionDraft).not.toHaveBeenCalled();
 
     page.startReject();
-    page.reason.set('   ');
-    page.reject(draft);
+    page.reject(draft, '   ');
     expect(api.rejectSessionDraft).toHaveBeenCalledWith('a1', 'Not for me today');
   });
 

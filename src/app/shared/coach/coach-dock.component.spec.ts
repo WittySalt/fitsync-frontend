@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Surface } from '../../core/coach/coach-context.service';
-import { CoachReading, CoachThreadDetail, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
+import { CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStatus, CoachStore, LiveStep } from '../../core/coach/coach.store';
 import { CoachDockComponent, MATCH_MEDIA, isBuildRequest } from './coach-dock.component';
 
@@ -81,6 +81,15 @@ class FakeCoachStore {
   availableReading = signal<CoachReading | null>(null);
   citedTurns = signal<ReadonlyMap<string, CoachReading>>(new Map());
   surface = signal<Surface>(WORKOUT_SURFACE);
+  limitNotice = signal<string | null>(null);
+  limited = (): boolean => this.limitNotice() !== null;
+  historyOpen = signal(false);
+  history = signal<CoachThreadSummary[]>([]);
+  historyStatus = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  historyHasMore = signal(false);
+  historyLoadingMore = signal(false);
+  historyNotice = signal<string | null>(null);
+  currentThreadId = (): string | null => this.thread()?.thread.threadId ?? null;
 
   // Plain functions rather than real computed signals: the template only ever calls them, and a
   // fresh read on every change-detection pass is all a fake needs to stay in sync with `thread`.
@@ -92,6 +101,14 @@ class FakeCoachStore {
   close = jasmine.createSpy('close');
   toggle = jasmine.createSpy('toggle');
   newThread = jasmine.createSpy('newThread');
+  openHistory = jasmine.createSpy('openHistory').and.callFake(() => {
+    this.historyOpen.set(true);
+    this.historyStatus.set('ready');
+  });
+  closeHistory = jasmine.createSpy('closeHistory').and.callFake(() => this.historyOpen.set(false));
+  loadMoreHistory = jasmine.createSpy('loadMoreHistory');
+  openThread = jasmine.createSpy('openThread');
+  archiveThread = jasmine.createSpy('archiveThread');
   ask = jasmine.createSpy('ask');
   buildSession = jasmine.createSpy('buildSession');
   askAbout = jasmine.createSpy('askAbout');

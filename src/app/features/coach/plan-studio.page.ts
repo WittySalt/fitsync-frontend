@@ -6,9 +6,9 @@ import { DraftSource, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStore } from '../../core/coach/coach.store';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { DEFAULT_REJECT_REASON, PlanRejectComponent } from './plan-reject.component';
 
 const SIDEBAR_LIMIT = 8;
-const DEFAULT_REJECT_REASON = 'Not for me today';
 
 /** One line of the checks list; `note` marks a rule the draft had to be corrected for. */
 export interface DraftCheck {
@@ -31,7 +31,7 @@ export interface DraftCheck {
  */
 @Component({
   selector: 'app-plan-studio-page',
-  imports: [RouterLink, StatePanelComponent],
+  imports: [RouterLink, StatePanelComponent, PlanRejectComponent],
   templateUrl: './plan-studio.page.html',
   styleUrl: './plan-studio.page.scss'
 })
@@ -50,7 +50,6 @@ export class PlanStudioPage implements OnInit {
   readonly request = signal('');
   /** Whether the reason form for setting a draft aside is open. */
   readonly rejecting = signal(false);
-  readonly reason = signal(DEFAULT_REJECT_REASON);
 
   /** Newest first, and only a handful: a sidebar is for choosing, not for archaeology. */
   readonly openDrafts = computed(() => this.store.drafts().filter((d) => d.status === 'DRAFT').slice(0, SIDEBAR_LIMIT));
@@ -143,9 +142,8 @@ export class PlanStudioPage implements OnInit {
     });
   }
 
-  /** Opens the reason form, with the default reason filled in so one press of the confirm is enough. */
+  /** Opens the reason form, which fills in the default reason so one press of the confirm is enough. */
   startReject(): void {
-    this.reason.set(DEFAULT_REJECT_REASON);
     this.rejecting.set(true);
   }
 
@@ -154,8 +152,8 @@ export class PlanStudioPage implements OnInit {
   }
 
   /** Sets the draft aside with the reason given, or the default when it was cleared. */
-  reject(draft: SessionDraftView, reason?: string): void {
-    const text = (reason ?? this.reason()).trim().slice(0, 500) || DEFAULT_REJECT_REASON;
+  reject(draft: SessionDraftView, reason: string): void {
+    const text = reason.trim().slice(0, 500) || DEFAULT_REJECT_REASON;
     this.store.rejectDraft(draft.artifactId, text).subscribe({
       next: (rejected) => {
         this.rejecting.set(false);
