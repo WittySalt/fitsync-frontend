@@ -103,17 +103,35 @@
           </ol>
 
           <div class="checks" aria-label="What the validator checked">
-            @for (check of checks(draft); track check) {
-              <span class="k" [class.note]="check.startsWith('corrected')">{{ check }}</span>
+            @for (check of checks(draft); track check.label) {
+              <span class="k" [class.note]="check.note">{{ check.label }}</span>
             }
           </div>
 
           <footer class="studio-foot">
             @if (draft.status === 'DRAFT') {
-              <button class="button primary" type="button" [disabled]="accepting()" (click)="accept(draft)">
-                {{ accepting() ? 'Starting…' : 'Start this session' }}
-              </button>
-              <button class="button secondary" type="button" [disabled]="accepting()" (click)="reject(draft, 'Not for me today')">Not for me</button>
+              @if (rejecting()) {
+                <form class="reject" (submit)="$event.preventDefault(); reject(draft)">
+                  <label for="reject-reason">Reason, if you want to say (optional)</label>
+                  <input
+                    id="reject-reason"
+                    type="text"
+                    maxlength="500"
+                    autocomplete="off"
+                    [value]="reason()"
+                    (input)="reason.set($any($event.target).value)"
+                  />
+                  <div class="reject-actions">
+                    <button class="button danger" type="submit">Set it aside</button>
+                    <button class="button secondary" type="button" (click)="cancelReject()">Keep it</button>
+                  </div>
+                </form>
+              } @else {
+                <button class="button primary" type="button" [disabled]="accepting()" (click)="accept(draft)">
+                  {{ accepting() ? 'Starting…' : 'Start this session' }}
+                </button>
+                <button class="button secondary" type="button" [disabled]="accepting()" (click)="startReject()">Not for me</button>
+              }
             } @else if (draft.status === 'ACCEPTED') {
               <div class="accepted">
                 <b>Session started.</b>

@@ -8,6 +8,13 @@ import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 
 const SIDEBAR_LIMIT = 8;
+const DEFAULT_REJECT_REASON = 'Not for me today';
+
+/** One line of the checks list; `note` marks a rule the draft had to be corrected for. */
+export interface DraftCheck {
+  label: string;
+  note: boolean;
+}
 
 /**
  * Plan Studio: a generated session, with the validator's findings shown rather than hidden, and
@@ -41,6 +48,9 @@ export class PlanStudioPage implements OnInit {
   readonly accepting = signal(false);
   readonly error = signal<string | null>(null);
   readonly request = signal('');
+  /** Whether the reason form for setting a draft aside is open. */
+  readonly rejecting = signal(false);
+  readonly reason = signal(DEFAULT_REJECT_REASON);
 
   /** Newest first, and only a handful: a sidebar is for choosing, not for archaeology. */
   readonly openDrafts = computed(() => this.store.drafts().filter((d) => d.status === 'DRAFT').slice(0, SIDEBAR_LIMIT));
@@ -57,6 +67,7 @@ export class PlanStudioPage implements OnInit {
   }
 
   open(artifactId: string): void {
+    this.rejecting.set(false);
     const known = this.store.drafts().find((d) => d.artifactId === artifactId);
     if (known) {
       this.selected.set(known);
@@ -132,9 +143,22 @@ export class PlanStudioPage implements OnInit {
     });
   }
 
+  /** Opens the reason form, with the default reason filled in so one press of the confirm is enough. */
+  startReject(): void {
+    this.reason.set(DEFAULT_REJECT_REASON);
+    this.rejecting.set(true);
+  }
+
+  cancelReject(): void {
+    this.rejecting.set(false);
+  }
+
+  /** Sets the draft aside with the reason given, or the default when it was cleared. */
   reject(draft: SessionDraftView, reason?: string): void {
-    this.store.rejectDraft(draft.artifactId, reason).subscribe({
+    const text = (reason ?? this.reason()).trim().slice(0, 500) || DEFAULT_REJECT_REASON;
+    this.store.rejectDraft(draft.artifactId, text).subscribe({
       next: (rejected) => {
+        this.rejecting.set(false);
         this.selected.set(rejected);
         this.toast.info('Draft set aside. The coach keeps the reason.');
       },
@@ -153,17 +177,30 @@ export class PlanStudioPage implements OnInit {
     }
   }
 
-  /** The checks every accepted draft has passed, phrased as the validator phrases its rules. */
-  checks(draft: SessionDraftView): string[] {
-    const items = [
-      'every exercise is a real catalogue row',
-      'nothing retired from the catalogue',
-      'fits the equipment on your profile',
-      'avoids what you trained yesterday',
-      'avoids areas you flagged as injured'
+  /**
+   * What to tell the user was checked.
+   *
+   * The findings the draft carries come first and are shown as they are. A server that sends none
+   * gets only what the draft's source guarantees: every draft, whoever wrote it, was held to the
+   * catalogue, retirement, equipment and injury rules. "Avoids what you trained yesterday" is
+   * claimed only for model drafts, because the rule-built ones say nothing about it in the data.
+   */
+  checks(draft: SessionDraftView): DraftCheck[] {
+    const findings = (draft.findings ?? []).filter((finding) => finding && typeof finding.label === 'string' && finding.label.trim());
+    if (findings.length) {
+      return findings.map((finding) => ({ label: finding.label.trim(), note: finding.passed === false }));
+    }
+    const items: DraftCheck[] = [
+      { label: 'every exercise is a real catalogue row', note: false },
+      { label: 'nothing retired from the catalogue', note: false },
+      { label: 'fits the equipment on your profile', note: false },
+      { label: 'avoids areas you flagged as injured', note: false }
     ];
+    if (draft.source !== 'RULE_FALLBACK') {
+      items.splice(3, 0, { label: 'avoids what you trained yesterday', note: false });
+    }
     if (draft.source === 'MODEL_REPAIRED') {
-      items.push('corrected once: the first attempt broke a rule');
+      items.push({ label: 'corrected once: the first attempt broke a rule', note: true });
     }
     return items;
   }
