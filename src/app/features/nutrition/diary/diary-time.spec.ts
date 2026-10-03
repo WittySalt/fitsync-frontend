@@ -24,9 +24,9 @@ describe('diary-time', () => {
   });
 
   it('bounds a day from its first to its last millisecond', () => {
-    const { from, to } = dayBounds('2026-10-02');
-    expect(new Date(from).getTime()).toBe(new Date(2026, 9, 2).getTime());
-    expect(new Date(to).getTime()).toBe(new Date(2026, 9, 3).getTime() - 1);
+    const { from, to } = dayBounds('2026-10-02', 'Asia/Singapore');
+    expect(from).toBe('2026-10-01T16:00:00.000Z');
+    expect(to).toBe('2026-10-02T15:59:59.999Z');
   });
 
   it('picks the meal type from the clock using the contract windows', () => {

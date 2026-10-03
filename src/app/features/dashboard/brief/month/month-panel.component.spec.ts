@@ -9,6 +9,7 @@ import { MonthlyTrainingInsight, NutritionSummary, WorkoutSession, WorkoutSessio
 import { analyticsStub, monthInsight, septemberInsight, weighIn } from './month-fixtures.spec';
 import { MonthPanelComponent } from './month-panel.component';
 import { MonthViewState } from './month-view.state';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 
 function badge(code: string, unlockedAt: string | null): AnalyticsAchievement {
   return { code, title: code, unlocked: unlockedAt !== null, unlockedAt, progress: unlockedAt ? 1 : 0 };
@@ -61,7 +62,8 @@ describe('MonthPanelComponent', () => {
   let analytics: jasmine.SpyObj<AnalyticsApiService>;
 
   function open(target: number | null = 4): void {
-    TestBed.inject(MonthViewState).open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    TestBed.inject(MonthViewState).open('2026-09-27');
     fixture = TestBed.createComponent(MonthPanelComponent);
     fixture.componentRef.setInput('weeklyTarget', target);
     fixture.detectChanges();
@@ -210,7 +212,8 @@ describe('MonthPanelComponent', () => {
           })
         )
       );
-      TestBed.inject(MonthViewState).open('Asia/Singapore', reference);
+      TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+      TestBed.inject(MonthViewState).open(reference);
       fixture = TestBed.createComponent(MonthPanelComponent);
       fixture.detectChanges();
     }
@@ -277,7 +280,8 @@ describe('MonthPanelComponent', () => {
   });
 
   it('names a past month plainly', () => {
-    TestBed.inject(MonthViewState).open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    TestBed.inject(MonthViewState).open('2026-09-27');
     data.getMonthlyTrainingInsight.and.returnValue(of(septemberInsight({ month: '2026-08', monthStart: '2026-08-01', monthEnd: '2026-08-31', previousTotals: null })));
     TestBed.inject(MonthViewState).step(-1);
     fixture = TestBed.createComponent(MonthPanelComponent);

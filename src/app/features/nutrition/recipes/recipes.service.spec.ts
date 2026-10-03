@@ -148,12 +148,12 @@ describe('RecipesService', () => {
     expect(calls).toBe(2);
   });
 
-  it('logs servings with the meal type, the moment and the time zone', () => {
+  it('logs servings with the meal type and the moment, and sends no timezone field', () => {
     let mealId = '';
     service.logRecipe('r1', { servings: 1.5, mealType: 'LUNCH', consumedAt: new Date('2026-10-02T05:00:00Z') }).subscribe((meal) => (mealId = meal.mealId));
     const request = http.expectOne(`${base}/meals/from-recipe/r1`);
     expect(request.request.body).toEqual(jasmine.objectContaining({ servings: 1.5, mealType: 'LUNCH', consumedAt: '2026-10-02T05:00:00.000Z' }));
-    expect(typeof request.request.body.timezone).toBe('string');
+    expect(request.request.body.timezone).toBeUndefined();
     request.flush({ mealId: 'm1' });
 
     expect(mealId).toBe('m1');
@@ -201,7 +201,7 @@ describe('RecipesService', () => {
     const days = (to.getTime() - from.getTime()) / 86_400_000;
     expect(days).toBeGreaterThan(13);
     expect(days).toBeLessThanOrEqual(14);
-    expect(request.request.params.get('timezone')).toBeTruthy();
+    expect(request.request.params.has('timezone')).toBeFalse();
     request.flush([
       { mealId: 'old', consumedAt: '2026-09-20T12:00:00Z', items: [{ mealItemId: 'a', foodName: 'Rice' }] },
       { mealId: 'empty', consumedAt: '2026-09-30T12:00:00Z', items: [] },

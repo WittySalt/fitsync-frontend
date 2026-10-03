@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 
 import {
   DayInsight,
@@ -11,6 +11,7 @@ import {
   WorkoutSession,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { formatDuration, formatKm, formatPace } from '../dashboard/brief/brief-duration';
 import { DAY_KIND_GLYPHS, isTrainingDayKind } from '../dashboard/brief/day-kind-icons';
 import { GlyphShape } from '../dashboard/brief/muscle-icons';
@@ -89,7 +90,7 @@ export class TodayOverviewComponent {
   readonly nextTraining = input<NextTraining | null>(null);
   /** Today's entry in the insight's week, which knows the sessions behind a finished day. */
   readonly todayDay = input<DayInsight | null>(null);
-  readonly timezone = input('');
+  private readonly timezone = inject(UserTimezoneService).zone;
 
   readonly startPlan = output<TodayStartEvent>();
   readonly startExercise = output<WorkoutPlanExercise>();
@@ -504,7 +505,7 @@ export class TodayOverviewComponent {
     const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'short' };
     let formatter: Intl.DateTimeFormat;
     try {
-      formatter = new Intl.DateTimeFormat('en-GB', { ...options, timeZone: this.timezone() || undefined });
+      formatter = new Intl.DateTimeFormat('en-GB', { ...options, timeZone: this.timezone() });
     } catch {
       // An unknown zone name should not cost the whole footer; the browser's own zone is close.
       formatter = new Intl.DateTimeFormat('en-GB', options);

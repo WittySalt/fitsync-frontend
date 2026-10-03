@@ -11,6 +11,7 @@ import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
 import { analyticsStub, monthInsight, septemberInsight } from './month/month-fixtures.spec';
 import { FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 
 const NOW = new Date('2026-09-27T00:10:00Z'); // Sunday 08:10 in Asia/Singapore
 
@@ -107,7 +108,7 @@ describe('CoachBriefComponent', () => {
     spyOn(router, 'navigate').and.resolveTo(true);
     fixture = TestBed.createComponent(CoachBriefComponent);
     fixture.componentRef.setInput('firstName', 'Ruixian');
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
     fixture.componentRef.setInput('caloriesTarget', 2100);
     for (const [name, value] of Object.entries(extraInputs)) {
       fixture.componentRef.setInput(name, value);
@@ -174,7 +175,7 @@ describe('CoachBriefComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelectorAll('app-muscle-wheel circle.badge').length).toBe(5);
     expect(element.querySelector('.panel-title')?.textContent?.trim()).toBe('Your plan this week');
-    expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith('Asia/Singapore');
+    expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith();
   });
 
   describe('the focus line under the wheel', () => {
@@ -278,7 +279,7 @@ describe('CoachBriefComponent', () => {
       press('Month');
       const element = fixture.nativeElement as HTMLElement;
 
-      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
       expect(tab('Month').getAttribute('aria-pressed')).toBe('true');
       expect(tab('Week').getAttribute('aria-pressed')).toBe('false');
       expect(element.querySelector('.week-title')).toBeNull();
@@ -347,7 +348,7 @@ describe('CoachBriefComponent', () => {
 
       fixture = TestBed.createComponent(CoachBriefComponent);
       fixture.componentRef.setInput('firstName', 'Ruixian');
-      fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+      TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
       fixture.detectChanges();
       const element = fixture.nativeElement as HTMLElement;
       expect(element.querySelector('.week-title')).not.toBeNull();
@@ -604,7 +605,7 @@ describe('CoachBriefComponent', () => {
 
     it('offers last month on the second of the month and opens the month view on it', () => {
       setupOn(new Date('2026-10-02T02:00:00Z'));
-      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
       expect(lineOf()?.querySelector('.text')?.textContent?.trim()).toBe('September is complete.');
 
       seeTheMonth();
@@ -613,7 +614,7 @@ describe('CoachBriefComponent', () => {
       expect(element.querySelector('app-month-nav .title')?.textContent?.trim()).toBe('September 2026');
       expect(lineOf()).toBeNull();
       expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledTimes(2);
-      expect(dataService.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09', 'Asia/Singapore']);
+      expect(dataService.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09']);
     });
 
     it('does not bring the line back when the week view returns', () => {
@@ -659,7 +660,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
     spyOn(router, 'navigate').and.resolveTo(true);
     fixture = TestBed.createComponent(CoachBriefComponent);
     fixture.componentRef.setInput('firstName', 'Ruixian');
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
     fixture.componentRef.setInput('caloriesTarget', null);
     dataService.getGoals.and.returnValue(
       of(target != null ? [{ goalId: 'goal-1', goalType: 'WORKOUT_FREQUENCY', targetValue: target, targetUnit: 'sessions/week', targetDate: '2026-09-27', status: 'ACTIVE', notes: null }] : [])
@@ -823,7 +824,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
 
       fixture.componentInstance.onPlanStarted();
 
-      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledOnceWith();
       expect(dataService.getActivePlan).toHaveBeenCalledTimes(1);
     });
   });

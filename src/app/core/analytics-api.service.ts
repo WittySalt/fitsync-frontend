@@ -63,13 +63,10 @@ export class AnalyticsApiService {
     });
   }
 
-  /** Compares this period so far with the same days of the one before. The timezone, when known,
+  /** Compares this period so far with the same days of the one before. The X-Timezone header
    *  tells the server which day is today. */
-  getSummaryCompare(period: AnalyticsComparePeriod, timezone?: string | null): Observable<AnalyticsSummaryCompareResponse> {
-    let params = new HttpParams().set('period', period);
-    if (timezone) {
-      params = params.set('timezone', timezone);
-    }
+  getSummaryCompare(period: AnalyticsComparePeriod): Observable<AnalyticsSummaryCompareResponse> {
+    const params = new HttpParams().set('period', period);
     return this.http.get<AnalyticsSummaryCompareResponse>(`${this.analyticsBaseUrl}/summary/compare`, { params });
   }
 

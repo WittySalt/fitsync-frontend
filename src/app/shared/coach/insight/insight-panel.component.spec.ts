@@ -107,7 +107,6 @@ describe('InsightPanelComponent', () => {
   function render(surface: ReadingSurface = 'WORKOUT'): void {
     fixture = TestBed.createComponent(InsightPanelComponent);
     fixture.componentRef.setInput('surface', surface);
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
     fixture.detectChanges();
     element = fixture.nativeElement as HTMLElement;
   }
@@ -138,9 +137,9 @@ describe('InsightPanelComponent', () => {
     }).compileComponents();
   });
 
-  it('asks for the reading of its page in the given timezone', () => {
+  it('asks for the reading of its page', () => {
     render();
-    expect(api.getReading).toHaveBeenCalledOnceWith('WORKOUT', 'Asia/Singapore');
+    expect(api.getReading).toHaveBeenCalledOnceWith('WORKOUT');
   });
 
   it('shows the reading with its headline, its body and when it was written', () => {
@@ -298,8 +297,8 @@ describe('InsightPanelComponent', () => {
 
     it('loads its own reading and draws the facts and the meal chart', () => {
       render('NUTRITION');
-      expect(api.getReading).toHaveBeenCalledOnceWith('NUTRITION', 'Asia/Singapore');
-      expect(data.getNutritionInsightsPage).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(api.getReading).toHaveBeenCalledOnceWith('NUTRITION');
+      expect(data.getNutritionInsightsPage).toHaveBeenCalledOnceWith();
       expect(text('.reading-headline')).toBe('Most of your protein comes after midday.');
       expect(element.querySelectorAll('.fact').length).toBe(4);
       expect(element.querySelectorAll('app-meal-bars rect.bar').length).toBe(3);
@@ -345,8 +344,8 @@ describe('InsightPanelComponent', () => {
 
     it('loads its own reading and draws the facts and the weight chart', () => {
       render('PROGRESS');
-      expect(api.getReading).toHaveBeenCalledOnceWith('PROGRESS', 'Asia/Singapore');
-      expect(data.getProgressInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(api.getReading).toHaveBeenCalledOnceWith('PROGRESS');
+      expect(data.getProgressInsight).toHaveBeenCalledOnceWith();
       expect(element.querySelectorAll('.fact').length).toBe(4);
       expect(element.querySelector('app-weight-projection svg polyline.series')).not.toBeNull();
     });

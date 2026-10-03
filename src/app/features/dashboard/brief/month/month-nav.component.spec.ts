@@ -8,6 +8,7 @@ import { MonthlyTrainingInsight } from '../../../../core/fitsync.models';
 import { analyticsStub, monthInsight } from './month-fixtures.spec';
 import { MonthNavComponent } from './month-nav.component';
 import { MonthViewState } from './month-view.state';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 
 describe('MonthNavComponent', () => {
   let fixture: ComponentFixture<MonthNavComponent>;
@@ -29,7 +30,8 @@ describe('MonthNavComponent', () => {
 
   function open(): void {
     state = TestBed.inject(MonthViewState);
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     fixture = TestBed.createComponent(MonthNavComponent);
     fixture.detectChanges();
   }
@@ -55,7 +57,7 @@ describe('MonthNavComponent', () => {
   it('shows the month and the year between the two arrows', () => {
     open();
     expect(title()).toBe('September 2026');
-    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
   });
 
   it('disables the next arrow on the month of the reference date', () => {
@@ -85,20 +87,21 @@ describe('MonthNavComponent', () => {
     open();
     arrow('Previous month').click();
     fixture.detectChanges();
-    expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-08', 'Asia/Singapore']);
+    expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-08']);
     arrow('Previous month').click();
     fixture.detectChanges();
-    expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-07', 'Asia/Singapore']);
+    expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-07']);
     arrow('Next month').click();
     fixture.detectChanges();
-    expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-08', 'Asia/Singapore']);
+    expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-08']);
     expect(title()).toBe('August 2026');
   });
 
   it('crosses a year when it turns back from January', () => {
     response = monthInsight({ firstSessionDate: '2025-11-02', referenceDate: '2026-01-15' });
     state = TestBed.inject(MonthViewState);
-    state.open('Asia/Singapore', '2026-01-15');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-01-15');
     fixture = TestBed.createComponent(MonthNavComponent);
     fixture.detectChanges();
     arrow('Previous month').click();

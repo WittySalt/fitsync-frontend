@@ -18,7 +18,7 @@
   </div>
 
   @if (view() !== 'calendar') {
-    <app-session-calendar [mode]="view() === 'week' ? 'week' : 'month'" [timezone]="timezone()" />
+    <app-session-calendar [mode]="view() === 'week' ? 'week' : 'month'" />
   } @else {
   @if (loading()) {
     <div class="heatmap-skeleton" aria-busy="true" aria-label="Loading workout activity">

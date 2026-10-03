@@ -5,10 +5,10 @@ import { Subject, catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { AdminAction } from './admin-action';
 import { AdminActionStatusComponent } from './admin-action-status.component';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { AdminApiService, AdminUser, RebuildResult } from './admin-api.service';
 import { AdminConfirmButtonComponent } from './admin-confirm-button.component';
 import { EMAIL_MAX_LENGTH, formatClock, isDateKeyUpTo, looksLikeEmail, titleCase } from './admin-format';
-import { browserTimeZone, dateKeyInZone } from './coach-quality.format';
 
 type LookupState =
   | { kind: 'idle' }
@@ -44,12 +44,13 @@ interface Field {
 })
 export class UserDataPage {
   private readonly api = inject(AdminApiService);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly search$ = new Subject<string>();
 
   protected readonly emailMaxLength = EMAIL_MAX_LENGTH;
   // The latest date the rebuilds accept is today where the administrator is.
-  protected readonly today = dateKeyInZone(new Date(), browserTimeZone());
+  protected readonly today = this.userTimezone.dateKey();
   protected readonly date = signal(this.today);
   protected readonly email = signal('');
   protected readonly lookup = signal<LookupState>({ kind: 'idle' });

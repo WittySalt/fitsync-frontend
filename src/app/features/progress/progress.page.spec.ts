@@ -251,7 +251,7 @@ afterEach(() => jasmine.clock().uninstall());
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelectorAll('app-insight-panel').length).toBe(1);
     expect(compiled.querySelector('app-coach-anchor')).toBeNull();
-    expect(coachApiStub.getReading).toHaveBeenCalledWith('PROGRESS', jasmine.any(String));
+    expect(coachApiStub.getReading).toHaveBeenCalledWith('PROGRESS');
   });
 
   it('defaults to the Overview tab: hub header and tabs, no body or goals detail', () => {
@@ -468,10 +468,10 @@ afterEach(() => jasmine.clock().uninstall());
       expect(element.querySelector('app-progress-range .presets button.active')).toBeNull();
     });
 
-    it('sends the profile zone with the period comparison', () => {
+    it('asks for the period comparison of this week', () => {
       overview();
 
-      expect(analyticsApi.getSummaryCompare).toHaveBeenCalledWith('WEEK', 'Asia/Singapore');
+      expect(analyticsApi.getSummaryCompare).toHaveBeenCalledWith('WEEK');
     });
 
     it('shows no ISO date anywhere on the Overview tab, aria labels included', () => {

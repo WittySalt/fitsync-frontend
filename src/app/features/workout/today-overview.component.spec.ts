@@ -17,6 +17,7 @@ import {
 import { ToastService } from '../../core/toast/toast.service';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { TodayOverviewComponent } from './today-overview.component';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 
 function move(sequence: number, name: string, overrides: Partial<WorkoutPlanExercise> = {}): WorkoutPlanExercise {
   return {
@@ -145,7 +146,11 @@ describe('TodayOverviewComponent', () => {
 
   function render(inputs: Record<string, unknown> = {}): HTMLElement {
     const defaults: Record<string, unknown> = { activePlan: plan(), sessions: [] };
-    for (const [name, value] of Object.entries({ ...defaults, ...inputs })) {
+    const { timezone, ...rest } = inputs;
+    if (typeof timezone === 'string') {
+      TestBed.inject(UserTimezoneService).setProfileZone(timezone);
+    }
+    for (const [name, value] of Object.entries({ ...defaults, ...rest })) {
       fixture.componentRef.setInput(name, value);
     }
     fixture.detectChanges();

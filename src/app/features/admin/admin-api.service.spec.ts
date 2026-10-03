@@ -30,13 +30,13 @@ describe('AdminApiService', () => {
 
   it('asks for the coach quality with the doubled service path and the range', () => {
     let result: CoachQuality | undefined;
-    service.getCoachQuality('2026-09-24', '2026-09-30', 'Asia/Singapore').subscribe((value) => (result = value));
+    service.getCoachQuality('2026-09-24', '2026-09-30').subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne((req) => req.url === '/api/v1/admin/coach/coach/quality');
     expect(request.request.method).toBe('GET');
     expect(request.request.params.get('from')).toBe('2026-09-24');
     expect(request.request.params.get('to')).toBe('2026-09-30');
-    expect(request.request.params.get('timezone')).toBe('Asia/Singapore');
+    expect(request.request.params.has('timezone')).toBeFalse();
     request.flush({ from: '2026-09-24', to: '2026-09-30', timezone: 'Asia/Singapore', answers: { total: 4, passed: 3 } });
 
     expect(result?.answers.total).toBe(4);

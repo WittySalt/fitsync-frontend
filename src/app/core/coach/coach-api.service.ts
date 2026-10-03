@@ -55,10 +55,9 @@ export class CoachApiService {
    * panel. Errors are passed on, because the panel hides itself on a failed request and must be
    * able to tell that apart from an empty answer.
    */
-  getReading(surface: ReadingSurface, timezone: string): Observable<CoachReading> {
-    const params = new HttpParams().set('timezone', timezone);
+  getReading(surface: ReadingSurface): Observable<CoachReading> {
     return this.http
-      .get<Partial<CoachReading>>(`${this.coachBaseUrl}/readings/${surface.toLowerCase()}`, { params })
+      .get<Partial<CoachReading>>(`${this.coachBaseUrl}/readings/${surface.toLowerCase()}`)
       .pipe(map((response) => toCoachReading(surface, response)));
   }
 

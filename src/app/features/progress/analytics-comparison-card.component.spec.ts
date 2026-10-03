@@ -82,11 +82,10 @@ describe('AnalyticsComparisonCardComponent', () => {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
-  it('loads the week comparison by default and sends the profile zone', () => {
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+  it('loads the week comparison by default', () => {
     fixture.detectChanges();
 
-    expect(analyticsApi.getSummaryCompare).toHaveBeenCalledWith('WEEK', 'Asia/Singapore');
+    expect(analyticsApi.getSummaryCompare).toHaveBeenCalledWith('WEEK');
     expect(text()).toContain('Period comparison');
     expect(text()).toContain('Completed workouts');
   });

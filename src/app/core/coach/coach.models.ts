@@ -90,7 +90,6 @@ export interface CoachMessageContext {
   readingId?: string;
   /** The recipe a question is about, when it was asked from a recipe page. */
   recipeId?: string;
-  timezone?: string;
 }
 
 /** The answer the plain endpoint returns, and the payload of the stream's final `answer` event. */

@@ -8,6 +8,7 @@ import { AnalyticsActivityCalendarResponse } from '../../core/analytics.models';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSession } from '../../core/fitsync.models';
 import { ActivityHeatmapComponent } from './activity-heatmap.component';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 
 const calendar: AnalyticsActivityCalendarResponse = {
   from: '2026-09-03',
@@ -68,7 +69,7 @@ describe('ActivityHeatmapComponent', () => {
 
     fixture = TestBed.createComponent(ActivityHeatmapComponent);
     fixture.componentRef.setInput('range', { from: '2026-09-03', to: '2026-10-03' });
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
   });
 
   afterEach(() => {

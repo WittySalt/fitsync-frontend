@@ -31,8 +31,6 @@ export class TodayBodyComponent {
 
   readonly metric = input.required<BodyMetric | null>();
   readonly now = input.required<Date>();
-  /** The person's timezone, which decides the reference day of the trend. The device's is used without it. */
-  readonly timezone = input<string | null>(null);
 
   readonly trendState = signal<TrendState>('none');
   private readonly insight = signal<ProgressInsight | null>(null);
@@ -101,7 +99,7 @@ export class TodayBodyComponent {
     this.insight.set(null);
     this.trendState.set('loading');
     // The call is deferred so that any failure, even one thrown before a request exists, is caught.
-    this.request = defer(() => this.dataService.getProgressInsight(this.timezone() || deviceTimezone()))
+    this.request = defer(() => this.dataService.getProgressInsight())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (insight) => {
@@ -110,13 +108,5 @@ export class TodayBodyComponent {
         },
         error: () => this.trendState.set('none')
       });
-  }
-}
-
-function deviceTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
   }
 }

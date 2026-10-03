@@ -32,20 +32,20 @@ describe('CoachApiService', () => {
     request.flush([]);
   });
 
-  it('asks for a page reading with the surface in the path and the timezone as a parameter', () => {
+  it('asks for a page reading with the surface in the path and no timezone parameter', () => {
     let status = '';
-    service.getReading('WORKOUT', 'Asia/Singapore').subscribe((reading) => (status = reading.status));
+    service.getReading('WORKOUT').subscribe((reading) => (status = reading.status));
 
     const request = httpTesting.expectOne((candidate) => candidate.url === '/api/v1/coach/readings/workout');
     expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('timezone')).toBe('Asia/Singapore');
+    expect(request.request.params.has('timezone')).toBeFalse();
     request.flush({ surface: 'WORKOUT', status: 'RESTING', facts: [], lifts: [] });
     expect(status).toBe('RESTING');
   });
 
   it('passes a failed reading request on to the caller', () => {
     let failed = false;
-    service.getReading('WORKOUT', 'UTC').subscribe({ error: () => (failed = true) });
+    service.getReading('WORKOUT').subscribe({ error: () => (failed = true) });
 
     httpTesting.expectOne((candidate) => candidate.url === '/api/v1/coach/readings/workout').flush('down', { status: 503, statusText: 'Unavailable' });
     expect(failed).toBeTrue();
@@ -69,12 +69,12 @@ describe('CoachApiService', () => {
   });
 
   it('carries the context when the caller gives one', () => {
-    service.sendMessage('t1', 'Should my core get a day off?', { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' }).subscribe();
+    service.sendMessage('t1', 'Should my core get a day off?', { surface: 'WORKOUT', readingId: 'r1' }).subscribe();
 
     const request = httpTesting.expectOne('/api/v1/coach/threads/t1/messages');
     expect(request.request.body).toEqual({
       message: 'Should my core get a day off?',
-      context: { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' }
+      context: { surface: 'WORKOUT', readingId: 'r1' }
     });
     request.flush({ threadId: 't1', turnId: 'u1', answer: 'No.', tier: 2, toolsUsed: [], latencyMs: 10 });
   });
@@ -142,12 +142,12 @@ describe('CoachApiService.streamMessage', () => {
   it('carries the context in the stream body when the caller gives one', () => {
     const fetchSpy = spyOn(window, 'fetch').and.returnValue(Promise.reject(new Error('no network in test')));
     const subscription = service
-      .streamMessage('t1', 'Should my core get a day off?', { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' })
+      .streamMessage('t1', 'Should my core get a day off?', { surface: 'WORKOUT', readingId: 'r1' })
       .subscribe({ error: () => {} });
 
     expect(bodySentTo(fetchSpy)).toEqual({
       message: 'Should my core get a day off?',
-      context: { surface: 'WORKOUT', readingId: 'r1', timezone: 'Asia/Singapore' }
+      context: { surface: 'WORKOUT', readingId: 'r1' }
     });
     subscription.unsubscribe();
   });

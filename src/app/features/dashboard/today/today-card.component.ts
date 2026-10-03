@@ -57,9 +57,6 @@ export class TodayCardComponent implements OnInit {
 
   readonly activeTab = computed<TodayTab>(() => this.picked() ?? this.decided() ?? 'food');
   readonly foodMeals = this.meals.asReadonly();
-  /** The profile's zone, which decides which day the meals and the usual meals are read for. */
-  private readonly zone = computed(() => this.dashboard()?.profile.timezone ?? null);
-
   readonly foodLoading = computed(
     () => this.mealsState() === 'loading' || (this.nutrition() === null && !this.nutritionFailed())
   );
@@ -97,7 +94,7 @@ export class TodayCardComponent implements OnInit {
   loadMeals(): void {
     this.mealsState.set('loading');
     this.dataService
-      .getMealsForDay(this.now(), this.zone())
+      .getMealsForDay(this.now())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (meals) => {
@@ -111,7 +108,7 @@ export class TodayCardComponent implements OnInit {
   // The usual meals only add suggestions, so a failure leaves the card as it is without them.
   private loadUsualMeals(): void {
     // The call is deferred so that any failure, even one thrown before a request exists, is caught.
-    defer(() => this.dataService.getUsualMeals(this.zone() ?? undefined))
+    defer(() => this.dataService.getUsualMeals())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (meals) => this.usualMeals.set(meals),
@@ -144,7 +141,7 @@ export class TodayCardComponent implements OnInit {
   private refreshAfterLogging(): void {
     this.now.set(this.clock());
     this.dataService
-      .getMealsForDay(this.now(), this.zone())
+      .getMealsForDay(this.now())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (meals) => this.meals.set(meals),

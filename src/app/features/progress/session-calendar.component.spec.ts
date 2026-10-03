@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { SessionCalendarComponent } from './session-calendar.component';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 
 describe('SessionCalendarComponent', () => {
   let fixture: ComponentFixture<SessionCalendarComponent>;
@@ -27,6 +28,8 @@ describe('SessionCalendarComponent', () => {
       imports: [SessionCalendarComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), { provide: FitSyncDataService, useValue: dataService }]
     }).compileComponents();
+
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
 
     // The calendars start from today, so the clock is pinned to keep the fixtures' June 2026 days in view.
     jasmine.clock().install();
@@ -68,7 +71,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('maps overlapping week sessions into split-width blocks in the profile timezone', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
     component.startDate.set('2026-06-15');
     component.endDate.set('2026-06-21');
@@ -93,7 +95,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('drops cancelled sessions when loading the activity calendar', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
     component.startDate.set('2026-06-15');
     component.endDate.set('2026-06-21');
@@ -123,7 +124,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('renders inline start times for short and long week blocks', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
     component.startDate.set('2026-06-15');
     component.endDate.set('2026-06-21');
@@ -166,7 +166,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('positions a single week session within its day slice without grid-column placement', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
     component.startDate.set('2026-06-15');
     component.endDate.set('2026-06-21');
@@ -185,7 +184,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('maps month sessions into time-sorted chips with overflow', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('month');
     component.selectedDate.set(new Date(2026, 5, 1));
     component.sessions.set([
@@ -256,7 +254,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('uses the default week time window and expands it for early or late sessions', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('week');
     component.startDate.set('2026-06-15');
     component.endDate.set('2026-06-21');
@@ -289,7 +286,6 @@ describe('SessionCalendarComponent', () => {
   });
 
   it('switches the expanded month detail when a second day overflow is opened', () => {
-    component.timezone = 'Asia/Singapore';
     component.selectedPreset.set('month');
     component.selectedDate.set(new Date(2026, 5, 1));
     dataService.getWorkoutSessionsInRange.and.returnValue(

@@ -7,6 +7,7 @@ import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData, normalizeFocusAreas } from './fitsync-data.service';
 import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, UsualMeal } from './fitsync.models';
 import { MonthlyTrainingInsight } from './fitsync.models';
+import { UserTimezoneService } from './user-timezone.service';
 
 const baseOnboarding: OnboardingFormValue = {
   primaryGoal: 'LOSE_FAT',
@@ -633,9 +634,9 @@ describe('FitSyncDataService', () => {
     expect(result?.latestWorkout).toEqual(jasmine.objectContaining({ sessionId: 'completed-session', status: 'COMPLETED' }));
   });
 
-  it('loads daily nutrition summary with date and timezone params', () => {
+  it('loads daily nutrition summary with the date and no timezone param', () => {
     let result: unknown;
-    service.getDailyNutritionSummary(new Date(2026, 5, 24), 'Asia/Singapore').subscribe((value) => {
+    service.getDailyNutritionSummary(new Date(2026, 5, 24)).subscribe((value) => {
       result = value;
     });
 
@@ -643,7 +644,7 @@ describe('FitSyncDataService', () => {
       (req) =>
         req.url === '/api/v1/nutrition/summary/daily' &&
         req.params.get('date') === '2026-06-24' &&
-        req.params.get('timezone') === 'Asia/Singapore'
+        !req.params.has('timezone')
     );
     expect(request.request.method).toBe('GET');
     request.flush({
@@ -907,12 +908,12 @@ describe('FitSyncDataService', () => {
     request.flush({});
   });
 
-  it('fetches the usual meals for the timezone and maps them defensively', () => {
+  it('fetches the usual meals and maps them defensively', () => {
     let result: UsualMeal[] | undefined;
-    service.getUsualMeals('Asia/Singapore').subscribe((value) => (result = value));
+    service.getUsualMeals().subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals/usual');
-    expect(request.request.params.get('timezone')).toBe('Asia/Singapore');
+    expect(request.request.params.has('timezone')).toBeFalse();
     request.flush({
       timezone: 'Asia/Singapore',
       windowDays: 14,
@@ -957,7 +958,7 @@ describe('FitSyncDataService', () => {
 
   it('reads a missing list of usual meals as empty', () => {
     let result: UsualMeal[] | undefined;
-    service.getUsualMeals('Asia/Singapore').subscribe((value) => (result = value));
+    service.getUsualMeals().subscribe((value) => (result = value));
 
     httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals/usual').flush({});
 
@@ -1031,7 +1032,6 @@ describe('FitSyncDataService', () => {
         name: 'Chicken lunch',
         note: 'Post workout',
         consumedAt: '2026-06-20T04:00:00.000Z',
-        timezone: 'Asia/Singapore',
         items: [
           {
             foodCatalogItemId: 'food-catalog',
@@ -1110,7 +1110,6 @@ describe('FitSyncDataService', () => {
         mealType: 'SNACK',
         name: 'Manual shake',
         consumedAt: '2026-06-20T04:00:00.000Z',
-        timezone: 'Asia/Singapore',
         calories: 220,
         proteinGrams: 30,
         carbsGrams: 12,
@@ -1208,16 +1207,16 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].lastLoggedAt).toBe('2026-06-19T04:00:00Z');
   });
 
-  it('fetches today meals within a from/to day window and optional timezone', () => {
+  it('fetches today meals within a from/to day window and no timezone param', () => {
     let result: Meal[] | undefined;
-    service.getTodayMeals('Asia/Singapore').subscribe((value) => (result = value));
+    service.getTodayMeals().subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
       (req) =>
         req.url === '/api/v1/nutrition/meals' &&
         req.params.has('from') &&
         req.params.has('to') &&
-        req.params.get('timezone') === 'Asia/Singapore'
+        !req.params.has('timezone')
     );
     request.flush([
       { mealType: 'LUNCH', name: 'Chicken rice', totalCalories: 640, totalProteinGrams: 48, consumedAt: '2026-06-19T04:30:00Z', itemCount: 1 }
@@ -1300,10 +1299,10 @@ describe('FitSyncDataService', () => {
 
   it('passes a failed daily summary on as an error when the caller asks to see it', () => {
     let failed = false;
-    service.loadDailyNutritionSummary('2026-06-24', 'Europe/London').subscribe({ error: () => (failed = true) });
+    service.loadDailyNutritionSummary('2026-06-24').subscribe({ error: () => (failed = true) });
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/nutrition/summary/daily' && req.params.get('date') === '2026-06-24' && req.params.get('timezone') === 'Europe/London'
+      (req) => req.url === '/api/v1/nutrition/summary/daily' && req.params.get('date') === '2026-06-24' && !req.params.has('timezone')
     );
     request.flush('nope', { status: 500, statusText: 'Server Error' });
 
@@ -1312,15 +1311,16 @@ describe('FitSyncDataService', () => {
 
   it('still turns a failed daily summary into an empty one for the other callers', () => {
     let result: { totalCalories: number } | undefined;
-    service.getDailyNutritionSummary(new Date(2026, 5, 24), 'Asia/Singapore').subscribe((value) => (result = value));
+    service.getDailyNutritionSummary(new Date(2026, 5, 24)).subscribe((value) => (result = value));
 
     httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/summary/daily').flush('nope', { status: 500, statusText: 'Server Error' });
 
     expect(result?.totalCalories).toBe(0);
   });
 
-  it('fetches the meals of the day the given zone is in, from its midnight to its last millisecond', () => {
-    service.getMealsForDay(new Date('2026-10-02T17:30:00Z'), 'Asia/Singapore').subscribe();
+  it('fetches the meals of the day the profile zone is in, from its midnight to its last millisecond', () => {
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    service.getMealsForDay(new Date('2026-10-02T17:30:00Z')).subscribe();
 
     const request = httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/meals');
     // 01:30 on 3 October in Singapore, so the day is the 3rd there and began at 16:00 UTC on the 2nd.
@@ -1432,12 +1432,12 @@ describe('FitSyncDataService', () => {
     expect(result?.[0].durationMinutes).toBe(60);
   });
 
-  it('requests the nutrition insight page with the timezone and keeps the protein by meal in order', () => {
+  it('requests the nutrition insight page without a timezone param and keeps the protein by meal in order', () => {
     let result: NutritionInsightsPage | undefined;
-    service.getNutritionInsightsPage('Asia/Singapore').subscribe((value) => (result = value));
+    service.getNutritionInsightsPage().subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/nutrition/insights/page' && req.params.get('timezone') === 'Asia/Singapore'
+      (req) => req.url === '/api/v1/nutrition/insights/page' && !req.params.has('timezone')
     );
     request.flush({
       period: 'PREVIOUS_WEEK',
@@ -1459,7 +1459,7 @@ describe('FitSyncDataService', () => {
 
   it('maps a nutrition insight page with missing fields to an empty list and null numbers', () => {
     let result: NutritionInsightsPage | undefined;
-    service.getNutritionInsightsPage('UTC').subscribe((value) => (result = value));
+    service.getNutritionInsightsPage().subscribe((value) => (result = value));
 
     httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/insights/page').flush({
       proteinByMeal: [{ mealType: 'LUNCH', label: 'Lunch' }, null]
@@ -1473,17 +1473,17 @@ describe('FitSyncDataService', () => {
 
   it('lets a failed nutrition insight request propagate', () => {
     let failed = false;
-    service.getNutritionInsightsPage('UTC').subscribe({ error: () => (failed = true) });
+    service.getNutritionInsightsPage().subscribe({ error: () => (failed = true) });
     httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/insights/page').flush('no', { status: 500, statusText: 'Server Error' });
     expect(failed).toBeTrue();
   });
 
-  it('requests the progress insight with the timezone and keeps the weight series', () => {
+  it('requests the progress insight without a timezone param and keeps the weight series', () => {
     let result: ProgressInsight | undefined;
-    service.getProgressInsight('Asia/Singapore').subscribe((value) => (result = value));
+    service.getProgressInsight().subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/users/me/insights/progress' && req.params.get('timezone') === 'Asia/Singapore'
+      (req) => req.url === '/api/v1/users/me/insights/progress' && !req.params.has('timezone')
     );
     request.flush({
       referenceDate: '2026-10-01',
@@ -1506,7 +1506,7 @@ describe('FitSyncDataService', () => {
 
   it('maps a progress insight with missing fields to an empty series and null numbers', () => {
     let result: ProgressInsight | undefined;
-    service.getProgressInsight('UTC').subscribe((value) => (result = value));
+    service.getProgressInsight().subscribe((value) => (result = value));
 
     httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({
       series: [{ date: '2026-09-13' }, { weightKg: 70 }, { date: '2026-09-14', weightKg: 'heavy' }]
@@ -1520,22 +1520,22 @@ describe('FitSyncDataService', () => {
 
   it('keeps the window of days the weekly rate was measured over, and null when it is absent', () => {
     const results: ProgressInsight[] = [];
-    service.getProgressInsight('UTC').subscribe((value) => results.push(value));
+    service.getProgressInsight().subscribe((value) => results.push(value));
     httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({ weeklyRateKg: -0.41, rateWindowDays: 28, series: [] });
-    service.getProgressInsight('UTC').subscribe((value) => results.push(value));
+    service.getProgressInsight().subscribe((value) => results.push(value));
     httpTesting.expectOne((req) => req.url === '/api/v1/users/me/insights/progress').flush({ series: [] });
 
     expect(results.map((value) => value.rateWindowDays)).toEqual([28, null]);
   });
 
-  it('requests the weekly training insight with timezone and, when given, date', () => {
+  it('requests the weekly training insight with the date when given', () => {
     let result: WeeklyTrainingInsight | undefined;
-    service.getWeeklyTrainingInsight('Asia/Singapore', '2026-09-27').subscribe((value) => (result = value));
+    service.getWeeklyTrainingInsight('2026-09-27').subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
       (req) =>
         req.url === '/api/v1/workouts/insights/weekly' &&
-        req.params.get('timezone') === 'Asia/Singapore' &&
+        !req.params.has('timezone') &&
         req.params.get('date') === '2026-09-27'
     );
     request.flush({
@@ -1563,10 +1563,10 @@ describe('FitSyncDataService', () => {
   });
 
   it('omits the date param from the weekly training insight request when none is given', () => {
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe();
+    service.getWeeklyTrainingInsight().subscribe();
 
     const request = httpTesting.expectOne(
-      (req) => req.url === '/api/v1/workouts/insights/weekly' && req.params.get('timezone') === 'Asia/Singapore'
+      (req) => req.url === '/api/v1/workouts/insights/weekly' && !req.params.has('timezone')
     );
     expect(request.request.params.has('date')).toBe(false);
     request.flush({
@@ -1585,7 +1585,7 @@ describe('FitSyncDataService', () => {
 
   it('defensively maps a weekly training insight with missing and invalid fields', () => {
     let result: WeeklyTrainingInsight | undefined;
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+    service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
       (req) => req.url === '/api/v1/workouts/insights/weekly'
@@ -1622,7 +1622,7 @@ describe('FitSyncDataService', () => {
 
   it('lets a weekly training insight request error propagate to the caller', () => {
     let error: unknown;
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe({
+    service.getWeeklyTrainingInsight().subscribe({
       next: () => fail('expected an error, not a value'),
       error: (err) => (error = err)
     });
@@ -1637,7 +1637,7 @@ describe('FitSyncDataService', () => {
   describe('usualStartTime', () => {
     function insightWith(extra: Record<string, unknown>): WeeklyTrainingInsight | undefined {
       let result: WeeklyTrainingInsight | undefined;
-      service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+      service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
       httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
         timezone: 'Asia/Singapore',
         muscleGroups: [],
@@ -1667,7 +1667,7 @@ describe('FitSyncDataService', () => {
   describe('last week up to the same weekday', () => {
     function insightWith(extra: Record<string, unknown>): WeeklyTrainingInsight | undefined {
       let result: WeeklyTrainingInsight | undefined;
-      service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+      service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
       httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({ muscleGroups: [], volume: {}, ...extra });
       return result;
     }
@@ -1709,7 +1709,7 @@ describe('FitSyncDataService', () => {
 
   it('leaves days, today and nextTraining null when the response has none of the day-kinds fields', () => {
     let result: WeeklyTrainingInsight | undefined;
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+    service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
 
     httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
       timezone: 'Asia/Singapore',
@@ -1731,7 +1731,7 @@ describe('FitSyncDataService', () => {
 
   it('maps a full set of day-kinds fields, including a session, a planned day, and today\'s carried-over day', () => {
     let result: WeeklyTrainingInsight | undefined;
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+    service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
 
     const oneDay = (date: string, overrides: Record<string, unknown> = {}) => ({
       date,
@@ -1794,7 +1794,7 @@ describe('FitSyncDataService', () => {
   it('maps the session and exercises behind the last session of the kind, defensively', () => {
     const insight = (lastOfKind: unknown) => {
       let result: WeeklyTrainingInsight | undefined;
-      service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+      service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
       httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
         timezone: 'Asia/Singapore',
         referenceDate: '2026-09-27',
@@ -1817,7 +1817,7 @@ describe('FitSyncDataService', () => {
 
   it('drops a malformed days array (not exactly seven entries) to null', () => {
     let result: WeeklyTrainingInsight | undefined;
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+    service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
 
     const shortDay = { date: '2026-09-21', dayOfWeek: 1, kind: 'STRENGTH', label: 'Strength', source: 'DONE', minutes: 50, sessions: [], planned: null };
 
@@ -1840,7 +1840,7 @@ describe('FitSyncDataService', () => {
 
   it('falls back an unrecognised day kind to OPEN and an unrecognised source to NONE', () => {
     let result: WeeklyTrainingInsight | undefined;
-    service.getWeeklyTrainingInsight('Asia/Singapore').subscribe((value) => (result = value));
+    service.getWeeklyTrainingInsight().subscribe((value) => (result = value));
 
     const day = (overrides: Record<string, unknown>) => ({
       date: '2026-09-21',
@@ -1880,14 +1880,14 @@ describe('FitSyncDataService', () => {
     expect(result?.days?.[1].source).toBe('NONE');
   });
 
-  it('starts a workout plan with the given plan day id and timezone as query params', () => {
-    service.startWorkoutPlan('plan-1', { planDayId: 'pd-2', timezone: 'Asia/Singapore' }).subscribe();
+  it('starts a workout plan with the given plan day id as a query param', () => {
+    service.startWorkoutPlan('plan-1', { planDayId: 'pd-2' }).subscribe();
 
     const request = httpTesting.expectOne(
       (req) =>
         req.url === '/api/v1/workouts/plans/plan-1/start' &&
         req.params.get('planDayId') === 'pd-2' &&
-        req.params.get('timezone') === 'Asia/Singapore'
+        !req.params.has('timezone')
     );
     expect(request.request.method).toBe('POST');
     request.flush({
@@ -2915,15 +2915,15 @@ describe('FitSyncDataService', () => {
     request.flush({});
   });
 
-  it('requests the monthly training insight with the month and the timezone', () => {
+  it('requests the monthly training insight with the month only', () => {
     let result: MonthlyTrainingInsight | undefined;
-    service.getMonthlyTrainingInsight('2026-09', 'Asia/Singapore').subscribe((value) => (result = value));
+    service.getMonthlyTrainingInsight('2026-09').subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne(
       (req) =>
         req.url === '/api/v1/workouts/insights/monthly' &&
         req.params.get('month') === '2026-09' &&
-        req.params.get('timezone') === 'Asia/Singapore'
+        !req.params.has('timezone')
     );
     request.flush({
       timezone: 'Asia/Singapore',
@@ -2954,7 +2954,8 @@ describe('FitSyncDataService', () => {
 
   it('defensively maps a monthly training insight with missing and invalid fields', () => {
     let result: MonthlyTrainingInsight | undefined;
-    service.getMonthlyTrainingInsight('2026-09', 'Asia/Singapore').subscribe((value) => (result = value));
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    service.getMonthlyTrainingInsight('2026-09').subscribe((value) => (result = value));
 
     httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush({
       referenceDate: '2026-10-01',
@@ -2985,7 +2986,7 @@ describe('FitSyncDataService', () => {
 
   it('maps an empty monthly response to empty lists and zero totals', () => {
     let result: MonthlyTrainingInsight | undefined;
-    service.getMonthlyTrainingInsight('2026-09', 'UTC').subscribe((value) => (result = value));
+    service.getMonthlyTrainingInsight('2026-09').subscribe((value) => (result = value));
     httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush({});
     expect(result?.days).toEqual([]);
     expect(result?.weeks).toEqual([]);
@@ -2995,7 +2996,7 @@ describe('FitSyncDataService', () => {
 
   it('lets a failed monthly request reach the caller', () => {
     let failed = false;
-    service.getMonthlyTrainingInsight('2026-09', 'UTC').subscribe({ error: () => (failed = true) });
+    service.getMonthlyTrainingInsight('2026-09').subscribe({ error: () => (failed = true) });
     httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/monthly').flush('boom', { status: 500, statusText: 'Server Error' });
     expect(failed).toBeTrue();
   });

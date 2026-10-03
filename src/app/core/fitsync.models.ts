@@ -915,7 +915,6 @@ export interface MealDraft {
   name: string;
   note: string;
   consumedAt?: string;
-  timezone?: string;
   items: MealItemDraft[];
 }
 
@@ -923,7 +922,6 @@ export interface QuickAddMealValue {
   mealType: string;
   name: string;
   consumedAt?: string;
-  timezone?: string;
   calories: number;
   proteinGrams: number | null;
   carbsGrams: number | null;

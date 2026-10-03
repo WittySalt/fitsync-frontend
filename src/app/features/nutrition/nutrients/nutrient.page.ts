@@ -6,7 +6,7 @@ import { Subscription, combineLatest, map } from 'rxjs';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { LOADING, Load } from '../diary/diary.models';
-import { toIsoDate } from '../diary/diary-time';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { NutrientDetail, NutrientTileData, PeriodKey } from './nutrients.models';
 import { NutrientsService } from './nutrients.service';
 import { neighbours, parsePeriod, periodRange, tableOrder } from './nutrients-figures';
@@ -83,6 +83,7 @@ export class NutrientPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   private readonly target = toSignal(
     combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(
@@ -162,7 +163,7 @@ export class NutrientPage {
     this.loading?.unsubscribe();
     this.state.set(LOADING);
     window.scrollTo({ top: 0 });
-    const { from, to } = periodRange(period, toIsoDate(new Date()));
+    const { from, to } = periodRange(period, this.userTimezone.dateKey());
     this.loading = this.service.getOne(code, from, to).subscribe({
       next: (data) => this.state.set({ status: 'ready', data }),
       error: () => this.state.set({ status: 'error', message: FAILURE })

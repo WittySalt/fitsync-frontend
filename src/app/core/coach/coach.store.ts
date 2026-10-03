@@ -351,7 +351,6 @@ export class CoachStore {
     const reading = this.pinnedReading();
     if (reading?.readingId) {
       context.readingId = reading.readingId;
-      context.timezone = deviceTimezone();
     }
     return context;
   }
@@ -594,15 +593,6 @@ function newTurnId(): string {
     const r = Math.floor(Math.random() * 16);
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
-}
-
-/** The device's IANA zone, guarded because an unsupported environment can throw rather than return one. */
-function deviceTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
 }
 
 /** A minimal thread reconstruction for when the answer arrived but the reload did not. */

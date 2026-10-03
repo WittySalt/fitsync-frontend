@@ -516,7 +516,7 @@ export class WorkoutLiveService {
    * dialog is opened, and the returned stream completes without a value, so the caller neither
    * shows an error nor opens a screen.
    */
-  startFromPlan(planId: string, options?: { planDayId?: string | null; timezone?: string }): Observable<WorkoutSessionDetail> {
+  startFromPlan(planId: string, options?: { planDayId?: string | null }): Observable<WorkoutSessionDetail> {
     return this.guardedStart(
       () => (options ? this.dataService.startWorkoutPlan(planId, options) : this.dataService.startWorkoutPlan(planId)),
       'Workout session started.'

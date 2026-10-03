@@ -24,12 +24,12 @@ describe('NutritionDiaryService', () => {
 
   afterEach(() => http.verify());
 
-  it('reads the daily summary with the date and the time zone', () => {
+  it('reads the daily summary with the date and no timezone parameter', () => {
     let result: unknown;
     service.getSummary('2026-10-02').subscribe((value) => (result = value));
     const request = http.expectOne((req) => req.url === '/api/v1/nutrition/summary/daily');
     expect(request.request.params.get('date')).toBe('2026-10-02');
-    expect(request.request.params.get('timezone')).toBe(service.timezone);
+    expect(request.request.params.has('timezone')).toBeFalse();
     request.flush({ totalCalories: 1200, targetCalories: 2100 });
     expect(result).toEqual(jasmine.objectContaining({ totalCalories: 1200, balance: null }));
   });
@@ -111,7 +111,7 @@ describe('NutritionDiaryService', () => {
     service.logWater(250, at).subscribe((entry) => (id = entry.waterId));
     const request = http.expectOne('/api/v1/nutrition/water');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ amountMl: 250, loggedAt: at.toISOString(), timezone: service.timezone });
+    expect(request.request.body).toEqual({ amountMl: 250, loggedAt: at.toISOString() });
     request.flush({ waterId: 'w-9', amountMl: 250 });
     expect(id).toBe('w-9');
   });

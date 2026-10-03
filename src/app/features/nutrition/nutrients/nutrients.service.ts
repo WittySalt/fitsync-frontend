@@ -16,17 +16,15 @@ export class NutrientsService {
   private readonly http = inject(HttpClient);
   private readonly base = '/api/v1/nutrition/nutrients';
 
-  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
-
   /** Every nutrient with a reference, in table order, for the days from `from` to `to`. */
   getAll(from: string, to: string): Observable<NutrientsOverview> {
-    const params = new HttpParams().set('scope', 'all').set('from', from).set('to', to).set('timezone', this.timezone);
+    const params = new HttpParams().set('scope', 'all').set('from', from).set('to', to);
     return this.http.get<Wire>(`${this.base}/summary`, { params }).pipe(map((response) => mapNutrientsOverview(response ?? {})));
   }
 
   /** One nutrient with the person's days and sources and its guide. */
   getOne(code: string, from: string, to: string): Observable<NutrientDetail> {
-    const params = new HttpParams().set('from', from).set('to', to).set('timezone', this.timezone);
+    const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Wire>(`${this.base}/${encodeURIComponent(code)}`, { params }).pipe(
       map((response) => {
         const detail = mapNutrientDetail(response ?? {});

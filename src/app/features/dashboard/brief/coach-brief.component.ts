@@ -5,6 +5,8 @@ import { Router, RouterLink } from '@angular/router';
 import { CoachContextService } from '../../../core/coach/coach-context.service';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { dateKeyInZone } from '../../../core/zone-time';
 import { DayInsight, DayKind, Goal, TodayInsight, WeeklyTrainingInsight, WorkoutPlan, WorkoutSession } from '../../../core/fitsync.models';
 import { QuietNoticeComponent } from '../../../shared/quiet-notice.component';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
@@ -63,11 +65,12 @@ export class CoachBriefComponent implements OnInit {
   private readonly now = inject(BRIEF_NOW);
   private readonly injector = inject(Injector);
   private readonly firstSessionTemplates = inject(FIRST_SESSION_TEMPLATES);
+  /** The zone every day and clock on the brief is read in. */
+  private readonly timezone = inject(UserTimezoneService).zone;
 
   // Signal inputs, so the copy follows a value that arrives after the first render. The calorie
   // target does exactly that, because the page loads the nutrition summary on its own request.
   readonly firstName = input.required<string>();
-  readonly timezone = input.required<string>();
   /** The name for the saved picture of a month; the first name stands in until it is known. */
   readonly displayName = input<string | null>(null);
   readonly caloriesTarget = input<number | null>(null);
@@ -328,7 +331,7 @@ export class CoachBriefComponent implements OnInit {
 
   loadInsight(): void {
     this.insightFailed.set(false);
-    this.dataService.getWeeklyTrainingInsight(this.timezone()).subscribe({
+    this.dataService.getWeeklyTrainingInsight().subscribe({
       next: (insight) => {
         this.insight.set(insight);
         this.coachContext.setTodayKind(insight.today?.kind ?? null);
@@ -377,7 +380,7 @@ export class CoachBriefComponent implements OnInit {
     }
     this.starting.set(true);
     this.startError.set(null);
-    this.dataService.startWorkoutPlan(plan.planId, { planDayId, timezone: this.timezone() }).subscribe({
+    this.dataService.startWorkoutPlan(plan.planId, { planDayId }).subscribe({
       next: () => {
         this.starting.set(false);
         void this.router.navigate(['/workout'], { queryParams: { tab: 'history', status: 'IN_PROGRESS' } });
@@ -444,7 +447,7 @@ export class CoachBriefComponent implements OnInit {
     }
     if (view === 'month') {
       // Looked up on first use, so a brief that never shows the month never builds its requests.
-      this.injector.get(MonthViewState).open(this.timezone(), this.todayDateKey());
+      this.injector.get(MonthViewState).open(this.todayDateKey());
     } else {
       // The month view does not remember what was picked in it.
       this.injector.get(MonthViewState).clearSelection();
@@ -454,7 +457,7 @@ export class CoachBriefComponent implements OnInit {
 
   /** Opens the month view on the month the line of the first days offers. */
   seeMonth(month: string): void {
-    this.injector.get(MonthViewState).open(this.timezone(), this.todayDateKey(), month);
+    this.injector.get(MonthViewState).open(this.todayDateKey(), month);
     this.view.set('month');
   }
 
@@ -470,14 +473,7 @@ export class CoachBriefComponent implements OnInit {
   /** Today's calendar-day key in the user's timezone, in the same YYYY-MM-DD shape the weekly
    *  insight uses for lastTrainedOn, so the two can be compared as plain strings. */
   protected todayDateKey(): string {
-    const timezone = this.timezone();
-    try {
-      return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: timezone }).format(
-        this.now()
-      );
-    } catch {
-      return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(this.now());
-    }
+    return dateKeyInZone(this.now(), this.timezone());
   }
 
   /** Whole calendar days between two YYYY-MM-DD keys (to minus from), treated as UTC dates so the

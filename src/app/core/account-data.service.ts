@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, map, shareReplay, tap } from 'rxjs';
 
 import { AuthService } from './auth/auth.service';
+import { UserTimezoneService } from './user-timezone.service';
 
 export type ActivityLevel = 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'ATHLETE';
 export type Gender = 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY';
@@ -230,6 +231,7 @@ export interface ListBodyMetricsOptions {
 export class AccountDataService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly apiBaseUrl = '/api/v1';
   private currentUser$?: Observable<AccountUserResponse>;
   private profileSummary$?: Observable<AccountSummary>;
@@ -237,7 +239,10 @@ export class AccountDataService {
   getCurrentUser(): Observable<AccountUserResponse> {
     this.currentUser$ ??= this.http.get<AccountUserResponse>(`${this.apiBaseUrl}/users/me`).pipe(
       map((user) => (user?.preferences ? { ...user, preferences: withReferenceRange(user.preferences) } : user)),
-      tap((user) => this.authService.setUserRole(user.role)),
+      tap((user) => {
+        this.authService.setUserRole(user.role);
+        this.userTimezone.setProfileZone(user.profile?.timezone);
+      }),
       shareReplay({ bufferSize: 1, refCount: false })
     );
     return this.currentUser$;
@@ -268,7 +273,9 @@ export class AccountDataService {
 
   updateProfile(profile: AccountProfile): Observable<AccountProfile> {
     this.invalidateCurrentUser();
-    return this.http.put<AccountProfile>(`${this.apiBaseUrl}/users/me/profile`, profile);
+    return this.http
+      .put<AccountProfile>(`${this.apiBaseUrl}/users/me/profile`, profile)
+      .pipe(tap((saved) => this.userTimezone.setProfileZone(saved?.timezone ?? profile.timezone)));
   }
 
   uploadAvatar(file: Blob): Observable<AccountProfile> {

@@ -467,7 +467,7 @@ describe('WorkoutLiveService', () => {
     let failed = false;
     let completed = false;
 
-    service.startFromPlan('plan-1', { planDayId: null, timezone: 'Asia/Singapore' }).subscribe({
+    service.startFromPlan('plan-1', { planDayId: null }).subscribe({
       next: (value) => values.push(value),
       error: () => (failed = true),
       complete: () => (completed = true)

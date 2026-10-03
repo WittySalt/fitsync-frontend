@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
 import {
@@ -49,9 +49,6 @@ const FINISHED_NAMES: Record<AnalyticsComparePeriod, { current: string; previous
 })
 export class AnalyticsComparisonCardComponent implements OnInit {
   private readonly analyticsApi = inject(AnalyticsApiService);
-
-  /** The zone that decides which day is today, from the profile. */
-  readonly timezone = input<string | null>(null);
 
   readonly periodOptions: PeriodOption[] = [
     { label: 'Week', value: 'WEEK' },
@@ -128,7 +125,7 @@ export class AnalyticsComparisonCardComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.analyticsApi.getSummaryCompare(this.selectedPeriod(), this.timezone()).subscribe({
+    this.analyticsApi.getSummaryCompare(this.selectedPeriod()).subscribe({
       next: (data) => {
         this.data.set(data);
         this.loading.set(false);

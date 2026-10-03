@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, si
 
 import { AnalyticsApiService } from '../../../core/analytics-api.service';
 import { AnalyticsAchievement } from '../../../core/analytics.models';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { formatDuration } from '../brief/brief-duration';
 import { BADGE_TOTAL, BadgeView, comparisonLine, toBadgeViews } from './earned-helpers';
 
@@ -16,7 +17,7 @@ const NO_TRAINING_TEXT = 'Nothing yet this week';
 export class EarnedComponent implements OnInit {
   private readonly analyticsApi = inject(AnalyticsApiService);
 
-  readonly timezone = input<string>('UTC');
+  private readonly timezone = inject(UserTimezoneService).zone;
   /** Minutes trained Monday to Sunday of this week in the person's zone, from the dashboard. It
    *  matches the week strip, and the comparison below is the fallback while it is not sent. */
   readonly minutesThisWeek = input<number | null>(null);
@@ -82,7 +83,7 @@ export class EarnedComponent implements OnInit {
   loadTraining(): void {
     this.trainingLoading.set(true);
     this.trainingFailed.set(false);
-    this.analyticsApi.getSummaryCompare('WEEK', this.timezone()).subscribe({
+    this.analyticsApi.getSummaryCompare('WEEK').subscribe({
       next: (response) => {
         this.compareMinutes.set(response.workout?.totalWorkoutMinutes?.current ?? null);
         this.previousWeekMinutes.set(response.workout?.totalWorkoutMinutes?.previous ?? null);

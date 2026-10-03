@@ -14,7 +14,7 @@ import {
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { Goal } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { dateKeyInZone, profileTimezone } from '../../core/zone-time';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog.component';
 import { shortDateLabel } from '../../shared/date-label';
 import { StatePanelComponent } from '../../shared/state-panel.component';
@@ -91,7 +91,7 @@ export class ProgressPage implements OnInit {
   // One range for the Overview tab. A preset is a number of days back from today in the profile's
   // zone; a custom range is two dates picked under "More".
   private readonly rangeChoice = signal<{ days: number } | { custom: DateRange }>({ days: DEFAULT_RANGE_DAYS });
-  readonly timezone = computed(() => profileTimezone(this.accountData()?.user?.profile?.timezone));
+  private readonly userTimezone = inject(UserTimezoneService);
   readonly activeDays = computed(() => {
     const choice = this.rangeChoice();
     return 'days' in choice ? choice.days : null;
@@ -99,7 +99,7 @@ export class ProgressPage implements OnInit {
   readonly range = computed<DateRange>(
     () => {
       const choice = this.rangeChoice();
-      return 'days' in choice ? rangeForDays(choice.days, dateKeyInZone(new Date(), this.timezone())) : choice.custom;
+      return 'days' in choice ? rangeForDays(choice.days, this.userTimezone.dateKey()) : choice.custom;
     },
     { equal: sameRange }
   );
@@ -365,7 +365,7 @@ export class ProgressPage implements OnInit {
   /** A saved goal in the shape of the progress list, with the progress it had before the change. */
   private savedAsGoal(saved: UserGoal): Goal {
     const before = this.goals().find((goal) => goal.goalType === saved.goalType);
-    const today = dateKeyInZone(new Date(), this.timezone());
+    const today = this.userTimezone.dateKey();
     return {
       goalId: saved.goalId,
       goalType: saved.goalType,

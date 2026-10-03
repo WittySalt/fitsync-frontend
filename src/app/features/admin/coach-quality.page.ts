@@ -3,12 +3,12 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, catchError, map, of, startWith, switchMap } from 'rxjs';
 
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { AdminApiService, CoachQuality } from './admin-api.service';
 import { barWidthPercent, buildDayBars, chartAltText, chartRangeLabel, largestCount } from './coach-quality.chart';
 import {
   PERIOD_OPTIONS,
   PeriodDays,
-  browserTimeZone,
   formatMilliseconds,
   formatSeconds,
   passedAnswersLine,
@@ -41,6 +41,7 @@ interface RuleRow {
 })
 export class CoachQualityPage {
   private readonly api = inject(AdminApiService);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<PeriodDays>();
 
@@ -98,8 +99,8 @@ export class CoachQualityPage {
     this.reload$
       .pipe(
         switchMap((days) => {
-          const range = rangeEndingToday(days, new Date(), browserTimeZone());
-          return this.api.getCoachQuality(range.from, range.to, browserTimeZone()).pipe(
+          const range = rangeEndingToday(days, new Date(), this.userTimezone.zone());
+          return this.api.getCoachQuality(range.from, range.to).pipe(
             map((quality): LoadState => ({ kind: 'ready', quality })),
             catchError((error: unknown) => of<LoadState>({ kind: 'error', forbidden: error instanceof HttpErrorResponse && error.status === 403 })),
             startWith<LoadState>({ kind: 'loading' })

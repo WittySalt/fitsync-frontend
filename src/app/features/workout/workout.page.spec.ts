@@ -731,7 +731,7 @@ describe('WorkoutPage', () => {
     today.startPlan.emit({ plan: active, planDayId: null });
     fixture.detectChanges();
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null });
     expect(fixture.componentInstance.guidedPlayerSession()?.sessionId).toBe('session-today');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
@@ -801,7 +801,7 @@ describe('WorkoutPage', () => {
     today.startExercise.emit(active.exercises[0]);
     fixture.detectChanges();
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null, timezone: jasmine.any(String) });
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-today', { planDayId: null });
     expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-2');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-exercise-player')).not.toBeNull();
   });
@@ -845,7 +845,7 @@ describe('WorkoutPage', () => {
       return fixture.debugElement.query(By.directive(TodayOverviewComponent)).componentInstance as TodayOverviewComponent;
     }
 
-    it('passes today, the next training day and the timezone to the card', () => {
+    it('passes today, and the next training day to the card', () => {
       const insight = weeklyInsight({
         today: todayInsight(),
         nextTraining: { date: '2026-10-01', kind: 'CARDIO', label: 'Cardio', title: 'Run', estimatedMinutes: 35 }
@@ -856,10 +856,9 @@ describe('WorkoutPage', () => {
       fixture.detectChanges();
       const card = todayCard(fixture);
 
-      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith(fixture.componentInstance.timezone);
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith();
       expect(card.today()).toEqual(insight.today);
       expect(card.nextTraining()).toEqual(insight.nextTraining);
-      expect(card.timezone()).toBe(fixture.componentInstance.timezone);
     });
 
     it('passes the entry of today in the week to the card', () => {
@@ -893,7 +892,7 @@ describe('WorkoutPage', () => {
       expect(TestBed.inject(CoachContextService).todayKind()).toBe('CARDIO');
     });
 
-    it('starts the plan day the card names, in the page timezone', () => {
+    it('starts the plan day the card names', () => {
       const active = dayPlan();
       dataService.getActivePlan.and.returnValue(of(active));
       dataService.startWorkoutPlan.and.returnValue(of(guidedSession()));
@@ -905,8 +904,7 @@ describe('WorkoutPage', () => {
       fixture.detectChanges();
 
       expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-days', {
-        planDayId: 'day-strength',
-        timezone: fixture.componentInstance.timezone
+        planDayId: 'day-strength'
       });
       expect(fixture.componentInstance.guidedPlayerSession()).not.toBeNull();
     });
@@ -920,8 +918,7 @@ describe('WorkoutPage', () => {
       todayCard(fixture).startExercise.emit(active.days![0].exercises[0]);
 
       expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-days', {
-        planDayId: 'day-strength',
-        timezone: fixture.componentInstance.timezone
+        planDayId: 'day-strength'
       });
       expect(fixture.componentInstance.guidedInitialExerciseId()).toBe('exercise-9');
     });
@@ -943,8 +940,7 @@ describe('WorkoutPage', () => {
 
       root.querySelector<HTMLButtonElement>('app-today-overview .action-primary')?.click();
       expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-plain', {
-        planDayId: null,
-        timezone: fixture.componentInstance.timezone
+        planDayId: null
       });
     });
 
@@ -1401,14 +1397,14 @@ describe('WorkoutPage', () => {
     expect(fixture.componentInstance.planExercises.at(0).get('exerciseId')?.touched).toBeTrue();
   });
 
-  it('starts a plan from the plan card in the browser timezone and opens the exercise screen on Today', () => {
+  it('starts a plan from the plan card and opens the exercise screen on Today', () => {
     const started = guidedSession({ sessionId: 'session-1', name: 'Strength base', status: 'IN_PROGRESS' });
     dataService.startWorkoutPlan.and.returnValue(of(started));
     component.selectedTab.set('plans');
 
     component.startPlan(plan({ status: 'ACTIVE' }));
 
-    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1', { planDayId: null, timezone: component.timezone });
+    expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-1', { planDayId: null });
     expect(component.selectedTab()).toBe('overview');
     expect(component.workoutLive.session()?.sessionId).toBe('session-1');
     expect(component.workoutLive.minimised()).toBeFalse();

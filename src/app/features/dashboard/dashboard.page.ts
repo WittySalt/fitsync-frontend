@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { dedupeGoalsByLatestEvaluation, FitSyncDataService, HomeDashboardData } from '../../core/fitsync-data.service';
 import { NutritionSummary } from '../../core/fitsync.models';
-import { dateKeyInZone } from '../../core/zone-time';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { CoachBriefComponent } from './brief/coach-brief.component';
 import { EarnedComponent } from './earned/earned.component';
@@ -16,6 +16,7 @@ import { TodayCardComponent } from './today/today-card.component';
 })
 export class DashboardPage implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   readonly data = signal<HomeDashboardData | null>(null);
   // Today's nutrition comes from the daily summary, asked for the day the profile's zone is in,
@@ -48,13 +49,12 @@ export class DashboardPage implements OnInit {
   }
 
   loadNutrition(): void {
-    const timezone = this.data()?.profile.timezone;
-    if (!timezone) {
+    if (!this.data()) {
       return;
     }
     this.nutritionFailed.set(false);
     // A failure is shown as a failure, never as a day on which nothing was eaten.
-    this.dataService.loadDailyNutritionSummary(dateKeyInZone(new Date(), timezone), timezone).subscribe({
+    this.dataService.loadDailyNutritionSummary(this.userTimezone.dateKey()).subscribe({
       next: (summary) => this.nutritionSummary.set(summary),
       error: () => this.nutritionFailed.set(true)
     });

@@ -359,15 +359,14 @@ describe('CoachStore — pinned reading', () => {
     expect(store.pinnedReading()).toBeNull();
   });
 
-  it('sends the surface, the readingId and a timezone when a reading is pinned', () => {
+  it('sends the surface, and the readingId when a reading is pinned', () => {
     store.askAboutReading(workoutReading);
 
     store.ask('Should my core get a day off?');
 
     expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should my core get a day off?', {
       surface: 'WORKOUT',
-      readingId: 'r1',
-      timezone: jasmine.any(String)
+      readingId: 'r1'
     }, jasmine.any(String));
   });
 

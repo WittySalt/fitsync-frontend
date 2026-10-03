@@ -57,8 +57,8 @@
       />
       <app-energy-card />
       <app-analytics-trend-charts [range]="range()" />
-      <app-analytics-comparison-card [timezone]="timezone()" />
-      <app-activity-heatmap [range]="range()" [timezone]="timezone()" />
+      <app-analytics-comparison-card />
+      <app-activity-heatmap [range]="range()" />
     </section>
   } @else if (selectedTab() === 'body') {
     <section id="progress-panel-body" role="tabpanel" aria-labelledby="progress-tab-body">

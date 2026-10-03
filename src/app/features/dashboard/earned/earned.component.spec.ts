@@ -8,6 +8,7 @@ import {
   AnalyticsSummaryCompareResponse
 } from '../../../core/analytics.models';
 import { EarnedComponent } from './earned.component';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 
 function achievement(code: string, title: string, progress: number, unlockedAt: string | null = null): AnalyticsAchievement {
   return { code, title, unlocked: unlockedAt !== null, unlockedAt, progress: unlockedAt ? 1 : progress };
@@ -57,7 +58,7 @@ describe('EarnedComponent', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(EarnedComponent);
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
   });
 
   function root(): HTMLElement {
@@ -245,7 +246,7 @@ describe('EarnedComponent', () => {
   it('asks for the comparison in the profile zone', () => {
     fixture.detectChanges();
 
-    expect(api.getSummaryCompare).toHaveBeenCalledWith('WEEK', 'Asia/Singapore');
+    expect(api.getSummaryCompare).toHaveBeenCalledWith('WEEK');
   });
 
   it('uses the minutes of the dashboard for the headline and keeps the comparison of its own request', () => {

@@ -24,6 +24,7 @@ import {
   mapRangeDay,
   mapWaterDay
 } from './diary-mappers';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { dayBounds, mealTypeByClock } from './diary-time';
 
 type Wire = Record<string, unknown>;
@@ -40,37 +41,36 @@ interface PageOf<T> {
 export class NutritionDiaryService {
   private readonly http = inject(HttpClient);
   private readonly dataService = inject(FitSyncDataService);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly base = '/api/v1/nutrition';
 
-  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
-
   getSummary(date: string): Observable<DiarySummary> {
-    const params = new HttpParams().set('date', date).set('timezone', this.timezone);
+    const params = new HttpParams().set('date', date);
     return this.http.get<Wire>(`${this.base}/summary/daily`, { params }).pipe(map(mapDiarySummary));
   }
 
   /** Every meal logged on a local day, with its foods. */
   getMeals(date: string): Observable<DiaryMeal[]> {
-    const { from, to } = dayBounds(date);
-    const params = new HttpParams().set('from', from).set('to', to).set('timezone', this.timezone);
+    const { from, to } = dayBounds(date, this.userTimezone.zone());
+    const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Wire[]>(`${this.base}/meals`, { params }).pipe(map((meals) => (meals ?? []).map(mapDiaryMeal)));
   }
 
   /** The days from `from` to `to`, at most 31. */
   getRange(from: string, to: string): Observable<RangeDay[]> {
-    const params = new HttpParams().set('from', from).set('to', to).set('timezone', this.timezone);
+    const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Wire>(`${this.base}/summary/range`, { params }).pipe(
       map((response) => (Array.isArray(response?.['days']) ? (response['days'] as Wire[]).map(mapRangeDay) : []))
     );
   }
 
   getWater(date: string): Observable<WaterDay> {
-    const params = new HttpParams().set('date', date).set('timezone', this.timezone);
+    const params = new HttpParams().set('date', date);
     return this.http.get<Wire>(`${this.base}/water`, { params }).pipe(map((response) => mapWaterDay(response ?? {}, date)));
   }
 
   getNutrients(from: string, to: string): Observable<NutrientSummary> {
-    const params = new HttpParams().set('from', from).set('to', to).set('timezone', this.timezone);
+    const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Wire>(`${this.base}/nutrients/summary`, { params }).pipe(map((response) => mapNutrientSummary(response ?? {})));
   }
 
@@ -100,7 +100,7 @@ export class NutritionDiaryService {
   /** Plain water. The server answers with the entry, whose id the undo uses. */
   logWater(amountMl: number, at: Date): Observable<{ waterId: string }> {
     return this.http
-      .post<Wire>(`${this.base}/water`, { amountMl, loggedAt: at.toISOString(), timezone: this.timezone })
+      .post<Wire>(`${this.base}/water`, { amountMl, loggedAt: at.toISOString() })
       .pipe(map((entry) => ({ waterId: typeof entry?.['waterId'] === 'string' ? entry['waterId'] : '' })));
   }
 
@@ -115,7 +115,6 @@ export class NutritionDiaryService {
       name: item.foodName,
       note: '',
       consumedAt: at.toISOString(),
-      timezone: this.timezone,
       items: [item]
     });
   }

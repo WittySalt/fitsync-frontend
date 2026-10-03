@@ -1,6 +1,7 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges, computed, inject, signal } from '@angular/core';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { dateRangeLabel, shortDateLabel } from '../../shared/date-label';
 import { StatePanelComponent } from '../../shared/state-panel.component';
@@ -49,7 +50,7 @@ interface MonthCalendarDay {
 export class SessionCalendarComponent implements OnInit, OnChanges {
   private readonly dataService = inject(FitSyncDataService);
 
-  @Input() timezone = 'Asia/Singapore';
+  private readonly timezone = inject(UserTimezoneService).zone;
   @Input() mode: SessionCalendarMode = 'week';
 
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -434,7 +435,7 @@ export class SessionCalendarComponent implements OnInit, OnChanges {
 
   private formatTime(date: Date): string {
     return new Intl.DateTimeFormat('en-SG', {
-      timeZone: this.timezone || 'Asia/Singapore',
+      timeZone: this.timezone(),
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
@@ -443,7 +444,7 @@ export class SessionCalendarComponent implements OnInit, OnChanges {
 
   private localDateTimeParts(date: Date): { date: string; hour: number; minute: number } {
     const parts = new Intl.DateTimeFormat('en-SG', {
-      timeZone: this.timezone || 'Asia/Singapore',
+      timeZone: this.timezone(),
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -483,7 +484,7 @@ export class SessionCalendarComponent implements OnInit, OnChanges {
   private isoToday(): string {
     // Local calendar date in the profile timezone so the "today" cell matches the user's day.
     const parts = new Intl.DateTimeFormat('en-SG', {
-      timeZone: this.timezone || 'Asia/Singapore',
+      timeZone: this.timezone(),
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'

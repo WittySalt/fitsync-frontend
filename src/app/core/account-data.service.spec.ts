@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { UserTimezoneService } from './user-timezone.service';
 import {
   AccountCenterData,
   AccountDataService,
@@ -131,6 +132,19 @@ describe('AccountDataService', () => {
     const request = httpTesting.expectOne('/api/v1/users/me/body-metrics');
     expect(request.request.params.keys()).toEqual([]);
     request.flush([]);
+  });
+
+  it('hands the profile zone to the zone service when the user is read and when the profile is saved', () => {
+    const zone = TestBed.inject(UserTimezoneService);
+
+    service.getCurrentUser().subscribe();
+    httpTesting.expectOne('/api/v1/users/me').flush(userFixture({ profile: profileFixture({ timezone: 'Asia/Tokyo' }) }));
+    expect(zone.zone()).toBe('Asia/Tokyo');
+
+    const saved = profileFixture({ timezone: 'Europe/London' });
+    service.updateProfile(saved).subscribe();
+    httpTesting.expectOne('/api/v1/users/me/profile').flush(saved);
+    expect(zone.zone()).toBe('Europe/London');
   });
 
   it('updates profile and preferences through the account endpoints', () => {

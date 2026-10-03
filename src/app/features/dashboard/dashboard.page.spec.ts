@@ -9,6 +9,7 @@ import { AnalyticsApiService } from '../../core/analytics-api.service';
 import { FitSyncDataService, HomeDashboardData } from '../../core/fitsync-data.service';
 import { NutritionSummary } from '../../core/fitsync.models';
 import { DashboardPage } from './dashboard.page';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 
 const nutrition: NutritionSummary = {
   totalCalories: 1850,
@@ -172,12 +173,14 @@ describe('DashboardPage', () => {
     expect(dataService.getGoals).not.toHaveBeenCalled();
   });
 
-  it('asks for the day summary of the profile zone, not of the browser', () => {
+  it('asks for the day summary of the day the profile zone is in, not of the browser', () => {
+    TestBed.inject(UserTimezoneService).setProfileZone('Pacific/Pago_Pago');
     fixture.detectChanges();
 
-    expect(dataService.loadDailyNutritionSummary).toHaveBeenCalledWith('2026-06-24', 'Asia/Singapore');
-    expect(dataService.getMealsForDay.calls.mostRecent().args[1]).toBe('Asia/Singapore');
-    expect(dataService.getUsualMeals).toHaveBeenCalledWith('Asia/Singapore');
+    // 12:00 in Singapore is still the evening of the day before at UTC-11.
+    expect(dataService.loadDailyNutritionSummary).toHaveBeenCalledWith('2026-06-23');
+    expect(dataService.getMealsForDay.calls.mostRecent().args.length).toBeLessThanOrEqual(1);
+    expect(dataService.getUsualMeals).toHaveBeenCalledWith();
   });
 
   it('turns the Earned card to the dashboard minutes and the streak', () => {

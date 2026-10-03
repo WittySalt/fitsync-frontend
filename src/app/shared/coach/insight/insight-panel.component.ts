@@ -50,7 +50,6 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly surface = input.required<ReadingSurface>();
-  readonly timezone = input<string | null>(null);
 
   readonly loading = signal(true);
   readonly failed = signal(false);
@@ -163,7 +162,7 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private load(): void {
     this.request?.unsubscribe();
     this.request = this.api
-      .getReading(this.surface(), this.timezone() || deviceTimezone())
+      .getReading(this.surface())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (reading) => this.accept(reading),
@@ -211,15 +210,14 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     if (surface === 'WORKOUT' || this.chartRequest) {
       return;
     }
-    const timezone = this.timezone() || deviceTimezone();
     if (surface === 'NUTRITION') {
       this.chartRequest = this.data
-        .getNutritionInsightsPage(timezone)
+        .getNutritionInsightsPage()
         .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
         .subscribe((page) => this.meals.set(page && page.proteinByMeal.length ? page : null));
     } else {
       this.chartRequest = this.data
-        .getProgressInsight(timezone)
+        .getProgressInsight()
         .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
         .subscribe((insight) => this.weight.set(insight && insight.series.length >= 2 ? insight : null));
     }
@@ -239,14 +237,6 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
  */
 function readKey(reading: CoachReading): string | null {
   return reading.readingId && reading.reading ? `${reading.readingId}:${reading.reading.source}` : null;
-}
-
-function deviceTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
 }
 
 /** "just now", "5 min ago", "3 h ago" or "2 days ago". An unreadable time gives an empty label. */

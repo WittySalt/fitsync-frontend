@@ -4,7 +4,8 @@ import { AnalyticsApiService } from '../../core/analytics-api.service';
 import { AnalyticsActivityCalendarResponse, AnalyticsActivityDay } from '../../core/analytics.models';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSession, WorkoutSessionDetail } from '../../core/fitsync.models';
-import { dateKeyInZone, dayBoundsInZone, profileTimezone } from '../../core/zone-time';
+import { UserTimezoneService } from '../../core/user-timezone.service';
+import { dayBoundsInZone } from '../../core/zone-time';
 import { dateRangeLabel, shortDateLabel } from '../../shared/date-label';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { SessionDetailComponent } from '../workout/session-detail.component';
@@ -61,10 +62,11 @@ const keyOf = (date: Date): string => date.toISOString().slice(0, 10);
 export class ActivityHeatmapComponent {
   private readonly analyticsApi = inject(AnalyticsApiService);
   private readonly dataService = inject(FitSyncDataService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   readonly range = input.required<DateRange>();
   /** The zone that decides which day is today. */
-  readonly timezone = input('Asia/Singapore');
+  private readonly zone = this.userTimezone.zone;
 
   readonly weekdays = WEEKDAYS;
   readonly viewOptions: { value: HeatmapView; label: string }[] = [
@@ -147,7 +149,7 @@ export class ActivityHeatmapComponent {
 
   private buildMonths(): MonthHeatmap[] {
     const { from, to } = this.range();
-    const today = dateKeyInZone(new Date(), this.timezone());
+    const today = this.userTimezone.dateKey();
     const months: MonthHeatmap[] = [];
     const last = utcDate(to);
     const cursor = utcDate(from);
@@ -239,10 +241,6 @@ export class ActivityHeatmapComponent {
   handleSessionRepeated(created: WorkoutSessionDetail): void {
     this.daySessions.update((list) => [this.toDaySession(created), ...list.filter((entry) => entry.session.sessionId !== created.sessionId)]);
     this.refreshCalendar();
-  }
-
-  private zone(): string {
-    return profileTimezone(this.timezone());
   }
 
   private refreshCalendar(): void {
