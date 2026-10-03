@@ -1,4 +1,3 @@
-import { SummaryLine } from '../../../shared/progress/progress.models';
 import { daysBetween, formatNumber } from '../../../shared/progress/progress-format';
 import { GoalProgress, GoalRoad, OtherGoal } from '../progress-api.models';
 import {
@@ -17,9 +16,9 @@ import {
   leadOf,
   roadHeadline,
   roadNote,
-  roadOf,
-  roadSummaryLines
+  roadOf
 } from './goal-road';
+import { ReadingLine, goalReadingLines } from './card-readings';
 import { StripItem } from './strip-chart.component';
 
 export type GoalPicture = 'ROAD' | 'KEEP' | 'HABIT' | 'EMPTY';
@@ -34,7 +33,7 @@ export interface GoalView {
   strip: StripItem[];
   stripTarget: string;
   stripShare: string;
-  lines: SummaryLine[];
+  lines: ReadingLine[];
   pills: AlsoPill[];
   /** What a screen reader hears for the picture. */
   label: string;
@@ -50,7 +49,7 @@ function weighIns(goal: GoalProgress, today: string, days: number): { logged: nu
 export function goalCardView(goal: GoalProgress, today: string, span: Span = FOUR_WEEKS): GoalView {
   const lead = leadOf(goal);
   const road = roadOf(goal, today);
-  const lines = roadSummaryLines(goal, road, weighIns(goal, today, span.days), span);
+  const lines = goalReadingLines(goal, road, span, weighIns(goal, today, span.days));
   const pills = alsoPills(goal, lead);
   const none = { habit: null, strip: [], stripTarget: '', stripShare: '', note: null, road: null };
 

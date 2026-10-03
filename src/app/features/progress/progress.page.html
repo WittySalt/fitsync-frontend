@@ -49,7 +49,7 @@
 
     <div id="progress-food" class="section">
       @for (key of [foodWindow().from + foodWindow().to]; track key) {
-        <app-food-card [period]="foodWindow()" [days]="foodDays()" />
+        <app-food-card [period]="foodWindow()" [days]="foodDays()" [calorieTarget]="calorieTarget()" />
       }
     </div>
 

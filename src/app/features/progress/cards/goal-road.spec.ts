@@ -326,29 +326,6 @@ describe('the Goal card view', () => {
     expect(empty.picture).toBe('EMPTY');
     expect(empty.headline).toEqual({ figure: 'No goal yet', tail: '', caption: 'Set one in Me' });
   });
-
-  it('writes the three lines from the road and the body figures', () => {
-    const view = goalCardView(goalWith(lossRoad()), TODAY);
-    expect(view.lines.map((line) => `${line.figure} ${line.text}`.trim())).toEqual([
-      '71.2 kg today, down 1.6 kg in 4 weeks',
-      '0.41 kg a week, 16 days ahead of your date',
-      'Waist −2.1 cm in 4 weeks'
-    ]);
-    expect(view.lines.map((line) => line.trend)).toEqual(['down', 'faster', 'down']);
-  });
-});
-
-describe('the summary lines for another period', () => {
-  it('names the period the response was read for', () => {
-    const view = goalCardView(goalWith(lossRoad()), TODAY, { words: '3 months', days: 91 });
-    expect(`${view.lines[0].figure} ${view.lines[0].text}`).toBe('71.2 kg today, down 1.6 kg in 3 months');
-    expect(`${view.lines[2].figure} ${view.lines[2].text}`).toBe('Waist −2.1 cm in 3 months');
-  });
-
-  it('falls back to the change since the road started when the server sent no change', () => {
-    const goal = { ...goalWith(lossRoad()), hero: { ...goalWith(lossRoad()).hero, changeKg: null } };
-    expect(goalCardView(goal, TODAY).lines[0].text).toBe('today, down 3.8 kg since July');
-  });
 });
 
 describe('the dot strip geometry', () => {

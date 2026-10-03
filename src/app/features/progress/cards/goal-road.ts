@@ -1,6 +1,5 @@
 import { parseLocalDate, shortDateLabel } from '../../../shared/date-label';
 import { daysBetween, formatNumber } from '../../../shared/progress/progress-format';
-import { SummaryLine } from '../../../shared/progress/progress.models';
 import { GoalProgress, GoalRoad, OtherGoal, RoadState, RoadTick } from '../progress-api.models';
 
 /** The state a Progress page speaks of: the road's, or the two cases where there is no road. */
@@ -335,63 +334,13 @@ export function monthName(key: string | null): string {
   return month >= 1 && month <= 12 ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][month - 1] : '';
 }
 
-function bodyDelta(series: { start: number | null; end: number | null; series: { value: number }[] } | null): number | null {
-  const start = series?.start ?? series?.series[0]?.value ?? null;
-  const end = series?.end ?? series?.series.at(-1)?.value ?? null;
-  return start === null || end === null ? null : end - start;
-}
-
-function move(value: number, steady: number): string {
-  return Math.abs(value) < steady ? 'steady' : value < 0 ? 'down' : 'up';
-}
-
-function minus(value: number, digits: number): string {
-  const text = formatNumber(Math.abs(value), digits);
-  return Number(text) === 0 ? text : `${value < 0 ? '−' : '+'}${text}`;
-}
-
-/** The period the response was read for, as the lines name it: "in 4 weeks", "in 3 months", "in a year". */
+/** The period the response was read for, as the lines name it: "4 weeks", "3 months", "a year". */
 export interface Span {
   words: string;
   days: number;
 }
 
 export const FOUR_WEEKS: Span = { words: '4 weeks', days: 28 };
-
-export function roadSummaryLines(goal: GoalProgress, road: GoalRoad | null, loggedDaysOfPeriod: { logged: number; days: number } | null, span: Span = FOUR_WEEKS): SummaryLine[] {
-  const lines: SummaryLine[] = [];
-  const now = road?.nowKg ?? nowOf(goal);
-  if (now !== null) {
-    // The response covers the period, so its change is the change over that period; the road's own
-    // start only stands in when the server sent no change.
-    const sinceStart = road && road.startDate ? road.nowKg - road.startKg : null;
-    const change = goal.hero.changeKg ?? sinceStart;
-    const since = goal.hero.changeKg !== null || !road?.startDate ? `in ${span.words}` : `since ${monthName(road.startDate)}`;
-    if (change === null || Math.abs(change) < 0.05) {
-      lines.push({ figure: `${formatNumber(now, 1)} kg`, text: 'today', trend: 'steady' });
-    } else {
-      lines.push({ figure: `${formatNumber(now, 1)} kg`, text: `today, ${change < 0 ? 'down' : 'up'} ${formatNumber(Math.abs(change), 1)} kg ${since}`, trend: move(change, 0.05) });
-    }
-  }
-  const rate = goal.hero.weeklyRate;
-  if (rate.value !== null) {
-    const early = road?.projectedDate && road.targetDate ? daysBetween(road.projectedDate, road.targetDate) : null;
-    const tail = early === null ? '' : early === 0 ? ', on your date' : `, ${plural(Math.abs(early), 'day')} ${early > 0 ? 'ahead of' : 'behind'} your date`;
-    const losing = road ? road.direction !== 'GAIN' : true;
-    const towards = rate.previous === null || Math.abs(rate.value - rate.previous) < 0.02 ? 'steady' : (losing ? rate.value < rate.previous : rate.value > rate.previous) ? 'faster' : 'slower';
-    lines.push({ figure: `${formatNumber(Math.abs(rate.value), 2)} kg`, text: `a week${tail}`, trend: towards });
-  }
-  const waist = bodyDelta(goal.body.waist);
-  const fat = bodyDelta(goal.body.bodyFat);
-  if (waist !== null) {
-    lines.push({ figure: `Waist ${minus(waist, 1)} cm`, text: `in ${span.words}`, trend: move(waist, 0.3) });
-  } else if (fat !== null) {
-    lines.push({ figure: `Body fat ${minus(fat, 1)} points`, text: `in ${span.words}`, trend: move(fat, 0.2) });
-  } else if (loggedDaysOfPeriod) {
-    lines.push({ figure: `Logged ${loggedDaysOfPeriod.logged} of ${loggedDaysOfPeriod.days} days`, text: '', trend: '' });
-  }
-  return lines;
-}
 
 /** The sentence under the verdict when the coach's reading is not there: "71.2 kg, losing 0.4 kg a week." */
 export function ruleSentence(goal: GoalProgress | null): string {

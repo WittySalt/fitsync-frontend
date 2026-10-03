@@ -107,6 +107,8 @@ export class ProgressPage {
     const headline = reading?.status === 'READY' ? withoutCitations(reading.reading?.headline ?? '').trim() : '';
     return headline || ruleSentence(this.goal());
   });
+  /** The target of the calorie goal, which the Food card reads its energy line against. */
+  protected readonly calorieTarget = computed(() => this.goal()?.otherGoals.find((item) => item.type === 'CALORIES')?.target ?? null);
   protected readonly chips = computed(() => weekChips(this.current()));
 
   constructor() {

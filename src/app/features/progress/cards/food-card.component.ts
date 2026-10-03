@@ -9,10 +9,11 @@ import { NutrientPetalsComponent } from '../../nutrition/nutrients/nutrient-peta
 import { reachSummary } from '../../nutrition/nutrients/nutrients-figures';
 import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { NutrientsService } from '../../nutrition/nutrients/nutrients.service';
-import { foodSummaryLines, hasFood } from '../food/food-figures';
+import { hasFood } from '../food/food-figures';
 import { FoodProgress } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { foodCoachLine } from './card-lines';
+import { foodReadingLines } from './card-readings';
 import { EnergyPairComponent } from './energy-pair.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -27,6 +28,14 @@ export function foodHeadline(balance: number | null): { figure: string; caption:
     figure: `${formatNumber(Math.abs(rounded))} kcal`,
     caption: rounded === 0 ? 'A day matching what you used this week' : `A day ${rounded < 0 ? 'under' : 'over'} what you used this week`
   };
+}
+
+/** How long ago the first week of the period is, for "down from 150 g a month ago". */
+export function earlierWords(days: number): string {
+  if (days <= 31) {
+    return 'a month ago';
+  }
+  return days >= 360 ? 'a year ago' : `${Math.round(days / 30)} months ago`;
 }
 
 type FoodState = { status: 'loading' } | { status: 'ready'; food: FoodProgress } | { status: 'error' };
@@ -49,6 +58,8 @@ export class FoodCardComponent {
   /** The days the card describes and Ask sends. */
   readonly period = input.required<{ from: string; to: string }>();
   readonly days = input(30);
+  /** The calorie goal's target, when the person has one. */
+  readonly calorieTarget = input<number | null>(null);
 
   private readonly attempt = signal(0);
   private readonly key = computed(() => ({ ...this.period(), attempt: this.attempt() }));
@@ -86,7 +97,7 @@ export class FoodCardComponent {
   });
   protected readonly lines = computed(() => {
     const food = this.food();
-    return food ? foodSummaryLines(food, this.days()) : [];
+    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()) }) : [];
   });
   protected readonly enough = computed(() => {
     const food = this.food();

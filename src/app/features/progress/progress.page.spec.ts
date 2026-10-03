@@ -343,11 +343,11 @@ describe('ProgressPage', () => {
       expect(text(card.querySelector('.figure'))).toBe('279 kcal');
       expect(text(card.querySelector('.caption'))).toBe('A day under what you used this week');
       expect(Array.from(card.querySelectorAll('app-summary-list .text')).map((line) => text(line))).toEqual([
-        '2,123 kcal a day, 26 of 30 days logged',
-        'Protein 150 → 136 g a day since 10 Aug',
-        'Vitamin D 34%, the furthest short'
+        '2,123 kcal a day, logged 26 of 30 days',
+        'Protein 136 g a day this week, 4 g under the 140 g target and down from 150 g a month ago',
+        'Vitamin D at 34% of the daily amount is the furthest short'
       ]);
-      expect(Array.from(card.querySelectorAll('app-summary-list .trend')).map((word) => text(word))).toEqual(['steady', 'down', 'low']);
+      expect(Array.from(card.querySelectorAll('app-summary-list .trend')).map((word) => text(word))).toEqual(['logged', 'under', '1 short']);
       expect(card.querySelector('a.open')?.getAttribute('href')).toBe('/progress/food');
     });
 
