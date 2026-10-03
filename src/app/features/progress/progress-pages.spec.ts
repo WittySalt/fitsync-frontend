@@ -227,7 +227,7 @@ describe('progress pages', () => {
       );
       el.querySelector<HTMLButtonElement>('#pace .ask')!.click();
       expect(coach.askAboutCard).toHaveBeenCalledWith(jasmine.anything(), jasmine.stringContaining('7,700 kcal a kilo'));
-      expect(text(el.querySelector('#weight .ask'))).toBe('Ask about this');
+      expect(text(el.querySelector('#weight .ask'))).toBe('Ask');
     });
 
     it('shows body tiles with their change, and not enough data for a missing one', () => {

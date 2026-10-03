@@ -111,7 +111,7 @@ function barRows(series: readonly SeriesPoint[], unit: string, format: Highlight
     .track i { display: block; height: 100%; border-radius: 5px; background: var(--accent); }
     .bar-value { font: 600 var(--pg-chart) var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
     .foot { font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
-    .more { display: none; align-self: flex-start; border: 0; background: none; padding: 0; font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); cursor: pointer; }
+    .more { display: none; align-self: flex-start; border: 0; background: none; padding: 0; font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); cursor: pointer; }
     .none { margin: 0; font: 400 var(--pg-text) var(--font-sans); color: var(--text-secondary); }
     @media (max-width: 640px) {
       .grid { grid-template-columns: minmax(0, 1fr); }

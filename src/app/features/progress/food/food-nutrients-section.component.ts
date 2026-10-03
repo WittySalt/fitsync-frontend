@@ -22,7 +22,12 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
       <div class="nutrients">
         @if (overview(); as data) {
           <div class="petals">
-            <app-nutrient-petals [tooltip]="true" [nutrients]="data.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reachText()" />
+            <app-nutrient-petals [tooltip]="true" [nutrients]="data.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reachText()" ringLabel="100%" />
+            <p class="key">Petal length is the share of the daily amount. Past the dashed ring is met.</p>
+            <p class="key swatches">
+              <span><i class="vitamin fat"></i><i class="vitamin water"></i>Vitamins</span>
+              <span><i class="mineral major"></i><i class="mineral trace"></i>Minerals</span>
+            </p>
           </div>
         }
         <div class="side">
@@ -55,30 +60,44 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
         </div>
         <div class="habit">
           <span class="figure">{{ nutrition()?.cooks?.count ?? '–' }}</span>
-          <span>{{ cookLine() }}</span>
+          <span>Recipes cooked</span>
+          @if (lastCooked()) {
+            <span class="last" [attr.title]="lastCooked()">The last one, {{ lastCooked() }}</span>
+          }
         </div>
       </div>
     </app-detail-section>
   `,
   styles: `
     :host { display: flex; flex-direction: column; }
-    .nutrients { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 28px; align-items: center; }
-    .petals { padding: 8px; }
-    .side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .nutrients { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 32px; align-items: center; }
+    .petals { display: flex; flex-direction: column; gap: 8px; width: 300px; max-width: 100%; }
+    app-nutrient-petals { width: 260px; max-width: 100%; margin: 14px auto 6px; }
+    .side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
     p { margin: 0; font: 400 var(--pg-text) / 1.5 var(--font-sans); color: var(--text-secondary); }
+    .key { font: 400 var(--pg-chart) / 1.4 var(--font-sans); color: var(--text-secondary); }
+    .swatches { display: flex; gap: 16px; }
+    .swatches span { display: inline-flex; align-items: center; gap: 4px; }
+    .swatches i { width: 10px; height: 10px; border-radius: 50%; }
+    .swatches span i:last-of-type { margin-right: 2px; }
+    .fat { background: var(--nutrient-fat-soluble); }
+    .water { background: var(--nutrient-water-soluble); }
+    .major { background: var(--nutrient-major-mineral); }
+    .trace { background: var(--nutrient-trace-mineral); }
     .heading { font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip { padding: 6px 10px; border-radius: var(--radius-full); background: var(--surface-sunken); border: 1px solid var(--border); font: 400 var(--pg-control) var(--font-sans); color: var(--text-primary); }
     .chip strong { color: var(--text-secondary); }
-    a { font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); text-decoration: none; width: fit-content; }
+    a { font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); text-decoration: none; width: fit-content; }
     a:hover { text-decoration: underline; text-underline-offset: 4px; }
     .quiet { font-size: var(--pg-chart); }
-    .habits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .habit { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface-sunken); border: 1px solid var(--border); font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
+    .habits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .habit { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-sunken); border: 1px solid var(--border); font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
+    .last { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .figure { font: 600 var(--pg-chip-figure) var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    @media (max-width: 640px) {
-      .nutrients, .habits { grid-template-columns: minmax(0, 1fr); }
-      .petals { max-width: 220px; margin: 0 auto; }
+    @media (max-width: 700px) {
+      .nutrients { grid-template-columns: minmax(0, 1fr); }
+      .petals { margin: 0 auto; }
     }
   `
 })
@@ -131,13 +150,7 @@ export class FoodNutrientsSectionComponent {
   });
   protected readonly habitAsk = computed(() => `How are my water and fibre habits? These are counted on logged days, ${this.windowText()}.`);
 
-  protected readonly cookLine = computed(() => {
-    const cooks = this.nutrition()?.cooks;
-    if (!cooks) {
-      return 'Recipes cooked';
-    }
-    return cooks.last ? `Recipes cooked, the last one ${cooks.last.name}` : 'Recipes cooked';
-  });
+  protected readonly lastCooked = computed(() => this.nutrition()?.cooks?.last?.name ?? '');
 
   protected count(value: number | null): string {
     const logged = this.habits().loggedDays;

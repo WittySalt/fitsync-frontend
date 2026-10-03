@@ -11,7 +11,7 @@
     @if (empty()) {
       <app-detail-section name="Not enough data yet" [context]="cards().training">
         <p class="quiet">No sessions in this period. Finished sessions fill this page, from the figures to the records.</p>
-        <a class="start" routerLink="/workout">Open Workout</a>
+        <a class="start" routerLink="/workout">Open Workout ›</a>
       </app-detail-section>
     } @else {
       <app-highlights [highlights]="progress.highlights" [format]="unitValue" [barMax]="25" [context]="cards().training" />

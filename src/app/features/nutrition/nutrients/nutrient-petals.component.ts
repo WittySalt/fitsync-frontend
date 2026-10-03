@@ -54,6 +54,9 @@ export function petalTip(item: Pick<NutrientTileData, 'displayName' | 'unit' | '
         </text>
       }
       <circle class="ring" [attr.cx]="centre()" [attr.cy]="centre()" [attr.r]="geometry().ringRadius"></circle>
+      @if (ringLabel()) {
+        <text class="ring-label" [attr.x]="centre()" [attr.y]="centre() - geometry().ringRadius - 4" text-anchor="middle">{{ ringLabel() }}</text>
+      }
       <circle class="hub" [attr.cx]="centre()" [attr.cy]="centre()" [attr.r]="geometry().innerRadius - 3"></circle>
       <text class="big" [attr.x]="centre()" [attr.y]="centre() - 7" text-anchor="middle">{{ reached() }}/{{ total() }}</text>
       <text class="small" [attr.x]="centre()" [attr.y]="centre() + 12" text-anchor="middle">reached</text>

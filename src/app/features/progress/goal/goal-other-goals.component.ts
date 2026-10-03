@@ -103,7 +103,7 @@ export function windowDays(days: readonly DotDay[], from: string, to: string): D
     .key .met { background: var(--accent); }
     .key .missed { border: 1.5px solid var(--text-secondary); }
     .key .none { background: var(--surface-sunken); border: 1px solid var(--text-muted); }
-    a { font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); text-decoration: none; }
+    a { font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); text-decoration: none; }
     a:hover { text-decoration: underline; text-underline-offset: 4px; }
     .empty { margin: 0; font: 400 var(--pg-text) var(--font-sans); color: var(--text-secondary); }
     @media (max-width: 760px) {

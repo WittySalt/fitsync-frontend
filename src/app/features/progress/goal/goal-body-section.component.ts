@@ -44,7 +44,7 @@ interface BodyTile {
         }
       </div>
       <div class="actions">
-        <button type="button" class="link" (click)="openMeasurements()">Record a measurement</button>
+        <button type="button" class="link" (click)="openMeasurements()">Record a measurement ›</button>
         <button type="button" class="link" [attr.aria-expanded]="measurementsOpen()" (click)="toggleMeasurements()">
           {{ measurementsOpen() ? 'Hide measurements' : 'All measurements ›' }}
         </button>
@@ -67,7 +67,7 @@ interface BodyTile {
     .unit { font: 500 var(--pg-control) var(--font-sans); color: var(--text-secondary); }
     .quiet { font: 400 var(--pg-chart) / 1.5 var(--font-sans); color: var(--text-secondary); }
     .actions { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-    .link { padding: 0; border: 0; background: none; font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); cursor: pointer; }
+    .link { padding: 0; border: 0; background: none; font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); cursor: pointer; }
     .link:hover { text-decoration: underline; text-underline-offset: 4px; }
     .link:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 3px; border-radius: 4px; }
     @media (max-width: 640px) { .tiles { grid-template-columns: minmax(0, 1fr); } }

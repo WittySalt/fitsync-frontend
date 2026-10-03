@@ -255,16 +255,16 @@ describe('DetailSectionComponent and DetailLayoutComponent', () => {
     TestBed.configureTestingModule({ providers: [{ provide: CoachStore, useValue: coach }] });
   });
 
-  it('sets a section as its name, one sentence and the picture, with a text link to ask', () => {
+  it('sets a section as its name, one sentence and the picture, with the Ask pill in the head row', () => {
     const fixture = TestBed.createComponent(SectionsHost);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     const weight = el.querySelector('#weight')!;
     expect(text(weight.querySelector('h2'))).toBe('Weight');
     expect(text(weight.querySelector('.sentence'))).toBe('One sentence.');
-    expect(weight.querySelector('.line app-ink-switch')).not.toBeNull();
+    expect(weight.querySelector('.head .tools app-ink-switch')).not.toBeNull();
     expect(weight.querySelector('.picture')).not.toBeNull();
-    expect(text(weight.querySelector('.ask'))).toBe('Ask about this');
+    expect(text(weight.querySelector('.head .tools .ask'))).toBe('Ask');
     expect(weight.querySelector('.sub, .quiet')).toBeNull();
   });
 

@@ -143,7 +143,7 @@ describe('progress sections', () => {
       expect(text(el.querySelector('h2'))).toBe('Highlights');
       expect(el.querySelector('.sub')).toBeNull();
       const ask = el.querySelector<HTMLButtonElement>('.ask')!;
-      expect(text(ask)).toBe('Ask about this');
+      expect(text(ask)).toBe('Ask');
       ask.click();
       expect(coach.askAboutCard).toHaveBeenCalledOnceWith(card, jasmine.stringContaining('What stands out'));
     });
