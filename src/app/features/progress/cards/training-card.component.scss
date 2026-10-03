@@ -74,7 +74,13 @@
 }
 
 .pair > app-log-strip {
-  max-width: none;
+  max-width: 300px;
+}
+
+/* Stacked, the figure pair sits centred under the strip. */
+.figure-block {
+  align-self: center;
+  width: min(100%, 260px);
 }
 
 .figure-block {
@@ -109,6 +115,8 @@
 
   .figure-block {
     flex: 1 1 0;
+    align-self: flex-start;
+    width: auto;
     min-width: 120px;
   }
 }

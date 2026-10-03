@@ -59,6 +59,12 @@
   }
 }
 
+/* The card's caption says "N of M reached"; the centre text of the shared petals would repeat it. */
+.petal-pic ::ng-deep .big,
+.petal-pic ::ng-deep .small {
+  display: none;
+}
+
 .petal-caption {
   font-size: var(--pg-chart);
   color: var(--text-secondary);

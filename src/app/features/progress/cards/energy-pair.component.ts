@@ -10,17 +10,23 @@ interface DrawnSegment {
   x: number;
   width: number;
   text: string;
+  /** The full name and figure, kept as the tooltip when the segment is too narrow to show it. */
+  title: string;
 }
 
 const GAP = 2;
 /** A segment this wide has room for its name and figure inside. */
 const LABEL_WIDTH = 96;
+/** Narrower than this shows only the figure, and under the next step nothing. */
+const NUMBER_WIDTH = 40;
 
-function lay(parts: readonly BarSegment[], width: number): DrawnSegment[] {
+export function lay(parts: readonly BarSegment[], width: number): DrawnSegment[] {
   let x = 0;
   return parts.map((part) => {
     const full = (part.percent / 100) * width;
-    const drawn = { key: part.key, x, width: Math.max(2, full - GAP), text: full >= LABEL_WIDTH ? `${part.label} ${formatNumber(Math.round(part.value))}` : '' };
+    const figure = formatNumber(Math.round(part.value));
+    const title = `${part.label} ${figure}`;
+    const drawn = { key: part.key, x, width: Math.max(2, full - GAP), text: full >= LABEL_WIDTH ? title : full >= NUMBER_WIDTH ? figure : '', title };
     x += full;
     return drawn;
   });
@@ -45,14 +51,14 @@ export function gapText(eaten: number, used: number): string {
         <g [attr.transform]="'translate(0 ' + shift() + ')'">
         <text class="t12" x="0" y="64">Eaten a day <tspan class="ink">{{ v.eatenTotal }} kcal</tspan></text>
         @for (seg of v.eaten; track seg.key) {
-          <rect [class]="'seg p-' + seg.key" [attr.x]="seg.x" y="74" [attr.width]="seg.width" height="32" rx="4"></rect>
+          <rect [class]="'seg p-' + seg.key" [attr.x]="seg.x" y="74" [attr.width]="seg.width" height="32" rx="4"><title>{{ seg.title }}</title></rect>
           @if (seg.text) {
             <text [class]="'in p-' + seg.key" [attr.x]="seg.x + 10" y="94">{{ seg.text }}</text>
           }
         }
         <text class="t12" x="0" y="134">Used a day <tspan class="ink">{{ v.usedTotal }} kcal</tspan></text>
         @for (seg of v.used; track seg.key) {
-          <rect [class]="'seg p-' + seg.key" [attr.x]="seg.x" y="144" [attr.width]="seg.width" height="32" rx="4"></rect>
+          <rect [class]="'seg p-' + seg.key" [attr.x]="seg.x" y="144" [attr.width]="seg.width" height="32" rx="4"><title>{{ seg.title }}</title></rect>
           @if (seg.text) {
             <text [class]="'in p-' + seg.key" [attr.x]="seg.x + 10" y="164">{{ seg.text }}</text>
           }

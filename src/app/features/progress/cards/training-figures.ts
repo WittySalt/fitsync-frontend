@@ -129,5 +129,5 @@ export function logGeometry(to: string, days: readonly CalendarDay[], width: num
     }
   }
   const keyY = HEAD + 4 * pitch + 20;
-  return { pitch, radius: Math.min(13, pitch / 2 - 3), cells, weeks, initials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], keyY, height: keyY + 8 };
+  return { pitch, radius: Math.min(11, pitch / 2 - 3), cells, weeks, initials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], keyY, height: keyY + 8 };
 }
