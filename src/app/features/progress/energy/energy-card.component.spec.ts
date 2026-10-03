@@ -159,6 +159,15 @@ describe('EnergyCardComponent', () => {
       fixture.detectChanges();
       expect(el.querySelectorAll('app-energy-days .dot').length).toBe(4);
     });
+
+    it('draws a partly logged day in the lighter green with "partly" under it', () => {
+      const week = energyWeek();
+      week.days[2] = { ...week.days[2], logged: false, partlyLogged: true, balance: null, runningTotal: null };
+      api.getWeek.and.returnValue(of(week));
+      const el = render();
+      expect(el.querySelectorAll('app-energy-days .eaten.sofar').length).toBe(1);
+      expect(text(el.querySelector('app-energy-days .labels'))).toContain('partly');
+    });
   });
 
   describe('a week without figures', () => {

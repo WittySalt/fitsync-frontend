@@ -207,6 +207,23 @@ describe('energy figures', () => {
       expect(daysSummary(dayColumns(weekOnFriday()).columns)).toContain('food logged on 3 of 7 days');
     });
 
+    it('draws a partly logged day with its bar lighter, says partly under it and gives no balance', () => {
+      const week = energyWeek();
+      week.days[2] = { ...week.days[2], logged: false, partlyLogged: true, balance: null, runningTotal: null };
+      const wednesday = dayColumns(week).columns[2];
+      expect(wednesday.partly).toBeTrue();
+      expect(wednesday.logged).toBeFalse();
+      expect(wednesday.eaten).not.toBeNull();
+      expect(wednesday.note).toBe('partly');
+    });
+
+    it('does not count a partly logged day among the days logged in the text', () => {
+      const week = energyWeek();
+      week.days[2] = { ...week.days[2], logged: false, partlyLogged: true, balance: null, runningTotal: null };
+      expect(daysSummary(dayColumns(week).columns)).toContain('food logged on 4 of 7 days');
+      expect(daysSummary(dayColumns(week).columns)).toContain('Wed partly');
+    });
+
     it('scales to the biggest day in steps of 500 with a gridline at each 1,000', () => {
       expect(columns().top).toBe(3000);
       expect(columns().grid.map((line) => line.kcal)).toEqual([1000, 2000, 3000]);
@@ -236,6 +253,14 @@ describe('energy figures', () => {
     it('adds up only the logged days and keeps the total flat across an unlogged one', () => {
       const values = chart().points.map((point) => point.value);
       expect(values).toEqual([0, -438, -426, -544, -544, -842, -842, -1205]);
+    });
+
+    it('skips a partly logged day in the running total and draws it as a hollow dot', () => {
+      const week = energyWeek();
+      week.days[2] = { ...week.days[2], logged: false, partlyLogged: true, balance: null, runningTotal: null };
+      const points = runningChart(week, 600, 170).points;
+      expect(points[3].value).toBe(points[2].value);
+      expect(points[3].logged).toBeFalse();
     });
 
     it('draws an unlogged day as a hollow dot', () => {

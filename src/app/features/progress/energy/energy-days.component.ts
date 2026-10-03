@@ -28,17 +28,17 @@ const FALLBACK_WIDTH = 600;
           <line class="grid" x1="0" [attr.x2]="width()" [attr.y1]="height() - (height() * line.percent) / 100" [attr.y2]="height() - (height() * line.percent) / 100"></line>
         }
         @for (column of columns().columns; track column.date; let index = $index) {
-          <rect class="shadow" [class.empty]="!column.logged" [attr.x]="slot(index) - bar() / 2" [attr.y]="height() - (height() * column.shadow) / 100" [attr.width]="bar()" [attr.height]="(height() * column.shadow) / 100" rx="9"></rect>
+          <rect class="shadow" [class.empty]="!column.logged && !column.partly" [attr.x]="slot(index) - bar() / 2" [attr.y]="height() - (height() * column.shadow) / 100" [attr.width]="bar()" [attr.height]="(height() * column.shadow) / 100" rx="9"></rect>
           @if (column.eaten !== null) {
-            <rect class="eaten" [class.sofar]="column.today" [attr.x]="slot(index) - bar() / 2 + 5" [attr.y]="height() - (height() * column.eaten) / 100" [attr.width]="bar() - 10" [attr.height]="(height() * column.eaten) / 100" rx="6"></rect>
+            <rect class="eaten" [class.sofar]="column.today || column.partly" [attr.x]="slot(index) - bar() / 2 + 5" [attr.y]="height() - (height() * column.eaten) / 100" [attr.width]="bar() - 10" [attr.height]="(height() * column.eaten) / 100" rx="6"></rect>
           }
         }
       </svg>
       <div class="labels">
         @for (column of columns().columns; track column.date) {
-          <div class="label" [class.off]="!column.logged">
+          <div class="label" [class.off]="!column.logged && !column.partly">
             <span class="day">{{ column.label }}@if (column.estimated) { <span title="Workout calories are estimated"> &asymp;</span> }</span>
-            @if (column.logged) {
+            @if (column.logged || column.partly) {
               <span class="note">{{ column.note }}</span>
             } @else {
               <span class="note"><span class="long">{{ column.note }}</span><span class="short" aria-hidden="true">&ndash;</span></span>

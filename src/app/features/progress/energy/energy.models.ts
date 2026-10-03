@@ -22,6 +22,9 @@ export interface MealSplit {
 export interface EnergyDay {
   date: string;
   logged: boolean;
+  /** Food was logged but too little to call a full day: drawn lighter, with no balance, and left
+   *  out of the running total and every average. Absent on a server from before the field. */
+  partlyLogged: boolean;
   /** Null on a day with no food logged, which adds nothing to the week. */
   eaten: number | null;
   resting: number | null;

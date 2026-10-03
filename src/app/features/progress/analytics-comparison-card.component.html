@@ -35,8 +35,8 @@
     />
   } @else if (data(); as comparison) {
     <div class="window-row">
-      <span>Current: {{ windowLabel(comparison.currentWindow) }}</span>
-      <span>Previous: {{ windowLabel(comparison.previousWindow) }}</span>
+      <span>{{ windowNames().current }}: {{ windowLabel(comparison.currentWindow) }}</span>
+      <span>{{ windowNames().previous }}: {{ windowLabel(comparison.previousWindow) }}</span>
     </div>
 
     <div class="comparison-grid">
@@ -46,9 +46,9 @@
           <div class="comparison-table" role="table" [attr.aria-label]="group.title + ' period comparison'">
             <div class="comparison-header" role="row">
               <span role="columnheader">Metric</span>
-              <span role="columnheader">Current</span>
-              <span role="columnheader">Previous</span>
-              <span role="columnheader">Delta</span>
+              <span role="columnheader">{{ windowNames().current }}</span>
+              <span role="columnheader">{{ windowNames().previous }}</span>
+              <span role="columnheader">Change</span>
             </div>
 
             @for (row of group.rows; track row.label) {
@@ -56,7 +56,7 @@
                 <strong role="cell">{{ row.label }}</strong>
                 <span role="cell">{{ formatValue(row.metric.current, row.unit) }}</span>
                 <span role="cell">{{ formatValue(row.metric.previous, row.unit) }}</span>
-                <span role="cell" class="delta" [class]="deltaClass(row.metric)">{{ deltaPctLabel(row.metric) }}</span>
+                <span role="cell" class="delta" [class]="deltaClass(row.metric)">{{ row.showChange ? deltaPctLabel(row.metric) : "" }}</span>
               </div>
             }
           </div>
