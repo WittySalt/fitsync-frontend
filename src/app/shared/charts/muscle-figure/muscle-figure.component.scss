@@ -1,0 +1,96 @@
+@use 'muscle-palette' as palette;
+
+@include palette.muscle-palette;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.pair {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+svg {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+figcaption {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.silhouette path,
+.silhouette ellipse {
+  fill: var(--border);
+}
+
+.outline path,
+.outline ellipse {
+  stroke: var(--border-strong);
+  stroke-width: 1.6;
+}
+
+.region {
+  stroke: var(--surface);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  transition: opacity var(--dur-base) var(--ease-standard), stroke var(--dur-fast) var(--ease-standard);
+
+  &:not(.still) {
+    cursor: pointer;
+  }
+
+  &:not(.still):hover,
+  &:focus-visible {
+    stroke: var(--heat-outline);
+    stroke-width: 1.4;
+    outline: none;
+  }
+
+  &.on {
+    stroke: var(--heat-outline);
+    stroke-width: 1.6;
+  }
+
+  &.dim {
+    opacity: 0.35;
+  }
+}
+
+.under { fill: var(--heat-under); }
+.low { fill: var(--heat-low); }
+.in { fill: var(--heat-in); }
+.over { fill: var(--heat-over); }
+
+.details path {
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .region {
+    transition: none;
+  }
+}

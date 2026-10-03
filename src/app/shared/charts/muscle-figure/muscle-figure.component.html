@@ -1,0 +1,57 @@
+<div class="pair" [class.picked]="selected() !== null">
+  @for (item of views(); track item.name) {
+    <figure class="view">
+      <svg
+        viewBox="0 0 100 220"
+        [attr.width]="width()"
+        [attr.height]="drawHeight()"
+        [attr.role]="interactive() ? 'group' : 'img'"
+        [attr.aria-label]="item.name + ' of the body, muscles coloured by hard sets a week'"
+      >
+        <g class="silhouette" aria-hidden="true">
+          @for (pass of [0, 1]; track pass) {
+            <g [class.outline]="pass === 0">
+              @for (d of item.view.base; track $index) {
+                <path [attr.d]="d"></path>
+              }
+              @for (hand of item.view.hands; track $index) {
+                <ellipse [attr.cx]="hand.cx" [attr.cy]="hand.cy" rx="4.1" ry="7.4" [attr.transform]="'rotate(' + hand.rotate + ' ' + hand.cx + ' ' + hand.cy + ')'"></ellipse>
+              }
+              <ellipse cx="50" cy="15.5" rx="10" ry="12.3"></ellipse>
+            </g>
+          }
+        </g>
+        @for (region of item.regions; track region.key) {
+          @if (interactive()) {
+            <path
+              class="region"
+              [class]="'region ' + region.level"
+              [class.on]="selected() === region.group"
+              [class.dim]="selected() !== null && selected() !== region.group"
+              [attr.d]="region.d"
+              [attr.data-group]="region.group"
+              [attr.data-region]="region.key"
+              role="button"
+              tabindex="0"
+              [attr.aria-label]="region.aria"
+              [attr.aria-pressed]="selected() === region.group"
+              (click)="press(region.group)"
+              (keydown.enter)="press(region.group, $event)"
+              (keydown.space)="press(region.group, $event)"
+            >
+              <title>{{ region.title }}</title>
+            </path>
+          } @else {
+            <path [class]="'region still ' + region.level" [attr.d]="region.d" [attr.data-group]="region.group" [attr.data-region]="region.key"></path>
+          }
+        }
+        <g class="details" aria-hidden="true">
+          @for (d of item.view.details; track $index) {
+            <path [attr.d]="d"></path>
+          }
+        </g>
+      </svg>
+      <figcaption>{{ item.name }}</figcaption>
+    </figure>
+  }
+</div>
