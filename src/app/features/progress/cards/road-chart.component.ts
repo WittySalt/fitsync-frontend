@@ -32,7 +32,7 @@ import { hostWidth } from './host-width';
         }
         <circle class="ring" [attr.cx]="g.x1" [attr.cy]="y(130)" r="12" [attr.stroke-width]="g.reached ? 3 : 2"></circle>
         <circle class="core" [attr.cx]="g.x1" [attr.cy]="y(130)" [attr.r]="g.reached ? 6 : 4"></circle>
-        <text class="target" text-anchor="middle" [attr.x]="g.x1" [attr.y]="y(106)">{{ target() }}</text>
+        <text class="target" text-anchor="middle" [attr.x]="g.x1" [attr.y]="y(g.raiseTarget ? 92 : 106)">{{ target() }}</text>
         @if (!g.reached) {
           <circle class="today" [attr.cx]="g.todayX" [attr.cy]="y(130)" r="6"></circle>
           <text class="now" [attr.text-anchor]="g.today.anchor" [attr.x]="g.todayX" [attr.y]="y(158)">Today</text>
@@ -78,8 +78,8 @@ export class RoadChartComponent {
     return road ? `${formatNumber(road.targetKg, road.targetKg % 1 ? 1 : 0)} kg` : '';
   });
 
-  /** The drawing sits 14 px lower than its natural origin so it is centred in the 240 px box. */
+  /** The drawing starts near the top of its own box, so the caption follows it closely. */
   protected y(value: number): number {
-    return value + 14;
+    return value - 66;
   }
 }

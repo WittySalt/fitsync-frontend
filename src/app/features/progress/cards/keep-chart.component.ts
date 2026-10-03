@@ -2,15 +2,15 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 
 import { formatNumber } from '../../../shared/progress/progress-format';
 import { GoalRoad } from '../progress-api.models';
-import { ROAD_HEIGHT, keepGeometry, keepShare } from './goal-road';
-import { hostWidth } from './host-width';
+import { keepGeometry, keepShare } from './goal-road';
+import { hostSize } from './host-width';
 
 /** The KEEP picture: the lane around the target, the weekly means as a line and a bullseye at the right. */
 @Component({
   selector: 'app-keep-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <svg [attr.width]="width()" [attr.height]="height" [attr.viewBox]="'0 0 ' + width() + ' ' + height" role="img" [attr.aria-label]="label()">
+    <svg [attr.width]="width()" [attr.height]="height()" [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="label()">
       @if (g(); as k) {
         <rect class="lane" x="0" [attr.y]="k.laneTop" [attr.width]="width()" [attr.height]="k.laneBottom - k.laneTop" rx="8"></rect>
         <rect class="road" [attr.x]="k.x0" [attr.y]="k.targetY - 5" [attr.width]="k.x1 - k.x0" height="10" rx="5"></rect>
@@ -25,13 +25,13 @@ import { hostWidth } from './host-width';
         <circle class="core" [attr.cx]="k.x1" [attr.cy]="k.targetY" r="4"></circle>
         <text class="target" text-anchor="middle" [attr.x]="k.x1" [attr.y]="k.targetY - 24">{{ target() }}</text>
         <text class="t12" text-anchor="end" [attr.x]="width()" [attr.y]="k.targetY + 38">{{ share() }}</text>
-        <text class="t12" text-anchor="start" x="0" y="222">{{ k.firstDate }}</text>
-        <text class="t12" text-anchor="end" [attr.x]="width()" y="222">{{ k.lastDate }}</text>
+        <text class="t12" text-anchor="start" x="0" [attr.y]="height() - 18">{{ k.firstDate }}</text>
+        <text class="t12" text-anchor="end" [attr.x]="width()" [attr.y]="height() - 18">{{ k.lastDate }}</text>
       }
     </svg>
   `,
   styles: `
-    :host { display: block; width: 100%; }
+    :host { display: block; width: 100%; height: 100%; }
     svg { display: block; overflow: visible; }
     .lane { fill: var(--success-soft, var(--accent-subtle)); }
     .road { fill: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
@@ -51,9 +51,10 @@ export class KeepChartComponent {
   readonly road = input.required<GoalRoad>();
   readonly label = input('');
 
-  protected readonly width = hostWidth(560);
-  protected readonly height = ROAD_HEIGHT;
-  protected readonly g = computed(() => (this.road().keep ? keepGeometry(this.road(), this.width()) : null));
+  private readonly size = hostSize(560, 240);
+  protected readonly width = this.size.width;
+  protected readonly height = this.size.height;
+  protected readonly g = computed(() => (this.road().keep ? keepGeometry(this.road(), this.width(), this.height()) : null));
   protected readonly share = computed(() => keepShare(this.road()));
   protected readonly target = computed(() => `${formatNumber(this.road().targetKg, this.road().targetKg % 1 ? 1 : 0)} kg`);
 }

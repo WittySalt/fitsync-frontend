@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
 import { HEAT_KEY } from '../../../shared/charts/muscle-figure/muscle-figure';
-import { MuscleFigureComponent } from '../../../shared/charts/muscle-figure/muscle-figure.component';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { TrainingApiService } from '../training/training-api.service';
 import { useLoad } from '../training/training-load';
+import { FitFigureComponent } from './fit-figure.component';
 import { LogStripComponent } from './log-strip.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -17,7 +17,7 @@ import { activityRows, trainingHeadline } from './training-figures';
  */
 @Component({
   selector: 'app-training-card',
-  imports: [LogStripComponent, MuscleFigureComponent, ProgressCardComponent, StatePanelComponent, SummaryListComponent],
+  imports: [FitFigureComponent, LogStripComponent, ProgressCardComponent, StatePanelComponent, SummaryListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './training-card.component.html',
   styleUrl: './training-card.component.scss'

@@ -2,12 +2,14 @@
   display: block;
   min-width: 0;
   scroll-margin-top: 72px;
+  container-type: inline-size;
 }
 
 .card {
   position: relative;
   box-sizing: border-box;
-  padding: var(--pg-card-pad);
+  padding: var(--pg-card-pad-phone);
+  --pic-h: var(--pg-picture-h-phone);
   border: 1px solid var(--border);
   border-radius: var(--pg-card-radius);
   background: var(--surface);
@@ -22,7 +24,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .eyebrow {
@@ -56,29 +58,32 @@
   color: var(--text-primary);
 }
 
+/* One column by default: head, headline, picture, summary lines, Ask. */
 .body {
-  display: grid;
-  grid-template-columns: var(--pg-left-col) var(--pg-col-gap) minmax(0, 1fr);
-  grid-template-rows: auto auto auto 1fr;
+  display: flex;
+  flex-direction: column;
 }
 
 .headline {
-  grid-column: 1;
-  grid-row: 1;
+  order: 1;
+  min-width: 0;
+}
+
+.pic {
+  order: 2;
+  margin-top: 16px;
   min-width: 0;
 }
 
 .lines {
-  grid-column: 1;
-  grid-row: 2;
-  margin-top: 10px;
+  order: 3;
+  margin-top: 16px;
   min-width: 0;
 }
 
 .ask-row {
-  grid-column: 1;
-  grid-row: 3;
-  margin-top: 24px;
+  order: 4;
+  margin-top: 16px;
 }
 
 .ask {
@@ -102,54 +107,45 @@
   border-radius: 4px;
 }
 
-.pic {
-  grid-column: 3;
-  grid-row: 1 / span 4;
-  min-width: 0;
-}
-
-@media (max-width: 1023px) {
-  .body {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-    row-gap: 0;
-  }
-
-  .headline,
-  .lines,
-  .ask-row,
-  .pic {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .headline {
-    order: 1;
-  }
-
-  .pic {
-    order: 2;
-    margin-top: 16px;
-  }
-
-  .lines {
-    order: 3;
-    margin-top: 16px;
-  }
-
-  .ask-row {
-    order: 4;
-    margin-top: 16px;
-  }
-}
-
-@media (max-width: 767px) {
+/* Two columns (360 | 48 | 1fr) only when the card's own inner width is 960 px or more:
+   960 plus the 28 px padding and the 1 px border on both sides. */
+@container (min-width: 1018px) {
   .card {
-    padding: var(--pg-card-pad-phone);
+    padding: var(--pg-card-pad);
+    --pic-h: var(--pg-picture-h);
   }
 
   .head {
-    margin-bottom: 12px;
+    margin-bottom: 20px;
+  }
+
+  .body {
+    display: grid;
+    grid-template-columns: var(--pg-left-col) var(--pg-col-gap) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr;
+  }
+
+  .headline {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .lines {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 10px;
+  }
+
+  .ask-row {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 24px;
+  }
+
+  .pic {
+    grid-column: 3;
+    grid-row: 1 / span 4;
+    margin-top: 0;
   }
 }
 

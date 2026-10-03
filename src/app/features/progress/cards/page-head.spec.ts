@@ -2,6 +2,7 @@ import { ReadingFact } from '../../../core/coach/coach.models';
 import { mapReviews } from '../progress-api.mappers';
 import { WeeklyReview } from '../progress-api.models';
 import { coachLineFor, firstSentence } from './coach-lines';
+import { figureHeight } from './fit-figure.component';
 import { PERIODS, currentSection, eyebrowText, periodOf, reviewChips, weekChips } from './page-head';
 import { watchSections } from './section-watch';
 
@@ -137,5 +138,17 @@ describe('the coach lines between the cards', () => {
     expect(coachLineFor([fact('A', 'GOAL', 'x', 'y.')], 'TRAINING')).toBe('');
     expect(coachLineFor([], 'FOOD')).toBe('');
     expect(coachLineFor([fact('B', 'FOOD', '', '')], 'FOOD')).toBe('');
+  });
+});
+
+describe('the muscle figure beside the log strip', () => {
+  it('keeps its aspect to the width it is given, never under 120 px tall and never wider than the box', () => {
+    expect(figureHeight(170)).toBe(167);
+    expect(figureHeight(100)).toBe(120);
+    expect(figureHeight(900)).toBe(200);
+    for (const width of [128, 150, 170, 220]) {
+      const view = Math.round((figureHeight(width) * 100) / 220);
+      expect(view * 2 + 18).toBeLessThanOrEqual(Math.max(width, 128));
+    }
   });
 });

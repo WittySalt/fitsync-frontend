@@ -26,12 +26,13 @@
   color: var(--text-secondary);
 }
 
-.box {
-  height: var(--pg-picture-h);
+.box.fill,
+.skeleton.box {
+  height: var(--pic-h);
 }
 
 .note {
-  margin: 12px 0 0;
+  margin: 16px 0 0;
   font-size: var(--pg-chart);
   color: var(--text-secondary);
 }
@@ -50,7 +51,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .also-label {
@@ -78,10 +79,4 @@
 
 .head-skeleton {
   height: 56px;
-}
-
-@media (max-width: 1023px) {
-  .box {
-    height: var(--pg-picture-h-phone);
-  }
 }

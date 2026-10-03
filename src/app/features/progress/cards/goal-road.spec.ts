@@ -127,13 +127,21 @@ describe('the road geometry', () => {
     expect(shown.length).toBeLessThan(wide.marks.filter((mark) => mark.date).length);
   });
 
-  it('keeps kilo labels apart and clear of the target label, and thins ticks on a long road', () => {
-    const g = roadGeometry(lossRoad(), 300);
-    const labelled = g.marks.filter((mark) => mark.label);
-    labelled.slice(1).forEach((mark, index) => expect(mark.x - labelled[index].x).toBeGreaterThanOrEqual(30));
-    labelled.forEach((mark) => expect(g.x1 - mark.x).toBeGreaterThanOrEqual(62));
+  it('never drops a whole-kilo number, and lifts the target label when a number sits next to it', () => {
+    const narrow = roadGeometry(lossRoad(), 300);
+    expect(narrow.marks.filter((mark) => mark.kg !== 68).every((mark) => mark.label === String(mark.kg))).toBeTrue();
+    expect(narrow.marks.find((mark) => mark.kg === 69)?.label).toBe('69');
+    expect(narrow.marks.find((mark) => mark.kg === 68)?.label).toBeNull();
+    expect(narrow.raiseTarget).toBeTrue();
+    const farApart = lossRoad({ startKg: 71, ticks: [{ kg: 71, crossedOn: null, projectedOn: null }, { kg: 68, crossedOn: null, projectedOn: null }] });
+    expect(roadGeometry(farApart, 700).raiseTarget).toBeFalse();
+  });
+
+  it('thins ticks, not numbers, on a long road', () => {
     const long = lossRoad({ startKg: 130, targetKg: 70, ticks: wholeKilos(130, 70).map((kg) => ({ kg, crossedOn: null, projectedOn: null })) });
-    expect(roadGeometry(long, 500).marks.length).toBeLessThan(61);
+    const { marks } = roadGeometry(long, 500);
+    expect(marks.length).toBeLessThan(61);
+    marks.slice(1).forEach((mark, index) => expect(mark.x - marks[index].x).toBeGreaterThanOrEqual(24));
   });
 
   it('draws the dashed line green, slate after the date and not at all when stalled or reached', () => {

@@ -4,7 +4,7 @@
 
 .shell {
   width: 100%;
-  max-width: 1240px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 
@@ -77,11 +77,12 @@
 }
 
 .contents-row {
+  position: sticky;
+  top: 56px;
+  z-index: 5;
   margin: -14px 0;
-}
-
-.contents-row.hidden-by-rail {
-  visibility: hidden;
+  padding: 12px 0;
+  background: var(--bg);
 }
 
 .section {
@@ -103,8 +104,10 @@
   display: none;
 }
 
-@media (min-width: 1024px) {
+/* The fixed rail needs room beside a 1120 px column; below 1440 px the sticky row stays. */
+@media (min-width: 1440px) {
   .shell {
+    max-width: 1240px;
     display: grid;
     grid-template-columns: 104px minmax(0, 1fr);
     column-gap: 16px;
@@ -123,20 +126,15 @@
     position: sticky;
     top: 96px;
   }
-}
 
-@media (max-width: 1023px) {
   .contents-row {
-    position: sticky;
-    top: 56px;
-    z-index: 5;
-    margin: -14px 0;
-    padding: 12px 0;
-    background: var(--bg, var(--surface-sunken));
+    position: static;
+    padding: 0;
+    background: none;
   }
 
   .contents-row.hidden-by-rail {
-    visibility: visible;
+    visibility: hidden;
   }
 }
 

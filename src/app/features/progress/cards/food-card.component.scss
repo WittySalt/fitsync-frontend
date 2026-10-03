@@ -14,21 +14,26 @@
   color: var(--text-secondary);
 }
 
+.picture {
+  container-type: inline-size;
+}
+
+/* Under 600 px the petals go under the bars, centred. */
 .pair {
   display: flex;
-  align-items: center;
-  gap: 32px;
-  min-height: var(--pg-picture-h);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
 }
 
 .bars {
-  flex: 1 1 422px;
-  min-width: 0;
+  min-width: 320px;
+  height: var(--pic-h);
 }
 
 .petals {
-  flex: none;
-  width: 200px;
+  align-self: center;
+  width: 160px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -36,7 +41,23 @@
 }
 
 .petal-pic {
-  width: 200px;
+  width: 160px;
+}
+
+@container (min-width: 600px) {
+  .pair {
+    flex-direction: row;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .bars {
+    flex: 1 1 320px;
+  }
+
+  .petals {
+    flex: none;
+  }
 }
 
 .petal-caption {
@@ -60,20 +81,5 @@
 }
 
 .box.skeleton {
-  height: var(--pg-picture-h);
-}
-
-@media (max-width: 1279px) {
-  .pair {
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .bars {
-    flex-basis: 100%;
-  }
-
-  .petals {
-    margin: 0 auto;
-  }
+  height: var(--pic-h);
 }

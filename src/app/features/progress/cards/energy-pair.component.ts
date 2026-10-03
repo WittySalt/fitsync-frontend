@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { formatNumber } from '../../../shared/progress/progress-format';
 import { BarSegment, energyBars } from '../energy/energy-figures';
 import { EnergyWeek } from '../energy/energy.models';
-import { hostWidth } from './host-width';
+import { hostSize } from './host-width';
 
 interface DrawnSegment {
   key: string;
@@ -41,7 +41,8 @@ export function gapText(eaten: number, used: number): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (view(); as v) {
-      <svg [attr.width]="width()" height="240" [attr.viewBox]="'0 0 ' + width() + ' 240'" role="img" [attr.aria-label]="v.label">
+      <svg [attr.width]="width()" [attr.height]="height()" [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="v.label">
+        <g [attr.transform]="'translate(0 ' + shift() + ')'">
         <text class="t12" x="0" y="64">Eaten a day <tspan class="ink">{{ v.eatenTotal }} kcal</tspan></text>
         @for (seg of v.eaten; track seg.key) {
           <rect [class]="'seg p-' + seg.key" [attr.x]="seg.x" y="74" [attr.width]="seg.width" height="32" rx="4"></rect>
@@ -57,11 +58,12 @@ export function gapText(eaten: number, used: number): string {
           }
         }
         <text class="t12" text-anchor="end" [attr.x]="width()" y="200">{{ v.gap }}</text>
+        </g>
       </svg>
     }
   `,
   styles: `
-    :host { display: block; width: 100%; }
+    :host { display: block; width: 100%; height: 100%; }
     svg { display: block; }
     text { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
     .t12 { font-size: var(--pg-chart); fill: var(--text-secondary); }
@@ -81,7 +83,11 @@ export function gapText(eaten: number, used: number): string {
 export class EnergyPairComponent {
   readonly week = input.required<EnergyWeek>();
 
-  protected readonly width = hostWidth(422);
+  private readonly size = hostSize(422, 240);
+  protected readonly width = this.size.width;
+  protected readonly height = this.size.height;
+  /** The drawing was laid out for 240 px; in a shorter box it moves up by half the difference. */
+  protected readonly shift = computed(() => Math.min(0, Math.round((this.height() - 240) / 2)));
   protected readonly view = computed(() => {
     const bars = energyBars(this.week());
     if (!bars) {

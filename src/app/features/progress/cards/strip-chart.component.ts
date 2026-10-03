@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-import { ROAD_HEIGHT, stripGeometry } from './goal-road';
-import { hostWidth } from './host-width';
+import { stripGeometry } from './goal-road';
+import { hostSize } from './host-width';
 
 export interface StripItem {
   date: string;
@@ -13,7 +13,7 @@ export interface StripItem {
   selector: 'app-strip-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <svg [attr.width]="width()" [attr.height]="height" [attr.viewBox]="'0 0 ' + width() + ' ' + height" role="img" [attr.aria-label]="label()">
+    <svg [attr.width]="width()" [attr.height]="height()" [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="label()">
       @if (g(); as s) {
         <g [attr.transform]="'translate(0 ' + top() + ')'">
           @for (cell of s.cells; track cell.date) {
@@ -30,7 +30,7 @@ export interface StripItem {
     </svg>
   `,
   styles: `
-    :host { display: block; width: 100%; }
+    :host { display: block; width: 100%; height: 100%; }
     svg { display: block; overflow: visible; }
     .dot.MET { fill: var(--accent); }
     .dot.MISSED { fill: none; stroke: var(--border-strong); stroke-width: 2; }
@@ -48,13 +48,14 @@ export class StripChartComponent {
   readonly share = input('');
   readonly label = input('');
 
-  protected readonly width = hostWidth(560);
-  protected readonly height = ROAD_HEIGHT;
+  private readonly size = hostSize(560, 240);
+  protected readonly width = this.size.width;
+  protected readonly height = this.size.height;
   protected readonly g = computed(() => stripGeometry([...this.items()], this.width()));
   protected readonly bullX = computed(() => this.width() - 40);
   /** The strip is centred in the 240 px box: its rows and the date line under them. */
   protected readonly top = computed(() => {
     const s = this.g();
-    return Math.max(8, Math.round((ROAD_HEIGHT - (s.rows * s.pitch + 20)) / 2));
+    return Math.max(8, Math.round((this.height() - (s.rows * s.pitch + 20)) / 2));
   });
 }

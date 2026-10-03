@@ -259,7 +259,7 @@ describe('ProgressPage', () => {
       await open();
       const host = el.querySelector('app-road-chart') as HTMLElement;
       const svg = host.querySelector('svg')!;
-      expect(svg.getAttribute('viewBox')).toBe(`0 0 ${svg.getAttribute('width')} 240`);
+      expect(svg.getAttribute('viewBox')).toBe(`0 0 ${svg.getAttribute('width')} ${svg.getAttribute('height')}`);
       expect(svg.getAttribute('preserveAspectRatio')).toBeNull();
     });
 

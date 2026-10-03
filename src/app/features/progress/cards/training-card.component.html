@@ -40,15 +40,15 @@
             @if (hasMuscles()) {
               <div class="figure-block">
                 <div class="figure-pic" aria-hidden="true">
-                  <app-muscle-figure [setsByGroup]="sets()" [interactive]="false" [height]="150" />
+                  <app-fit-figure [sets]="sets()" />
                 </div>
                 <ul class="heat-key">
                   @for (entry of key; track entry.level) {
                     <li><i [class]="'swatch ' + entry.level"></i>{{ entry.label }}</li>
                   }
                 </ul>
+                <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
               </div>
-              <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
             }
           </div>
         }

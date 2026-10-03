@@ -400,18 +400,21 @@ export function ruleSentence(goal: GoalProgress | null): string {
 
 // ---------------------------------------------------------------- the picture
 
-export const ROAD_HEIGHT = 240;
+/** The road is drawn at its own height and the caption follows it; the other pictures fill their box. */
+export const ROAD_HEIGHT = 126;
+export const PICTURE_HEIGHT = 240;
 const END_PAD = 28;
 const START_PAD = 12;
-const MIN_KG_GAP = 30;
+/** Whole-kilo numbers are never dropped; ticks are thinned instead so their numbers keep this much room. */
+const MIN_KG_GAP = 24;
 const MIN_DATE_GAP = 56;
-/** Kilo labels keep this far from the target label above the bullseye. */
+/** A kilo label this close to the bullseye would touch the target label, which is then raised. */
 const TARGET_CLEAR = 62;
 
 export interface RoadMark {
   kg: number;
   x: number;
-  /** The kilo label above the tick, or null where it would touch the one before. */
+  /** The whole-kilo number above the tick; null only for the target tick, which the target label names. */
   label: string | null;
   /** The date under the tick: crossing for passed ticks, projection for the rest. */
   date: string | null;
@@ -428,6 +431,8 @@ export interface RoadGeometry {
   dashed: 'green' | 'slate' | null;
   reached: boolean;
   percent: string;
+  /** True when the last kilo number sits so near the bullseye that the target label is lifted above it. */
+  raiseTarget: boolean;
 }
 
 function tickDate(tick: RoadTick, crossed: boolean): string | null {
@@ -445,10 +450,9 @@ export function roadGeometry(road: GoalRoad, width: number): RoadGeometry {
   const kgAt = (kg: number): number => at(total === 0 ? 0 : Math.abs(kg - road.startKg) / total);
   const todayX = at(road.fractionWeight);
 
-  // Ticks closer than 8 px are thinned to every second, fifth or tenth kilo.
+  // Ticks closer than their numbers need are thinned to every second, fifth or tenth kilo.
   const perKilo = road.ticks.length > 1 ? span / (road.ticks.length - 1) : span;
-  const step = [1, 2, 5, 10, 20, 50].find((candidate) => perKilo * candidate >= 8) ?? 50;
-  let lastKg = -Infinity;
+  const step = [1, 2, 5, 10, 20, 50].find((candidate) => perKilo * candidate >= MIN_KG_GAP) ?? 50;
   let lastDate = -Infinity;
   const marks: RoadMark[] = [];
   road.ticks.forEach((tick, index) => {
@@ -458,10 +462,7 @@ export function roadGeometry(road: GoalRoad, width: number): RoadGeometry {
     const x = kgAt(tick.kg);
     const crossed = tick.crossedOn !== null || x <= todayX;
     const isTarget = tick.kg === road.targetKg;
-    const label = !isTarget && x - lastKg >= MIN_KG_GAP && x1 - x >= TARGET_CLEAR ? formatNumber(tick.kg) : null;
-    if (label !== null) {
-      lastKg = x;
-    }
+    const label = isTarget ? null : formatNumber(tick.kg);
     let date = tickDate(tick, crossed);
     const touchesToday = Math.abs(x - todayX) < MIN_DATE_GAP;
     if (date !== null && (x - lastDate < MIN_DATE_GAP || touchesToday)) {
@@ -483,7 +484,8 @@ export function roadGeometry(road: GoalRoad, width: number): RoadGeometry {
     today: { anchor: todayX < 24 ? 'start' : todayX > width - 24 ? 'end' : 'middle' },
     dashed: reached || road.state === 'STALLED' ? null : road.state === 'DATE_PASSED' ? 'slate' : 'green',
     reached,
-    percent: `${Math.round(road.fractionWeight * 100)}% of the way`
+    percent: `${Math.round(road.fractionWeight * 100)}% of the way`,
+    raiseTarget: marks.some((mark) => mark.label !== null && x1 - mark.x < TARGET_CLEAR)
   };
 }
 
@@ -502,15 +504,15 @@ export interface KeepGeometry {
 }
 
 const KEEP_TOP = 56;
-const KEEP_BOTTOM = 190;
 
-export function keepGeometry(road: GoalRoad, width: number): KeepGeometry {
+export function keepGeometry(road: GoalRoad, width: number, height = PICTURE_HEIGHT): KeepGeometry {
+  const bottom = height - 50;
   const weeks = road.keep?.weeks ?? [];
   const band = road.keep?.bandKg ?? 1;
   const values = weeks.map((week) => week.avgKg);
   const lo = Math.min(road.targetKg - band, ...values) - 0.3;
   const hi = Math.max(road.targetKg + band, ...values) + 0.3;
-  const y = (kg: number): number => KEEP_BOTTOM - ((kg - lo) / (hi - lo)) * (KEEP_BOTTOM - KEEP_TOP);
+  const y = (kg: number): number => bottom - ((kg - lo) / (hi - lo)) * (bottom - KEEP_TOP);
   const x0 = START_PAD;
   const x1 = Math.max(x0 + 40, width - END_PAD);
   const lastX = Math.max(x0, x1 - 44);

@@ -62,19 +62,24 @@
   background: var(--kind-mobility);
 }
 
+.picture {
+  container-type: inline-size;
+}
+
+/* Under 480 px the strip stacks above the figure; from 480 they sit side by side at half width each;
+   from 640 the strip keeps 300 px and the figure takes what is left. */
 .pair {
   display: flex;
-  align-items: flex-start;
-  gap: 32px;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .pair > app-log-strip {
-  flex: 0 1 300px;
+  max-width: none;
 }
 
 .figure-block {
-  flex: none;
-  width: 170px;
+  min-width: 0;
 }
 
 .figure-pic {
@@ -90,6 +95,33 @@
   gap: 4px 8px;
   font-size: var(--pg-chart);
   color: var(--text-secondary);
+}
+
+@container (min-width: 480px) {
+  .pair {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .pair > app-log-strip,
+  .figure-block {
+    flex: 1 1 0;
+  }
+}
+
+@container (min-width: 640px) {
+  .pair {
+    gap: 32px;
+  }
+
+  .pair > app-log-strip {
+    flex: 0 0 300px;
+  }
+
+  .figure-block {
+    min-width: 120px;
+  }
 }
 
 .swatch {
@@ -117,8 +149,7 @@
 }
 
 .figure-caption {
-  flex: 1 1 120px;
-  margin: 0;
+  margin: 8px 0 0;
   font-size: var(--pg-chart);
   color: var(--text-secondary);
 }
@@ -138,16 +169,5 @@
 }
 
 .box.skeleton {
-  height: var(--pg-picture-h);
-}
-
-@media (max-width: 767px) {
-  .pair {
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .figure-caption {
-    flex-basis: 100%;
-  }
+  height: var(--pic-h);
 }
