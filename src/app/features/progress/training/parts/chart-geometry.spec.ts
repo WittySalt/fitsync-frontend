@@ -23,13 +23,44 @@ describe('training chart geometry', () => {
   it('marks this week as so far and stacks the kinds', () => {
     const load = trainingFixture().load;
     const chart = loadChart(load, '2026-10-01')!;
-    expect(chart.soFar?.text).toBe('this week so far');
+    expect(chart.hasCurrent).toBeTrue();
     expect(chart.columns[2].current).toBeTrue();
     expect(chart.columns[0].bars.map((bar) => bar.kind)).toEqual(['STRENGTH', 'CARDIO', 'SPORT']);
     expect(chart.fitness.split(' ').length).toBe(3);
     expect(loadChart({ weeks: [], fitness: [], fatigue: [], form: null }, '2026-10-01')).toBeNull();
     expect(formPosition('FRESH', 1070, 600)).toBeGreaterThan(50);
     expect(formPosition('TIRED', null, null)).toBe(15);
+  });
+});
+
+describe('training chart axes', () => {
+  it('draws at the width it is given, so text is never scaled', () => {
+    const load = trainingFixture().load;
+    expect(loadChart(load, '2026-10-01', 420)!.width).toBe(420);
+    const lift = trainingFixture().lifts[0];
+    const narrow = seriesChart(lift.e1rm, { width: 260 })!;
+    expect(narrow.width).toBe(260);
+    expect(narrow.x1).toBeLessThanOrEqual(260);
+  });
+
+  it('starts the load at the first week with load and names weeks that do not touch', () => {
+    const load = trainingFixture().load;
+    const empty = { ...load.weeks[0], total: 0, byKind: { STRENGTH: 0, CARDIO: 0, SPORT: 0, MOBILITY: 0 } };
+    const chart = loadChart({ ...load, weeks: [empty, ...load.weeks] }, '2026-10-01')!;
+    expect(chart.columns.length).toBe(load.weeks.length);
+    for (let k = 1; k < chart.labels.length; k += 1) {
+      expect(chart.labels[k].x - chart.labels[k - 1].x).toBeGreaterThan(30);
+    }
+  });
+
+  it('always writes the first and last date of a series, and drops a date between that would touch them', () => {
+    const lift = trainingFixture().lifts[0];
+    const chart = seriesChart(lift.e1rm, { width: 200 })!;
+    expect(chart.dates[0].anchor).toBe('start');
+    expect(chart.dates[chart.dates.length - 1].anchor).toBe('end');
+    for (let k = 1; k < chart.dates.length; k += 1) {
+      expect(chart.dates[k].x).toBeGreaterThan(chart.dates[k - 1].x);
+    }
   });
 });
 

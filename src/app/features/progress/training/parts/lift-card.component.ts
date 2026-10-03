@@ -27,7 +27,7 @@ import { SeriesChartComponent } from './series-chart.component';
           <span>est. best single</span>
         </div>
       }
-      <app-series-chart [points]="lift().e1rm" [bestBefore]="lift().bestBefore" [compact]="compact()" [label]="lift().name + ' estimated best single, ' + (now() ?? '') + ' kg'" />
+      <app-series-chart [points]="lift().e1rm" [bestBefore]="lift().bestBefore" [label]="lift().name + ' estimated best single, ' + (now() ?? '') + ' kg'" />
       <span class="foot">{{ foot() }}</span>
     </a>
   `,
@@ -36,7 +36,6 @@ import { SeriesChartComponent } from './series-chart.component';
 })
 export class LiftCardComponent {
   readonly lift = input.required<Lift>();
-  readonly compact = input(false);
 
   protected readonly link = computed(() => ['/progress/training/exercises', this.lift().exerciseId || this.lift().name]);
   protected readonly now = computed(() => {

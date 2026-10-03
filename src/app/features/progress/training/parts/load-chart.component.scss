@@ -9,7 +9,7 @@
 
 svg {
   display: block;
-  width: 100%;
+  max-width: 100%;
   height: auto;
   overflow: visible;
 
@@ -37,7 +37,7 @@ svg {
 
 .fitness {
   stroke: var(--record);
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 
 .fatigue {

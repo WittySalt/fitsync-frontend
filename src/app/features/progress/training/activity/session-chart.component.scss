@@ -11,7 +11,7 @@
 
 svg {
   display: block;
-  width: 100%;
+  max-width: 100%;
   height: auto;
   overflow: visible;
 
@@ -29,7 +29,7 @@ svg {
 .effort {
   fill: none;
   stroke: var(--kind-sport);
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linejoin: round;
 }
 
@@ -44,7 +44,7 @@ svg {
 }
 
 .value {
-  font-size: 11px;
+  font-size: var(--pg-chart);
   font-weight: var(--fw-bold);
   fill: var(--kind-sport);
 }
