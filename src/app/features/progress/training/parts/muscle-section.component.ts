@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, input, signal } from '@an
 import { CoachCardContext } from '../../../../core/coach/coach.models';
 import { MuscleFigureComponent } from '../../../../shared/charts/muscle-figure/muscle-figure.component';
 import { HEAT_KEY, MUSCLE_GROUPS, formatSets, groupLabel, heatLevel } from '../../../../shared/charts/muscle-figure/muscle-figure';
-import { SectionCardComponent } from '../../../../shared/progress';
+import { DetailSectionComponent } from '../../../../shared/progress';
 import { MuscleSets } from '../training.models';
 import { MuscleGroupDetailComponent } from './muscle-group-detail.component';
 
@@ -17,7 +17,7 @@ const AXIS_TOP = 25;
  */
 @Component({
   selector: 'app-muscle-section',
-  imports: [MuscleFigureComponent, MuscleGroupDetailComponent, SectionCardComponent],
+  imports: [DetailSectionComponent, MuscleFigureComponent, MuscleGroupDetailComponent],
   templateUrl: './muscle-section.component.html',
   styleUrl: './muscle-section.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -49,6 +49,20 @@ export class MuscleSectionComponent {
     const range = this.muscles().usualRange;
     return { left: (range.low / AXIS_TOP) * 100, width: ((range.high - range.low) / AXIS_TOP) * 100 };
   });
+
+  /** The one sentence under the name: the group that got the most hard sets and the one that got the least. */
+  protected readonly sentence = computed(() => {
+    const rows = this.rows();
+    const most = rows[0];
+    const least = rows[rows.length - 1];
+    if (!this.hasData() || !most || !least || most.group === least.group) {
+      return 'Hard sets a week in each muscle group, once strength sets are logged.';
+    }
+    return `${most.label} got the most, ${most.text} a week, and ${least.label.toLowerCase()} the least at ${least.text}.`;
+  });
+  protected readonly ask = computed(
+    () => `Which muscle groups am I under-training? The usual range is ${this.muscles().usualRange.low} to ${this.muscles().usualRange.high} hard sets a week. ${COUNT_NOTE}`
+  );
 
   protected readonly pickedSets = computed(() => this.muscles().groups.find((entry) => entry.group === this.selected()) ?? null);
 

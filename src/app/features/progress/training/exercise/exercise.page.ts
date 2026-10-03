@@ -1,20 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
 import { groupLabel } from '../../../../shared/charts/muscle-figure/muscle-figure';
-import { SectionCardComponent, SummaryLinesComponent } from '../../../../shared/progress';
+import {
+  ContentsRailComponent,
+  DetailHeadComponent,
+  DetailLayoutComponent,
+  DetailSectionComponent,
+  HeroStat,
+  InkSwitchComponent,
+  JumpItem,
+  SummaryLinesComponent,
+  periodEyebrow
+} from '../../../../shared/progress';
 import { StatePanelComponent } from '../../../../shared/state-panel.component';
 import { AskChipComponent } from '../parts/ask-chip.component';
-import { KindTileComponent } from '../parts/kind-tile.component';
 import { SeriesChartComponent } from '../parts/series-chart.component';
-import { SegmentedComponent } from '../parts/segmented.component';
 import { TrainingApiService } from '../training-api.service';
 import { grouped, kg, plural, shortDate, signedKg } from '../training-format';
-import { useLoad, usePeriod } from '../training-load';
-import { PERIODS, PeriodCode } from '../training-period';
+import { shownData, useLoad, usePeriod } from '../training-load';
+import { PERIODS } from '../training-period';
 import { ExerciseProgress, ExerciseSeriesKey } from '../training.models';
 import { ExerciseHistoryComponent } from './exercise-history.component';
 
@@ -27,7 +35,11 @@ export const SERIES_TABS: { key: ExerciseSeriesKey; label: string; unit: string 
   { key: 'reps', label: 'Reps', unit: 'reps' }
 ];
 
-const PERIOD_TABS: Record<PeriodCode, string> = { '4w': '1M', '3m': '3M', '1y': '1Y' };
+export const EXERCISE_SECTIONS: readonly JumpItem[] = [
+  { id: 'summary', label: 'What the numbers say' },
+  { id: 'series', label: 'Progress' },
+  { id: 'history', label: 'Every session' }
+];
 
 export const EXERCISE_QUESTIONS = ['When should I add weight?', 'How does my form look in the numbers?'];
 
@@ -47,30 +59,54 @@ export function exerciseSubtitle(data: ExerciseProgress): string {
   return parts.filter(Boolean).join(' · ');
 }
 
-export function exerciseTiles(data: ExerciseProgress): { label: string; value: string; note: string }[] {
+export function exerciseTiles(data: ExerciseProgress): HeroStat[] {
   const tiles = data.tiles;
   return [
     {
       label: 'Estimated best single',
       value: tiles.e1rm ? `${kg(tiles.e1rm.value)} kg` : '–',
-      note: tiles.e1rm?.changeKg != null ? `${signedKg(tiles.e1rm.changeKg)}${tiles.e1rm.since ? ` since ${shortDate(tiles.e1rm.since)}` : ''}` : ''
+      context: tiles.e1rm?.changeKg != null ? `${signedKg(tiles.e1rm.changeKg)}${tiles.e1rm.since ? ` since ${shortDate(tiles.e1rm.since)}` : ''}` : ''
     },
-    { label: 'Heaviest set', value: tiles.heaviestSet ? `${kg(tiles.heaviestSet.weightKg)} kg × ${tiles.heaviestSet.reps}` : '–', note: tiles.heaviestSet ? shortDate(tiles.heaviestSet.date) : '' },
-    { label: 'Best volume', value: tiles.bestVolume ? `${grouped(tiles.bestVolume.kg)} kg` : '–', note: tiles.bestVolume ? 'in one session' : '' },
-    { label: 'Records', value: tiles.records === null ? '–' : String(tiles.records), note: '' }
+    { label: 'Heaviest set', value: tiles.heaviestSet ? `${kg(tiles.heaviestSet.weightKg)} kg × ${tiles.heaviestSet.reps}` : '–', context: tiles.heaviestSet ? shortDate(tiles.heaviestSet.date) : '' },
+    { label: 'Best volume', value: tiles.bestVolume ? `${grouped(tiles.bestVolume.kg)} kg` : '–', context: tiles.bestVolume ? 'in one session' : '' },
+    { label: 'Records', value: tiles.records === null ? '–' : String(tiles.records), context: '' }
   ];
 }
 
-/** One exercise (board 17b): figures, the coach's lines, the series with a switch and every session's sets with records marked. */
+/** The page's answer: stronger with a kilo or more on the best single or a record, down with a kilo or more lost, steady otherwise. */
+export function exerciseVerdict(data: ExerciseProgress): { text: string; tone: 'good' | 'ink' } {
+  const change = data.tiles.e1rm?.changeKg ?? null;
+  if (!data.tiles.e1rm) {
+    return { text: 'Not enough yet.', tone: 'ink' };
+  }
+  if ((change !== null && change >= 1) || (data.tiles.records ?? 0) > 0) {
+    return { text: 'Getting stronger.', tone: 'good' };
+  }
+  return change !== null && change <= -1 ? { text: 'Down a little.', tone: 'ink' } : { text: 'Holding steady.', tone: 'ink' };
+}
+
+/** The sentence under the verdict: the exercise, its muscles, and where its best single stands. */
+export function exerciseSentence(data: ExerciseProgress): string {
+  const now = data.tiles.e1rm;
+  const subtitle = exerciseSubtitle(data);
+  if (!now) {
+    return subtitle ? `${data.name}, ${subtitle}.` : `${data.name}.`;
+  }
+  const moved = now.changeKg !== null && Math.abs(now.changeKg) >= 0.05 ? `, ${signedKg(now.changeKg)}${now.since ? ` since ${shortDate(now.since)}` : ''}` : '';
+  return `${data.name} stands at an estimated best single of ${kg(now.value)} kg${moved}.`;
+}
+
+/** One exercise (board 17b in the system of 20c): figures, the coach's lines, the series with a switch and every session's sets with records marked. */
 @Component({
   selector: 'app-exercise-page',
   imports: [
     AskChipComponent,
+    ContentsRailComponent,
+    DetailHeadComponent,
+    DetailLayoutComponent,
+    DetailSectionComponent,
     ExerciseHistoryComponent,
-    KindTileComponent,
-    RouterLink,
-    SectionCardComponent,
-    SegmentedComponent,
+    InkSwitchComponent,
     SeriesChartComponent,
     StatePanelComponent,
     SummaryLinesComponent
@@ -89,20 +125,29 @@ export class ExercisePage {
 
   protected readonly tabs = SERIES_TABS;
   protected readonly tabOptions = SERIES_TABS.map((tab) => ({ value: tab.key, label: tab.label }));
-  protected readonly periods = PERIODS.map((option) => ({ value: option.code, label: PERIOD_TABS[option.code] }));
+  protected readonly periodOptions = PERIODS.map((option) => ({ value: option.code, label: option.label }));
+  protected readonly sections = EXERCISE_SECTIONS;
   protected readonly questions = EXERCISE_QUESTIONS;
   protected readonly series = signal<ExerciseSeriesKey>('e1rm');
 
-  protected readonly data = computed(() => {
-    const state = this.state();
-    return state.status === 'ready' ? state.data : null;
+  protected readonly data = computed(() => shownData(this.state()));
+  protected readonly eyebrow = computed(() => {
+    const data = this.data();
+    return periodEyebrow(data ? `Training · ${data.name}` : 'Training', this.period.code(), this.period.range().from, this.period.range().to);
   });
+  protected readonly verdict = computed(() => (this.data() ? exerciseVerdict(this.data()!) : { text: '', tone: 'ink' as const }));
+  protected readonly sentence = computed(() => (this.data() ? exerciseSentence(this.data()!) : ''));
   protected readonly subtitle = computed(() => (this.data() ? exerciseSubtitle(this.data()!) : ''));
   protected readonly tiles = computed(() => (this.data() ? exerciseTiles(this.data()!) : []));
   protected readonly tab = computed(() => SERIES_TABS.find((tab) => tab.key === this.series()) ?? SERIES_TABS[0]);
   protected readonly points = computed(() => this.data()?.series[this.series()] ?? []);
+  protected readonly seriesLine = computed(() => {
+    const points = this.points();
+    const best = points.filter((point) => point.isRecord).length;
+    return points.length >= 2 ? `${plural(points.length, 'session')} in this period, ${plural(best, 'record')}, each point the best of its session.` : 'Each point is the best of a session.';
+  });
+  protected readonly historyLine = computed(() => `${plural(this.data()?.history.length ?? 0, 'session')} with sets, newest first.`);
   protected readonly card = computed<CoachCardContext | null>(() => (this.exerciseId() ? { kind: 'EXERCISE', id: this.exerciseId(), ...this.period.range() } : null));
-  protected readonly backQuery = computed(() => (this.period.code() === '4w' ? null : { period: this.period.code() }));
 
   protected pickSeries(value: string): void {
     const tab = SERIES_TABS.find((item) => item.key === value);

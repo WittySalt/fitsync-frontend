@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
-import { SectionCardComponent } from '../../../../shared/progress';
+import { DetailSectionComponent } from '../../../../shared/progress';
 import { RecordEntry } from '../training.models';
 import { grouped, kg, shortDate, signed } from '../training-format';
 
 /** Records: new estimated best singles, newest first, each opening its exercise. */
 @Component({
   selector: 'app-records-section',
-  imports: [RouterLink, SectionCardComponent],
+  imports: [DetailSectionComponent, RouterLink],
   template: `
-    <app-section-card title="Records" sub="new estimated best singles, newest first" [context]="card()">
+    <app-detail-section name="Records" anchor="records" [sentence]="sentence()" [context]="card()" ask="How were my records set? Each one is a new estimated best single, newest first.">
       @if (rows().length) {
         <ul>
           @for (row of rows(); track $index) {
@@ -33,7 +33,7 @@ import { grouped, kg, shortDate, signed } from '../training-format';
       } @else {
         <p class="empty">No new records in this period yet.</p>
       }
-    </app-section-card>
+    </app-detail-section>
   `,
   styleUrl: './records-section.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -41,6 +41,15 @@ import { grouped, kg, shortDate, signed } from '../training-format';
 export class RecordsSectionComponent {
   readonly records = input<readonly RecordEntry[]>([]);
   readonly card = input<CoachCardContext | null>(null);
+
+  protected readonly sentence = computed(() => {
+    const records = this.records();
+    const first = this.rows()[0];
+    if (!records.length || !first) {
+      return 'New estimated best singles, newest first.';
+    }
+    return `${records.length} new ${records.length === 1 ? 'record' : 'records'}, the latest ${first.name} on ${first.date}.`;
+  });
 
   protected readonly rows = computed(() =>
     this.records().map((record) => {

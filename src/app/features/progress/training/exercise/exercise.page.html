@@ -1,69 +1,46 @@
-<main class="page">
-  <a class="back" routerLink="/progress/training" [queryParams]="backQuery()">
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>
-    Training
-  </a>
-
-  @switch (state().status) {
-    @case ('loading') {
-      <div class="skeletons" aria-busy="true" aria-label="Loading the exercise">
-        <div class="skeleton"></div>
-        <div class="skeleton tall"></div>
-      </div>
-    }
-    @case ('error') {
-      <app-state-panel title="Exercise unavailable" message="This exercise could not load. Please retry." actionLabel="Retry" [error]="true" (action)="retry()" />
-    }
-    @default {
-      @if (data(); as exercise) {
-        <div class="title">
-          <app-kind-tile kind="STRENGTH" [size]="52" />
-          <div>
-            <h1>{{ exercise.name }}</h1>
-            <span>{{ subtitle() }}</span>
-          </div>
-        </div>
-
-        <dl class="figures">
-          @for (tile of tiles(); track tile.label) {
-            <div>
-              <dt>{{ tile.label }}</dt>
-              <dd class="value">{{ tile.value }}</dd>
-              <dd class="note">{{ tile.note }}</dd>
-            </div>
-          }
-        </dl>
-
-        @if (card(); as subject) {
-          <section class="coach" aria-label="What the numbers say">
-            @if (exercise.summary.length) {
-              <app-summary-lines [lines]="exercise.summary" />
-            }
-            <div class="asks">
-              @for (question of questions; track question) {
-                <app-ask-chip [card]="subject" [question]="question" />
-              }
-            </div>
-          </section>
-        }
-
-        <app-section-card [title]="tab().label" sub="every session, its best" [context]="card()">
-          <div class="switches">
-            <app-segmented label="Series" [options]="tabOptions" [value]="series()" (picked)="pickSeries($event)" />
-            <app-segmented label="Period" [options]="periods" [value]="period.code()" (picked)="pickPeriod($event)" />
-          </div>
-          @if (points().length >= 2) {
-            <app-series-chart [points]="points()" [unit]="tab().unit" [height]="200" [width]="640" [label]="exercise.name + ', ' + tab().label" />
-            <div class="key" aria-hidden="true"><span><i class="record"></i>A new personal record</span><span><i class="session"></i>A session</span></div>
-          } @else {
-            <p class="quiet">Not enough data yet. The line draws after two sessions in this period.</p>
-          }
-        </app-section-card>
-
-        <app-section-card title="Every session" sub="sets as logged">
-          <app-exercise-history [history]="exercise.history" />
-        </app-section-card>
-      }
-    }
+<app-detail-layout>
+  @if (data()) {
+    <app-detail-head detailHead [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="tiles()" fallback="/progress/training" backLabel="Training">
+      <app-ink-switch headPeriod label="Period" [options]="periodOptions" [value]="period.code()" (picked)="pickPeriod($event)" />
+    </app-detail-head>
   }
-</main>
+  @if (data()) {
+    <app-contents-rail detailRail [items]="sections" label="Sections of this exercise" />
+  }
+
+  @if (data(); as exercise) {
+    <app-detail-section name="What the numbers say" anchor="summary" [sentence]="subtitle()">
+      @if (exercise.summary.length) {
+        <app-summary-lines [lines]="exercise.summary" />
+      }
+      @if (card(); as subject) {
+        <div class="asks">
+          @for (question of questions; track question) {
+            <app-ask-chip [card]="subject" [question]="question" />
+          }
+        </div>
+      }
+    </app-detail-section>
+
+    <app-detail-section [name]="tab().label" anchor="series" [sentence]="seriesLine()" [context]="card()" ask="How should I read this line? Each point is the best of a session, and the dark dots are new personal records.">
+      <app-ink-switch sectionControl label="Series" [options]="tabOptions" [value]="series()" (picked)="pickSeries($event)" />
+      @if (points().length >= 2) {
+        <app-series-chart [points]="points()" [unit]="tab().unit" [height]="220" [label]="exercise.name + ', ' + tab().label" />
+        <div class="key" aria-hidden="true"><span><i class="record"></i>A new personal record</span><span><i class="session"></i>A session</span></div>
+      } @else {
+        <p class="quiet">Not enough data yet. The line draws after two sessions in this period.</p>
+      }
+    </app-detail-section>
+
+    <app-detail-section name="Every session" anchor="history" [sentence]="historyLine()">
+      <app-exercise-history [history]="exercise.history" />
+    </app-detail-section>
+  } @else if (state().status === 'error') {
+    <app-state-panel title="Exercise unavailable" message="This exercise could not load. Please retry." actionLabel="Retry" [error]="true" (action)="retry()" />
+  } @else {
+    <div class="skeletons" aria-busy="true" aria-label="Loading the exercise">
+      <div class="skeleton"></div>
+      <div class="skeleton tall"></div>
+    </div>
+  }
+</app-detail-layout>
