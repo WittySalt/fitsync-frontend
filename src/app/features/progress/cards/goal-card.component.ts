@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { GoalProgress } from '../progress-api.models';
+import { goalCoachLine } from './card-lines';
 import { goalCardView } from './goal-card-view';
 import { KeepChartComponent } from './keep-chart.component';
 import { ProgressCardComponent } from './progress-card.component';
@@ -33,6 +34,10 @@ export class GoalCardComponent {
   readonly retry = output<void>();
 
   protected readonly context = computed<ProgressCardContext>(() => ({ kind: 'GOAL', ...this.askPeriod() }));
+  protected readonly coachLine = computed(() => {
+    const goal = this.goal();
+    return goal ? goalCoachLine(goal, this.today()) : '';
+  });
   protected readonly view = computed(() => {
     const goal = this.goal();
     return goal ? goalCardView(goal, this.today()) : null;

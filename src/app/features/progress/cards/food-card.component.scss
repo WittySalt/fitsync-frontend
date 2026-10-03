@@ -18,7 +18,7 @@
   container-type: inline-size;
 }
 
-/* Under 600 px the petals go under the bars, centred. */
+/* Under 640 px the petals go under the bars, centred. */
 .pair {
   display: flex;
   flex-direction: column;
@@ -28,7 +28,6 @@
 
 .bars {
   min-width: 320px;
-  height: var(--pic-h);
 }
 
 .petals {
@@ -44,7 +43,7 @@
   width: 160px;
 }
 
-@container (min-width: 600px) {
+@container (min-width: 640px) {
   .pair {
     flex-direction: row;
     align-items: center;
@@ -81,5 +80,5 @@
 }
 
 .box.skeleton {
-  height: var(--pic-h);
+  height: 160px;
 }

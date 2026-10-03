@@ -8,6 +8,8 @@ import { Observable, of, throwError } from 'rxjs';
 import { CoachApiService } from '../../core/coach/coach-api.service';
 import { CoachReading } from '../../core/coach/coach.models';
 import { CoachStore } from '../../core/coach/coach.store';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { WeeklyTrainingInsight } from '../../core/fitsync.models';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 import { NutrientsService } from '../nutrition/nutrients/nutrients.service';
 import { lossRoad } from './cards/goal-road.spec';
@@ -58,6 +60,22 @@ const REVIEWS = mapReviews([
   { weekStart: '2026-09-14', weekEnd: '2026-09-20', status: 'NONE' }
 ]);
 
+const INSIGHT = {
+  timezone: 'Asia/Singapore',
+  referenceDate: TODAY,
+  weekStart: '2026-09-28',
+  weekEnd: '2026-10-04',
+  completedSessions: 2,
+  totalMinutes: 90,
+  previousWeekCompletedSessions: 3,
+  previousWeekTotalMinutes: 120,
+  muscleGroups: [],
+  volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+  days: null,
+  today: null,
+  nextTraining: null
+} as WeeklyTrainingInsight;
+
 class FakeCoachStore {
   availableReading = signal<CoachReading | null>(null);
   offerReading = jasmine.createSpy('offerReading');
@@ -104,6 +122,7 @@ describe('ProgressPage', () => {
         { provide: NutrientsService, useValue: { getAll: () => throwError(() => new Error('off')) } },
         { provide: CoachStore, useValue: store },
         { provide: CoachApiService, useValue: { getReading } },
+        { provide: FitSyncDataService, useValue: { getWeeklyTrainingInsight: () => of(INSIGHT) } },
         { provide: TrainingApiService, useValue: { getTraining: () => of(trainingFixture()) } },
         { provide: UserTimezoneService, useValue: timezoneStub }
       ]
@@ -219,18 +238,14 @@ describe('ProgressPage', () => {
     expect(TestBed.inject(Router).url).not.toContain('section');
   });
 
-  it('puts the coach lines between the cards and omits one when no fact fits', async () => {
+  it('has one coach line inside each card and none between the cards', async () => {
     await open();
-    expect(Array.from(el.querySelectorAll('app-coach-line')).map((line) => text(line))).toEqual([
-      'Four sessions in the last 4 weeks, one more than before.',
-      'Calories stayed under what you use.'
-    ]);
-  });
-
-  it('leaves the gap when no fact cites Training or Food', async () => {
-    getReading.and.callFake(() => of({ ...reading, facts: [reading.facts[0]] }));
-    await open();
-    expect(el.querySelectorAll('app-coach-line').length).toBe(0);
+    expect(el.querySelectorAll('.progress-page > app-coach-line').length).toBe(0);
+    const lines = Array.from(el.querySelectorAll('.card .coach p')).map((line) => text(line));
+    expect(lines.length).toBe(3);
+    expect(lines[0]).toBe('4 kilos down since July. The next one falls around 8 Oct at this pace.');
+    expect(lines[1]).toBe('Two sessions this week, 1 h 30 min in all. Last week had three sessions and 2 h.');
+    expect(lines[2]).toBe('Protein is 4 g a day under the target this week. Dinner carries most of it.');
   });
 
   it('ends with the foot line and no reviews section', async () => {
@@ -276,8 +291,8 @@ describe('ProgressPage', () => {
       await open();
       const url = TestBed.inject(Router).url;
       el.querySelector<HTMLButtonElement>('app-goal-card .ask')!.click();
-      expect(text(el.querySelector('app-goal-card .ask'))).toBe('Ask about your goal');
-      expect(store.askAboutCard).toHaveBeenCalledOnceWith({ kind: 'GOAL', from: '2026-09-06', to: TODAY });
+      expect(text(el.querySelector('app-goal-card .ask'))).toBe('Ask');
+      expect(store.askAboutCard).toHaveBeenCalledOnceWith({ kind: 'GOAL', from: '2026-09-06', to: TODAY }, 'Ask about your goal');
       await fixture.whenStable();
       expect(TestBed.inject(Router).url).toBe(url);
     });
@@ -309,7 +324,7 @@ describe('ProgressPage', () => {
     it('asks the coach about training', async () => {
       await open();
       el.querySelector<HTMLButtonElement>('app-training-card .ask')!.click();
-      expect(store.askAboutCard).toHaveBeenCalledOnceWith({ kind: 'TRAINING', from: '2026-09-06', to: TODAY });
+      expect(store.askAboutCard).toHaveBeenCalledOnceWith({ kind: 'TRAINING', from: '2026-09-06', to: TODAY }, 'Ask about your training');
     });
   });
 
@@ -331,7 +346,7 @@ describe('ProgressPage', () => {
     it('asks the coach about food', async () => {
       await open();
       el.querySelector<HTMLButtonElement>('app-food-card .ask')!.click();
-      expect(store.askAboutCard).toHaveBeenCalledOnceWith({ kind: 'FOOD', from: '2026-09-04', to: TODAY });
+      expect(store.askAboutCard).toHaveBeenCalledOnceWith({ kind: 'FOOD', from: '2026-09-04', to: TODAY }, 'Ask about your food');
     });
 
     it('offers a retry after an error', async () => {

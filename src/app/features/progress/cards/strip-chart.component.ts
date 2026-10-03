@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { stripGeometry } from './goal-road';
-import { hostSize } from './host-width';
+import { hostWidth } from './host-width';
 
 export interface StripItem {
   date: string;
@@ -30,7 +30,7 @@ export interface StripItem {
     </svg>
   `,
   styles: `
-    :host { display: block; width: 100%; height: 100%; }
+    :host { display: block; width: 100%; }
     svg { display: block; overflow: visible; }
     .dot.MET { fill: var(--accent); }
     .dot.MISSED { fill: none; stroke: var(--border-strong); stroke-width: 2; }
@@ -48,9 +48,12 @@ export class StripChartComponent {
   readonly share = input('');
   readonly label = input('');
 
-  private readonly size = hostSize(560, 240);
-  protected readonly width = this.size.width;
-  protected readonly height = this.size.height;
+  protected readonly width = hostWidth(560);
+  /** The rows, the date line under them and room for the bullseye's two labels; never more than four rows. */
+  protected readonly height = computed(() => {
+    const s = this.g();
+    return Math.max(96, s.rows * s.pitch + 28);
+  });
   protected readonly g = computed(() => stripGeometry([...this.items()], this.width()));
   protected readonly bullX = computed(() => this.width() - 40);
   /** The strip is centred in the 240 px box: its rows and the date line under them. */

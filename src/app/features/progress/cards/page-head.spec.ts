@@ -1,7 +1,5 @@
-import { ReadingFact } from '../../../core/coach/coach.models';
 import { mapReviews } from '../progress-api.mappers';
 import { WeeklyReview } from '../progress-api.models';
-import { coachLineFor, firstSentence } from './coach-lines';
 import { figureHeight } from './fit-figure.component';
 import { PERIODS, currentSection, eyebrowText, periodOf, reviewChips, weekChips } from './page-head';
 import { watchSections } from './section-watch';
@@ -119,25 +117,6 @@ describe('the contents navigation', () => {
       expect(reading.observed).toEqual([]);
       remove();
     });
-  });
-});
-
-describe('the coach lines between the cards', () => {
-  const fact = (key: string, card: ReadingFact['card'], note: string, detail: string): ReadingFact => ({ number: 1, key, label: key, value: '1', unit: '', numericValue: 1, note, detail, card });
-
-  it('takes the first sentence of the detail, else the note, of the first fact that cites the card', () => {
-    expect(firstSentence('Two sessions in 4 weeks. The week before had three.')).toBe('Two sessions in 4 weeks.');
-    expect(firstSentence('You lifted 22.5 kg more')).toBe('You lifted 22.5 kg more.');
-    expect(firstSentence('  ')).toBe('');
-    const facts = [fact('A', 'GOAL', 'x', 'About the goal.'), fact('B', 'TRAINING', 'steady week', ''), fact('C', 'TRAINING', '', 'Later fact.'), fact('D', 'FOOD', '', 'protein fell to 131 g. More text.')];
-    expect(coachLineFor(facts, 'TRAINING')).toBe('Steady week.');
-    expect(coachLineFor(facts, 'FOOD')).toBe('Protein fell to 131 g.');
-  });
-
-  it('is empty when no fact fits', () => {
-    expect(coachLineFor([fact('A', 'GOAL', 'x', 'y.')], 'TRAINING')).toBe('');
-    expect(coachLineFor([], 'FOOD')).toBe('');
-    expect(coachLineFor([fact('B', 'FOOD', '', '')], 'FOOD')).toBe('');
   });
 });
 

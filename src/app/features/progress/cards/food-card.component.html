@@ -1,4 +1,4 @@
-<app-progress-card name="Food" link="/progress/food" askLabel="Ask about your food" [context]="context()">
+<app-progress-card name="Food" link="/progress/food" askPrefill="Ask about your food" [context]="context()" [coachLine]="coachLine()">
   <div card-headline>
     @if (headline(); as h) {
       <strong class="figure">{{ h.figure }}</strong>

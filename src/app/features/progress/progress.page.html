@@ -41,19 +41,11 @@
       <app-goal-card [goal]="goal()" [loading]="goalLoading()" [failed]="goalFailed()" [today]="today" [askPeriod]="range()" (retry)="loadGoal()" />
     </div>
 
-    @if (trainingLine(); as line) {
-      <app-coach-line [text]="line" />
-    }
-
     <div id="progress-training" class="section">
       @for (key of [range().from + range().to]; track key) {
         <app-training-card [from]="range().from" [to]="range().to" [periodWords]="period().trained" />
       }
     </div>
-
-    @if (foodLine(); as line) {
-      <app-coach-line [text]="line" />
-    }
 
     <div id="progress-food" class="section">
       @for (key of [foodWindow().from + foodWindow().to]; track key) {

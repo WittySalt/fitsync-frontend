@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 
 import { formatNumber } from '../../../shared/progress/progress-format';
 import { GoalRoad } from '../progress-api.models';
 import { keepGeometry, keepShare } from './goal-road';
-import { hostSize } from './host-width';
+import { hostWidth } from './host-width';
 
 /** The KEEP picture: the lane around the target, the weekly means as a line and a bullseye at the right. */
 @Component({
@@ -31,7 +31,7 @@ import { hostSize } from './host-width';
     </svg>
   `,
   styles: `
-    :host { display: block; width: 100%; height: 100%; }
+    :host { display: block; width: 100%; }
     svg { display: block; overflow: visible; }
     .lane { fill: var(--success-soft, var(--accent-subtle)); }
     .road { fill: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
@@ -51,9 +51,9 @@ export class KeepChartComponent {
   readonly road = input.required<GoalRoad>();
   readonly label = input('');
 
-  private readonly size = hostSize(560, 240);
-  protected readonly width = this.size.width;
-  protected readonly height = this.size.height;
+  protected readonly width = hostWidth(560);
+  /** The lane, the line and the date row need about this much; the box is the drawing's own height. */
+  protected readonly height = signal(190).asReadonly();
   protected readonly g = computed(() => (this.road().keep ? keepGeometry(this.road(), this.width(), this.height()) : null));
   protected readonly share = computed(() => keepShare(this.road()));
   protected readonly target = computed(() => `${formatNumber(this.road().targetKg, this.road().targetKg % 1 ? 1 : 0)} kg`);

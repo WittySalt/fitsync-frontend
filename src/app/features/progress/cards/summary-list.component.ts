@@ -22,12 +22,13 @@ import { SummaryLine } from '../../../shared/progress/progress.models';
     }
   `,
   styles: `
-    :host { display: block; }
+    :host { display: block; container-type: inline-size; }
     ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline; }
     .text { font-size: var(--pg-text); line-height: 1.45; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
     strong { font-weight: 600; color: var(--text-primary); }
     .trend { font-size: var(--pg-control); font-weight: 500; color: var(--text-secondary); }
+    @container (min-width: 662px) { ul { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; } }
     .none { margin: 0; font-size: var(--pg-text); color: var(--text-secondary); }
   `
 })

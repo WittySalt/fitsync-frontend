@@ -10,8 +10,6 @@ import { CoachStore } from '../../core/coach/coach.store';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 import { withoutCitations } from '../../shared/coach/insight/reading-text';
 import { lastDays } from '../../shared/progress/progress-format';
-import { CoachLineComponent } from './cards/coach-line.component';
-import { coachLineFor } from './cards/coach-lines';
 import { ContentsNavComponent } from './cards/contents-nav.component';
 import { EarlierWeeksSheetComponent } from './cards/earlier-weeks-sheet.component';
 import { FoodCardComponent } from './cards/food-card.component';
@@ -36,7 +34,6 @@ export const READING_POLL_LIMIT = 8;
 @Component({
   selector: 'app-progress-page',
   imports: [
-    CoachLineComponent,
     ContentsNavComponent,
     EarlierWeeksSheetComponent,
     FoodCardComponent,
@@ -101,8 +98,6 @@ export class ProgressPage {
     return headline || ruleSentence(this.goal());
   });
   protected readonly chips = computed(() => weekChips(this.current()));
-  protected readonly trainingLine = computed(() => coachLineFor(this.reading()?.facts ?? [], 'TRAINING'));
-  protected readonly foodLine = computed(() => coachLineFor(this.reading()?.facts ?? [], 'FOOD'));
 
   constructor() {
     this.destroyRef.onDestroy(() => {

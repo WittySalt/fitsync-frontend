@@ -66,8 +66,7 @@
   container-type: inline-size;
 }
 
-/* Under 480 px the strip stacks above the figure; from 480 they sit side by side at half width each;
-   from 640 the strip keeps 300 px and the figure takes what is left. */
+/* Under 640 px the strip stacks above the figure; from 640 they sit side by side. */
 .pair {
   display: flex;
   flex-direction: column;
@@ -97,21 +96,10 @@
   color: var(--text-secondary);
 }
 
-@container (min-width: 480px) {
+@container (min-width: 640px) {
   .pair {
     flex-direction: row;
     align-items: flex-start;
-    gap: 24px;
-  }
-
-  .pair > app-log-strip,
-  .figure-block {
-    flex: 1 1 0;
-  }
-}
-
-@container (min-width: 640px) {
-  .pair {
     gap: 32px;
   }
 
@@ -120,6 +108,7 @@
   }
 
   .figure-block {
+    flex: 1 1 0;
     min-width: 120px;
   }
 }
@@ -169,5 +158,5 @@
 }
 
 .box.skeleton {
-  height: var(--pic-h);
+  height: 160px;
 }

@@ -2,14 +2,15 @@
   display: block;
   min-width: 0;
   scroll-margin-top: 72px;
-  container-type: inline-size;
 }
 
 .card {
   position: relative;
   box-sizing: border-box;
-  padding: var(--pg-card-pad-phone);
-  --pic-h: var(--pg-picture-h-phone);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: var(--pg-card-pad);
   border: 1px solid var(--border);
   border-radius: var(--pg-card-radius);
   background: var(--surface);
@@ -24,7 +25,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
 }
 
 .eyebrow {
@@ -33,6 +34,39 @@
   letter-spacing: var(--pg-eyebrow-tracking);
   text-transform: uppercase;
   color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ask {
+  position: relative;
+  z-index: 1;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--accent-subtle);
+  border-radius: 10px;
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.ask svg {
+  color: var(--accent);
+}
+
+.ask:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .open {
@@ -58,94 +92,42 @@
   color: var(--text-primary);
 }
 
-/* One column by default: head, headline, picture, summary lines, Ask. */
-.body {
+.coach {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.headline {
-  order: 1;
-  min-width: 0;
+.mark {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--pg-eyebrow);
+  font-weight: 700;
 }
 
-.pic {
-  order: 2;
-  margin-top: 16px;
-  min-width: 0;
-}
-
-.lines {
-  order: 3;
-  margin-top: 16px;
-  min-width: 0;
-}
-
-.ask-row {
-  order: 4;
-  margin-top: 16px;
-}
-
-.ask {
-  position: relative;
-  z-index: 1;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: var(--pg-control);
-  font-weight: 500;
+.coach p {
+  margin: 1px 0 0;
+  font-size: var(--pg-text);
+  line-height: 1.55;
   color: var(--text-primary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
 }
 
-.ask:focus-visible {
-  outline: 2px solid var(--border-accent);
-  outline-offset: 3px;
-  border-radius: 4px;
+.headline,
+.pic,
+.lines {
+  min-width: 0;
 }
 
-/* Two columns (360 | 48 | 1fr) only when the card's own inner width is 960 px or more:
-   960 plus the 28 px padding and the 1 px border on both sides. */
-@container (min-width: 1018px) {
+@media (max-width: 767px) {
   .card {
-    padding: var(--pg-card-pad);
-    --pic-h: var(--pg-picture-h);
-  }
-
-  .head {
-    margin-bottom: 20px;
-  }
-
-  .body {
-    display: grid;
-    grid-template-columns: var(--pg-left-col) var(--pg-col-gap) minmax(0, 1fr);
-    grid-template-rows: auto auto auto 1fr;
-  }
-
-  .headline {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .lines {
-    grid-column: 1;
-    grid-row: 2;
-    margin-top: 10px;
-  }
-
-  .ask-row {
-    grid-column: 1;
-    grid-row: 3;
-    margin-top: 24px;
-  }
-
-  .pic {
-    grid-column: 3;
-    grid-row: 1 / span 4;
-    margin-top: 0;
+    padding: var(--pg-card-pad-phone);
   }
 }
 

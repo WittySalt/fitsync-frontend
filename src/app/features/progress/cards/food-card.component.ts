@@ -12,6 +12,7 @@ import { NutrientsService } from '../../nutrition/nutrients/nutrients.service';
 import { foodSummaryLines, hasFood } from '../food/food-figures';
 import { FoodProgress } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
+import { foodCoachLine } from './card-lines';
 import { EnergyPairComponent } from './energy-pair.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -78,6 +79,10 @@ export class FoodCardComponent {
     return state.status === 'ready' ? state.food : null;
   });
   protected readonly headline = computed(() => foodHeadline(this.food()?.hero.balancePerDay.value ?? null));
+  protected readonly coachLine = computed(() => {
+    const food = this.food();
+    return food && hasFood(food) ? foodCoachLine(food) : '';
+  });
   protected readonly lines = computed(() => {
     const food = this.food();
     return food ? foodSummaryLines(food, this.days()) : [];

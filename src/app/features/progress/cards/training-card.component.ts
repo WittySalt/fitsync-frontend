@@ -1,4 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
+
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { dailyObservations } from '../../dashboard/brief/brief-observations';
 
 import { HEAT_KEY } from '../../../shared/charts/muscle-figure/muscle-figure';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
@@ -6,6 +12,7 @@ import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { TrainingApiService } from '../training/training-api.service';
 import { useLoad } from '../training/training-load';
 import { FitFigureComponent } from './fit-figure.component';
+import { trainingCoachLine } from './card-lines';
 import { LogStripComponent } from './log-strip.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -24,6 +31,9 @@ import { activityRows, trainingHeadline } from './training-figures';
 })
 export class TrainingCardComponent {
   private readonly api = inject(TrainingApiService);
+  private readonly timezone = inject(UserTimezoneService);
+  /** The weekly insight the Home brief reads; without it the card simply has no coach line. */
+  private readonly insight = toSignal(inject(FitSyncDataService).getWeeklyTrainingInsight().pipe(catchError(() => of(null))), { initialValue: null });
 
   readonly from = input.required<string>();
   readonly to = input.required<string>();
@@ -38,6 +48,10 @@ export class TrainingCardComponent {
   protected readonly data = computed(() => {
     const state = this.state();
     return state.status === 'ready' ? state.data : null;
+  });
+  protected readonly coachLine = computed(() => {
+    const insight = this.insight();
+    return insight ? trainingCoachLine(dailyObservations(insight, new Date(), this.timezone.zone())) : '';
   });
   protected readonly empty = computed(() => {
     const data = this.data();

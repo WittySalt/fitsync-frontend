@@ -48,7 +48,7 @@ export function hasWeightData(goal: GoalProgress): boolean {
 }
 
 /** "25 Nov": a day and a month, never a year; the card's dates all fall inside the goal's own span. */
-function day(key: string | null | undefined): string {
+export function day(key: string | null | undefined): string {
   return key ? shortDateLabel(key, parseLocalDate(key)) : '';
 }
 
@@ -171,7 +171,7 @@ export function leadOf(goal: GoalProgress): Lead {
   return best ? { kind: 'HABIT', goal: best } : { kind: 'NONE' };
 }
 
-function figureOf(goal: OtherGoal): string {
+export function figureOf(goal: OtherGoal): string {
   return goal.target === null ? '' : `${formatNumber(goal.target)}${goal.unit ? ` ${goal.unit}` : ''}`;
 }
 
@@ -213,12 +213,12 @@ function earlyWords(early: number): string {
   return early === 0 ? 'on your date' : early > 0 ? `${plural(early, 'day')} early` : `${plural(-early, 'day')} late`;
 }
 
-function reachedOn(road: GoalRoad): string | null {
+export function reachedOn(road: GoalRoad): string | null {
   const last = road.ticks.find((tick) => tick.kg === road.targetKg);
   return last?.crossedOn ?? road.nowDate;
 }
 
-function stalledSince(goal: GoalProgress, road: GoalRoad): string | null {
+export function stalledSince(goal: GoalProgress, road: GoalRoad): string | null {
   const daily = goal.weight.daily;
   for (let index = daily.length - 1; index >= 0; index -= 1) {
     if (Math.abs(daily[index].kg - road.nowKg) > 0.3) {
@@ -330,7 +330,7 @@ export function keepShare(road: GoalRoad): string {
 
 // ---------------------------------------------------------------- the three summary lines
 
-function monthName(key: string | null): string {
+export function monthName(key: string | null): string {
   const month = key ? Number(key.slice(5, 7)) : 0;
   return month >= 1 && month <= 12 ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][month - 1] : '';
 }

@@ -1,4 +1,4 @@
-<app-progress-card name="Goal" link="/progress/goal" askLabel="Ask about your goal" [context]="context()">
+<app-progress-card name="Goal" link="/progress/goal" askPrefill="Ask about your goal" [context]="context()" [coachLine]="coachLine()">
   <div card-headline>
     @if (loading()) {
       <div class="skeleton head-skeleton" aria-busy="true" aria-label="Loading your goal"></div>
@@ -25,7 +25,7 @@
     } @else if (failed()) {
       <app-state-panel title="Your goal could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry.emit()" />
     } @else if (view(); as v) {
-      <div class="box" [class.fill]="v.picture === 'KEEP' || v.picture === 'HABIT'">
+      <div class="box">
         @switch (v.picture) {
           @case ('ROAD') {
             <app-road-chart [road]="v.road" [label]="v.label" />
