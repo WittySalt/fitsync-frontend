@@ -1,0 +1,153 @@
+@use '../../../shared/charts/muscle-figure/muscle-palette' as heat;
+@use '../training/parts/training-palette' as palette;
+
+@include heat.muscle-palette;
+@include palette.training-palette;
+
+:host {
+  display: block;
+}
+
+.figure {
+  font: 600 var(--pg-figure) / 1.1 var(--font-display);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  margin: 6px 0 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.activity + .activity {
+  margin-top: 14px;
+}
+
+.activity-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: var(--pg-text);
+  color: var(--text-primary);
+}
+
+.activity-head strong {
+  font-weight: 600;
+}
+
+.meta {
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--kind-strength);
+}
+
+.dot.cardio {
+  background: var(--kind-cardio);
+}
+
+.dot.sport {
+  background: var(--kind-sport);
+}
+
+.dot.mobility {
+  background: var(--kind-mobility);
+}
+
+.pair {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.pair > app-log-strip {
+  flex: 0 1 300px;
+}
+
+.figure-block {
+  flex: none;
+  width: 170px;
+}
+
+.figure-pic {
+  pointer-events: none;
+}
+
+.heat-key {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 3px;
+}
+
+.swatch.under {
+  background: var(--heat-under);
+}
+
+.swatch.low {
+  background: var(--heat-low);
+}
+
+.swatch.in {
+  background: var(--heat-in);
+}
+
+.swatch.over {
+  background: var(--heat-over);
+}
+
+.figure-caption {
+  flex: 1 1 120px;
+  margin: 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--pg-text);
+  color: var(--text-secondary);
+}
+
+.skeleton {
+  border-radius: 12px;
+}
+
+.head-skeleton {
+  height: 56px;
+}
+
+.box.skeleton {
+  height: var(--pg-picture-h);
+}
+
+@media (max-width: 767px) {
+  .pair {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .figure-caption {
+    flex-basis: 100%;
+  }
+}

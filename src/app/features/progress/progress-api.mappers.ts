@@ -6,9 +6,13 @@ import {
   FoodNutrition,
   FoodProgress,
   GoalProgress,
+  GoalRoad,
+  RoadDirection,
+  RoadState,
   MacroTrend,
   OtherGoal,
   PlateShare,
+  ReviewFact,
   ReviewStatus,
   WeeklyReview
 } from './progress-api.models';
@@ -59,6 +63,56 @@ function otherGoal(item: Record<string, unknown>): OtherGoal | null {
   };
 }
 
+const ROAD_DIRECTIONS: readonly RoadDirection[] = ['LOSE', 'GAIN', 'KEEP'];
+const ROAD_STATES: readonly RoadState[] = ['AHEAD', 'ON_COURSE', 'BEHIND', 'REACHED', 'DATE_PASSED', 'STALLED', 'NO_PROJECTION'];
+
+function fraction(value: unknown): number {
+  return Math.min(1, Math.max(0, num(value) ?? 0));
+}
+
+/** The `road` of the Goal response (spec 4). Null when the server sent none or too little to draw it. */
+export function mapRoad(value: unknown): GoalRoad | null {
+  const wire = obj(value);
+  const direction = ROAD_DIRECTIONS.find((item) => item === wire?.['direction']);
+  const state = ROAD_STATES.find((item) => item === wire?.['state']);
+  const startKg = num(wire?.['startKg']);
+  const nowKg = num(wire?.['nowKg']);
+  const targetKg = num(wire?.['targetKg']);
+  if (!wire || !direction || !state || startKg === null || nowKg === null || targetKg === null) {
+    return null;
+  }
+  const keep = obj(wire['keep']);
+  return {
+    direction,
+    state,
+    startKg,
+    startDate: str(wire['startDate']),
+    nowKg,
+    nowDate: str(wire['nowDate']),
+    targetKg,
+    targetDate: str(wire['targetDate']),
+    distanceKg: num(wire['distanceKg']) ?? Math.round(Math.abs(targetKg - nowKg) * 10) / 10,
+    fractionWeight: fraction(wire['fractionWeight']),
+    fractionTime: fraction(wire['fractionTime']),
+    projectedDate: str(wire['projectedDate']),
+    ticks: list(wire['ticks'], (item) => {
+      const kg = num(item['kg']);
+      return kg === null ? null : { kg, crossedOn: str(item['crossedOn']), projectedOn: str(item['projectedOn']) };
+    }),
+    keep: keep
+      ? {
+          bandKg: num(keep['bandKg']) ?? 1,
+          weeks: list(keep['weeks'], (week) => {
+            const weekStart = str(week['weekStart']);
+            const avgKg = num(week['avgKg']);
+            return weekStart && avgKg !== null ? { weekStart, avgKg, inside: bool(week['inside']) } : null;
+          })
+        }
+      : null,
+    derived: false
+  };
+}
+
 export function mapGoalProgress(response: unknown): GoalProgress {
   const wire = obj(response) ?? {};
   const goal = obj(wire['goal']);
@@ -69,6 +123,8 @@ export function mapGoalProgress(response: unknown): GoalProgress {
   return {
     period: range(wire['period']),
     previous: range(wire['previous']),
+    road: mapRoad(wire['road']),
+    leadType: str(wire['leadType']),
     goal: goal ? { type: str(goal['type']) ?? 'WEIGHT', targetKg: num(goal['targetKg']), byDate: str(goal['byDate']) } : null,
     hero: {
       nowKg: num(hero['nowKg']),
@@ -226,6 +282,15 @@ export function mapFoodNutrition(response: unknown): FoodNutrition {
   };
 }
 
+function reviewFact(item: Record<string, unknown>): ReviewFact | null {
+  const key = str(item['key']);
+  const value = str(item['value']);
+  if (!key || value === null) {
+    return null;
+  }
+  return { key, label: str(item['label']) ?? key, value, unit: str(item['unit']) ?? '', note: str(item['note']) ?? '', detail: str(item['detail']) ?? '' };
+}
+
 const REVIEW_STATUSES: readonly ReviewStatus[] = ['READY', 'WRITING', 'NONE'];
 
 /** The weekly reviews, newest first whatever order they came in. */
@@ -242,8 +307,9 @@ export function mapReviews(response: unknown): WeeklyReview[] {
       current: bool(item['current']),
       status: REVIEW_STATUSES.find((status) => status === item['status']) ?? 'NONE',
       headline: str(item['headline']) ?? '',
-      // The list has no fact chips, so the body's citation markers are left out rather than shown as "[1]".
-      body: withoutCitations(str(item['body']) ?? '').trim()
+      // The chips carry the facts, so the body's citation markers are left out rather than shown as "[1]".
+      body: withoutCitations(str(item['body']) ?? '').trim(),
+      facts: list(item['facts'], reviewFact)
     };
   }).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
 }

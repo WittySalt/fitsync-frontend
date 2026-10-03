@@ -1,0 +1,44 @@
+<app-progress-card name="Food" link="/progress/food" askLabel="Ask about your food" [context]="context()">
+  <div card-headline>
+    @if (headline(); as h) {
+      <strong class="figure">{{ h.figure }}</strong>
+      <p class="caption">{{ h.caption }}</p>
+    } @else if (state().status === 'loading') {
+      <div class="skeleton head-skeleton" aria-busy="true" aria-label="Loading your food"></div>
+    }
+  </div>
+
+  <div card-lines>
+    @if (food()) {
+      <app-summary-list [lines]="lines()" />
+    }
+  </div>
+
+  <div card-picture class="picture">
+    @switch (state().status) {
+      @case ('loading') {
+        <div class="skeleton box" aria-busy="true"></div>
+      }
+      @case ('error') {
+        <app-state-panel title="Your food could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry()" />
+      }
+      @default {
+        @if (!enough()) {
+          <p class="empty">Not enough data yet. Log what you eat for a few days and this card fills in.</p>
+        } @else {
+          <div class="box pair">
+            @if (week(); as w) {
+              <div class="bars"><app-energy-pair [week]="w" /></div>
+            }
+            @if (overview(); as o) {
+              <div class="petals">
+                <div class="petal-pic"><app-nutrient-petals [nutrients]="o.nutrients" [reached]="reach()!.reached" [total]="reach()!.total" [summary]="reach()!.reached + ' of ' + reach()!.total + ' nutrients reached'" /></div>
+                <span class="petal-caption">{{ reach()!.reached }} of {{ reach()!.total }} reached</span>
+              </div>
+            }
+          </div>
+        }
+      }
+    }
+  </div>
+</app-progress-card>

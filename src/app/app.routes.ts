@@ -91,12 +91,8 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: 'FitSync Food'
   },
-  {
-    path: 'progress/reviews',
-    loadComponent: () => import('./features/progress/reviews/reviews.page').then((module) => module.ReviewsPage),
-    canActivate: [authGuard],
-    title: 'FitSync Weekly reviews'
-  },
+  // The weekly reviews are the Earlier weeks sheet on Progress now; old links land there.
+  { path: 'progress/reviews', pathMatch: 'full', redirectTo: 'progress' },
   {
     // The Training page, an activity and an exercise: /progress/training, /activities/:key and
     // /exercises/:exerciseId under it.

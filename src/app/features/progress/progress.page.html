@@ -1,29 +1,72 @@
-<div class="progress-page">
-  <header class="head">
-    <span class="eyebrow">Progress</span>
-    <h1>Is it working?</h1>
-    <p>{{ periodLabel }}</p>
-  </header>
+<div class="shell" [class.railed]="railed()">
+  <aside class="rail-col" [hidden]="!railed()">
+    <app-contents-nav variant="rail" [active]="active()" (chosen)="scrollTo($event)" />
+  </aside>
 
-  <app-jump-bar [items]="sections" [active]="active()" label="Sections of Progress" (chosen)="jump($event)" />
+  <div class="progress-page">
+    <div #answer id="progress-answer" class="answer">
+      <header class="head">
+        <span class="eyebrow">{{ eyebrow() }}</span>
+        <nav class="periods" aria-label="Period">
+          @for (option of periods; track option.key) {
+            <a
+              [routerLink]="[]"
+              [queryParams]="queryFor(option.key)"
+              queryParamsHandling="merge"
+              replaceUrl
+              [class.current]="period().key === option.key"
+              [attr.aria-current]="period().key === option.key ? 'true' : null"
+              >{{ option.label }}</a
+            >
+          }
+        </nav>
+      </header>
+      <div class="verdict-block" [attr.aria-busy]="goalLoading()">
+        @if (!goalLoading() && !goalFailed()) {
+          <h1 class="verdict" [class.green]="verdict().tone === 'green'">{{ verdict().text }}</h1>
+        } @else {
+          <h1 class="verdict placeholder" aria-hidden="true">&nbsp;</h1>
+        }
+        <p class="sentence">{{ goalFailed() ? 'Your goal could not be loaded. The cards below still work.' : sentence() }}</p>
+      </div>
+    </div>
 
-  <section id="progress-summary" class="anchor" aria-label="Summary">
-    <app-insight-panel surface="PROGRESS" (factChosen)="showCard($event)" />
-  </section>
+    <app-week-chips [chips]="chips()" [loading]="reviewsLoading()" (earlier)="sheetOpen.set(true)" />
 
-  <div id="progress-goal" class="anchor">
-    <app-goal-card [period]="goalPeriod" [askPeriod]="fourWeeks" [factNumber]="factNumbers().GOAL ?? null" [ringed]="ringed() === 'GOAL'" />
-  </div>
+    <div class="contents-row" [class.hidden-by-rail]="railed()">
+      <app-contents-nav variant="row" [active]="active()" (chosen)="scrollTo($event)" />
+    </div>
 
-  <div id="progress-training" class="anchor training" [class.ringed]="ringed() === 'TRAINING'">
-    <app-training-card [from]="fourWeeks.from" [to]="fourWeeks.to" [citation]="factNumbers().TRAINING ?? null" />
-  </div>
+    <div id="progress-goal" class="section">
+      <app-goal-card [goal]="goal()" [loading]="goalLoading()" [failed]="goalFailed()" [today]="today" [askPeriod]="range()" (retry)="loadGoal()" />
+    </div>
 
-  <div id="progress-food" class="anchor">
-    <app-food-card [period]="foodPeriod" [factNumber]="factNumbers().FOOD ?? null" [ringed]="ringed() === 'FOOD'" />
-  </div>
+    @if (trainingLine(); as line) {
+      <app-coach-line [text]="line" />
+    }
 
-  <div id="progress-reviews" class="anchor">
-    <app-reviews-card [today]="today" />
+    <div id="progress-training" class="section">
+      @for (key of [range().from + range().to]; track key) {
+        <app-training-card [from]="range().from" [to]="range().to" [periodWords]="period().trained" />
+      }
+    </div>
+
+    @if (foodLine(); as line) {
+      <app-coach-line [text]="line" />
+    }
+
+    <div id="progress-food" class="section">
+      @for (key of [foodWindow().from + foodWindow().to]; track key) {
+        <app-food-card [period]="foodWindow()" [days]="foodDays()" />
+      }
+    </div>
+
+    <footer class="foot">
+      <p>Every figure is computed from what you logged. Open a card for the full picture.</p>
+    </footer>
   </div>
 </div>
+
+@if (sheetOpen()) {
+  <app-earlier-weeks-sheet [reviews]="reviews()" [loading]="reviewsLoading()" [failed]="reviewsFailed()" (closed)="sheetOpen.set(false)" (retry)="loadWeek()" />
+}

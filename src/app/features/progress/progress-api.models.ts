@@ -42,8 +42,40 @@ export interface OtherGoal {
   weeks: { weekStart: string; value: number; target: number | null }[];
 }
 
+export type RoadDirection = 'LOSE' | 'GAIN' | 'KEEP';
+export type RoadState = 'AHEAD' | 'ON_COURSE' | 'BEHIND' | 'REACHED' | 'DATE_PASSED' | 'STALLED' | 'NO_PROJECTION';
+
+export interface RoadTick {
+  kg: number;
+  crossedOn: string | null;
+  projectedOn: string | null;
+}
+
+/** The weight road (spec section 4). `derived` is true when the client built it from the hero figures. */
+export interface GoalRoad {
+  direction: RoadDirection;
+  state: RoadState;
+  startKg: number;
+  startDate: string | null;
+  nowKg: number;
+  nowDate: string | null;
+  targetKg: number;
+  targetDate: string | null;
+  distanceKg: number;
+  fractionWeight: number;
+  fractionTime: number;
+  projectedDate: string | null;
+  ticks: RoadTick[];
+  keep: { bandKg: number; weeks: { weekStart: string; avgKg: number; inside: boolean }[] } | null;
+  derived: boolean;
+}
+
 export interface GoalProgress extends PeriodPair {
   goal: WeightGoal | null;
+  /** Absent on a server from before Progress V5. */
+  road: GoalRoad | null;
+  /** The goal type the page leads with; null on a server from before Progress V5. */
+  leadType: string | null;
   hero: {
     nowKg: number | null;
     changeKg: number | null;
@@ -113,6 +145,16 @@ export interface FoodProgress extends PeriodPair {
 // ---------------------------------------------------------------- weekly reviews (contract 4.2)
 export type ReviewStatus = 'READY' | 'WRITING' | 'NONE';
 
+/** One fact of a weekly review, as the review's chips show it. */
+export interface ReviewFact {
+  key: string;
+  label: string;
+  value: string;
+  unit: string;
+  note: string;
+  detail: string;
+}
+
 export interface WeeklyReview {
   weekStart: string;
   weekEnd: string;
@@ -121,4 +163,5 @@ export interface WeeklyReview {
   status: ReviewStatus;
   headline: string;
   body: string;
+  facts: ReviewFact[];
 }

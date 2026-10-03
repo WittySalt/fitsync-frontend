@@ -1,0 +1,56 @@
+@use '../training/parts/training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+}
+
+svg {
+  display: block;
+}
+
+text {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.t12 {
+  font-size: var(--pg-chart);
+  fill: var(--text-secondary);
+}
+
+.day.strength {
+  fill: var(--kind-strength);
+}
+
+.day.cardio {
+  fill: var(--kind-cardio);
+}
+
+.day.sport {
+  fill: var(--kind-sport);
+}
+
+.day.mobility {
+  fill: var(--kind-mobility);
+}
+
+.rest {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.rest.future {
+  stroke-dasharray: 2 3;
+  opacity: 0.6;
+}
+
+.record {
+  fill: var(--record);
+  stroke: var(--halo);
+  stroke-width: 1.5;
+}

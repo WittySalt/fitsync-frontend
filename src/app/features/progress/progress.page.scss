@@ -2,71 +2,152 @@
   display: block;
 }
 
-.progress-page {
+.shell {
   width: 100%;
-  max-width: 820px;
+  max-width: 1240px;
   margin: 0 auto;
+}
+
+.progress-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: 32px;
+  min-width: 0;
 }
 
 .head {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
 }
 
 .eyebrow {
-  font-size: 11px;
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.08em;
+  font-size: var(--pg-eyebrow);
+  font-weight: 700;
+  letter-spacing: var(--pg-eyebrow-tracking);
   text-transform: uppercase;
-  color: var(--accent-text);
-}
-
-h1 {
-  margin: 0;
-  font: 600 30px/1.2 var(--font-display);
-  color: var(--text-primary);
-}
-
-.head p {
-  margin: 0;
-  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.anchor {
-  scroll-margin-top: 64px;
+.periods {
+  display: inline-flex;
+  gap: 20px;
+  flex: none;
 }
 
-.anchor:empty {
+.periods a {
+  font-size: var(--pg-control);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+}
+
+.periods a.current {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.periods a:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.verdict {
+  margin: 0 0 10px;
+  font: 600 var(--pg-verdict) / 1.1 var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.verdict.green {
+  color: var(--accent-text);
+}
+
+.sentence {
+  margin: 0;
+  max-width: var(--pg-answer-measure);
+  font-size: var(--pg-answer);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.contents-row {
+  margin: -14px 0;
+}
+
+.contents-row.hidden-by-rail {
+  visibility: hidden;
+}
+
+.section {
+  min-width: 0;
+}
+
+.foot {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.foot p {
+  margin: 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
+.rail-col {
   display: none;
 }
 
-/* The Training card is the other worktree's; the ring goes on its slot. */
-.training {
-  border-radius: 22px;
-  transition: box-shadow var(--dur-base) var(--ease-standard);
+@media (min-width: 1024px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    column-gap: 16px;
+  }
+
+  .rail-col {
+    display: block;
+  }
+
+  .rail-col[hidden] {
+    display: block;
+    visibility: hidden;
+  }
+
+  .rail-col app-contents-nav {
+    position: sticky;
+    top: 96px;
+  }
 }
 
-.training.ringed {
-  box-shadow: 0 0 0 3px var(--accent-subtle), 0 0 0 4px var(--border-accent);
+@media (max-width: 1023px) {
+  .contents-row {
+    position: sticky;
+    top: 56px;
+    z-index: 5;
+    margin: -14px 0;
+    padding: 12px 0;
+    background: var(--bg, var(--surface-sunken));
+  }
+
+  .contents-row.hidden-by-rail {
+    visibility: visible;
+  }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .progress-page {
-    gap: var(--space-5);
+    gap: 24px;
   }
 
-  h1 {
-    font-size: 26px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .training {
-    transition: none;
+  .head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
 }

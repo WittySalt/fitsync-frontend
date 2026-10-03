@@ -1,120 +1,196 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { DOCUMENT } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Subscription, map, timer } from 'rxjs';
 
-import { ReadingFact } from '../../core/coach/coach.models';
+import { CoachApiService } from '../../core/coach/coach-api.service';
+import { CoachReading } from '../../core/coach/coach.models';
 import { CoachStore } from '../../core/coach/coach.store';
 import { UserTimezoneService } from '../../core/user-timezone.service';
-import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
-import { dateRangeLabel } from '../../shared/date-label';
-import { JumpBarComponent } from '../../shared/progress/jump-bar.component';
+import { withoutCitations } from '../../shared/coach/insight/reading-text';
 import { lastDays } from '../../shared/progress/progress-format';
-import { JumpItem } from '../../shared/progress/progress.models';
+import { CoachLineComponent } from './cards/coach-line.component';
+import { coachLineFor } from './cards/coach-lines';
+import { ContentsNavComponent } from './cards/contents-nav.component';
+import { EarlierWeeksSheetComponent } from './cards/earlier-weeks-sheet.component';
 import { FoodCardComponent } from './cards/food-card.component';
 import { GoalCardComponent } from './cards/goal-card.component';
-import { ReviewsCardComponent } from './cards/reviews-card.component';
-import { TrainingCardComponent } from './training/training-card.component';
+import { pageState, ruleSentence, verdictFor } from './cards/goal-road';
+import { PERIODS, SectionId, eyebrowText, periodOf, weekChips } from './cards/page-head';
+import { watchSections } from './cards/section-watch';
+import { TrainingCardComponent } from './cards/training-card.component';
+import { WeekChipsComponent } from './cards/week-chips.component';
+import { GoalProgress, WeeklyReview } from './progress-api.models';
+import { ProgressApiService } from './progress-api.service';
+import { periodRange } from './training/training-period';
 
-type SectionId = 'summary' | 'goal' | 'training' | 'food' | 'reviews';
-type CitedCard = 'GOAL' | 'TRAINING' | 'FOOD';
-
-export const PROGRESS_SECTIONS: readonly JumpItem[] = [
-  { id: 'summary', label: 'Summary' },
-  { id: 'goal', label: 'Goal' },
-  { id: 'training', label: 'Training' },
-  { id: 'food', label: 'Food' },
-  { id: 'reviews', label: 'Reviews' }
-];
-
-/** How long a card keeps its ring after a fact in the reading pointed at it. */
-export const RING_MS = 2400;
-
-function isSection(value: string | null): value is SectionId {
-  return PROGRESS_SECTIONS.some((section) => section.id === value);
-}
+export const READING_POLL_MS = 3000;
+export const READING_POLL_LIMIT = 8;
 
 /**
- * Progress: one page that answers "is it working?" for a period. The coach's reading is on top and
- * each of its facts can point at the card it comes from; below are the Goal, Training and Food cards,
- * each opening its own page, and the latest weekly review. The sticky jump bar moves between them
- * and keeps `?section=` in the address so a link can open at a section.
+ * Progress (spec 1): one page that opens with the answer, a verdict and one sentence, then the week
+ * so far and three cards, Goal, Training and Food, each opening its own page. The verdict is rule
+ * based from the goal road, so it never waits for the coach's model.
  */
 @Component({
   selector: 'app-progress-page',
-  imports: [FoodCardComponent, GoalCardComponent, InsightPanelComponent, JumpBarComponent, ReviewsCardComponent, TrainingCardComponent],
+  imports: [
+    CoachLineComponent,
+    ContentsNavComponent,
+    EarlierWeeksSheetComponent,
+    FoodCardComponent,
+    GoalCardComponent,
+    RouterLink,
+    TrainingCardComponent,
+    WeekChipsComponent
+  ],
   templateUrl: './progress.page.html',
   styleUrl: './progress.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProgressPage implements OnInit {
-  private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
-  private readonly injector = inject(Injector);
+export class ProgressPage {
+  private readonly api = inject(ProgressApiService);
+  private readonly coachApi = inject(CoachApiService);
   private readonly coach = inject(CoachStore);
-  private readonly timezone = inject(UserTimezoneService);
-  private ringTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly answer = viewChild<ElementRef<HTMLElement>>('answer');
 
-  protected readonly sections = PROGRESS_SECTIONS;
-  readonly active = signal<SectionId>('summary');
-  readonly ringed = signal<CitedCard | null>(null);
+  protected readonly today = inject(UserTimezoneService).dateKey();
+  protected readonly periods = PERIODS;
+  private readonly code = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((params) => params.get('period'))), { initialValue: null });
+  protected readonly period = computed(() => periodOf(this.code()));
 
-  readonly today = this.timezone.dateKey();
-  /** The four weeks the page describes and every Ask sends. */
-  readonly fourWeeks = lastDays(28, this.today);
-  /** About three months, so the weight chart shows the trend that leads to now. */
-  readonly goalPeriod = lastDays(91, this.today);
-  /** The last 30 days, the window the Food card and the Food page read. */
-  readonly foodPeriod = lastDays(30, this.today);
-  readonly periodLabel = `The last 4 weeks · ${dateRangeLabel(this.fourWeeks.from, this.fourWeeks.to)}`;
+  protected readonly eyebrow = computed(() => eyebrowText(this.period(), this.today));
+  /** The days Training reads and every Ask sends. */
+  protected readonly range = computed(() => periodRange(this.period().key, this.today));
+  /** About three months at least, so the road has the weigh-ins that lead to now. */
+  protected readonly goalWindow = computed(() => lastDays(Math.max(91, this.period().days), this.today));
+  /** Food reads the 30 days its page reads, or the whole period when that is longer. */
+  protected readonly foodWindow = computed(() => lastDays(Math.max(30, this.period().days), this.today));
+  protected readonly foodDays = computed(() => Math.max(30, this.period().days));
 
-  /** The number of the first fact in the reading that cites each card. */
-  readonly factNumbers = computed(() => {
-    const numbers: Partial<Record<CitedCard, number>> = {};
-    for (const fact of this.coach.availableReading()?.facts ?? []) {
-      if (fact.card && numbers[fact.card] === undefined) {
-        numbers[fact.card] = fact.number;
-      }
-    }
-    return numbers;
+  // The goal: one read for the verdict and the card.
+  protected readonly goal = signal<GoalProgress | null>(null);
+  protected readonly goalLoading = signal(true);
+  protected readonly goalFailed = signal(false);
+  private goalRead: Subscription | null = null;
+
+  // The coach's reading of the page: the sentence under the verdict and the lines between the cards.
+  protected readonly reading = signal<CoachReading | null>(null);
+  private attempts = 0;
+  private readingRead: Subscription | null = null;
+
+  // This week so far and the earlier weeks.
+  protected readonly reviews = signal<WeeklyReview[]>([]);
+  protected readonly reviewsLoading = signal(true);
+  protected readonly reviewsFailed = signal(false);
+  protected readonly sheetOpen = signal(false);
+  private reviewsRead: Subscription | null = null;
+  private current = signal<WeeklyReview | null>(null);
+
+  // Where the reader is.
+  protected readonly active = signal<SectionId>('goal');
+  protected readonly railed = signal(false);
+
+  protected readonly verdict = computed(() => verdictFor(pageState(this.goal(), this.today)));
+  protected readonly sentence = computed(() => {
+    const reading = this.reading();
+    const headline = reading?.status === 'READY' ? withoutCitations(reading.reading?.headline ?? '').trim() : '';
+    return headline || ruleSentence(this.goal());
   });
+  protected readonly chips = computed(() => weekChips(this.current()));
+  protected readonly trainingLine = computed(() => coachLineFor(this.reading()?.facts ?? [], 'TRAINING'));
+  protected readonly foodLine = computed(() => coachLineFor(this.reading()?.facts ?? [], 'FOOD'));
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.ringTimer));
+    this.destroyRef.onDestroy(() => {
+      this.goalRead?.unsubscribe();
+      this.readingRead?.unsubscribe();
+      this.reviewsRead?.unsubscribe();
+      this.coach.offerReading(null);
+    });
+    // A new period reads the goal window again.
+    effect(() => {
+      const { from, to } = this.goalWindow();
+      untracked(() => this.loadGoal(from, to));
+    });
+    this.loadReading();
+    this.loadWeek();
+    afterNextRender(() => {
+      const stop = watchSections(this.document, this.answer()?.nativeElement ?? null, {
+        onSection: (id) => this.active.set(id),
+        onAnswerOut: (out) => this.railed.set(out)
+      });
+      this.destroyRef.onDestroy(stop);
+    });
   }
 
-  ngOnInit(): void {
-    const section = this.route.snapshot.queryParamMap.get('section');
-    if (isSection(section) && section !== 'summary') {
-      this.active.set(section);
-      afterNextRender(() => this.scrollTo(section), { injector: this.injector });
+  protected loadGoal(from = this.goalWindow().from, to = this.goalWindow().to): void {
+    this.goalRead?.unsubscribe();
+    this.goalLoading.set(true);
+    this.goalFailed.set(false);
+    this.goalRead = this.api.getGoal(from, to).subscribe({
+      next: (goal) => {
+        this.goal.set(goal);
+        this.goalLoading.set(false);
+      },
+      error: () => {
+        this.goalFailed.set(true);
+        this.goalLoading.set(false);
+      }
+    });
+  }
+
+  private loadReading(): void {
+    this.readingRead?.unsubscribe();
+    this.readingRead = this.coachApi
+      .getReading('PROGRESS')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (reading) => this.acceptReading(reading),
+        // Without the reading the page still answers, from the rules.
+        error: () => this.coach.offerReading(null)
+      });
+  }
+
+  private acceptReading(reading: CoachReading): void {
+    this.attempts += 1;
+    this.reading.set(reading);
+    this.coach.offerReading(reading.status === 'READY' && reading.reading && reading.facts.length ? reading : null);
+    if (reading.status === 'WRITING' && this.attempts < READING_POLL_LIMIT) {
+      this.readingRead?.unsubscribe();
+      this.readingRead = timer(READING_POLL_MS).subscribe(() => this.loadReading());
     }
   }
 
-  jump(id: string): void {
-    if (!isSection(id)) {
-      return;
-    }
-    this.active.set(id);
-    this.scrollTo(id);
-    void this.router.navigate([], { relativeTo: this.route, queryParams: { section: id }, replaceUrl: true });
+  protected loadWeek(): void {
+    this.reviewsRead?.unsubscribe();
+    this.reviewsLoading.set(true);
+    this.reviewsFailed.set(false);
+    this.reviewsRead = this.api.getReviews(8).subscribe({
+      next: (reviews) => {
+        this.reviews.set(reviews);
+        this.current.set(reviews.find((review) => review.current) ?? reviews[0] ?? null);
+        this.reviewsLoading.set(false);
+      },
+      error: () => {
+        this.reviewsFailed.set(true);
+        this.reviewsLoading.set(false);
+      }
+    });
   }
 
-  /** A fact in the reading was chosen: its card comes into view and keeps a ring for a moment. */
-  showCard(fact: ReadingFact): void {
-    const card = fact.card;
-    if (!card) {
-      return;
-    }
-    const id = card.toLowerCase() as SectionId;
-    this.active.set(id);
-    this.scrollTo(id);
-    this.ringed.set(card);
-    clearTimeout(this.ringTimer);
-    this.ringTimer = setTimeout(() => this.ringed.set(null), RING_MS);
-  }
-
-  private scrollTo(id: SectionId): void {
-    const target = document.getElementById(`progress-${id}`);
+  /** Smooth scroll to a card, with no smoothing when the reader asked for less motion. */
+  protected scrollTo(id: SectionId): void {
+    const target = this.document.getElementById(`progress-${id}`);
     const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     target?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+    this.active.set(id);
+  }
+
+  protected queryFor(key: string): { period: string | null } {
+    return { period: key === '4w' ? null : key };
   }
 }

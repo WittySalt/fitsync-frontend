@@ -1,0 +1,58 @@
+<app-progress-card name="Training" link="/progress/training" askLabel="Ask about your training" [context]="context()">
+  <div card-headline>
+    @if (headline(); as h) {
+      <strong class="figure">{{ h.figure }}</strong>
+      <p class="caption">{{ h.caption }}</p>
+    } @else if (state().status === 'loading') {
+      <div class="skeleton head-skeleton" aria-busy="true" aria-label="Loading training"></div>
+    }
+  </div>
+
+  <div card-lines>
+    @for (row of rows(); track row.key) {
+      <section class="activity">
+        <div class="activity-head">
+          <i [class]="'dot ' + row.kind.toLowerCase()" aria-hidden="true"></i>
+          <strong>{{ row.name }}</strong>
+          @if (row.meta) {
+            <span class="meta">{{ row.meta }}</span>
+          }
+        </div>
+        <app-summary-list [lines]="row.lines" />
+      </section>
+    }
+  </div>
+
+  <div card-picture class="picture">
+    @switch (state().status) {
+      @case ('loading') {
+        <div class="skeleton box" aria-busy="true"></div>
+      }
+      @case ('error') {
+        <app-state-panel title="Training could not load" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry()" />
+      }
+      @default {
+        @if (empty()) {
+          <p class="empty">Not enough data yet. Sessions in this period fill this card.</p>
+        } @else if (data(); as progress) {
+          <div class="box pair">
+            <app-log-strip [to]="progress.period.to" [days]="progress.calendar" label="The last 28 days, a dot for each day you trained" />
+            @if (hasMuscles()) {
+              <div class="figure-block">
+                <div class="figure-pic" aria-hidden="true">
+                  <app-muscle-figure [setsByGroup]="sets()" [interactive]="false" [height]="150" />
+                </div>
+                <ul class="heat-key">
+                  @for (entry of key; track entry.level) {
+                    <li><i [class]="'swatch ' + entry.level"></i>{{ entry.label }}</li>
+                  }
+                </ul>
+              </div>
+              <p class="figure-caption">Hard sets a week in each area. Open for the exercises.</p>
+            }
+          </div>
+        }
+      }
+    }
+  </div>
+</app-progress-card>
