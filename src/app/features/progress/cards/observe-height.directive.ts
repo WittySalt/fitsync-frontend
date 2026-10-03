@@ -19,3 +19,23 @@ export class ObserveHeightDirective {
     });
   }
 }
+
+/** Reports the element's own width, now and whenever it changes. */
+@Directive({ selector: '[appObserveWidth]' })
+export class ObserveWidthDirective {
+  readonly appObserveWidth = output<number>();
+
+  constructor() {
+    const element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      this.appObserveWidth.emit(Math.floor(element.clientWidth));
+      if (typeof ResizeObserver === 'undefined') {
+        return;
+      }
+      const observer = new ResizeObserver(() => this.appObserveWidth.emit(Math.floor(element.clientWidth)));
+      observer.observe(element);
+      destroyRef.onDestroy(() => observer.disconnect());
+    });
+  }
+}

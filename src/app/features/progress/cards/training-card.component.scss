@@ -255,3 +255,29 @@
 .box.skeleton {
   height: 160px;
 }
+
+/* Stacked, whatever the row's width: the same arrangement as under 520 px, centred. */
+.pair.stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.pair.stacked .left {
+  align-items: center;
+}
+
+.pair.stacked .legend,
+.pair.stacked .figure-block {
+  justify-content: center;
+}
+
+.pair.stacked .figure-caption {
+  text-align: center;
+}
+
+.pair.stacked .rows {
+  grid-column: auto;
+  grid-row: auto;
+}

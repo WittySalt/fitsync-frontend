@@ -47,7 +47,7 @@
 @container (min-width: 568px) {
   .pair {
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     gap: 48px;
   }
 
@@ -63,16 +63,35 @@
   }
 }
 
-/* The card's caption says "N of M reached"; the centre text of the shared petals would repeat it. */
-.petal-pic ::ng-deep .big,
-.petal-pic ::ng-deep .small {
-  display: none;
-}
-
-.petal-caption {
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 10px;
+  text-align: center;
   font-size: var(--pg-chart);
   color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
+}
+
+.key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.key i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.key .vit {
+  background: var(--nutrient-water-soluble);
+}
+
+.key .min {
+  background: var(--nutrient-major-mineral);
 }
 
 .empty {

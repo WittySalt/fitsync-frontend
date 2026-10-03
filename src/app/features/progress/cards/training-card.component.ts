@@ -14,7 +14,8 @@ import { TrainingApiService } from '../training/training-api.service';
 import { useLoad } from '../training/training-load';
 import { FitFigureComponent } from './fit-figure.component';
 import { trainingCoachLine } from './card-lines';
-import { ObserveHeightDirective } from './observe-height.directive';
+import { ObserveHeightDirective, ObserveWidthDirective } from './observe-height.directive';
+import { fittingHeight } from './fit-figure.component';
 import { LogStripComponent } from './log-strip.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -26,7 +27,7 @@ import { activityRows, trainingHeadline } from './training-figures';
  */
 @Component({
   selector: 'app-training-card',
-  imports: [FitFigureComponent, LogStripComponent, ObserveHeightDirective, ProgressCardComponent, StatePanelComponent, SummaryListComponent],
+  imports: [FitFigureComponent, LogStripComponent, ObserveHeightDirective, ObserveWidthDirective, ProgressCardComponent, StatePanelComponent, SummaryListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './training-card.component.html',
   styleUrl: './training-card.component.scss'
@@ -83,6 +84,18 @@ export class TrainingCardComponent {
   });
   /** The height of the strip, key and caption, which the figures match. */
   protected readonly leftHeight = signal(0);
+  /** The width of the picture row, which decides side by side or stacked. */
+  protected readonly rowWidth = signal(0);
+  /** Beside the strip the figures get what is left of the row; if even 140 px views do not fit, the row stacks. */
+  protected readonly stacked = computed(() => {
+    const width = this.rowWidth();
+    return width > 0 && (width < 520 || fittingHeight(width - 300 - 32) < 140);
+  });
+  /** The tallest a view may be so that the figures, the gap and the scale never overflow the card. */
+  protected readonly figureCap = computed(() => {
+    const width = this.rowWidth();
+    return width === 0 ? null : fittingHeight(this.stacked() ? width : width - 300 - 32);
+  });
 
   protected retry(): void {
     this.read.retry();

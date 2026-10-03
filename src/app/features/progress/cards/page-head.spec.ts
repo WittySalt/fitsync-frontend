@@ -1,6 +1,6 @@
 import { mapReviews } from '../progress-api.mappers';
 import { WeeklyReview } from '../progress-api.models';
-import { figureHeight } from './fit-figure.component';
+import { figureHeight, fittingHeight } from './fit-figure.component';
 import { PERIODS, currentSection, eyebrowText, periodOf, reviewChips, weekChips } from './page-head';
 import { watchSections } from './section-watch';
 
@@ -137,5 +137,12 @@ describe('the muscle figure beside the log strip', () => {
     expect(figureHeight(260, 100)).toBe(140);
     expect(figureHeight(260, 200)).toBe(180);
     expect(figureHeight(140, 260)).toBe(240);
+  });
+
+  it('shrinks the views until the pair, the gap and the scale fit the width beside the strip', () => {
+    // 2 views of 70 px, the 18 px gap, 16 px and the 96 px scale make 270 px.
+    expect(fittingHeight(270)).toBe(154);
+    expect(fittingHeight(200)).toBeLessThan(140);
+    expect(fittingHeight(400)).toBeGreaterThan(200);
   });
 });

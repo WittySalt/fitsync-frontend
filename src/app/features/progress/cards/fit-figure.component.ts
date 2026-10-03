@@ -6,6 +6,15 @@ import { hostWidth } from './host-width';
 /** The gap the figure leaves between its front and back views. */
 const VIEW_GAP = 18;
 
+/** The gap and the width of the scale (swatch, gap and its labels) beside the BACK figure. */
+const SCALE_GAP = 16;
+const SCALE_WIDTH = 96;
+
+/** The tallest view whose pair, the gap and the scale together fit in `width` px. */
+export function fittingHeight(width: number): number {
+  return Math.floor(((width - SCALE_GAP - SCALE_WIDTH - VIEW_GAP) / 2) * 2.2);
+}
+
 /** The FRONT and BACK labels under the views, with the gap above them. */
 const LABEL_ROOM = 20;
 /** The block (views and labels) is never shorter or taller than this beside the strip. */
@@ -36,7 +45,13 @@ export class FitFigureComponent {
   readonly sets = input.required<Record<string, number>>();
   /** The height of the column beside the figures, which the block matches. */
   readonly blockHeight = input<number | null>(null);
+  /** The tallest a view may be so the block fits the width it has; null when nothing limits it. */
+  readonly maxHeight = input<number | null>(null);
 
   private readonly width = hostWidth(170);
-  protected readonly height = computed(() => figureHeight(this.width(), this.blockHeight()));
+  protected readonly height = computed(() => {
+    const height = figureHeight(this.width(), this.blockHeight());
+    const cap = this.maxHeight();
+    return cap === null ? height : Math.max(100, Math.min(height, cap));
+  });
 }
