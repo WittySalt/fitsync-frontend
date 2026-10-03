@@ -44,6 +44,28 @@
     }
   }
 
+  .goal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .danger-text {
+    border-color: var(--danger);
+    color: var(--danger-hover);
+  }
+
+  .inactive-goals {
+    margin-top: 18px;
+
+    h3 {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: var(--fw-bold);
+    }
+  }
+
   .goal-progress {
     display: grid;
     gap: 8px;

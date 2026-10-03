@@ -314,6 +314,12 @@ export class AccountDataService {
     return this.http.put<UserGoal>(`${this.apiBaseUrl}/users/me/goals/${goalType}`, request);
   }
 
+  /** Deletes a goal. The server only marks it, so it can be added again later. */
+  deleteGoal(goalType: GoalType): Observable<void> {
+    this.invalidateCurrentUser();
+    return this.http.delete<void>(`${this.apiBaseUrl}/users/me/goals/${goalType}`);
+  }
+
   getActiveSessions(): Observable<ActiveSessionView[]> {
     return this.http.get<ActiveSessionView[]>(`${this.apiBaseUrl}/auth/security/sessions`);
   }

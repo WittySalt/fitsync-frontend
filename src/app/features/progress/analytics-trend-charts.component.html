@@ -1,43 +1,23 @@
-<section class="summary-card analytics-chart-filters" aria-label="Workout and nutrition trend filters">
+<section class="summary-card analytics-chart-filters" aria-label="Workout and nutrition trends">
   <div class="section-title">
     <div>
       <span class="card-label">Analytics</span>
       <h2>Workout and nutrition trends</h2>
     </div>
-    <span class="date-caption">{{ startDate() }} to {{ endDate() }}</span>
+    <span class="date-caption">{{ rangeText() }}</span>
   </div>
 
-  <div class="filter-row">
-    <div class="range-presets" aria-label="Trend range presets">
-      @for (preset of rangePresets; track preset.label) {
-        <button class="button secondary" type="button" (click)="setPreset(preset.days)">{{ preset.label }}</button>
-      }
-    </div>
-
-    <div class="date-fields">
-      <label>
-        Start
-        <input type="date" [value]="startDate()" (change)="updateStartDate($event)" />
-      </label>
-      <label>
-        End
-        <input type="date" [value]="endDate()" (change)="updateEndDate($event)" />
-      </label>
-      <button class="button secondary" type="button" (click)="load()">Apply</button>
-    </div>
-
-    <div class="bucket-toggle" aria-label="Trend bucket">
-      @for (option of bucketOptions; track option.value) {
-        <button
-          type="button"
-          [class.active]="selectedBucket() === option.value"
-          [attr.aria-pressed]="selectedBucket() === option.value"
-          (click)="selectBucket(option.value)"
-        >
-          {{ option.label }}
-        </button>
-      }
-    </div>
+  <div class="bucket-toggle" role="group" aria-label="Group the days by">
+    @for (option of bucketOptions; track option.value) {
+      <button
+        type="button"
+        [class.active]="selectedBucket() === option.value"
+        [attr.aria-pressed]="selectedBucket() === option.value"
+        (click)="selectBucket(option.value)"
+      >
+        {{ option.label }}
+      </button>
+    }
   </div>
 </section>
 
@@ -65,14 +45,31 @@
       <div class="section-title">
         <div>
           <span class="card-label">Workout</span>
-          <h3>Sessions, minutes, and calories</h3>
+          <h3>Sessions, minutes and calories burned</h3>
         </div>
       </div>
       <fs-chart
+        type="bar"
+        [compact]="true"
+        [wholeNumbers]="true"
         [labels]="chartLabels()"
-        [series]="workoutSeries()"
-        yAxisLabel="Workout totals"
-        [ariaLabel]="'Workout trend from ' + startDate() + ' to ' + endDate()"
+        [series]="sessionsSeries()"
+        yAxisLabel="Sessions"
+        [ariaLabel]="'Sessions per period, ' + rangeText()"
+      />
+      <fs-chart
+        [compact]="true"
+        [labels]="chartLabels()"
+        [series]="minutesSeries()"
+        yAxisLabel="Minutes"
+        [ariaLabel]="'Training minutes per period, ' + rangeText()"
+      />
+      <fs-chart
+        [compact]="true"
+        [labels]="chartLabels()"
+        [series]="caloriesBurnedSeries()"
+        yAxisLabel="kcal burned"
+        [ariaLabel]="'Calories burned per period, ' + rangeText()"
       />
     </article>
 
@@ -80,14 +77,14 @@
       <div class="section-title">
         <div>
           <span class="card-label">Nutrition</span>
-          <h3>Protein, carbs, and fat</h3>
+          <h3>Protein, carbs and fat</h3>
         </div>
       </div>
       <fs-chart
         [labels]="chartLabels()"
         [series]="nutritionSeries()"
-        yAxisLabel="Nutrition totals"
-        [ariaLabel]="'Nutrition trend from ' + startDate() + ' to ' + endDate()"
+        yAxisLabel="Grams"
+        [ariaLabel]="'Protein, carbs and fat per period, ' + rangeText()"
       />
     </article>
   </section>

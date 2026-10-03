@@ -3,11 +3,13 @@
     <div>
       <p class="eyebrow">Progress</p>
       <h1>Your progress</h1>
-      <p>Training and nutrition trends, body measurements, and active goals — all in one place.</p>
+      <p>Training, nutrition, body and goals in one place.</p>
     </div>
   </header>
 
-  <app-insight-panel surface="PROGRESS" />
+  @if (selectedTab() === 'overview') {
+    <app-insight-panel surface="PROGRESS" />
+  }
 
   <div class="segmented progress-tabs" role="tablist" aria-label="Progress sections">
     <button
@@ -47,10 +49,16 @@
 
   @if (selectedTab() === 'overview') {
     <section id="progress-panel-overview" class="progress-panel" role="tabpanel" aria-labelledby="progress-tab-overview">
+      <app-progress-range
+        [range]="range()"
+        [activeDays]="activeDays()"
+        (presetChosen)="choosePreset($event)"
+        (customChosen)="chooseCustomRange($event)"
+      />
       <app-energy-card />
-      <app-analytics-trend-charts />
-      <app-analytics-comparison-card />
-      <app-activity-heatmap [timezone]="accountData()?.user?.profile?.timezone ?? 'Asia/Singapore'" />
+      <app-analytics-trend-charts [range]="range()" />
+      <app-analytics-comparison-card [timezone]="timezone()" />
+      <app-activity-heatmap [range]="range()" [timezone]="timezone()" />
     </section>
   } @else if (selectedTab() === 'body') {
     <section id="progress-panel-body" role="tabpanel" aria-labelledby="progress-tab-body">
@@ -66,6 +74,41 @@
         <button class="button secondary compact" type="button" data-testid="add-goal" (click)="startGoalCreate()">Add goal</button>
       </div>
 
+      <ng-template #goalRow let-goal>
+        <article class="goal-row">
+          <div>
+            <strong>{{ goalLabel(goal) }}</strong>
+            <span>{{ formatGoalValue(goal) }} · {{ goalDate(goal) }}</span>
+            <span>{{ goalStatus(goal) }}</span>
+          </div>
+          <div class="goal-progress">
+            <span>{{ goalProgress(goal) }}%</span>
+            <div class="progress-track" aria-hidden="true">
+              <i [style.width.%]="goalProgress(goal)"></i>
+            </div>
+          </div>
+          <div class="goal-actions">
+            <button
+              class="button secondary compact"
+              type="button"
+              [attr.data-testid]="'edit-goal-' + goal.goalType"
+              (click)="startGoalEdit(goal.goalType)"
+            >
+              Edit
+            </button>
+            <button
+              class="button secondary compact danger-text"
+              type="button"
+              [attr.data-testid]="'delete-goal-' + goal.goalType"
+              [attr.aria-label]="'Delete ' + goalLabel(goal) + ' goal'"
+              (click)="askDeleteGoal(goal.goalType)"
+            >
+              Delete goal
+            </button>
+          </div>
+        </article>
+      </ng-template>
+
       @if (loading()) {
         <div class="progress-skeleton" aria-label="Loading goal progress" aria-busy="true">
           <div class="skeleton"></div>
@@ -78,38 +121,29 @@
           [error]="true"
           (action)="load()"
         />
-      } @else if (hasGoals()) {
-        <div class="goal-list">
-          @for (goal of goals(); track goal.goalType) {
-            <article class="goal-row">
-              <div>
-                <strong>{{ goalLabel(goal) }}</strong>
-                <span>{{ formatGoalValue(goal) }} - {{ goal.targetDate || 'No target date' }}</span>
-                <span>{{ goalStatus(goal) }}</span>
-              </div>
-              <div class="goal-progress">
-                <span>{{ goalProgress(goal) }}%</span>
-                <div class="progress-track" aria-hidden="true">
-                  <i [style.width.%]="goalProgress(goal)"></i>
-                </div>
-              </div>
-              <button
-                class="button secondary compact"
-                type="button"
-                [attr.data-testid]="'edit-goal-' + goal.goalType"
-                (click)="startGoalEdit(goal.goalType)"
-              >
-                Edit
-              </button>
-            </article>
-          }
-        </div>
       } @else {
-        <app-state-panel title="No active goals" message="Set one measurable target to compare progress over time." />
+        @if (activeGoals().length) {
+          <div class="goal-list">
+            @for (goal of activeGoals(); track goal.goalType) {
+              <ng-container *ngTemplateOutlet="goalRow; context: { $implicit: goal }" />
+            }
+          </div>
+        } @else {
+          <app-state-panel title="No active goals" message="Set one measurable target to compare progress over time." />
+        }
+
+        @if (inactiveGoals().length) {
+          <div class="goal-list inactive-goals" role="group" aria-labelledby="not-active-heading">
+            <h3 id="not-active-heading">Not active</h3>
+            @for (goal of inactiveGoals(); track goal.goalType) {
+              <ng-container *ngTemplateOutlet="goalRow; context: { $implicit: goal }" />
+            }
+          </div>
+        }
       }
 
       @if (editingGoalType()) {
-        <form class="goal-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
+        <form #goalEditor class="goal-editor" [formGroup]="goalForm" (ngSubmit)="saveGoal()">
           <div class="sub-card-header">
             <div>
               <span class="card-label">Goal editor</span>
@@ -160,5 +194,17 @@
         </form>
       }
     </section>
+
+    @if (confirmingDelete(); as type) {
+      <app-confirm-dialog
+        title="Delete this goal?"
+        [message]="'The ' + goalLabel({ goalType: type }) + ' goal leaves your goals and progress. You can add it again later.'"
+        confirmLabel="Delete goal"
+        [danger]="true"
+        [busy]="deletingGoal()"
+        (confirmed)="confirmDeleteGoal()"
+        (cancelled)="cancelDeleteGoal()"
+      />
+    }
   }
 </div>

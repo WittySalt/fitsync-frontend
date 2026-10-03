@@ -906,9 +906,19 @@ export class FitSyncDataService {
     );
   }
 
+  /** Every goal the Goals tab lists: the active ones, and the paused and completed ones as well.
+   *  The active request decides success; a failed request for the others only leaves them out. */
   getProgressGoals(): Observable<Goal[]> {
-    return this.analyticsApi.getGoalsProgress('ACTIVE').pipe(
-      map((goals) => goals.goals.map((goal) => this.mapAnalyticsGoalProgress(goal))),
+    const quietly = (status: 'PAUSED' | 'COMPLETED') =>
+      this.analyticsApi.getGoalsProgress(status).pipe(catchError(() => of({ goals: [] as AnalyticsGoalProgress[] })));
+    return forkJoin({
+      active: this.analyticsApi.getGoalsProgress('ACTIVE'),
+      paused: quietly('PAUSED'),
+      completed: quietly('COMPLETED')
+    }).pipe(
+      map(({ active, paused, completed }) =>
+        [...active.goals, ...paused.goals, ...completed.goals].map((goal) => this.mapAnalyticsGoalProgress(goal))
+      ),
       catchError(() => throwError(() => new Error('Unable to load goal progress. Please retry.')))
     );
   }
