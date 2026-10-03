@@ -1,0 +1,29 @@
+/* Progress V5 typography scale (Documents/architecture/progress-v5-spec.md, section 0.1).
+   Every Progress component takes its font sizes from these; no literal sizes in Progress templates. */
+:root {
+  --pg-verdict: 40px;
+  --pg-answer: 20px;
+  --pg-figure: 32px;
+  --pg-figure-tail: 20px;
+  --pg-chip-figure: 20px;
+  --pg-name: 17px;
+  --pg-text: 14px;
+  --pg-control: 13px;
+  --pg-chart: 12px;
+  --pg-eyebrow: 11px;
+  --pg-eyebrow-tracking: 0.1em;
+  --pg-answer-measure: 56ch;
+  --pg-card-radius: 20px;
+  --pg-card-pad: 28px;
+  --pg-card-pad-phone: 20px;
+  --pg-picture-h: 240px;
+  --pg-picture-h-phone: 200px;
+  --pg-left-col: 360px;
+  --pg-col-gap: 48px;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --pg-verdict: 32px;
+  }
+}
