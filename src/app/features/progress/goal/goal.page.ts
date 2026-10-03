@@ -3,17 +3,20 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 
 import { UserTimezoneService } from '../../../core/user-timezone.service';
-import { dateRangeLabel, shortDateLabel } from '../../../shared/date-label';
+import { shortDateLabel } from '../../../shared/date-label';
+import { ContentsRailComponent } from '../../../shared/progress/contents-rail.component';
+import { DetailHeadComponent } from '../../../shared/progress/detail-head.component';
+import { DetailLayoutComponent } from '../../../shared/progress/detail-layout.component';
+import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { HighlightsComponent } from '../../../shared/progress/highlights.component';
-import { ProgressHeroComponent } from '../../../shared/progress/progress-hero.component';
-import { daysBetween, formatNumber, lastDays } from '../../../shared/progress/progress-format';
-import { ProgressCardContext } from '../../../shared/progress/progress.models';
-import { SectionCardComponent } from '../../../shared/progress/section-card.component';
+import { InkSwitchComponent } from '../../../shared/progress/ink-switch.component';
+import { daysBetween, formatNumber, lastDays, periodEyebrow } from '../../../shared/progress/progress-format';
+import { JumpItem, ProgressCardContext } from '../../../shared/progress/progress.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { GoalProgress } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { GoalBodySectionComponent } from './goal-body-section.component';
-import { goalHeroStats, goalTitle } from './goal-figures';
+import { PACE_ASK, bodySentence, goalHeroStats, goalSentence, goalVerdict, paceSentence, weightAsk, weightSentence } from './goal-figures';
 import { GoalOtherGoalsComponent } from './goal-other-goals.component';
 import { GoalWeightChartComponent } from './goal-weight-chart.component';
 import { PaceChartComponent } from './pace-chart.component';
@@ -28,21 +31,33 @@ export const WEIGHT_RANGES = [
 
 type RangeKey = (typeof WEIGHT_RANGES)[number]['key'];
 
+/** The sections of the page, in order, as the contents rail lists them. */
+export const GOAL_SECTIONS: readonly JumpItem[] = [
+  { id: 'highlights', label: 'Highlights' },
+  { id: 'weight', label: 'Weight' },
+  { id: 'body', label: 'Body' },
+  { id: 'pace', label: 'Pace' },
+  { id: 'other-goals', label: 'Other goals' }
+];
+
 /**
- * The Goal page (board 19a): the green hero with the weight goal, Highlights, the weight chart with
- * the date worked out from the pace, body measurements, the food log against the scale, and the
+ * The Goal page (board 20c): the verdict and the four figures, then Highlights, the weight chart
+ * with the date worked out from the pace, body measurements, the food log against the scale, and the
  * other goals. Goals are shown here and changed on Me.
  */
 @Component({
   selector: 'app-goal-page',
   imports: [
+    ContentsRailComponent,
+    DetailHeadComponent,
+    DetailLayoutComponent,
+    DetailSectionComponent,
     GoalBodySectionComponent,
     GoalOtherGoalsComponent,
     GoalWeightChartComponent,
     HighlightsComponent,
+    InkSwitchComponent,
     PaceChartComponent,
-    ProgressHeroComponent,
-    SectionCardComponent,
     StatePanelComponent
   ],
   templateUrl: './goal.page.html',
@@ -55,7 +70,8 @@ export class GoalPage implements OnInit {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly ranges = WEIGHT_RANGES;
+  protected readonly rangeOptions = WEIGHT_RANGES.map((range) => ({ value: range.key, label: range.label }));
+  protected readonly sections = GOAL_SECTIONS;
   readonly today = inject(UserTimezoneService).dateKey();
   readonly fourWeeks = lastDays(28, this.today);
   readonly range = signal<RangeKey>('3m');
@@ -66,25 +82,36 @@ export class GoalPage implements OnInit {
 
   readonly period = computed(() => lastDays(WEIGHT_RANGES.find((r) => r.key === this.range())!.days, this.today));
   readonly context = computed<ProgressCardContext>(() => ({ kind: 'GOAL', ...this.fourWeeks }));
-  readonly title = computed(() => {
+  readonly eyebrow = periodEyebrow('Goal', '4w', this.fourWeeks.from, this.fourWeeks.to);
+  readonly verdict = computed(() => {
     const data = this.data();
-    return data ? goalTitle(data) : 'Your goal';
+    return data ? goalVerdict(data, this.today) : { text: '', tone: 'ink' as const };
+  });
+  readonly sentence = computed(() => {
+    const data = this.data();
+    return data ? goalSentence(data) : '';
   });
   readonly stats = computed(() => {
     const data = this.data();
     return data ? goalHeroStats(data) : [];
   });
-  readonly weightSub = computed(() => {
-    const first = this.data()?.weight.weekly[0]?.weekStart ?? this.period().from;
-    return `weekly average over each morning's weigh-in, ${dateRangeLabel(first, this.today)}`;
+  readonly weightLine = computed(() => {
+    const data = this.data();
+    return data ? weightSentence(data) : '';
   });
-  readonly paceSub = computed(() => {
-    const first = this.data()?.pace.weeks[0]?.weekStart;
-    return first ? `the last ${this.data()!.pace.weeks.length} weeks, ${dateRangeLabel(first, this.today)}, change since the start` : 'change since the start';
+  readonly bodyLine = computed(() => {
+    const data = this.data();
+    return data ? bodySentence(data.body) : '';
   });
-  readonly otherSub = computed(() => `the last 30 days, ${dateRangeLabel(lastDays(30, this.today).from, this.today)}`);
+  readonly paceLine = computed(() => {
+    const data = this.data();
+    return data ? paceSentence(data) : '';
+  });
+  protected readonly paceAsk = PACE_ASK;
+  /** The window the Other goals section names, which its strips cover exactly. */
+  readonly otherWindow = lastDays(30, this.today);
 
-  /** "How the date is worked out", from the figures the hero shows. */
+  /** "How the date is worked out", from the figures the page shows; Ask puts it in the composer. */
   readonly method = computed(() => {
     const data = this.data();
     if (!data) {
@@ -105,14 +132,16 @@ export class GoalPage implements OnInit {
     const when = gap === null ? '' : gap >= 0 ? `, ${gap} days before your date` : `, ${-gap} days after your date`;
     return `${lead} The average change over the last 28 days, ${formatNumber(Math.abs(rate), 2)} kg a week, is carried forward from ${formatNumber(now, 1)} kg${from}. It reaches ${formatNumber(target, 1)} kg on ${shortDateLabel(projected)}${when}.`.trim();
   });
+  protected readonly weightPrompt = computed(() => weightAsk(this.method()));
 
   ngOnInit(): void {
     this.load();
   }
 
-  chooseRange(key: RangeKey): void {
-    if (key !== this.range()) {
-      this.range.set(key);
+  chooseRange(key: string): void {
+    const next = WEIGHT_RANGES.find((range) => range.key === key)?.key;
+    if (next && next !== this.range()) {
+      this.range.set(next);
       this.load();
     }
   }

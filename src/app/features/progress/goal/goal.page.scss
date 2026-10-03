@@ -2,33 +2,20 @@
   display: block;
 }
 
-.goal-page {
-  width: 100%;
-  max-width: 880px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
 .block {
   height: 160px;
-  border-radius: 22px;
+  border-radius: 20px;
 }
 
 .block.tall {
   height: 320px;
 }
 
-.ranges {
-  align-self: flex-start;
-}
-
 .legend {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: var(--text-xs);
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   span {
@@ -50,7 +37,7 @@
   }
 
   .line {
-    border-top: 2.5px solid var(--accent);
+    border-top: 2px solid var(--accent);
   }
 
   .line.slate {
@@ -63,50 +50,5 @@
 
   .dash.goal {
     border-top-color: var(--accent-text);
-  }
-}
-
-.quiet {
-  margin: 0;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.folded {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-
-  summary {
-    font-size: 13px;
-    font-weight: var(--fw-bold);
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-
-  p {
-    margin: 6px 0 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--text-secondary);
-  }
-}
-
-.anchor {
-  scroll-margin-top: 24px;
-}
-
-@media (max-width: 640px) {
-  .ranges {
-    align-self: stretch;
-    display: flex;
-    width: auto;
-
-    button {
-      flex: 1 1 0;
-      padding: 0 6px;
-    }
   }
 }

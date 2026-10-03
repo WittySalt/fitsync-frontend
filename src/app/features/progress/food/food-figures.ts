@@ -1,5 +1,5 @@
 import { shortDateLabel } from '../../../shared/date-label';
-import { formatNumber, signed } from '../../../shared/progress/progress-format';
+import { NO_EARLIER_DATA, formatNumber, signed } from '../../../shared/progress/progress-format';
 import { HeroStat, SummaryLine } from '../../../shared/progress/progress.models';
 import { FoodProgress, MacroTrend } from '../progress-api.models';
 
@@ -22,13 +22,21 @@ export function macroWord(macro: MacroTrend | null): string {
   return first === null || last === null ? '' : changeWord(last, first, MACRO_STEADY_SHARE);
 }
 
-/** "+3% on the 30 days before", with a true minus sign. */
-export function percentAgainst(value: number | null, previous: number | null, days: number): string {
+/** "+3% on the 30 days before", with a true minus sign. Nothing from a missing or zero earlier figure. */
+export function percentAgainst(value: number | null, previous: number | null, days: number, before = `the ${days} days before`): string {
   if (value === null || previous === null || previous === 0) {
     return '';
   }
   const pct = Math.round((value / previous - 1) * 100);
-  return `${pct === 0 ? '0' : signed(pct, 0)}% on the ${days} days before`;
+  return `${pct === 0 ? '0' : signed(pct, 0)}% on ${before}`;
+}
+
+/** A compared figure's line: the change when there is an earlier figure, "No earlier data" when there is not. */
+function againstEarlier(value: number | null, previous: number | null, change: string): string {
+  if (value === null) {
+    return '';
+  }
+  return previous === null || previous === 0 ? NO_EARLIER_DATA : change;
 }
 
 /** The big number of the energy balance and its words: "279" and "kcal a day under what you used". */
@@ -75,8 +83,8 @@ export function foodSummaryContext(food: FoodProgress, days: number): string {
   return previous === null ? '' : `${formatNumber(previous)} kcal a day in the ${days} days before`;
 }
 
-/** The Food page's hero figures (board 19b). */
-export function foodHeroStats(food: FoodProgress, days: number): HeroStat[] {
+/** The Food page's four figures (board 19b). `before` names the period before: "the 4 weeks before". */
+export function foodHeroStats(food: FoodProgress, days: number, before = `the ${days} days before`): HeroStat[] {
   const { hero } = food;
   const balance = hero.balancePerDay.value;
   const previousBalance = food.energy.weeklyBalance.filter((week) => !week.current).at(-1)?.balance ?? null;
@@ -85,13 +93,13 @@ export function foodHeroStats(food: FoodProgress, days: number): HeroStat[] {
       label: 'Eaten a day',
       value: hero.eatenPerDay.value === null ? '–' : formatNumber(hero.eatenPerDay.value),
       unit: hero.eatenPerDay.value === null ? '' : 'kcal',
-      context: percentAgainst(hero.eatenPerDay.value, hero.eatenPerDay.previous, days)
+      context: againstEarlier(hero.eatenPerDay.value, hero.eatenPerDay.previous, percentAgainst(hero.eatenPerDay.value, hero.eatenPerDay.previous, days, before))
     },
     {
       label: 'Protein a day',
       value: hero.proteinPerDay.value === null ? '–' : formatNumber(hero.proteinPerDay.value),
       unit: hero.proteinPerDay.value === null ? '' : 'g',
-      context: percentAgainst(hero.proteinPerDay.value, hero.proteinPerDay.previous, days)
+      context: againstEarlier(hero.proteinPerDay.value, hero.proteinPerDay.previous, percentAgainst(hero.proteinPerDay.value, hero.proteinPerDay.previous, days, before))
     },
     {
       label: balance !== null && balance > 0 ? 'Over what you used' : 'Under what you used',
@@ -108,10 +116,11 @@ export function foodHeroStats(food: FoodProgress, days: number): HeroStat[] {
       label: 'Days logged',
       value: hero.daysLogged.value === null ? '–' : String(hero.daysLogged.value),
       unit: hero.daysLogged.value === null ? '' : `of ${hero.daysLogged.days ?? days}`,
-      context:
-        hero.daysLogged.value === null || hero.daysLogged.previous === null
-          ? ''
-          : `${signed(hero.daysLogged.value - hero.daysLogged.previous, 0)} on the ${days} days before`
+      context: againstEarlier(
+        hero.daysLogged.value,
+        hero.daysLogged.previous,
+        hero.daysLogged.value === null || hero.daysLogged.previous === null ? '' : `${signed(hero.daysLogged.value - hero.daysLogged.previous, 0)} on ${before}`
+      )
     }
   ];
 }
@@ -120,3 +129,66 @@ export function foodHeroStats(food: FoodProgress, days: number): HeroStat[] {
 export function hasFood(food: FoodProgress): boolean {
   return food.hero.eatenPerDay.value !== null || (food.hero.daysLogged.value ?? 0) > 0;
 }
+
+export interface FoodVerdict {
+  text: string;
+  tone: 'good' | 'ink';
+}
+
+/** Under this share of the days logged, the answer is about the gaps and not about the balance. */
+const LOGGED_ENOUGH = 0.7;
+
+/**
+ * The page's answer: logging gaps first (a balance over few days says little), then under or over
+ * what you use this week. Nothing logged at all asks for logging.
+ */
+export function foodVerdict(food: FoodProgress, days: number): FoodVerdict {
+  if (!hasFood(food)) {
+    return { text: 'Start logging.', tone: 'ink' };
+  }
+  const { value, days: of } = food.hero.daysLogged;
+  if (value !== null && value / (of ?? days) < LOGGED_ENOUGH) {
+    return { text: 'Logging gaps.', tone: 'ink' };
+  }
+  const balance = food.hero.balancePerDay.value;
+  if (balance === null) {
+    return { text: 'Not enough yet.', tone: 'ink' };
+  }
+  return balance <= 0 ? { text: 'Under what you use.', tone: 'good' } : { text: 'Over what you use.', tone: 'ink' };
+}
+
+/** The sentence under the verdict, from the page's own figures. */
+export function foodSentence(food: FoodProgress, days: number): string {
+  const { eatenPerDay, daysLogged, balancePerDay } = food.hero;
+  const parts: string[] = [];
+  if (eatenPerDay.value !== null) {
+    const logged = daysLogged.value === null ? '' : ` and logged ${daysLogged.value} of ${daysLogged.days ?? days} days`;
+    parts.push(`You ate ${formatNumber(eatenPerDay.value)} kcal a day${logged}.`);
+  }
+  const headline = balanceHeadline(balancePerDay.value);
+  if (headline) {
+    parts.push(`This week you ate ${headline.value} ${headline.words}.`);
+  }
+  return parts.join(' ') || 'Log what you eat and this page fills in.';
+}
+
+/** The one sentence under Macros: protein from the first week to this one against its goal. */
+export function macroSentence(macros: FoodProgress['macros']): string {
+  const protein = macros.protein;
+  const first = protein?.firstWeek ?? protein?.series[0]?.value ?? null;
+  const last = protein?.thisWeek ?? protein?.series.at(-1)?.value ?? null;
+  if (first === null || last === null) {
+    return 'Grams a day against your daily goals, once there are weeks to compare.';
+  }
+  const goal = protein?.target ? ` against a goal of ${formatNumber(protein.target)} g` : '';
+  return `Protein went from ${formatNumber(first)} to ${formatNumber(last)} g a day${goal}.`;
+}
+
+/** What Ask puts in the composer for Macros: what each tile shows and how it is averaged. */
+export function macroAsk(macros: FoodProgress['macros']): string {
+  const first = macros.protein?.series[0]?.weekStart;
+  const since = first ? ` from the week of ${shortDateLabel(first)}` : '';
+  return `How are my macros doing against my goals? Each tile is the average of a week, on logged days only${since}.`;
+}
+
+export const ENERGY_ASK = 'How is my energy balance worked out? It is what I ate against resting energy × 1.2 plus workouts, on logged days only.';

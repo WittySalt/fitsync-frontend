@@ -4,12 +4,13 @@ import { FoodIconComponent } from '../../../shared/food/food-icon.component';
 import { asFoodGroup } from '../../../shared/food/food-groups';
 import { formatNumber, signed } from '../../../shared/progress/progress-format';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
-import { SectionCardComponent } from '../../../shared/progress/section-card.component';
+import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
+import { measureWidth } from '../../../shared/progress/measure-width';
 import { FoodNutrition, FoodProgress } from '../progress-api.models';
 
 const MEAL_NAMES: Record<string, string> = { BREAKFAST: 'Breakfast', LUNCH: 'Lunch', DINNER: 'Dinner', SNACK: 'Snack' };
 const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
-const LABEL_W = 76;
+const LABEL_W = 84;
 const WIDTH = 600;
 
 export function clockTime(minutes: number): string {
@@ -32,36 +33,35 @@ function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
  */
 @Component({
   selector: 'app-food-meals-section',
-  imports: [FoodIconComponent, SectionCardComponent],
+  imports: [DetailSectionComponent, FoodIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-section-card title="Meals" sub="by the meal each food was logged under" [context]="context()">
+    <app-detail-section name="Meals" anchor="meals" [sentence]="sentence()" [context]="context()" ask="When do I usually eat, and which meal carries most of my calories? The band is where half of my meals fall and the dot is the middle time.">
       <div class="block">
-        <strong>When you usually eat</strong>
+        <strong class="heading">When you usually eat</strong>
         @if (clock().length) {
-          <svg [attr.viewBox]="'0 0 600 ' + clockHeight()" role="img" [attr.aria-label]="clockSummary()">
-            @for (hour of hours; track hour.text) {
+          <svg [attr.viewBox]="'0 0 ' + width() + ' ' + clockHeight()" [style.width.px]="width()" role="img" [attr.aria-label]="clockSummary()">
+            @for (hour of hours(); track hour.text) {
               <line class="grid" [attr.x1]="hour.x" [attr.x2]="hour.x" y1="12" [attr.y2]="clockHeight() - 18"></line>
-              <text [attr.x]="hour.x" [attr.y]="clockHeight() - 3" [attr.text-anchor]="hour.anchor">{{ hour.text }}</text>
+              <text [attr.x]="hour.x" [attr.y]="clockHeight() - 4" [attr.text-anchor]="hour.anchor">{{ hour.text }}</text>
             }
             @for (row of clock(); track row.name) {
               <text class="meal" x="0" [attr.y]="row.y" dominant-baseline="central">{{ row.name }}</text>
-              <rect class="track" x="76" [attr.y]="row.y - 5" width="524" height="10" rx="5"></rect>
+              <rect class="track" [attr.x]="labelWidth" [attr.y]="row.y - 5" [attr.width]="width() - labelWidth" height="10" rx="5"></rect>
               @if (row.band) {
                 <rect class="band" [attr.x]="row.band.x" [attr.y]="row.y - 5" [attr.width]="row.band.width" height="10" rx="5"></rect>
               }
-              <circle class="mid" [attr.cx]="row.x" [attr.cy]="row.y" r="5"></circle>
+              <circle class="mid" [attr.cx]="row.x" [attr.cy]="row.y" r="6"></circle>
               <text class="time" [attr.x]="row.textX" [attr.y]="row.y - 9" [attr.text-anchor]="row.anchor">{{ row.time }}</text>
             }
           </svg>
-          <span class="quiet">The dot is the middle time; half of your meals fall in the band.</span>
         } @else {
           <span class="quiet">Not enough data yet</span>
         }
       </div>
       <div class="lower">
         <div class="block">
-          <strong>Share of the day's calories</strong>
+          <strong class="heading">Share of the day's calories</strong>
           @for (row of shares(); track row.mealType) {
             <div class="share">
               <span>{{ row.name }}</span>
@@ -74,7 +74,7 @@ function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
           }
         </div>
         <div class="block">
-          <strong>Most logged foods</strong>
+          <strong class="heading">Most logged foods</strong>
           @for (food of foods(); track food.name) {
             <div class="food">
               <app-food-icon [group]="group(food.foodGroup)" [categoryCode]="food.categoryCode" [size]="30" />
@@ -86,28 +86,28 @@ function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
           }
         </div>
       </div>
-    </app-section-card>
+    </app-detail-section>
   `,
   styles: `
     :host { display: block; }
     .block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    .block > strong { font-size: var(--text-sm); color: var(--text-primary); }
-    svg { display: block; width: 100%; height: auto; overflow: visible; }
-    .grid { stroke: var(--border); }
+    .heading { font: 500 var(--pg-control) var(--font-sans); color: var(--text-primary); }
+    svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+    .grid { stroke: var(--border); stroke-width: 1; }
     .track { fill: var(--surface-sunken); }
     .band { fill: var(--accent); opacity: .45; }
-    .mid { fill: var(--accent-text); stroke: var(--surface); stroke-width: 1.5; }
-    text { font: 400 10px var(--font-sans); fill: var(--text-secondary); }
-    .meal { font-size: 12px; font-weight: 600; fill: var(--text-primary); }
-    .time { font-size: 11px; font-weight: 700; fill: var(--text-primary); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
-    .quiet { font-size: var(--text-xs); color: var(--text-secondary); }
+    .mid { fill: var(--accent-text); stroke: var(--surface); stroke-width: 2; }
+    text { font: 400 var(--pg-chart) var(--font-sans); fill: var(--text-secondary); }
+    .meal { font-weight: 500; fill: var(--text-primary); }
+    .time { font-weight: 600; fill: var(--text-primary); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+    .quiet { font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
     .lower { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; border-top: 1px solid var(--border); padding-top: 16px; }
-    .share, .food { display: grid; align-items: center; gap: 8px; padding: 6px 0; font-size: var(--text-sm); color: var(--text-primary); }
+    .share, .food { display: grid; align-items: center; gap: 8px; padding: 6px 0; font: 400 var(--pg-text) var(--font-sans); color: var(--text-primary); }
     .share { grid-template-columns: minmax(0, 1fr) 44px 80px 44px; }
     .food { grid-template-columns: 30px minmax(0, 1fr) auto; }
     .share + .share, .food + .food { border-top: 1px solid var(--border); }
-    .delta, .times { font-size: var(--text-xs); color: var(--text-secondary); text-align: right; white-space: nowrap; }
-    .word { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-align: right; }
+    .delta, .times { font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); text-align: right; white-space: nowrap; }
+    .word { font: 500 var(--pg-control) var(--font-sans); color: var(--text-secondary); text-align: right; }
     .food-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .times strong { color: var(--text-primary); }
     @media (max-width: 640px) { .lower { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
@@ -118,14 +118,19 @@ export class FoodMealsSectionComponent {
   readonly nutrition = input<FoodNutrition | null>(null);
   readonly context = input<ProgressCardContext | null>(null);
 
-  protected readonly hours = [0, 6, 12, 18, 24].map((hour) => ({
-    x: LABEL_W + ((WIDTH - LABEL_W) * hour) / 24,
-    text: `${String(hour).padStart(2, '0')}:00`,
-    anchor: hour === 0 ? 'start' : hour === 24 ? 'end' : 'middle'
-  }));
+  protected readonly labelWidth = LABEL_W;
+  protected readonly width = measureWidth(WIDTH);
+
+  protected readonly hours = computed(() =>
+    [0, 6, 12, 18, 24].map((hour) => ({
+      x: LABEL_W + ((this.width() - LABEL_W) * hour) / 24,
+      text: `${String(hour).padStart(2, '0')}:00`,
+      anchor: hour === 0 ? 'start' : hour === 24 ? 'end' : 'middle'
+    }))
+  );
 
   protected readonly clock = computed(() => {
-    const x = (minutes: number) => LABEL_W + ((WIDTH - LABEL_W) * Math.min(Math.max(minutes, 0), 1440)) / 1440;
+    const x = (minutes: number) => LABEL_W + ((this.width() - LABEL_W) * Math.min(Math.max(minutes, 0), 1440)) / 1440;
     return byMealOrder(this.nutrition()?.mealTimes ?? []).map((row, k) => {
       const mid = x(row.medianMinuteOfDay);
       const late = row.medianMinuteOfDay >= 1200;
@@ -154,6 +159,17 @@ export class FoodMealsSectionComponent {
   );
 
   protected readonly foods = computed(() => this.nutrition()?.topFoods ?? []);
+
+  /** The one sentence under the name: the biggest meal and when it usually lands. */
+  protected readonly sentence = computed(() => {
+    const biggest = [...this.meals().share].sort((a, b) => b.sharePct - a.sharePct)[0];
+    if (!biggest) {
+      return 'When you eat and what each meal carries, once foods are logged by meal.';
+    }
+    const time = this.nutrition()?.mealTimes.find((row) => row.mealType === biggest.mealType);
+    const when = time ? `, usually around ${clockTime(time.medianMinuteOfDay)}` : '';
+    return `${mealName(biggest.mealType)} is the biggest meal at ${formatNumber(biggest.sharePct)}% of the day's calories${when}.`;
+  });
 
   protected group(value: string | null) {
     return asFoodGroup(value);
