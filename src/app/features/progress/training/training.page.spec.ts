@@ -70,7 +70,8 @@ describe('TrainingPage', () => {
     expect(card.textContent).toContain('+14%');
     expect(card.textContent).toContain('best set 80 kg × 5');
     expect(card.querySelector('a')?.getAttribute('href')).toBe('/progress/training/exercises/dl');
-    const ladder = host.querySelector('app-ladder')!;
+    const ladder = host.querySelector('app-strength-section .rows')!;
+    expect(ladder.querySelector('app-ladder')).not.toBeNull();
     expect(ladder.textContent).toContain('Intermediate');
     expect(ladder.textContent).toContain('next: advanced at 89 kg');
   });
@@ -78,7 +79,7 @@ describe('TrainingPage', () => {
   it('keeps two highlights on a phone behind "2 more highlights"', () => {
     api.getTraining.and.returnValue(of(trainingFixture()));
     const host = create();
-    expect(host.querySelectorAll('app-highlights .item.extra').length).toBe(2);
+    expect(host.querySelectorAll('app-highlights .card').length).toBe(4);
     const more = host.querySelector<HTMLButtonElement>('app-highlights .more')!;
     expect(more.textContent).toContain('2 more highlights');
     more.click();
@@ -100,7 +101,7 @@ describe('TrainingPage', () => {
   it('asks the coach about a section with its kind and period', () => {
     api.getTraining.and.returnValue(of(trainingFixture()));
     const host = create();
-    host.querySelector<HTMLButtonElement>('app-strength-section app-ask-chip button')?.click();
+    host.querySelector<HTMLButtonElement>('app-strength-section app-section-card .ask')?.click();
     const [card] = coach.askAboutCard.calls.mostRecent().args;
     expect(card.kind).toBe('STRENGTH');
     expect(card.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -114,7 +115,7 @@ describe('TrainingPage', () => {
   });
 
   it('writes the hero figures with their change on the period before', () => {
-    expect(heroTiles(trainingFixture()).map((tile) => [tile.value, tile.change])).toEqual([
+    expect(heroTiles(trainingFixture()).map((tile) => [tile.value, tile.context])).toEqual([
       ['15', '+2'],
       ['11 h 50', '+1 h 10'],
       ['4,320', '+9%'],

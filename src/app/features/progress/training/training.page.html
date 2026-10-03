@@ -18,14 +18,14 @@
     }
     @default {
       @if (data(); as progress) {
-        <app-progress-hero eyebrow="Training" [title]="title()" [note]="note()" [tiles]="tiles()" />
+        <app-progress-hero eyebrow="Training" [title]="title()" [sub]="note()" [stats]="tiles()" [back]="null" />
         @if (empty()) {
-          <app-section-card title="Not enough data yet" [card]="cards().training">
+          <app-section-card title="Not enough data yet" [context]="cards().training">
             <p class="quiet">No sessions in this period. Finished sessions fill this page, from the hero to the records.</p>
             <a class="button secondary start" routerLink="/workout">Open Workout</a>
           </app-section-card>
         } @else {
-          <app-highlights [items]="progress.highlights" [sub]="highlightsSub()" />
+          <app-highlights [highlights]="progress.highlights" [sub]="highlightsSub()" [format]="unitValue" [barMax]="25" />
 
           <app-section-card title="By activity" sub="tap one to open it" [bare]="true">
             @if (progress.activities.length) {

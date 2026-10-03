@@ -19,6 +19,7 @@ import { FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models'
 import { ProgressApiService, mergeFood } from './progress-api.service';
 import { progressTabRedirect } from './progress-redirect.guard';
 import { PROGRESS_SECTIONS, ProgressPage, RING_MS } from './progress.page';
+import { TrainingApiService } from './training/training-api.service';
 import { TODAY, goalData, progressApi, timezoneStub } from './progress-testing.spec';
 
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -67,6 +68,7 @@ describe('ProgressPage', () => {
         { provide: CoachStore, useValue: store },
         { provide: CoachApiService, useValue: { getReading: () => of(reading) } },
         { provide: FitSyncDataService, useValue: { getProgressInsight: () => throwError(() => new Error('off')) } },
+        { provide: TrainingApiService, useValue: { getTraining: () => throwError(() => new Error('off')) } },
         { provide: UserTimezoneService, useValue: timezoneStub },
         { provide: InsightReadState, useValue: { wasRead: () => false, markRead: () => undefined } },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (key: string) => queryParams[key] ?? null } } } }

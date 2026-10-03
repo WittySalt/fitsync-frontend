@@ -1,24 +1,11 @@
 import { trainingFixture } from '../training-fixture.spec';
 import { calendarPage, logStats } from './calendar-grid';
-import { formPosition, loadChart, minutesTop, seriesChart, smallTrend, stepChart } from './chart-geometry';
+import { formPosition, loadChart, minutesTop, seriesChart } from './chart-geometry';
 
 describe('training chart geometry', () => {
-  it('writes the start and end of a small trend beside its first and last points', () => {
-    const chart = smallTrend([81.7, 87.5, 93.3], 260, 44, '81.7 kg', '93.3 kg');
-    expect(chart).not.toBeNull();
-    expect(chart!.start.anchor).toBe('end');
-    expect(chart!.start.x).toBeLessThan(chart!.first.x);
-    expect(chart!.end.x).toBeGreaterThan(chart!.last.x);
-    expect(chart!.last.y).toBeLessThan(chart!.first.y);
-    expect(smallTrend([1], 100, 40, 'a', 'b')).toBeNull();
-  });
-
-  it('steps the total time up on each session and ends with its total', () => {
-    const chart = stepChart([{ date: '2026-09-08', minutes: 50 }, { date: '2026-09-15', minutes: 45 }], '2026-09-06', '2026-10-03', 300);
-    expect(chart.endLabel).toBe('1 h 35 min');
-    expect(chart.d.match(/V/g)?.length).toBe(2);
-    expect(chart.grid.map((line) => line.label)).toEqual(['0', '2.5 h', '5 h']);
+  it('puts minute scales on whole hours', () => {
     expect(minutesTop(245)).toBe(300);
+    expect(minutesTop(10)).toBe(60);
   });
 
   it('draws a lift with records filled, the dashed best before and labels clear of it', () => {

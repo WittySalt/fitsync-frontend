@@ -3,9 +3,9 @@ import { ChangeDetectionStrategy, Component, computed, input, signal } from '@an
 import { CoachCardContext } from '../../../../core/coach/coach.models';
 import { MuscleFigureComponent } from '../../../../shared/charts/muscle-figure/muscle-figure.component';
 import { HEAT_KEY, MUSCLE_GROUPS, formatSets, groupLabel, heatLevel } from '../../../../shared/charts/muscle-figure/muscle-figure';
+import { SectionCardComponent } from '../../../../shared/progress';
 import { MuscleSets } from '../training.models';
 import { MuscleGroupDetailComponent } from './muscle-group-detail.component';
-import { SectionCardComponent } from './section-card.component';
 
 export const COUNT_NOTE = 'A set counts once for its main muscle group and half for a secondary one.';
 

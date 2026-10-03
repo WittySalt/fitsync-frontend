@@ -17,7 +17,7 @@ import { ProgressCardContext } from './progress.models';
   // A click anywhere opens the card's page; the chevron link is the way in for the keyboard.
   host: { '(click)': 'openFromCard($event)' },
   template: `
-    <article class="card" [class.linked]="!!link()" [class.ringed]="ringed()">
+    <article class="card" [class.linked]="!!link()" [class.ringed]="ringed()" [class.bare]="bare()">
       <header class="head">
         <div class="titles">
           <div class="title-row">
@@ -31,6 +31,9 @@ import { ProgressCardContext } from './progress.models';
           }
           @if (sub()) {
             <span class="sub">{{ sub() }}</span>
+          }
+          @if (quiet()) {
+            <span class="quiet">{{ quiet() }}</span>
           }
         </div>
         <div class="actions">
@@ -69,6 +72,8 @@ import { ProgressCardContext } from './progress.models';
     .cite { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 6px; background: var(--accent-subtle); color: var(--accent-text); font-size: 11px; font-weight: 700; }
     .fact-note { font-size: var(--text-xs); color: var(--text-secondary); }
     .sub { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .quiet { font-size: var(--text-xs); color: var(--text-secondary); }
+    .bare { gap: 10px; padding: 0; border: 0; border-radius: 0; background: none; }
     .actions { display: flex; align-items: center; gap: 8px; flex: none; }
     .ask { height: 30px; padding: 0 11px; border-radius: 10px; border: 1px solid var(--accent-subtle); background: var(--surface); display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-xs); font-weight: 700; color: var(--accent-text); cursor: pointer; }
     .ask svg { color: var(--accent); }
@@ -77,7 +82,7 @@ import { ProgressCardContext } from './progress.models';
     .coach { display: flex; align-items: flex-start; gap: 10px; }
     .mark { flex: none; width: 22px; height: 22px; border-radius: 8px; background: var(--accent); color: var(--text-on-accent); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
     .coach p { margin: 1px 0 0; font-size: var(--text-sm); line-height: 1.55; color: var(--text-primary); }
-    @media (max-width: 640px) { .card { padding: 18px; } }
+    @media (max-width: 640px) { .card:not(.bare) { padding: 18px; } }
     @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
   `
 })
@@ -87,6 +92,8 @@ export class SectionCardComponent {
 
   readonly title = input.required<string>();
   readonly sub = input('');
+  /** A second, quieter line under the sub, such as how a figure is worked out. */
+  readonly quiet = input('');
   readonly coachLine = input('');
   /** The card's kind and days; with it the Ask button shows. */
   readonly context = input<ProgressCardContext | null>(null);
@@ -94,6 +101,8 @@ export class SectionCardComponent {
   readonly link = input<string | null>(null);
   readonly factNumber = input<number | null>(null);
   readonly ringed = input(false);
+  /** No border or padding: the section is a heading over cards of its own. */
+  readonly bare = input(false);
 
   /** Emitted with the card context when Ask is pressed, after the coach has been opened with it. */
   readonly ask = output<ProgressCardContext>();

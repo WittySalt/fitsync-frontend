@@ -2,12 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { Router, RouterLink } from '@angular/router';
 
 import { CoachCardContext } from '../../../core/coach/coach.models';
+import { SmallTrendComponent, SummaryLinesComponent } from '../../../shared/progress';
 import { activityLine, daysTrainedLine, liftRow, radarFigures, recordsLine } from './card/training-card';
 import { TrainingRadarComponent } from './card/training-radar.component';
 import { AskChipComponent } from './parts/ask-chip.component';
 import { KindTileComponent } from './parts/kind-tile.component';
-import { SmallTrendComponent } from './parts/small-trend.component';
-import { SummaryLinesComponent } from './parts/summary-lines.component';
 import { TrainingCalendarComponent } from './parts/training-calendar.component';
 import { TrainingApiService } from './training-api.service';
 import { useLoad } from './training-load';

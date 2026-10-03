@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
+import { SectionCardComponent } from '../../../../shared/progress';
 import { RecordEntry } from '../training.models';
 import { grouped, kg, shortDate, signed } from '../training-format';
-import { SectionCardComponent } from './section-card.component';
 
 /** Records: new estimated best singles, newest first, each opening its exercise. */
 @Component({
   selector: 'app-records-section',
   imports: [RouterLink, SectionCardComponent],
   template: `
-    <app-section-card title="Records" sub="new estimated best singles, newest first" [card]="card()">
+    <app-section-card title="Records" sub="new estimated best singles, newest first" [context]="card()">
       @if (rows().length) {
         <ul>
           @for (row of rows(); track $index) {

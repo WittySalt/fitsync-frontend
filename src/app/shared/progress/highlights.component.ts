@@ -39,14 +39,17 @@ interface BarRow {
   text: string;
 }
 
-function barRows(series: readonly SeriesPoint[], unit: string): BarRow[] {
-  const top = Math.max(...series.map((p) => Math.abs(p.value)), 1);
+/** Writes a value of a finding in its unit, for a page whose units need more than a number: "5:50" a km. */
+export type HighlightFormat = (value: number, unit: string) => string;
+
+function barRows(series: readonly SeriesPoint[], unit: string, format: HighlightFormat | null, max: number | null): BarRow[] {
+  const top = Math.max(max ?? 0, ...series.map((p) => Math.abs(p.value)), 1);
   const digits = series.some((p) => !Number.isInteger(p.value)) ? 1 : 0;
   const anyNegative = series.some((p) => p.value < 0);
   return series.map((point) => ({
     label: point.label,
     width: Math.max((Math.abs(point.value) / top) * 100, 4),
-    text: `${anyNegative ? signed(point.value, digits) : formatNumber(point.value, digits)}${unit ? ' ' + unit : ''}`
+    text: format ? format(point.value, unit) : `${anyNegative ? signed(point.value, digits) : formatNumber(point.value, digits)}${unit ? ' ' + unit : ''}`
   }));
 }
 
@@ -81,7 +84,7 @@ function barRows(series: readonly SeriesPoint[], unit: string): BarRow[] {
               <strong class="title">{{ card.title }}</strong>
               <div class="chart">
                 @if (card.chart === 'line') {
-                  <app-small-trend [points]="card.series" [unit]="card.unit" [digits]="card.digits" [label]="card.title" />
+                  <app-small-trend [points]="card.series" [unit]="card.unit" [digits]="card.digits" [startText]="card.startText" [endText]="card.endText" [label]="card.title" />
                 } @else if (card.chart === 'bars') {
                   <div class="bars" role="img" [attr.aria-label]="card.title">
                     @for (row of card.rows; track $index) {
@@ -139,17 +142,30 @@ export class HighlightsComponent {
   readonly highlights = input.required<readonly Highlight[]>();
   readonly sub = input('');
   readonly context = input<ProgressCardContext | null>(null);
+  /** How values are written; numbers with their unit when not given. */
+  readonly format = input<HighlightFormat | null>(null);
+  /** A shared top for the bars, so one value reads against a usual scale rather than filling the track. */
+  readonly barMax = input<number | null>(null);
 
   readonly expanded = signal(false);
 
   protected readonly cards = computed(() =>
-    this.highlights().map((highlight) => ({
-      ...highlight,
-      kicker: HIGHLIGHT_KICKERS[highlight.code] ?? '',
-      chart: highlightChart(highlight.series),
-      digits: highlight.series.some((p) => !Number.isInteger(p.value)) ? 1 : 0,
-      rows: highlightChart(highlight.series) === 'bars' ? barRows(highlight.series, highlight.unit) : []
-    }))
+    this.highlights()
+      .slice(0, 4)
+      .map((highlight) => {
+        const format = this.format();
+        const series = highlight.series;
+        const chart = highlightChart(series);
+        return {
+          ...highlight,
+          kicker: HIGHLIGHT_KICKERS[highlight.code] ?? '',
+          chart,
+          digits: series.some((p) => !Number.isInteger(p.value)) ? 1 : 0,
+          startText: format && series.length ? format(series[0].value, highlight.unit) : null,
+          endText: format && series.length ? format(series[series.length - 1].value, highlight.unit) : null,
+          rows: chart === 'bars' ? barRows(series, highlight.unit, format, this.barMax()) : []
+        };
+      })
   );
 
   askCoach(): void {

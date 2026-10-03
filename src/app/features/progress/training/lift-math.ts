@@ -1,3 +1,4 @@
+import { rungRatios } from '../../../shared/progress/ladder.component';
 import { E1rmPoint, Lift, StrengthLevel } from './training.models';
 
 /** The estimated best single, e1RM = weight × (1 + reps ÷ 30), the one strength figure on every page. */
@@ -18,25 +19,12 @@ export const LEVEL_NAMES: Record<StrengthLevel, string> = {
 };
 
 /**
- * The rungs of the relative-strength ladder as ratios of body weight (contract 1.1). Beginner is
- * below the first rung, novice from the first, intermediate from the second, advanced from the
- * third; the fourth closes the advanced band on the drawn track.
+ * The rungs of the relative-strength ladder as ratios of body weight (contract 1.1), from the shared
+ * ladder. Beginner is below the first rung, novice from the first, intermediate from the second,
+ * advanced from the third; the fourth closes the advanced band on the drawn track.
  */
 export function rungsFor(name: string): [number, number, number, number] {
-  const text = name.toLowerCase();
-  if (/dead ?lift/.test(text)) {
-    return [1.0, 1.25, 1.5, 2.0];
-  }
-  if (/bench/.test(text)) {
-    return [0.5, 0.75, 1.0, 1.5];
-  }
-  if (/overhead|military|shoulder press|\bohp\b/.test(text)) {
-    return [0.35, 0.55, 0.75, 1.0];
-  }
-  if (/squat/.test(text)) {
-    return [0.75, 1.0, 1.25, 1.75];
-  }
-  return [0.5, 0.75, 1.0, 1.5];
+  return rungRatios(name);
 }
 
 export interface LadderPosition {

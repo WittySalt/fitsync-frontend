@@ -67,6 +67,12 @@ describe('progress sections', () => {
     });
   });
 
+  it('gives a section card a quieter second line and drops its frame when bare', () => {
+    const { el } = render(SectionCardComponent, { title: 'Strength', sub: 'Estimated best single', quiet: 'worked out as weight × (1 + reps ÷ 30)', bare: true });
+    expect(text(el.querySelector('.quiet'))).toBe('worked out as weight × (1 + reps ÷ 30)');
+    expect(el.querySelector('.card.bare')).not.toBeNull();
+  });
+
   describe('SummaryLinesComponent', () => {
     it('shows each line with its trend word in lower case and the context', () => {
       const { el } = render(SummaryLinesComponent, {
@@ -162,6 +168,18 @@ describe('progress sections', () => {
       expect(el.querySelector('.more')).toBeNull();
       el.querySelector<HTMLButtonElement>('.ask')!.click();
       expect(coach.askAboutCard).toHaveBeenCalledOnceWith(card);
+    });
+
+    it('writes values with the page format, at most four, and scales a single bar against a shared top', () => {
+      const pace = { code: 'PACE_FASTER', title: 'Faster.', series: [{ label: '2026-09-07', value: 370 }, { label: '2026-09-28', value: 350 }], unit: 'sec/km', context: '' };
+      const under = { code: 'MUSCLE_UNDER', title: 'Calves.', series: [{ label: 'Calves', value: 5 }], unit: 'sets a week', context: '' };
+      const format = (value: number, unit: string) => (unit === 'sec/km' ? `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}` : `${value} ${unit}`);
+      const { el } = render(HighlightsComponent, { highlights: [pace, under, pace, pace, pace], format, barMax: 25 });
+      const cards = el.querySelectorAll('.card');
+      expect(cards.length).toBe(4);
+      expect(text(cards[0].querySelector('.end'))).toBe('5:50');
+      expect(text(cards[1].querySelector('.bar-value'))).toBe('5 sets a week');
+      expect(cards[1].querySelector<HTMLElement>('.track i')!.style.width).toBe('20%');
     });
 
     it('says not enough data yet without highlights', () => {

@@ -8,20 +8,27 @@ const WIDTH = 300;
 /** The level names the rungs start, from the contract's BEGINNER to ADVANCED, then one past it. */
 export const LADDER_LEVELS = ['Novice', 'Intermediate', 'Advanced', 'Elite'];
 
-/** Rungs as ratios of body weight (contract section 1.1). Beginner is below the first rung. */
-const RUNGS: Record<string, number[]> = {
-  squat: [0.75, 1.0, 1.25, 1.75],
-  deadlift: [1.0, 1.25, 1.5, 2.0],
-  bench: [0.5, 0.75, 1.0, 1.5],
-  overhead: [0.35, 0.55, 0.75, 1.0]
-};
-const OTHER = [0.5, 0.75, 1.0, 1.5];
+/**
+ * Rungs as ratios of body weight (contract section 1.1), by the lift's name: deadlift, bench press,
+ * overhead press, squat or any other. Beginner is below the first rung.
+ */
+const RUNGS: [RegExp, [number, number, number, number]][] = [
+  [/dead ?lift/, [1.0, 1.25, 1.5, 2.0]],
+  [/bench/, [0.5, 0.75, 1.0, 1.5]],
+  [/overhead|military|shoulder press|\bohp\b/, [0.35, 0.55, 0.75, 1.0]],
+  [/squat/, [0.75, 1.0, 1.25, 1.75]]
+];
+const OTHER: [number, number, number, number] = [0.5, 0.75, 1.0, 1.5];
 
-/** The ladder for a lift by its name: squat, deadlift, bench press, overhead press or any other. */
-export function ladderRungs(liftName: string): LadderRung[] {
+/** The four rung ratios for a lift by its name. */
+export function rungRatios(liftName: string): [number, number, number, number] {
   const name = liftName.toLowerCase();
-  const key = Object.keys(RUNGS).find((candidate) => name.includes(candidate) || (candidate === 'overhead' && name.includes('shoulder press')));
-  return (key ? RUNGS[key] : OTHER).map((ratio, i) => ({ ratio, label: LADDER_LEVELS[i] }));
+  return RUNGS.find(([pattern]) => pattern.test(name))?.[1] ?? OTHER;
+}
+
+/** The ladder for a lift by its name, each rung named by the level it starts. */
+export function ladderRungs(liftName: string): LadderRung[] {
+  return rungRatios(liftName).map((ratio, i) => ({ ratio, label: LADDER_LEVELS[i] }));
 }
 
 export interface LadderGeometry {

@@ -1,14 +1,15 @@
 import { MonthMuscleInsight } from '../../../../core/fitsync.models';
 import { MUSCLE_GROUPS, groupLabel } from '../../../../shared/charts/muscle-figure/muscle-figure';
 import { liftChangePct } from '../lift-math';
-import { ActivityCard, Lift, MuscleSets, RecordEntry, TrainingProgress } from '../training.models';
+import { ActivityCard, Lift, MuscleSets, RecordEntry, SeriesPoint, TrainingProgress } from '../training.models';
 import { daysBetween, hm, kg, plural, shortDate, signedPct } from '../training-format';
 
 export interface LiftRow {
   key: string;
   name: string;
   sub: string;
-  values: number[];
+  /** The est. best single of each session, by date, for the shared small trend. */
+  points: SeriesPoint[];
   start: string;
   end: string;
   change: string;
@@ -27,7 +28,7 @@ export function liftRow(lift: Lift): LiftRow | null {
     key: lift.exerciseId || lift.name,
     name: lift.name,
     sub: `est. best single, ${plural(records, 'record')}`,
-    values: lift.e1rm.map((point) => point.value),
+    points: lift.e1rm.map((point) => ({ label: point.date, value: point.value })),
     start: kg(first),
     end: `${kg(last)} kg`,
     change: pct === null ? '' : signedPct(pct)

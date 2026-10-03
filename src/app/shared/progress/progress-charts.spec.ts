@@ -2,7 +2,7 @@ import { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { DotStripComponent } from './dot-strip.component';
-import { LadderComponent, ladderGeometry, ladderRungs } from './ladder.component';
+import { LadderComponent, ladderGeometry, ladderRungs, rungRatios } from './ladder.component';
 import { SmallTrendComponent, smallTrendGeometry } from './small-trend.component';
 import { StepChartComponent, stepGeometry } from './step-chart.component';
 import { WeekBarsComponent, niceStep, weekBarsGeometry } from './week-bars.component';
@@ -32,6 +32,14 @@ describe('SmallTrendComponent', () => {
     expect(text(el.querySelector('.dates'))).toContain('10 Aug');
     expect(text(el.querySelector('.dates'))).toContain('28 Sept');
     expect(el.querySelector('svg')?.getAttribute('aria-label')).toContain('from 150 on 10 Aug to 136 g on 28 Sept');
+  });
+
+  it('draws in a narrower box when given a width', () => {
+    const el = render(SmallTrendComponent, { points, width: 170, height: 28, showDates: false });
+    expect(el.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 170 28');
+    expect(el.querySelector('.dates')).toBeNull();
+    const g = smallTrendGeometry([1, 2], 28, 'a', 'b', null, '', 170)!;
+    expect(g.end.x).toBeLessThan(170);
   });
 
   it('draws a dashed target with a haloed label inside the scale', () => {
@@ -68,6 +76,11 @@ describe('StepChartComponent', () => {
     expect(el.querySelector('path.step')?.getAttribute('d')).toContain('V');
     expect(text(el)).toContain('6 Sept');
     expect(text(el)).toContain('3 Oct');
+  });
+
+  it('takes the shade of its kind of training', () => {
+    const el = render(StepChartComponent, { points: [{ date: '2026-09-08', value: 50 }], from: '2026-09-06', to: '2026-10-03', kind: 'SPORT' });
+    expect(el.querySelector('svg')?.getAttribute('data-kind')).toBe('SPORT');
   });
 
   it('uses a shared top of the scale', () => {
@@ -151,6 +164,8 @@ describe('LadderComponent', () => {
     expect(ladderRungs('Bench press').map((r) => r.ratio)).toEqual([0.5, 0.75, 1.0, 1.5]);
     expect(ladderRungs('Overhead press').map((r) => r.ratio)).toEqual([0.35, 0.55, 0.75, 1.0]);
     expect(ladderRungs('Barbell row').map((r) => r.ratio)).toEqual([0.5, 0.75, 1.0, 1.5]);
+    expect(rungRatios('Military press')).toEqual([0.35, 0.55, 0.75, 1.0]);
+    expect(rungRatios('Romanian dead lift')).toEqual([1.0, 1.25, 1.5, 2.0]);
   });
 
   it('marks the lift with its ratio and labels each rung', () => {

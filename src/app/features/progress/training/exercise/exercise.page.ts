@@ -5,13 +5,12 @@ import { map } from 'rxjs';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
 import { groupLabel } from '../../../../shared/charts/muscle-figure/muscle-figure';
+import { SectionCardComponent, SummaryLinesComponent } from '../../../../shared/progress';
 import { StatePanelComponent } from '../../../../shared/state-panel.component';
 import { AskChipComponent } from '../parts/ask-chip.component';
 import { KindTileComponent } from '../parts/kind-tile.component';
-import { SectionCardComponent } from '../parts/section-card.component';
 import { SeriesChartComponent } from '../parts/series-chart.component';
 import { SegmentedComponent } from '../parts/segmented.component';
-import { SummaryLinesComponent } from '../parts/summary-lines.component';
 import { TrainingApiService } from '../training-api.service';
 import { grouped, kg, plural, shortDate, signedKg } from '../training-format';
 import { useLoad, usePeriod } from '../training-load';

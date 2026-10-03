@@ -6,14 +6,12 @@ import { map } from 'rxjs';
 import { CoachCardContext, CoachCardKind } from '../../../../core/coach/coach.models';
 import { UserTimezoneService } from '../../../../core/user-timezone.service';
 import { dateKeyInZone } from '../../../../core/zone-time';
+import { SectionCardComponent, SummaryLinesComponent, WeekBar, WeekBarsComponent } from '../../../../shared/progress';
 import { StatePanelComponent } from '../../../../shared/state-panel.component';
 import { clockTime } from '../../../dashboard/brief/month/month-day';
 import { AskChipComponent } from '../parts/ask-chip.component';
 import { KindTileComponent } from '../parts/kind-tile.component';
 import { PeriodSwitchComponent } from '../parts/period-switch.component';
-import { SectionCardComponent } from '../parts/section-card.component';
-import { SummaryLinesComponent } from '../parts/summary-lines.component';
-import { WeekBarsComponent } from '../parts/week-bars.component';
 import { TrainingApiService } from '../training-api.service';
 import { WEEKDAY_NAMES, heroTime, kg, pace, plural, shortDate, weekdayOf } from '../training-format';
 import { useLoad, usePeriod } from '../training-load';
@@ -97,6 +95,16 @@ export class ActivityPage {
   protected readonly card = computed<CoachCardContext | null>(() => {
     const data = this.data();
     return data ? { kind: CARD_KINDS[data.kind], id: data.key, ...this.period.range() } : null;
+  });
+  /** Minutes each week as the shared bars, in the activity's shade, the week under way drawn lighter. */
+  protected readonly weekBars = computed<WeekBar[]>(() => {
+    const data = this.data();
+    return (data?.weekly ?? []).map((week) => ({
+      label: shortDate(week.weekStart),
+      value: Math.round(week.minutes),
+      segments: [{ key: data!.kind, value: Math.round(week.minutes) }],
+      current: week.current
+    }));
   });
   protected readonly questions = computed(() => (this.data() ? activityQuestions(this.data()!.kind, this.data()!.name) : []));
   protected readonly rows = computed(() => {

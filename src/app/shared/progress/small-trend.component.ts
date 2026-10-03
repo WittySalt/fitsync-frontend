@@ -23,7 +23,8 @@ export function smallTrendGeometry(
   startText: string,
   endText: string,
   target: number | null,
-  targetText: string
+  targetText: string,
+  width = WIDTH
 ): SmallTrendGeometry | null {
   if (values.length < 2) {
     return null;
@@ -34,14 +35,14 @@ export function smallTrendGeometry(
   const lo = Math.min(...scale);
   const hi = Math.max(...scale);
   const top = target === null ? 6 : 18;
-  const x = (i: number) => left + ((WIDTH - left - right) * i) / (values.length - 1);
+  const x = (i: number) => left + ((width - left - right) * i) / (values.length - 1);
   const y = (v: number) => height - 6 - ((height - 6 - top) * (v - lo)) / (hi - lo || 1);
   const last = values.length - 1;
   return {
     line: values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' '),
     start: { x: x(0), y: y(values[0]), text: startText },
     end: { x: x(last), y: y(values[last]), text: endText },
-    target: target === null ? null : { y: y(target), x1: left, x2: WIDTH - right, text: targetText }
+    target: target === null ? null : { y: y(target), x1: left, x2: width - right, text: targetText }
   };
 }
 
@@ -56,7 +57,7 @@ export function smallTrendGeometry(
   template: `
     @if (geometry(); as g) {
       <figure class="trend">
-        <svg [attr.viewBox]="'0 0 300 ' + height()" role="img" [attr.aria-label]="summary()" preserveAspectRatio="xMidYMid meet">
+        <svg [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="summary()" preserveAspectRatio="xMidYMid meet">
           @if (g.target; as t) {
             <line class="target" [attr.x1]="t.x1" [attr.x2]="t.x2" [attr.y1]="t.y" [attr.y2]="t.y"></line>
             <text class="target-text halo" [attr.x]="t.x2 - 2" [attr.y]="t.y - 5" text-anchor="end">{{ t.text }}</text>
@@ -102,6 +103,8 @@ export class SmallTrendComponent {
   readonly target = input<number | null>(null);
   readonly targetText = input<string | null>(null);
   readonly height = input(56);
+  /** The drawing's width in its own units; a narrow slot keeps its text legible with a smaller one. */
+  readonly width = input(WIDTH);
   readonly showDates = input(true);
   readonly label = input('');
 
@@ -116,7 +119,7 @@ export class SmallTrendComponent {
     const end = this.endText() ?? `${formatNumber(values[values.length - 1], this.digits())}${unit}`;
     const target = this.target();
     const targetText = this.targetText() ?? (target === null ? '' : `target ${formatNumber(target, this.digits())}${unit}`);
-    return smallTrendGeometry(values, this.height(), start, end, target, targetText);
+    return smallTrendGeometry(values, this.height(), start, end, target, targetText, this.width());
   });
 
   protected readonly firstLabel = computed(() => pointLabel(this.points()[0]?.label ?? ''));

@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
+import { SectionCardComponent } from '../../../../shared/progress';
 import { TrainingLoad } from '../training.models';
 import { formPosition } from './chart-geometry';
 import { LoadChartComponent } from './load-chart.component';
-import { SectionCardComponent } from './section-card.component';
 
 const FORM_WORDS: Record<string, string> = { TIRED: 'Tired', BALANCED: 'Balanced', FRESH: 'Fresh' };
 
@@ -16,7 +16,7 @@ const FORM_WORDS: Record<string, string> = { TIRED: 'Tired', BALANCED: 'Balanced
   selector: 'app-load-section',
   imports: [LoadChartComponent, SectionCardComponent],
   template: `
-    <app-section-card title="Training load" sub="effort × minutes of every session, each week" [card]="card()">
+    <app-section-card title="Training load" sub="effort × minutes of every session, each week" [context]="card()">
       @if (load().weeks.length >= 2) {
         <app-load-chart [load]="load()" [today]="today()" [compact]="compact()" />
         <div class="key">

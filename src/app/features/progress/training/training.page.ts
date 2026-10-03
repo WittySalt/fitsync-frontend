@@ -3,33 +3,31 @@ import { RouterLink } from '@angular/router';
 
 import { CoachCardContext, CoachCardKind } from '../../../core/coach/coach.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
+import { HeroStat, HighlightsComponent, ProgressHeroComponent, SectionCardComponent } from '../../../shared/progress';
 import { ActivityCardComponent } from './parts/activity-card.component';
 import { minutesTop } from './parts/chart-geometry';
-import { HighlightsComponent } from './parts/highlights.component';
 import { LoadSectionComponent } from './parts/load-section.component';
 import { LogSectionComponent } from './parts/log-section.component';
 import { MuscleSectionComponent } from './parts/muscle-section.component';
 import { PeriodSwitchComponent } from './parts/period-switch.component';
-import { HeroTile, ProgressHeroComponent } from './parts/progress-hero.component';
 import { RecordsSectionComponent } from './parts/records-section.component';
-import { SectionCardComponent } from './parts/section-card.component';
 import { StrengthSectionComponent } from './parts/strength-section.component';
 import { TrainingApiService } from './training-api.service';
-import { grouped, heroChange, heroTime, rangeLabel } from './training-format';
+import { grouped, heroChange, heroTime, rangeLabel, unitValue } from './training-format';
 import { useLoad, usePeriod } from './training-load';
 import { TrainingProgress } from './training.models';
 
 const FAILURE = 'Training progress could not load. Please retry.';
 
-export function heroTiles(progress: TrainingProgress): HeroTile[] {
+export function heroTiles(progress: TrainingProgress): HeroStat[] {
   const hero = progress.hero;
   const value = (number: number | null, format: (value: number) => string): string => (number === null ? '–' : format(number));
   const records = hero.records.exercises.slice(0, 3).map((name) => name.toLowerCase()).join(', ');
   return [
-    { label: 'Sessions', value: value(hero.sessions.value, String), change: heroChange(hero.sessions.value, hero.sessions.previous, 'count') },
-    { label: 'Time', value: value(hero.minutes.value, heroTime), change: heroChange(hero.minutes.value, hero.minutes.previous, 'minutes') },
-    { label: 'Training load', value: value(hero.load.value, grouped), change: heroChange(hero.load.value, hero.load.previous, 'pct') },
-    { label: 'Records', value: value(hero.records.value, String), change: records }
+    { label: 'Sessions', value: value(hero.sessions.value, String), context: heroChange(hero.sessions.value, hero.sessions.previous, 'count') },
+    { label: 'Time', value: value(hero.minutes.value, heroTime), context: heroChange(hero.minutes.value, hero.minutes.previous, 'minutes') },
+    { label: 'Training load', value: value(hero.load.value, grouped), context: heroChange(hero.load.value, hero.load.previous, 'pct') },
+    { label: 'Records', value: value(hero.records.value, String), context: records }
   ];
 }
 
@@ -63,6 +61,7 @@ export class TrainingPage {
   private readonly read = useLoad(this.period.range, (range) => this.api.getTraining(range.from, range.to), FAILURE);
   protected readonly state = this.read.state;
 
+  protected readonly unitValue = unitValue;
   protected readonly title = computed(() => rangeLabel(this.period.range().from, this.period.range().to));
   protected readonly note = computed(() => `Each change is compared with ${this.period.option().before}.`);
   protected readonly highlightsSub = computed(() => {

@@ -49,16 +49,16 @@
             </section>
           }
 
-          <app-section-card title="Each week" sub="minutes, Monday to Sunday" [card]="card()">
+          <app-section-card title="Each week" sub="minutes, Monday to Sunday" [context]="card()">
             @if (activity.weekly.length) {
-              <app-week-bars [weeks]="activity.weekly" [kind]="activity.kind" />
+              <app-week-bars [bars]="weekBars()" label="Minutes each week" />
             } @else {
               <p class="quiet">Not enough data yet.</p>
             }
           </app-section-card>
 
           <div class="row">
-            <app-section-card title="Each session" sub="minutes as bars, effort as the line" [card]="card()">
+            <app-section-card title="Each session" sub="minutes as bars, effort as the line" [context]="card()">
               @if (activity.sessions.length) {
                 <app-session-chart [sessions]="activity.sessions" />
               } @else {
@@ -89,7 +89,7 @@
             </ul>
           </app-section-card>
         } @else {
-          <app-section-card title="Not enough data yet" [card]="card()">
+          <app-section-card title="Not enough data yet" [context]="card()">
             <p class="quiet">No {{ activity.name.toLowerCase() }} sessions in this period.</p>
           </app-section-card>
         }

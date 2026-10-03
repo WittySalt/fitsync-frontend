@@ -1,5 +1,5 @@
 import { E1rmPoint, LoadWeek, TRAINING_KINDS, TrainingKind, TrainingLoad, WeekValue } from '../training.models';
-import { addDays, daysBetween, grouped, hm, kg, shortDate } from '../training-format';
+import { addDays, daysBetween, grouped, kg, shortDate } from '../training-format';
 
 /**
  * Pure geometry for the Training charts. Each function returns numbers and strings the templates
@@ -24,110 +24,13 @@ export interface GridLine {
 
 const r1 = (value: number): number => Math.round(value * 10) / 10;
 
-/** A rough width of a label in the board's Inter at the given size, enough to make room for it. */
-export function textWidth(text: string, size = 11, bold = false): number {
-  return text.length * size * (bold ? 0.6 : 0.56);
-}
-
 const polyline = (points: readonly Pt[]): string => points.map((point) => `${r1(point.x)},${r1(point.y)}`).join(' ');
 
-// ---------------------------------------------------------------- the small trend
-
-export interface SmallTrend {
-  width: number;
-  height: number;
-  line: string;
-  first: Pt;
-  last: Pt;
-  start: TextMark;
-  end: TextMark;
-  target: number | null;
-}
-
-/** A small line with its start value on the left and its end value on the right (board 18a). */
-export function smallTrend(values: readonly number[], width: number, height: number, start: string, end: string, target: number | null = null): SmallTrend | null {
-  if (values.length < 2) {
-    return null;
-  }
-  const left = textWidth(start) + 8;
-  const right = textWidth(end, 11, true) + 8;
-  const all = target === null ? [...values] : [...values, target];
-  const lo = Math.min(...all);
-  const hi = Math.max(...all);
-  const x = (index: number): number => left + ((width - left - right) * index) / (values.length - 1);
-  const y = (value: number): number => height - 6 - ((height - 12) * (value - lo)) / (hi - lo || 1);
-  const points = values.map((value, index) => ({ x: r1(x(index)), y: r1(y(value)) }));
-  const first = points[0];
-  const last = points[points.length - 1];
-  return {
-    width,
-    height,
-    line: polyline(points),
-    first,
-    last,
-    start: { x: r1(left - 6), y: first.y, text: start, anchor: 'end' },
-    end: { x: r1(width - right + 6), y: last.y, text: end, anchor: 'start' },
-    target: target === null ? null : r1(y(target))
-  };
-}
-
-// ---------------------------------------------------------------- the cumulative step chart
-
-export interface StepChart {
-  width: number;
-  height: number;
-  grid: GridLine[];
-  x0: number;
-  x1: number;
-  d: string;
-  end: Pt;
-  endLabel: string;
-  from: TextMark;
-  to: TextMark;
-}
+// ---------------------------------------------------------------- minute scales
 
 /** A top for minute charts that lands on whole half hours: 5 h, 2.5 h. */
 export function minutesTop(max: number): number {
   return Math.max(60, Math.ceil(max / 60) * 60);
-}
-
-function hourLabel(minutes: number): string {
-  if (minutes === 0) {
-    return '0';
-  }
-  const hours = minutes / 60;
-  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h`;
-}
-
-/** Total time rising with each session: flat between sessions, a step up on each (board 18a). */
-export function stepChart(points: readonly { date: string; minutes: number }[], from: string, to: string, top: number, width = 300, height = 84): StepChart {
-  const x0 = 30;
-  const x1 = width - 70;
-  const plotTop = 8;
-  const bottom = height - 18;
-  const span = Math.max(1, daysBetween(from, addDays(to, 1)));
-  const x = (date: string): number => x0 + ((x1 - x0) * Math.min(span, Math.max(0, daysBetween(from, date)))) / span;
-  const y = (minutes: number): number => bottom - ((bottom - plotTop) * Math.min(minutes, top)) / top;
-  const grid = [0, top / 2, top].map((minutes) => ({ y: r1(y(minutes)), label: hourLabel(minutes) }));
-  let total = 0;
-  let d = `M${r1(x0)} ${r1(y(0))}`;
-  for (const point of [...points].sort((a, b) => a.date.localeCompare(b.date))) {
-    total += point.minutes;
-    d += ` H${r1(x(point.date))} V${r1(y(total))}`;
-  }
-  d += ` H${r1(x1)}`;
-  return {
-    width,
-    height,
-    grid,
-    x0,
-    x1,
-    d,
-    end: { x: r1(x1), y: r1(y(total)) },
-    endLabel: hm(total),
-    from: { x: x0, y: height - 3, text: shortDate(from), anchor: 'start' },
-    to: { x: x1, y: height - 3, text: shortDate(to), anchor: 'end' }
-  };
 }
 
 // ---------------------------------------------------------------- one lift, or one exercise series

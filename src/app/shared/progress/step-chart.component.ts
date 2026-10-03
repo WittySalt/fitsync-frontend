@@ -50,7 +50,7 @@ export function stepGeometry(points: readonly StepPoint[], from: string, to: str
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (geometry(); as g) {
-      <svg [attr.viewBox]="'0 0 300 ' + height()" role="img" [attr.aria-label]="summary()">
+      <svg [attr.viewBox]="'0 0 300 ' + height()" role="img" [attr.aria-label]="summary()" [attr.data-kind]="kind()">
         @for (tick of g.ticks; track $index) {
           <line class="grid" [attr.x1]="g.x0" [attr.x2]="g.x1" [attr.y1]="tick.y" [attr.y2]="tick.y"></line>
           <text class="axis" [attr.x]="g.x0 - 6" [attr.y]="tick.y" text-anchor="end" dominant-baseline="central">{{ format(tick.value) }}</text>
@@ -71,6 +71,11 @@ export function stepGeometry(points: readonly StepPoint[], from: string, to: str
     .grid { stroke: var(--border); }
     .step { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; }
     .dot { fill: var(--accent); }
+    [data-kind='STRENGTH'] { --step: var(--accent-text); }
+    [data-kind='SPORT'] { --step: color-mix(in srgb, var(--accent) 55%, var(--surface)); }
+    [data-kind='MOBILITY'] { --step: color-mix(in srgb, var(--accent) 30%, var(--surface)); }
+    [data-kind] .step { stroke: var(--step, var(--accent)); }
+    [data-kind] .dot { fill: var(--step, var(--accent)); }
     text { font: 400 10px var(--font-sans); fill: var(--text-secondary); }
     .total { font-size: 11px; font-weight: 700; fill: var(--text-primary); }
     .none { margin: 0; font-size: var(--text-xs); color: var(--text-secondary); }
@@ -86,6 +91,8 @@ export class StepChartComponent {
   readonly valueFormat = input<'minutes' | 'number'>('minutes');
   readonly height = input(84);
   readonly label = input('Total time');
+  /** The kind of training, which picks the line's shade the way the week bars do (STRENGTH, SPORT, MOBILITY). */
+  readonly kind = input<string | null>(null);
 
   protected readonly geometry = computed(() => stepGeometry(this.points(), this.from(), this.to(), this.height(), this.max()));
   protected readonly total = computed(() => this.points().at(-1)?.value ?? 0);

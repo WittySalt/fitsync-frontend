@@ -138,3 +138,15 @@ export function heroChange(value: number | null, previous: number | null, kind: 
 }
 
 export const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** A value of a highlight's series written in its unit: "93.3 kg", "5:50", "720". */
+export function unitValue(value: number, unit: string): string {
+  const key = unit.toLowerCase();
+  if (key === 'kg') {
+    return `${kg(value)} kg`;
+  }
+  if (key.includes('sec') && key.includes('km')) {
+    return pace(value);
+  }
+  return `${grouped(value)}${unit && !key.includes('load') ? ` ${unit}` : ''}`;
+}

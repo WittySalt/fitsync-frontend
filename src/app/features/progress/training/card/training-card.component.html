@@ -56,7 +56,7 @@
               @for (row of lifts(); track row.key) {
                 <div class="lift">
                   <div class="lift-name"><span>{{ row.name }}</span><span class="sub">{{ row.sub }}</span></div>
-                  <app-small-trend [values]="row.values" [start]="row.start" [end]="row.end" [width]="170" [height]="28" [label]="row.name + ', est. best single from ' + row.start + ' to ' + row.end" />
+                  <app-small-trend [points]="row.points" [startText]="row.start" [endText]="row.end" [width]="170" [height]="28" [showDates]="false" [label]="row.name + ', est. best single'" />
                   <span class="change">{{ row.change }}</span>
                 </div>
               }

@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
+import { SectionCardComponent } from '../../../../shared/progress';
 import { CalendarDay } from '../training.models';
 import { rangeLabel } from '../training-format';
 import { logStats } from './calendar-grid';
-import { SectionCardComponent } from './section-card.component';
 import { TrainingCalendarComponent } from './training-calendar.component';
 
 /** The training log: the month calendar over the period, with four figures worked out from it. */
@@ -12,7 +12,7 @@ import { TrainingCalendarComponent } from './training-calendar.component';
   selector: 'app-log-section',
   imports: [SectionCardComponent, TrainingCalendarComponent],
   template: `
-    <app-section-card title="Training log" [sub]="'every day you trained, ' + period()" [card]="card()">
+    <app-section-card title="Training log" [sub]="'every day you trained, ' + period()" [context]="card()">
       @if (days().length) {
         <div class="layout">
           <app-training-calendar [from]="from()" [to]="to()" [days]="days()" />

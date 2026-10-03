@@ -47,7 +47,7 @@
           </section>
         }
 
-        <app-section-card [title]="tab().label" sub="every session, its best" [card]="card()">
+        <app-section-card [title]="tab().label" sub="every session, its best" [context]="card()">
           <div class="switches">
             <app-segmented label="Series" [options]="tabOptions" [value]="series()" (picked)="pickSeries($event)" />
             <app-segmented label="Period" [options]="periods" [value]="period.code()" (picked)="pickPeriod($event)" />

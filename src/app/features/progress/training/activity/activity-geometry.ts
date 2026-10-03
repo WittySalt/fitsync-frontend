@@ -4,68 +4,8 @@ import { shortDate } from '../training-format';
 
 const r1 = (value: number): number => Math.round(value * 10) / 10;
 
-export interface WeekBar {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  value: TextMark;
-  label: TextMark | null;
-  current: boolean;
-  empty: boolean;
-}
-
-export interface WeekBarsChart {
-  width: number;
-  height: number;
-  x0: number;
-  grid: GridLine[];
-  bars: WeekBar[];
-  soFar: TextMark | null;
-}
-
 function niceTop(max: number, step: number): number {
   return Math.max(step, Math.ceil(max / step) * step);
-}
-
-/** Minutes each week, Monday to Sunday, every value written, "so far" under the week not yet over (board 17c). */
-export function weekBars(weeks: readonly { weekStart: string; minutes: number; current: boolean }[], width = 640, height = 170): WeekBarsChart | null {
-  if (!weeks.length) {
-    return null;
-  }
-  const n = weeks.length;
-  const x0 = 44;
-  const slot = (width - x0) / n;
-  const top = niceTop(Math.max(...weeks.map((week) => week.minutes)), 30);
-  const plotTop = 18;
-  const plotBottom = height - 34;
-  const narrow = width <= 500;
-  const y = (value: number): number => plotBottom - ((plotBottom - plotTop) * value) / top;
-  const grid = [0, top / 3, (top * 2) / 3, top].map((value) => ({ y: r1(y(value)), label: String(Math.round(value)) }));
-  const bars = weeks.map((week, index) => {
-    const cx = x0 + slot * index + slot / 2;
-    const barWidth = Math.min(30, slot * 0.56);
-    const last = index === n - 1;
-    const empty = week.minutes <= 0;
-    const label: TextMark | null =
-      index % 2 === 1 || !narrow || n <= 4
-        ? { x: r1(last && narrow ? width : cx), y: height - 18, text: shortDate(week.weekStart), anchor: last && narrow ? 'end' : 'middle' }
-        : null;
-    return {
-      x: r1(cx - barWidth / 2),
-      y: r1(empty ? y(0) - 4 : y(week.minutes)),
-      width: r1(barWidth),
-      height: r1(empty ? 4 : y(0) - y(week.minutes)),
-      value: { x: r1(cx), y: r1(y(week.minutes) - 8), text: empty && week.current ? 'none' : String(Math.round(week.minutes)), anchor: 'middle' as const },
-      label,
-      current: week.current,
-      empty
-    };
-  });
-  const current = weeks.findIndex((week) => week.current);
-  const soFar: TextMark | null =
-    current >= 0 ? { x: r1(narrow && current === n - 1 ? width : x0 + slot * current + slot / 2), y: height - 4, text: 'so far', anchor: narrow && current === n - 1 ? 'end' : 'middle' } : null;
-  return { width, height, x0, grid, bars, soFar };
 }
 
 export interface SessionColumn {

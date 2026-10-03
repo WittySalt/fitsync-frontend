@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { StepChartComponent, StepPoint, SummaryLinesComponent } from '../../../../shared/progress';
 import { ActivityCard } from '../training.models';
 import { hm, plural } from '../training-format';
 import { KindTileComponent } from './kind-tile.component';
-import { StepChartComponent } from './step-chart.component';
-import { SummaryLinesComponent } from './summary-lines.component';
 
 /** One activity on the Training page: its three-line summary and total time rising with each session; the card opens the activity page. */
 @Component({
@@ -23,7 +22,7 @@ import { SummaryLinesComponent } from './summary-lines.component';
       </div>
       <app-summary-lines [lines]="activity().summary" [context]="activity().context" />
       <div class="chart">
-        <app-step-chart [points]="activity().cumulative" [from]="from()" [to]="to()" [top]="top()" [kind]="activity().kind" />
+        <app-step-chart [points]="steps()" [from]="from()" [to]="to()" [max]="top()" [kind]="activity().kind" />
       </div>
       <span class="caption">Total time, rising with each session</span>
     </a>
@@ -39,5 +38,9 @@ export class ActivityCardComponent {
   readonly period = input('4w');
 
   protected readonly line = computed(() => `${plural(this.activity().sessions, 'session')} · ${hm(this.activity().minutes)}`);
+  /** The server's running total after each session (contract 1.1), in date order. */
+  protected readonly steps = computed<StepPoint[]>(() =>
+    [...this.activity().cumulative].sort((a, b) => a.date.localeCompare(b.date)).map((point) => ({ date: point.date, value: point.minutes }))
+  );
   protected readonly query = computed(() => (this.period() === '4w' ? null : { period: this.period() }));
 }
