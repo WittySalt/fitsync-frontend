@@ -18,7 +18,7 @@ li {
 }
 
 .date {
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -38,7 +38,7 @@ a.date {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-sunken);
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -47,13 +47,13 @@ a.date {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   font-weight: var(--fw-bold);
   color: var(--accent-text);
 }
 
 .quiet {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--pg-text);
   color: var(--text-secondary);
 }

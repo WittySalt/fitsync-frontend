@@ -53,7 +53,7 @@ svg {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   span {

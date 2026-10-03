@@ -19,7 +19,7 @@
   gap: 8px;
 
   strong {
-    font-size: 16px;
+    font-size: var(--pg-name);
     color: var(--text-primary);
   }
 }
@@ -40,14 +40,14 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
   cursor: pointer;
 }
 
 p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--pg-control);
   line-height: 1.5;
   color: var(--text-primary);
 }
@@ -64,12 +64,12 @@ ul {
   gap: 10px;
   padding: 8px 0;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--pg-control);
 
   &.cols {
     padding: 0;
     border: 0;
-    font-size: 11px;
+    font-size: var(--pg-eyebrow);
     font-weight: var(--fw-bold);
     color: var(--text-secondary);
   }
@@ -91,6 +91,6 @@ a:hover {
 }
 
 .quiet {
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 }

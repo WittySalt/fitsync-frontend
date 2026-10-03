@@ -10,7 +10,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   span {
@@ -41,7 +41,7 @@
 
 .note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 }
 
@@ -59,11 +59,11 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 
   strong {
-    font-size: 16px;
+    font-size: var(--pg-name);
     color: var(--text-primary);
   }
 }
@@ -88,6 +88,6 @@
 .words {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
 }

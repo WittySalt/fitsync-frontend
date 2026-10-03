@@ -22,13 +22,13 @@ li {
 }
 
 .date {
-  font-size: 12px;
+  font-size: var(--pg-chart);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .name {
-  font-size: 14px;
+  font-size: var(--pg-text);
   font-weight: var(--fw-bold);
   color: var(--text-primary);
   text-decoration: none;
@@ -40,7 +40,7 @@ a.name:hover {
 }
 
 .value {
-  font-size: 14px;
+  font-size: var(--pg-text);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -50,7 +50,7 @@ a.name:hover {
   padding: 2px 8px;
   border-radius: var(--radius-full);
   background: var(--surface-tint);
-  font-size: 12px;
+  font-size: var(--pg-chart);
   font-weight: var(--fw-bold);
   color: var(--accent-text);
   font-variant-numeric: tabular-nums;
@@ -62,7 +62,7 @@ a.name:hover {
 
 .empty {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--pg-text);
   color: var(--text-secondary);
 }
 

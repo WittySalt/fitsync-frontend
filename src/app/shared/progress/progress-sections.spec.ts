@@ -5,7 +5,6 @@ import { Router, provideRouter } from '@angular/router';
 import { CoachStore } from '../../core/coach/coach.store';
 import { HighlightsComponent, highlightChart } from './highlights.component';
 import { JumpBarComponent } from './jump-bar.component';
-import { ProgressHeroComponent } from './progress-hero.component';
 import { ProgressCardContext } from './progress.models';
 import { SectionCardComponent } from './section-card.component';
 import { SummaryLinesComponent } from './summary-lines.component';
@@ -89,31 +88,6 @@ describe('progress sections', () => {
 
     it('says not enough data yet without lines', () => {
       expect(text(render(SummaryLinesComponent, { lines: [] }).el)).toBe('Not enough data yet');
-    });
-  });
-
-  describe('ProgressHeroComponent', () => {
-    it('shows the back link, the title and the four figures with their comparisons', () => {
-      const { el } = render(ProgressHeroComponent, {
-        eyebrow: 'Goal',
-        title: '68 kg by 11 Dec',
-        sub: 'Each change is compared with the 4 weeks before.',
-        stats: [
-          { label: 'Now', value: '71.2', unit: 'kg', context: '−1.6 kg on 4 weeks before' },
-          { label: 'Days left', value: '69' }
-        ]
-      });
-      expect(text(el.querySelector('.back'))).toBe('Progress');
-      expect(el.querySelector('.back')?.getAttribute('href')).toBe('/progress');
-      expect(text(el.querySelector('h1'))).toBe('68 kg by 11 Dec');
-      expect(el.querySelectorAll('.stat').length).toBe(2);
-      expect(text(el.querySelector('.stat dt'))).toBe('Now');
-      expect(text(el.querySelector('.stat .value'))).toBe('71.2 kg');
-      expect(text(el.querySelector('.stat .context'))).toBe('−1.6 kg on 4 weeks before');
-    });
-
-    it('hides the back link when asked', () => {
-      expect(render(ProgressHeroComponent, { eyebrow: 'x', title: 'y', back: null }).el.querySelector('.back')).toBeNull();
     });
   });
 

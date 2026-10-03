@@ -2,7 +2,6 @@
 export * from './progress.models';
 export * from './progress-format';
 export * from './progress-mappers';
-export { ProgressHeroComponent } from './progress-hero.component';
 export { HighlightsComponent, HIGHLIGHT_KICKERS, highlightChart } from './highlights.component';
 export type { HighlightFormat } from './highlights.component';
 export { SectionCardComponent } from './section-card.component';

@@ -39,12 +39,12 @@
   gap: 2px;
 
   strong {
-    font-size: 15px;
+    font-size: var(--pg-text);
     color: var(--text-primary);
   }
 
   span {
-    font-size: 12px;
+    font-size: var(--pg-chart);
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
   }
@@ -55,7 +55,7 @@
 }
 
 .caption {
-  font-size: 11px;
+  font-size: var(--pg-eyebrow);
   color: var(--text-secondary);
 }
 

@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { CoachCardContext } from '../../../../core/coach/coach.models';
+import { dateRangeLabel } from '../../../../shared/date-label';
 import { DetailSectionComponent } from '../../../../shared/progress';
 import { CalendarDay } from '../training.models';
-import { rangeLabel } from '../training-format';
 import { logStats } from './calendar-grid';
 import { TrainingCalendarComponent } from './training-calendar.component';
 
@@ -43,7 +43,7 @@ export class LogSectionComponent {
 
   protected readonly sentence = computed(() => {
     const figures = this.stats();
-    return figures ? `You trained on ${figures.daysTrained} days and the longest break was ${figures.longestBreak}.` : `Every day you trained, ${rangeLabel(this.from(), this.to())}.`;
+    return figures ? `You trained on ${figures.daysTrained} days and the longest break was ${figures.longestBreak}.` : `Every day you trained, ${dateRangeLabel(this.from(), this.to())}.`;
   });
   protected readonly stats = computed(() => logStats(this.from(), this.to(), this.days()));
 }
