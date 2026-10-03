@@ -86,6 +86,83 @@ describe('PlanStudioPage', () => {
     expect(text).toContain('avoids what you trained yesterday');
   });
 
+  it('does not claim the yesterday rule for a draft the rules built, and keeps the rest', () => {
+    setup('a1');
+    const labels = fixture.componentInstance.checks({ ...draft, source: 'RULE_FALLBACK' }).map((c) => c.label);
+
+    expect(labels).not.toContain('avoids what you trained yesterday');
+    expect(labels).toContain('every exercise is a real catalogue row');
+    expect(labels).not.toContain('corrected once: the first attempt broke a rule');
+  });
+
+  it('shows the findings the draft carries instead of the stock list', () => {
+    setup('a1');
+    const checks = fixture.componentInstance.checks({
+      ...draft,
+      findings: [
+        { label: 'Bench Press fits your barbell', passed: true },
+        { label: 'Swapped a leg exercise worked yesterday', passed: false }
+      ]
+    });
+
+    expect(checks).toEqual([
+      { label: 'Bench Press fits your barbell', note: false },
+      { label: 'Swapped a leg exercise worked yesterday', note: true }
+    ]);
+  });
+
+  it('asks for a reason first, prefilled, and sets the draft aside only on the confirm', () => {
+    setup('a1');
+    api.rejectSessionDraft.and.returnValue(of({ ...draft, status: 'DISCARDED', rejectionReason: 'Too long' }));
+    const root = fixture.nativeElement as HTMLElement;
+    const notForMe = Array.from(root.querySelectorAll('button')).find((b) => b.textContent?.includes('Not for me')) as HTMLButtonElement;
+
+    notForMe.click();
+    fixture.detectChanges();
+
+    expect(api.rejectSessionDraft).not.toHaveBeenCalled();
+    const input = root.querySelector('#reject-reason') as HTMLInputElement;
+    expect(input.value).toBe('Not for me today');
+    expect(root.querySelectorAll('.button.danger').length).toBe(1);
+
+    input.value = 'Too long';
+    input.dispatchEvent(new Event('input'));
+    (root.querySelector('.button.danger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(api.rejectSessionDraft).toHaveBeenCalledWith('a1', 'Too long');
+    expect(fixture.componentInstance.selected()?.status).toBe('DISCARDED');
+    expect(fixture.componentInstance.rejecting()).toBeFalse();
+  });
+
+  it('falls back to the default reason when it was cleared, and Keep it closes the form', () => {
+    setup('a1');
+    api.rejectSessionDraft.and.returnValue(of({ ...draft, status: 'DISCARDED' }));
+    const page = fixture.componentInstance;
+
+    page.startReject();
+    page.cancelReject();
+    expect(page.rejecting()).toBeFalse();
+    expect(api.rejectSessionDraft).not.toHaveBeenCalled();
+
+    page.startReject();
+    page.reject(draft, '   ');
+    expect(api.rejectSessionDraft).toHaveBeenCalledWith('a1', 'Not for me today');
+  });
+
+  it('clears the dock draft card after accepting', () => {
+    setup('a1');
+    const store = TestBed.inject(CoachStore);
+    store.latestDraft.set(draft);
+    api.acceptSessionDraft.and.returnValue(
+      of({ artifactId: 'a1', status: 'ACCEPTED', planId: 'p1', sessionId: 's1', sessionStarted: true })
+    );
+
+    fixture.componentInstance.accept(draft);
+
+    expect(store.latestDraft()).toBeNull();
+  });
+
   it('accepting starts the session, says so, and goes to the Workout page', () => {
     setup('a1');
     api.acceptSessionDraft.and.returnValue(

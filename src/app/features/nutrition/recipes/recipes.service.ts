@@ -2,9 +2,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, Observable, catchError, expand, map, of, reduce, shareReplay } from 'rxjs';
 
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { startOfDayInZone } from '../../../core/zone-time';
 import { DiaryMeal } from '../diary/diary.models';
 import { mapDiaryMeal } from '../diary/diary-mappers';
-import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { mapRecipeDetail, mapRecipePage, mapSavedMeal } from './recipes-mappers';
 import { RecipeCard, RecipeDetail, RecipeDraft, RecipePageOf, RecipeQuery, SavedMeal } from './recipes.models';
 
@@ -28,7 +29,7 @@ export interface LogRecipeRequest {
 @Injectable({ providedIn: 'root' })
 export class RecipesService {
   private readonly http = inject(HttpClient);
-  private readonly diary = inject(NutritionDiaryService);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly base = '/api/v1/nutrition';
 
   private categoriesOnce: Observable<string[]> | null = null;
@@ -143,18 +144,18 @@ export class RecipesService {
       .post<Wire>(`${this.base}/meals/from-recipe/${encodeURIComponent(id)}`, {
         servings: request.servings,
         mealType: request.mealType,
-        consumedAt: request.consumedAt.toISOString(),
-        timezone: this.diary.timezone
+        consumedAt: request.consumedAt.toISOString()
       })
       .pipe(map((meal) => ({ mealId: typeof meal?.['mealId'] === 'string' ? meal['mealId'] : '' })));
   }
 
   /** The meals logged in the last days (today included), newest first, with their foods, to start a recipe from one. */
   recentMeals(days = 14): Observable<DiaryMeal[]> {
-    const from = new Date();
-    from.setDate(from.getDate() - (days - 1));
-    from.setHours(0, 0, 0, 0);
-    const params = new HttpParams().set('from', from.toISOString()).set('to', new Date().toISOString()).set('timezone', this.diary.timezone);
+    const zone = this.userTimezone.zone();
+    const first = new Date(`${this.userTimezone.dateKey()}T00:00:00Z`);
+    first.setUTCDate(first.getUTCDate() - (days - 1));
+    const from = startOfDayInZone(first.toISOString().slice(0, 10), zone);
+    const params = new HttpParams().set('from', from.toISOString()).set('to', new Date().toISOString());
     return this.http.get<Wire[]>(`${this.base}/meals`, { params }).pipe(
       map((meals) =>
         (meals ?? [])
@@ -176,8 +177,7 @@ export class RecipesService {
     return this.http
       .post<Wire>(`${this.base}/meals/from-template/${encodeURIComponent(templateId)}`, {
         consumedAt: new Date().toISOString(),
-        ...(mealType ? { mealType } : {}),
-        timezone: this.diary.timezone
+        ...(mealType ? { mealType } : {})
       })
       .pipe(map((meal) => ({ mealId: typeof meal?.['mealId'] === 'string' ? meal['mealId'] : '' })));
   }

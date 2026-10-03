@@ -11,6 +11,7 @@ import { BRIEF_NOW } from './brief-time';
 import { CoachBriefComponent } from './coach-brief.component';
 import { analyticsStub, monthInsight, septemberInsight } from './month/month-fixtures.spec';
 import { FIRST_SESSION_TEMPLATES } from './no-plan/first-sessions';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 
 const NOW = new Date('2026-09-27T00:10:00Z'); // Sunday 08:10 in Asia/Singapore
 
@@ -88,7 +89,7 @@ const weeklyInsight: WeeklyTrainingInsight = {
     group('LEGS', 2, true, '2026-09-25'),
     group('CARDIO', 2, false, '2026-09-26', 1)
   ],
-  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1 },
+  volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1, previousWeekSameDaysKg: 1716, previousWeekSameDaysSessionsWithVolume: 1 },
   days: null,
   today: null,
   nextTraining: null
@@ -107,7 +108,7 @@ describe('CoachBriefComponent', () => {
     spyOn(router, 'navigate').and.resolveTo(true);
     fixture = TestBed.createComponent(CoachBriefComponent);
     fixture.componentRef.setInput('firstName', 'Ruixian');
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
     fixture.componentRef.setInput('caloriesTarget', 2100);
     for (const [name, value] of Object.entries(extraInputs)) {
       fixture.componentRef.setInput(name, value);
@@ -174,7 +175,7 @@ describe('CoachBriefComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelectorAll('app-muscle-wheel circle.badge').length).toBe(5);
     expect(element.querySelector('.panel-title')?.textContent?.trim()).toBe('Your plan this week');
-    expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith('Asia/Singapore');
+    expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledWith();
   });
 
   describe('the focus line under the wheel', () => {
@@ -278,7 +279,7 @@ describe('CoachBriefComponent', () => {
       press('Month');
       const element = fixture.nativeElement as HTMLElement;
 
-      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
       expect(tab('Month').getAttribute('aria-pressed')).toBe('true');
       expect(tab('Week').getAttribute('aria-pressed')).toBe('false');
       expect(element.querySelector('.week-title')).toBeNull();
@@ -347,7 +348,7 @@ describe('CoachBriefComponent', () => {
 
       fixture = TestBed.createComponent(CoachBriefComponent);
       fixture.componentRef.setInput('firstName', 'Ruixian');
-      fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+      TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
       fixture.detectChanges();
       const element = fixture.nativeElement as HTMLElement;
       expect(element.querySelector('.week-title')).not.toBeNull();
@@ -372,7 +373,7 @@ describe('CoachBriefComponent', () => {
     expect(facts).toEqual([
       'Chest, back and legs have had two days off.',
       'Your core has worked eight sessions running.',
-      "You lifted 2.2 times last week's weight."
+      'You have lifted 2.2 times as much as by this point last week.'
     ]);
   });
 
@@ -384,6 +385,31 @@ describe('CoachBriefComponent', () => {
     expect(element.querySelector('app-coach-noticed')).toBeNull();
     expect(element.querySelector('.panel-number')?.textContent?.replace(/\s+/g, '')).toBe('4/4');
     expect(element.querySelector('.headline')?.textContent).toContain('Four for four!');
+  });
+
+  it('says the training figures could not be loaded, with a retry, when the insight fails', () => {
+    dataService.getWeeklyTrainingInsight.and.returnValue(throwError(() => new Error('offline')));
+    setup();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('app-quiet-notice')?.textContent).toContain('Training figures could not be loaded');
+
+    dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight));
+    element.querySelector<HTMLButtonElement>('app-quiet-notice button')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('app-quiet-notice')).toBeNull();
+    expect(element.querySelector('app-coach-noticed')).toBeTruthy();
+  });
+
+  it('shows no notice when the insight loads', () => {
+    setup();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-quiet-notice')).toBeNull();
+  });
+
+  it('takes the weekly target from the goals the page passes and does not read them again', () => {
+    dataService.getGoals.calls.reset();
+    setup({ goals: [{ goalType: 'WORKOUT_FREQUENCY', status: 'ACTIVE', targetValue: 6, targetUnit: 'sessions/week', targetDate: '', progressRatio: 0 }] });
+    expect(dataService.getGoals).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.weeklyTarget()).toBe(6);
   });
 
   it('names the panel after the training when no group belongs to a plan', () => {
@@ -579,7 +605,7 @@ describe('CoachBriefComponent', () => {
 
     it('offers last month on the second of the month and opens the month view on it', () => {
       setupOn(new Date('2026-10-02T02:00:00Z'));
-      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+      expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
       expect(lineOf()?.querySelector('.text')?.textContent?.trim()).toBe('September is complete.');
 
       seeTheMonth();
@@ -588,7 +614,7 @@ describe('CoachBriefComponent', () => {
       expect(element.querySelector('app-month-nav .title')?.textContent?.trim()).toBe('September 2026');
       expect(lineOf()).toBeNull();
       expect(dataService.getMonthlyTrainingInsight).toHaveBeenCalledTimes(2);
-      expect(dataService.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09', 'Asia/Singapore']);
+      expect(dataService.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09']);
     });
 
     it('does not bring the line back when the week view returns', () => {
@@ -634,7 +660,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
     spyOn(router, 'navigate').and.resolveTo(true);
     fixture = TestBed.createComponent(CoachBriefComponent);
     fixture.componentRef.setInput('firstName', 'Ruixian');
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
     fixture.componentRef.setInput('caloriesTarget', null);
     dataService.getGoals.and.returnValue(
       of(target != null ? [{ goalId: 'goal-1', goalType: 'WORKOUT_FREQUENCY', targetValue: target, targetUnit: 'sessions/week', targetDate: '2026-09-27', status: 'ACTIVE', notes: null }] : [])
@@ -679,7 +705,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
       previousWeekCompletedSessions: 0,
       previousWeekTotalMinutes: 0,
       muscleGroups: [],
-      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0 },
+      volume: { thisWeekKg: 0, previousWeekKg: 0, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 0, previousWeekSameDaysKg: 0, previousWeekSameDaysSessionsWithVolume: 0 },
       days,
       today,
       nextTraining
@@ -798,7 +824,7 @@ describe('CoachBriefComponent - day-kinds fields', () => {
 
       fixture.componentInstance.onPlanStarted();
 
-      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(dataService.getWeeklyTrainingInsight).toHaveBeenCalledOnceWith();
       expect(dataService.getActivePlan).toHaveBeenCalledTimes(1);
     });
   });

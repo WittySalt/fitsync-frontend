@@ -1,3 +1,4 @@
+import { dayBoundsInZone } from '../../../core/zone-time';
 import { MealSlot } from '../../dashboard/today/today-meals';
 
 const pad = (value: number): string => String(value).padStart(2, '0');
@@ -31,12 +32,10 @@ export function weekOf(iso: string): string[] {
   return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
 }
 
-/** The first and last instant of a local day, as ISO strings the meals endpoint takes. */
-export function dayBounds(iso: string): { from: string; to: string } {
-  const start = parseIsoDate(iso);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { from: start.toISOString(), to: new Date(end.getTime() - 1).toISOString() };
+/** The first and last instant of a calendar day in the user's zone, as ISO strings the meals endpoint takes. */
+export function dayBounds(iso: string, timezone: string): { from: string; to: string } {
+  const { from, to } = dayBoundsInZone(iso, timezone);
+  return { from: from.toISOString(), to: to.toISOString() };
 }
 
 /**

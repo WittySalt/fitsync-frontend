@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { LOADING, Load } from '../../nutrition/diary/diary.models';
-import { toIsoDate } from '../../nutrition/diary/diary-time';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { EnergyApiService } from './energy-api.service';
 import { EnergyDaysComponent } from './energy-days.component';
@@ -76,6 +76,7 @@ const FAILURE = 'Energy for this week could not load. Please retry.';
 export class EnergyCardComponent implements OnInit {
   private readonly api = inject(EnergyApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   protected readonly minDays = MIN_LOGGED_DAYS;
   protected readonly state = signal<Load<EnergyWeek>>(LOADING);
@@ -104,7 +105,7 @@ export class EnergyCardComponent implements OnInit {
   });
   protected readonly canGoNext = computed(() => {
     const data = this.shown();
-    return !!data && !this.busy() && data.weekStart < thisMonday(toIsoDate(new Date()));
+    return !!data && !this.busy() && data.weekStart < thisMonday(this.userTimezone.dateKey());
   });
 
   private requested: string | undefined;

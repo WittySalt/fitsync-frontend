@@ -8,6 +8,7 @@ import { MonthlyTrainingInsight } from '../../../../core/fitsync.models';
 import { MonthCalendarComponent } from './month-calendar.component';
 import { analyticsStub, monthInsight, weighIn } from './month-fixtures.spec';
 import { MonthViewState } from './month-view.state';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 
 describe('MonthCalendarComponent', () => {
   let fixture: ComponentFixture<MonthCalendarComponent>;
@@ -17,7 +18,8 @@ describe('MonthCalendarComponent', () => {
 
   function open(): void {
     state = TestBed.inject(MonthViewState);
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     fixture = TestBed.createComponent(MonthCalendarComponent);
     fixture.detectChanges();
   }
@@ -347,7 +349,7 @@ describe('MonthCalendarComponent', () => {
       fixture.detectChanges();
 
       expect(data.getMonthlyTrainingInsight).toHaveBeenCalledTimes(2);
-      expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09', 'Asia/Singapore']);
+      expect(data.getMonthlyTrainingInsight.calls.mostRecent().args).toEqual(['2026-09']);
       expect(element().querySelector('.state')).toBeNull();
       expect(element().querySelectorAll('button.cell').length).toBe(30);
     });

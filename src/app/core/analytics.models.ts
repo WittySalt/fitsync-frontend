@@ -21,6 +21,10 @@ export interface AnalyticsDashboardWorkout {
   weekWorkoutCount: number;
   weekWorkoutMinutes: number;
   activeStreakDays: number;
+  /** Consecutive days with a session, ending today or yesterday. Absent on an older backend. */
+  currentStreakDays?: number | null;
+  /** Minutes trained Monday to Sunday this week in the person's zone. Absent on an older backend. */
+  minutesThisWeek?: number | null;
 }
 
 export interface AnalyticsDashboardNutrition {
@@ -157,11 +161,25 @@ export interface AnalyticsMetricComparison {
   deltaPct: number | null;
 }
 
+export interface AnalyticsDaysLogged {
+  current: number | null;
+  previous: number | null;
+}
+
+export interface AnalyticsAveragePerLoggedDay {
+  calories: AnalyticsMetricComparison | null;
+  proteinGrams: AnalyticsMetricComparison | null;
+  carbsGrams: AnalyticsMetricComparison | null;
+  fatGrams: AnalyticsMetricComparison | null;
+}
+
 export interface AnalyticsWorkoutComparison {
   completedWorkoutCount: AnalyticsMetricComparison;
   totalWorkoutMinutes: AnalyticsMetricComparison;
   totalCaloriesBurned: AnalyticsMetricComparison;
   totalExerciseCount: AnalyticsMetricComparison;
+  /** How many days had a workout in each window; absent on an older backend. */
+  daysLogged?: AnalyticsDaysLogged | null;
 }
 
 export interface AnalyticsNutritionComparison {
@@ -169,6 +187,11 @@ export interface AnalyticsNutritionComparison {
   totalProteinGrams: AnalyticsMetricComparison;
   totalCarbsGrams: AnalyticsMetricComparison;
   totalFatGrams: AnalyticsMetricComparison;
+  /** How many days had food logged in each window; absent on an older backend. */
+  daysLogged?: AnalyticsDaysLogged | null;
+  /** What a logged day held, per window, so a week with fewer logged days is not read as eating
+   *  less. A metric is null when a side has no logged day; the object is absent on an older backend. */
+  averagePerLoggedDay?: AnalyticsAveragePerLoggedDay | null;
 }
 
 export interface AnalyticsSummaryCompareResponse {
@@ -177,6 +200,9 @@ export interface AnalyticsSummaryCompareResponse {
   previousWindow: AnalyticsCompareWindow;
   workout: AnalyticsWorkoutComparison;
   nutrition: AnalyticsNutritionComparison;
+  /** True while the current window is still running, so both windows cover the same days. Absent on
+   *  an older backend, which is read as true. */
+  currentToDate?: boolean;
 }
 
 export interface AnalyticsActivityDay {

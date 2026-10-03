@@ -3,7 +3,7 @@ import { Component, inject, input } from '@angular/core';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 
-export const RECIPE_QUESTIONS: readonly string[] = ['Does this fit today?', 'Make it higher in protein', 'Something with less fat'];
+export const RECIPE_QUESTIONS: readonly string[] = ['Does this fit today?', 'Could this be higher in protein?', 'Is there something with less fat?'];
 
 /**
  * "Ask your coach about this recipe": three questions to tap. Tapping opens the coach dock and sends

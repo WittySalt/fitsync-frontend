@@ -2,6 +2,7 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  HostBinding,
   Input,
   OnChanges,
   OnDestroy,
@@ -43,6 +44,11 @@ export interface FsChartSeries {
         width: 100% !important;
         min-height: 280px;
       }
+
+      :host(.compact),
+      :host(.compact) canvas {
+        min-height: 150px;
+      }
     `
   ]
 })
@@ -52,6 +58,10 @@ export class FsChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() series: FsChartSeries[] = [];
   @Input() ariaLabel = 'FitSync chart';
   @Input() yAxisLabel = '';
+  /** A short chart, for several of them stacked in one card. */
+  @Input() @HostBinding('class.compact') compact = false;
+  /** Whole numbers on the value axis, for counts. */
+  @Input() wholeNumbers = false;
 
   @ViewChild(BaseChartDirective) private readonly chart?: BaseChartDirective;
 
@@ -104,7 +114,8 @@ export class FsChartComponent implements AfterViewInit, OnChanges, OnDestroy {
           pointHoverRadius: 5,
           borderWidth: 2,
           tension: 0.32,
-          fill: false
+          fill: false,
+          ...(this.type === 'bar' ? { borderRadius: 4, maxBarThickness: 28 } : {})
         };
       })
     };
@@ -144,13 +155,15 @@ export class FsChartComponent implements AfterViewInit, OnChanges, OnDestroy {
           }
         },
         y: {
+          beginAtZero: this.type === 'bar',
           title: {
             display: Boolean(this.yAxisLabel),
             text: this.yAxisLabel,
             color: textColor
           },
           ticks: {
-            color: textColor
+            color: textColor,
+            ...(this.wholeNumbers ? { precision: 0 } : {})
           },
           grid: {
             color: gridColor

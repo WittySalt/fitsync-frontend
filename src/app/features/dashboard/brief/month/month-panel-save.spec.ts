@@ -10,6 +10,7 @@ import { MonthImageModel } from './month-image';
 import { MONTH_IMAGE_EXPORT, MonthImageExport } from './month-image-export';
 import { MonthPanelComponent } from './month-panel.component';
 import { MonthViewState } from './month-view.state';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 
 describe('MonthPanelComponent save as image', () => {
   let fixture: ComponentFixture<MonthPanelComponent>;
@@ -22,7 +23,8 @@ describe('MonthPanelComponent save as image', () => {
   const button = (): HTMLButtonElement | null => root().querySelector<HTMLButtonElement>('.save');
 
   function open(): void {
-    TestBed.inject(MonthViewState).open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    TestBed.inject(MonthViewState).open('2026-09-27');
     fixture = TestBed.createComponent(MonthPanelComponent);
     fixture.componentRef.setInput('weeklyTarget', 4);
     fixture.componentRef.setInput('personName', 'Ruixian');

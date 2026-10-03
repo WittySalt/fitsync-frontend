@@ -26,6 +26,21 @@ describe('mapEnergyWeek', () => {
     expect(week?.days.map((day) => day.today)).toEqual([true, false]);
   });
 
+  it('reads a partly logged day as not logged, with no balance and no running total', () => {
+    const week = mapEnergyWeek(
+      energyWire({ days: [{ date: '2026-10-01', logged: true, partlyLogged: true, eaten: 600, balance: -1100, runningTotal: -1100 }] })
+    );
+    expect(week?.days[0]).toEqual(jasmine.objectContaining({ logged: false, partlyLogged: true, eaten: 600, balance: null, runningTotal: null }));
+  });
+
+  it('never calls today partly logged and treats a missing flag as a full day', () => {
+    const week = mapEnergyWeek(
+      energyWire({ days: [{ date: '2026-10-02', logged: true, partlyLogged: true, eaten: 900, today: true }, { date: '2026-10-01', logged: true, eaten: 1800 }] })
+    );
+    expect(week?.days.map((day) => day.partlyLogged)).toEqual([false, false]);
+    expect(week?.days[0].logged).toBeTrue();
+  });
+
   it('marks estimated workout days and the estimated resting figure', () => {
     const week = mapEnergyWeek(energyWire({ bmrEstimated: true }));
     expect(week?.bmrEstimated).toBeTrue();

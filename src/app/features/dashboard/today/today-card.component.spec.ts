@@ -742,10 +742,10 @@ describe('TodayCardComponent', () => {
       expect(link?.getAttribute('href')).toBe('/body');
     });
 
-    it('asks for the weight trend in the timezone of the person', () => {
+    it('asks for the weight trend without a timezone argument', () => {
       create();
 
-      expect(dataService.getProgressInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(dataService.getProgressInsight).toHaveBeenCalledOnceWith();
     });
 
     it('writes an older weigh-in as a date with the Sept spelling', () => {

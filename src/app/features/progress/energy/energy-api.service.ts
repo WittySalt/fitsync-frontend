@@ -12,11 +12,9 @@ type Wire = Record<string, unknown>;
 export class EnergyApiService {
   private readonly http = inject(HttpClient);
 
-  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
-
   /** The week that starts on `weekStart` (a Monday), or this week when none is given. */
   getWeek(weekStart?: string): Observable<EnergyWeek> {
-    let params = new HttpParams().set('timezone', this.timezone);
+    let params = new HttpParams();
     if (weekStart) {
       params = params.set('weekStart', weekStart);
     }

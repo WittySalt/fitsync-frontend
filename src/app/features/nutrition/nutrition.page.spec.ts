@@ -172,7 +172,7 @@ describe('NutritionPage', () => {
     const compiled = render().nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('app-insight-panel').length).toBe(1);
-    expect(coachApiStub.getReading).toHaveBeenCalledWith('NUTRITION', jasmine.any(String));
+    expect(coachApiStub.getReading).toHaveBeenCalledWith('NUTRITION');
   });
 
   it('shows the week card, the Diary and a tab bar with Diary and Recipes', () => {

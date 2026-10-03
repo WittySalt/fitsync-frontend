@@ -25,6 +25,7 @@ import {
   WorkoutSessionQuery
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { PagerComponent } from '../../shared/pager.component';
 import { AutoClosedNoticeComponent } from './auto-closed-notice.component';
@@ -177,7 +178,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
   readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
-  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
+  private readonly timezone = inject(UserTimezoneService).zone;
   // The weekly insight says what kind of day today is. It stays null when the request fails, and
   // the Today card then falls back to the plain active plan.
   readonly insight = signal<WeeklyTrainingInsight | null>(null);
@@ -578,13 +579,13 @@ export class WorkoutPage implements OnInit, OnDestroy {
     });
   }
 
-  /** The plan card's Start session: the same start as the Today card, in the browser's timezone and,
+  /** The plan card's Start session: the same start as the Today card, in the user's zone and,
    *  for a weekly plan, on today's day or the next one the plan has. */
   startPlan(plan: WorkoutPlan): void {
     if (plan.status === 'ARCHIVED') {
       return;
     }
-    const day = dayToStart(plan.days, isoWeekdayIn(this.timezone));
+    const day = dayToStart(plan.days, isoWeekdayIn(this.timezone()));
     this.startGuidedPlan(plan, null, day?.planDayId ?? null);
   }
 
@@ -703,7 +704,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
     }
 
     this.setPlanMutating(plan.planId, true);
-    this.workoutLive.startFromPlan(plan.planId, { planDayId, timezone: this.timezone }).subscribe({
+    this.workoutLive.startFromPlan(plan.planId, { planDayId }).subscribe({
       next: () => {
         this.toast.success('Workout session started.');
         this.openScreen(initialExerciseId);
@@ -900,7 +901,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   private loadInsight(): void {
-    this.dataService.getWeeklyTrainingInsight(this.timezone).subscribe({
+    this.dataService.getWeeklyTrainingInsight().subscribe({
       next: (insight) => {
         this.insight.set(insight);
         this.coachContext.setTodayKind(insight.today?.kind ?? null);

@@ -8,7 +8,8 @@ import { ToastService } from '../../../core/toast/toast.service';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { DiarySummary, LOADING, Load, NutrientSummary } from '../diary/diary.models';
 import { whole } from '../diary/diary-figures';
-import { mealTypeByClock, toIsoDate } from '../diary/diary-time';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { mealTypeByClock } from '../diary/diary-time';
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { AddToSavedDialogComponent } from './add-to-saved-dialog.component';
 import { EatCardComponent } from './eat-card.component';
@@ -121,10 +122,11 @@ export class RecipePage {
   private readonly service = inject(RecipesService);
   private readonly diary = inject(NutritionDiaryService);
   private readonly toast = inject(ToastService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((params) => params.get('id') ?? '')), { initialValue: '' });
   private readonly logTo = this.mealTypeFromLink();
-  private readonly today = toIsoDate(new Date());
+  private readonly today = this.userTimezone.dateKey();
   // A reload that starts while an older one is on its way makes the older answer stale.
   private generation = 0;
 

@@ -136,8 +136,8 @@ export class AdminApiService {
   // The workout service's own path repeats its name as well.
   private readonly workoutsUrl = '/api/v1/admin/workouts/workouts';
 
-  getCoachQuality(from: string, to: string, timezone: string): Observable<CoachQuality> {
-    const params = new HttpParams().set('from', from).set('to', to).set('timezone', timezone);
+  getCoachQuality(from: string, to: string): Observable<CoachQuality> {
+    const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Loose<CoachQuality>>(this.coachQualityUrl, { params }).pipe(map((body) => toCoachQuality(body)));
   }
 

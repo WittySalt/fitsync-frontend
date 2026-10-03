@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { AccountDataService } from '../../../../core/account-data.service';
 import { AnalyticsApiService } from '../../../../core/analytics-api.service';
 import { FitSyncDataService } from '../../../../core/fitsync-data.service';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 import { MonthlyTrainingInsight } from '../../../../core/fitsync.models';
 import { dateKeyInTimezone, daysInMonth, monthOfDate, shiftMonth } from './month-grid';
 
@@ -42,9 +43,8 @@ export class MonthViewState implements OnDestroy {
   private readonly accounts = inject(AccountDataService);
   private readonly analytics = inject(AnalyticsApiService);
 
-  private timezone = 'UTC';
   /** The timezone of the person, for the parts that read a date of their own. */
-  readonly zone = signal('UTC');
+  readonly zone = inject(UserTimezoneService).zone;
   private requests: Subscription[] = [];
   private badgeRequest: Subscription | null = null;
   private badgesInFlight = false;
@@ -81,9 +81,7 @@ export class MonthViewState implements OnDestroy {
 
   /** Opens the view on the month that contains today, or on the given month (YYYY-MM) when one is
    *  asked for, and loads it. The arrows keep their limits either way. */
-  open(timezone: string, todayKey: string, month: string = monthOfDate(todayKey)): void {
-    this.timezone = timezone;
-    this.zone.set(timezone);
+  open(todayKey: string, month: string = monthOfDate(todayKey)): void {
     this.openedOn.set(todayKey);
     this.bounds.set(null);
     this.month.set(month);
@@ -134,7 +132,7 @@ export class MonthViewState implements OnDestroy {
     this.clearSelection();
 
     this.requests.push(
-      this.data.getMonthlyTrainingInsight(month, this.timezone).subscribe({
+      this.data.getMonthlyTrainingInsight(month).subscribe({
         next: (insight) => {
           this.bounds.set({ referenceDate: insight.referenceDate, firstSessionDate: insight.firstSessionDate });
           this.insight.set(insight);
@@ -155,7 +153,7 @@ export class MonthViewState implements OnDestroy {
           const inMonth: { time: number; weightKg: number }[] = [];
           const latest = new Map<string, { time: number; weightKg: number }>();
           for (const metric of metrics ?? []) {
-            const key = metric.weightKg != null ? dateKeyInTimezone(metric.measuredAt, this.timezone) : null;
+            const key = metric.weightKg != null ? dateKeyInTimezone(metric.measuredAt, this.zone()) : null;
             if (key) {
               dates.add(key);
               const entry = { time: Date.parse(metric.measuredAt ?? ''), weightKg: metric.weightKg as number };
@@ -198,7 +196,7 @@ export class MonthViewState implements OnDestroy {
       next: (response) => {
         const dates: string[] = [];
         for (const badge of response.achievements) {
-          const key = badge.unlocked ? dateKeyInTimezone(badge.unlockedAt, this.timezone) : null;
+          const key = badge.unlocked ? dateKeyInTimezone(badge.unlockedAt, this.zone()) : null;
           if (key) {
             dates.push(key);
           }

@@ -30,6 +30,17 @@ describe('surfaceFor', () => {
     expect(surfaceFor('/auth/login').id).toBe('other');
   });
 
+  it('asks Nutrition questions the tools can answer from the diary, and none about vegetables alone', () => {
+    const texts = surfaceFor('/nutrition').suggestions.map((s) => s.text);
+    expect(texts).toEqual(['How did I eat this week?', 'Which nutrient am I lowest in?', 'What could I cook tonight that fits?']);
+  });
+
+  it('asks the Profile page only questions the goal tools can answer', () => {
+    const texts = surfaceFor('/me').suggestions.map((s) => s.text);
+    expect(texts).toContain('Am I on pace for my goals?');
+    expect(texts).not.toContain('Which goal needs attention?');
+  });
+
   it('gives every surface at least one suggestion and a label', () => {
     for (const url of ['/dashboard', '/workout', '/nutrition', '/progress', '/me', '/coach', '/x']) {
       const surface = surfaceFor(url);

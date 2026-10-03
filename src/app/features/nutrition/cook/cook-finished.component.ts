@@ -4,7 +4,8 @@ import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { FoodGroup } from '../../../shared/food/food-groups';
 import { DiarySummary, LOADING, Load } from '../diary/diary.models';
 import { whole } from '../diary/diary-figures';
-import { mealTypeByClock, toIsoDate } from '../diary/diary-time';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { mealTypeByClock } from '../diary/diary-time';
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { RecipeCoverComponent } from '../recipes/recipe-cover.component';
 import { clampServings, scaled, servingsLabel } from '../recipes/recipes-figures';
@@ -80,6 +81,7 @@ export class CookFinishedComponent implements OnInit {
   private readonly recipes = inject(RecipesService);
   private readonly diary = inject(NutritionDiaryService);
   private readonly injector = inject(Injector);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly shell = viewChild<ElementRef<HTMLElement>>('shell');
 
   readonly recipeId = input.required<string>();
@@ -181,7 +183,7 @@ export class CookFinishedComponent implements OnInit {
 
   private loadToday(): void {
     this.today.set(LOADING);
-    this.diary.getSummary(toIsoDate(new Date())).subscribe({
+    this.diary.getSummary(this.userTimezone.dateKey()).subscribe({
       next: (data) => this.today.set({ status: 'ready', data }),
       error: () => this.today.set({ status: 'error', message: 'Today could not load.' })
     });

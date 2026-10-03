@@ -23,7 +23,7 @@ describe('NutrientsService', () => {
     expect(request.request.params.get('scope')).toBe('all');
     expect(request.request.params.get('from')).toBe('2026-09-26');
     expect(request.request.params.get('to')).toBe('2026-10-02');
-    expect(request.request.params.get('timezone')).toBe(service.timezone);
+    expect(request.request.params.has('timezone')).toBeFalse();
     request.flush({ daysLogged: 3, nutrients: [{ code: 'IRON', groupCode: 'TRACE_MINERAL', reference: 8, averageAmount: 4 }, { code: 'FIBER', groupCode: null, reference: 30 }] });
     expect(count).toBe(1);
   });

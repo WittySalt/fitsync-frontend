@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { forkJoin } from 'rxjs';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
@@ -7,13 +7,10 @@ import {
   AnalyticsNutritionSeriesResponse,
   AnalyticsWorkoutSeriesResponse
 } from '../../core/analytics.models';
+import { dateRangeLabel, shortDateLabel } from '../../shared/date-label';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
-
-interface RangePreset {
-  label: string;
-  days: number;
-}
+import { DateRange } from './progress-range';
 
 interface BucketOption {
   label: string;
@@ -25,20 +22,19 @@ interface AnalyticsTrendSeriesData {
   nutrition: AnalyticsNutritionSeriesResponse;
 }
 
+type WorkoutPoint = AnalyticsWorkoutSeriesResponse['points'][number];
+
 @Component({
   selector: 'app-analytics-trend-charts',
   imports: [FsChartComponent, StatePanelComponent],
   templateUrl: './analytics-trend-charts.component.html',
   styleUrl: './analytics-trend-charts.component.scss'
 })
-export class AnalyticsTrendChartsComponent implements OnInit {
+export class AnalyticsTrendChartsComponent {
   private readonly analyticsApi = inject(AnalyticsApiService);
 
-  readonly rangePresets: RangePreset[] = [
-    { label: '30D', days: 30 },
-    { label: '90D', days: 90 },
-    { label: '1Y', days: 365 }
-  ];
+  /** The days to draw, from the page's range control. A new range loads the charts again. */
+  readonly range = input.required<DateRange>();
 
   readonly bucketOptions: BucketOption[] = [
     { label: 'Day', value: 'DAY' },
@@ -50,8 +46,8 @@ export class AnalyticsTrendChartsComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly selectedBucket = signal<AnalyticsBucket>('WEEK');
-  readonly startDate = signal(this.isoDaysAgo(90));
-  readonly endDate = signal(this.isoToday());
+
+  readonly rangeText = computed(() => dateRangeLabel(this.range().from, this.range().to));
 
   readonly seriesDates = computed(() => {
     const data = this.data();
@@ -64,28 +60,23 @@ export class AnalyticsTrendChartsComponent implements OnInit {
     ).sort((first, second) => first.localeCompare(second));
   });
 
-  readonly chartLabels = computed(() => this.seriesDates().map((date) => this.shortDate(date)));
+  // A date key is read as a calendar day. The old label went through new Date(), which reads it as
+  // UTC and showed the day before in a zone west of Greenwich.
+  readonly chartLabels = computed(() => this.seriesDates().map((date) => shortDateLabel(date)));
 
-  readonly workoutSeries = computed<FsChartSeries[]>(() => {
-    const points = this.data()?.workout.points ?? [];
-    return [
-      {
-        label: 'Workouts',
-        values: this.valuesForDates(points, (point) => point.completedWorkoutCount),
-        colorToken: '--accent'
-      },
-      {
-        label: 'Minutes',
-        values: this.valuesForDates(points, (point) => point.totalWorkoutMinutes),
-        colorToken: '--blue-500'
-      },
-      {
-        label: 'Calories burned',
-        values: this.valuesForDates(points, (point) => point.totalCaloriesBurned),
-        colorToken: '--danger'
-      }
-    ];
-  });
+  // Sessions, minutes and calories burned sit on very different scales, so each has its own small
+  // chart. Sessions are a handful a week and were invisible on a shared axis.
+  readonly sessionsSeries = computed<FsChartSeries[]>(() => [
+    { label: 'Sessions', values: this.workoutValues((point) => point.completedWorkoutCount), colorToken: '--accent' }
+  ]);
+
+  readonly minutesSeries = computed<FsChartSeries[]>(() => [
+    { label: 'Minutes', values: this.workoutValues((point) => point.totalWorkoutMinutes), colorToken: '--blue-500' }
+  ]);
+
+  readonly caloriesBurnedSeries = computed<FsChartSeries[]>(() => [
+    { label: 'Calories burned', values: this.workoutValues((point) => point.totalCaloriesBurned), colorToken: '--text-secondary' }
+  ]);
 
   readonly nutritionSeries = computed<FsChartSeries[]>(() => {
     // Calories are not drawn here: the energy card above the charts covers them.
@@ -114,17 +105,21 @@ export class AnalyticsTrendChartsComponent implements OnInit {
     return Boolean(data && (data.workout.points.length || data.nutrition.points.length));
   });
 
-  ngOnInit(): void {
-    this.load();
+  constructor() {
+    effect(() => {
+      this.range();
+      untracked(() => this.load());
+    });
   }
 
   load(): void {
     this.loading.set(true);
     this.error.set(null);
+    const { from, to } = this.range();
 
     forkJoin({
-      workout: this.analyticsApi.getWorkoutSeries(this.startDate(), this.endDate(), this.selectedBucket()),
-      nutrition: this.analyticsApi.getNutritionSeries(this.startDate(), this.endDate(), this.selectedBucket())
+      workout: this.analyticsApi.getWorkoutSeries(from, to, this.selectedBucket()),
+      nutrition: this.analyticsApi.getNutritionSeries(from, to, this.selectedBucket())
     }).subscribe({
       next: (data) => {
         this.data.set(data);
@@ -145,25 +140,8 @@ export class AnalyticsTrendChartsComponent implements OnInit {
     this.load();
   }
 
-  setPreset(days: number): void {
-    this.startDate.set(this.isoDaysAgo(days));
-    this.endDate.set(this.isoToday());
-    this.load();
-  }
-
-  updateStartDate(event: Event): void {
-    this.startDate.set((event.target as HTMLInputElement).value);
-  }
-
-  updateEndDate(event: Event): void {
-    this.endDate.set((event.target as HTMLInputElement).value);
-  }
-
-  shortDate(value: string): string {
-    return new Intl.DateTimeFormat('en-SG', {
-      month: 'short',
-      day: 'numeric'
-    }).format(new Date(value));
+  private workoutValues(select: (point: WorkoutPoint) => number | null): Array<number | null> {
+    return this.valuesForDates(this.data()?.workout.points ?? [], select);
   }
 
   private valuesForDates<T extends { date: string }>(
@@ -172,20 +150,5 @@ export class AnalyticsTrendChartsComponent implements OnInit {
   ): Array<number | null> {
     const byDate = new Map(points.map((point) => [point.date, selectValue(point)]));
     return this.seriesDates().map((date) => byDate.get(date) ?? null);
-  }
-
-  private isoToday(): string {
-    return this.localIso(new Date());
-  }
-
-  private isoDaysAgo(days: number): string {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return this.localIso(date);
-  }
-
-  // Local calendar date (not UTC) so the series window matches the user's day.
-  private localIso(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 }

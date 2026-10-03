@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, Eleme
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { defer } from 'rxjs';
 
-import { DashboardData, FitSyncDataService } from '../../../core/fitsync-data.service';
+import { FitSyncDataService, HomeDashboardData } from '../../../core/fitsync-data.service';
 import { DayMeal, NutritionSummary, UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
 import { BRIEF_NOW } from '../brief/brief-time';
@@ -32,7 +32,7 @@ export class TodayCardComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   /** The dashboard snapshot, or null while it loads or when it failed. */
-  readonly dashboard = input<DashboardData | null>(null);
+  readonly dashboard = input<HomeDashboardData | null>(null);
   /** Today's nutrition summary, or null while it loads or when it failed. */
   readonly nutrition = input<NutritionSummary | null>(null);
   readonly loading = input(false);
@@ -57,7 +57,6 @@ export class TodayCardComponent implements OnInit {
 
   readonly activeTab = computed<TodayTab>(() => this.picked() ?? this.decided() ?? 'food');
   readonly foodMeals = this.meals.asReadonly();
-
   readonly foodLoading = computed(
     () => this.mealsState() === 'loading' || (this.nutrition() === null && !this.nutritionFailed())
   );

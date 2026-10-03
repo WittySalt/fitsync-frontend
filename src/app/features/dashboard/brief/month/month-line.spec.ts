@@ -6,6 +6,7 @@ import { MonthlyTrainingInsight } from '../../../../core/fitsync.models';
 import { monthInsight } from './month-fixtures.spec';
 import { MONTH_LINE_STORAGE_KEY, isDismissed, monthToOffer, readDismissedMonth, writeDismissedMonth } from './month-line';
 import { MonthLineComponent } from './month-line.component';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 
 describe('the first days of a month', () => {
   it('offers the month before on the first, the second and the third day', () => {
@@ -64,7 +65,7 @@ describe('MonthLineComponent', () => {
     data.getMonthlyTrainingInsight.and.returnValue(answer);
     fixture = TestBed.createComponent(MonthLineComponent);
     fixture.componentRef.setInput('todayKey', todayKey);
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
     fixture.detectChanges();
   }
 
@@ -83,7 +84,7 @@ describe('MonthLineComponent', () => {
 
   it('says the month is complete and offers two buttons on the first day', () => {
     create('2026-10-01');
-    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
     expect(line()?.querySelector('.text')?.textContent?.trim()).toBe('September is complete.');
     const buttons = Array.from(root().querySelectorAll('button'));
     expect(buttons.map((entry) => entry.textContent?.trim())).toEqual(['See the month', 'Not now']);

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { Subscription } from 'rxjs';
 
 import { FitSyncDataService } from '../../../../core/fitsync-data.service';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 import { monthNameOf } from './month-grid';
 import { isDismissed, monthToOffer, writeDismissedMonth } from './month-line';
 
@@ -17,11 +18,11 @@ import { isDismissed, monthToOffer, writeDismissedMonth } from './month-line';
 })
 export class MonthLineComponent {
   private readonly data = inject(FitSyncDataService);
+  private readonly timezone = inject(UserTimezoneService).zone;
   private request: Subscription | null = null;
 
   /** Today as YYYY-MM-DD in the timezone of the person. */
   readonly todayKey = input.required<string>();
-  readonly timezone = input.required<string>();
   /** False while the month view is open, which has no room for the line. */
   readonly shown = input(true);
 
@@ -37,8 +38,9 @@ export class MonthLineComponent {
   constructor() {
     effect(() => {
       const candidate = monthToOffer(this.todayKey());
-      const timezone = this.timezone();
-      untracked(() => this.check(candidate, timezone));
+      // A change of zone asks again, because the month that has just ended may be another one.
+      this.timezone();
+      untracked(() => this.check(candidate));
     });
     inject(DestroyRef).onDestroy(() => this.request?.unsubscribe());
   }
@@ -63,14 +65,14 @@ export class MonthLineComponent {
     this.offered.set(null);
   }
 
-  private check(candidate: string | null, timezone: string): void {
+  private check(candidate: string | null): void {
     this.request?.unsubscribe();
     this.request = null;
     this.offered.set(null);
     if (!candidate || isDismissed(candidate)) {
       return;
     }
-    this.request = this.data.getMonthlyTrainingInsight(candidate, timezone).subscribe({
+    this.request = this.data.getMonthlyTrainingInsight(candidate).subscribe({
       next: (insight) => this.offered.set(insight.totals.sessions > 0 ? candidate : null),
       error: () => this.offered.set(null)
     });

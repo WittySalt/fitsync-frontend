@@ -1,6 +1,8 @@
 import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, delay, forkJoin, map, Observable, of, tap, throwError } from 'rxjs';
+import { UserTimezoneService } from './user-timezone.service';
+import { dayBoundsInZone, profileTimezone } from './zone-time';
 
 import { AnalyticsApiService } from './analytics-api.service';
 import { AccountDataService } from './account-data.service';
@@ -108,7 +110,17 @@ export interface DashboardWorkoutSummary {
   weekWorkoutCount: number;
   weekWorkoutMinutes: number;
   activeStreakDays: number;
+  /** Consecutive days with a training session, ending today or yesterday. Absent on a backend
+   *  that does not send it yet, and then Home says nothing about a streak. */
+  currentStreakDays?: number | null;
+  /** Training minutes from Monday to Sunday of this week in the person's own zone. Absent before
+   *  the backend sends it, and then the Earned card reads the week-over-week comparison. */
+  minutesThisWeek?: number | null;
 }
+
+/** What Home needs from the dashboard: the profile, this week's training figures, the newest
+ *  weigh-in and the goals. Nutrition and the latest meal and workout are read elsewhere. */
+export type HomeDashboardData = Pick<DashboardData, 'profile' | 'workout' | 'latestBodyMetric' | 'goals'>;
 
 export type ProgressMetricKey = 'weightKg' | 'bmi' | 'bodyFatRate' | 'waistCm';
 
@@ -806,6 +818,7 @@ export class FitSyncDataService {
   private readonly http = inject(HttpClient);
   private readonly analyticsApi = inject(AnalyticsApiService);
   private readonly accountDataService = inject(AccountDataService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   readonly apiBaseUrl = '/api/v1';
   readonly lastSavedMessage = signal<string | null>(null);
@@ -838,87 +851,22 @@ export class FitSyncDataService {
     );
   }
 
-  getFallbackDashboard(): Observable<DashboardData> {
-    return of({
-      profile: {
-        displayName: 'Alice Tan',
-        firstName: 'Alice',
-        lastName: 'Tan',
-        heightCm: 165,
-        activityLevel: 'MODERATELY_ACTIVE',
-        timezone: 'Asia/Singapore',
-        onboardingCompleted: false
-      },
-      nutrition: {
-        totalCalories: 1680,
-        targetCalories: 2100,
-        totalProteinGrams: 118,
-        targetProteinGrams: 150,
-        totalCarbsGrams: 184,
-        targetCarbsGrams: 230,
-        totalFatGrams: 52,
-        targetFatGrams: 70,
-        mealCount: 3,
-        totalFiberGrams: null,
-        totalSugarGrams: null,
-        totalSodiumMg: null,
-        fiberTargetGrams: null,
-        sugarLimitGrams: null,
-        sodiumLimitMg: null,
-        fiberTargetMet: null,
-        sugarWithinLimit: null,
-        sodiumWithinLimit: null
-      },
-      workout: {
-        todayWorkoutCount: 1,
-        weekWorkoutCount: 7,
-        weekWorkoutMinutes: 300,
-        activeStreakDays: 7
-      },
-      latestWorkout: {
-        name: 'Upper Body Strength',
-        workoutType: 'STRENGTH',
-        status: 'COMPLETED',
-        startedAt: 'Today 18:24',
-        durationMinutes: 48,
-        caloriesBurned: 390,
-        completedAt: 'Today 19:12',
-        exerciseCount: 6
-      },
-      latestMeal: {
-        mealId: 'demo-meal',
-        mealType: 'LUNCH',
-        name: 'Chicken rice bowl',
-        totalCalories: 620,
-        totalProteinGrams: 42,
-        consumedAt: 'Today 12:36',
-        itemCount: 4
-      },
-      latestBodyMetric: {
-        weightKg: 72.4,
-        bodyFatRate: 21.5,
-        bmi: 26.6,
-        measuredAt: 'Today 07:20'
-      },
-      goals: [
-        {
-          goalType: 'WEIGHT',
-          targetValue: 68,
-          targetUnit: 'kg',
-          targetDate: '2026-09-30',
-          status: 'ACTIVE',
-          progressRatio: 0.42
-        },
-        {
-          goalType: 'WORKOUT_FREQUENCY',
-          targetValue: 4,
-          targetUnit: 'sessions/week',
-          targetDate: '2026-07-31',
-          status: 'ACTIVE',
-          progressRatio: 0.75
-        }
-      ]
-    }).pipe(delay(260));
+  /** The dashboard as Home reads it: three requests, with no latest meal or workout and no
+   *  nutrition snapshot, because Home reads those from their own services. */
+  getHomeDashboard(): Observable<HomeDashboardData> {
+    return forkJoin({
+      analytics: this.analyticsApi.getDashboard(),
+      goalProgress: this.analyticsApi.getGoalsProgress('ACTIVE'),
+      user: this.accountDataService.getCurrentUser()
+    }).pipe(
+      map(({ analytics, goalProgress, user }) => ({
+        profile: { ...this.mapProfile(user.profile), focusAreas: normalizeFocusAreas(user.preferences?.training?.focusAreas) },
+        workout: analytics.workout,
+        latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
+        goals: dedupeGoalsByLatestEvaluation(goalProgress.goals.map((goal) => this.mapAnalyticsGoalProgress(goal)))
+      })),
+      catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
+    );
   }
 
   getProgressData(range: ProgressDateRange, bucket: AnalyticsBucket = 'DAY'): Observable<ProgressData> {
@@ -946,9 +894,19 @@ export class FitSyncDataService {
     );
   }
 
+  /** Every goal the Goals tab lists: the active ones, and the paused and completed ones as well.
+   *  The active request decides success; a failed request for the others only leaves them out. */
   getProgressGoals(): Observable<Goal[]> {
-    return this.analyticsApi.getGoalsProgress('ACTIVE').pipe(
-      map((goals) => goals.goals.map((goal) => this.mapAnalyticsGoalProgress(goal))),
+    const quietly = (status: 'PAUSED' | 'COMPLETED') =>
+      this.analyticsApi.getGoalsProgress(status).pipe(catchError(() => of({ goals: [] as AnalyticsGoalProgress[] })));
+    return forkJoin({
+      active: this.analyticsApi.getGoalsProgress('ACTIVE'),
+      paused: quietly('PAUSED'),
+      completed: quietly('COMPLETED')
+    }).pipe(
+      map(({ active, paused, completed }) =>
+        [...active.goals, ...paused.goals, ...completed.goals].map((goal) => this.mapAnalyticsGoalProgress(goal))
+      ),
       catchError(() => throwError(() => new Error('Unable to load goal progress. Please retry.')))
     );
   }
@@ -988,15 +946,12 @@ export class FitSyncDataService {
 
   /** Starts a plan's next session. When the row for today knows which plan day it is starting
    *  (for example, a day carried over from earlier in the week), it passes that day's id and the
-   *  user's timezone so the backend starts that specific day rather than guessing from today's
+   *  zone travels in the X-Timezone header, so the backend starts that specific day rather than guessing from today's
    *  date. Both are optional so every existing caller, which starts "today's" day, is unaffected. */
-  startWorkoutPlan(planId: string, options?: { planDayId?: string | null; timezone?: string }): Observable<WorkoutSessionDetail> {
+  startWorkoutPlan(planId: string, options?: { planDayId?: string | null }): Observable<WorkoutSessionDetail> {
     let params = new HttpParams();
     if (options?.planDayId) {
       params = params.set('planDayId', options.planDayId);
-    }
-    if (options?.timezone) {
-      params = params.set('timezone', options.timezone);
     }
     return this.http
       .post<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/plans/${planId}/start`, {}, { params })
@@ -1161,11 +1116,11 @@ export class FitSyncDataService {
   }
 
   /** Loads the coach's weekly training rollup (sessions, volume, per-muscle-group facts) for the
-   *  given IANA timezone, optionally pinned to a reference date. Errors are left to propagate
+   *  user's timezone, optionally pinned to a reference date. Errors are left to propagate
    *  (unlike most reads on this service) so the caller can tell "no data" apart from "request
    *  failed" and fall back accordingly. */
-  getWeeklyTrainingInsight(timezone: string, date?: string): Observable<WeeklyTrainingInsight> {
-    let params = new HttpParams().set('timezone', timezone);
+  getWeeklyTrainingInsight(date?: string): Observable<WeeklyTrainingInsight> {
+    let params = new HttpParams();
     if (date) {
       params = params.set('date', date);
     }
@@ -1174,7 +1129,7 @@ export class FitSyncDataService {
       .get<Partial<WeeklyTrainingInsight>>(`${this.apiBaseUrl}/workouts/insights/weekly`, { params })
       .pipe(
         map((response) => ({
-          timezone: response.timezone ?? timezone,
+          timezone: response.timezone ?? this.userTimezone.zone(),
           referenceDate: response.referenceDate ?? '',
           weekStart: response.weekStart ?? '',
           weekEnd: response.weekEnd ?? '',
@@ -1190,12 +1145,16 @@ export class FitSyncDataService {
             previousWeekKg: safeInsightNumber(response.volume?.previousWeekKg),
             weekBeforePreviousKg: safeInsightNumber(response.volume?.weekBeforePreviousKg),
             thisWeekSessionsWithVolume: safeInsightNumber(response.volume?.thisWeekSessionsWithVolume),
-            previousWeekSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSessionsWithVolume)
+            previousWeekSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSessionsWithVolume),
+            previousWeekSameDaysKg: safeInsightNumber(response.volume?.previousWeekSameDaysKg),
+            previousWeekSameDaysSessionsWithVolume: safeInsightNumber(response.volume?.previousWeekSameDaysSessionsWithVolume)
           },
           days: mapDays(response.days),
           today: mapTodayInsight(response.today),
           nextTraining: mapNextTraining(response.nextTraining),
-          usualStartTime: mapUsualStartTime(response.usualStartTime)
+          usualStartTime: mapUsualStartTime(response.usualStartTime),
+          previousWeekSameDaysCompletedSessions: safeInsightNumber(response.previousWeekSameDaysCompletedSessions),
+          previousWeekSameDaysTotalMinutes: safeInsightNumber(response.previousWeekSameDaysTotalMinutes)
         }))
       );
   }
@@ -1210,9 +1169,8 @@ export class FitSyncDataService {
 
   /** The protein-by-meal figures that draw the chart in the nutrition reading. Errors propagate so
    *  that the reading can be shown without its chart. */
-  getNutritionInsightsPage(timezone: string): Observable<NutritionInsightsPage> {
-    const params = new HttpParams().set('timezone', timezone);
-    return this.http.get<Partial<NutritionInsightsPage>>(`${this.apiBaseUrl}/nutrition/insights/page`, { params }).pipe(
+  getNutritionInsightsPage(): Observable<NutritionInsightsPage> {
+    return this.http.get<Partial<NutritionInsightsPage>>(`${this.apiBaseUrl}/nutrition/insights/page`).pipe(
       map((response) => ({
         period: response.period ?? '',
         periodStart: textOrNull(response.periodStart),
@@ -1232,9 +1190,8 @@ export class FitSyncDataService {
 
   /** The weight series and goal projection that draw the chart in the progress reading. Errors
    *  propagate so that the reading can be shown without its chart. */
-  getProgressInsight(timezone: string): Observable<ProgressInsight> {
-    const params = new HttpParams().set('timezone', timezone);
-    return this.http.get<Partial<ProgressInsight>>(`${this.apiBaseUrl}/users/me/insights/progress`, { params }).pipe(
+  getProgressInsight(): Observable<ProgressInsight> {
+    return this.http.get<Partial<ProgressInsight>>(`${this.apiBaseUrl}/users/me/insights/progress`).pipe(
       map((response) => ({
         referenceDate: textOrNull(response.referenceDate),
         weightKg: numberOrNull(response.weightKg),
@@ -1629,15 +1586,11 @@ export class FitSyncDataService {
       );
   }
 
-  getTodayMeals(timezone?: string): Observable<Meal[]> {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    let params = new HttpParams()
+  getTodayMeals(): Observable<Meal[]> {
+    const start = dayBoundsInZone(this.userTimezone.dateKey(), this.userTimezone.zone()).from;
+    const params = new HttpParams()
       .set('from', start.toISOString())
       .set('to', new Date().toISOString());
-    if (timezone) {
-      params = params.set('timezone', timezone);
-    }
     return this.http
       .get<Partial<Meal>[]>(`${this.apiBaseUrl}/nutrition/meals`, { params })
       .pipe(
@@ -1647,18 +1600,14 @@ export class FitSyncDataService {
   }
 
   /**
-   * Every meal logged on the device-local calendar day of `day`, with macros and foods. Unlike
+   * Every meal logged on the device-local calendar day of `day` in the user's zone, with macros and foods. Unlike
    * getTodayMeals it lets a failure through, because the Today card shows a retry for it, and it
    * runs to the end of the day so a meal logged ahead of time is not dropped.
    */
   getMealsForDay(day = new Date()): Observable<DayMeal[]> {
-    const start = new Date(day);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    const params = new HttpParams()
-      .set('from', start.toISOString())
-      .set('to', new Date(end.getTime() - 1).toISOString());
+    // The day is the one the profile's zone is in, so it matches the budget and the brief.
+    const { from, to } = dayBoundsInZone(this.userTimezone.dateKey(day), this.userTimezone.zone());
+    const params = new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
     return this.http.get<BackendDayMeal[]>(`${this.apiBaseUrl}/nutrition/meals`, { params }).pipe(
       map((meals) =>
         meals.map((meal) => ({
@@ -1679,16 +1628,18 @@ export class FitSyncDataService {
     );
   }
 
-  getDailyNutritionSummary(date = new Date(), timezone = this.getLocalTimezone()): Observable<NutritionSummary> {
-    const params = new HttpParams()
-      .set('date', this.toDateParam(date))
-      .set('timezone', timezone);
+  /** The day's totals, or an empty summary when the request fails. Callers that must tell "no
+   *  food yet" from "could not load" use loadDailyNutritionSummary instead. */
+  getDailyNutritionSummary(date = new Date()): Observable<NutritionSummary> {
+    return this.loadDailyNutritionSummary(date).pipe(catchError(() => of(this.emptyNutritionSummary())));
+  }
+
+  /** The day's totals for a date or a YYYY-MM-DD key. A failed request is passed on as an error. */
+  loadDailyNutritionSummary(date: Date | string = new Date()): Observable<NutritionSummary> {
+    const params = new HttpParams().set('date', typeof date === 'string' ? date : this.toDateParam(date));
     return this.http
       .get<BackendDailyNutritionSummary>(`${this.apiBaseUrl}/nutrition/summary/daily`, { params })
-      .pipe(
-        map((summary) => this.mapDailyNutritionSummary(summary)),
-        catchError(() => of(this.emptyNutritionSummary()))
-      );
+      .pipe(map((summary) => this.mapDailyNutritionSummary(summary)));
   }
 
   getFallbackFoods(): Observable<FoodSearchResult[]> {
@@ -1770,7 +1721,7 @@ export class FitSyncDataService {
       gender: value.gender || 'PREFER_NOT_TO_SAY',
       heightCm,
       activityLevel: value.activityLevel,
-      timezone: this.getLocalTimezone(),
+      timezone: this.userTimezone.zone(),
       preferredUnits: value.preferredUnits,
       currentWeightKg,
       targetWeightKg,
@@ -1879,9 +1830,8 @@ export class FitSyncDataService {
   }
 
   /** The meals a person usually has, from the last fourteen days, one entry per meal type. */
-  getUsualMeals(timezone = this.getLocalTimezone()): Observable<UsualMeal[]> {
-    const params = new HttpParams().set('timezone', timezone);
-    return this.http.get<BackendUsualMeals>(`${this.apiBaseUrl}/nutrition/meals/usual`, { params }).pipe(
+  getUsualMeals(): Observable<UsualMeal[]> {
+    return this.http.get<BackendUsualMeals>(`${this.apiBaseUrl}/nutrition/meals/usual`).pipe(
       map((response) =>
         (response?.meals ?? []).map((meal) => ({
           mealType: meal.mealType ?? '',
@@ -1978,7 +1928,6 @@ export class FitSyncDataService {
         name: draft.name || null,
         source: 'MANUAL',
         consumedAt: draft.consumedAt ?? new Date().toISOString(),
-        timezone: draft.timezone ?? this.getLocalTimezone(),
         note: draft.note || null,
         items: draft.items.map((item) => this.toMealItemInput(item))
       })
@@ -2002,7 +1951,6 @@ export class FitSyncDataService {
         mealType: value.mealType,
         name: value.name,
         consumedAt: value.consumedAt ?? new Date().toISOString(),
-        timezone: value.timezone ?? this.getLocalTimezone(),
         calories: value.calories,
         proteinGrams: value.proteinGrams,
         carbsGrams: value.carbsGrams,
@@ -2047,7 +1995,7 @@ export class FitSyncDataService {
       birthDate: profile?.birthDate ?? undefined,
       heightCm: profile?.heightCm ?? 0,
       activityLevel: profile?.activityLevel ?? 'NOT_SET',
-      timezone: profile?.timezone ?? 'Asia/Singapore',
+      timezone: profileTimezone(profile?.timezone),
       onboardingCompleted: profile?.onboardingCompleted ?? false
     };
   }
@@ -2086,14 +2034,6 @@ export class FitSyncDataService {
 
   private toBackendLocalTime(value: string | null | undefined): string | null {
     return value ? `${value.slice(0, 5)}:00` : null;
-  }
-
-  private getLocalTimezone(): string {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Singapore';
-    } catch {
-      return 'Asia/Singapore';
-    }
   }
 
   private toDateParam(date: Date): string {
@@ -2971,13 +2911,13 @@ export class FitSyncDataService {
   }
 
   /** Loads the coach's month rollup (the days trained, the weeks, the totals and the muscle
-   *  counts) for one calendar month in the given IANA timezone. Errors are left to propagate so the
+   *  counts) for one calendar month in the user's timezone. Errors are left to propagate so the
    *  month view can show its own error state instead of an empty month. */
-  getMonthlyTrainingInsight(month: string, timezone: string): Observable<MonthlyTrainingInsight> {
-    const params = new HttpParams().set('month', month).set('timezone', timezone);
+  getMonthlyTrainingInsight(month: string): Observable<MonthlyTrainingInsight> {
+    const params = new HttpParams().set('month', month);
     return this.http
       .get<Partial<MonthlyTrainingInsight>>(`${this.apiBaseUrl}/workouts/insights/monthly`, { params })
-      .pipe(map((response) => mapMonthlyTrainingInsight(response, month, timezone)));
+      .pipe(map((response) => mapMonthlyTrainingInsight(response, month, this.userTimezone.zone())));
   }
 }
 

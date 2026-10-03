@@ -21,9 +21,9 @@
     <app-coach-brief
       [firstName]="dashboard.profile.firstName"
       [displayName]="dashboard.profile.displayName"
-      [timezone]="dashboard.profile.timezone"
       [caloriesTarget]="nutritionSummary()?.targetCalories ?? null"
       [focusAreas]="dashboard.profile.focusAreas ?? []"
+      [goals]="dashboard.goals"
     />
 
     <app-today-card
@@ -34,60 +34,9 @@
       (retryNutrition)="loadNutrition()"
     />
 
-    <app-earned [timezone]="dashboard.profile.timezone" />
-
-    <div class="card-row">
-      <section class="card-row-grid">
-        <a class="metric-card heatmap-metric" routerLink="/progress" aria-label="Open workout activity calendar">
-          <div>
-            <span>Last five weeks</span>
-            <strong>Workout consistency</strong>
-            <app-activity-heatmap variant="compact" [timezone]="dashboard.profile.timezone" />
-          </div>
-        </a>
-
-        <a class="metric-card streak" routerLink="/workout" aria-label="Open workouts">
-          <span class="metric-icon">ST</span>
-          <div>
-            @if ((dashboard.workout?.activeStreakDays ?? 0) > 0) {
-              <span>Active streak</span>
-              <strong>{{ dashboard.workout?.activeStreakDays ?? 0 }} days</strong>
-              <small>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min in 7 days</small>
-            } @else {
-              <span>Last 7 days</span>
-              <strong>{{ dashboard.workout?.weekWorkoutCount ?? 0 }} workouts &middot; {{ dashboard.workout?.weekWorkoutMinutes ?? 0 }} min</strong>
-              <small>Start a workout to build a streak</small>
-            }
-          </div>
-        </a>
-
-        @if (dashboard.latestWorkout && hasCompletedWorkout(dashboard.latestWorkout)) {
-          <a class="summary-card activity-link-card" routerLink="/workout" aria-label="Open latest workout">
-            <span class="card-label">Latest Workout</span>
-            <h3>{{ dashboard.latestWorkout.name }}</h3>
-            <p>{{ dashboard.latestWorkout.workoutType }} · {{ workoutDurationLabel(dashboard.latestWorkout) }}</p>
-            <dl>
-              <div>
-                <dt>Calories</dt>
-                <dd>{{ workoutCaloriesLabel(dashboard.latestWorkout) }}</dd>
-              </div>
-              <div>
-                <dt>Exercises</dt>
-                <dd>{{ dashboard.latestWorkout.exerciseCount }}</dd>
-              </div>
-            </dl>
-          </a>
-        } @else {
-          <article class="summary-card">
-            <span class="card-label">Latest Workout</span>
-            <div class="empty-workout-state">
-              <strong>No completed workout yet</strong>
-              <p>Start one to build your weekly training summary.</p>
-              <a routerLink="/workout" class="button workout">Start Workout</a>
-            </div>
-          </article>
-        }
-      </section>
-    </div>
+    <app-earned
+      [minutesThisWeek]="dashboard.workout?.minutesThisWeek ?? null"
+      [streakDays]="dashboard.workout?.currentStreakDays ?? null"
+    />
   }
 </div>

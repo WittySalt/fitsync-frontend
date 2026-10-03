@@ -7,10 +7,18 @@
         <h3 class="result-label">This week's training</h3>
         @if (trainingLoading()) {
           <div class="skeleton result-skeleton"></div>
+        } @else if (trainingFailed()) {
+          <div class="failed">
+            <p class="result-value">Could not load</p>
+            <button type="button" class="retry" (click)="loadTraining()">Try again</button>
+          </div>
         } @else {
           <p class="result-value">{{ trainingHeadline() }}</p>
           @if (trainingComparison()) {
             <p class="result-note">{{ trainingComparison() }}</p>
+          }
+          @if (streakLine()) {
+            <p class="result-note">{{ streakLine() }}</p>
           }
         }
       </article>

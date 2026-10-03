@@ -63,10 +63,11 @@ export class AnalyticsApiService {
     });
   }
 
+  /** Compares this period so far with the same days of the one before. The X-Timezone header
+   *  tells the server which day is today. */
   getSummaryCompare(period: AnalyticsComparePeriod): Observable<AnalyticsSummaryCompareResponse> {
-    return this.http.get<AnalyticsSummaryCompareResponse>(`${this.analyticsBaseUrl}/summary/compare`, {
-      params: new HttpParams().set('period', period)
-    });
+    const params = new HttpParams().set('period', period);
+    return this.http.get<AnalyticsSummaryCompareResponse>(`${this.analyticsBaseUrl}/summary/compare`, { params });
   }
 
   getActivityCalendar(from: string, to: string): Observable<AnalyticsActivityCalendarResponse> {

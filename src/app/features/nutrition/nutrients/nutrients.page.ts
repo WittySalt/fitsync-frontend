@@ -5,7 +5,7 @@ import { Subscription, map } from 'rxjs';
 
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { LOADING, Load } from '../diary/diary.models';
-import { toIsoDate } from '../diary/diary-time';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { NutrientDetail, NutrientTileData, NutrientsOverview, PeriodKey } from './nutrients.models';
 import { NutrientsService } from './nutrients.service';
 import { PERIODS, parsePeriod, periodRange, reachSummary } from './nutrients-figures';
@@ -78,6 +78,7 @@ export class NutrientsPage {
   private readonly service = inject(NutrientsService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -85,7 +86,7 @@ export class NutrientsPage {
   protected readonly period = toSignal(this.route.queryParamMap.pipe(map((params) => parsePeriod(params.get('period')))), {
     initialValue: parsePeriod(this.route.snapshot.queryParamMap.get('period'))
   });
-  protected readonly range = computed(() => periodRange(this.period(), toIsoDate(new Date())));
+  protected readonly range = computed(() => periodRange(this.period(), this.userTimezone.dateKey()));
 
   protected readonly state = signal<Load<NutrientsOverview>>(LOADING);
   protected readonly overview = computed(() => {
@@ -167,7 +168,7 @@ export class NutrientsPage {
     this.loading?.unsubscribe();
     this.state.set(LOADING);
     this.details.set({});
-    const { from, to } = periodRange(period, toIsoDate(new Date()));
+    const { from, to } = periodRange(period, this.userTimezone.dateKey());
     this.loading = this.service.getAll(from, to).subscribe({
       next: (data) => {
         this.state.set({ status: 'ready', data });

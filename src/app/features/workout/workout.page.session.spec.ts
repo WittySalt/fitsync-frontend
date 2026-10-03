@@ -20,6 +20,7 @@ import { LiveTrackerComponent } from './live-tracker.component';
 import { isoWeekdayIn } from './plan-day-pick';
 import { STILL_RUNNING_NOTICE } from './workout-live.service';
 import { WorkoutPage } from './workout.page';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 
 const DISMISSED_KEY = 'fs-auto-closed-dismissed';
 
@@ -407,7 +408,7 @@ describe('WorkoutPage and the workout in progress', () => {
   });
 
   describe('every start lands on the exercise screen', () => {
-    it('opens the screen after the plan card starts a weekly plan on today, in the browser timezone', () => {
+    it('opens the screen after the plan card starts a weekly plan on today, in the zone of the person', () => {
       dataService.startWorkoutPlan.and.returnValue(of(running()));
       const fixture = createPage();
       fixture.componentInstance.selectedTab.set('plans');
@@ -415,10 +416,8 @@ describe('WorkoutPage and the workout in progress', () => {
       fixture.componentInstance.startPlan(weeklyPlan());
       fixture.detectChanges();
 
-      const timezone = fixture.componentInstance.timezone;
       expect(dataService.startWorkoutPlan).toHaveBeenCalledWith('plan-week', {
-        planDayId: `day-${isoWeekdayIn(timezone)}`,
-        timezone
+        planDayId: `day-${isoWeekdayIn(TestBed.inject(UserTimezoneService).zone())}`
       });
       expect(fixture.componentInstance.selectedTab()).toBe('overview');
       expect(player(fixture)).toBeDefined();

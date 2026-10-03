@@ -8,27 +8,11 @@
   gap: 16px;
 }
 
-.filter-row,
-.range-presets,
-.date-fields,
 .bucket-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.filter-row {
-  justify-content: space-between;
-}
-
-.date-fields {
-  label {
-    min-width: 150px;
-  }
-}
-
-.bucket-toggle {
+  gap: 4px;
+  justify-self: start;
   min-height: 44px;
   padding: 4px;
   border: 1px solid var(--border);
@@ -66,6 +50,9 @@
 }
 
 .trend-chart-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
   min-height: 430px;
 
   h3 {
@@ -81,16 +68,11 @@
 }
 
 @media (max-width: 680px) {
-  .filter-row,
-  .date-fields {
-    align-items: stretch;
-    flex-direction: column;
-  }
+  .bucket-toggle {
+    justify-self: stretch;
 
-  .range-presets .button,
-  .date-fields .button,
-  .date-fields label,
-  .bucket-toggle button {
-    width: 100%;
+    button {
+      flex: 1 1 0;
+    }
   }
 }

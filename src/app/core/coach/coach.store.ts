@@ -1,19 +1,25 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Observable, Subscription, tap } from 'rxjs';
 
-import { CoachApiService } from './coach-api.service';
+import { CoachApiService, limitFromError } from './coach-api.service';
 import { CoachContextService } from './coach-context.service';
 import {
   AcceptSessionDraftResponse,
   CoachMessageContext,
   CoachMessageResponse,
   CoachProgressEvent,
+  CoachLimit,
   CoachReading,
   CoachThreadDetail,
+  CoachThreadSummary,
   CoachTurn,
   Recommendation,
   SessionDraftView
 } from './coach.models';
+
+export type HistoryStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+const HISTORY_PAGE_SIZE = 20;
 
 export type CoachStatus = 'idle' | 'loading' | 'answering' | 'unavailable';
 
@@ -138,7 +144,118 @@ export class CoachStore {
     return this.recommendations().filter((r) => inline.has(r.type));
   });
 
-  readonly turns = computed<CoachTurn[]>(() => this.thread()?.turns ?? []);
+  /**
+   * The turns worth showing. An assistant turn with no text is what a stream that died after the
+   * server stored the question leaves behind; showing it is an empty bubble, so it is left out.
+   */
+  readonly turns = computed<CoachTurn[]>(() =>
+    (this.thread()?.turns ?? []).filter((turn) => turn.role !== 'ASSISTANT' || turn.content.trim().length > 0)
+  );
+
+  /** A quiet notice while the user is over the coach's limit, with the composer locked until it ends. */
+  readonly limitNotice = signal<string | null>(null);
+  private limitTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** True while the limit notice is up; the composer reads this to stay disabled. */
+  readonly limited = computed(() => this.limitNotice() !== null);
+
+  private startLimit(limit: CoachLimit): void {
+    if (this.limitTimer) {
+      clearTimeout(this.limitTimer);
+    }
+    this.limitNotice.set(limit.message);
+    this.limitTimer = setTimeout(() => {
+      this.limitNotice.set(null);
+      this.limitTimer = null;
+    }, limit.retryAfterSeconds * 1000);
+  }
+
+  // ----- Conversation history -----
+
+  /** Whether the dock shows the list of earlier conversations in place of the current one. */
+  readonly historyOpen = signal(false);
+  readonly history = signal<CoachThreadSummary[]>([]);
+  readonly historyStatus = signal<HistoryStatus>('idle');
+  readonly historyHasMore = signal(false);
+  readonly historyLoadingMore = signal(false);
+  /** A failure of opening or archiving a conversation from the list, shown above it. */
+  readonly historyNotice = signal<string | null>(null);
+  private historyPage = 0;
+
+  readonly currentThreadId = computed(() => this.thread()?.thread.threadId ?? null);
+
+  /** Shows the history list and reads its first page afresh, so a conversation started a minute ago is in it. */
+  openHistory(): void {
+    this.historyOpen.set(true);
+    this.historyNotice.set(null);
+    this.historyStatus.set('loading');
+    this.historyPage = 0;
+    this.api.listThreadPage(0, HISTORY_PAGE_SIZE).subscribe({
+      next: (page) => {
+        this.history.set(page.items);
+        this.historyHasMore.set(page.hasMore);
+        this.historyStatus.set('ready');
+      },
+      error: () => this.historyStatus.set('error')
+    });
+  }
+
+  closeHistory(): void {
+    this.historyOpen.set(false);
+  }
+
+  loadMoreHistory(): void {
+    if (!this.historyHasMore() || this.historyLoadingMore()) {
+      return;
+    }
+    this.historyLoadingMore.set(true);
+    this.api.listThreadPage(this.historyPage + 1, HISTORY_PAGE_SIZE).subscribe({
+      next: (page) => {
+        const known = new Set(this.history().map((row) => row.threadId));
+        this.history.update((rows) => [...rows, ...page.items.filter((row) => !known.has(row.threadId))]);
+        this.historyPage = page.page;
+        this.historyHasMore.set(page.hasMore);
+        this.historyLoadingMore.set(false);
+      },
+      error: () => {
+        this.historyNotice.set('More conversations could not be loaded just now.');
+        this.historyLoadingMore.set(false);
+      }
+    });
+  }
+
+  /** Opens an earlier conversation, with its turns, so the user can read it and keep asking in it. */
+  openThread(threadId: string): void {
+    this.historyNotice.set(null);
+    this.api.getThread(threadId).subscribe({
+      next: (detail) => {
+        this.inflight?.unsubscribe();
+        this.thread.set(detail);
+        this.liveSteps.set([]);
+        this.pendingQuestion.set(null);
+        this.latestDraft.set(null);
+        this.citedTurns.set(new Map());
+        this.status.set('idle');
+        this.error.set(null);
+        this.historyOpen.set(false);
+      },
+      error: () => this.historyNotice.set('That conversation could not be opened. Try again in a moment.')
+    });
+  }
+
+  /** Archives a conversation and drops it from the list. Archiving the open one starts a fresh conversation. */
+  archiveThread(threadId: string): void {
+    this.historyNotice.set(null);
+    this.api.archiveThread(threadId).subscribe({
+      next: () => {
+        this.history.update((rows) => rows.filter((row) => row.threadId !== threadId));
+        if (this.currentThreadId() === threadId) {
+          this.newThread();
+        }
+      },
+      error: () => this.historyNotice.set('That conversation could not be archived just now.')
+    });
+  }
 
   private inflight: Subscription | null = null;
 
@@ -190,7 +307,7 @@ export class CoachStore {
    */
   ask(question: string, about?: { recipeId?: string }): void {
     const text = question.trim();
-    if (!text || this.status() === 'answering') {
+    if (!text || this.status() === 'answering' || this.limited()) {
       return;
     }
     this.error.set(null);
@@ -199,15 +316,18 @@ export class CoachStore {
     this.liveSteps.set([]);
 
     const context = this.buildContext(about);
+    // One id per question, sent on the stream and again on the plain fallback, so the server can
+    // recognise the retry as the same question and not store it twice.
+    const clientTurnId = newTurnId();
     const threadId = this.thread()?.thread.threadId;
     if (threadId) {
-      this.stream(threadId, text, context);
+      this.stream(threadId, text, context, clientTurnId);
       return;
     }
     this.api.createThread().subscribe({
       next: (thread) => {
         this.thread.set({ thread, turns: [] });
-        this.stream(thread.threadId, text, context);
+        this.stream(thread.threadId, text, context, clientTurnId);
       },
       error: () => this.fail('The coach could not open a conversation. Try again in a moment.')
     });
@@ -231,7 +351,6 @@ export class CoachStore {
     const reading = this.pinnedReading();
     if (reading?.readingId) {
       context.readingId = reading.readingId;
-      context.timezone = deviceTimezone();
     }
     return context;
   }
@@ -245,7 +364,7 @@ export class CoachStore {
    * another's and hide the draft's provenance behind a bubble.
    */
   buildSession(request?: string): void {
-    if (this.status() === 'answering') {
+    if (this.status() === 'answering' || this.limited()) {
       return;
     }
     this.error.set(null);
@@ -262,6 +381,11 @@ export class CoachStore {
         this.drafts.update((list) => [draft, ...list.filter((d) => d.artifactId !== draft.artifactId)]);
       },
       error: (failure: { status?: number; error?: { message?: string } }) => {
+        const limit = limitFromError(failure);
+        if (limit) {
+          this.fail(null, limit, request);
+          return;
+        }
         this.fail(
           failure?.status === 503
             ? (failure.error?.message ?? 'Nothing could be built from the exercises available today.')
@@ -296,8 +420,9 @@ export class CoachStore {
               : d
           )
         );
+        // The card offered the draft; once it is accepted there is nothing left for it to offer.
         if (this.latestDraft()?.artifactId === artifactId) {
-          this.latestDraft.update((d) => (d ? { ...d, status: 'ACCEPTED', planId: accepted.planId, sessionId: accepted.sessionId } : d));
+          this.latestDraft.set(null);
         }
       })
     );
@@ -331,10 +456,10 @@ export class CoachStore {
     this.error.set(null);
   }
 
-  private stream(threadId: string, text: string, context: CoachMessageContext | undefined): void {
+  private stream(threadId: string, text: string, context: CoachMessageContext | undefined, clientTurnId: string): void {
     this.inflight?.unsubscribe();
     let answered = false;
-    this.inflight = this.api.streamMessage(threadId, text, context).subscribe({
+    this.inflight = this.api.streamMessage(threadId, text, context, clientTurnId).subscribe({
       next: (event) => {
         switch (event.name) {
           case 'tool_started':
@@ -357,12 +482,24 @@ export class CoachStore {
             break;
         }
       },
-      error: () => {
+      error: (streamFailure: unknown) => {
+        const limit = limitFromError(streamFailure);
+        if (limit) {
+          this.fail(null, limit, text);
+          return;
+        }
         // The stream could not be opened: a proxy that does not pass it through, or a network that
         // dropped it. The plain endpoint gives the same answer without the progress view.
-        this.api.sendMessage(threadId, text, context).subscribe({
+        this.api.sendMessage(threadId, text, context, clientTurnId).subscribe({
           next: (response) => this.finish(threadId, response),
-          error: () => this.fail('The coach could not answer just now. Your computed insights are still on the dashboard.')
+          error: (failure: unknown) => {
+            const plainLimit = limitFromError(failure);
+            if (plainLimit) {
+              this.fail(null, plainLimit, text);
+              return;
+            }
+            this.fail('The coach could not answer just now. Your computed insights are still on the dashboard.');
+          }
         });
       },
       complete: () => {
@@ -429,7 +566,17 @@ export class CoachStore {
     this.status.set(tier === -1 ? 'unavailable' : 'idle');
   }
 
-  private fail(message: string): void {
+  /**
+   * Ends a turn that did not produce an answer. A limit is not a fault: it becomes a quiet notice,
+   * and the question goes back into the composer so it is not lost while the wait runs out.
+   */
+  private fail(message: string | null, limit?: CoachLimit, question?: string): void {
+    if (limit) {
+      this.startLimit(limit);
+      if (question) {
+        this.composerPrefill.set(question);
+      }
+    }
     this.error.set(message);
     this.pendingQuestion.set(null);
     this.liveSteps.set([]);
@@ -437,13 +584,15 @@ export class CoachStore {
   }
 }
 
-/** The device's IANA zone, guarded because an unsupported environment can throw rather than return one. */
-function deviceTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
+/** A fresh UUID for one question; the fallback keeps an older WebView working. */
+function newTurnId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
   }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 /** A minimal thread reconstruction for when the answer arrived but the reload did not. */

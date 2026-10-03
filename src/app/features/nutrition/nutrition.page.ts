@@ -6,7 +6,8 @@ import { DiaryDayComponent } from './diary/diary-day.component';
 import { DiaryWeekComponent } from './diary/diary-week.component';
 import { AddRequest, LOADING, Load, RangeDay } from './diary/diary.models';
 import { whole } from './diary/diary-figures';
-import { dayLabel, toIsoDate, weekOf } from './diary/diary-time';
+import { UserTimezoneService } from '../../core/user-timezone.service';
+import { dayLabel, weekOf } from './diary/diary-time';
 import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent } from './meal-builder.component';
 import { RecipeSection, RecipesTabComponent } from './recipes/recipes-tab.component';
@@ -29,12 +30,13 @@ export class NutritionPage implements OnInit {
   private readonly diary = inject(NutritionDiaryService);
   private readonly route = inject(ActivatedRoute);
   private readonly injector = inject(Injector);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly builder = viewChild(MealBuilderComponent);
   // The meal type a link or an Add button asked for, held until the builder exists to take it.
   private pendingMealType: string | null = null;
   private pendingQuickAdd = false;
 
-  readonly today = toIsoDate(new Date());
+  readonly today = this.userTimezone.dateKey();
   readonly dates = weekOf(this.today);
 
   readonly tab = signal<'diary' | 'recipes'>('diary');

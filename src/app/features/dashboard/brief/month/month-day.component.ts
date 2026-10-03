@@ -120,7 +120,7 @@ export class MonthDayComponent {
       this.foodLoad.set('loading');
       const [year, month, dayOfMonth] = date.split('-').map(Number);
       this.requests.push(
-        this.data.getDailyNutritionSummary(new Date(year, month - 1, dayOfMonth), zone).subscribe({
+        this.data.getDailyNutritionSummary(new Date(year, month - 1, dayOfMonth)).subscribe({
           next: (summary) => {
             this.food.set(summary);
             this.foodLoad.set('done');

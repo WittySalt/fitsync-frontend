@@ -26,6 +26,29 @@ export interface CoachThread {
   createdAt: string;
 }
 
+/** One row of the conversation history list. */
+export interface CoachThreadSummary {
+  threadId: string;
+  title: string | null;
+  /** The page the conversation was started from, or null when the server did not say. */
+  surface: CoachSurfaceCode | null;
+  lastMessageAt: string | null;
+  turnCount: number;
+}
+
+/** One page of the history list. `hasMore` is derived from whichever paging fields the server sent. */
+export interface CoachThreadPage {
+  items: CoachThreadSummary[];
+  page: number;
+  hasMore: boolean;
+}
+
+/** The server's answer when a user has asked more often than the coach allows. */
+export interface CoachLimit {
+  message: string;
+  retryAfterSeconds: number;
+}
+
 export interface ToolInvocation {
   seq: number;
   tool: string;
@@ -67,7 +90,6 @@ export interface CoachMessageContext {
   readingId?: string;
   /** The recipe a question is about, when it was asked from a recipe page. */
   recipeId?: string;
-  timezone?: string;
 }
 
 /** The answer the plain endpoint returns, and the payload of the stream's final `answer` event. */
@@ -118,6 +140,13 @@ export interface SessionDraft {
   summary: string;
 }
 
+/** One finding the validator attached to a draft, when the server sends any. */
+export interface DraftFinding {
+  label: string;
+  /** False marks a rule the draft was corrected for; absent means it passed. */
+  passed: boolean;
+}
+
 export interface SessionDraftView {
   artifactId: string;
   status: ArtifactStatus;
@@ -127,6 +156,8 @@ export interface SessionDraftView {
   planId: string | null;
   sessionId: string | null;
   rejectionReason: string | null;
+  /** Not sent by every server version; the page falls back to what the draft's source guarantees. */
+  findings?: DraftFinding[] | null;
 }
 
 export interface AcceptSessionDraftResponse {

@@ -41,7 +41,7 @@ describe('TodayBodyComponent', () => {
     dataService.getProgressInsight.and.returnValue(of(insight));
   });
 
-  function create(inputs: { metric?: BodyMetric | null; timezone?: string | null } = {}): void {
+  function create(inputs: { metric?: BodyMetric | null } = {}): void {
     TestBed.configureTestingModule({
       imports: [TodayBodyComponent],
       providers: [provideRouter([]), { provide: FitSyncDataService, useValue: dataService }]
@@ -49,9 +49,6 @@ describe('TodayBodyComponent', () => {
     fixture = TestBed.createComponent(TodayBodyComponent);
     fixture.componentRef.setInput('metric', inputs.metric === undefined ? metric : inputs.metric);
     fixture.componentRef.setInput('now', NOW);
-    if (inputs.timezone !== undefined) {
-      fixture.componentRef.setInput('timezone', inputs.timezone);
-    }
     fixture.detectChanges();
   }
 
@@ -106,9 +103,9 @@ describe('TodayBodyComponent', () => {
 
   describe('trend chart', () => {
     it('draws the series, the goal line, the projection and the three dates', () => {
-      create({ timezone: 'Asia/Singapore' });
+      create();
 
-      expect(dataService.getProgressInsight).toHaveBeenCalledOnceWith('Asia/Singapore');
+      expect(dataService.getProgressInsight).toHaveBeenCalledOnceWith();
       expect(el().querySelector('polyline.series')).not.toBeNull();
       expect(text('text.latest-label')).toEqual(['71.1 kg']);
       expect(el().querySelector('line.goal-line')).not.toBeNull();

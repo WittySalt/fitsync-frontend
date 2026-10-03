@@ -214,6 +214,8 @@ export interface DayColumn {
   estimated: boolean;
   /** Today, still going: what was eaten so far is drawn lighter and the label says "so far". */
   today: boolean;
+  /** Food was logged but too little for a full day: the bar is lighter and says "partly". */
+  partly: boolean;
   /** The shadow: what the day used, as a percentage of the chart height. */
   shadow: number;
   /** What was eaten, drawn inside the shadow; null for a day that was not logged. */
@@ -245,15 +247,18 @@ export function dayColumns(week: EnergyWeek): DayColumns {
   }
   const columns = week.days.map((day): DayColumn => {
     const logged = day.logged && day.eaten !== null;
+    // A day with too little food keeps its bar, lighter, with no balance under it.
+    const partly = day.partlyLogged && day.eaten !== null;
     return {
       date: day.date,
       label: weekdayOf(day.date),
       logged,
+      partly,
       estimated: day.workoutsEstimated,
       today: day.today,
       shadow: (usedOf(day, week) / top) * 100,
-      eaten: logged ? ((day.eaten ?? 0) / top) * 100 : null,
-      note: day.today && logged ? 'so far' : logged && day.balance !== null ? signedKcal(day.balance) : 'not logged'
+      eaten: logged || partly ? ((day.eaten ?? 0) / top) * 100 : null,
+      note: partly ? 'partly' : day.today && logged ? 'so far' : logged && day.balance !== null ? signedKcal(day.balance) : 'not logged'
     };
   });
   return { top, grid, columns };

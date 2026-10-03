@@ -12,12 +12,13 @@ export function days(): EnergyDay[] {
     const balance = BALANCES[index];
     const workouts = index === 1 ? 600 : index === 4 ? 300 : 0;
     if (balance === null) {
-      return { date, logged: false, eaten: null, resting: RESTING, workouts: 0, workoutsEstimated: false, today: false, balance: null, runningTotal: null };
+      return { date, logged: false, partlyLogged: false, eaten: null, resting: RESTING, workouts: 0, workoutsEstimated: false, today: false, balance: null, runningTotal: null };
     }
     total += balance;
     return {
       date,
       logged: true,
+      partlyLogged: false,
       eaten: RESTING + workouts + balance,
       resting: RESTING,
       workouts,

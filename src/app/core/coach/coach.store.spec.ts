@@ -76,19 +76,19 @@ describe('CoachStore', () => {
     store.ask('Should I train?');
 
     expect(api.createThread).toHaveBeenCalledTimes(1);
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train?', { surface: 'HOME' });
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train?', { surface: 'HOME' }, jasmine.any(String));
     expect(store.status()).toBe('answering');
     expect(store.pendingQuestion()).toBe('Should I train?');
   });
 
   it('attaches the recipe a question is about to the context, for that question only', () => {
     store.ask('Does this fit today?', { recipeId: 'r1' });
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Does this fit today?', { surface: 'NUTRITION', recipeId: 'r1' });
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Does this fit today?', { surface: 'NUTRITION', recipeId: 'r1' }, jasmine.any(String));
     stream.next({ name: 'answer', data: answer });
     stream.complete();
 
     store.ask('And tomorrow?');
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' });
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'And tomorrow?', { surface: 'HOME' }, jasmine.any(String));
   });
 
   it('shows each step as it arrives, closing a tool when it finishes', () => {
@@ -142,7 +142,7 @@ describe('CoachStore', () => {
 
     store.ask('Should I train?');
 
-    expect(api.sendMessage).toHaveBeenCalledWith('t1', 'Should I train?', { surface: 'HOME' });
+    expect(api.sendMessage).toHaveBeenCalledWith('t1', 'Should I train?', { surface: 'HOME' }, jasmine.any(String));
     expect(store.turns().length).toBe(2);
     expect(store.error()).toBeNull();
   });
@@ -247,7 +247,7 @@ describe('CoachStore', () => {
     expect(store.status()).toBe('idle');
   });
 
-  it('marks a draft accepted with the plan and session it became', () => {
+  it('marks a draft accepted with the plan and session it became, and clears the dock card', () => {
     api.draftSession.and.returnValue(of(draftView));
     store.buildSession();
     api.acceptSessionDraft.and.returnValue(
@@ -258,7 +258,7 @@ describe('CoachStore', () => {
 
     expect(store.drafts()[0].status).toBe('ACCEPTED');
     expect(store.drafts()[0].planId).toBe('p1');
-    expect(store.latestDraft()?.sessionId).toBe('s1');
+    expect(store.latestDraft()).toBeNull();
   });
 
   it('drops a rejected draft from the latest-draft card but keeps it in the list', () => {
@@ -359,22 +359,21 @@ describe('CoachStore — pinned reading', () => {
     expect(store.pinnedReading()).toBeNull();
   });
 
-  it('sends the surface, the readingId and a timezone when a reading is pinned', () => {
+  it('sends the surface, and the readingId when a reading is pinned', () => {
     store.askAboutReading(workoutReading);
 
     store.ask('Should my core get a day off?');
 
     expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should my core get a day off?', {
       surface: 'WORKOUT',
-      readingId: 'r1',
-      timezone: jasmine.any(String)
-    });
+      readingId: 'r1'
+    }, jasmine.any(String));
   });
 
   it('sends only the surface when nothing is pinned', () => {
     store.ask('Should I train today?');
 
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train today?', { surface: 'WORKOUT' });
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train today?', { surface: 'WORKOUT' }, jasmine.any(String));
   });
 
   it('sends no context on a surface the server does not know', () => {
@@ -382,7 +381,7 @@ describe('CoachStore — pinned reading', () => {
 
     store.ask('Should I train today?');
 
-    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train today?', undefined);
+    expect(api.streamMessage).toHaveBeenCalledWith('t1', 'Should I train today?', undefined, jasmine.any(String));
   });
 
   it('records a cited turn when the answer is grounded in the pinned reading', () => {

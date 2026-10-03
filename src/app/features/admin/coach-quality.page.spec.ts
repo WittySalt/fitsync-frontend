@@ -251,9 +251,7 @@ describe('CoachQualityPage', () => {
   it('asks for the last seven days ending today by default', () => {
     create(of(fullResponse));
 
-    const [from, to, timezone] = api.getCoachQuality.calls.mostRecent().args;
-    expect([from, to]).toEqual(['2026-09-24', '2026-09-30']);
-    expect(timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(api.getCoachQuality.calls.mostRecent().args).toEqual(['2026-09-24', '2026-09-30']);
   });
 
   it('marks the selected period with aria-pressed and reloads when it changes', () => {

@@ -2,7 +2,7 @@ import { CoachApiService } from '../../core/coach/coach-api.service';
 import { CoachReading } from '../../core/coach/coach.models';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
@@ -201,16 +201,19 @@ describe('ProgressPage', () => {
     }
   };
 
+afterEach(() => jasmine.clock().uninstall());
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getProgressGoals']);
     dataService.getProgressGoals.and.returnValue(of(goals));
     accountDataService = jasmine.createSpyObj<AccountDataService>('AccountDataService', [
       'getAccountCenter',
       'updateGoal',
+      'deleteGoal',
       'listBodyMetrics'
     ]);
     accountDataService.getAccountCenter.and.returnValue(of(accountData));
     accountDataService.updateGoal.and.returnValue(of(weightGoal));
+    accountDataService.deleteGoal.and.returnValue(of(undefined));
     // Needed once the embedded Body tab is rendered (BodyPage loads metrics on init).
     accountDataService.listBodyMetrics.and.returnValue(of([]));
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', [
@@ -248,7 +251,7 @@ describe('ProgressPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelectorAll('app-insight-panel').length).toBe(1);
     expect(compiled.querySelector('app-coach-anchor')).toBeNull();
-    expect(coachApiStub.getReading).toHaveBeenCalledWith('PROGRESS', jasmine.any(String));
+    expect(coachApiStub.getReading).toHaveBeenCalledWith('PROGRESS');
   });
 
   it('defaults to the Overview tab: hub header and tabs, no body or goals detail', () => {
@@ -270,6 +273,8 @@ describe('ProgressPage', () => {
   });
 
   it('shows active goal progress on the Goals tab', () => {
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date('2026-06-24T04:00:00Z'));
     const fixture = TestBed.createComponent(ProgressPage);
     fixture.detectChanges();
     fixture.componentInstance.selectTab('goals');
@@ -280,7 +285,10 @@ describe('ProgressPage', () => {
     expect(compiled.textContent).toContain('Add goal');
     expect(compiled.textContent).toContain('Edit');
     expect(compiled.textContent).toContain('55%');
-    expect(compiled.textContent).toContain('On track - 100 days left');
+    expect(compiled.textContent).toContain('On track · 100 days left');
+    expect(compiled.textContent).toContain('68 kg · 30 Sept');
+    expect(compiled.textContent).not.toContain('2026-09-30');
+    jasmine.clock().uninstall();
   });
 
   it('renders the Body tab through the embedded body page', () => {
@@ -401,5 +409,283 @@ describe('ProgressPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Goal progress unavailable');
     expect(compiled.textContent).toContain('Unable to load goal progress.');
+  });
+
+  describe('the Overview range', () => {
+    function overview(): ComponentFixture<ProgressPage> {
+      jasmine.clock().install();
+      jasmine.clock().mockDate(new Date('2026-10-03T04:00:00Z'));
+      const fixture = TestBed.createComponent(ProgressPage);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('opens on 90 days and gives the trend charts and the heatmap the same range', () => {
+      const fixture = overview();
+
+      expect(fixture.componentInstance.activeDays()).toBe(90);
+      expect(analyticsApi.getWorkoutSeries).toHaveBeenCalledWith('2026-07-05', '2026-10-03', 'WEEK');
+      expect(analyticsApi.getActivityCalendar).toHaveBeenCalledWith('2026-07-05', '2026-10-03');
+    });
+
+    it('shows one range control, with the chosen preset visibly selected', () => {
+      const fixture = overview();
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(element.querySelectorAll('app-progress-range').length).toBe(1);
+      expect(element.querySelectorAll('input[type="date"]').length).toBe(0);
+      const active = element.querySelector('app-progress-range .presets button.active');
+      expect(active?.textContent?.trim()).toBe('90 days');
+      expect(active?.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('moves the charts and the heatmap together when a preset is chosen', () => {
+      const fixture = overview();
+      const element = fixture.nativeElement as HTMLElement;
+
+      element.querySelectorAll<HTMLButtonElement>('app-progress-range .presets button')[0].click();
+      fixture.detectChanges();
+
+      expect(analyticsApi.getWorkoutSeries.calls.mostRecent().args.slice(0, 2)).toEqual(['2026-09-03', '2026-10-03']);
+      expect(analyticsApi.getActivityCalendar.calls.mostRecent().args).toEqual(['2026-09-03', '2026-10-03']);
+      expect(element.querySelector('app-progress-range .presets button.active')?.textContent?.trim()).toBe('30 days');
+    });
+
+    it('keeps the custom start and end behind More, and applies them to both', () => {
+      const fixture = overview();
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('#progress-range-more')).toBeNull();
+
+      element.querySelector<HTMLButtonElement>('app-progress-range .more')?.click();
+      fixture.detectChanges();
+      expect(element.querySelector('#progress-range-more')).not.toBeNull();
+      fixture.componentInstance.chooseCustomRange({ from: '2026-08-01', to: '2026-08-31' });
+      fixture.detectChanges();
+
+      expect(analyticsApi.getWorkoutSeries.calls.mostRecent().args.slice(0, 2)).toEqual(['2026-08-01', '2026-08-31']);
+      expect(analyticsApi.getActivityCalendar.calls.mostRecent().args).toEqual(['2026-08-01', '2026-08-31']);
+      expect(fixture.componentInstance.activeDays()).toBeNull();
+      expect(element.querySelector('app-progress-range .presets button.active')).toBeNull();
+    });
+
+    it('asks for the period comparison of this week', () => {
+      overview();
+
+      expect(analyticsApi.getSummaryCompare).toHaveBeenCalledWith('WEEK');
+    });
+
+    it('shows no ISO date anywhere on the Overview tab, aria labels included', () => {
+      const fixture = overview();
+
+      const html = (fixture.nativeElement as HTMLElement).innerHTML.replace(/value="\d{4}-\d{2}-\d{2}"/g, '');
+      expect(html).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    });
+
+    it('writes the page header without a dash', () => {
+      const fixture = overview();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Training, nutrition, body and goals in one place.');
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('—');
+    });
+
+    it('shows the coach reading on the Overview tab only', () => {
+      const fixture = overview();
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelectorAll('app-insight-panel').length).toBe(1);
+
+      fixture.componentInstance.selectTab('goals');
+      fixture.detectChanges();
+      expect(element.querySelectorAll('app-insight-panel').length).toBe(0);
+
+      fixture.componentInstance.selectTab('body');
+      fixture.detectChanges();
+      expect(element.querySelectorAll('app-insight-panel').length).toBe(0);
+
+      fixture.componentInstance.selectTab('overview');
+      fixture.detectChanges();
+      expect(element.querySelectorAll('app-insight-panel').length).toBe(1);
+    });
+  });
+
+  describe('the Goals tab', () => {
+    const paused: Goal = {
+      goalType: 'PROTEIN',
+      targetValue: 140,
+      targetUnit: 'g',
+      targetDate: '2026-11-30',
+      status: 'PAUSED',
+      progressRatio: 0.2,
+      onTrack: null
+    };
+    const completed: Goal = { ...paused, goalType: 'CALORIES', targetValue: 2100, targetUnit: 'kcal', status: 'COMPLETED', progressRatio: 1 };
+
+    function goalsTab(): ComponentFixture<ProgressPage> {
+      const fixture = TestBed.createComponent(ProgressPage);
+      fixture.detectChanges();
+      fixture.componentInstance.selectTab('goals');
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function text(fixture: ComponentFixture<ProgressPage>): string {
+      return (fixture.nativeElement as HTMLElement).textContent ?? '';
+    }
+
+    function saveWeight(fixture: ComponentFixture<ProgressPage>, value: number): void {
+      const component = fixture.componentInstance;
+      accountDataService.updateGoal.and.returnValue(of({ ...weightGoal, targetValue: value }));
+      component.startGoalEdit('WEIGHT');
+      component.goalForm.patchValue({ targetValue: String(value) });
+      component.saveGoal();
+    }
+
+    it('lists paused and completed goals in a separate Not active group', () => {
+      dataService.getProgressGoals.and.returnValue(of([...goals, paused, completed]));
+      const fixture = goalsTab();
+      const element = fixture.nativeElement as HTMLElement;
+
+      const group = element.querySelector('.inactive-goals');
+      expect(group?.querySelector('h3')?.textContent).toBe('Not active');
+      expect(group?.querySelectorAll('.goal-row').length).toBe(2);
+      expect(group?.textContent).toContain('Paused');
+      expect(group?.textContent).toContain('Completed');
+      expect(element.querySelector('.goal-list:not(.inactive-goals)')?.querySelectorAll('.goal-row').length).toBe(1);
+    });
+
+    it('still lists the Not active group when no goal is active', () => {
+      dataService.getProgressGoals.and.returnValue(of([paused]));
+      const fixture = goalsTab();
+
+      expect(text(fixture)).toContain('No active goals');
+      expect(text(fixture)).toContain('Not active');
+    });
+
+    it('has no Not active group when every goal is active', () => {
+      const fixture = goalsTab();
+
+      expect((fixture.nativeElement as HTMLElement).querySelector('.inactive-goals')).toBeNull();
+    });
+
+    it('shows the saved value at once, while the progress list still holds the old one', () => {
+      jasmine.clock().install();
+      const fixture = goalsTab();
+
+      saveWeight(fixture, 66);
+      fixture.detectChanges();
+
+      expect(text(fixture)).toContain('66 kg');
+      expect(text(fixture)).not.toContain('68 kg');
+    });
+
+    it('asks again a few times and drops the saved copy once the list agrees', () => {
+      jasmine.clock().install();
+      const fixture = goalsTab();
+      dataService.getProgressGoals.calls.reset();
+
+      saveWeight(fixture, 66);
+      expect(dataService.getProgressGoals).toHaveBeenCalledTimes(1);
+
+      jasmine.clock().tick(1500);
+      expect(dataService.getProgressGoals).toHaveBeenCalledTimes(2);
+
+      dataService.getProgressGoals.and.returnValue(of([{ ...goals[0], targetValue: 66 }]));
+      jasmine.clock().tick(1500);
+      expect(dataService.getProgressGoals).toHaveBeenCalledTimes(3);
+
+      jasmine.clock().tick(10_000);
+      expect(dataService.getProgressGoals).toHaveBeenCalledTimes(3);
+      fixture.detectChanges();
+      expect(text(fixture)).toContain('66 kg');
+    });
+
+    it('stops asking after three more tries and still shows what was saved', () => {
+      jasmine.clock().install();
+      const fixture = goalsTab();
+      dataService.getProgressGoals.calls.reset();
+
+      saveWeight(fixture, 66);
+      jasmine.clock().tick(60_000);
+
+      expect(dataService.getProgressGoals).toHaveBeenCalledTimes(4);
+      fixture.detectChanges();
+      expect(text(fixture)).toContain('66 kg');
+    });
+
+    it('moves the focus into the editor when it opens', async () => {
+      const fixture = goalsTab();
+      const holder = document.createElement('div');
+      document.body.appendChild(holder);
+      holder.appendChild(fixture.nativeElement);
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="edit-goal-WEIGHT"]')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const editor = (fixture.nativeElement as HTMLElement).querySelector('form.goal-editor');
+      expect(editor?.contains(document.activeElement)).toBeTrue();
+      holder.remove();
+    });
+
+    it('offers a red Delete goal action that asks before it deletes', () => {
+      const fixture = goalsTab();
+      const element = fixture.nativeElement as HTMLElement;
+      const button = element.querySelector<HTMLButtonElement>('[data-testid="delete-goal-WEIGHT"]');
+
+      expect(button?.textContent?.trim()).toBe('Delete goal');
+      expect(button?.classList).toContain('danger-text');
+
+      button?.click();
+      fixture.detectChanges();
+
+      expect(accountDataService.deleteGoal).not.toHaveBeenCalled();
+      const dialog = element.querySelector('app-confirm-dialog');
+      expect(dialog?.textContent).toContain('Delete this goal?');
+      expect(dialog?.querySelector('.confirm')?.classList).toContain('danger');
+    });
+
+    it('leaves the goal alone when the dialog is cancelled', () => {
+      const fixture = goalsTab();
+      const element = fixture.nativeElement as HTMLElement;
+
+      element.querySelector<HTMLButtonElement>('[data-testid="delete-goal-WEIGHT"]')?.click();
+      fixture.detectChanges();
+      element.querySelector<HTMLButtonElement>('app-confirm-dialog .cancel')?.click();
+      fixture.detectChanges();
+
+      expect(accountDataService.deleteGoal).not.toHaveBeenCalled();
+      expect(element.querySelector('app-confirm-dialog')).toBeNull();
+      expect(text(fixture)).toContain('Weight');
+    });
+
+    it('deletes through the account API and takes the goal off the page while the list catches up', () => {
+      jasmine.clock().install();
+      const fixture = goalsTab();
+      const element = fixture.nativeElement as HTMLElement;
+
+      element.querySelector<HTMLButtonElement>('[data-testid="delete-goal-WEIGHT"]')?.click();
+      fixture.detectChanges();
+      element.querySelector<HTMLButtonElement>('app-confirm-dialog .confirm')?.click();
+      fixture.detectChanges();
+
+      expect(accountDataService.deleteGoal).toHaveBeenCalledWith('WEIGHT');
+      expect(toast.success).toHaveBeenCalledWith('Goal deleted.');
+      expect(element.querySelector('app-confirm-dialog')).toBeNull();
+      expect(element.querySelector('[data-testid="edit-goal-WEIGHT"]')).toBeNull();
+      expect(text(fixture)).toContain('No active goals');
+    });
+
+    it('says so and keeps the goal when the delete fails', () => {
+      accountDataService.deleteGoal.and.returnValue(throwError(() => new Error('nope')));
+      const fixture = goalsTab();
+      const element = fixture.nativeElement as HTMLElement;
+
+      element.querySelector<HTMLButtonElement>('[data-testid="delete-goal-WEIGHT"]')?.click();
+      fixture.detectChanges();
+      element.querySelector<HTMLButtonElement>('app-confirm-dialog .confirm')?.click();
+      fixture.detectChanges();
+
+      expect(toast.error).toHaveBeenCalledWith('Unable to delete goal. Please retry.');
+      expect(element.querySelector('[data-testid="edit-goal-WEIGHT"]')).not.toBeNull();
+    });
   });
 });

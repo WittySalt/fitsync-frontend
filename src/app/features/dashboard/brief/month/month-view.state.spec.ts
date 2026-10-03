@@ -6,6 +6,7 @@ import { AnalyticsApiService } from '../../../../core/analytics-api.service';
 import { FitSyncDataService } from '../../../../core/fitsync-data.service';
 import { analyticsStub, monthInsight, weighIn } from './month-fixtures.spec';
 import { MonthViewState } from './month-view.state';
+import { UserTimezoneService } from '../../../../core/user-timezone.service';
 
 describe('MonthViewState badges and weights', () => {
   let state: MonthViewState;
@@ -34,27 +35,32 @@ describe('MonthViewState badges and weights', () => {
   });
 
   it('reads the dates of the earned badges in the timezone of the person', () => {
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(state.badgeStatus()).toBe('ready');
     expect(state.badgeDates()).toEqual(['2026-09-25']);
   });
 
   it('asks for the badges once, however often the month changes or the view is opened', () => {
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     state.step(-1);
     state.step(1);
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(analytics.getAchievements).toHaveBeenCalledTimes(1);
   });
 
   it('treats a failed request as no badge figure and asks again at the next opening', () => {
     analytics.getAchievements.and.returnValue(throwError(() => new Error('offline')));
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(state.badgeStatus()).toBe('failed');
     expect(state.badgeDates()).toEqual([]);
 
     analytics.getAchievements.and.returnValue(of({ achievements: [] }));
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(analytics.getAchievements).toHaveBeenCalledTimes(2);
     expect(state.badgeStatus()).toBe('ready');
   });
@@ -69,13 +75,15 @@ describe('MonthViewState badges and weights', () => {
         { ...weighIn('2026-09-10T02:00:00Z'), weightKg: null }
       ])
     );
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(state.weights()).toEqual({ first: 72.5, last: 71.1, count: 3 });
     expect(accounts.listBodyMetrics).toHaveBeenCalledTimes(1);
   });
 
   it('has no weights without a weigh-in or when the request failed', () => {
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(state.weights()).toBeNull();
 
     accounts.listBodyMetrics.and.returnValue(throwError(() => new Error('offline')));
@@ -103,7 +111,8 @@ describe('MonthViewState selection', () => {
       ]
     });
     state = TestBed.inject(MonthViewState);
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
   });
 
   it('picks a date and lets go of it when it is picked again', () => {
@@ -137,7 +146,8 @@ describe('MonthViewState selection', () => {
     state.step(-1);
     expect(state.selectedDate()).toBeNull();
     state.selectMuscle('CHEST');
-    state.open('Asia/Singapore', '2026-09-27');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-09-27');
     expect(state.selectedMuscle()).toBeNull();
   });
 
@@ -200,13 +210,15 @@ describe('MonthViewState opened on a given month', () => {
   });
 
   it('shows the month it was asked for and loads that one', () => {
-    state.open('Asia/Singapore', '2026-10-02', '2026-09');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-10-02', '2026-09');
     expect(state.month()).toBe('2026-09');
-    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09', 'Asia/Singapore');
+    expect(data.getMonthlyTrainingInsight).toHaveBeenCalledOnceWith('2026-09');
   });
 
   it('keeps the limits of the arrows', () => {
-    state.open('Asia/Singapore', '2026-10-02', '2026-09');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-10-02', '2026-09');
     expect(state.canGoNext()).toBeTrue();
     expect(state.canGoPrevious()).toBeTrue();
     state.step(1);
@@ -215,7 +227,8 @@ describe('MonthViewState opened on a given month', () => {
   });
 
   it('still opens on the month of today when none is given', () => {
-    state.open('Asia/Singapore', '2026-10-02');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
+    state.open('2026-10-02');
     expect(state.month()).toBe('2026-10');
   });
 });

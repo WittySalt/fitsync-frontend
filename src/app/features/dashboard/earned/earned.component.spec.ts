@@ -8,6 +8,7 @@ import {
   AnalyticsSummaryCompareResponse
 } from '../../../core/analytics.models';
 import { EarnedComponent } from './earned.component';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 
 function achievement(code: string, title: string, progress: number, unlockedAt: string | null = null): AnalyticsAchievement {
   return { code, title, unlocked: unlockedAt !== null, unlockedAt, progress: unlockedAt ? 1 : progress };
@@ -57,7 +58,7 @@ describe('EarnedComponent', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(EarnedComponent);
-    fixture.componentRef.setInput('timezone', 'Asia/Singapore');
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
   });
 
   function root(): HTMLElement {
@@ -226,13 +227,59 @@ describe('EarnedComponent', () => {
     expect(api.getSummaryCompare).toHaveBeenCalledTimes(1);
   });
 
-  it('shows Nothing yet this week and keeps the wall when only the training figure is missing', () => {
+  it('says Could not load, with a retry, when the training figure fails and keeps the wall', () => {
     api.getSummaryCompare.and.returnValue(throwError(() => new Error('down')));
 
     fixture.detectChanges();
 
-    expect(cardText(0)).toBe("This week's training Nothing yet this week");
+    expect(cardText(0)).toContain('Could not load');
+    expect(cardText(0)).not.toContain('Nothing yet this week');
     expect(items().length).toBe(9);
+
+    api.getSummaryCompare.and.returnValue(of(compare(170, 120)));
+    root().querySelector<HTMLButtonElement>('.result .retry')?.click();
+    fixture.detectChanges();
+
+    expect(cardText(0)).toContain('2 h 50 min');
+  });
+
+  it('asks for the comparison in the profile zone', () => {
+    fixture.detectChanges();
+
+    expect(api.getSummaryCompare).toHaveBeenCalledWith('WEEK');
+  });
+
+  it('uses the minutes of the dashboard for the headline and keeps the comparison of its own request', () => {
+    fixture.componentRef.setInput('minutesThisWeek', 95);
+    api.getSummaryCompare.and.returnValue(of(compare(170, 120)));
+
+    fixture.detectChanges();
+
+    expect(cardText(0)).toContain('1 h 35 min');
+    expect(cardText(0)).toContain('42% more than by this day last week');
+  });
+
+  it('keeps the dashboard minutes when the comparison fails', () => {
+    fixture.componentRef.setInput('minutesThisWeek', 95);
+    api.getSummaryCompare.and.returnValue(throwError(() => new Error('down')));
+
+    fixture.detectChanges();
+
+    expect(cardText(0)).toBe("This week's training 1 h 35 min");
+  });
+
+  it('writes the streak only from two days in a row', () => {
+    fixture.componentRef.setInput('streakDays', 3);
+    fixture.detectChanges();
+    expect(cardText(0)).toContain('3 days in a row');
+
+    fixture.componentRef.setInput('streakDays', 1);
+    fixture.detectChanges();
+    expect(cardText(0)).not.toContain('in a row');
+
+    fixture.componentRef.setInput('streakDays', null);
+    fixture.detectChanges();
+    expect(cardText(0)).not.toContain('in a row');
   });
 
   it('never prints null, undefined or NaN', () => {

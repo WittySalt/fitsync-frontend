@@ -37,16 +37,20 @@ function mapDay(raw: Wire): EnergyDay | null {
     return null;
   }
   const eaten = num(raw['eaten']);
+  // A partly logged day carries what was eaten but is not a logged day: no balance, no running total.
+  // Today is still going, so it is never called partly.
+  const partly = raw['partlyLogged'] === true && eaten !== null && raw['today'] !== true;
   return {
     date,
-    logged: raw['logged'] === true && eaten !== null,
+    logged: raw['logged'] === true && eaten !== null && !partly,
+    partlyLogged: partly,
     eaten,
     resting: num(raw['resting']),
     workouts: num(raw['workouts']),
     workoutsEstimated: raw['workoutsEstimated'] === true,
     today: raw['today'] === true,
-    balance: num(raw['balance']),
-    runningTotal: num(raw['runningTotal'])
+    balance: partly ? null : num(raw['balance']),
+    runningTotal: partly ? null : num(raw['runningTotal'])
   };
 }
 

@@ -17,12 +17,12 @@ describe('EnergyApiService', () => {
 
   afterEach(() => http.verify());
 
-  it('asks for this week with only the time zone when no week is named', () => {
+  it('asks for this week with no parameters when no week is named', () => {
     let status = '';
     service.getWeek().subscribe((week) => (status = week.status));
     const request = http.expectOne((req) => req.url === '/api/v1/analytics/energy/weekly');
     expect(request.request.params.has('weekStart')).toBeFalse();
-    expect(request.request.params.get('timezone')).toBe(service.timezone);
+    expect(request.request.params.keys().length).toBe(0);
     request.flush(energyWire());
     expect(status).toBe('OK');
   });

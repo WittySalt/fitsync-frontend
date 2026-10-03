@@ -30,17 +30,47 @@ function muscleGroupFrom(label: string): string | null {
   return IRREGULAR_PLURALS[noun] ?? noun;
 }
 
-/** A day-off question, from a fact that says every session trained the same muscle group. */
-function dayOffQuestion(facts: ReadingFact[]): ReadingQuestion | null {
-  const fact = facts.find((f) => f.key === 'MOST_TRAINED' && f.note === 'Every one');
-  const group = fact ? muscleGroupFrom(fact.label) : null;
-  return group ? { text: `Should my ${group} get a day off?`, makesDraft: false } : null;
+/** The first whole number in a piece of text, thousands separators allowed, or null. */
+function firstNumber(text: string): number | null {
+  const match = /\d[\d,]*(?:\.\d+)?/.exec(text);
+  return match ? Number(match[0].replace(/,/g, '')) : null;
 }
 
-/** A next-lift question, from a fact that says the load moved per session rose. */
+/**
+ * A day-off question, from the fact about the most-trained muscle group.
+ *
+ * Read from the numbers on the fact (sessions with the group, out of sessions in the period) and
+ * never from the note's wording, which is written for people and may be reworded. The question is
+ * offered unless the numbers show the group was not in every session; when they cannot be read the
+ * question is still safe to ask, so it is offered. A label that names no group gets a neutral wording.
+ */
+function dayOffQuestion(facts: ReadingFact[]): ReadingQuestion | null {
+  const fact = facts.find((f) => f.key === 'MOST_TRAINED');
+  if (!fact) {
+    return null;
+  }
+  const total = firstNumber(fact.unit);
+  if (fact.numericValue != null && total != null && fact.numericValue < total) {
+    return null;
+  }
+  const group = muscleGroupFrom(fact.label);
+  return { text: group ? `Should my ${group} get a day off?` : 'Should my most-trained muscle get a day off?', makesDraft: false };
+}
+
+/**
+ * A next-lift question, from the fact about the load moved per session. Offered unless the fact's
+ * own numbers (this week against the week before, in its detail) show the load fell.
+ */
 function nextLiftQuestion(facts: ReadingFact[]): ReadingQuestion | null {
-  const fact = facts.find((f) => f.key === 'VOLUME_PER_SESSION' && f.note.startsWith('Up'));
-  return fact ? { text: 'What should I lift next time?', makesDraft: false } : null;
+  const fact = facts.find((f) => f.key === 'VOLUME_PER_SESSION');
+  if (!fact) {
+    return null;
+  }
+  const earlier = firstNumber(fact.detail);
+  if (fact.numericValue != null && earlier != null && fact.numericValue < earlier) {
+    return null;
+  }
+  return { text: 'What should I lift next time?', makesDraft: false };
 }
 
 /** A beat-the-record question, from a personal record fact. */

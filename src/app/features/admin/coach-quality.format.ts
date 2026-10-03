@@ -136,11 +136,3 @@ export function rangeEndingToday(days: PeriodDays, now: Date, timezone: string):
   const to = dateKeyInZone(now, timezone);
   return { from: addDaysToKey(to, -(days - 1)), to };
 }
-
-export function browserTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-}
