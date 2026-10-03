@@ -1,4 +1,4 @@
-import { shortDateLabel } from '../date-label';
+import { dateRangeLabel, shortDateLabel } from '../date-label';
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 const MINUS = '−';
@@ -62,3 +62,32 @@ export function daysBetween(from: string, to: string): number {
 export function textWidth(text: string, size = 11, bold = false): number {
   return text.length * size * (bold ? 0.6 : 0.56);
 }
+
+/** The words a period goes by in an eyebrow. */
+export const PERIOD_WORDS: Record<'4w' | '3m' | '1y', string> = {
+  '4w': 'the last 4 weeks',
+  '3m': 'the last 3 months',
+  '1y': 'the last year'
+};
+
+/**
+ * The eyebrow of a Progress page: "GOAL · THE LAST 4 WEEKS · 6 SEPT TO 3 OCT". A period that crosses
+ * New Year carries both years: "5 OCT 2025 TO 3 OCT 2026".
+ */
+export function periodEyebrow(name: string, period: '4w' | '3m' | '1y', from: string, to: string, reference: Date = new Date()): string {
+  return [name, PERIOD_WORDS[period], dateRangeLabel(from, to, reference)]
+    .filter((part) => part)
+    .join(' · ')
+    .toUpperCase();
+}
+
+/**
+ * True when a figure has an earlier figure it can be compared with. A missing earlier figure, and a
+ * zero one, give no comparison: a change from nothing is never shown as a percentage.
+ */
+export function hasEarlier(value: number | null | undefined, previous: number | null | undefined): boolean {
+  return value !== null && value !== undefined && previous !== null && previous !== undefined && previous !== 0;
+}
+
+/** What the compare line of a figure says when there is nothing earlier to compare with. */
+export const NO_EARLIER_DATA = 'No earlier data';
