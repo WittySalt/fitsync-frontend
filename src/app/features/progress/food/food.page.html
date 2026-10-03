@@ -1,0 +1,69 @@
+<div class="food-page">
+  <app-progress-hero eyebrow="Food" [title]="title()" [sub]="sub()" [stats]="stats()">
+    <div heroPeriod class="segmented periods" role="group" aria-label="Period">
+      @for (option of periods; track option.key) {
+        <button type="button" [class.active]="periodKey() === option.key" [attr.aria-pressed]="periodKey() === option.key" (click)="choosePeriod(option.key)">
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </app-progress-hero>
+
+  @if (loading() && !data()) {
+    <div class="skeleton block" aria-busy="true" aria-label="Loading your food"></div>
+    <div class="skeleton block tall" aria-hidden="true"></div>
+  } @else if (failed()) {
+    <app-state-panel title="Your food could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="load()" />
+  } @else if (data(); as food) {
+    <app-highlights [highlights]="food.highlights" [sub]="'one finding each, from the last ' + days() + ' days'" [context]="context()" />
+
+    <app-section-card title="Energy" sub="eaten against resting energy × 1.2 plus workouts, this week" [context]="context()">
+      @if (food.energy.thisWeek; as week) {
+        @if (headline(); as h) {
+          <div class="headline"><strong>{{ h.value }}</strong><span>{{ h.words }} this week</span></div>
+        }
+        @if (week.status === 'OK') {
+          <div class="energy">
+            <app-energy-bars [week]="week" />
+            <app-energy-days [week]="week" />
+          </div>
+        } @else {
+          <p class="quiet">Not enough data yet for this week. Log a few days to see what you ate against what you used.</p>
+        }
+      } @else {
+        <p class="quiet">Not enough data yet for this week.</p>
+      }
+      <div class="weekly">
+        <strong>The daily balance, week by week</strong>
+        <app-week-bars [bars]="balanceBars()" [signed]="true" label="Daily balance each week, kcal" [height]="190" />
+        @if (balanceNote()) {
+          <p class="quiet">{{ balanceNote() }}</p>
+        }
+      </div>
+    </app-section-card>
+
+    <app-section-card title="Macros" sub="grams a day against your daily goals" [context]="context()">
+      <div class="summary">
+        <app-summary-lines [lines]="food.macros.summary" [context]="macroContext()" />
+      </div>
+      <div class="macros">
+        @for (tile of macroTiles(); track tile.name) {
+          <article class="macro">
+            <div class="macro-top">
+              <strong>{{ tile.name }}</strong>
+              @if (tile.word) {
+                <span>{{ tile.word }}</span>
+              }
+            </div>
+            <app-small-trend [points]="tile.points" unit="g" [target]="tile.target" [height]="80" [label]="tile.name + ' a day'" />
+            <span class="quiet">Each week's average, logged days</span>
+          </article>
+        }
+      </div>
+    </app-section-card>
+
+    <app-food-plate-section [plate]="food.plate" [days]="days()" [context]="context()" />
+    <app-food-meals-section [meals]="food.meals" [nutrition]="food.nutrition" [context]="context()" />
+    <app-food-nutrients-section [overview]="nutrients()" [nutrition]="food.nutrition" [habits]="food.habits" [context]="context()" />
+  }
+</div>
