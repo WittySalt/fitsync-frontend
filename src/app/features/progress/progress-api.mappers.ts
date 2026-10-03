@@ -191,7 +191,8 @@ export function mapFoodNutrition(response: unknown): FoodNutrition {
   const habits = obj(wire['habits']) ?? {};
   return {
     recentWindow: range(wire['recentWindow']),
-    habits: { loggedDays: num(habits['loggedDays']), fibreMetDays: num(habits['fibreMetDays']), waterMetDays: num(habits['waterMetDays']) },
+    // Water met days only mean something once a goal is set; without one the wire sends 0 of 0.
+    habits: { loggedDays: num(habits['loggedDays']), fibreMetDays: num(habits['fibreMetDays']), waterMetDays: num(habits['waterGoalMl']) === null ? null : num(habits['waterMetDays']) },
     mealTimes: list(wire['mealTimes'], (item) => {
       const mealType = str(item['mealType']);
       const median = num(item['medianMinuteOfDay']);

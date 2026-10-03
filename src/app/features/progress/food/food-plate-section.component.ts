@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { FoodIconComponent } from '../../../shared/food/food-icon.component';
-import { FOOD_GROUPS, FoodGroup, asFoodGroup, foodGroupInfo } from '../../../shared/food/food-groups';
+import { FOOD_GROUPS, FoodGroup, asFoodGroup, foodGroupInfo, groupForCategory } from '../../../shared/food/food-groups';
 import { formatNumber } from '../../../shared/progress/progress-format';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { SectionCardComponent } from '../../../shared/progress/section-card.component';
@@ -14,10 +14,20 @@ interface Segment {
   label: string;
 }
 
+/** The plate group a wire value names: a group itself, or a food category folded into its group. */
+function plateGroup(value: string): FoodGroup | null {
+  return asFoodGroup(value) ?? groupForCategory(value);
+}
+
 function segments(shares: readonly PlateShare[]): Segment[] {
-  const known = shares
-    .map((share) => ({ group: asFoodGroup(share.group), share: share.share }))
-    .filter((share): share is { group: FoodGroup; share: number } => share.group !== null && share.share > 0);
+  const byGroup = new Map<FoodGroup, number>();
+  for (const share of shares) {
+    const group = plateGroup(share.group);
+    if (group !== null && share.share > 0) {
+      byGroup.set(group, (byGroup.get(group) ?? 0) + share.share);
+    }
+  }
+  const known = [...byGroup.entries()].map(([group, share]) => ({ group, share }));
   const total = known.reduce((sum, share) => sum + share.share, 0) || 1;
   const order = FOOD_GROUPS.map((group) => group.key);
   return known
@@ -119,14 +129,18 @@ export class FoodPlateSectionComponent {
   protected readonly changes = computed(() => {
     const before = new Map(this.before().map((s) => [s.group, s.share]));
     const now = new Map(this.now().map((s) => [s.group, s.share]));
-    return this.plate()
-      .changes.map((change) => ({ group: asFoodGroup(change.group), delta: change.deltaPoints }))
-      .filter((change): change is { group: FoodGroup; delta: number } => change.group !== null)
+    if (!before.size) {
+      return [];
+    }
+    // The wire's changes are per category; the plate shows groups, so the deltas are taken between the two bars.
+    return [...new Set([...before.keys(), ...now.keys()])]
+      .map((group) => ({ group, delta: (now.get(group) ?? 0) - (before.get(group) ?? 0) }))
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 3)
       .map((change) => ({
         group: change.group,
         label: foodGroupInfo(change.group)?.label ?? change.group,
-        before: formatNumber(before.get(change.group) ?? Math.max((now.get(change.group) ?? 0) - change.delta, 0)),
+        before: formatNumber(before.get(change.group) ?? 0),
         now: formatNumber(now.get(change.group) ?? 0),
         word: Math.abs(change.delta) < 1 ? 'steady' : change.delta > 0 ? 'up' : 'down'
       }));

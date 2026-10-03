@@ -33,6 +33,17 @@ type Wire = Record<string, unknown>;
 
 const obj = (value: unknown): Wire => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Wire) : {});
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+const WEEKDAY_NAMES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+/** A weekday as Java sends it, the name or 1 to 7 from Monday, as the number 1 to 7. */
+const weekdayNumber = (value: unknown): number | null => {
+  if (typeof value === 'string') {
+    const index = WEEKDAY_NAMES.indexOf(value.toUpperCase());
+    return index === -1 ? null : index + 1;
+  }
+  return num(value);
+};
 const text = (value: unknown, fallback = ''): string => (typeof value === 'string' ? value : fallback);
 const bool = (value: unknown): boolean => value === true;
 
@@ -294,7 +305,7 @@ export function mapActivityProgress(value: unknown, key: string): ActivityProgre
   const usual = obj(tiles['usualTime']);
   const effort = obj(tiles['effort']);
   const longestMinutes = num(longest['minutes']);
-  const weekday = num(usual['weekday']);
+  const weekday = weekdayNumber(usual['weekday']);
   const hour = num(usual['hour']);
   return {
     key: text(wire['key'], key),
@@ -315,7 +326,7 @@ export function mapActivityProgress(value: unknown, key: string): ActivityProgre
     sessions: list(wire['sessions']).map(mapSession).filter(present),
     whenGrid: list(wire['whenGrid'])
       .map((entry) => obj(entry))
-      .map((entry) => ({ weekday: num(entry['weekday']), hour: num(entry['hour']), count: zero(entry['count']) }))
+      .map((entry) => ({ weekday: weekdayNumber(entry['weekday']), hour: num(entry['hour']), count: zero(entry['count']) }))
       .filter((entry): entry is { weekday: number; hour: number; count: number } => entry.weekday !== null && entry.hour !== null),
     summary: mapSummary(wire['summary']),
     context: text(wire['context'])
