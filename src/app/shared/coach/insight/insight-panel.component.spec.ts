@@ -191,9 +191,27 @@ describe('InsightPanelComponent', () => {
     const column = (selector: string): string[] =>
       Array.from(element.querySelectorAll(selector)).map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '');
     expect(column('.fact .fact-number')).toEqual(['1', '2', '3', '4']);
-    expect(column('.fact .fact-label')).toEqual(['Weight moved per session', 'Session length', 'Dumbbell Bench Press record', 'Sessions with core work']);
-    expect(column('.fact .fact-value')).toEqual(['1,923 kg', '50 min', '22.5 kg', '4 of 4']);
-    expect(column('.fact .fact-note')).toEqual(['Up 12%', 'Unchanged', 'Monday', 'Every one']);
+    expect(column('.fact .fact-label')).toEqual(['Estimated best single', 'Session length', 'Dumbbell Bench Press record', 'Sessions with core work']);
+    expect(column('.fact .fact-value')).toEqual(['22.5 kg', '50 min', '22.5 kg', '4 of 4']);
+    expect(column('.fact .fact-note')).toEqual(['Up 13%', 'Unchanged', 'Monday', 'Every one']);
+  });
+
+  it('never shows the weight moved on the Workout reading when the reading has lifts', () => {
+    render();
+    expect(element.querySelector('.facts')!.textContent).not.toContain('Weight moved');
+  });
+
+  it('leaves the facts as the server wrote them when the reading has no lifts to show', () => {
+    api.getReading.and.returnValue(of({ ...ready, lifts: [] }));
+    render();
+    expect(element.querySelector('.fact .fact-label')!.textContent).toBe('Weight moved per session');
+  });
+
+  it('puts Ask in the head of the reading as the pill, and no text link below it', () => {
+    render();
+    expect(element.querySelector('.reading-head .reading-meta .ask')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Ask');
+    expect(element.querySelector('.reading-actions')).toBeNull();
+    expect(element.textContent).not.toContain('Ask about this');
   });
 
   it('draws the slope chart when there are lifts to compare', () => {
@@ -203,7 +221,7 @@ describe('InsightPanelComponent', () => {
 
   it('pins the reading with the coach and does not pre-fill the composer', () => {
     render();
-    (element.querySelector('.reading-actions button') as HTMLButtonElement).click();
+    (element.querySelector('.ask') as HTMLButtonElement).click();
     expect(store.askAboutReading).toHaveBeenCalledOnceWith(ready);
   });
 
@@ -349,7 +367,7 @@ describe('InsightPanelComponent', () => {
 
     it('pins the reading together with its surface', () => {
       render('NUTRITION');
-      (element.querySelector('.reading-actions button') as HTMLButtonElement).click();
+      (element.querySelector('.ask') as HTMLButtonElement).click();
       expect(store.askAboutReading).toHaveBeenCalledOnceWith(nutritionReady);
     });
   });
@@ -446,8 +464,8 @@ describe('InsightPanelComponent', () => {
     expect(text('.working-link')).toBe('Hide the working');
     expect(text('.working-period')).toBe('Measured from 21 Sept to 27 Sept.');
     expect(text('.eyebrow-period')).toBe('21 to 27 Sept');
-    expect(text('.working-list li:first-child strong')).toBe('Weight moved per session');
-    expect(text('.working-list li:first-child .working-text > span')).toBe('1,923 kg, 1,716 kg the week before');
+    expect(text('.working-list li:first-child strong')).toBe('Estimated best single');
+    expect(text('.working-list li:first-child .working-text > span')).toBe('22.5 kg, Dumbbell Bench Press, 20 kg before');
   });
 });
 

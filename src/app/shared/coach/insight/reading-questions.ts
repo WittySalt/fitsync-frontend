@@ -1,4 +1,5 @@
 import { CoachReading, ReadingFact } from '../../../core/coach/coach.models';
+import { STRENGTH_FACT_KEYS } from './best-single';
 
 /** One question offered under a pinned reading. */
 export interface ReadingQuestion {
@@ -58,11 +59,11 @@ function dayOffQuestion(facts: ReadingFact[]): ReadingQuestion | null {
 }
 
 /**
- * A next-lift question, from the fact about the load moved per session. Offered unless the fact's
+ * A next-lift question, from the strength fact (the best single, or the load per session on an older server). Offered unless the fact's
  * own numbers (this week against the week before, in its detail) show the load fell.
  */
 function nextLiftQuestion(facts: ReadingFact[]): ReadingQuestion | null {
-  const fact = facts.find((f) => f.key === 'VOLUME_PER_SESSION');
+  const fact = facts.find((f) => STRENGTH_FACT_KEYS.has(f.key));
   if (!fact) {
     return null;
   }
