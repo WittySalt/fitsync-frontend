@@ -101,6 +101,14 @@ describe('review rows', () => {
     expect(rows[2].lines).toEqual(['Badminton · 60 min · moderate']);
   });
 
+  it('writes the cardio line as the target and the place', () => {
+    const run = (over: Partial<DraftDay>) => reviewRows(week({ 3: { ...cardio, ...over } }))[0].lines[0];
+    expect(run({ location: 'TREADMILL' })).toBe('30 min · treadmill');
+    expect(run({ targetKind: 'DISTANCE', targetValue: 5, location: 'OUTDOOR' })).toBe('5 km · outdoor');
+    expect(run({ targetKind: 'PACE', targetValue: 6, location: 'OUTDOOR' })).toBe('6:00 a km · outdoor');
+    expect(run({ targetKind: 'MINUTES', targetValue: 45, location: null })).toBe('45 min');
+  });
+
   it('writes a timed move in seconds', () => {
     const rows = reviewRows(week({ 7: { kind: 'MOBILITY', title: 'Flow', minutes: 20, moves: [move({ name: 'Cat Cow', timed: true, sets: 2, durationSeconds: 40, reps: null })] } }));
     expect(rows[0].lines).toEqual(['Cat Cow 2 × 40 s']);

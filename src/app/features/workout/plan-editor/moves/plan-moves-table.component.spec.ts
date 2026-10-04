@@ -8,7 +8,7 @@ import { Exercise, OnboardingSeed } from '../../../../core/fitsync.models';
 import { PlanMovesTableComponent } from './plan-moves-table.component';
 import { PickedExercise, PlanSetEntry, appendEntry } from './moves-model';
 
-const pick = (id: string, name: string, timeBased = false): PickedExercise => ({ exerciseId: id, exerciseName: name, muscleLine: 'chest · arms · dumbbell', thumbnailUrl: null, timeBased });
+const pick = (id: string, name: string, timeBased = false): PickedExercise => ({ exerciseId: id, exerciseName: name, muscleLine: 'chest · arms · dumbbell', thumbnailUrl: null, timeBased, bodyweight: true });
 
 @Component({
   imports: [PlanMovesTableComponent],
@@ -55,6 +55,9 @@ describe('PlanMovesTableComponent', () => {
     expect(input(0, 'Reps').value).toBe('10');
     expect(input(0, 'Weight').value).toBe('');
     expect(input(0, 'Weight').placeholder).toBe('Body');
+    host.entries.update((all) => all.map((entry, i) => (i === 1 ? { ...entry, bodyweight: false } : entry)));
+    fixture.detectChanges();
+    expect(input(1, 'Weight').placeholder).toBe('—');
     expect(input(0, 'Tempo').placeholder).toBe('None');
     expect(input(0, 'Rest').value).toBe('60');
   });

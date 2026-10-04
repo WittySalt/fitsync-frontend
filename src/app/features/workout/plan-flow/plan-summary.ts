@@ -1,3 +1,4 @@
+import { formatPace } from './cardio-text';
 import { weekMinutes } from './plan-coverage';
 import { DraftDay, DraftPlan, formatMinutes, PlanProfile, PlanType } from './plan-draft';
 
@@ -127,10 +128,18 @@ export interface ReviewRow {
   lines: string[];
 }
 
+/** The target and the place: "45 min · treadmill", "5 km · outdoor", "6:00 a km · outdoor". */
 function cardioLine(day: DraftDay): string {
-  const where = day.location ? day.location.charAt(0) + day.location.slice(1).toLowerCase() : '';
-  const minutes = `${day.minutes ?? 0} min`;
-  return where ? `${minutes} · ${where.toLowerCase()}` : minutes;
+  const value = day.targetValue;
+  let target = `${day.minutes ?? 0} min`;
+  if (value && day.targetKind === 'DISTANCE') {
+    target = `${Math.round(value * 100) / 100} km`;
+  } else if (value && day.targetKind === 'PACE') {
+    target = `${formatPace(value)} a km`;
+  } else if (value && day.targetKind === 'MINUTES') {
+    target = `${value} min`;
+  }
+  return day.location ? `${target} · ${day.location.toLowerCase()}` : target;
 }
 
 function effortWord(day: DraftDay): string {

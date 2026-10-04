@@ -7,8 +7,9 @@ import { FitSyncDataService, normalizeFocusAreas } from '../../../core/fitsync-d
 import { Exercise, SportActivityOption, WeeklyTrainingInsight } from '../../../core/fitsync.models';
 import { PlanCoverage } from './plan-coverage';
 import { coverageFromRaw, draftFromRaw, proposalFromRaw } from './plan-flow.mappers';
-import { DEFAULT_PROFILE, DraftDay, DraftMove, DraftPlan, PlanProfile } from './plan-draft';
+import { CARDIO_PLACES, CardioPlace, DEFAULT_PROFILE, DraftDay, DraftMove, DraftPlan, PlanProfile } from './plan-draft';
 import { HabitActivity, habitsFromInsight } from './plan-week-proposal';
+import { isBodyweight, muscleLineOf } from '../plan-editor/moves/moves-model';
 import { equipmentNames, levelName } from './plan-profile';
 import { buildSaveRequest } from './plan-save';
 import { TemplateDay } from './plan-flow.templates';
@@ -27,9 +28,16 @@ export interface PlanFlowContext {
 }
 
 export interface LastCardio {
+  /** Where the last session was done, when the session carries it. */
+  location?: CardioPlace | null;
   distanceKm: number | null;
   minutes: number | null;
   startedAt: string;
+}
+
+function placeOf(session: object): CardioPlace | null {
+  const raw = String((session as { location?: unknown }).location ?? '').toUpperCase();
+  return (CARDIO_PLACES as readonly string[]).includes(raw) ? (raw as CardioPlace) : null;
 }
 
 export function profileFromPreferences(preferences: AccountPreferences | null | undefined): PlanProfile {
@@ -64,6 +72,7 @@ export function exerciseToMove(exercise: Exercise, timed: boolean): DraftMove {
     restSeconds: timed ? 15 : 75,
     tempoSeconds: null,
     notes: '',
+    bodyweight: isBodyweight(exercise.equipment),
     primaryGroups: exercise.primaryMuscleGroup ? [exercise.primaryMuscleGroup.toUpperCase()] : [],
     secondaryGroups: (exercise.secondaryMuscleGroups ?? []).map((group) => group.toUpperCase())
   };
@@ -94,7 +103,7 @@ export class PlanFlowApi {
           habits: habitsFromInsight(insight),
           sports: metadata?.sportActivities ?? [],
           currentPlanName: active?.name ?? null,
-          lastCardio: last ? { distanceKm: last.distanceKm ?? null, minutes: last.durationMinutes, startedAt: last.startedAt } : null,
+          lastCardio: last ? { location: placeOf(last), distanceKm: last.distanceKm ?? null, minutes: last.durationMinutes, startedAt: last.startedAt } : null,
           preferences: user?.preferences ?? null
         };
       })
@@ -112,6 +121,7 @@ export class PlanFlowApi {
     };
     return this.http.post<unknown>(`${this.base}/proposal`, body).pipe(
       map((raw) => proposalFromRaw(raw)),
+      switchMap((days) => (days ? this.enrich(days) : of(days))),
       catchError(() => of(null))
     );
   }
@@ -126,7 +136,10 @@ export class PlanFlowApi {
 
   /** One saved plan, opened for editing. */
   loadPlan(planId: string): Observable<DraftPlan | null> {
-    return this.http.get<unknown>(`${this.base}/${planId}`).pipe(map((raw) => draftFromRaw(raw)));
+    return this.http.get<unknown>(`${this.base}/${planId}`).pipe(
+      map((raw) => draftFromRaw(raw)),
+      switchMap((draft) => (draft ? this.enrich(draft.days).pipe(map((days) => ({ ...draft, days }))) : of(draft)))
+    );
   }
 
   /** Creates or updates the plan and makes it current when asked. Emits the saved plan's id. */
@@ -163,6 +176,40 @@ export class PlanFlowApi {
       }
     };
     return this.account.updatePreferences(next);
+  }
+
+  /**
+   * The server sends a move's name and image but not its muscles or equipment, so the exercises of
+   * a draft are read from the catalogue once each and the line under the name, the muscle groups
+   * and the bodyweight flag are filled in. A lookup that fails leaves the move as it was.
+   */
+  enrich(days: DraftDay[]): Observable<DraftDay[]> {
+    const ids = [...new Set(days.flatMap((day) => day.moves).filter((move) => move.exerciseId && move.bodyweight === undefined).map((move) => move.exerciseId))];
+    if (ids.length === 0) {
+      return of(days);
+    }
+    return forkJoin(ids.map((id) => this.data.getExercise(id).pipe(catchError(() => of(null))))).pipe(
+      map((found) => {
+        const byId = new Map(found.filter((entry): entry is NonNullable<typeof entry> => !!entry?.exerciseId).map((entry) => [entry.exerciseId!, entry]));
+        return days.map((day) => ({
+          ...day,
+          moves: day.moves.map((move) => {
+            const exercise = byId.get(move.exerciseId);
+            if (!exercise) {
+              return move;
+            }
+            return {
+              ...move,
+              meta: move.meta || muscleLineOf(exercise),
+              imageUrl: move.imageUrl ?? exercise.images?.[0]?.url ?? exercise.imageUrls?.[0] ?? null,
+              bodyweight: isBodyweight(exercise.equipment),
+              primaryGroups: exercise.primaryMuscleGroup ? [exercise.primaryMuscleGroup.toUpperCase()] : [],
+              secondaryGroups: (exercise.secondaryMuscleGroups ?? []).map((group) => group.toUpperCase())
+            };
+          })
+        }));
+      })
+    );
   }
 
   /** Resolves a starter template's rows to catalogue moves. Rows the catalogue does not know are dropped. */

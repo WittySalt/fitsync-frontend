@@ -59,7 +59,7 @@
 .type {
   position: relative;
   max-width: 100%;
-  padding: 0 6px;
+  padding: 0 4px;
   border: 0;
   background: none;
   color: inherit;
@@ -69,7 +69,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 button.label {
@@ -204,4 +204,23 @@ button.label:focus-visible {
 .times {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.under {
+  display: flex;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.under .cell {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.under .gap {
+  flex: none;
+  width: 16px;
 }

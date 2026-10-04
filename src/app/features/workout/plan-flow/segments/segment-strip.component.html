@@ -88,4 +88,14 @@
       }
     }
   </div>
+  @if (modes().includes('none')) {
+    <div class="under" aria-hidden="true">
+      @for (block of blocks(); track block.start; let i = $index) {
+        <span class="cell" [style.flex-grow]="block.minutes">{{ modes()[i] === 'none' ? block.minutes : '' }}</span>
+        @if (editable() && i < blocks().length - 1) {
+          <i class="gap"></i>
+        }
+      }
+    </div>
+  }
 }

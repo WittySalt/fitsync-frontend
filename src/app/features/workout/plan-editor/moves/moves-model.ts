@@ -17,6 +17,8 @@ export interface PlanSetEntry {
   timeBased: boolean;
   plannedSeconds: number | null;
   notes: string | null;
+  /** True when the exercise needs no equipment, so an empty weight reads "Body". Unknown counts as false. */
+  bodyweight?: boolean;
 }
 
 /** What the picker hands back: enough to build or swap a row without asking the catalogue again. */
@@ -26,6 +28,13 @@ export interface PickedExercise {
   muscleLine: string;
   thumbnailUrl: string | null;
   timeBased: boolean;
+  bodyweight?: boolean;
+}
+
+/** Bodyweight equipment is none at all; everything else, and anything unknown, is weighted. */
+export function isBodyweight(equipment: string | null | undefined): boolean {
+  const value = (equipment ?? '').trim().toUpperCase();
+  return value === 'NONE' || value === 'BODYWEIGHT' || value === 'BODY_WEIGHT';
 }
 
 export type MoveField = 'sets' | 'reps' | 'weightKg' | 'restSeconds' | 'tempoSeconds' | 'plannedSeconds';
@@ -128,7 +137,8 @@ export function newEntry(picked: PickedExercise, position: number, timeBasedDefa
     tempoSeconds: null,
     timeBased,
     plannedSeconds: timeBased ? 45 : null,
-    notes: null
+    notes: null,
+    bodyweight: picked.bodyweight ?? false
   };
 }
 
@@ -145,7 +155,8 @@ export function swapExercise(entries: readonly PlanSetEntry[], index: number, pi
           exerciseId: picked.exerciseId,
           exerciseName: picked.exerciseName,
           muscleLine: picked.muscleLine,
-          thumbnailUrl: picked.thumbnailUrl
+          thumbnailUrl: picked.thumbnailUrl,
+          bodyweight: picked.bodyweight ?? false
         }
       : entry
   );
@@ -191,6 +202,7 @@ export function pickedFrom(exercise: Exercise): PickedExercise | null {
     exerciseName: exercise.name,
     muscleLine: muscleLineOf(exercise),
     thumbnailUrl: thumbnailOf(exercise),
-    timeBased: TIMED_TYPES.has(exercise.exerciseType)
+    timeBased: TIMED_TYPES.has(exercise.exerciseType),
+    bodyweight: isBodyweight(exercise.equipment)
   };
 }

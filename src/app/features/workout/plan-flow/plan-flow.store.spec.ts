@@ -158,6 +158,22 @@ describe('PlanFlowStore', () => {
       expect(store.days()[2].moves.map((entry) => entry.name)).toEqual(['Cat Cow']);
     });
 
+    it('starts a cardio day on the treadmill, or where the last session was done', () => {
+      store.setKind(3, 'CARDIO');
+      expect(store.days()[2].location).toBe('TREADMILL');
+      create(context({ lastCardio: { location: 'OUTDOOR', distanceKm: 5, minutes: 30, startedAt: '2026-10-01T10:00:00Z' } }));
+      store.start(null, null);
+      store.setKind(3, 'CARDIO');
+      expect(store.days()[2].location).toBe('OUTDOOR');
+    });
+
+    it('gives a proposed cardio day without a place the default one', () => {
+      create();
+      api.proposal.and.returnValue(of(emptyWeek().map((day) => (day.dayOfWeek === 2 ? { ...day, kind: 'CARDIO' as const, title: 'Run', minutes: 30 } : day))));
+      store.start(null, null);
+      expect(store.days()[1].location).toBe('TREADMILL');
+    });
+
     it('keeps the segments equal to the duration, and the minutes target with it', () => {
       store.setKind(2, 'CARDIO');
       store.setMinutes(2, 50);

@@ -49,8 +49,12 @@ describe('TrainingPage', () => {
   });
 
   it('draws every section of the board from a full response', () => {
+    // The fixture ends on Sat 3 Oct, so the lighter-bar key depends on today being inside that week.
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date(2026, 9, 2, 12));
     api.getTraining.and.returnValue(of(trainingFixture()));
     const host = create();
+    jasmine.clock().uninstall();
     for (const selector of ['app-detail-head', 'app-contents-rail', 'app-highlights', 'app-activity-card', 'app-strength-section', 'app-muscle-figure', 'app-load-chart', 'app-training-calendar', 'app-records-section']) {
       expect(host.querySelector(selector)).withContext(selector).not.toBeNull();
     }

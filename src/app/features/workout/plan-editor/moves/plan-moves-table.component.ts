@@ -99,6 +99,11 @@ export class PlanMovesTableComponent {
     return column.field === 'reps' && entry.timeBased ? 's' : column.unit;
   }
 
+  /** An empty weight reads "Body" only for a bodyweight exercise; otherwise it is a dash beside the unit. */
+  protected placeholderOf(column: Column, entry: PlanSetEntry): string {
+    return column.field === 'weightKg' ? (entry.bodyweight ? 'Body' : '—') : column.placeholder;
+  }
+
   protected valueOf(entry: PlanSetEntry, field: MoveField): string {
     const value = entry[field];
     return value === null || value === undefined ? '' : String(value);

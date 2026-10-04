@@ -68,6 +68,8 @@ export interface DraftMove {
   restSeconds: number | null;
   tempoSeconds: number | null;
   notes: string;
+  /** True for an exercise without equipment; an empty weight then reads "Body". */
+  bodyweight?: boolean;
   /** Muscle groups the exercise trains, when the catalogue said so. Used only for the local coverage fallback. */
   primaryGroups?: string[];
   secondaryGroups?: string[];

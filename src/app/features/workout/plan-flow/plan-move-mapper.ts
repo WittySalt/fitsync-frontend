@@ -17,7 +17,8 @@ export function moveToSetEntry(move: DraftMove, position: number): PlanSetEntry 
     tempoSeconds: move.tempoSeconds,
     timeBased: move.timed,
     plannedSeconds: move.timed ? move.durationSeconds : null,
-    notes: move.notes.trim() === '' ? null : move.notes
+    notes: move.notes.trim() === '' ? null : move.notes,
+    ...(move.bodyweight !== undefined ? { bodyweight: move.bodyweight } : {})
   };
 }
 
@@ -44,6 +45,7 @@ export function setEntryToMove(entry: PlanSetEntry, earlier: DraftMove | undefin
     restSeconds: entry.restSeconds,
     tempoSeconds: entry.tempoSeconds,
     notes: entry.notes ?? '',
+    ...(entry.bodyweight !== undefined ? { bodyweight: entry.bodyweight } : {}),
     ...(sameExercise && earlier.primaryGroups ? { primaryGroups: earlier.primaryGroups } : {}),
     ...(sameExercise && earlier.secondaryGroups ? { secondaryGroups: earlier.secondaryGroups } : {})
   };

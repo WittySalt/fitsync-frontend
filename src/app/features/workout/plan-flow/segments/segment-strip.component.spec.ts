@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { DraftSegment } from '../plan-draft';
-import { SegmentStripComponent } from './segment-strip.component';
+import { barMode, SegmentStripComponent } from './segment-strip.component';
 import { defaultSegments, segmentTotal, setIntervals, StripBand, stripBand, stripClock } from './segment-math';
 import { StripRow } from '../../segments/segment-timer';
 
@@ -103,6 +103,14 @@ describe('SegmentStripComponent', () => {
     fixture.detectChanges();
     expect(root().querySelector('input')).toBeNull();
     expect(emitted.length).toBe(0);
+  });
+
+  it('gives a bar the full label from 72 px, only its minutes from 28 px, and nothing under that', () => {
+    expect(barMode(120)).toBe('full');
+    expect(barMode(72)).toBe('full');
+    expect(barMode(71)).toBe('minutes');
+    expect(barMode(28)).toBe('minutes');
+    expect(barMode(27)).toBe('none');
   });
 
   it('shows an interval block as rounds of work and easy', () => {

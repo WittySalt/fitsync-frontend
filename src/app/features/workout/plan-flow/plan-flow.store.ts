@@ -8,6 +8,7 @@ import { PlanFlowApi, PlanFlowContext } from './plan-flow.api';
 import { weekFromTemplate } from './plan-flow.templates';
 import {
   DEFAULT_PROFILE,
+  CardioPlace,
   DraftDay,
   DraftPlan,
   DraftSegment,
@@ -101,7 +102,7 @@ export class PlanFlowStore {
           this.status.set('error');
           return;
         }
-        this.plan.set(draft);
+        this.plan.set({ ...draft, days: this.withPlaces(draft.days) });
         this.selectedDay.set(draft.days.find((day) => day.kind !== 'REST')?.dayOfWeek ?? 1);
         this.status.set('ready');
       },
@@ -121,7 +122,17 @@ export class PlanFlowStore {
     this.api.proposal(context.profile).subscribe((server) => this.begin(server ?? proposeWeek(context.profile, context.habits), true));
   }
 
-  private begin(days: DraftDay[], proposed: boolean): void {
+  /** The place a cardio day starts with: where the last session was done, otherwise the treadmill. */
+  private defaultPlace(): CardioPlace {
+    return this.context()?.lastCardio?.location ?? 'TREADMILL';
+  }
+
+  private withPlaces(days: DraftDay[]): DraftDay[] {
+    return days.map((day) => (day.kind === 'CARDIO' && !day.location ? { ...day, location: this.defaultPlace() } : day));
+  }
+
+  private begin(source: DraftDay[], proposed: boolean): void {
+    const days = this.withPlaces(source);
     this.plan.set({ ...emptyPlan(), days, planType: derivePlanType(days) });
     this.baseline = proposed ? JSON.stringify(days) : null;
     this.selectedDay.set(days.find((day) => day.kind !== 'REST')?.dayOfWeek ?? 1);
@@ -187,6 +198,7 @@ export class PlanFlowStore {
     }
     if (kind === 'CARDIO') {
       fresh.targetKind = 'MINUTES';
+      fresh.location = this.defaultPlace();
       fresh.targetValue = minutes;
     }
     if (kind === 'STRENGTH' || kind === 'MOBILITY') {
@@ -240,7 +252,7 @@ export class PlanFlowStore {
     }
     const habits = this.context()?.habits ?? [];
     this.api.proposal(profile).subscribe((server) => {
-      const days = server ?? proposeWeek(profile, habits);
+      const days = this.withPlaces(server ?? proposeWeek(profile, habits));
       this.baseline = JSON.stringify(days);
       this.plan.update((plan) => ({ ...plan, days, planType: derivePlanType(days) }));
       this.selectedDay.set(days.find((day) => day.kind !== 'REST')?.dayOfWeek ?? 1);

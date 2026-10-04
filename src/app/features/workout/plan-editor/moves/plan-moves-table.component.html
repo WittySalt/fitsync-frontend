@@ -45,7 +45,7 @@
                   inputmode="decimal"
                   autocomplete="off"
                   [value]="valueOf(entry, fieldOf(column, entry))"
-                  [placeholder]="column.placeholder"
+                  [placeholder]="placeholderOf(column, entry)"
                   [attr.aria-label]="columnLabel(column, entry) + ' for ' + entry.exerciseName"
                   [attr.data-min]="bounds(fieldOf(column, entry)).min"
                   [attr.data-max]="bounds(fieldOf(column, entry)).max"

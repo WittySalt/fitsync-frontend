@@ -5,6 +5,17 @@ import { hostWidth } from '../../../progress/cards/host-width';
 import { DraftSegment } from '../plan-draft';
 import { blockCaption, dragBoundary, MAX_LABELLED_BARS, segmentTotal, sessionBars, setBlockMinutes, stripBand, toBlocks } from './segment-math';
 
+export type BarMode = 'full' | 'minutes' | 'none';
+export const FULL_LABEL_PX = 72;
+export const MINUTES_ONLY_PX = 28;
+
+export function barMode(widthPx: number): BarMode {
+  if (widthPx >= FULL_LABEL_PX) {
+    return 'full';
+  }
+  return widthPx >= MINUTES_ONLY_PX ? 'minutes' : 'none';
+}
+
 /** The width of a drag handle in pixels, which the pointer maths leaves out of the track. */
 const HANDLE_PX = 16;
 const DOUBLE_TAP_MS = 350;
@@ -66,6 +77,19 @@ export class SegmentStripComponent {
 
   protected caption(index: number): string {
     return blockCaption(this.blocks()[index]);
+  }
+
+  /** What each editable bar can hold: the full label from 72 px, only its minutes from 28 px, nothing under that. */
+  protected readonly modes = computed<BarMode[]>(() => {
+    const blocks = this.blocks();
+    const usable = this.width() - HANDLE_PX * Math.max(0, blocks.length - 1);
+    const total = this.total();
+    return blocks.map((block) => barMode(total > 0 ? (usable * block.minutes) / total : 0));
+  });
+
+  protected text(index: number): string {
+    const mode = this.modes()[index];
+    return mode === 'full' ? this.caption(index) : mode === 'minutes' ? String(this.blocks()[index].minutes) : '';
   }
 
   protected tap(index: number): void {
