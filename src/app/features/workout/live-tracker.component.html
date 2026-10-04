@@ -11,6 +11,26 @@
     </button>
   </header>
 
+  @if (timer(); as segmentTimer) {
+    <section class="segments" aria-label="Segments">
+      <app-segment-strip-view [segments]="stripRows()" [current]="segmentTimer.current >= 0 ? segmentTimer.current : null"
+        [elapsedSeconds]="stripElapsed()" />
+      <p class="segment-line">{{ segmentLine() }}</p>
+      @if (cue(); as figure) {
+        <div class="cue" role="status">
+          <app-player-ring [share]="figure / 3" [centre]="'' + figure" caption="Next up" [label]="'Next segment in ' + figure + ' seconds'"
+            [sweep]="true" [pop]="true" [urgent]="true" [reducedMotion]="reducedMotion" />
+        </div>
+      }
+      @if (segmentTimer.current >= 0) {
+        <div class="segment-actions">
+          <button class="quiet" type="button" (click)="skipSegment()">Skip segment</button>
+          <button class="quiet" type="button" (click)="addMinute()">+1 min</button>
+        </div>
+      }
+    </section>
+  }
+
   <div class="timer-panel" aria-live="polite">
     <span>Elapsed</span>
     <strong>{{ formatElapsed(live.elapsedSeconds()) }}</strong>
@@ -56,3 +76,7 @@
     </button>
   </footer>
 </section>
+
+@if (finished(); as summary) {
+  <app-workout-celebration [summary]="summary" [reducedMotion]="reducedMotion" (continue)="continueAfterFinish()" />
+}

@@ -13,11 +13,20 @@
       @if (summary; as data) {
         <div class="facts" role="group" aria-label="Workout summary">
           <div><strong>{{ minutes() }}</strong>&ngsp;<span>min</span></div>
-          <div><strong>{{ data.completedSets }}/{{ data.totalSets }}</strong>&ngsp;<span>sets</span></div>
+          @if (data.totalSets > 0) {
+            <div><strong>{{ data.completedSets }}/{{ data.totalSets }}</strong>&ngsp;<span>sets</span></div>
+          }
           <div><strong>{{ calories() }}</strong>&ngsp;<span>kcal</span></div>
         </div>
       }
     </header>
+
+    @if (segmentRows().length) {
+      <section class="segments" aria-label="Segments">
+        <span class="eyebrow">Segments</span>
+        <app-segment-strip-view [segments]="segmentRows()" />
+      </section>
+    }
 
     @if (earned().length) {
       <section class="earned" aria-label="Earned today">

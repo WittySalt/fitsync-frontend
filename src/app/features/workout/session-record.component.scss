@@ -292,3 +292,19 @@ td:first-child {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+.segments {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.segments-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--pg-eyebrow);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--pg-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}

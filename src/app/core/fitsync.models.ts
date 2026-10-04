@@ -191,12 +191,45 @@ export interface StartAdHocSessionInput {
   notes?: string | null;
   /** Required by the backend when the workout type is SPORTS. */
   sportActivity?: string | null;
+  /** Timed segments to start with: a free timer with a minutes goal, or the HIIT type. Omitted for none. */
+  segments?: StartSegmentInput[];
+}
+
+export type SegmentKind = 'WARMUP' | 'STEADY' | 'WORK' | 'EASY' | 'COOLDOWN';
+export type SegmentStatus = 'PENDING' | 'DONE' | 'SKIPPED';
+
+export interface StartSegmentInput {
+  kind: SegmentKind;
+  label: string;
+  plannedSeconds: number;
+}
+
+/** One timed segment of a session: planned time against the time actually spent. */
+export interface WorkoutSessionSegment {
+  /** Absent until the server has answered with the entry's id; updates wait for it. */
+  entryId: string | null;
+  position: number;
+  kind: SegmentKind;
+  label: string;
+  plannedSeconds: number;
+  actualSeconds: number | null;
+  startedAt: string | null;
+  status: SegmentStatus;
+}
+
+/** What a segment is given while the session runs. */
+export interface SegmentUpdateInput {
+  actualSeconds: number;
+  startedAt: string | null;
+  status: 'DONE' | 'SKIPPED';
 }
 
 export interface WorkoutSessionDetail extends WorkoutSession {
   perceivedExertion: number | null;
   notes: string;
   exercises: WorkoutExerciseLog[];
+  /** The timed segments of the session, in order; empty when it has none. */
+  segments?: WorkoutSessionSegment[];
   createdAt: string;
   updatedAt: string;
   /** Records set by this session; only present right after it was completed or counted. */

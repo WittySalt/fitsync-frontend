@@ -71,6 +71,10 @@ import {
   UserProfile,
   UserGoal,
   StartAdHocSessionInput,
+  SegmentKind,
+  SegmentStatus,
+  SegmentUpdateInput,
+  WorkoutSessionSegment,
   UpsertWorkoutSessionRequest,
   WorkoutExport,
   WorkoutExerciseLogInput,
@@ -572,6 +576,20 @@ interface BackendWorkoutSessionDetail extends Partial<WorkoutSession> {
   createdAt?: string | null;
   updatedAt?: string | null;
   exercises?: BackendWorkoutExerciseLog[] | null;
+  entries?: BackendSessionEntry[] | null;
+}
+
+interface BackendSessionEntry {
+  entryId?: string | null;
+  id?: string | null;
+  entryType?: string | null;
+  position?: number | null;
+  kind?: string | null;
+  label?: string | null;
+  plannedSeconds?: number | string | null;
+  actualSeconds?: number | string | null;
+  startedAt?: string | null;
+  status?: string | null;
 }
 
 interface BackendWorkoutExerciseLog {
@@ -992,6 +1010,17 @@ export class FitSyncDataService {
         startedAt: new Date().toISOString(),
         notes: input.notes || null,
         ...(input.sportActivity ? { sportActivity: input.sportActivity } : {}),
+        ...(input.segments?.length
+          ? {
+              entries: input.segments.map((segment, index) => ({
+                entryType: 'SEGMENT',
+                kind: segment.kind,
+                label: segment.label,
+                plannedSeconds: segment.plannedSeconds,
+                position: index + 1
+              }))
+            }
+          : {}),
         exercises: []
       })
       .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
@@ -1014,6 +1043,13 @@ export class FitSyncDataService {
         `${this.apiBaseUrl}/workouts/sessions/${sessionId}/exercises/${exerciseLogId}/sets/${setNumber}`,
         input
       )
+      .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
+  }
+
+  /** Gives a timed segment of the workout in progress its actual time, start and status (DONE or SKIPPED). */
+  updateSessionSegment(sessionId: string, entryId: string, input: SegmentUpdateInput): Observable<WorkoutSessionDetail> {
+    return this.http
+      .put<BackendWorkoutSessionDetail>(`${this.apiBaseUrl}/workouts/sessions/${sessionId}/entries/${entryId}`, input)
       .pipe(map((session) => this.mapWorkoutSessionDetail(session)));
   }
 
@@ -2360,6 +2396,7 @@ export class FitSyncDataService {
       perceivedExertion: session.perceivedExertion ?? null,
       notes: session.notes ?? '',
       exercises,
+      segments: this.mapSessionSegments(session.entries),
       createdAt: session.createdAt ?? '',
       updatedAt: session.updatedAt ?? '',
       newRecords: (session.newRecords ?? [])
@@ -2370,6 +2407,34 @@ export class FitSyncDataService {
         }))
         .filter((record) => record.exerciseName && record.recordType)
     };
+  }
+
+  /** The SEGMENT entries of a session answer, in order; SET entries and malformed rows are left out. */
+  private mapSessionSegments(entries: BackendSessionEntry[] | null | undefined): WorkoutSessionSegment[] {
+    const kinds: SegmentKind[] = ['WARMUP', 'STEADY', 'WORK', 'EASY', 'COOLDOWN'];
+    return (entries ?? [])
+      .filter((entry) => entry.entryType === 'SEGMENT')
+      .map((entry, index) => {
+        const planned = this.numericValue(entry.plannedSeconds) ?? 0;
+        const kind = kinds.find((candidate) => candidate === entry.kind) ?? 'STEADY';
+        const status = entry.status === 'DONE' || entry.status === 'SKIPPED' ? entry.status : 'PENDING';
+        return {
+          entryId: entry.entryId ?? entry.id ?? null,
+          position: entry.position ?? index + 1,
+          kind,
+          label: entry.label?.trim() || this.segmentLabel(kind),
+          plannedSeconds: Math.max(0, Math.round(planned)),
+          actualSeconds: this.numericValue(entry.actualSeconds) ?? null,
+          startedAt: entry.startedAt ?? null,
+          status: status as SegmentStatus
+        };
+      })
+      .filter((segment) => segment.plannedSeconds > 0)
+      .sort((a, b) => a.position - b.position);
+  }
+
+  private segmentLabel(kind: SegmentKind): string {
+    return { WARMUP: 'Warm-up', STEADY: 'Steady', WORK: 'Work', EASY: 'Easy', COOLDOWN: 'Cool-down' }[kind];
   }
 
   private mapActiveResume(resume: BackendActiveResume | null | undefined): ActiveWorkoutResume | null {

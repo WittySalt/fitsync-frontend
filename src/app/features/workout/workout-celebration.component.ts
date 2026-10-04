@@ -6,6 +6,8 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutNewRecord, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { EffortBarsComponent } from './effort-bars.component';
+import { SegmentStripViewComponent } from './plan-editor/segments/segment-strip-view.component';
+import { sessionStripRows } from './segments/session-segments';
 
 export interface WorkoutCelebrationSummary {
   completedSets: number;
@@ -63,7 +65,7 @@ export function badgeItems(achievements: readonly AnalyticsAchievement[], since:
  */
 @Component({
   selector: 'app-workout-celebration',
-  imports: [EffortBarsComponent],
+  imports: [EffortBarsComponent, SegmentStripViewComponent],
   templateUrl: './workout-celebration.component.html',
   styleUrl: './workout-celebration.component.scss'
 })
@@ -88,6 +90,7 @@ export class WorkoutCelebrationComponent implements OnChanges, OnDestroy {
     return summary?.session.caloriesBurned ?? summary?.estimatedCalories ?? 0;
   });
   readonly earned = computed(() => [...recordItems(this.summaryState()?.session.newRecords), ...this.badges()]);
+  readonly segmentRows = computed(() => sessionStripRows(this.summaryState()?.session));
   readonly hasEffort = computed(() => this.summaryState()?.session.perceivedExertion != null);
 
   private readonly summaryState = signal<WorkoutCelebrationSummary | null>(null);

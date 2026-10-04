@@ -7,6 +7,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { SportActivityOption, WorkoutSessionFormValue } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { LiveTrackerGoal, LiveTrackerStartEvent } from './live-tracker.models';
+import { freeTimerSegments } from './segments/segment-timer';
 import { WorkoutLiveService } from './workout-live.service';
 
 type StartMode = 'FREE' | 'GOAL';
@@ -139,16 +140,19 @@ export class LiveStartCardComponent {
 
     this.starting.set(true);
     const raw = this.startForm.getRawValue();
+    const goal = this.buildGoal();
+    const segments = freeTimerSegments(raw.workoutType, goal?.type === 'MINUTES' ? goal.target : null);
     this.workoutLive.startAdHoc({
       name: this.resolveSessionName(raw),
-      workoutType: raw.workoutType
+      workoutType: raw.workoutType,
+      ...(segments.length ? { segments } : {})
     })
       .pipe(finalize(() => this.starting.set(false)))
       .subscribe({
         next: (session) => {
           this.freeOpen.set(false);
           this.toast.success('Workout started.');
-          this.started.emit({ session, goal: this.buildGoal() });
+          this.started.emit({ session, goal });
         },
         error: () => this.toast.error('Unable to start a workout. Please retry.')
       });
