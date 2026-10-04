@@ -1,12 +1,12 @@
 :host { position: fixed; inset: 0; z-index: 70; display: flex; align-items: flex-end; justify-content: center; }
 button { font: inherit; color: inherit; cursor: pointer; }
-button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }
 .scrim { position: absolute; inset: 0; padding: 0; border: 0; background: rgba(15, 23, 42, 0.45); cursor: default; }
 .sheet { position: relative; box-sizing: border-box; width: 100%; max-height: 90vh; display: flex; flex-direction: column; border-radius: var(--pg-card-radius) var(--pg-card-radius) 0 0; background: var(--surface); border: 1px solid var(--border); }
 .top { display: flex; align-items: center; gap: 12px; padding: 18px 20px 10px; }
 h2 { flex: 1; min-width: 0; margin: 0; font-size: var(--pg-name); font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .keep { display: inline-flex; align-items: center; gap: 6px; font-size: var(--pg-control); color: var(--text-secondary); cursor: pointer; }
-.count { padding: 2px 10px; border-radius: var(--radius-full); background: var(--accent-subtle); font-size: var(--pg-chart); font-weight: 600; color: var(--accent-text); }
+.count { padding: 2px 10px; border-radius: var(--radius-full); background: var(--accent-subtle); font-size: var(--pg-chart); color: var(--accent-text); }
 .close { padding: 0; border: 0; background: none; font-size: var(--pg-control); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 .scroll { overflow-y: auto; padding: 0 20px 20px; display: flex; flex-direction: column; gap: 14px; }
 .search { box-sizing: border-box; width: 100%; height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font: inherit; font-size: var(--pg-text); color: var(--text-primary); }
@@ -15,8 +15,7 @@ h2 { flex: 1; min-width: 0; margin: 0; font-size: var(--pg-name); font-weight: 6
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { height: 30px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--surface); font-size: var(--pg-chart); color: var(--text-secondary); }
 .chip.on { border-color: var(--accent); background: var(--accent-subtle); font-weight: 600; color: var(--accent-text); }
-.chip.own { font-weight: 600; }
-.figure { flex: none; width: 160px; }
+.figure { flex: none; }
 .list { list-style: none; margin: 0; padding: 0; }
 .item { border-top: 1px solid var(--border); }
 .line { display: flex; align-items: center; gap: 8px; min-height: 64px; }
@@ -27,18 +26,17 @@ h2 { flex: 1; min-width: 0; margin: 0; font-size: var(--pg-name); font-weight: 6
 .text strong { font-size: var(--pg-text); font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .text span { font-size: var(--pg-chart); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .add { flex: none; height: 32px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); font-size: var(--pg-control); font-weight: 600; }
-.add:hover { background: var(--accent-subtle); }
 .detail { display: flex; flex-direction: column; gap: 12px; padding: 0 0 16px 60px; }
 .frames { display: flex; gap: 8px; }
 .frames img { width: 120px; height: 120px; border-radius: 12px; object-fit: cover; background: var(--surface-sunken); }
-.steps { margin: 0; padding-left: 18px; font-size: var(--pg-chart); color: var(--text-secondary); }
-.none { margin: 0; font-size: var(--pg-chart); color: var(--text-secondary); }
+.steps, .none { margin: 0; font-size: var(--pg-chart); color: var(--text-secondary); }
+.steps { padding-left: 18px; }
 .detail-actions { display: flex; align-items: center; gap: 16px; }
 .primary { height: 34px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--accent); font-size: var(--pg-control); font-weight: 600; color: var(--text-on-accent, #fff); }
-.library { font-size: var(--pg-control); font-weight: 500; color: var(--text-primary); }
+.library { font-size: var(--pg-control); color: var(--text-primary); }
 .more { align-self: center; height: 34px; padding: 0 18px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); font-size: var(--pg-control); font-weight: 600; }
 .skeleton { height: 240px; border-radius: 12px; }
-.skeleton.small { height: 90px; }
+.detail .skeleton { height: 90px; }
 @media (max-width: 767px) { .frames img { width: 160px; height: 160px; } .detail { padding-left: 0; } }
 @media (min-width: 768px) {
   :host { align-items: center; }

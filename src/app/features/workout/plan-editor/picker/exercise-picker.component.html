@@ -70,7 +70,7 @@
             @if (expandedId() === exercise.exerciseId) {
               <div class="detail">
                 @if (details()[exercise.exerciseId ?? ''] === 'loading') {
-                  <div class="skeleton small" aria-busy="true"></div>
+                  <div class="skeleton" aria-busy="true"></div>
                 } @else {
                   @if (framesOf(exercise).length) {
                     <div class="frames">
