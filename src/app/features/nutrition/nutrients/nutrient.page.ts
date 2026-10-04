@@ -13,6 +13,7 @@ import { neighbours, parsePeriod, periodRange, tableOrder } from './nutrients-fi
 import { armScrollRestore } from './nutrients-scroll';
 import { NutrientGuideComponent } from './nutrient-guide.component';
 import { NutrientYoursComponent } from './nutrient-yours.component';
+import { ProgressBack } from '../../progress/cards/progress-back';
 
 const FAILURE = 'This nutrient could not load. Please retry.';
 /** A swipe is a mostly horizontal drag at least this far. */
@@ -29,8 +30,8 @@ const SWIPE_MIN = 60;
   template: `
     <div class="page-grid nutrient-page" (touchstart)="swipeStart($event)" (touchend)="swipeEnd($event)">
       <div class="nav">
-        <a class="back" routerLink="/nutrition/nutrients" [queryParams]="{ period: period() }" (click)="armBack()" aria-label="Back to All nutrients">
-          &larr; All nutrients
+        <a class="back" routerLink="/nutrition/nutrients" [queryParams]="{ period: period() }" (click)="goBack($event)" aria-label="Back">
+          &larr; Back
         </a>
         <span class="steps">
           @if (next(); as following) {
@@ -84,6 +85,7 @@ export class NutrientPage {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly userTimezone = inject(UserTimezoneService);
+  private readonly progressBack = inject(ProgressBack);
 
   private readonly target = toSignal(
     combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(
@@ -133,8 +135,14 @@ export class NutrientPage {
     this.load(this.code(), this.period());
   }
 
-  protected armBack(): void {
+  /** Back goes to wherever the person came from (Progress, the Food page or All nutrients); the
+   *  link's own href to All nutrients is the fallback for a fresh page load. */
+  protected goBack(event: Event): void {
     armScrollRestore();
+    if (this.progressBack.hasEntryInApp()) {
+      event.preventDefault();
+      this.progressBack.back();
+    }
   }
 
   protected swipeStart(event: TouchEvent): void {
