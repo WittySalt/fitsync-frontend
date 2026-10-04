@@ -70,10 +70,20 @@
   </section>
 
   <footer class="tracker-actions">
-    <p>Terminate saves workouts of at least 60 seconds. Shorter sessions are cancelled and excluded from metrics.</p>
-    <button class="button secondary danger" type="button" [disabled]="ending()" (click)="terminate()">
-      {{ ending() ? 'Finishing...' : 'Terminate workout' }}
-    </button>
+    @if (confirmingEnd()) {
+      <p role="alertdialog" aria-label="End this workout?">End this workout? Sessions under 60 seconds are not saved.</p>
+      <div class="end-actions">
+        <button class="quiet" type="button" (click)="confirmingEnd.set(false)">Keep going</button>
+        <button class="button end-workout" type="button" [disabled]="ending()" (click)="terminate()">
+          {{ ending() ? 'Finishing...' : 'End workout' }}
+        </button>
+      </div>
+    } @else {
+      <p>Terminate saves workouts of at least 60 seconds. Shorter sessions are cancelled and excluded from metrics.</p>
+      <button class="button secondary danger" type="button" [disabled]="ending()" (click)="confirmingEnd.set(true)">
+        Terminate workout
+      </button>
+    }
   </footer>
 </section>
 

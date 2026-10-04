@@ -39,7 +39,6 @@ describe('LiveTrackerComponent', () => {
   let live: WorkoutLiveService;
 
   beforeEach(async () => {
-    spyOn(window, 'confirm').and.returnValue(true);
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'startWorkoutPlan',
       'startAdHocSession',
@@ -73,6 +72,12 @@ describe('LiveTrackerComponent', () => {
   afterEach(() => {
     live.reset();
   });
+
+  function endWorkout(): void {
+    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
+    fixture.detectChanges();
+    fixture.debugElement.query(By.css('.tracker-actions .end-workout')).nativeElement.click();
+  }
 
   function startTracker(goal: LiveTrackerGoal = { type: 'MINUTES', target: 2 }): void {
     live.startAdHoc({ name: 'Goal workout', workoutType: 'CARDIO' }).subscribe((session) => {
@@ -109,7 +114,7 @@ describe('LiveTrackerComponent', () => {
     startTracker();
 
     tick(30_000);
-    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
+    endWorkout();
 
     expect(dataService.cancelSession).toHaveBeenCalledWith('session-live');
     expect(dataService.completeSession).not.toHaveBeenCalled();
@@ -123,7 +128,7 @@ describe('LiveTrackerComponent', () => {
     startTracker();
 
     tick(60_000);
-    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
+    endWorkout();
 
     expect(dataService.completeSession).toHaveBeenCalledWith('session-live');
     expect(dataService.cancelSession).not.toHaveBeenCalled();
@@ -136,20 +141,27 @@ describe('LiveTrackerComponent', () => {
     startTracker();
 
     tick(60_000);
-    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
+    endWorkout();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to finish workout. Please retry.');
   }));
 
-  it('does not terminate when the confirmation is dismissed', fakeAsync(() => {
-    (window.confirm as jasmine.Spy).and.returnValue(false);
+  it('asks inline before ending, and Keep going leaves the workout running', fakeAsync(() => {
     startTracker();
-
     tick(60_000);
-    fixture.componentInstance.terminate();
+    fixture.debugElement.query(By.css('.tracker-actions .button.danger')).nativeElement.click();
+    fixture.detectChanges();
 
+    expect(fixture.nativeElement.querySelector('.tracker-actions').textContent).toContain('End this workout? Sessions under 60 seconds are not saved.');
+    expect(dataService.completeSession).not.toHaveBeenCalled();
+    fixture.debugElement.query(By.css('.tracker-actions .quiet')).nativeElement.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.end-workout')).toBeNull();
     expect(dataService.completeSession).not.toHaveBeenCalled();
     expect(dataService.cancelSession).not.toHaveBeenCalled();
+    fixture.componentInstance.terminate();
+    tick(1000);
   }));
 
   it('offers a Minimise control that says so to its owner', () => {

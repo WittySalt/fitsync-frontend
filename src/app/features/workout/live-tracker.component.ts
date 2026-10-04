@@ -170,14 +170,14 @@ export class LiveTrackerComponent implements OnChanges {
     this.live.pause();
   }
 
+  /** The footer asks once, inline, before the workout is ended. */
+  readonly confirmingEnd = signal(false);
+
   terminate(): void {
     if (this.ending()) {
       return;
     }
-    if (!window.confirm('Terminate this workout now? Sessions under 60 seconds are discarded and will not be saved.')) {
-      return;
-    }
-
+    this.confirmingEnd.set(false);
     this.ending.set(true);
     this.live.finish().subscribe({
       next: (session) => {
