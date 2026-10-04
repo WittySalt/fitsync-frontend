@@ -1,0 +1,151 @@
+@use '../../../progress/training/parts/training-palette' as palette;
+
+@include palette.training-palette;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.strip {
+  display: flex;
+  align-items: stretch;
+  height: 48px;
+  min-width: 0;
+  user-select: none;
+  touch-action: none;
+}
+
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.bar[data-kind='STEADY'] {
+  background: color-mix(in srgb, var(--kind-cardio) 30%, var(--surface));
+}
+
+.bar[data-kind='WORK'] {
+  background: color-mix(in srgb, var(--kind-strength) 22%, var(--surface));
+}
+
+.bar[data-kind='EASY'] {
+  background: color-mix(in srgb, var(--kind-mobility) 28%, var(--surface));
+}
+
+.bar.current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  pointer-events: none;
+}
+
+.label {
+  position: relative;
+  max-width: 100%;
+  padding: 0 10px;
+  font-size: var(--pg-chart);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.session .bars {
+  display: flex;
+  gap: 3px;
+  height: 36px;
+}
+
+.session.narrow .bars,
+.session.list .bars {
+  height: 16px;
+}
+
+.session .bar {
+  flex: 1 1 0;
+  min-width: 4px;
+  justify-content: flex-start;
+  border-radius: 8px;
+}
+
+.session .bar.skipped {
+  background: var(--surface-sunken);
+  opacity: 0.7;
+}
+
+.session .label {
+  padding: 0 10px;
+  font-weight: 400;
+}
+
+.names {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+}
+
+.names span {
+  flex-basis: 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--pg-chart);
+}
+
+.list li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.list li.current {
+  font-weight: var(--fw-semibold);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+}
+
+.dot[data-kind='STEADY'] {
+  background: var(--kind-cardio);
+}
+
+.dot[data-kind='WORK'] {
+  background: var(--kind-strength);
+}
+
+.dot[data-kind='EASY'] {
+  background: var(--kind-mobility);
+}
+
+.times {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

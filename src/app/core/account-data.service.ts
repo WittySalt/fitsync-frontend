@@ -60,6 +60,7 @@ export interface TrainingPreferences {
   preferredWorkoutTime: string | null;
   intensityPreference: string;
   focusAreas?: string[] | null;
+  equipmentInventory?: string[] | null;
 }
 
 export type NutrientReferenceRange = 'PROFILE' | 'FEMALE' | 'MALE' | 'BLENDED';

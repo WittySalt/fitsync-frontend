@@ -1,0 +1,140 @@
+@use './flow-kinds' as flow;
+
+@include flow.flow-kinds;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.glyph {
+  display: inline-flex;
+  color: var(--k);
+}
+
+h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--pg-name);
+  font-weight: var(--fw-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quiet {
+  flex: none;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--pg-control);
+  cursor: pointer;
+}
+
+.quiet:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px minmax(0, 200px);
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--pg-control);
+}
+
+.field > span:first-child {
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+  font-weight: var(--fw-semibold);
+}
+
+.unit {
+  position: relative;
+  display: block;
+}
+
+.unit input {
+  width: 100%;
+  padding-right: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit em {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+  font-style: normal;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rest {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--pg-text);
+}
+
+.problem {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--pg-control);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+@container (max-width: 599px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .minutes {
+    width: 120px;
+  }
+
+  .field select {
+    width: 100%;
+  }
+
+  .editor {
+    padding: 16px;
+  }
+}
+
+:host {
+  container-type: inline-size;
+}

@@ -70,6 +70,10 @@ describe('questionsFor', () => {
     expect(questionsFor(reading([fact({ key: 'VOLUME_PER_SESSION', note: 'Unchanged' })]))[0].text).toBe('What should I lift next time?');
   });
 
+  it('offers the next-lift question from the best single fact too', () => {
+    expect(questionsFor(reading([fact({ key: 'BEST_SINGLE', note: 'Up 12%' })]))[0].text).toBe('What should I lift next time?');
+  });
+
   it('names the lift in the beat-the-record question', () => {
     const questions = questionsFor(reading([fact({ key: 'RECORD', label: 'Dumbbell Bench Press record' })]));
     expect(questions).toEqual([{ text: 'What would beat my Dumbbell Bench Press record?', makesDraft: false }, BUILD_QUESTION]);

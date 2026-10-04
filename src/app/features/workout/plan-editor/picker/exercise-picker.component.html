@@ -1,0 +1,106 @@
+<button type="button" class="scrim" tabindex="-1" aria-hidden="true" (click)="closed.emit()"></button>
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+  <header class="top">
+    <h2 id="picker-title">{{ title() }}</h2>
+    @if (!swapping()) {
+      <label class="keep">
+        <input type="checkbox" role="switch" [checked]="keepAdding()" (change)="keepAdding.set(!keepAdding())" />
+        <span>Keep adding</span>
+      </label>
+      @if (keepAdding() && addedCount() > 0) {
+        <span class="count" aria-live="polite">{{ addedCount() }} added</span>
+      }
+    }
+    <button type="button" class="close" (click)="closed.emit()">Close</button>
+  </header>
+
+  <div class="scroll">
+    <input #search class="search" type="search" autocomplete="off" [placeholder]="placeholder()" aria-label="Search exercises" [value]="q()" (input)="setQuery($any($event.target).value)" />
+
+    <div class="filters">
+      <div class="chip-rows">
+        <div class="chips" role="group" aria-label="Muscle group">
+          @for (chip of muscleChips; track chip.code) {
+            <button type="button" class="chip" [class.on]="muscle() === chip.code" [attr.aria-pressed]="muscle() === chip.code" (click)="pickMuscle(chip.code)">{{ chip.label }}</button>
+          }
+        </div>
+        <div class="chips" role="group" aria-label="Equipment">
+          @if (ownedCodes()) {
+            <button type="button" class="chip own" [class.on]="owned()" [attr.aria-pressed]="owned()" (click)="toggleOwned()">What I own</button>
+          }
+          @for (code of equipmentChoices(); track code) {
+            <button type="button" class="chip" [class.on]="equipment() === code" [attr.aria-pressed]="equipment() === code" (click)="pickEquipment(code)">{{ label(code) }}</button>
+          }
+        </div>
+        <div class="chips" role="group" aria-label="Level">
+          @for (chip of levelChips; track chip.code) {
+            <button type="button" class="chip" [class.on]="(level() ?? '') === chip.code" [attr.aria-pressed]="(level() ?? '') === chip.code" (click)="pickLevel(chip.code)">{{ chip.label }}</button>
+          }
+        </div>
+      </div>
+      @if (wide()) {
+        <app-muscle-figure class="figure" [setsByGroup]="allGroups" [selected]="muscle()" [height]="140" (groupSelected)="pickMuscle($event)" />
+      }
+    </div>
+
+    @if (loading() || !ready()) {
+      <div class="skeleton" aria-busy="true" aria-label="Loading exercises"></div>
+    } @else if (failed()) {
+      <app-state-panel title="The exercises could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="reload()" />
+    } @else if (!items().length) {
+      <app-state-panel title="No exercises match" message="Loosen a filter or change the search." />
+    } @else {
+      <ul class="list">
+        @for (exercise of items(); track exercise.exerciseId ?? exercise.code) {
+          <li class="item" [class.open]="expandedId() === exercise.exerciseId">
+            <div class="line">
+              <button type="button" class="open-row" [attr.aria-expanded]="expandedId() === exercise.exerciseId" [attr.aria-label]="'Details of ' + exercise.name" [disabled]="!exercise.exerciseId" (click)="toggleExpand(exercise)">
+                @if (thumbOf(exercise); as thumb) {
+                  <img class="thumb" [src]="thumb" alt="" loading="lazy" />
+                } @else {
+                  <span class="thumb blank" aria-hidden="true">{{ exercise.name.charAt(0) }}</span>
+                }
+                <span class="text">
+                  <strong>{{ exercise.name }}</strong>
+                  <span>{{ lineOf(exercise) }}</span>
+                </span>
+              </button>
+              <button type="button" class="add" [attr.aria-label]="(swapping() ? 'Swap to ' : 'Add ') + exercise.name" [disabled]="!exercise.exerciseId" (click)="choose(exercise)">{{ swapping() ? 'Swap' : 'Add' }}</button>
+            </div>
+            @if (expandedId() === exercise.exerciseId) {
+              <div class="detail">
+                @if (details()[exercise.exerciseId ?? ''] === 'loading') {
+                  <div class="skeleton" aria-busy="true"></div>
+                } @else {
+                  @if (framesOf(exercise).length) {
+                    <div class="frames">
+                      @for (url of framesOf(exercise); track url) {
+                        <img [src]="url" [alt]="exercise.name + ' demonstration'" loading="lazy" />
+                      }
+                    </div>
+                  }
+                  @if (stepsOf(exercise).length) {
+                    <ol class="steps">
+                      @for (step of stepsOf(exercise); track $index) {
+                        <li>{{ step }}</li>
+                      }
+                    </ol>
+                  } @else {
+                    <p class="none">No steps in the catalogue for this one yet.</p>
+                  }
+                }
+                <div class="detail-actions">
+                  <button type="button" class="primary" (click)="choose(exercise)">{{ swapping() ? 'Use this move' : 'Add to plan' }}</button>
+                  <a class="library" routerLink="/workout" [queryParams]="{ tab: 'library' }" (click)="closed.emit()">Open in Library &rsaquo;</a>
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      @if (hasMore()) {
+        <button type="button" class="more" [disabled]="loadingMore()" (click)="showMore()">{{ loadingMore() ? 'Loading...' : 'Show more' }}</button>
+      }
+    }
+  </div>
+</div>

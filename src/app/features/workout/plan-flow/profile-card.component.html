@@ -1,0 +1,55 @@
+<section class="card" aria-labelledby="profile-card-title">
+  <div class="head">
+    <div class="titles">
+      <span id="profile-card-title" class="eyebrow">From your profile</span>
+      <p class="line">{{ line() }}</p>
+    </div>
+    @if (!open()) {
+      <button type="button" class="change" (click)="edit()">Change ›</button>
+    }
+  </div>
+
+  @if (open() && draft(); as form) {
+    <form class="form" (submit)="$event.preventDefault(); submit()">
+      <label class="field">
+        <span>Level</span>
+        <select [value]="form.fitnessLevel" (change)="patch({ fitnessLevel: $any($event.target).value })">
+          @for (level of levels; track level.value) {
+            <option [value]="level.value" [selected]="level.value === form.fitnessLevel">{{ level.label }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>Days a week</span>
+        <input type="number" min="2" max="6" inputmode="numeric" [value]="form.weeklyWorkoutDays" (input)="patch({ weeklyWorkoutDays: +$any($event.target).value })" />
+      </label>
+      <label class="field">
+        <span>Minutes a session</span>
+        <input type="number" min="10" max="180" inputmode="numeric" [value]="form.preferredDurationMinutes" (input)="patch({ preferredDurationMinutes: +$any($event.target).value })" />
+      </label>
+      <fieldset class="field wide">
+        <legend>Equipment</legend>
+        <div class="chips">
+          @for (item of equipment; track item.value) {
+            <button type="button" class="chip" [class.on]="has('equipment', item.value)" [attr.aria-pressed]="has('equipment', item.value)" (click)="toggle('equipment', item.value)">{{ item.label }}</button>
+          }
+        </div>
+      </fieldset>
+      <fieldset class="field wide">
+        <legend>Focus</legend>
+        <div class="chips">
+          @for (item of focus; track item.value) {
+            <button type="button" class="chip" [class.on]="has('focusAreas', item.value)" [attr.aria-pressed]="has('focusAreas', item.value)" (click)="toggle('focusAreas', item.value)">{{ item.label }}</button>
+          }
+        </div>
+      </fieldset>
+      @if (localError() || error()) {
+        <p class="problem" role="alert">{{ localError() || error() }}</p>
+      }
+      <div class="actions">
+        <button type="submit" class="button primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save to profile' }}</button>
+        <button type="button" class="button secondary" [disabled]="saving()" (click)="cancel()">Cancel</button>
+      </div>
+    </form>
+  }
+</section>

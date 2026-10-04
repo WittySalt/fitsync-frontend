@@ -7,6 +7,7 @@ import { CoachReading, ReadingFact, ReadingSurface } from '../../../core/coach/c
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { NutritionInsightsPage, ProgressInsight } from '../../../core/fitsync.models';
+import { strengthFactsAsBestSingle } from './best-single';
 import { InsightReadState } from './insight-read-state';
 import { readingSegments } from './reading-text';
 import { MealBarsComponent } from './meal-bars.component';
@@ -85,7 +86,11 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     return result.status === 'WRITING' ? 'writing' : 'resting';
   });
 
-  readonly facts = computed(() => this.result()?.facts ?? []);
+  /** The facts as shown. Strength is read as the estimated best single, never as the weight moved. */
+  readonly facts = computed(() => {
+    const result = this.result();
+    return result?.surface === 'WORKOUT' ? strengthFactsAsBestSingle(result.facts, result.lifts) : (result?.facts ?? []);
+  });
   readonly lifts = computed(() => this.result()?.lifts ?? []);
   readonly headline = computed(() => this.result()?.reading?.headline ?? '');
   /** The reading names the lunch-and-dinner share, so the meal chart lets those two bars stand out. */

@@ -162,3 +162,68 @@
     grid-template-columns: 1fr;
   }
 }
+
+.segments {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.segment-line {
+  margin: 0;
+  font-size: var(--pg-text);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.segment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.segment-actions .quiet {
+  border: 0;
+  background: none;
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: var(--pg-control);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.segment-actions .quiet:hover {
+  color: var(--accent-text);
+}
+
+.cue {
+  --ring-size: 88px;
+  position: absolute;
+  top: -8px;
+  right: 0;
+  z-index: 2;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.end-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.end-actions .quiet {
+  border: 0;
+  background: none;
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: var(--pg-control);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.button.end-workout {
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: var(--text-on-accent);
+}

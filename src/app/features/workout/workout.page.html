@@ -134,86 +134,6 @@
     </div>
   } @else if (selectedTab() === 'plans') {
     <section id="workout-panel-plans" class="plans-panel" role="tabpanel" aria-labelledby="workout-tab-plans">
-      @if (planFormOpen()) {
-        <form #planFormEl id="plan-form" class="summary-card plan-form" [formGroup]="planForm" (ngSubmit)="savePlan()">
-          <div class="section-title">
-            <div>
-              <span class="card-label">{{ editingPlanId() ? 'Edit plan' : 'New plan' }}</span>
-              <h2>{{ editingPlanId() ? 'Update workout plan' : 'Create workout plan' }}</h2>
-            </div>
-            <button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button>
-          </div>
-
-          <div class="form-grid">
-            <label>
-              Name
-              <input #planName formControlName="name" type="text" maxlength="120" autocomplete="off" />
-            </label>
-            <label>
-              Duration
-              <input formControlName="estimatedDurationMinutes" type="number" min="1" inputmode="numeric" />
-            </label>
-            <label>
-              Goal focus
-              <select formControlName="goalFocus">
-                @for (option of goalFocusOptions; track option) {
-                  <option [value]="option">{{ formatLabel(option) }}</option>
-                }
-              </select>
-            </label>
-            <label>
-              Workout type
-              <select formControlName="workoutType">
-                @for (option of workoutTypeOptions; track option) {
-                  <option [value]="option">{{ formatLabel(option) }}</option>
-                }
-              </select>
-            </label>
-            <label>
-              Difficulty
-              <select formControlName="difficulty">
-                @for (option of difficultyOptions; track option) {
-                  <option [value]="option">{{ formatLabel(option) }}</option>
-                }
-              </select>
-            </label>
-            <label class="wide">
-              Description
-              <textarea formControlName="description" maxlength="1000" rows="2"></textarea>
-            </label>
-          </div>
-
-          <div class="plan-blueprint">
-            <div class="plan-card-header">
-              <span class="card-label">{{ planMode() === 'week' ? 'Weekly plan' : 'Exercise blueprint' }}</span>
-              <div class="blueprint-actions">
-                <div class="segmented" role="group" aria-label="Plan layout">
-                  <button type="button" [class.active]="planMode() === 'list'" [attr.aria-pressed]="planMode() === 'list'" (click)="setPlanMode('list')">One list</button>
-                  <button type="button" [class.active]="planMode() === 'week'" [attr.aria-pressed]="planMode() === 'week'" (click)="setPlanMode('week')">A week</button>
-                </div>
-                @if (planMode() === 'list') {
-                  <button class="button secondary" type="button" (click)="addPlanExercise()">Add exercise</button>
-                }
-              </div>
-            </div>
-            @if (planMode() === 'week') {
-              <app-plan-week-editor
-                [week]="planWeek"
-                [planName]="planForm.controls.name.value ?? ''"
-                [sportActivities]="sportActivities()"
-                [(selectedDay)]="selectedPlanDay"
-              />
-            } @else {
-              <app-plan-exercise-rows [rows]="planExercises" (removeRow)="removePlanExercise($event)" />
-            }
-          </div>
-
-          <button class="button primary" type="submit" [disabled]="savingPlan()">
-            {{ savingPlan() ? 'Saving...' : editingPlanId() ? 'Update plan' : 'Create plan' }}
-          </button>
-        </form>
-      }
-
       <ng-template #planCard let-plan>
       <article class="plan-card">
         <div class="plan-card-header">
@@ -252,9 +172,7 @@
       <section class="plan-section" aria-labelledby="plans-current-title">
         <div class="section-title">
           <h2 id="plans-current-title">Current plan</h2>
-          @if (!planFormOpen()) {
-            <button class="button secondary" type="button" (click)="openNewPlan()">New plan</button>
-          }
+          <button class="button secondary" type="button" (click)="openNewPlan()">New plan</button>
         </div>
         @if (activePlan(); as current) {
           <div class="plan-grid">
@@ -423,5 +341,9 @@
     <section id="workout-panel-library" role="tabpanel" aria-labelledby="workout-tab-library">
       <app-exercise-library (exerciseSaved)="handleExerciseSaved()" />
     </section>
+  }
+
+  @if (entryOpen()) {
+    <app-plan-entry-sheet (chosen)="handleEntryChosen($event)" (dismissed)="closeEntry()" />
   }
 </div>

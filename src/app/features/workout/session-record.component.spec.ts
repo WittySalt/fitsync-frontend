@@ -69,4 +69,24 @@ describe('SessionRecordComponent', () => {
     expect(Array.from(root().querySelectorAll('thead th:not(.fill)')).map((cell) => cell.textContent?.trim()))
       .toEqual(['State', 'Set', 'Done', 'Rest']);
   });
+
+  it('shows planned against actual for each segment, and nothing for a session without segments', () => {
+    mount({
+      ...cancelledWithSets(0),
+      status: 'COMPLETED',
+      exercises: [],
+      segments: [
+        { entryId: 'a', position: 1, kind: 'WARMUP', label: 'Warm-up', plannedSeconds: 300, actualSeconds: 300, startedAt: null, status: 'DONE' },
+        { entryId: 'b', position: 2, kind: 'STEADY', label: 'Steady', plannedSeconds: 1200, actualSeconds: 1560, startedAt: null, status: 'DONE' },
+        { entryId: 'c', position: 3, kind: 'COOLDOWN', label: 'Cool-down', plannedSeconds: 300, actualSeconds: null, startedAt: null, status: 'PENDING' }
+      ]
+    });
+    const block = root().querySelector('.segments');
+    expect(block).not.toBeNull();
+    expect(block?.textContent).toContain('26:00 of 20:00');
+    expect(block?.textContent).toContain('5:00');
+
+    mount(cancelledWithSets(2));
+    expect(root().querySelector('.segments')).toBeNull();
+  });
 });

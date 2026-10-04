@@ -39,6 +39,6 @@ export class CoachNoticedComponent {
     if (observation.muscle) {
       return MUSCLE_GLYPHS[observation.muscle];
     }
-    return observation.icon === 'volume' ? TREND : WEEK;
+    return observation.icon === 'strength' ? TREND : WEEK;
   }
 }

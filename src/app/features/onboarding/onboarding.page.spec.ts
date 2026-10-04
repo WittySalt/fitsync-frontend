@@ -6,6 +6,7 @@ import { OnboardingSeed } from '../../core/fitsync.models';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { OnboardingPage } from './onboarding.page';
+import { entryTarget } from '../workout/plan-flow/plan-entry';
 
 function emptySeed(): OnboardingSeed {
   return {
@@ -400,7 +401,7 @@ describe('OnboardingPage', () => {
     expect(component.planChips()).not.toContain('Health notes');
   });
 
-  it('submits a valid onboarding payload and navigates to the dashboard', () => {
+  it('submits a valid onboarding payload and offers the three ways into a first plan', () => {
     const navigateByUrl = spyOn(router, 'navigateByUrl').and.resolveTo(true);
     fillValidOnboarding(component);
 
@@ -408,6 +409,32 @@ describe('OnboardingPage', () => {
 
     expect(dataService.saveOnboarding).toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith('Your plan is ready. Welcome to FitSync!');
+    expect(component.entryOpen()).toBeTrue();
+    expect(navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('hands a new account to the plan flow, a template in it, or Plan Studio, from the same sheet', () => {
+    const navigate = spyOn(router, 'navigate').and.resolveTo(true);
+    component.entryOpen.set(true);
+
+    component.handleEntryChosen(entryTarget('own'));
+    expect(component.entryOpen()).toBeFalse();
+    expect(navigate).toHaveBeenCalledWith(['/workout/plans/new'], { queryParams: undefined });
+
+    component.handleEntryChosen(entryTarget('template', 'full-body-beginner'));
+    expect(navigate).toHaveBeenCalledWith(['/workout/plans/new'], { queryParams: { template: 'full-body-beginner' } });
+
+    component.handleEntryChosen(entryTarget('coach'));
+    expect(navigate).toHaveBeenCalledWith(['/coach/plan'], { queryParams: undefined });
+  });
+
+  it('still lands on the dashboard when the person skips the first plan', () => {
+    const navigateByUrl = spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    component.entryOpen.set(true);
+
+    component.skipEntry();
+
+    expect(component.entryOpen()).toBeFalse();
     expect(navigateByUrl).toHaveBeenCalledWith('/dashboard');
   });
 

@@ -1,0 +1,108 @@
+:host {
+  display: contents;
+}
+
+.rows {
+  display: grid;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  border-color: var(--border-strong);
+}
+
+.text,
+.templates button {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+strong {
+  font-size: var(--pg-text);
+  font-weight: var(--fw-semibold);
+}
+
+small {
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+}
+
+.chev {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+
+.chev.open {
+  transform: rotate(90deg);
+}
+
+.templates {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 4px 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.templates button {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.templates button:hover {
+  border-color: var(--accent);
+}
+
+.ask {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--accent-subtle);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--accent-text);
+  font-size: var(--pg-chart);
+  font-weight: var(--fw-bold);
+}
+
+.ask svg {
+  color: var(--accent);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}

@@ -1,0 +1,75 @@
+<section class="editor" [attr.data-kind]="day().kind" aria-label="Day editor">
+  <header class="head">
+    <span class="glyph" aria-hidden="true">
+      @if (day().kind !== 'REST') {
+        <app-plan-day-glyph [kind]="day().kind" [size]="24" />
+      }
+    </span>
+    <h2>{{ head() }}</h2>
+    @if (day().kind !== 'REST') {
+      <button type="button" class="quiet" [attr.aria-expanded]="kindsOpen()" (click)="toggleKinds.emit()">Change kind</button>
+    }
+  </header>
+
+  @if (kindsOpen() || day().kind === 'REST') {
+    <app-plan-kind-tiles [current]="day().kind" (choose)="kindChosen.emit($event)" />
+  }
+
+  @if (day().kind === 'REST') {
+    <p class="rest">A rest day. Tap Change kind to train.</p>
+  } @else {
+    <div class="fields">
+      <label class="field name">
+        <span>Name</span>
+        <input type="text" maxlength="120" autocomplete="off" [value]="day().title" (input)="patch.emit({ title: $any($event.target).value })" />
+      </label>
+      <label class="field minutes">
+        <span>Duration</span>
+        <span class="unit">
+          <input type="number" min="1" max="600" inputmode="numeric" [value]="day().minutes ?? ''" (change)="setMinutes($any($event.target).value)" />
+          <em>min</em>
+        </span>
+      </label>
+      <label class="field move">
+        <span>Move to another day</span>
+        <select (change)="setMoveTo($any($event.target).value); $any($event.target).value = ''">
+          <option value="" selected>Keep on {{ weekdays[day().dayOfWeek - 1] }}</option>
+          @for (name of weekdays; track name; let i = $index) {
+            @if (i + 1 !== day().dayOfWeek) {
+              <option [value]="i + 1">{{ name }}</option>
+            }
+          }
+        </select>
+      </label>
+    </div>
+
+    @switch (day().kind) {
+      @case ('CARDIO') {
+        <app-plan-cardio-card
+          [day]="day()"
+          [last]="lastCardio()"
+          (patch)="patch.emit($event)"
+          (minutesChange)="minutesChange.emit($event)"
+          (segmentsChange)="segmentsChange.emit($event)"
+        />
+      }
+      @case ('SPORT') {
+        <app-plan-sport-card
+          [day]="day()"
+          [sports]="sports()"
+          [habits]="habits()"
+          (patch)="patch.emit($event)"
+          (segmentsChange)="segmentsChange.emit($event)"
+          (minutesChange)="minutesChange.emit($event)"
+        />
+      }
+      @default {
+        <app-plan-moves-table [entries]="rows()" [timeBasedDefault]="day().kind === 'MOBILITY'" (entriesChange)="setRows($event)" />
+      }
+    }
+  }
+
+  @if (problem()) {
+    <p class="problem" role="alert">{{ problem() }}</p>
+  }
+</section>

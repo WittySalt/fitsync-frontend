@@ -1,0 +1,39 @@
+  <div class="session" [class]="'session ' + layout()" role="list" [attr.aria-label]="summary()">
+    <div class="bars">
+      @for (bar of bars(); track $index) {
+        <div
+          class="bar"
+          role="listitem"
+          [class.current]="bar.current"
+          [class.skipped]="bar.status === 'SKIPPED'"
+          [attr.data-kind]="bar.kind"
+          [style.flex-grow]="bar.plannedSeconds"
+          [attr.aria-current]="bar.current ? 'step' : null"
+        >
+          <span class="fill" [style.width.%]="bar.fill"></span>
+          @if (layout() === 'wide') {
+            <span class="label"><b>{{ bar.label }}</b> {{ bar.times }}</span>
+          } @else if (layout() === 'medium') {
+            <span class="label">{{ bar.times }}</span>
+          }
+        </div>
+      }
+    </div>
+    @if (layout() === 'medium') {
+      <div class="names" aria-hidden="true">
+        @for (bar of bars(); track $index) {
+          <span [style.flex-grow]="bar.plannedSeconds">{{ bar.label }}</span>
+        }
+      </div>
+    } @else if (layout() !== 'wide') {
+      <ul class="list">
+        @for (bar of bars(); track $index) {
+          <li [class.current]="bar.current">
+            <span class="dot" [attr.data-kind]="bar.kind"></span>
+            <span class="name">{{ bar.label }}</span>
+            <span class="times">{{ bar.times }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>

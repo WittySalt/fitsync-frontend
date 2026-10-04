@@ -42,7 +42,7 @@ function insight(overrides: Partial<WeeklyTrainingInsight>): WeeklyTrainingInsig
 }
 
 describe('dailyObservations - reference fixtures', () => {
-  it('fixture 1: Sunday reference with a fresh rested trio, a live streak and a strong volume week', () => {
+  it('fixture 1: Sunday reference with a fresh rested trio, a live streak and a lift that rose', () => {
     const now = new Date('2026-09-27T00:10:00Z');
     const fixture = insight({
       referenceDate: '2026-09-27',
@@ -65,7 +65,7 @@ describe('dailyObservations - reference fixtures', () => {
         }),
         group({ muscleGroup: 'CARDIO', inActivePlan: false, sessionsThisWeek: 2, trainedYesterday: true, lastTrainedOn: '2026-09-26', consecutiveSessions: 1 })
       ],
-      volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1, previousWeekSameDaysKg: 1716, previousWeekSameDaysSessionsWithVolume: 1 }
+      lifts: [{ exerciseId: 'x-20', name: 'Dumbbell Bench Press', e1rmStart: 27, e1rmNow: 30.2, changePct: 12 }]
     });
 
     const result = dailyObservations(fixture, now, TZ);
@@ -73,19 +73,19 @@ describe('dailyObservations - reference fixtures', () => {
     expect(result.map((o) => o.fact)).toEqual([
       'Chest, back and legs have had two days off.',
       'Your core has worked eight sessions running.',
-      'You have lifted 2.2 times as much as by this point last week.'
+      'Your Dumbbell Bench Press best single rose 12% to 30.2 kg.'
     ]);
     expect(result.map((o) => o.note)).toEqual([
       'They were last trained on Friday, so they are ready whenever you are.',
       'Plank was in every session this week, including yesterday.',
-      '3,846 kg over two sessions so far, against 1,716 kg over one session by this point last week.'
+      'It was 27 kg before. A best single is the most you could lift once, worked out from your sets.'
     ]);
-    expect(result.map((o) => o.id)).toEqual(['rested', 'streak', 'volume']);
-    expect(result.map((o) => o.icon)).toEqual(['rest', 'streak', 'volume']);
+    expect(result.map((o) => o.id)).toEqual(['rested', 'streak', 'best-single']);
+    expect(result.map((o) => o.icon)).toEqual(['rest', 'streak', 'strength']);
     expect(result.map((o) => o.muscle)).toEqual(['CHEST', 'CORE', null]);
   });
 
-  it('fixture 2: Monday reference, nothing trained yet this week, last week carried the volume', () => {
+  it('fixture 2: Monday reference, nothing trained yet this week, a lift that rose', () => {
     const now = new Date('2026-09-28T00:10:00Z');
     const fixture = insight({
       referenceDate: '2026-09-28',
@@ -108,7 +108,7 @@ describe('dailyObservations - reference fixtures', () => {
         }),
         group({ muscleGroup: 'CARDIO', inActivePlan: false, sessionsThisWeek: 0, trainedYesterday: false, lastTrainedOn: '2026-09-26', consecutiveSessions: 1 })
       ],
-      volume: { thisWeekKg: 0, previousWeekKg: 3846, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 2, previousWeekSameDaysKg: 3846, previousWeekSameDaysSessionsWithVolume: 2 }
+      lifts: [{ exerciseId: 'x-8', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 }]
     });
 
     const result = dailyObservations(fixture, now, TZ);
@@ -116,12 +116,12 @@ describe('dailyObservations - reference fixtures', () => {
     expect(result.map((o) => o.fact)).toEqual([
       'Chest, back and legs have had three days off.',
       'Your core has worked eight sessions running.',
-      'Last week you lifted 3,846 kg.'
+      'Your Deadlift best single rose 14% to 93.3 kg.'
     ]);
     expect(result.map((o) => o.note)).toEqual([
       'They were last trained on Friday, so they are ready whenever you are.',
       'The most recent one was on Saturday.',
-      'That is 2.2 times the week before.'
+      'It was 81.7 kg before. A best single is the most you could lift once, worked out from your sets.'
     ]);
     expect(result.map((o) => o.muscle)).toEqual(['CHEST', 'CORE', null]);
   });
@@ -269,90 +269,56 @@ describe('dailyObservations - streak (rule B)', () => {
   });
 });
 
-describe('dailyObservations - volume (rule C)', () => {
+describe('dailyObservations - best single (rule C)', () => {
   const now = new Date('2026-09-27T00:10:00Z');
+  const read = (lifts: WeeklyTrainingInsight['lifts']) =>
+    dailyObservations(insight({ referenceDate: '2026-09-27', lifts }), now, TZ).find((o) => o.id === 'best-single');
+  const lift = (name: string, e1rmStart: number, e1rmNow: number, changePct?: number | null) => ({ exerciseId: name, name, e1rmStart, e1rmNow, changePct });
 
-  it('reports "about the same" when the ratio is within 0.85 to 1.15', () => {
-    const fixture = insight({
-      referenceDate: '2026-09-27',
-      volume: { thisWeekKg: 1000, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 2, previousWeekSameDaysKg: 1000, previousWeekSameDaysSessionsWithVolume: 2 }
-    });
-    const observation = dailyObservations(fixture, now, TZ).find((o) => o.id === 'volume')!;
-    expect(observation.fact).toBe('You have lifted about the same as by this point last week.');
-    expect(observation.note).toBe('1,000 kg so far, against 1,000 kg by this point last week.');
+  it('says a lift rose, by how much and to what', () => {
+    const observation = read([lift('Dumbbell Bench Press', 27, 30, 12)])!;
+    expect(observation.fact).toBe('Your Dumbbell Bench Press best single rose 12% to 30 kg.');
+    expect(observation.icon).toBe('strength');
     expect(observation.muscle).toBeNull();
   });
 
-  it('reports a percentage when the ratio drops to 0.85 or below', () => {
-    const fixture = insight({
-      referenceDate: '2026-09-27',
-      volume: { thisWeekKg: 600, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 2, previousWeekSameDaysKg: 1000, previousWeekSameDaysSessionsWithVolume: 2 }
-    });
-    const observation = dailyObservations(fixture, now, TZ).find((o) => o.id === 'volume')!;
-    expect(observation.fact).toBe('You have lifted 60% of what you had by this point last week.');
+  it('says a lift fell in the same plain words', () => {
+    expect(read([lift('Squat', 100, 90, -10)])!.fact).toBe('Your Squat best single is 10% lower, at 90 kg.');
   });
 
-  it('skips the note session breakdown when the session counts match', () => {
-    const fixture = insight({
-      referenceDate: '2026-09-27',
-      volume: { thisWeekKg: 2000, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 3, previousWeekSessionsWithVolume: 3, previousWeekSameDaysKg: 1000, previousWeekSameDaysSessionsWithVolume: 3 }
-    });
-    const observation = dailyObservations(fixture, now, TZ).find((o) => o.id === 'volume')!;
-    expect(observation.note).toBe('2,000 kg so far, against 1,000 kg by this point last week.');
+  it('says steady when the change rounds to nothing', () => {
+    expect(read([lift('Squat', 100, 100.4, 0)])!.fact).toBe('Your Squat best single is steady at 100.4 kg.');
   });
 
-  it('reports the first full week on record when there is no week-before-previous data', () => {
-    const fixture = insight({
-      referenceDate: '2026-09-27',
-      volume: { thisWeekKg: 0, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 0, previousWeekSessionsWithVolume: 2, previousWeekSameDaysKg: 1000, previousWeekSameDaysSessionsWithVolume: 2 }
-    });
-    const observation = dailyObservations(fixture, now, TZ).find((o) => o.id === 'volume')!;
-    expect(observation.fact).toBe('Last week you lifted 1,000 kg.');
-    expect(observation.note).toBe('It is the first full week on record.');
+  it('works the percent out when the server leaves it out', () => {
+    expect(read([lift('Row', 40, 50, null)])!.fact).toBe('Your Row best single rose 25% to 50 kg.');
+    expect(read([lift('Row', 40, 50)])!.fact).toBe('Your Row best single rose 25% to 50 kg.');
   });
 
-  it('is skipped entirely when neither week has any lifted weight', () => {
-    const fixture = insight({ referenceDate: '2026-09-27' });
-    expect(dailyObservations(fixture, now, TZ).some((o) => o.id === 'volume')).toBe(false);
-  });
-});
-
-describe('dailyObservations - volume against last week by the same weekday', () => {
-  const now = new Date('2026-10-03T00:10:00Z');
-  const volume = (sameKg?: number, sameSessions = 1) => ({
-    thisWeekKg: 1923,
-    previousWeekKg: 3846,
-    weekBeforePreviousKg: 0,
-    thisWeekSessionsWithVolume: 1,
-    previousWeekSessionsWithVolume: 2,
-    previousWeekSameDaysKg: sameKg,
-    previousWeekSameDaysSessionsWithVolume: sameSessions
-  });
-  const read = (fixture: WeeklyTrainingInsight) => dailyObservations(fixture, now, TZ).find((o) => o.id === 'volume');
-
-  it('compares with last week up to the same weekday, not with all of last week', () => {
-    const observation = read(insight({ referenceDate: '2026-10-03', volume: volume(1900) }))!;
-    expect(observation.fact).toBe('You have lifted about the same as by this point last week.');
-    expect(observation.note).toBe('1,923 kg so far, against 1,900 kg by this point last week.');
+  it('leads with the lift that changed most, in either direction', () => {
+    expect(read([lift('Row', 40, 41, 3), lift('Squat', 100, 80, -20), lift('Press', 30, 32, 7)])!.fact).toBe('Your Squat best single is 20% lower, at 80 kg.');
   });
 
-  it('says how much more and how much less, in the same words', () => {
-    expect(read(insight({ referenceDate: '2026-10-03', volume: volume(1000) }))!.fact).toBe(
-      'You have lifted 1.9 times as much as by this point last week.'
-    );
-    expect(read(insight({ referenceDate: '2026-10-03', volume: volume(3000) }))!.fact).toBe(
-      'You have lifted 64% of what you had by this point last week.'
-    );
+  it('keeps the first of two lifts that changed the same amount', () => {
+    expect(read([lift('Row', 40, 44, 10), lift('Press', 30, 33, 10)])!.fact).toContain('Row');
   });
 
-  it('names the sessions when the counts differ', () => {
-    const observation = read(insight({ referenceDate: '2026-10-03', volume: volume(1000, 2) }))!;
-    expect(observation.note).toBe('1,923 kg over one session so far, against 1,000 kg over two sessions by this point last week.');
+  it('keeps the note plain: what it was, and what a best single is', () => {
+    expect(read([lift('Row', 40, 44, 10)])!.note).toBe('It was 40 kg before. A best single is the most you could lift once, worked out from your sets.');
   });
 
-  it('is left out when last week had no weight by this point, or the figure is missing', () => {
-    expect(read(insight({ referenceDate: '2026-10-03', volume: volume(0, 0) }))).toBeUndefined();
-    expect(read(insight({ referenceDate: '2026-10-03', volume: volume(undefined) }))).toBeUndefined();
+  it('is skipped with no lifts, or lifts with no start or current figure', () => {
+    expect(read(undefined)).toBeUndefined();
+    expect(read([])).toBeUndefined();
+    expect(read([lift('Row', 0, 44, null)])).toBeUndefined();
+    expect(read([lift('Row', 40, 0, null)])).toBeUndefined();
+  });
+
+  it('never speaks of weight moved or lifted', () => {
+    const all = dailyObservations(insight({ referenceDate: '2026-09-27', lifts: [lift('Row', 40, 44, 10)], volume: { thisWeekKg: 2000, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 2 } }), now, TZ);
+    for (const o of all) {
+      expect(o.fact + o.note).not.toMatch(/moved|lifted [0-9]|times as much/i);
+    }
   });
 });
 
@@ -413,7 +379,7 @@ describe('dailyObservations - week so far (rule D)', () => {
         group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-25', consecutiveSessions: 0 }),
         group({ muscleGroup: 'CORE', consecutiveSessions: 4, lastTrainedOn: '2026-09-27' })
       ],
-      volume: { thisWeekKg: 2000, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 2, previousWeekSameDaysKg: 1000, previousWeekSameDaysSessionsWithVolume: 2 }
+      lifts: [{ exerciseId: 'x-8', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 }]
     });
     const result = dailyObservations(fixture, now, TZ);
     expect(result.length).toBe(3);
@@ -440,7 +406,7 @@ describe('dailyObservations - overall shape', () => {
         group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-25', consecutiveSessions: 0 }),
         group({ muscleGroup: 'CORE', consecutiveSessions: 4, lastTrainedOn: '2026-09-27' })
       ],
-      volume: { thisWeekKg: 2000, previousWeekKg: 1000, weekBeforePreviousKg: 0, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 2, previousWeekSameDaysKg: 1000, previousWeekSameDaysSessionsWithVolume: 2 }
+      lifts: [{ exerciseId: 'x-8', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 }]
     });
     expect(dailyObservations(fixture, now, TZ).length).toBeLessThanOrEqual(3);
   });

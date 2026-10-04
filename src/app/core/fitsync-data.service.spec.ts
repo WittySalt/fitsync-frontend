@@ -1562,6 +1562,27 @@ describe('FitSyncDataService', () => {
     expect(result?.volume.thisWeekKg).toBe(3846);
   });
 
+  it('keeps the lifts of the weekly insight and tolerates a response without them or with bad rows', () => {
+    const results: WeeklyTrainingInsight[] = [];
+    service.getWeeklyTrainingInsight().subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+      lifts: [
+        { exerciseId: 'e1', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 },
+        { exerciseId: 'e2', name: 'Row', e1rmStart: 'x', e1rmNow: 50 },
+        { exerciseId: 'e3', e1rmStart: 10, e1rmNow: 12 },
+        null
+      ]
+    });
+    service.getWeeklyTrainingInsight().subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({});
+
+    expect(results[0].lifts).toEqual([
+      { exerciseId: 'e1', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 },
+      { exerciseId: 'e2', name: 'Row', e1rmStart: 0, e1rmNow: 50, changePct: null }
+    ]);
+    expect(results[1].lifts).toEqual([]);
+  });
+
   it('omits the date param from the weekly training insight request when none is given', () => {
     service.getWeeklyTrainingInsight().subscribe();
 
@@ -2666,6 +2687,47 @@ describe('FitSyncDataService', () => {
     const plain = httpTesting.expectOne('/api/v1/workouts/sessions');
     expect('sportActivity' in plain.request.body).toBeFalse();
     plain.flush({ sessionId: 's2', name: 'Cardio', workoutType: 'CARDIO', status: 'IN_PROGRESS', startedAt: '2026-06-20T02:00:00Z', exercises: [] });
+  });
+
+  it('starts a timer session with its segments as SEGMENT entries, and with none by default', () => {
+    service
+      .startAdHocSession({ name: 'Run', workoutType: 'CARDIO', segments: [{ kind: 'STEADY', label: 'Steady', plannedSeconds: 1200 }] })
+      .subscribe();
+    const timed = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect(timed.request.body.entries).toEqual([
+      { entryType: 'SEGMENT', kind: 'STEADY', label: 'Steady', plannedSeconds: 1200, position: 1 }
+    ]);
+    timed.flush({ sessionId: 's', name: 'Run', workoutType: 'CARDIO', status: 'IN_PROGRESS', startedAt: '2026-06-20T02:00:00Z', exercises: [] });
+
+    service.startAdHocSession({ name: 'Run', workoutType: 'CARDIO' }).subscribe();
+    const plain = httpTesting.expectOne('/api/v1/workouts/sessions');
+    expect('entries' in plain.request.body).toBeFalse();
+    plain.flush({ sessionId: 's2', name: 'Run', workoutType: 'CARDIO', status: 'IN_PROGRESS', startedAt: '2026-06-20T02:00:00Z', exercises: [] });
+  });
+
+  it('maps the SEGMENT entries of a session defensively and leaves SET entries out', () => {
+    let session: WorkoutSessionDetail | undefined;
+    service.getSession('s').subscribe((value) => (session = value ?? undefined));
+    httpTesting.expectOne('/api/v1/workouts/sessions/s').flush({
+      sessionId: 's', name: 'Run', workoutType: 'CARDIO', status: 'COMPLETED', startedAt: '2026-06-20T02:00:00Z', exercises: [],
+      entries: [
+        { id: 'b', entryType: 'SEGMENT', position: 2, kind: 'COOLDOWN', plannedSeconds: '300', actualSeconds: 180, status: 'SKIPPED' },
+        { entryId: 'a', entryType: 'SEGMENT', position: 1, kind: 'MYSTERY', label: ' ', plannedSeconds: 600, status: 'later' },
+        { entryId: 'x', entryType: 'SET', position: 3, plannedSeconds: 10 },
+        { entryId: 'z', entryType: 'SEGMENT', position: 4, kind: 'WORK' }
+      ]
+    });
+    expect(session?.segments?.map((segment) => [segment.entryId, segment.position, segment.kind, segment.label, segment.plannedSeconds, segment.status]))
+      .toEqual([['a', 1, 'STEADY', 'Steady', 600, 'PENDING'], ['b', 2, 'COOLDOWN', 'Cool-down', 300, 'SKIPPED']]);
+    expect(session?.segments?.[1].actualSeconds).toBe(180);
+  });
+
+  it('puts a segment update on the entry endpoint', () => {
+    service.updateSessionSegment('s', 'e1', { actualSeconds: 300, startedAt: '2026-06-20T02:00:00Z', status: 'DONE' }).subscribe();
+    const request = httpTesting.expectOne('/api/v1/workouts/sessions/s/entries/e1');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ actualSeconds: 300, startedAt: '2026-06-20T02:00:00Z', status: 'DONE' });
+    request.flush({ sessionId: 's', name: 'Run', workoutType: 'CARDIO', status: 'IN_PROGRESS', startedAt: '2026-06-20T02:00:00Z', exercises: [] });
   });
 
   it('sends the name search of the session list, trimmed and capped at 80 characters', () => {

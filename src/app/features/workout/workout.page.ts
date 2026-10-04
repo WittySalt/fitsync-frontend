@@ -1,10 +1,9 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { CoachContextService } from '../../core/coach/coach-context.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -12,13 +11,11 @@ import {
   DayInsight,
   DayKind,
   NextTraining,
-  SportActivityOption,
   TodayInsight,
   UserGoal,
   WeeklyTrainingInsight,
   WorkoutPlan,
   WorkoutPlanExercise,
-  WorkoutPlanRequest,
   WorkoutPlanStatus,
   WorkoutSession,
   WorkoutSessionDetail,
@@ -35,40 +32,17 @@ import { ExerciseLibraryComponent } from './exercise-library.component';
 import { LiveStartCardComponent } from './live-start-card.component';
 import { LiveTrackerComponent } from './live-tracker.component';
 import { LiveTrackerGoal, LiveTrackerStartEvent } from './live-tracker.models';
-import {
-  createExerciseArray,
-  createExerciseGroup,
-  exerciseGroupsToInputs,
-  ExerciseGroup,
-  fillExerciseGroup,
-  isBlankExerciseGroup,
-  resetExerciseGroup
-} from './plan-exercise-form';
 import { dayToStart, isoWeekdayIn } from './plan-day-pick';
-import { PlanExerciseRowsComponent } from './plan-exercise-rows.component';
-import { PlanWeekEditorComponent } from './plan-week-editor.component';
+import { PlanEntrySheetComponent } from './plan-flow/plan-entry-sheet.component';
+import { EntryTarget, editPlanTarget } from './plan-flow/plan-entry';
 import { PlanWeekSummaryComponent } from './plan-week-summary.component';
-import {
-  applyDayKind,
-  buildWeekRequest,
-  createWeek,
-  fillWeek,
-  firstInvalidDay,
-  MAX_DAY_TITLE_LENGTH,
-  resetWeek,
-  trainingDayCount,
-  weekMoves
-} from './plan-week-form';
 import { HistoryRowComponent } from './history-row.component';
 import { WorkoutWeekComponent } from './workout-week.component';
 import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
-import { sessionDurationLabel } from './workout-session.util';
-import { formatKm } from '../dashboard/brief/brief-duration';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
-type PlanMode = 'list' | 'week';
 
 /** The offer to make an activated plan's weekly session count the user's weekly goal. */
 interface WeeklyGoalOffer {
@@ -85,10 +59,8 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
   imports: [InsightPanelComponent,
     PagerComponent,
     AutoClosedNoticeComponent,
-    ReactiveFormsModule,
     NgTemplateOutlet,
-    PlanExerciseRowsComponent,
-    PlanWeekEditorComponent,
+    PlanEntrySheetComponent,
     PlanWeekSummaryComponent,
     StatePanelComponent,
     ExercisePlayerComponent,
@@ -108,14 +80,10 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dataService = inject(FitSyncDataService);
-  private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   readonly workoutLive = inject(WorkoutLiveService);
   private readonly coachContext = inject(CoachContextService);
   private readonly liveStartCard = viewChild(LiveStartCardComponent);
-  private readonly injector = inject(Injector);
-  private readonly planFormEl = viewChild<ElementRef<HTMLElement>>('planFormEl');
-  private readonly planNameInput = viewChild<ElementRef<HTMLInputElement>>('planName');
   /** What the search box holds, as typed. The server is asked once the typing pauses. */
   private readonly searchTyped = new Subject<string>();
 
@@ -130,17 +98,13 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private editActiveOnArrival = false;
   readonly loading = signal(true);
   readonly planError = signal<string | null>(null);
-  readonly planMode = signal<PlanMode>('list');
-  readonly selectedPlanDay = signal(0);
-  readonly sportActivities = signal<SportActivityOption[]>([]);
+  /** The New plan sheet with the three ways in. */
+  readonly entryOpen = signal(false);
   readonly weeklyGoalOffer = signal<WeeklyGoalOffer | null>(null);
   readonly weeklyGoalSaving = signal(false);
   // The active plan has its own section above the list, so it is not a filter value.
   readonly planStatus = signal<WorkoutPlanStatus | null>('DRAFT');
-  readonly planFormOpen = signal(false);
   readonly activePlanLoading = signal(true);
-  readonly editingPlanId = signal<string | null>(null);
-  readonly savingPlan = signal(false);
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
   /** The exercise screen is on screen: there is a workout, the Today tab is open, and it is not minimised. */
@@ -175,9 +139,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly pageSize = signal(10);
   readonly historyPageSizes = [10, 20, 50] as const;
   readonly planStatusOptions: Array<WorkoutPlanStatus | null> = ['DRAFT', 'ARCHIVED', null];
-  readonly goalFocusOptions = ['GENERAL_FITNESS', 'WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'MOBILITY'];
   readonly workoutTypeOptions = ['STRENGTH', 'CARDIO', 'HIIT', 'YOGA', 'PILATES', 'MOBILITY', 'SPORTS', 'CUSTOM'];
-  readonly difficultyOptions = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
   private readonly timezone = inject(UserTimezoneService).zone;
   // The weekly insight says what kind of day today is. It stays null when the request fails, and
   // the Today card then falls back to the plain active plan.
@@ -193,20 +155,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     return Boolean(planId && this.planMutations().has(planId));
   });
 
-  readonly planForm = this.fb.group({
-    name: ['', [Validators.required, Validators.maxLength(120)]],
-    description: ['', Validators.maxLength(1000)],
-    goalFocus: ['GENERAL_FITNESS', Validators.required],
-    workoutType: ['STRENGTH', Validators.required],
-    difficulty: ['BEGINNER', Validators.required],
-    estimatedDurationMinutes: [45, [Validators.required, Validators.min(1)]],
-    exercises: createExerciseArray(this.fb)
-  });
-
-  // The week of a plan that has one. It lives beside the form rather than inside it, so a plan
-  // saved as one list never depends on it.
-  readonly planWeek = createWeek(this.fb);
-  private sportActivitiesRequested = false;
   private weeklyGoalRequest = 0;
 
   /** "Friday 2 Oct · Recomp Strength + Cardio": today, and the plan in use when there is one. */
@@ -340,10 +288,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.loadActivePlan();
   }
 
-  get planExercises(): FormArray<ExerciseGroup> {
-    return this.planForm.controls.exercises;
-  }
-
   setHistorySearch(value: string): void {
     this.historySearch.set(value);
     this.searchTyped.next(value);
@@ -410,132 +354,28 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.loadPlans();
   }
 
-  addPlanExercise(): void {
-    this.planExercises.push(createExerciseGroup(this.fb));
-  }
-
-  removePlanExercise(index: number): void {
-    if (this.planExercises.length <= 1) {
-      resetExerciseGroup(this.planExercises.at(0));
-      return;
-    }
-    this.planExercises.removeAt(index);
-  }
-
-  setPlanMode(mode: PlanMode): void {
-    if (mode === this.planMode()) {
-      return;
-    }
-    if (mode === 'week') {
-      this.moveListIntoWeek();
-    } else {
-      this.mergeWeekIntoList();
-    }
-  }
-
-  /** The New plan button: an empty form, brought into view with the cursor in the name. */
+  /** The New plan button: the sheet with three ways in, so nobody meets an empty form. */
   openNewPlan(): void {
-    this.editingPlanId.set(null);
-    this.resetPlanForm();
-    this.revealPlanForm();
+    this.entryOpen.set(true);
   }
 
+  closeEntry(): void {
+    this.entryOpen.set(false);
+  }
+
+  /** A row of the entry sheet was chosen: the flow, a starter template inside it, or Plan Studio. */
+  handleEntryChosen(target: EntryTarget): void {
+    this.entryOpen.set(false);
+    void this.router.navigate(target.commands, { queryParams: target.queryParams });
+  }
+
+  /** Edit opens the plan flow at step 1 with the plan loaded. */
   editPlan(plan: WorkoutPlan): void {
     if (!plan.planId) {
       return;
     }
-    this.revealPlanForm();
-
-    this.editingPlanId.set(plan.planId);
-    this.planForm.patchValue({
-      name: plan.name,
-      description: plan.description,
-      goalFocus: plan.goalFocus,
-      workoutType: plan.workoutType,
-      difficulty: plan.difficulty,
-      estimatedDurationMinutes: plan.estimatedDurationMinutes
-    });
-
-    this.planExercises.clear();
-    resetWeek(this.planWeek);
-    if (plan.days?.length) {
-      fillWeek(this.fb, this.planWeek, plan.days);
-      this.planMode.set('week');
-      this.selectedPlanDay.set(Math.max(0, this.planWeek.controls.findIndex((day) => day.controls.kind.value !== 'REST')));
-      this.ensureSportActivities();
-      return;
-    }
-    this.planMode.set('list');
-    const exercises = plan.exercises.length ? plan.exercises : [null];
-    exercises.forEach((exercise) => {
-      const group = createExerciseGroup(this.fb);
-      if (exercise) {
-        fillExerciseGroup(group, exercise);
-      }
-      this.planExercises.push(group);
-    });
-  }
-
-  cancelEdit(): void {
-    this.editingPlanId.set(null);
-    this.resetPlanForm();
-    this.planFormOpen.set(false);
-  }
-
-  savePlan(): void {
-    this.planForm.markAllAsTouched();
-    const week = this.planMode() === 'week';
-
-    if (this.planForm.invalid) {
-      this.toast.error(week ? 'Complete the required plan fields.' : 'Choose at least one exercise and complete the required plan fields.');
-      return;
-    }
-
-    if (week) {
-      this.planWeek.markAllAsTouched();
-      const invalidDay = firstInvalidDay(this.planWeek);
-      if (invalidDay >= 0) {
-        this.selectedPlanDay.set(invalidDay);
-        this.toast.error('Complete this day before saving the week.');
-        return;
-      }
-      if (trainingDayCount(this.planWeek) === 0) {
-        this.toast.error('Plan at least one training day before saving the week.');
-        return;
-      }
-    }
-
-    const request = this.buildPlanRequest();
-    if (!week && !request.exercises.length) {
-      this.toast.error('Choose at least one exercise before saving the plan.');
-      return;
-    }
-
-    this.savingPlan.set(true);
-    const editingId = this.editingPlanId();
-    const action = editingId
-      ? this.dataService.updateWorkoutPlan(editingId, request)
-      : this.dataService.createWorkoutPlan(request);
-
-    action.subscribe({
-      next: (plan) => {
-        this.toast.success(editingId ? 'Plan updated.' : 'Plan created.');
-        this.resetPlanForm();
-        this.editingPlanId.set(null);
-        this.planFormOpen.set(false);
-        // A saved draft or archived plan is shown under its own filter; an active one is the current plan.
-        if (plan.status === 'DRAFT' || plan.status === 'ARCHIVED') {
-          this.planStatus.set(plan.status);
-        }
-        this.loadPlans();
-        this.loadActivePlan();
-      },
-      error: () => {
-        this.savingPlan.set(false);
-        this.toast.error(editingId ? 'Unable to update plan. Please retry.' : 'Unable to create plan. Please retry.');
-      },
-      complete: () => this.savingPlan.set(false)
-    });
+    const target = editPlanTarget(plan.planId);
+    void this.router.navigate(target.commands);
   }
 
   activatePlan(plan: WorkoutPlan): void {
@@ -860,14 +700,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     }).format(date);
   }
 
-  formatDuration(session: WorkoutSession): string {
-    return sessionDurationLabel(session);
-  }
-
-  formatDistance(km: number | null | undefined): string {
-    return formatKm(km);
-  }
-
   /** Loads the plans of the chosen filter again, which is what the Retry button of the error panel does. */
   loadPlans(): void {
     this.loading.set(true);
@@ -983,92 +815,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     });
   }
 
-  private buildPlanRequest(): WorkoutPlanRequest {
-    const raw = this.planForm.getRawValue();
-    const request: WorkoutPlanRequest = {
-      name: raw.name ?? '',
-      description: raw.description ?? '',
-      goalFocus: raw.goalFocus ?? 'GENERAL_FITNESS',
-      workoutType: raw.workoutType ?? 'STRENGTH',
-      difficulty: raw.difficulty ?? 'BEGINNER',
-      estimatedDurationMinutes: this.optionalNumber(raw.estimatedDurationMinutes),
-      exercises: exerciseGroupsToInputs(this.planExercises.controls)
-    };
-    // A plan with a week keeps every exercise inside its days, and the server refuses both.
-    return this.planMode() === 'week'
-      ? { ...request, exercises: [], days: buildWeekRequest(this.planWeek) }
-      : request;
-  }
-
-  /** Opens the form and, once it is on screen, scrolls to it and puts the cursor in the Name field. */
-  private revealPlanForm(): void {
-    this.planFormOpen.set(true);
-    afterNextRender(
-      () => {
-        this.planFormEl()?.nativeElement.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-        this.planNameInput()?.nativeElement.focus({ preventScroll: true });
-      },
-      { injector: this.injector }
-    );
-  }
-
-  private resetPlanForm(): void {
-    this.planForm.reset({
-      name: '',
-      description: '',
-      goalFocus: 'GENERAL_FITNESS',
-      workoutType: 'STRENGTH',
-      difficulty: 'BEGINNER',
-      estimatedDurationMinutes: 45
-    });
-    this.planExercises.clear();
-    this.planExercises.push(createExerciseGroup(this.fb));
-    resetWeek(this.planWeek);
-    this.selectedPlanDay.set(0);
-    this.planMode.set('list');
-  }
-
-  // Choosing "A week" carries what is already typed into Monday, so nothing is lost by trying it.
-  private moveListIntoWeek(): void {
-    const monday = this.planWeek.at(0);
-    const moved = this.planExercises.controls.filter((group) => !isBlankExerciseGroup(group));
-    this.planExercises.clear();
-    resetWeek(this.planWeek);
-    monday.controls.title.setValue((this.planForm.controls.name.value ?? '').trim().slice(0, MAX_DAY_TITLE_LENGTH));
-    moved.forEach((group) => monday.controls.exercises.push(group));
-    applyDayKind(monday, 'STRENGTH');
-    this.selectedPlanDay.set(0);
-    this.planMode.set('week');
-    this.ensureSportActivities();
-  }
-
-  private mergeWeekIntoList(): void {
-    const hasStructure = trainingDayCount(this.planWeek) > 0;
-    if (hasStructure && !window.confirm('Turn the week into one list? Days, titles and rest days are dropped, and every move is kept in order.')) {
-      return;
-    }
-    const moved = weekMoves(this.planWeek);
-    resetWeek(this.planWeek);
-    this.planExercises.clear();
-    (moved.length ? moved : [createExerciseGroup(this.fb)]).forEach((group) => this.planExercises.push(group));
-    this.selectedPlanDay.set(0);
-    this.planMode.set('list');
-  }
-
-  private ensureSportActivities(): void {
-    if (this.sportActivitiesRequested) {
-      return;
-    }
-    this.sportActivitiesRequested = true;
-    this.dataService.getExerciseMetadata().subscribe((metadata) => {
-      this.sportActivities.set(metadata?.sportActivities ?? []);
-      if (!metadata) {
-        // Try again the next time a week is opened; the sport select is empty until it loads.
-        this.sportActivitiesRequested = false;
-      }
-    });
-  }
-
   // Asks whether the weekly goal should follow a plan that was just activated. Nothing is asked for
   // a plan without a week, or when the goal already says the same number.
   private offerWeeklyGoal(plan: WorkoutPlan): void {
@@ -1088,11 +834,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
       }
       this.weeklyGoalOffer.set({ sessions, existing });
     });
-  }
-
-  private optionalNumber(value: unknown): number | null {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private setPlanMutating(planId: string, mutating: boolean): void {

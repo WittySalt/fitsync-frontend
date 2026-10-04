@@ -6,7 +6,7 @@ import { CoachNoticedComponent } from './coach-noticed.component';
 const observations: BriefObservation[] = [
   { id: 'rested', icon: 'rest', muscle: 'CHEST', fact: 'Chest, back and legs have had two days off.', note: 'They were last trained on Friday, so they are ready whenever you are.' },
   { id: 'streak', icon: 'streak', muscle: 'CORE', fact: 'Your core has worked eight sessions running.', note: 'Plank was in every session this week, including yesterday.' },
-  { id: 'volume', icon: 'volume', muscle: null, fact: "You lifted 2.2 times last week's weight.", note: '3,846 kg over two sessions this week against 1,716 kg over one.' }
+  { id: 'best-single', icon: 'strength', muscle: null, fact: 'Your Deadlift best single rose 14% to 93.3 kg.', note: 'It was 81.7 kg before.' }
 ];
 
 describe('CoachNoticedComponent', () => {
@@ -34,7 +34,7 @@ describe('CoachNoticedComponent', () => {
     expect(rows[1].querySelectorAll('svg rect').length).toBe(6);
   });
 
-  it('draws the trend glyph for the volume observation', () => {
+  it('draws the trend glyph for the best single observation', () => {
     const rows = element.querySelectorAll('.noticed-row');
     expect(rows[2].querySelectorAll('svg path').length).toBe(2);
     expect(rows[2].querySelectorAll('svg rect').length).toBe(0);

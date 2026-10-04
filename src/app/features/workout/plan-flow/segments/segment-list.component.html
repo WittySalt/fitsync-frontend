@@ -1,0 +1,82 @@
+<ul class="rows" aria-label="Segments">
+  @for (row of segments(); track $index; let i = $index) {
+    <li
+      class="row"
+      [class.paired]="roles()[i] !== null"
+      [class.first]="roles()[i] === 'first'"
+      [class.second]="roles()[i] === 'second'"
+      [class.over]="over() === i && dragging() !== i"
+      (dragover)="dragOver($event, i)"
+      (drop)="drop($event, i)"
+    >
+      <button
+        type="button"
+        class="grip"
+        draggable="true"
+        [attr.aria-label]="'Move ' + kindLabel(row.kind) + ' segment. Arrow keys move it up or down.'"
+        (dragstart)="dragStart($event, i)"
+        (dragend)="dragEnd()"
+        (keydown)="handleKey($event, i)"
+      >
+        <svg width="12" height="18" viewBox="0 0 12 18" aria-hidden="true" fill="currentColor">
+          <circle cx="3" cy="3" r="1.5"></circle><circle cx="9" cy="3" r="1.5"></circle>
+          <circle cx="3" cy="9" r="1.5"></circle><circle cx="9" cy="9" r="1.5"></circle>
+          <circle cx="3" cy="15" r="1.5"></circle><circle cx="9" cy="15" r="1.5"></circle>
+        </svg>
+      </button>
+      <span class="shift">
+        <button type="button" aria-label="Move up" [disabled]="i === 0" (click)="shift(i, -1)">&uarr;</button>
+        <button type="button" aria-label="Move down" [disabled]="i === segments().length - 1" (click)="shift(i, 1)">&darr;</button>
+      </span>
+
+      <label class="kind">
+        <span class="lab">Kind</span>
+        <select [attr.aria-label]="'Kind of segment ' + (i + 1)" (change)="setKind(i, $any($event.target).value)">
+          @for (kind of kinds; track kind) {
+            <option [value]="kind" [selected]="kind === row.kind">{{ kindLabel(kind) }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="minutes">
+        <span class="stepper">
+          <button type="button" [attr.aria-label]="'One minute less for segment ' + (i + 1)" [disabled]="row.minutes <= 1" (click)="step(i, -1)">&minus;</button>
+          <span class="box">
+            <input
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              [attr.aria-label]="'Minutes of segment ' + (i + 1)"
+              [value]="row.minutes"
+              (change)="setMinutes(i, $any($event.target).value)"
+            />
+            <span class="unit">min</span>
+          </span>
+          <button type="button" [attr.aria-label]="'One minute more for segment ' + (i + 1)" [disabled]="row.minutes >= maxMinutes" (click)="step(i, 1)">+</button>
+        </span>
+      </div>
+
+      <div class="repeat">
+        @if (roles()[i] === 'first') {
+          <span class="rounds" role="group" aria-label="Rounds">
+            <button type="button" aria-label="One round fewer" [disabled]="(row.rounds ?? 2) <= 2" (click)="rounds(i, -1)">&minus;</button>
+            <span aria-live="polite">&times; {{ row.rounds }}</span>
+            <button type="button" aria-label="One round more" [disabled]="(row.rounds ?? 2) >= maxRounds" (click)="rounds(i, 1)">+</button>
+          </span>
+          <button type="button" class="quiet" (click)="stopRepeat(i)">Stop repeating</button>
+        } @else if (roles()[i] === 'second') {
+          <span class="with">Repeats with the row above</span>
+        } @else {
+          <button type="button" class="quiet" [disabled]="full() && i === segments().length - 1" (click)="repeat(i)">Repeat</button>
+        }
+      </div>
+
+      <button type="button" class="trash" [attr.aria-label]="'Remove segment ' + (i + 1) + ', ' + kindLabel(row.kind)" (click)="remove(i)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3" /></svg>
+      </button>
+    </li>
+  }
+  <li class="add">
+    <button type="button" [disabled]="full()" (click)="add()">+ Add segment</button>
+  </li>
+</ul>

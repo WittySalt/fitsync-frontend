@@ -1,0 +1,26 @@
+@use '../../progress/training/parts/training-palette' as palette;
+
+// One colour per day kind, shared by the tiles and the strip: the training greens, slate for rest.
+@mixin flow-kinds {
+  @include palette.training-palette;
+
+  [data-kind='STRENGTH'] {
+    --k: var(--kind-strength);
+  }
+
+  [data-kind='CARDIO'] {
+    --k: var(--kind-cardio);
+  }
+
+  [data-kind='SPORT'] {
+    --k: var(--kind-sport);
+  }
+
+  [data-kind='MOBILITY'] {
+    --k: var(--kind-mobility);
+  }
+
+  [data-kind='REST'] {
+    --k: var(--text-muted);
+  }
+}

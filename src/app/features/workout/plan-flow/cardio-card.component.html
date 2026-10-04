@@ -1,0 +1,56 @@
+<section class="card">
+  <div class="block">
+    <span class="eyebrow">Target</span>
+    <div class="target">
+      <div class="seg" role="group" aria-label="Kind of target">
+        @for (target of targets; track target.kind) {
+          <button type="button" [class.on]="day().targetKind === target.kind" [attr.aria-pressed]="day().targetKind === target.kind" (click)="chooseTarget(target.kind)">{{ target.label }}</button>
+        }
+      </div>
+      @if (day().targetKind; as kind) {
+        <label class="value">
+          <input
+            type="number"
+            min="0"
+            [step]="kind === 'MINUTES' ? 1 : 0.1"
+            inputmode="decimal"
+            [attr.aria-label]="'Target in ' + units[kind]"
+            [value]="day().targetValue ?? ''"
+            (change)="setTarget($any($event.target).value)"
+          />
+          <span>{{ units[kind] }}</span>
+        </label>
+      }
+    </div>
+    @if (hint()) {
+      <p class="hint">{{ hint() }}</p>
+    }
+  </div>
+
+  <div class="block">
+    <span class="eyebrow">Where</span>
+    <div class="chips" role="group" aria-label="Where">
+      @for (place of places; track place) {
+        <button type="button" class="chip" [class.on]="day().location === place" [attr.aria-pressed]="day().location === place" (click)="setPlace(place)">{{ placeLabels[place] }}</button>
+      }
+    </div>
+  </div>
+
+  <div class="block">
+    <span class="eyebrow">Shape</span>
+    <app-plan-shape
+      [segments]="day().segments"
+      [dayMinutes]="day().minutes"
+      (segmentsChange)="segmentsChange.emit($event)"
+      (minutesChange)="minutesChange.emit($event)"
+    />
+  </div>
+
+  <div class="block">
+    <span class="eyebrow">Effort you expect</span>
+    <app-plan-effort-chips [value]="day().effort" (choose)="setEffort($event)" />
+  </div>
+
+  <p class="last">{{ lastLine() }}</p>
+  <p class="note">Logged as a cardio session with its distance and pace when you finish.</p>
+</section>

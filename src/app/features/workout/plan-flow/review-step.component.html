@@ -1,0 +1,83 @@
+<div class="review" [attr.data-band]="band()">
+  @if (band() === 'wide') {
+    <section class="week" aria-label="The week">
+      @for (row of rows(); track $index) {
+        <div class="col" [class.rest]="row === null" [attr.data-kind]="row?.kind ?? 'REST'">
+          <span class="weekday">{{ weekdays[$index] }}</span>
+          @if (row; as day) {
+            <span class="glyph" aria-hidden="true"><app-plan-day-glyph [kind]="day.kind" [size]="20" /></span>
+            <strong>{{ day.title }}</strong>
+            <small>{{ day.meta }}</small>
+            @for (line of day.lines; track $index) {
+              <span class="line">{{ line }}</span>
+            }
+          } @else {
+            <span class="line">Rest</span>
+          }
+        </div>
+      }
+    </section>
+  } @else {
+    <ul class="list" aria-label="The week">
+      @for (day of training(); track day.dayOfWeek) {
+        <li [attr.data-kind]="day.kind">
+          <span class="glyph" aria-hidden="true"><app-plan-day-glyph [kind]="day.kind" [size]="22" /></span>
+          <div class="body">
+            <strong>{{ weekdays[day.dayOfWeek - 1] }} · {{ day.title }}</strong>
+            <small>{{ day.meta }}</small>
+            @for (line of day.lines; track $index) {
+              <span class="line">{{ line }}</span>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+
+  <dl class="figures">
+    <div><dd>{{ figures().trainingDays }}</dd><dt>Days</dt></div>
+    <div><dd>{{ minutesLabel() }}</dd><dt>Minutes a week</dt></div>
+    <div><dd>{{ figures().moves }}</dd><dt>Moves</dt></div>
+    <div><dd>{{ figures().setsPerWeek }}</dd><dt>Sets a week</dt></div>
+  </dl>
+
+  <div class="form">
+    <label class="field name">
+      <span>Name</span>
+      <input type="text" maxlength="120" autocomplete="off" [value]="plan().name" (input)="nameChange.emit($any($event.target).value)" />
+    </label>
+    <label class="field type">
+      <span>Plan type</span>
+      <select (change)="typeChange.emit($any($event.target).value)">
+        @for (type of types; track type[0]) {
+          <option [value]="type[0]" [selected]="type[0] === plan().planType">{{ type[1] }}</option>
+        }
+      </select>
+    </label>
+    <label class="field full">
+      <span>Description (optional)</span>
+      <textarea rows="2" maxlength="1000" [value]="plan().description" (input)="descriptionChange.emit($any($event.target).value)"></textarea>
+    </label>
+  </div>
+
+  <div class="current">
+    <button type="button" role="switch" class="switch" [class.on]="makeCurrent()" [attr.aria-checked]="makeCurrent()" (click)="makeCurrentChange.emit(!makeCurrent())">
+      <span class="knob"></span>
+      <span>Make this my current plan</span>
+    </button>
+    @if (note()) {
+      <p class="hint">{{ note() }}</p>
+    }
+  </div>
+
+  @if (message() || saveError()) {
+    <p class="problem" role="alert">{{ message() || saveError() }}</p>
+  }
+
+  <div class="actions">
+    <button type="button" class="button secondary" [disabled]="saving()" (click)="back.emit()">Back</button>
+    <button type="button" class="button primary" [disabled]="saving()" (click)="save.emit()">
+      {{ saving() ? 'Saving...' : editing() ? 'Save changes' : 'Save plan' }}
+    </button>
+  </div>
+</div>

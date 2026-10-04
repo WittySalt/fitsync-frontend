@@ -1,9 +1,9 @@
-import { DayKind, MuscleGroupCode, MuscleGroupInsight, WeeklyTrainingInsight } from '../../../core/fitsync.models';
+import { DayKind, MuscleGroupCode, MuscleGroupInsight, WeeklyLiftChange, WeeklyTrainingInsight } from '../../../core/fitsync.models';
 import { formatDuration, formatKm, formatPace } from './brief-duration';
 import { numberWord } from './brief-copy';
 import { joinLabels, muscleLabel } from './brief-muscles';
 
-export type ObservationIcon = 'rest' | 'streak' | 'volume' | 'week' | 'day-kind';
+export type ObservationIcon = 'rest' | 'streak' | 'strength' | 'week' | 'day-kind';
 
 export interface BriefObservation {
   id: string;
@@ -12,7 +12,7 @@ export interface BriefObservation {
   note: string;
   /** The muscle group this observation is about, so the row can draw that muscle's own icon.
    *  Set for the rested (first group of the chosen set, backend order) and streak (that group)
-   *  rules; null for volume and week-so-far, which are not about any one muscle group. */
+   *  rules; null for the best single and week-so-far, which are not about any one muscle group. */
   muscle: MuscleGroupCode | null;
   /** The day kind this observation illustrates, drawn with the day-kind glyph set instead of a
    *  muscle glyph. Set only for the observation that follows today's kind; null everywhere else. */
@@ -31,19 +31,9 @@ function plural(word: string, count: number): string {
   return count === 1 ? word : `${word}s`;
 }
 
-/** Formats a weight in whole kilograms with thousands separators, matching the coach's copy. */
-function formatKg(kg: number): string {
-  return Math.round(kg).toLocaleString('en-US');
-}
-
-/** Formats a weight ratio to one decimal place, e.g. 2.2. */
-function formatRatio(ratio: number): string {
-  return ratio.toFixed(1);
-}
-
-/** Formats a weight ratio as a whole percent, e.g. 0.62 -> "62". */
-function formatPercent(ratio: number): string {
-  return String(Math.round(ratio * 100));
+/** Formats an estimated best single in kilograms, with one decimal only when it has one: 81.7, 30. */
+function formatE1rm(kg: number): string {
+  return String(Math.round(kg * 10) / 10);
 }
 
 /** Treats a YYYY-MM-DD key as a UTC calendar date so day arithmetic never shifts across a
@@ -174,59 +164,36 @@ function mostRecentPhrase(lastTrainedOn: string | null, referenceDate: string): 
   return `on ${weekdayFull(lastTrainedOn)}`;
 }
 
-/** This week's weight so far against last week's by the same weekday. Nothing is said when last
- *  week had no weight by this point, because a ratio against nothing means nothing. */
-function sameDaysVolumeObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
-  const v = insight.volume;
-  const sameKg = v.previousWeekSameDaysKg ?? 0;
-  const sameSessions = v.previousWeekSameDaysSessionsWithVolume ?? 0;
-  if (v.thisWeekKg <= 0 || sameKg <= 0) {
-    return null;
+/** The change of a lift's estimated best single, as a whole percent. The server sends it; when it is
+ *  missing it is worked out from the start and the current figure. */
+function liftChangePct(lift: WeeklyLiftChange): number {
+  if (Number.isFinite(lift.changePct)) {
+    return Math.round(lift.changePct as number);
   }
-  const ratio = v.thisWeekKg / sameKg;
-  let fact: string;
-  if (ratio >= 1.15) {
-    fact = `You have lifted ${formatRatio(ratio)} times as much as by this point last week.`;
-  } else if (ratio <= 0.85) {
-    fact = `You have lifted ${formatPercent(ratio)}% of what you had by this point last week.`;
-  } else {
-    fact = `You have lifted about the same as by this point last week.`;
-  }
-  const sessions = (count: number): string => `${numberWord(count)} ${plural('session', count)}`;
-  const note =
-    v.thisWeekSessionsWithVolume !== sameSessions
-      ? `${formatKg(v.thisWeekKg)} kg over ${sessions(v.thisWeekSessionsWithVolume)} so far, against ${formatKg(sameKg)} kg over ${sessions(sameSessions)} by this point last week.`
-      : `${formatKg(v.thisWeekKg)} kg so far, against ${formatKg(sameKg)} kg by this point last week.`;
-  return { id: 'volume', icon: 'volume', fact, note, muscle: null };
+  return lift.e1rmStart > 0 ? Math.round(((lift.e1rmNow - lift.e1rmStart) / lift.e1rmStart) * 100) : 0;
 }
 
-function volumeObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
-  const v = insight.volume;
-
-  if (v.thisWeekKg > 0) {
-    // Set against last week by the same weekday, and left out when that figure is missing or zero.
-    return sameDaysVolumeObservation(insight);
+/** Strength is read as the estimated best single of a lift, never as the weight moved. The lift
+ *  that changed most (in either direction) leads; a lift with no start or no current figure says
+ *  nothing, and so does a week with no lifts. */
+function bestSingleObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
+  const usable = (insight.lifts ?? []).filter((lift) => lift.name && lift.e1rmNow > 0 && lift.e1rmStart > 0);
+  if (!usable.length) {
+    return null;
   }
-
-  if (v.thisWeekKg === 0 && v.previousWeekKg > 0) {
-    const fact = `Last week you lifted ${formatKg(v.previousWeekKg)} kg.`;
-    let note: string;
-    if (v.weekBeforePreviousKg > 0) {
-      const ratio = v.previousWeekKg / v.weekBeforePreviousKg;
-      if (ratio >= 1.15) {
-        note = `That is ${formatRatio(ratio)} times the week before.`;
-      } else if (ratio <= 0.85) {
-        note = `That is ${formatPercent(ratio)}% of the week before.`;
-      } else {
-        note = `That is about the same as the week before.`;
-      }
-    } else {
-      note = `It is the first full week on record.`;
-    }
-    return { id: 'volume', icon: 'volume', fact, note, muscle: null };
+  const lead = usable.reduce((best, lift) => (Math.abs(liftChangePct(lift)) > Math.abs(liftChangePct(best)) ? lift : best));
+  const pct = liftChangePct(lead);
+  const now = formatE1rm(lead.e1rmNow);
+  let fact: string;
+  if (pct >= 1) {
+    fact = `Your ${lead.name} best single rose ${pct}% to ${now} kg.`;
+  } else if (pct <= -1) {
+    fact = `Your ${lead.name} best single is ${Math.abs(pct)}% lower, at ${now} kg.`;
+  } else {
+    fact = `Your ${lead.name} best single is steady at ${now} kg.`;
   }
-
-  return null;
+  const note = `It was ${formatE1rm(lead.e1rmStart)} kg before. A best single is the most you could lift once, worked out from your sets.`;
+  return { id: 'best-single', icon: 'strength', fact, note, muscle: null };
 }
 
 function weekSoFarObservation(insight: WeeklyTrainingInsight): BriefObservation | null {
@@ -284,7 +251,7 @@ function todayKindObservation(insight: WeeklyTrainingInsight): BriefObservation 
 
 /** Builds up to three coach observations from the weekly training insight, in fixed rule order
  *  (today's own kind first when the day-kinds fields are present, then rested groups, streak,
- *  volume, and week-so-far as a filler), skipping any rule whose condition is not met. The coach
+ *  best single, and week-so-far as a filler), skipping any rule whose condition is not met. The coach
  *  never gives advice, so every sentence here is a plain fact about what happened, not a
  *  suggestion about what to do next. */
 export function dailyObservations(insight: WeeklyTrainingInsight, _now: Date, _timezone: string): BriefObservation[] {
@@ -313,9 +280,9 @@ export function dailyObservations(insight: WeeklyTrainingInsight, _now: Date, _t
     observations.push(streak);
   }
 
-  const volume = volumeObservation(insight);
-  if (volume) {
-    observations.push(volume);
+  const bestSingle = bestSingleObservation(insight);
+  if (bestSingle) {
+    observations.push(bestSingle);
   }
 
   if (observations.length < 3) {

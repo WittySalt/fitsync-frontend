@@ -1,6 +1,8 @@
 import { Component, computed, input, output } from '@angular/core';
 
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
+import { SegmentStripComponent } from './plan-flow/segments/segment-strip.component';
+import { sessionStripRows } from './segments/session-segments';
 import { doneSetCount, recordExercises, recordStats } from './session-record';
 
 /**
@@ -10,6 +12,7 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
  */
 @Component({
   selector: 'app-session-record',
+  imports: [SegmentStripComponent],
   template: `
     <dl class="stats" [style.--columns]="stats().length">
       @for (stat of stats(); track stat.label) {
@@ -35,6 +38,13 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
 
     @if (session().notes) {
       <p class="notes">{{ session().notes }}</p>
+    }
+
+    @if (segmentRows().length) {
+      <section class="segments" aria-label="Segments">
+        <h3 class="segments-title">Segments</h3>
+        <app-segment-strip [rows]="segmentRows()" />
+      </section>
     }
 
     @for (exercise of exercises(); track exercise.key) {
@@ -117,6 +127,7 @@ export class SessionRecordComponent {
 
   protected readonly stats = computed(() => recordStats(this.session()));
   protected readonly exercises = computed(() => recordExercises(this.session()));
+  protected readonly segmentRows = computed(() => sessionStripRows(this.session()));
   protected readonly doneSets = computed(() => doneSetCount(this.session()));
   protected readonly countable = computed(() => this.session().status === 'CANCELLED' && this.doneSets() > 0);
   protected readonly countLine = computed(() => {

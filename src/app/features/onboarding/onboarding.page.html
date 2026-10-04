@@ -563,4 +563,8 @@
       </div>
     </fieldset>
   </form>
+
+  @if (entryOpen()) {
+    <app-plan-entry-sheet (chosen)="handleEntryChosen($event)" (dismissed)="skipEntry()" />
+  }
 </div>

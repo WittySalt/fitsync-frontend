@@ -1,0 +1,27 @@
+<div #track class="track" role="group" aria-label="Shape of the session" [class.dragging]="dragging()">
+  @for (block of blocks(); track block.start; let i = $index) {
+    <div class="block" [attr.data-kind]="block.kind" [style.flex-grow]="block.minutes" [attr.title]="block.label + ' ' + block.minutes + ' min'">
+      {{ texts()[i] }}
+    </div>
+    @if (i < blocks().length - 1) {
+      <button
+        class="cut"
+        type="button"
+        role="slider"
+        aria-orientation="horizontal"
+        [attr.aria-label]="gripLabel(i)"
+        [attr.aria-valuemin]="1"
+        [attr.aria-valuemax]="total() - 1"
+        [attr.aria-valuenow]="block.minutes"
+        [attr.aria-valuetext]="block.minutes + ' minutes'"
+        (pointerdown)="start($event, i)"
+        (pointermove)="move($event)"
+        (pointerup)="end()"
+        (pointercancel)="end()"
+        (keydown)="nudge($event, i)"
+      >
+        <span class="grip" aria-hidden="true"></span>
+      </button>
+    }
+  }
+</div>

@@ -1,0 +1,41 @@
+<aside class="panel" [class.folded]="folded()" aria-label="This week">
+  <header class="head">
+    <div class="titles">
+      <span class="eyebrow">This week</span>
+      @if (folded()) {
+        <p class="short">{{ shortLine() }}</p>
+      }
+    </div>
+    @if (folded()) {
+      <button type="button" class="details" [attr.aria-expanded]="open()" (click)="open.set(!open())">{{ open() ? 'Hide' : 'Details' }}</button>
+    }
+  </header>
+
+  @if (showBody()) {
+    <dl class="figures">
+      <div><dd>{{ figures().strengthDays }}</dd><dt>Strength days</dt></div>
+      <div><dd>{{ figures().cardioDays }}</dd><dt>Cardio days</dt></div>
+      <div><dd>{{ figures().sportDays }}</dd><dt>Sport days</dt></div>
+      <div><dd>{{ figures().minutes }}</dd><dt>Minutes a week</dt></div>
+    </dl>
+
+    @if (sets(); as byGroup) {
+      <div class="figure">
+        <app-muscle-figure [setsByGroup]="byGroup" [height]="160" [interactive]="false" />
+        <ul class="key" aria-label="Hard sets a week">
+          @for (entry of key; track entry.level) {
+            <li><i [class]="'swatch ' + entry.level"></i>{{ entry.label }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (lines().length) {
+      <ul class="lines">
+        @for (line of lines(); track line) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    }
+  }
+</aside>

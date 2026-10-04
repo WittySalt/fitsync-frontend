@@ -1,0 +1,63 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.block {
+  display: grid;
+  gap: 10px;
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--pg-eyebrow);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--pg-eyebrow-tracking);
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 96px));
+  gap: 10px;
+}
+
+.tile {
+  height: 80px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--pg-control);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.tile:hover {
+  border-color: var(--border-strong);
+}
+
+.tile.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+.line {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+}
