@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 import { SportActivityOption } from '../../../core/fitsync.models';
-import { DraftDay, EffortLevel } from './plan-draft';
+import { DraftDay, DraftSegment, EffortLevel } from './plan-draft';
 import { EffortChipsComponent } from './effort-chips.component';
 import { HabitActivity } from './plan-week-proposal';
+import { PlanShapeComponent } from './segments/plan-shape.component';
 
 /** The nine sports the card offers when the catalogue lists none. */
 export const FALLBACK_SPORTS: SportActivityOption[] = [
@@ -32,7 +33,7 @@ export function sportHistoryLine(habit: HabitActivity | undefined): string {
 /** The sport day's card: the activity as a grid of tiles, the effort expected and what history says. */
 @Component({
   selector: 'app-plan-sport-card',
-  imports: [EffortChipsComponent],
+  imports: [EffortChipsComponent, PlanShapeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './sport-card.component.scss',
   template: `
@@ -48,6 +49,16 @@ export function sportHistoryLine(habit: HabitActivity | undefined): string {
         </div>
       </div>
       <div class="block">
+        <span class="eyebrow">Shape</span>
+        <app-plan-shape
+          [segments]="day().segments"
+          [dayMinutes]="day().minutes"
+          [play]="true"
+          (segmentsChange)="segmentsChange.emit($event)"
+          (minutesChange)="minutesChange.emit($event)"
+        />
+      </div>
+      <div class="block">
         <span class="eyebrow">Effort you expect</span>
         <app-plan-effort-chips [value]="day().effort" (choose)="patch.emit({ effort: $event })" />
       </div>
@@ -61,6 +72,8 @@ export class SportCardComponent {
   readonly sports = input<SportActivityOption[]>([]);
   readonly habits = input<HabitActivity[]>([]);
   readonly patch = output<Partial<DraftDay>>();
+  readonly segmentsChange = output<DraftSegment[]>();
+  readonly minutesChange = output<number>();
 
   protected readonly options = computed(() => (this.sports().length ? this.sports() : FALLBACK_SPORTS));
   protected readonly history = computed(() =>

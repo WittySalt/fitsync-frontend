@@ -6,6 +6,7 @@ import { ToastService } from '../../../core/toast/toast.service';
 import { DEFAULT_PROFILE, DraftMove, emptyPlan, emptyWeek } from './plan-draft';
 import { PlanFlowApi, PlanFlowContext } from './plan-flow.api';
 import { PlanFlowPage } from './plan-flow.page';
+import { defaultSegments } from './segments/segment-math';
 
 const move: DraftMove = {
   exerciseId: 'e1',
@@ -186,4 +187,26 @@ describe('PlanFlowPage', () => {
     expect(api.resolveTemplate).toHaveBeenCalled();
     expect(root().querySelector('app-plan-week-strip .tile .title')?.textContent).toBe('Full-body beginner');
   });
+
+  for (const width of [343, 540, 568, 600, 880, 1000]) {
+    it('keeps the whole page inside a ' + width + ' px column with a cardio day open', () => {
+      const week = emptyWeek().map((day) =>
+        day.dayOfWeek === 2
+          ? { ...day, kind: 'CARDIO' as const, title: 'Easy run', minutes: 45, targetKind: 'MINUTES' as const, targetValue: 45, location: 'TREADMILL' as const, effort: 'EASY' as const, segments: defaultSegments(45) }
+          : day
+      );
+      api.proposal.and.returnValue(of(week));
+      open({}, {}, width);
+      const host = root();
+      expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth);
+      const limit = host.getBoundingClientRect().right + 0.5;
+      const past = Array.from(host.querySelectorAll<HTMLElement>('*'))
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && box.right > limit && getComputedStyle(element).position !== 'absolute' && !element.closest('app-plan-week-strip .strip');
+        })
+        .map((element) => element.tagName.toLowerCase() + '.' + element.className);
+      expect(past).toEqual([]);
+    });
+  }
 });

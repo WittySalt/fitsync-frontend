@@ -37,23 +37,13 @@
   </div>
 
   <div class="block">
-    <div class="shape-head">
-      <span class="eyebrow">Shape</span>
-      <div class="intervals">
-        <button type="button" role="switch" class="switch" [class.on]="intervals()" [attr.aria-checked]="intervals()" (click)="toggleIntervals()">
-          <span class="knob"></span>
-          <span class="switch-text">Intervals</span>
-        </button>
-        @if (intervals()) {
-          <div class="stepper" role="group" aria-label="Rounds">
-            <button type="button" aria-label="One round fewer" [disabled]="rounds() <= 1" (click)="stepRounds(-1)">−</button>
-            <span aria-live="polite">{{ rounds() }} rounds</span>
-            <button type="button" aria-label="One round more" [disabled]="rounds() >= maxRounds" (click)="stepRounds(1)">+</button>
-          </div>
-        }
-      </div>
-    </div>
-    <app-segment-strip [segments]="day().segments" [editable]="true" (segmentsChange)="segmentsChange.emit($event)" />
+    <span class="eyebrow">Shape</span>
+    <app-plan-shape
+      [segments]="day().segments"
+      [dayMinutes]="day().minutes"
+      (segmentsChange)="segmentsChange.emit($event)"
+      (minutesChange)="minutesChange.emit($event)"
+    />
   </div>
 
   <div class="block">

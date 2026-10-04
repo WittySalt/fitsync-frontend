@@ -72,7 +72,7 @@ describe('plan mappers', () => {
 
   it('gives a sport day without segments the default shape', () => {
     const sport = draftFromRaw(raw)!.days[5];
-    expect(sport.segments.map((segment) => segment.minutes)).toEqual([5, 50, 5]);
+    expect(sport.segments.map((segment) => segment.minutes)).toEqual([10, 45, 5]);
   });
 
   it('reads the old exercises shape as moves', () => {

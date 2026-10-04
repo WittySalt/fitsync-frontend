@@ -18,13 +18,10 @@
 
 .bar {
   position: relative;
-  flex: 1 1 0;
-  min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-sunken);
   border: 1px solid var(--border);
   color: var(--text-primary);
@@ -34,8 +31,7 @@
   background: color-mix(in srgb, var(--kind-cardio) 30%, var(--surface));
 }
 
-.bar[data-kind='WORK'],
-.bar[data-kind='INTERVALS'] {
+.bar[data-kind='WORK'] {
   background: color-mix(in srgb, var(--kind-strength) 22%, var(--surface));
 }
 
@@ -55,67 +51,15 @@
   pointer-events: none;
 }
 
-.label,
-.type {
+.label {
   position: relative;
   max-width: 100%;
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
+  padding: 0 10px;
   font-size: var(--pg-chart);
-  font-weight: var(--fw-semibold);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
-}
-
-button.label {
-  height: 100%;
-  width: 100%;
-  cursor: pointer;
-}
-
-.type {
-  width: 56px;
-  height: 28px;
-  border: 1px solid var(--border-accent);
-  border-radius: 8px;
-  background: var(--surface);
-  text-align: center;
-}
-
-.handle {
-  flex: none;
-  width: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.handle span {
-  width: 4px;
-  height: 28px;
-  border-radius: 2px;
-  background: var(--text-muted);
-}
-
-.handle:hover span,
-.handle:focus-visible span {
-  background: var(--accent);
-}
-
-.handle:focus-visible,
-button.label:focus-visible {
-  outline: 2px solid var(--border-accent);
-  outline-offset: 2px;
 }
 
 .session .bars {
@@ -204,23 +148,4 @@ button.label:focus-visible {
 .times {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-}
-
-.under {
-  display: flex;
-  margin-top: 4px;
-  color: var(--text-secondary);
-  font-size: var(--pg-chart);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.under .cell {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.under .gap {
-  flex: none;
-  width: 16px;
 }

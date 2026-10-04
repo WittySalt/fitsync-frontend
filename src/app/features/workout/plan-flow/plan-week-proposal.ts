@@ -1,4 +1,5 @@
 import { DraftDay, emptyDay, emptyWeek, PlanProfile } from './plan-draft';
+import { sportSegments } from './segments/segment-list-math';
 import { defaultSegments } from './segments/segment-math';
 
 /** A sport the person already does on a fixed weekday, read from the weekly insight. */
@@ -122,7 +123,7 @@ export function proposeWeek(profile: PlanProfile, habits: readonly HabitActivity
       title: habit.label,
       minutes: length,
       sportActivity: habit.sportActivity,
-      segments: defaultSegments(length)
+      segments: sportSegments(length)
     };
     remaining -= 1;
   }

@@ -1,6 +1,7 @@
 import { CARDIO_PLACES, CardioPlace, DraftDay, DraftMove, DraftPlan, DraftSegment, effortFromValue, emptyDay, emptyWeek, FlowKind, PlanType, SEGMENT_LABELS, SegmentKind, TargetKind } from './plan-draft';
 import { CoverageGroup, CoverageNote, PlanCoverage } from './plan-coverage';
 import { derivePlanType } from './plan-summary';
+import { sportSegments } from './segments/segment-list-math';
 import { defaultSegments } from './segments/segment-math';
 
 type Raw = Record<string, unknown>;
@@ -113,7 +114,7 @@ function mapDay(rawDay: Raw): DraftDay | null {
     targetValue: num(rawDay['targetValue']),
     location: CARDIO_PLACES.includes(place) ? place : null,
     effort: effortFromValue(num(rawDay['effortTarget'])),
-    segments: withSegments ? (segments.length ? segments : minutes ? defaultSegments(minutes) : []) : [],
+    segments: withSegments ? (segments.length ? segments : minutes ? (kind === 'SPORT' ? sportSegments(minutes) : defaultSegments(minutes)) : []) : [],
     moves: withSegments ? [] : moves
   };
 }

@@ -43,7 +43,7 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
     @if (segmentRows().length) {
       <section class="segments" aria-label="Segments">
         <h3 class="segments-title">Segments</h3>
-        <app-segment-strip [rows]="segmentRows()" [editable]="false" />
+        <app-segment-strip [rows]="segmentRows()" />
       </section>
     }
 

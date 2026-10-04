@@ -23,7 +23,8 @@ import {
 import { DraftProblem, firstDayProblem, reviewProblem } from './plan-save';
 import { derivePlanType, shortWeekLine, suggestPlanName, weekFigures, weekSummaryLine } from './plan-summary';
 import { proposeWeek } from './plan-week-proposal';
-import { defaultSegments, resizeTotal } from './segments/segment-math';
+import { sportSegments } from './segments/segment-list-math';
+import { defaultSegments, resizeTotal, segmentTotal } from './segments/segment-math';
 
 export type FlowStatus = 'loading' | 'ready' | 'error';
 
@@ -159,7 +160,9 @@ export class PlanFlowStore {
   setMinutes(dayOfWeek: number, minutes: number | null): void {
     this.commit(
       replaceDay(this.days(), dayOfWeek, (day) => {
-        const resized = minutes && (day.kind === 'CARDIO' || day.kind === 'SPORT') ? resizeTotal(day.segments, minutes) : day.segments;
+        // The rows follow the duration only while they added up to it; a shape the person has shaped is left alone.
+        const inSync = segmentTotal(day.segments) === day.minutes;
+        const resized = minutes && inSync && (day.kind === 'CARDIO' || day.kind === 'SPORT') ? resizeTotal(day.segments, minutes) : day.segments;
         const follows = day.kind === 'CARDIO' && day.targetKind === 'MINUTES';
         return { ...day, minutes, segments: resized, targetValue: follows ? minutes : day.targetValue };
       })
@@ -193,7 +196,7 @@ export class PlanFlowStore {
     }
     fresh.title = typed ? current.title : this.defaultTitle(kind);
     if (kind === 'CARDIO' || kind === 'SPORT') {
-      fresh.segments = defaultSegments(minutes);
+      fresh.segments = kind === 'SPORT' ? sportSegments(minutes) : defaultSegments(minutes);
       fresh.effort = 'MODERATE';
     }
     if (kind === 'CARDIO') {

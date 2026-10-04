@@ -48,7 +48,7 @@ export function toBlocks(segments: readonly DraftSegment[]): SegmentBlock[] {
   for (let index = 0; index < segments.length; index += 1) {
     const current = segments[index];
     const next = segments[index + 1];
-    if (current.kind === 'WORK' && next?.kind === 'EASY' && current.rounds && current.rounds === next.rounds) {
+    if (current.rounds && next && current.rounds === next.rounds) {
       blocks.push({
         start: index,
         length: 2,
