@@ -9,6 +9,7 @@ import { PlanCoverage } from './plan-coverage';
 import { coverageFromRaw, draftFromRaw, proposalFromRaw } from './plan-flow.mappers';
 import { DEFAULT_PROFILE, DraftDay, DraftMove, DraftPlan, PlanProfile } from './plan-draft';
 import { HabitActivity, habitsFromInsight } from './plan-week-proposal';
+import { equipmentNames, levelName } from './plan-profile';
 import { buildSaveRequest } from './plan-save';
 import { TemplateDay } from './plan-flow.templates';
 import type { StarterTemplate } from '../../dashboard/brief/no-plan/first-sessions';
@@ -37,10 +38,10 @@ export function profileFromPreferences(preferences: AccountPreferences | null | 
     return { ...DEFAULT_PROFILE };
   }
   return {
-    fitnessLevel: (training.fitnessLevel || DEFAULT_PROFILE.fitnessLevel).toUpperCase(),
+    fitnessLevel: levelName(training.fitnessLevel || DEFAULT_PROFILE.fitnessLevel),
     weeklyWorkoutDays: training.weeklyWorkoutDays ?? DEFAULT_PROFILE.weeklyWorkoutDays,
     preferredDurationMinutes: training.preferredDurationMinutes ?? DEFAULT_PROFILE.preferredDurationMinutes,
-    equipment: (training.equipmentInventory ?? []).filter((item) => typeof item === 'string'),
+    equipment: equipmentNames(training.equipmentInventory ?? []),
     focusAreas: normalizeFocusAreas(training.focusAreas)
   };
 }

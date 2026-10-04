@@ -5,6 +5,7 @@
 
 .card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   padding: 16px 20px;
   border: 1px solid var(--border);

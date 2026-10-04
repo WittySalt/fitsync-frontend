@@ -9,6 +9,7 @@
 
 .editor {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   padding: 22px;
   border: 1px solid var(--border);
@@ -58,12 +59,13 @@ h2 {
 
 .fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 200px;
+  grid-template-columns: minmax(0, 1fr) 140px minmax(0, 200px);
   gap: 14px;
 }
 
 .field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
   font-size: var(--pg-control);
@@ -117,11 +119,15 @@ button:focus-visible {
 
 @container (max-width: 599px) {
   .fields {
-    grid-template-columns: 1fr 120px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .move {
-    grid-column: 1 / -1;
+  .minutes {
+    width: 120px;
+  }
+
+  .field select {
+    width: 100%;
   }
 
   .editor {

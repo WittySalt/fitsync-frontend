@@ -78,3 +78,25 @@ export function profileProblem(profile: PlanProfile): string | null {
   }
   return null;
 }
+
+const LEVEL_CODES: Record<string, string> = { '200001': 'BEGINNER', '200002': 'INTERMEDIATE', '200003': 'ADVANCED' };
+const EQUIPMENT_CODES: Record<string, string> = {
+  '230001': 'NONE',
+  '230002': 'DUMBBELLS',
+  '230003': 'BARBELL',
+  '230004': 'BANDS',
+  '230005': 'PULL_UP_BAR',
+  '230006': 'KETTLEBELL',
+  '230007': 'MACHINES',
+  '230008': 'FULL_GYM'
+};
+
+/** The server may send the numeric codes of a preference; the flow only ever holds the names. */
+export function levelName(value: string): string {
+  const key = value.trim();
+  return (LEVEL_CODES[key] ?? key).toUpperCase();
+}
+
+export function equipmentNames(values: readonly string[]): string[] {
+  return [...new Set(values.filter((item) => typeof item === 'string').map((item) => (EQUIPMENT_CODES[item.trim()] ?? item.trim()).toUpperCase()))];
+}

@@ -5,6 +5,7 @@ import { DEFAULT_PROFILE } from './plan-draft';
 import { profileFromPreferences } from './plan-flow.api';
 import { AccountPreferences } from '../../../core/account-data.service';
 import { weekFromTemplate } from './plan-flow.templates';
+import { proposeWeek } from './plan-week-proposal';
 
 describe('plan mappers', () => {
   const raw = {
@@ -129,6 +130,15 @@ describe('the profile', () => {
     expect(profileProblem(DEFAULT_PROFILE)).toBeNull();
     expect(profileProblem({ ...DEFAULT_PROFILE, weeklyWorkoutDays: 9 })).toContain('Days a week');
     expect(profileProblem({ ...DEFAULT_PROFILE, preferredDurationMinutes: 5 })).toContain('Minutes');
+  });
+
+  it('never shows a preference code: levels, equipment and focus areas are named, and the week sees cardio', () => {
+    const preferences = {
+      training: { fitnessLevel: '200002', trainingLocation: 'GYM', weeklyWorkoutDays: 5, preferredDurationMinutes: 45, preferredWorkoutTime: null, intensityPreference: 'HIGH', focusAreas: ['240001', '240006'], equipmentInventory: ['230002', '230003', '230008'] }
+    } as unknown as AccountPreferences;
+    const profile = profileFromPreferences(preferences);
+    expect(profileLine(profile)).toBe('Intermediate · 5 days a week · 45 min · dumbbells, barbell, full gym · strength and cardio');
+    expect(proposeWeek(profile).some((day) => day.kind === 'CARDIO')).toBeTrue();
   });
 
   it('reads the profile from the preferences, with defaults when there are none', () => {

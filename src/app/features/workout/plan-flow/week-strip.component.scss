@@ -8,6 +8,8 @@
 }
 
 .strip {
+  box-sizing: border-box;
+  width: 100%;
   display: flex;
   gap: 8px;
   padding: 3px;
