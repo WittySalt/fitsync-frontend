@@ -1,0 +1,45 @@
+<app-workout-modal [heading]="heading" [wide]="true" (dismissed)="dismissed.emit()">
+  <div class="rows">
+    <button type="button" class="row" [attr.aria-expanded]="templatesOpen()" (click)="templatesOpen.set(!templatesOpen())">
+      <span class="text">
+        <strong>Start from a template</strong>
+        <small>Pick a starter and edit the week it fills in.</small>
+      </span>
+      <svg class="chev" [class.open]="templatesOpen()" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </button>
+    @if (templatesOpen()) {
+      <ul class="templates" aria-label="Starter templates">
+        @for (template of templates; track template.id) {
+          <li>
+            <button type="button" (click)="pickTemplate(template.id)">
+              <strong>{{ template.name }}</strong>
+              <small>{{ template.description }}</small>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    <button type="button" class="row" (click)="askCoach()">
+      <span class="text">
+        <strong>Ask the coach to draft it</strong>
+        <small>The coach opens in Plan Studio with a draft you can change.</small>
+      </span>
+      <span class="ask">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4Z"></path></svg>
+        Ask
+      </span>
+    </button>
+
+    <button type="button" class="row" (click)="buildOwn()">
+      <span class="text">
+        <strong>Build my own</strong>
+        <small>Start from a week made for your profile.</small>
+      </span>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </button>
+  </div>
+  <div class="foot">
+    <button type="button" class="button secondary" (click)="dismissed.emit()">Not now</button>
+  </div>
+</app-workout-modal>

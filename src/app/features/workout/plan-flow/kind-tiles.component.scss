@@ -1,0 +1,57 @@
+@use './flow-kinds' as flow;
+
+@include flow.flow-kinds;
+
+:host {
+  display: block;
+  container-type: inline-size;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 120px));
+  gap: 10px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 96px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--k);
+  font: inherit;
+  font-size: var(--pg-control);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.tile span {
+  color: var(--text-primary);
+}
+
+.tile:hover {
+  border-color: var(--border-strong);
+}
+
+.tile.on {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+@container (max-width: 599px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

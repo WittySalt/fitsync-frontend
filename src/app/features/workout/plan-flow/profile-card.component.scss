@@ -1,0 +1,128 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.titles {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--pg-eyebrow);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--pg-eyebrow-tracking);
+  text-transform: uppercase;
+}
+
+.line {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--pg-text);
+  line-height: 1.4;
+}
+
+.change {
+  flex: none;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--pg-control);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--pg-control);
+}
+
+.field > span,
+.field legend {
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+  font-weight: var(--fw-semibold);
+}
+
+.wide,
+.problem,
+.actions {
+  grid-column: 1 / -1;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--pg-control);
+  cursor: pointer;
+}
+
+.chip.on {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  font-weight: var(--fw-semibold);
+}
+
+.problem {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--pg-control);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+@container (max-width: 599px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+}
+
+:host {
+  container-type: inline-size;
+}

@@ -1,0 +1,33 @@
+<div class="strip" role="group" aria-label="The week" [attr.data-band]="band()">
+  @for (day of days(); track day.dayOfWeek) {
+    <button
+      type="button"
+      class="tile"
+      [class.on]="day.dayOfWeek === selected()"
+      [class.rest]="day.kind === 'REST'"
+      [class.over]="over() === day.dayOfWeek && dragging() !== day.dayOfWeek"
+      [attr.data-kind]="day.kind"
+      [attr.aria-pressed]="day.dayOfWeek === selected()"
+      [attr.aria-label]="label(day)"
+      [attr.draggable]="canDrag ? 'true' : null"
+      (click)="pick.emit(day.dayOfWeek)"
+      (dragstart)="dragStart($event, day)"
+      (dragover)="dragOver($event, day)"
+      (drop)="drop($event, day)"
+      (dragend)="dragEnd()"
+    >
+      <span class="weekday">{{ band() === 'narrow' ? letters[day.dayOfWeek - 1] : short[day.dayOfWeek - 1] }}</span>
+      @if (day.kind === 'REST') {
+        <span class="dash" aria-hidden="true"></span>
+      } @else {
+        <app-plan-day-glyph [kind]="day.kind" [size]="band() === 'narrow' ? 18 : 22" />
+      }
+      @if (band() === 'wide') {
+        <span class="title">{{ title(day) }}</span>
+      }
+      @if (band() !== 'narrow') {
+        <span class="minutes">{{ duration(day) }}</span>
+      }
+    </button>
+  }
+</div>

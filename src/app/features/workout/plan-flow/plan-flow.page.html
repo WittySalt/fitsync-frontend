@@ -1,0 +1,113 @@
+<div class="flow" [attr.data-band]="band()">
+  <header class="head">
+    <div class="titles">
+      <span class="eyebrow">{{ store.editing() ? 'Edit plan' : 'New plan' }}</span>
+      <h1>{{ store.step() === 1 ? 'Build the week' : 'Review and save' }}</h1>
+    </div>
+    <ol class="steps" aria-label="Steps">
+      <li [class.current]="store.step() === 1" [class.done]="store.step() > 1" [attr.aria-current]="store.step() === 1 ? 'step' : null">
+        @if (store.step() > 1) {
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        }
+        1 Build
+      </li>
+      <li class="sep" aria-hidden="true">·</li>
+      <li [class.current]="store.step() === 2" [attr.aria-current]="store.step() === 2 ? 'step' : null">2 Save</li>
+    </ol>
+    <button type="button" class="cancel" (click)="cancel()">Cancel</button>
+  </header>
+
+  @if (discarding()) {
+    <div class="notice" role="alertdialog" aria-label="Discard this plan?">
+      <span>Discard this plan?</span>
+      <div class="notice-actions">
+        <button type="button" class="button secondary" (click)="discarding.set(false)">Keep editing</button>
+        <button type="button" class="button discard" (click)="leave()">Discard</button>
+      </div>
+    </div>
+  }
+
+  @switch (store.status()) {
+    @case ('loading') {
+      <div class="skeleton" aria-busy="true" aria-label="Loading the plan"></div>
+    }
+    @case ('error') {
+      <app-state-panel
+        title="The plan did not load"
+        message="Something went wrong while opening the plan flow."
+        [error]="true"
+        actionLabel="Retry"
+        (action)="load()"
+      />
+    }
+    @default {
+      @if (store.step() === 1) {
+        <app-plan-profile-card
+          [profile]="store.profile()"
+          [saving]="store.profileSaving()"
+          [error]="store.profileError()"
+          (save)="store.saveProfile($event)"
+        />
+
+        <app-plan-week-strip
+          [days]="store.days()"
+          [selected]="store.selectedDay()"
+          (pick)="store.select($event)"
+          (move)="store.moveDay($event.from, $event.to)"
+        />
+
+        <div class="work">
+          <app-plan-day-editor
+            [day]="store.day()"
+            [kindsOpen]="store.kindsOpen()"
+            [sports]="store.sports()"
+            [habits]="store.context()?.habits ?? []"
+            [lastCardio]="store.context()?.lastCardio ?? null"
+            [problem]="store.problem()?.dayOfWeek === store.selectedDay() ? store.problem()?.message ?? null : null"
+            (toggleKinds)="store.kindsOpen.set(!store.kindsOpen())"
+            (kindChosen)="store.setKind(store.selectedDay(), $event)"
+            (patch)="store.updateDay(store.selectedDay(), $event)"
+            (minutesChange)="store.setMinutes(store.selectedDay(), $event)"
+            (segmentsChange)="store.setSegments(store.selectedDay(), $event)"
+            (movesChange)="setMoves($event)"
+            (moveTo)="store.moveDay(store.selectedDay(), $event)"
+          />
+          <app-plan-week-panel
+            [figures]="store.figures()"
+            [shortLine]="store.shortLine()"
+            [lines]="store.lines()"
+            [coverage]="store.coverage()"
+            [folded]="band() !== 'wide'"
+          />
+        </div>
+
+        <footer class="foot">
+          <p class="summary">{{ store.summaryLine() }}</p>
+          @if (store.problem(); as problem) {
+            @if (problem.dayOfWeek === null) {
+              <p class="problem" role="alert">{{ problem.message }}</p>
+            }
+          }
+          <button type="button" class="button primary" (click)="store.goReview()">Continue</button>
+        </footer>
+      } @else {
+        <app-plan-review-step
+          [plan]="store.plan()"
+          [figures]="store.figures()"
+          [makeCurrent]="store.makeCurrent()"
+          [currentPlanName]="store.context()?.currentPlanName ?? null"
+          [message]="store.reviewMessage()"
+          [saveError]="store.saveError()"
+          [saving]="store.saving()"
+          [editing]="store.editing()"
+          (nameChange)="store.setName($event)"
+          (typeChange)="store.setPlanType($event)"
+          (descriptionChange)="store.setDescription($event)"
+          (makeCurrentChange)="store.makeCurrent.set($event)"
+          (back)="store.goBuild()"
+          (save)="save()"
+        />
+      }
+    }
+  }
+</div>

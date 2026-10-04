@@ -31,6 +31,18 @@ export const routes: Routes = [
     title: 'FitSync Workout'
   },
   {
+    path: 'workout/plans/new',
+    loadComponent: () => import('./features/workout/plan-flow/plan-flow.page').then((module) => module.PlanFlowPage),
+    canActivate: [authGuard],
+    title: 'FitSync New plan'
+  },
+  {
+    path: 'workout/plans/:id/edit',
+    loadComponent: () => import('./features/workout/plan-flow/plan-flow.page').then((module) => module.PlanFlowPage),
+    canActivate: [authGuard],
+    title: 'FitSync Edit plan'
+  },
+  {
     path: 'workout/sessions/:sessionId',
     loadComponent: () => import('./features/workout/session.page').then((module) => module.SessionPage),
     canActivate: [authGuard],

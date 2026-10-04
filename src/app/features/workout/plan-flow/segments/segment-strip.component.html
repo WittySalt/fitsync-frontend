@@ -1,0 +1,49 @@
+<div #track class="strip" role="group" aria-label="Shape of the session" [class.editable]="editable()">
+  @for (block of blocks(); track block.start; let i = $index) {
+    <div
+      class="bar"
+      [class.current]="current() === i"
+      [attr.data-kind]="block.kind"
+      [style.flex-grow]="block.minutes"
+    >
+      <span class="fill" [style.width.%]="fills()[i]"></span>
+      @if (editing() === i) {
+        <input
+          class="type"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          [attr.aria-label]="'Minutes for ' + block.label"
+          [value]="block.minutes"
+          (keydown.enter)="commit(i, $any($event.target).value)"
+          (keydown.escape)="editing.set(null)"
+          (blur)="commit(i, $any($event.target).value)"
+        />
+      } @else if (editable()) {
+        <button class="label" type="button" [attr.aria-label]="caption(i) + ' minutes. Double tap to type.'" (click)="tap(i)">{{ caption(i) }}</button>
+      } @else {
+        <span class="label">{{ caption(i) }}</span>
+      }
+    </div>
+    @if (editable() && i < blocks().length - 1) {
+      <button
+        class="handle"
+        type="button"
+        role="slider"
+        aria-orientation="horizontal"
+        [attr.aria-label]="handleLabel(i)"
+        [attr.aria-valuemin]="1"
+        [attr.aria-valuemax]="total() - 1"
+        [attr.aria-valuenow]="block.minutes"
+        [attr.aria-valuetext]="block.minutes + ' minutes'"
+        (pointerdown)="startDrag($event, i)"
+        (pointermove)="moveDrag($event)"
+        (pointerup)="endDrag()"
+        (pointercancel)="endDrag()"
+        (keydown)="nudge($event, i)"
+      >
+        <span aria-hidden="true"></span>
+      </button>
+    }
+  }
+</div>
