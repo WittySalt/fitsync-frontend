@@ -117,6 +117,7 @@ describe('LiveStartCardComponent', () => {
   });
 
   it('reveals a custom name input and submits its typed value', () => {
+    component.freeOpen.set(true);
     component.startForm.patchValue({ name: 'Custom…', customName: 'Track intervals', workoutType: 'CARDIO' });
     fixture.detectChanges();
 
@@ -128,16 +129,62 @@ describe('LiveStartCardComponent', () => {
     expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Track intervals', workoutType: 'CARDIO' });
   });
 
-  it('keeps the past workout form nested and collapsed until expanded', () => {
-    const compiled = fixture.nativeElement as HTMLElement;
+  describe('the quiet row', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const links = () => Array.from(root().querySelectorAll<HTMLButtonElement>('.quick-row .quiet-link'));
 
-    expect(compiled.querySelector('#past-workout-form')).toBeNull();
+    it('is one row of two links, with no form and no heading on the page', () => {
+      expect(links().map((link) => link.textContent?.trim())).toEqual(['Free workout ›', 'Log a past workout ›']);
+      expect(root().querySelector('.start-form')).toBeNull();
+      expect(root().querySelector('#past-workout-form')).toBeNull();
+      expect(root().textContent).not.toContain('Quick start');
+      expect(root().querySelector('select')).toBeNull();
+    });
 
-    compiled.querySelector<HTMLButtonElement>('.past-workout-disclosure .button')?.click();
-    fixture.detectChanges();
+    it('opens the name and type on the sheet behind Free workout, and closes it on start', () => {
+      links()[0].click();
+      fixture.detectChanges();
+      expect(root().querySelector('[role="dialog"] h2')?.textContent).toBe('Free workout');
+      expect(root().querySelector('select[formcontrolname="name"]')).not.toBeNull();
+      expect(root().querySelector('select[formcontrolname="workoutType"]')).not.toBeNull();
 
-    expect(component.pastWorkoutOpen()).toBeTrue();
-    expect(compiled.querySelector('#past-workout-form')).not.toBeNull();
+      component.startWorkout();
+      fixture.detectChanges();
+      expect(component.freeOpen()).toBeFalse();
+      expect(root().querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    it('opens the past workout form behind Log a past workout and keeps one sheet open at a time', () => {
+      links()[1].click();
+      fixture.detectChanges();
+      expect(component.pastWorkoutOpen()).toBeTrue();
+      expect(root().querySelector('#past-workout-form')).not.toBeNull();
+      expect(links()[1].getAttribute('aria-expanded')).toBe('true');
+
+      links()[0].click();
+      fixture.detectChanges();
+      expect(component.pastWorkoutOpen()).toBeFalse();
+      expect(component.freeOpen()).toBeTrue();
+    });
+
+    it('closes a sheet with Close, the scrim and Escape', () => {
+      links()[0].click();
+      fixture.detectChanges();
+      root().querySelector<HTMLButtonElement>('.sheet-top .quiet-link')!.click();
+      fixture.detectChanges();
+      expect(component.freeOpen()).toBeFalse();
+
+      links()[1].click();
+      fixture.detectChanges();
+      root().querySelector<HTMLButtonElement>('.scrim')!.click();
+      fixture.detectChanges();
+      expect(component.pastWorkoutOpen()).toBeFalse();
+
+      links()[0].click();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.freeOpen()).toBeFalse();
+    });
   });
 
   it('submits the nested past workout form through saveWorkoutSession', () => {

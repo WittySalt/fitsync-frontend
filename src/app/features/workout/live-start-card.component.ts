@@ -21,7 +21,8 @@ type SessionNameValue = { name: string; customName: string };
   selector: 'app-live-start-card',
   imports: [ReactiveFormsModule],
   templateUrl: './live-start-card.component.html',
-  styleUrl: './live-start-card.component.scss'
+  styleUrl: './live-start-card.component.scss',
+  host: { '(document:keydown.escape)': 'closeSheets()' }
 })
 export class LiveStartCardComponent {
   private readonly fb = inject(FormBuilder);
@@ -33,6 +34,7 @@ export class LiveStartCardComponent {
   @Output() backfilled = new EventEmitter<void>();
 
   readonly startMode = signal<StartMode>('FREE');
+  readonly freeOpen = signal(false);
   readonly pastWorkoutOpen = signal(false);
   readonly starting = signal(false);
   readonly savingPastWorkout = signal(false);
@@ -113,8 +115,20 @@ export class LiveStartCardComponent {
     this.startMode.set(mode);
   }
 
+  /** The free workout sheet asks for the name and the type; the Workout page itself does not. */
+  openFree(): void {
+    this.pastWorkoutOpen.set(false);
+    this.freeOpen.set(true);
+  }
+
   togglePastWorkout(): void {
+    this.freeOpen.set(false);
     this.pastWorkoutOpen.update((open) => !open);
+  }
+
+  closeSheets(): void {
+    this.freeOpen.set(false);
+    this.pastWorkoutOpen.set(false);
   }
 
   startWorkout(): void {
@@ -132,6 +146,7 @@ export class LiveStartCardComponent {
       .pipe(finalize(() => this.starting.set(false)))
       .subscribe({
         next: (session) => {
+          this.freeOpen.set(false);
           this.toast.success('Workout started.');
           this.started.emit({ session, goal: this.buildGoal() });
         },

@@ -1,11 +1,19 @@
-<article class="live-start-card summary-card" aria-label="Start a workout">
-  <div class="section-title">
-    <div>
-      <span class="card-label">Start training</span>
-      <h2>Quick start</h2>
-      <p class="rail-sub">No plan needed — train freestyle or against a target.</p>
-    </div>
-  </div>
+<div class="quick-row" role="group" aria-label="Start a workout without a plan">
+  <button type="button" class="quiet-link" aria-haspopup="dialog" (click)="openFree()">Free workout &rsaquo;</button>
+  <button type="button" class="quiet-link" aria-haspopup="dialog" aria-controls="past-workout-form" [attr.aria-expanded]="pastWorkoutOpen()" (click)="togglePastWorkout()">Log a past workout &rsaquo;</button>
+</div>
+
+@if (freeOpen()) {
+  <div class="sheet-host">
+    <button type="button" class="scrim" tabindex="-1" aria-hidden="true" (click)="closeSheets()"></button>
+    <article class="sheet live-start-card" role="dialog" aria-modal="true" aria-labelledby="free-workout-title">
+      <header class="sheet-top">
+        <div>
+          <span class="card-label">Start training</span>
+          <h2 id="free-workout-title">Free workout</h2>
+        </div>
+        <button type="button" class="quiet-link" (click)="closeSheets()">Close</button>
+      </header>
 
   <fieldset class="mode-switch segmented" aria-label="Live workout mode">
     <button type="button" [class.active]="startMode() === 'FREE'" [attr.aria-pressed]="startMode() === 'FREE'" (click)="selectMode('FREE')">
@@ -76,20 +84,22 @@
     </button>
   </form>
 
-  <div class="past-workout-disclosure">
-    <button
-      class="button secondary"
-      type="button"
-      aria-controls="past-workout-form"
-      [attr.aria-expanded]="pastWorkoutOpen()"
-      (click)="togglePastWorkout()"
-    >
-      {{ pastWorkoutOpen() ? 'Hide past workout form' : 'Log a past workout' }}
-    </button>
-    <p>Add a completed session you did without live tracking, such as a run.</p>
+    </article>
   </div>
+}
 
-  @if (pastWorkoutOpen()) {
+@if (pastWorkoutOpen()) {
+  <div class="sheet-host">
+    <button type="button" class="scrim" tabindex="-1" aria-hidden="true" (click)="closeSheets()"></button>
+    <article class="sheet live-start-card" role="dialog" aria-modal="true" aria-labelledby="past-workout-title">
+      <header class="sheet-top">
+        <div>
+          <span class="card-label">Already done</span>
+          <h2 id="past-workout-title">Log a past workout</h2>
+          <p class="rail-sub">Add a completed session you did without live tracking, such as a run.</p>
+        </div>
+        <button type="button" class="quiet-link" (click)="closeSheets()">Close</button>
+      </header>
     <form id="past-workout-form" class="past-workout-form" [formGroup]="pastWorkoutForm" (ngSubmit)="savePastWorkout()">
       @if (!isSportSession()) {
         <label>
@@ -166,5 +176,6 @@
         {{ savingPastWorkout() ? 'Saving...' : 'Save past workout' }}
       </button>
     </form>
-  }
-</article>
+    </article>
+  </div>
+}
