@@ -1562,6 +1562,27 @@ describe('FitSyncDataService', () => {
     expect(result?.volume.thisWeekKg).toBe(3846);
   });
 
+  it('keeps the lifts of the weekly insight and tolerates a response without them or with bad rows', () => {
+    const results: WeeklyTrainingInsight[] = [];
+    service.getWeeklyTrainingInsight().subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({
+      lifts: [
+        { exerciseId: 'e1', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 },
+        { exerciseId: 'e2', name: 'Row', e1rmStart: 'x', e1rmNow: 50 },
+        { exerciseId: 'e3', e1rmStart: 10, e1rmNow: 12 },
+        null
+      ]
+    });
+    service.getWeeklyTrainingInsight().subscribe((value) => results.push(value));
+    httpTesting.expectOne((req) => req.url === '/api/v1/workouts/insights/weekly').flush({});
+
+    expect(results[0].lifts).toEqual([
+      { exerciseId: 'e1', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 },
+      { exerciseId: 'e2', name: 'Row', e1rmStart: 0, e1rmNow: 50, changePct: null }
+    ]);
+    expect(results[1].lifts).toEqual([]);
+  });
+
   it('omits the date param from the weekly training insight request when none is given', () => {
     service.getWeeklyTrainingInsight().subscribe();
 

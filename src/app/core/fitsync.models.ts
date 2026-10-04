@@ -651,6 +651,16 @@ export interface WeeklyVolume {
   previousWeekSameDaysSessionsWithVolume?: number;
 }
 
+/** A lift whose estimated best single (e1RM) moved over the period the weekly insight reads. */
+export interface WeeklyLiftChange {
+  exerciseId: string;
+  name: string;
+  e1rmStart: number;
+  e1rmNow: number;
+  /** Whole percent, from the server; absent on a response from before it. */
+  changePct?: number | null;
+}
+
 export interface WeeklyTrainingInsight {
   timezone: string;
   referenceDate: string;
@@ -674,6 +684,8 @@ export interface WeeklyTrainingInsight {
   /** Last week up to the same weekday: sessions and minutes. Absent on a backend from before it. */
   previousWeekSameDaysCompletedSessions?: number;
   previousWeekSameDaysTotalMinutes?: number;
+  /** The lifts whose estimated best single moved; absent on a backend from before the field. */
+  lifts?: WeeklyLiftChange[];
 }
 
 /** The four kinds of training day, plus the two states a day can be in without one. */

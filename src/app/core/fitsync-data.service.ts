@@ -90,6 +90,7 @@ import {
   MonthWeekInsight,
   MonthlyTrainingInsight,
   UpdateExerciseRequest,
+  WeeklyLiftChange,
   WeeklyTrainingInsight,
   WeightSeriesPoint,
   UsualMeal
@@ -177,6 +178,21 @@ function numberOrNull(value: unknown): number | null {
 const MUSCLE_GROUP_CODES: MuscleGroupCode[] = [
   'FULL_BODY', 'CHEST', 'BACK', 'SHOULDERS', 'ARMS', 'CORE', 'GLUTES', 'LEGS', 'CARDIO'
 ];
+
+function mapWeeklyLifts(lifts: unknown): WeeklyLiftChange[] {
+  if (!Array.isArray(lifts)) {
+    return [];
+  }
+  return lifts
+    .map((lift: Partial<WeeklyLiftChange> | null) => ({
+      exerciseId: String(lift?.exerciseId ?? ''),
+      name: String(lift?.name ?? ''),
+      e1rmStart: safeInsightNumber(lift?.e1rmStart),
+      e1rmNow: safeInsightNumber(lift?.e1rmNow),
+      changePct: typeof lift?.changePct === 'number' && Number.isFinite(lift.changePct) ? lift.changePct : null
+    }))
+    .filter((lift) => lift.name !== '');
+}
 
 /** Coerces a backend count/measurement to a finite number, defaulting missing or invalid values
  *  to zero rather than letting NaN or null leak into the coach's arithmetic. */
@@ -1154,7 +1170,8 @@ export class FitSyncDataService {
           nextTraining: mapNextTraining(response.nextTraining),
           usualStartTime: mapUsualStartTime(response.usualStartTime),
           previousWeekSameDaysCompletedSessions: safeInsightNumber(response.previousWeekSameDaysCompletedSessions),
-          previousWeekSameDaysTotalMinutes: safeInsightNumber(response.previousWeekSameDaysTotalMinutes)
+          previousWeekSameDaysTotalMinutes: safeInsightNumber(response.previousWeekSameDaysTotalMinutes),
+          lifts: mapWeeklyLifts(response.lifts)
         }))
       );
   }

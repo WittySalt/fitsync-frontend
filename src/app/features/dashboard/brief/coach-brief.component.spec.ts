@@ -90,6 +90,7 @@ const weeklyInsight: WeeklyTrainingInsight = {
     group('CARDIO', 2, false, '2026-09-26', 1)
   ],
   volume: { thisWeekKg: 3846, previousWeekKg: 1716, weekBeforePreviousKg: 1716, thisWeekSessionsWithVolume: 2, previousWeekSessionsWithVolume: 1, previousWeekSameDaysKg: 1716, previousWeekSameDaysSessionsWithVolume: 1 },
+  lifts: [{ exerciseId: 'bench', name: 'Dumbbell Bench Press', e1rmStart: 20, e1rmNow: 22.5, changePct: 13 }],
   days: null,
   today: null,
   nextTraining: null
@@ -373,7 +374,7 @@ describe('CoachBriefComponent', () => {
     expect(facts).toEqual([
       'Chest, back and legs have had two days off.',
       'Your core has worked eight sessions running.',
-      'You have lifted 2.2 times as much as by this point last week.'
+      'Your Dumbbell Bench Press best single rose 13% to 22.5 kg.'
     ]);
   });
 
