@@ -178,7 +178,7 @@ describe('LiveTrackerComponent', () => {
 
     it('shows the strip and the line above the clock', fakeAsync(() => {
       startSegmented();
-      expect(fixture.nativeElement.querySelector('app-segment-strip-view')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('app-segment-strip')).not.toBeNull();
       expect(text()).toContain('Warm-up · 0:05 left · Next: Steady 0:20');
       tick(1000);
       fixture.detectChanges();
@@ -240,7 +240,7 @@ describe('LiveTrackerComponent', () => {
       fixture.componentInstance.terminate();
       fixture.detectChanges();
       expect(completed).not.toHaveBeenCalled();
-      expect(fixture.nativeElement.querySelector('app-workout-celebration app-segment-strip-view')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('app-workout-celebration app-segment-strip')).not.toBeNull();
       fixture.componentInstance.continueAfterFinish();
       expect(completed).toHaveBeenCalledTimes(1);
       tick(2000);
@@ -248,7 +248,7 @@ describe('LiveTrackerComponent', () => {
 
     it('shows nothing new for a session without segments', fakeAsync(() => {
       startTracker();
-      expect(fixture.nativeElement.querySelector('app-segment-strip-view')).toBeNull();
+      expect(fixture.nativeElement.querySelector('app-segment-strip')).toBeNull();
       expect(fixture.nativeElement.querySelector('.segments')).toBeNull();
       fixture.componentInstance.terminate();
       tick(1000);

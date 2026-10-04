@@ -57,7 +57,7 @@
         <app-plan-sport-card [day]="day()" [sports]="sports()" [habits]="habits()" (patch)="patch.emit($event)" />
       }
       @default {
-        <app-plan-moves-table [entries]="day().moves" (entriesChange)="movesChange.emit($event)" />
+        <app-plan-moves-table [entries]="rows()" [timeBasedDefault]="day().kind === 'MOBILITY'" (entriesChange)="setRows($event)" />
       }
     }
   }

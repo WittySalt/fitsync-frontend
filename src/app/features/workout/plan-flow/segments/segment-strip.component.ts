@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, input, output, signal, viewChild } from '@angular/core';
 
+import { StripRow } from '../../segments/segment-timer';
+import { hostWidth } from '../../../progress/cards/host-width';
 import { DraftSegment } from '../plan-draft';
-import { blockCaption, dragBoundary, segmentTotal, setBlockMinutes, toBlocks } from './segment-math';
+import { blockCaption, dragBoundary, MAX_LABELLED_BARS, segmentTotal, sessionBars, setBlockMinutes, stripBand, toBlocks } from './segment-math';
 
 /** The width of a drag handle in pixels, which the pointer maths leaves out of the track. */
 const HANDLE_PX = 16;
@@ -10,8 +12,9 @@ const DOUBLE_TAP_MS = 350;
 /**
  * The shape of a cardio or sport session as proportional bars. Editable, the boundaries between
  * bars are drag handles (arrow keys move one minute) and a double tap on a label types its
- * minutes. Read-only it is the picture the live timer and the history page reuse, with the
- * current bar lit and the elapsed minutes filled in.
+ * minutes. Read-only it draws a plan day (`segments`, with `elapsedMinutes` filled across the bars)
+ * or a session (`rows`: planned against actual, the running bar lit and `elapsedSeconds` filled
+ * in it), which the live timer, the completion dialog and the session record reuse.
  */
 @Component({
   selector: 'app-segment-strip',
@@ -20,18 +23,35 @@ const DOUBLE_TAP_MS = 350;
   styleUrl: './segment-strip.component.scss'
 })
 export class SegmentStripComponent {
-  readonly segments = input.required<DraftSegment[]>();
+  readonly segments = input<DraftSegment[]>([]);
+  /** A session's segments with their actual times. When given, the strip draws them read-only. */
+  readonly rows = input<readonly StripRow[]>([]);
   readonly editable = input(false);
   /** Index of the lit bar, for a session in progress. */
   readonly current = input<number | null>(null);
   /** Minutes already done, drawn as a fill across the bars. */
   readonly elapsedMinutes = input(0);
+  /** Seconds spent in the running bar of `rows`. */
+  readonly elapsedSeconds = input(0);
   readonly segmentsChange = output<DraftSegment[]>();
 
   private readonly track = viewChild<ElementRef<HTMLElement>>('track');
   protected readonly editing = signal<number | null>(null);
   private lastTap: { index: number; at: number } | null = null;
   private drag: { index: number; startX: number; start: DraftSegment[] } | null = null;
+
+  private readonly width = hostWidth(700);
+  protected readonly sessionMode = computed(() => this.rows().length > 0);
+  protected readonly layout = computed(() => {
+    const band = stripBand(this.width());
+    return band !== 'narrow' && this.rows().length > MAX_LABELLED_BARS ? 'list' : band;
+  });
+  protected readonly bars = computed(() => sessionBars(this.rows(), this.current(), this.elapsedSeconds()));
+  protected readonly summary = computed(() =>
+    this.bars()
+      .map((bar) => `${bar.label} ${bar.times}`)
+      .join(', ')
+  );
 
   protected readonly blocks = computed(() => toBlocks(this.segments()));
   protected readonly total = computed(() => segmentTotal(this.segments()));

@@ -117,3 +117,91 @@ button.label:focus-visible {
   outline: 2px solid var(--border-accent);
   outline-offset: 2px;
 }
+
+.session .bars {
+  display: flex;
+  gap: 3px;
+  height: 36px;
+}
+
+.session.narrow .bars,
+.session.list .bars {
+  height: 16px;
+}
+
+.session .bar {
+  flex: 1 1 0;
+  min-width: 4px;
+  justify-content: flex-start;
+  border-radius: 8px;
+}
+
+.session .bar.skipped {
+  background: var(--surface-sunken);
+  opacity: 0.7;
+}
+
+.session .label {
+  padding: 0 10px;
+  font-weight: 400;
+}
+
+.names {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: var(--pg-chart);
+}
+
+.names span {
+  flex-basis: 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--pg-chart);
+}
+
+.list li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.list li.current {
+  font-weight: var(--fw-semibold);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+}
+
+.dot[data-kind='STEADY'] {
+  background: var(--kind-cardio);
+}
+
+.dot[data-kind='WORK'] {
+  background: var(--kind-strength);
+}
+
+.dot[data-kind='EASY'] {
+  background: var(--kind-mobility);
+}
+
+.times {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

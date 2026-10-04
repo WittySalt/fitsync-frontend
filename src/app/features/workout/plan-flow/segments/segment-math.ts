@@ -1,3 +1,4 @@
+import { StripRow } from '../../segments/segment-timer';
 import { DraftSegment, SEGMENT_LABELS, SegmentKind } from '../plan-draft';
 
 /**
@@ -253,4 +254,58 @@ export function blockCaption(block: SegmentBlock): string {
     return `${block.rounds} × (${block.work} + ${block.easy})`;
   }
   return `${block.label} ${block.minutes}`;
+}
+
+export type StripBand = 'wide' | 'medium' | 'narrow';
+
+/** The strip's own width decides its arrangement: wide from 900, medium from 600, narrow below. */
+export function stripBand(width: number): StripBand {
+  return width >= 900 ? 'wide' : width >= 600 ? 'medium' : 'narrow';
+}
+
+/** More bars than this cannot carry text, so the labels go to a list under the bars. */
+export const MAX_LABELLED_BARS = 8;
+
+export function stripClock(seconds: number): string {
+  const whole = Math.max(0, Math.round(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+export interface SessionBar {
+  label: string;
+  kind: SegmentKind;
+  status: StripRow['status'];
+  plannedSeconds: number;
+  current: boolean;
+  fill: number;
+  times: string;
+}
+
+function sessionTimes(row: StripRow, current: boolean, elapsedSeconds: number): string {
+  const planned = stripClock(row.plannedSeconds);
+  if (row.status === 'SKIPPED') {
+    return `skipped at ${stripClock(row.actualSeconds ?? 0)} of ${planned}`;
+  }
+  if (row.status === 'DONE' && row.actualSeconds != null) {
+    return `${stripClock(row.actualSeconds)} of ${planned}`;
+  }
+  return current ? `${stripClock(elapsedSeconds)} of ${planned}` : planned;
+}
+
+/** The bars of a session: the running one fills with the seconds spent in it, a done one is full. */
+export function sessionBars(rows: readonly StripRow[], current: number | null, elapsedSeconds: number): SessionBar[] {
+  return rows.map((row, index) => {
+    const running = index === current;
+    const planned = Math.max(1, row.plannedSeconds);
+    const fill = row.status === 'DONE' ? 100 : running ? Math.min(100, (elapsedSeconds / planned) * 100) : 0;
+    return {
+      label: row.label,
+      kind: row.kind,
+      status: row.status,
+      plannedSeconds: planned,
+      current: running,
+      fill,
+      times: sessionTimes(row, running, elapsedSeconds)
+    };
+  });
 }

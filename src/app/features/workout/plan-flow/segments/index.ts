@@ -14,3 +14,5 @@ export {
 } from './segment-math';
 export type { SegmentBlock } from './segment-math';
 export type { DraftSegment, SegmentKind } from '../plan-draft';
+export { MAX_LABELLED_BARS, sessionBars, stripBand, stripClock } from './segment-math';
+export type { SessionBar, StripBand } from './segment-math';

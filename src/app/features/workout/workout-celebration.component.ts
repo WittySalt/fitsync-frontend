@@ -6,7 +6,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutNewRecord, WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { EffortBarsComponent } from './effort-bars.component';
-import { SegmentStripViewComponent } from './plan-editor/segments/segment-strip-view.component';
+import { SegmentStripComponent } from './plan-flow/segments/segment-strip.component';
 import { sessionStripRows } from './segments/session-segments';
 
 export interface WorkoutCelebrationSummary {
@@ -65,7 +65,7 @@ export function badgeItems(achievements: readonly AnalyticsAchievement[], since:
  */
 @Component({
   selector: 'app-workout-celebration',
-  imports: [EffortBarsComponent, SegmentStripViewComponent],
+  imports: [EffortBarsComponent, SegmentStripComponent],
   templateUrl: './workout-celebration.component.html',
   styleUrl: './workout-celebration.component.scss'
 })

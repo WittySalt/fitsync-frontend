@@ -13,7 +13,7 @@
 
   @if (timer(); as segmentTimer) {
     <section class="segments" aria-label="Segments">
-      <app-segment-strip-view [segments]="stripRows()" [current]="segmentTimer.current >= 0 ? segmentTimer.current : null"
+      <app-segment-strip [rows]="stripRows()" [editable]="false" [current]="segmentTimer.current >= 0 ? segmentTimer.current : null"
         [elapsedSeconds]="stripElapsed()" />
       <p class="segment-line">{{ segmentLine() }}</p>
       @if (cue(); as figure) {

@@ -4,7 +4,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { LiveTrackerGoal } from './live-tracker.models';
-import { SegmentStripViewComponent } from './plan-editor/segments/segment-strip-view.component';
+import { SegmentStripComponent } from './plan-flow/segments/segment-strip.component';
 import { PlayerRingComponent } from './player-ring.component';
 import { SegmentWriteQueue } from './segments/segment-queue';
 import {
@@ -24,7 +24,7 @@ import { WorkoutLiveService } from './workout-live.service';
 
 @Component({
   selector: 'app-live-tracker',
-  imports: [SegmentStripViewComponent, PlayerRingComponent, WorkoutCelebrationComponent],
+  imports: [SegmentStripComponent, PlayerRingComponent, WorkoutCelebrationComponent],
   templateUrl: './live-tracker.component.html',
   styleUrl: './live-tracker.component.scss'
 })

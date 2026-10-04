@@ -1,7 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
-import { SegmentStripViewComponent } from './plan-editor/segments/segment-strip-view.component';
+import { SegmentStripComponent } from './plan-flow/segments/segment-strip.component';
 import { sessionStripRows } from './segments/session-segments';
 import { doneSetCount, recordExercises, recordStats } from './session-record';
 
@@ -12,7 +12,7 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
  */
 @Component({
   selector: 'app-session-record',
-  imports: [SegmentStripViewComponent],
+  imports: [SegmentStripComponent],
   template: `
     <dl class="stats" [style.--columns]="stats().length">
       @for (stat of stats(); track stat.label) {
@@ -43,7 +43,7 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
     @if (segmentRows().length) {
       <section class="segments" aria-label="Segments">
         <h3 class="segments-title">Segments</h3>
-        <app-segment-strip-view [segments]="segmentRows()" />
+        <app-segment-strip [rows]="segmentRows()" [editable]="false" />
       </section>
     }
 
