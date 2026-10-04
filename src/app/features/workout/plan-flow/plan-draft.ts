@@ -13,6 +13,7 @@ export const FLOW_KIND_LABELS: Record<FlowKind, string> = {
 };
 
 export const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 export const WEEKDAY_LETTER = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 
 export type SegmentKind = 'WARMUP' | 'STEADY' | 'WORK' | 'EASY' | 'COOLDOWN';

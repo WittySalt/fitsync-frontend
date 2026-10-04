@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 
 import { PlanDayKind, WorkoutPlanDay } from '../../core/fitsync.models';
 import { PlanDayGlyphComponent } from './plan-day-glyph.component';
-import { WEEKDAY_NAMES } from './plan-week-form';
+import { WEEKDAY_NAMES } from './plan-flow/plan-draft';
 
 interface SummaryTile {
   kind: PlanDayKind | null;

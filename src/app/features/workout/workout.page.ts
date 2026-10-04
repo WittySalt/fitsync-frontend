@@ -41,8 +41,6 @@ import { WorkoutWeekComponent } from './workout-week.component';
 import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
-import { sessionDurationLabel } from './workout-session.util';
-import { formatKm } from '../dashboard/brief/brief-duration';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
 
@@ -702,14 +700,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
     }).format(date);
   }
 
-  formatDuration(session: WorkoutSession): string {
-    return sessionDurationLabel(session);
-  }
-
-  formatDistance(km: number | null | undefined): string {
-    return formatKm(km);
-  }
-
   /** Loads the plans of the chosen filter again, which is what the Retry button of the error panel does. */
   loadPlans(): void {
     this.loading.set(true);
@@ -844,11 +834,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
       }
       this.weeklyGoalOffer.set({ sessions, existing });
     });
-  }
-
-  private optionalNumber(value: unknown): number | null {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
   }
 
   private setPlanMutating(planId: string, mutating: boolean): void {
