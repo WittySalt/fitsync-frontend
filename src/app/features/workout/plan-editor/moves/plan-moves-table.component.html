@@ -1,0 +1,81 @@
+<div class="table" role="group" aria-label="Moves">
+  @if (band() === 'wide' && entries().length) {
+    <div class="head" aria-hidden="true">
+      <span class="h-move">Move</span>
+      @for (column of columns; track column.field) {
+        <span class="h-num">{{ column.label }}</span>
+      }
+    </div>
+  }
+  <ul class="rows">
+    @for (entry of entries(); track $index; let i = $index) {
+      <li class="row" [class.over]="drag.over() === i && drag.from() !== i" [class.dragging]="drag.from() === i" (dragover)="drag.hover(i, $event)" (drop)="drag.drop(i, $event, move.bind(this))">
+        <div class="main">
+          <button type="button" class="chev" [class.filled]="!!entry.notes" [class.open]="openRow() === i" [attr.aria-expanded]="openRow() === i" [attr.aria-label]="'Notes for ' + entry.exerciseName" (click)="toggleNotes(i)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+          @if (!coarse()) {
+            <button type="button" class="grip" draggable="true" [attr.aria-label]="'Reorder ' + entry.exerciseName + ', arrow keys move it'" (dragstart)="drag.start(i, $event)" (dragend)="drag.end()" (keydown)="handleKey(i, $event)">
+              <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.4" /><circle cx="9" cy="3" r="1.4" /><circle cx="3" cy="8" r="1.4" /><circle cx="9" cy="8" r="1.4" /><circle cx="3" cy="13" r="1.4" /><circle cx="9" cy="13" r="1.4" /></svg>
+            </button>
+          }
+          @if (entry.thumbnailUrl) {
+            <img class="thumb" [src]="entry.thumbnailUrl" alt="" loading="lazy" />
+          } @else {
+            <span class="thumb blank" aria-hidden="true">{{ entry.exerciseName.charAt(0) }}</span>
+          }
+          <button type="button" class="name" [attr.aria-label]="'Swap ' + entry.exerciseName" (click)="openSwap(i)">
+            <strong>{{ entry.exerciseName }}</strong>
+            <span>{{ entry.muscleLine }}</span>
+          </button>
+          @if (coarse()) {
+            <button type="button" class="more" [attr.aria-expanded]="arrowsRow() === i" [attr.aria-label]="'More for ' + entry.exerciseName" (click)="toggleArrows(i)">&hellip;</button>
+          }
+          <button type="button" class="trash" [attr.aria-label]="'Remove ' + entry.exerciseName" (click)="remove(i)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3" /></svg>
+          </button>
+        </div>
+        <div class="fields">
+          @for (column of columns; track column.field) {
+            <label class="field">
+              <span class="lab">{{ columnLabel(column, entry) }}</span>
+              <span class="box">
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  [value]="valueOf(entry, fieldOf(column, entry))"
+                  [placeholder]="column.placeholder"
+                  [attr.aria-label]="columnLabel(column, entry) + ' for ' + entry.exerciseName"
+                  [attr.data-min]="bounds(fieldOf(column, entry)).min"
+                  [attr.data-max]="bounds(fieldOf(column, entry)).max"
+                  (change)="edit(i, fieldOf(column, entry), $event)"
+                />
+                @if (unitOf(column, entry) && valueOf(entry, fieldOf(column, entry))) {
+                  <span class="unit">{{ unitOf(column, entry) }}</span>
+                }
+              </span>
+            </label>
+          }
+        </div>
+        @if (coarse() && arrowsRow() === i) {
+          <div class="arrows">
+            <button type="button" [disabled]="i === 0" [attr.aria-label]="'Move ' + entry.exerciseName + ' up'" (click)="move(i, i - 1)">Up</button>
+            <button type="button" [disabled]="i === entries().length - 1" [attr.aria-label]="'Move ' + entry.exerciseName + ' down'" (click)="move(i, i + 1)">Down</button>
+          </div>
+        }
+        @if (openRow() === i) {
+          <label class="notes">
+            <span>Notes</span>
+            <input type="text" maxlength="300" placeholder="Pause one second at the bottom" [value]="entry.notes ?? ''" (change)="editNotes(i, $event)" />
+          </label>
+        }
+      </li>
+    }
+  </ul>
+  <button type="button" class="add" (click)="openAdd()">+ Add move</button>
+</div>
+
+@if (pickerFor() !== null) {
+  <app-exercise-picker [swapName]="swapName()" [timeBasedDefault]="timeBasedDefault()" (picked)="onPicked($event)" (closed)="closePicker()" />
+}
