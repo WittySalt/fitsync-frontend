@@ -108,6 +108,27 @@ describe('LiveStartCardComponent', () => {
     });
   });
 
+  it('starts with one STEADY segment for a minutes goal, the interval set for HIIT, and none for a calorie goal or free mode', () => {
+    component.startForm.patchValue({ name: 'Quick Cardio', workoutType: 'CARDIO', goalType: 'MINUTES', targetMinutes: 25 });
+    component.selectMode('GOAL');
+    component.startWorkout();
+    expect(dataService.startAdHocSession).toHaveBeenCalledWith({
+      name: 'Quick Cardio', workoutType: 'CARDIO', segments: [{ kind: 'STEADY', label: 'Steady', plannedSeconds: 1500 }]
+    });
+
+    dataService.startAdHocSession.calls.reset();
+    component.selectMode('FREE');
+    component.startForm.patchValue({ name: 'HIIT Session', workoutType: 'HIIT' });
+    component.startWorkout();
+    const hiit = dataService.startAdHocSession.calls.mostRecent().args[0].segments ?? [];
+    expect(hiit.some((segment) => segment.kind === 'WORK')).toBeTrue();
+
+    dataService.startAdHocSession.calls.reset();
+    component.startForm.patchValue({ name: 'Quick Cardio', workoutType: 'CARDIO' });
+    component.startWorkout();
+    expect(dataService.startAdHocSession.calls.mostRecent().args[0].segments).toBeUndefined();
+  });
+
   it('uses the default name preset without showing a required-name error', () => {
     component.startWorkout();
     fixture.detectChanges();
