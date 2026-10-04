@@ -6,6 +6,8 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { EntryTarget } from '../workout/plan-flow/plan-entry';
+import { PlanEntrySheetComponent } from '../workout/plan-flow/plan-entry-sheet.component';
 import {
   GoalProjection,
   PrimaryGoal,
@@ -76,7 +78,7 @@ interface ChoiceOption {
 
 @Component({
   selector: 'app-onboarding-page',
-  imports: [ReactiveFormsModule, StatePanelComponent],
+  imports: [ReactiveFormsModule, StatePanelComponent, PlanEntrySheetComponent],
   templateUrl: './onboarding.page.html',
   styleUrl: './onboarding.page.scss'
 })
@@ -89,6 +91,8 @@ export class OnboardingPage implements OnInit {
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
+  /** Once the profile is saved, the same three ways into a first plan the Workout page offers. */
+  readonly entryOpen = signal(false);
   readonly currentStep = signal(0);
   readonly hasExistingBodyBaseline = signal(false);
   readonly hasExistingTrainingBaseline = signal(false);
@@ -316,7 +320,8 @@ export class OnboardingPage implements OnInit {
     this.dataService.saveOnboarding(this.toOnboardingValue()).subscribe({
       next: () => {
         this.toast.success('Your plan is ready. Welcome to FitSync!');
-        this.router.navigateByUrl('/dashboard');
+        this.submitting.set(false);
+        this.entryOpen.set(true);
       },
       error: (error: Error) => {
         const message = error.message || 'Unable to save onboarding data. Please check the backend connection.';
@@ -325,6 +330,18 @@ export class OnboardingPage implements OnInit {
         this.submitting.set(false);
       }
     });
+  }
+
+  /** A row of the entry sheet was chosen: the plan flow, a template inside it, or Plan Studio. */
+  handleEntryChosen(target: EntryTarget): void {
+    this.entryOpen.set(false);
+    void this.router.navigate(target.commands, { queryParams: target.queryParams });
+  }
+
+  /** Not now: a new account still lands on the dashboard, which offers the plan again. */
+  skipEntry(): void {
+    this.entryOpen.set(false);
+    void this.router.navigateByUrl('/dashboard');
   }
 
   hasPrimaryGoal(): boolean {

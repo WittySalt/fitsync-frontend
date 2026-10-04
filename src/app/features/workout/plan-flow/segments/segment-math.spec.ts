@@ -29,13 +29,13 @@ describe('segment math', () => {
 
   it('trades minutes between neighbours and keeps the total fixed', () => {
     const next = dragBoundary(defaultSegments(40), 0, 3);
-    expect(minutes(next)).toEqual([8, 22, 5]);
+    expect(minutes(next)).toEqual([8, 27, 5]);
     expect(segmentTotal(next)).toBe(40);
   });
 
   it('drags the other way', () => {
     const next = dragBoundary(defaultSegments(40), 1, -4);
-    expect(minutes(next)).toEqual([5, 21, 9]);
+    expect(minutes(next)).toEqual([5, 26, 9]);
     expect(segmentTotal(next)).toBe(40);
   });
 
