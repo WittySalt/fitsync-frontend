@@ -139,10 +139,12 @@ export interface FoodVerdict {
 const LOGGED_ENOUGH = 0.7;
 
 /**
- * The page's answer: logging gaps first (a balance over few days says little), then under or over
- * what you use this week. Nothing logged at all asks for logging.
+ * The page's answer: logging gaps first (a balance over few days says little), then the four weeks
+ * of eating against the calorie target: "On target." within 5 % of it, "Under target." or "Over
+ * target." beyond. Without a target it falls back to the balance against what you use. Nothing
+ * logged at all reads as "Start logging.".
  */
-export function foodVerdict(food: FoodProgress, days: number): FoodVerdict {
+export function foodVerdict(food: FoodProgress, days: number, calorieTarget: number | null = null): FoodVerdict {
   if (!hasFood(food)) {
     return { text: 'Start logging.', tone: 'ink' };
   }
@@ -150,26 +152,26 @@ export function foodVerdict(food: FoodProgress, days: number): FoodVerdict {
   if (value !== null && value / (of ?? days) < LOGGED_ENOUGH) {
     return { text: 'Logging gaps.', tone: 'ink' };
   }
+  const eaten = food.hero.eatenPerDay.value;
+  if (eaten !== null && calorieTarget !== null && calorieTarget > 0) {
+    const ratio = eaten / calorieTarget;
+    return Math.abs(ratio - 1) <= STEADY_SHARE ? { text: 'On target.', tone: 'good' } : { text: ratio < 1 ? 'Under target.' : 'Over target.', tone: 'ink' };
+  }
   const balance = food.hero.balancePerDay.value;
   if (balance === null) {
-    return { text: 'Not enough yet.', tone: 'ink' };
+    return { text: 'Too early to judge.', tone: 'ink' };
   }
   return balance <= 0 ? { text: 'Under what you use.', tone: 'good' } : { text: 'Over what you use.', tone: 'ink' };
 }
 
-/** The sentence under the verdict, from the page's own figures. */
+/** The sentence under the verdict: the four weeks' eating and logging, never today's partial day. */
 export function foodSentence(food: FoodProgress, days: number): string {
-  const { eatenPerDay, daysLogged, balancePerDay } = food.hero;
-  const parts: string[] = [];
-  if (eatenPerDay.value !== null) {
-    const logged = daysLogged.value === null ? '' : ` and logged ${daysLogged.value} of ${daysLogged.days ?? days} days`;
-    parts.push(`You ate ${formatNumber(eatenPerDay.value)} kcal a day${logged}.`);
+  const { eatenPerDay, daysLogged } = food.hero;
+  if (eatenPerDay.value === null) {
+    return 'Log what you eat and this page fills in.';
   }
-  const headline = balanceHeadline(balancePerDay.value);
-  if (headline) {
-    parts.push(`This week you ate ${headline.value} ${headline.words}.`);
-  }
-  return parts.join(' ') || 'Log what you eat and this page fills in.';
+  const logged = daysLogged.value === null ? '' : ` and logged ${daysLogged.value} of ${daysLogged.days ?? days} days`;
+  return `You ate ${formatNumber(eatenPerDay.value)} kcal a day${logged}.`;
 }
 
 /** The one sentence under Macros: protein from the first week to this one against its goal. */

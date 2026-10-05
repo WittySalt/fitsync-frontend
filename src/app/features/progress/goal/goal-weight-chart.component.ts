@@ -3,11 +3,15 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { shortDateLabel } from '../../../shared/date-label';
 import { PlacedLabel, timeAxisLabels } from '../../../shared/progress/chart-axis';
 import { measureWidth } from '../../../shared/progress/measure-width';
-import { daysBetween, formatNumber, shiftDay } from '../../../shared/progress/progress-format';
+import { daysBetween, formatNumber, shiftDay, textWidth } from '../../../shared/progress/progress-format';
 import { GoalProgress, WeightGoal } from '../progress-api.models';
 
 const WIDTH = 600;
 const X0 = 52;
+/** Under this plot width the goal label shortens to "Goal 68 kg · 11 Dec". */
+const SHORT_LABEL_BELOW = 560;
+/** What the pace label needs under the goal line: its baseline drop and its descenders. */
+const PACE_LABEL_DROP = 22;
 
 type Weight = GoalProgress['weight'];
 
@@ -24,7 +28,8 @@ export interface WeightChartGeometry {
   line: string;
   first: Pt & { text: string };
   now: Pt & { text: string };
-  projection: { line: string; end: Pt; text: string } | null;
+  /** The pace label sits below the goal line, ending at the end of the line or running right from the axis when it is wider. */
+  projection: { line: string; end: Pt; text: string; labelY: number; labelX: number; anchor: 'start' | 'end' } | null;
   goal: { y: number; text: string; labelY: number; byX: number | null } | null;
   today: number | null;
   mark: (Pt & { text: string }) | null;
@@ -63,7 +68,7 @@ export function weightChartGeometry(
   const d1 = dates.reduce((a, b) => (a > b ? a : b));
   const kgs = [...line.map((p) => p.kg), ...weight.daily.map((d) => d.kg), ...projection.map((p) => p.kg), ...(target === null ? [] : [target])];
   const step = Math.max(...kgs) - Math.min(...kgs) > 6 ? 2 : 1;
-  const lo = Math.floor((Math.min(...kgs) - 0.5) / step) * step;
+  let lo = Math.floor((Math.min(...kgs) - 0.5) / step) * step;
   const hi = Math.ceil((Math.max(...kgs) + 0.5) / step) * step;
   const x1 = width - 12;
   const top = 26;
@@ -71,6 +76,10 @@ export function weightChartGeometry(
   const span = Math.max(daysBetween(d0, d1), 1);
   const x = (date: string) => X0 + ((x1 - X0) * daysBetween(d0, date)) / span;
   const y = (kg: number) => top + ((bottom - top) * (hi - kg)) / (hi - lo || 1);
+  // The pace label hangs under the goal line, so the scale gives the line room above the axis.
+  for (let tries = 0; target !== null && !cardView && projection.length >= 2 && y(target) + PACE_LABEL_DROP > bottom && tries < 4; tries += 1) {
+    lo -= step;
+  }
   const ticks: WeightChartGeometry['ticks'] = [];
   for (let v = lo + step; v < hi; v += step) {
     ticks.push({ y: y(v), text: `${formatNumber(v)} kg` });
@@ -79,6 +88,10 @@ export function weightChartGeometry(
   const nowPoint = lastDaily ? { date: lastDaily.date, kg: lastDaily.kg } : line[line.length - 1];
   const reference = new Date(Number(today.slice(0, 4)), 0, 1);
   const projEnd = projection.length >= 2 ? projection[projection.length - 1] : null;
+  const short = x1 - X0 < SHORT_LABEL_BELOW;
+  const paceText = projEnd ? (cardView || compact ? shortDateLabel(projEnd.date, reference) : `${shortDateLabel(projEnd.date, reference)} at this pace`) : '';
+  const paceEnd = projEnd ? x(projEnd.date) : 0;
+  const paceFits = textWidth(paceText, 11) <= paceEnd - X0;
   const mark = !cardView && weight.rateChangeMark ? weeks.find((w) => w.date >= weight.rateChangeMark!.date) ?? null : null;
   return {
     ticks,
@@ -90,8 +103,11 @@ export function weightChartGeometry(
     projection: projEnd
       ? {
           line: projection.map((p) => `${x(p.date).toFixed(1)},${y(p.kg).toFixed(1)}`).join(' '),
-          end: { x: x(projEnd.date), y: y(projEnd.kg) },
-          text: cardView || compact ? shortDateLabel(projEnd.date, reference) : `${shortDateLabel(projEnd.date, reference)} at this pace`
+          end: { x: paceEnd, y: y(projEnd.kg) },
+          text: paceText,
+          labelY: y(projEnd.kg) + 18,
+          labelX: paceFits ? paceEnd : X0 + 2,
+          anchor: paceFits ? 'end' : 'start'
         }
       : null,
     goal:
@@ -99,7 +115,7 @@ export function weightChartGeometry(
         ? null
         : {
             y: y(target),
-            text: goal?.byDate ? `Goal ${formatNumber(target, 1)} kg by ${shortDateLabel(goal.byDate, reference)}` : `Goal ${formatNumber(target, 1)} kg`,
+            text: goalText(target, goal?.byDate ?? null, short, reference),
             labelY: cardView ? top - 12 : y(target) - 6,
             byX: goal?.byDate ? x(goal.byDate) : null
           },
@@ -109,6 +125,16 @@ export function weightChartGeometry(
     x1,
     bottom
   };
+}
+
+/** "Goal 68.0 kg by 11 Dec", or "Goal 68 kg · 11 Dec" where the plot is narrow. */
+function goalText(target: number, byDate: string | null, short: boolean, reference: Date): string {
+  const kg = formatNumber(target, short ? (Number.isInteger(target) ? 0 : 1) : 1);
+  if (!byDate) {
+    return `Goal ${kg} kg`;
+  }
+  const date = shortDateLabel(byDate, reference);
+  return short ? `Goal ${kg} kg · ${date}` : `Goal ${kg} kg by ${date}`;
 }
 
 @Component({
@@ -141,7 +167,7 @@ export function weightChartGeometry(
         @if (g.projection; as p) {
           <polyline class="projection" [attr.points]="p.line"></polyline>
           <circle class="end" [attr.cx]="p.end.x" [attr.cy]="p.end.y" r="3"></circle>
-          <text class="label halo" [attr.x]="p.end.x" [attr.y]="p.end.y + 18" text-anchor="end">{{ p.text }}</text>
+          <text class="label halo" [attr.x]="p.labelX" [attr.y]="p.labelY" [attr.text-anchor]="p.anchor">{{ p.text }}</text>
         }
         <circle class="start" [attr.cx]="g.first.x" [attr.cy]="g.first.y" r="3"></circle>
         <text class="axis halo" [attr.x]="g.first.x + 2" [attr.y]="g.first.y - 10">{{ g.first.text }}</text>

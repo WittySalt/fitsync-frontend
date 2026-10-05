@@ -17,7 +17,7 @@ import { mapFoodProgress, mapGoalProgress } from './progress-api.mappers';
 import { FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
 import { ProgressApiService, mergeFood } from './progress-api.service';
 import { isSoFar } from './reviews/review-item.component';
-import { TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
+import { GOAL_WIRE, TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
 
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const texts = (el: HTMLElement, selector: string) => Array.from(el.querySelectorAll(selector)).map((node) => text(node));
@@ -50,7 +50,7 @@ describe('goal figures', () => {
 
   it('gives the verdict from the goal and the weight, in the order of the rules', () => {
     const goal = goalData();
-    expect(goalVerdict(goal, TODAY)).toEqual({ text: 'Ahead of schedule.', tone: 'good' });
+    expect(goalVerdict(goal, TODAY)).toEqual({ text: 'Ahead of plan.', tone: 'good' });
     const onTime = { ...goal, hero: { ...goal.hero, projectedDate: { value: '2026-12-08', previous: null } } };
     expect(goalVerdict(onTime, TODAY).text).toBe('On course.');
     const late = { ...goal, hero: { ...goal.hero, projectedDate: { value: '2027-01-10', previous: null } } };
@@ -88,7 +88,7 @@ describe('goal figures', () => {
 
   it('draws the weight chart from the weekly line with the goal and the projection', () => {
     const goal = goalData();
-    const page = weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false)!;
+    const page = weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false, 700)!;
     expect(page.goal?.text).toBe('Goal 68.0 kg by 11 Dec');
     expect(page.projection?.text).toBe('25 Nov at this pace');
     expect(page.mark?.text).toBe('Faster from 14 Sept');
@@ -99,6 +99,21 @@ describe('goal figures', () => {
     expect(card.mark).toBeNull();
     expect(card.projection?.text).toBe('25 Nov');
     expect(weightChartGeometry({ ...goal.weight, weekly: [], daily: [] }, null, TODAY, 280, false, false)).toBeNull();
+  });
+
+  it('shortens the goal label under 560 px of plot and keeps the goal above the line and the pace below it', () => {
+    const goal = goalData();
+    const narrow = weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false, 600)!;
+    expect(narrow.goal?.text).toBe('Goal 68 kg · 11 Dec');
+    const wide = weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false, 700)!;
+    expect(wide.goal?.text).toBe('Goal 68.0 kg by 11 Dec');
+    for (const g of [narrow, wide]) {
+      expect(g.goal!.labelY).toBeLessThan(g.goal!.y);
+      expect(g.projection!.labelY).toBeGreaterThan(g.goal!.y);
+      // The pace label stays clear of the axis row below it and inside the plot.
+      expect(g.goal!.y + 22).toBeLessThanOrEqual(g.bottom);
+      expect(g.projection!.labelX).toBeGreaterThanOrEqual(g.x0);
+    }
   });
 
   it('draws the pace from zero, skipping weeks without a figure', () => {
@@ -123,6 +138,18 @@ describe('food figures', () => {
     expect(clockTime(1160)).toBe('19:20');
   });
 
+  it('judges the four weeks against the calorie target: on target within 5 %, else under or over', () => {
+    const food = foodData();
+    expect(foodVerdict(food, 30, 2100)).toEqual({ text: 'On target.', tone: 'good' });
+    expect(foodVerdict(food, 30, 2123)).toEqual({ text: 'On target.', tone: 'good' });
+    expect(foodVerdict(food, 30, 2400)).toEqual({ text: 'Under target.', tone: 'ink' });
+    expect(foodVerdict(food, 30, 1800)).toEqual({ text: 'Over target.', tone: 'ink' });
+    const gaps = { ...food, hero: { ...food.hero, daysLogged: { value: 12, previous: 24, days: 30 } } };
+    expect(foodVerdict(gaps, 30, 2100).text).toBe('Logging gaps.');
+    const bare = { ...food, hero: { ...food.hero, balancePerDay: { value: null, daysLogged: null } } };
+    expect(foodVerdict(bare, 30, null).text).toBe('Too early to judge.');
+  });
+
   it('gives the verdict: logging gaps first, then under or over what you use', () => {
     const food = foodData();
     expect(foodVerdict(food, 30)).toEqual({ text: 'Under what you use.', tone: 'good' });
@@ -135,7 +162,7 @@ describe('food figures', () => {
 
   it('writes the sentence and the macro line from the figures', () => {
     const food = foodData();
-    expect(foodSentence(food, 30)).toBe('You ate 2,123 kcal a day and logged 26 of 30 days. This week you ate 279 kcal a day under what you used.');
+    expect(foodSentence(food, 30)).toBe('You ate 2,123 kcal a day and logged 26 of 30 days.');
     expect(macroSentence(food.macros)).toBe('Protein went from 150 to 136 g a day against a goal of 140 g.');
   });
 
@@ -199,7 +226,7 @@ describe('progress pages', () => {
   describe('GoalPage', () => {
     it('shows the verdict, the four figures, highlights and every section with its sentence', () => {
       const { el } = render(GoalPage);
-      expect(text(el.querySelector('app-detail-head h1'))).toBe('Ahead of schedule.');
+      expect(text(el.querySelector('app-detail-head h1'))).toBe('Ahead of plan.');
       expect(text(el.querySelector('app-detail-head .eyebrow'))).toContain('GOAL · THE LAST 4 WEEKS');
       expect(text(el.querySelector('app-detail-head .sentence'))).toContain('71.2 kg now, down 1.6 kg in four weeks.');
       expect(texts(el, 'app-detail-head dt')).toEqual(['Now', 'A week', 'Projected', 'Days left']);
@@ -253,8 +280,13 @@ describe('progress pages', () => {
       expect(rows[0].querySelector('app-dot-strip')).not.toBeNull();
       expect(rows[0].querySelectorAll('.strip .dot').length).toBe(28);
       expect(texts(rows[0] as HTMLElement, '.dates span')).toEqual(['6 Sept', '3 Oct']);
-      expect(text(rows[1].querySelector('.count'))).toBe('1 of 2 weeks');
-      expect(rows[1].querySelectorAll('.box.met').length).toBe(1);
+      // The week of 28 Sept holds today, so it is under way: in neither count and not met.
+      expect(text(rows[1].querySelector('.count'))).toBe('0 of 1 weeks');
+      expect(rows[1].querySelectorAll('.box.met').length).toBe(0);
+      const current = rows[1].querySelectorAll('.box.current');
+      expect(current.length).toBe(1);
+      expect(current[0].getAttribute('title')).toBe('this week, in progress');
+      expect(text(current[0])).toBe('4');
       expect(texts(rows[1] as HTMLElement, '.ends span')).toEqual(['7 Sept', '28 Sept']);
       expect(el.querySelector('app-goal-other-goals a')?.getAttribute('href')).toBe('/me#goal-lifecycle');
       expect(text(el.querySelector('#other-goals .sentence'))).toContain('Protein a day was met on 19 of 26 logged days.');
@@ -319,12 +351,19 @@ describe('progress pages', () => {
       const { el } = render(FoodPage);
       expect(text(el.querySelector('app-detail-head h1'))).toBe('Under what you use.');
       expect(text(el.querySelector('app-detail-head .eyebrow'))).toContain('FOOD · THE LAST 4 WEEKS');
-      expect(text(el.querySelector('app-detail-head .sentence'))).toBe('You ate 2,123 kcal a day and logged 26 of 30 days. This week you ate 279 kcal a day under what you used.');
+      expect(text(el.querySelector('app-detail-head .sentence'))).toBe('You ate 2,123 kcal a day and logged 26 of 30 days.');
       expect(texts(el, 'app-detail-head dt')).toEqual(['Eaten a day', 'Protein a day', 'Under what you used', 'Days logged']);
       expect(texts(el, 'app-detail-section h2')).toEqual(['Highlights', 'Energy', 'Macros', 'Plate', 'Meals', 'Nutrients', 'Habits']);
       expect(texts(el, 'app-contents-rail .item')).toEqual(['Highlights', 'Energy', 'Macros', 'Plate', 'Meals', 'Nutrients', 'Habits']);
       expect(texts(el, 'app-highlights .kicker')).toEqual(['Protein', 'Nutrients']);
       expect(api.getFood).toHaveBeenCalledOnceWith('2026-09-06', TODAY);
+    });
+
+    it('heads the page with On target when the four weeks sit within 5 % of the calorie goal', () => {
+      api.getGoal.and.callFake(() => of(mapGoalProgress({ ...GOAL_WIRE, otherGoals: [{ type: 'CALORIES', target: 2100, unit: 'kcal', metDays: 20, loggedDays: 26 }] })));
+      const { el } = render(FoodPage);
+      expect(text(el.querySelector('app-detail-head h1'))).toBe('On target.');
+      expect(text(el.querySelector('app-detail-head .sentence'))).toBe('You ate 2,123 kcal a day and logged 26 of 30 days.');
     });
 
     it('draws the balance week by week and the macros against their targets', () => {
