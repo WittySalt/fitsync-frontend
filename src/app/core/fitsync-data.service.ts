@@ -480,6 +480,7 @@ interface BackendFoodSearchResult {
   foodId?: string | null;
   displayName?: string | null;
   brandName?: string | null;
+  brandLogoUrl?: string | null;
   categoryCode?: string | null;
   categoryName?: string | null;
   scope?: string | null;
@@ -719,6 +720,7 @@ interface BackendFoodDetail {
   foodId?: string | null;
   displayName?: string | null;
   brandName?: string | null;
+  brandLogoUrl?: string | null;
   categoryName?: string | null;
   scope?: string | null;
   densityGramsPerMl?: number | string | null;
@@ -755,6 +757,7 @@ interface BackendLoggedFood {
   scope?: string | null;
   foodName?: string | null;
   brandName?: string | null;
+  brandLogoUrl?: string | null;
   snapshotServingLabel?: string | null;
   quantity?: number | string | null;
   unit?: string | null;
@@ -778,6 +781,7 @@ interface BackendMealTemplateItem {
   foodServingId?: string | null;
   foodName?: string | null;
   brandName?: string | null;
+  brandLogoUrl?: string | null;
   quantity?: number | string | null;
   unit?: string | null;
   snapshotServingLabel?: string | null;
@@ -1927,6 +1931,7 @@ export class FitSyncDataService {
                 scope: food.scope ?? 'CATALOG',
                 foodName: food.displayName,
                 brandName: food.brandName ?? '',
+                brandLogoUrl: this.logoUrl(food.brandLogoUrl),
                 servingLabel: food.basisUnit ?? '',
                 quantity: 1,
                 unit: 'serving',
@@ -1967,6 +1972,7 @@ export class FitSyncDataService {
       foodServingId: item.foodServingId ?? null,
       foodName: item.foodName ?? 'Food',
       brandName: item.brandName ?? null,
+      brandLogoUrl: this.logoUrl(item.brandLogoUrl),
       quantity: this.numericValue(item.quantity) ?? 1,
       unit: item.unit ?? 'serving',
       snapshotServingLabel: item.snapshotServingLabel ?? null,
@@ -2834,11 +2840,17 @@ export class FitSyncDataService {
     };
   }
 
+  /** A brand logo is an external https image; anything else is dropped so the tile falls back to an icon. */
+  private logoUrl(value: string | null | undefined): string | null {
+    return typeof value === 'string' && value.startsWith('https://') ? value : null;
+  }
+
   private mapFood(food: BackendFoodSearchResult): FoodSearchResult {
     return {
       foodId: food.foodId ?? null,
       displayName: food.displayName ?? 'Food',
       brandName: food.brandName ?? '',
+      brandLogoUrl: this.logoUrl(food.brandLogoUrl),
       categoryName: food.categoryName ?? null,
       scope: food.scope ?? 'CATALOG',
       calories: food.calories ?? 0,
@@ -2878,6 +2890,7 @@ export class FitSyncDataService {
       foodId: food.foodId ?? null,
       displayName: food.displayName ?? 'Food',
       brandName: food.brandName ?? '',
+      brandLogoUrl: this.logoUrl(food.brandLogoUrl),
       categoryName: food.categoryName ?? null,
       scope: food.scope ?? 'CATALOG',
       calories: food.calories ?? 0,
@@ -2930,6 +2943,7 @@ export class FitSyncDataService {
       scope: food.scope ?? (food.customFoodId ? 'USER' : 'CATALOG'),
       foodName: food.foodName ?? 'Food',
       brandName: food.brandName ?? '',
+      brandLogoUrl: this.logoUrl(food.brandLogoUrl),
       servingLabel: food.snapshotServingLabel ?? (food.servingSize ? `${food.servingSize} ${food.servingUnit ?? ''}`.trim() : ''),
       quantity: this.numericValue(food.quantity) ?? 1,
       unit: food.unit ?? 'serving',

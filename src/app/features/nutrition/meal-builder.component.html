@@ -157,7 +157,7 @@
             @for (food of foods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" [logoUrl]="food.brandLogoUrl" [brandName]="food.brandName" />
                   <span class="food-main">
                     <span class="name-line">
                       <strong class="food-name">{{ food.displayName }}</strong>
@@ -257,7 +257,7 @@
             @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" [logoUrl]="food.brandLogoUrl" [brandName]="food.brandName" />
                   <span class="food-main">
                     <span class="name-line">
                       <strong class="food-name">{{ food.displayName }}</strong>
@@ -394,7 +394,16 @@
             <button type="button" class="icon-button" aria-label="Close food detail" (click)="clearSelectedFood()">x</button>
           </div>
           <div class="detail-tags">
-            @if (detail.brandName) { <span>{{ detail.brandName }}</span> }
+            @if (detail.brandName) {
+              @if (detailLogoOk(detail.brandLogoUrl)) {
+                <span class="brand-head">
+                  <img [src]="detail.brandLogoUrl" alt="" width="24" height="24" (error)="detailLogoFailed.set(detail.brandLogoUrl ?? null)" />
+                  {{ detail.brandName }}
+                </span>
+              } @else {
+                <span>{{ detail.brandName }}</span>
+              }
+            }
             @if (detail.categoryName) { <span>{{ detail.categoryName }}</span> }
             @if (isCustomFoodScope(detail.scope)) { <span>Custom</span> }
             @if (detail.primaryBarcode) { <span>{{ detail.primaryBarcode }}</span> }
@@ -507,6 +516,8 @@
                 <app-food-tile
                   [categoryCode]="face(item)?.categoryCode"
                   [imageUrl]="face(item)?.imageUrl"
+                  [logoUrl]="face(item)?.brandLogoUrl ?? item.brandLogoUrl"
+                  [brandName]="item.brandName"
                 />
                 <div class="item-name">
                   <strong>{{ item.foodName }}</strong>

@@ -9,7 +9,7 @@ import { foodTags, macroLine } from './diary-food';
   selector: 'app-food-row',
   imports: [FoodTileComponent],
   template: `
-    <app-food-tile [group]="item().foodGroup" [categoryCode]="item().categoryCode" [size]="38" />
+    <app-food-tile [group]="item().foodGroup" [categoryCode]="item().categoryCode" [logoUrl]="item().brandLogoUrl" [brandName]="item().draft.brandName" [size]="38" />
     <div class="text">
       <span class="name">{{ item().foodName }}</span>
       <div class="detail">

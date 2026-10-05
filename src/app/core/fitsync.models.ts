@@ -811,6 +811,8 @@ export interface FoodSearchResult {
   foodId: string | null;
   displayName: string;
   brandName: string;
+  /** An external https logo of the brand, null when the brand has none. */
+  brandLogoUrl?: string | null;
   categoryName: string | null;
   scope: string;
   calories: number;
@@ -856,6 +858,8 @@ export interface FoodDetail {
   foodId: string | null;
   displayName: string;
   brandName: string;
+  /** An external https logo of the brand, null when the brand has none. */
+  brandLogoUrl?: string | null;
   categoryName: string | null;
   scope: string;
   calories: number;
@@ -892,6 +896,8 @@ export interface MealTemplateItem {
   foodServingId: string | null;
   foodName: string;
   brandName: string | null;
+  /** An external https logo of the brand, null when the brand has none. */
+  brandLogoUrl?: string | null;
   quantity: number;
   unit: string;
   snapshotServingLabel: string | null;
@@ -921,6 +927,8 @@ export interface LoggedFood {
   scope: string;
   foodName: string;
   brandName: string;
+  /** An external https logo of the brand, null when the brand has none. */
+  brandLogoUrl?: string | null;
   servingLabel: string;
   quantity: number;
   unit: string;
@@ -953,6 +961,8 @@ export interface MealItemDraft {
   foodServingId?: string | null;
   foodName: string;
   brandName: string | null;
+  /** An external https logo of the brand, null when the brand has none. */
+  brandLogoUrl?: string | null;
   quantity: number;
   unit: string;
   servingSize: number | null;
