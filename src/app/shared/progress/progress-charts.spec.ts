@@ -89,6 +89,18 @@ describe('StepChartComponent', () => {
     expect(g.ticks.map((t) => t.value)).toEqual([0, 150, 300]);
   });
 
+  it('puts only the first and last dates under the plot, left-aligned and right-aligned to its edges', () => {
+    const g = stepGeometry([{ date: '2026-09-10', value: 60 }], '2026-09-06', '2026-10-03', 84, 300, 300, { from: '8 Sept', to: '5 Oct' })!;
+    expect(g.fromX).toBe(g.x0);
+    expect(g.toX).toBe(g.x1);
+  });
+
+  it('moves the last date right, never over the first, when the plot is too narrow for both', () => {
+    const g = stepGeometry([{ date: '2026-09-10', value: 60 }], '2026-09-06', '2026-10-03', 84, 300, 120, { from: '8 Sept', to: '5 Oct' })!;
+    expect(g.toX - g.fromX).toBeGreaterThanOrEqual(60);
+    expect(g.toX).toBeLessThanOrEqual(120);
+  });
+
   it('says not enough data yet without sessions', () => {
     const el = render(StepChartComponent, { points: [], from: '2026-09-06', to: '2026-10-03' });
     expect(text(el)).toBe('Not enough data yet');
