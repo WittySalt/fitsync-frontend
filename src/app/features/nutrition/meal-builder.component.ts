@@ -20,7 +20,6 @@ import { FoodTileComponent } from '../../shared/food/food-tile.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { BuilderDrinksComponent } from './builder-drinks.component';
 import { DrinkDetail, FrequentDrink } from './diary/diary.models';
-import { drinkItem } from './diary/diary-water';
 import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import {
   CUSTOM_SERVING_KEY,
@@ -28,6 +27,7 @@ import {
   calculateMealItem,
   isCustomFoodScope,
   roundDecimal,
+  calculateVolumeItem,
   scaleDraft,
   servingGrams
 } from './meal-item-math';
@@ -856,12 +856,16 @@ export class MealBuilderComponent implements OnInit {
   /** Adds a glass or a bottle of the catalogue's water to the meal. */
   addWater(ml: number): void {
     const detail = this.waterFood();
-    const item = detail ? drinkItem(detail, ml) : null;
-    if (!item) {
+    const choice = detail ? calculateVolumeItem(detail, ml) : null;
+    if (!detail || !choice) {
       this.toast.error('Water is not available to add right now.');
       return;
     }
-    this.mergeMealItem(item);
+    if (choice.serving) {
+      this.mergeMealItem(choice.item, detail, choice.serving);
+    } else {
+      this.items.update((items) => [...items, { ...choice.item, id: crypto.randomUUID(), detail, custom: true, grams: choice.grams ?? undefined }]);
+    }
     this.toast.success(`Added ${ml} ml of water.`);
   }
 

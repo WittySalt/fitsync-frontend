@@ -127,3 +127,93 @@ describe('MealBuilderComponent drinks row', () => {
     expect(labels[0].disabled).toBeTrue();
   });
 });
+
+describe('MealBuilderComponent glass of water on the real catalogue shape', () => {
+  const serving = (id: string, label: string, quantity: number, unit: string, grams: number, isDefault = false): FoodServing => ({
+    servingId: id,
+    label,
+    quantity,
+    unit,
+    gramsEquivalent: grams,
+    millilitersEquivalent: null,
+    sortOrder: 0,
+    defaultServing: isDefault
+  });
+  const waterOf = (servings: FoodServing[]): DrinkDetail => ({
+    ...foodDetail('water', 'Water, bottled, generic', 0, servings),
+    foodGroup: 'DRINKS',
+    countsTowardWater: true,
+    waterGrams: 100,
+    alcoholGrams: null
+  });
+  const option: DrinkOption = { foodId: 'water', name: 'Water, bottled, generic', calories: 0, basisLabel: '100 g', countsTowardWater: true };
+  const beverages: FoodCategory = { categoryId: 'cat-bev', parentId: null, code: 'BEVERAGES', displayName: 'Beverages', slug: 'beverages', sortOrder: 1, children: [] };
+
+  async function open(water: DrinkDetail): Promise<BuilderHarness> {
+    const h = await createBuilder([water], [], ({ data, diary }) => {
+      diary.searchDrinks.and.returnValue(of([option]));
+      diary.getDrinkDetail.and.returnValue(of(water));
+      data.getFoodCategories.and.returnValue(of([beverages]));
+    });
+    return h;
+  }
+
+  const chip = (h: BuilderHarness, text: string) =>
+    Array.from(h.el.querySelectorAll<HTMLButtonElement>('app-builder-drinks button')).find((button) => button.textContent!.includes(text))!;
+
+  it('logs a glass as 250 of the 1 ml serving, not as the default 1 fl oz', async () => {
+    const h = await open(
+      waterOf([
+        serving('w-100', '100 g', 100, 'g', 100),
+        serving('w-floz', '1 fl oz', 1, 'fl oz', 29.6, true),
+        serving('w-cup', '1 cup', 1, 'cup', 237),
+        serving('w-ml', '1 ml', 1, 'ml', 1)
+      ])
+    );
+    chip(h, 'Glass').click();
+    h.fixture.detectChanges();
+
+    const select = h.el.querySelector<HTMLSelectElement>('.meal-item .serving-select')!;
+    expect(select.selectedOptions[0].textContent?.trim()).toBe('1 ml');
+    h.component.saveMeal();
+    const sent = h.data.createMeal.calls.mostRecent().args[0].items[0];
+    expect(sent.foodServingId).toBe('w-ml');
+    expect(sent.quantity).toBe(250);
+    expect(sent.servingSize).toBe(1);
+    expect(sent.servingUnit).toBe('ml');
+    // 250 of a 1 g serving is 250 g of water, not the 29.6 g of the default serving.
+    expect(sent.quantity * (sent.servingSize ?? 0)).toBe(250);
+  });
+
+  it('adds a bottle to the same row as 750 ml in all', async () => {
+    const h = await open(waterOf([serving('w-floz', '1 fl oz', 1, 'fl oz', 29.6, true), serving('w-ml', '1 ml', 1, 'ml', 1)]));
+    chip(h, 'Glass').click();
+    chip(h, 'Bottle').click();
+    h.fixture.detectChanges();
+
+    expect(h.component.items().length).toBe(1);
+    expect(h.component.items()[0].foodServingId).toBe('w-ml');
+    expect(h.component.items()[0].quantity).toBe(750);
+  });
+
+  it('uses a serving of exactly the amount when the catalogue has one', async () => {
+    const h = await open(waterOf([serving('w-glass', '250 ml', 250, 'ml', 250, true), serving('w-ml', '1 ml', 1, 'ml', 1)]));
+    chip(h, 'Glass').click();
+
+    expect(h.component.items()[0].foodServingId).toBe('w-glass');
+    expect(h.component.items()[0].quantity).toBe(1);
+  });
+
+  it('falls back to 250 g typed in grams when no serving has a volume, with no serving id', async () => {
+    const h = await open(waterOf([serving('w-100', '100 g', 100, 'g', 100), serving('w-cup', '1 cup', 1, 'cup', 237, true)]));
+    chip(h, 'Glass').click();
+    h.fixture.detectChanges();
+
+    expect(h.el.querySelector<HTMLInputElement>('.grams-field input')?.value).toBe('250');
+    h.component.saveMeal();
+    const sent = h.data.createMeal.calls.mostRecent().args[0].items[0];
+    expect(sent.foodServingId).toBeNull();
+    expect(sent.servingSize).toBe(250);
+    expect(sent.servingUnit).toBe('g');
+  });
+});

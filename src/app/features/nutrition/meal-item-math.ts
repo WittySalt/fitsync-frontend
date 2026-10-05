@@ -145,6 +145,44 @@ export function calculateGramsItem(detail: FoodDetail, grams: number): MealItemD
   return calculateMealItem({ ...detail, densityGramsPerMl: detail.densityGramsPerMl ?? 1 }, measured, 1);
 }
 
+/** What a volume of a drink is logged as: a count of one of the food's servings, or grams. */
+export interface VolumeChoice {
+  item: MealItemDraft;
+  /** The catalogue serving the item is a count of, or null when the amount is typed in grams. */
+  serving: FoodServing | null;
+  /** The grams of a custom item. */
+  grams: number | null;
+}
+
+function servingMillilitres(serving: FoodServing): number | null {
+  if (serving.millilitersEquivalent != null && serving.millilitersEquivalent > 0) {
+    return serving.millilitersEquivalent;
+  }
+  const quantity = serving.quantity;
+  return normalizeUnit(serving.unit) === 'ml' && quantity != null && quantity > 0 ? quantity : null;
+}
+
+/**
+ * The item for `ml` of a drink, always carrying a serving the backend knows: the serving of exactly
+ * that volume, else a count of a millilitre-based serving ("1 ml" x 250), else a count of any
+ * serving with a volume. A food with no such serving falls back to grams (1 ml as density grams).
+ */
+export function calculateVolumeItem(detail: FoodDetail, ml: number): VolumeChoice | null {
+  const measured = detail.servings
+    .map((serving) => ({ serving, per: servingMillilitres(serving) }))
+    .filter((entry): entry is { serving: FoodServing; per: number } => entry.per !== null);
+  const exact = measured.find((entry) => Math.abs(entry.per - ml) < 0.5);
+  const smallest = [...measured].sort((a, b) => a.per - b.per)[0];
+  const pick = exact ?? smallest;
+  if (pick) {
+    const item = calculateMealItem(detail, pick.serving, exact ? 1 : roundDecimal(ml / pick.per, 2));
+    return item ? { item, serving: pick.serving, grams: null } : null;
+  }
+  const grams = roundDecimal(ml * (detail.densityGramsPerMl ?? 1), 1);
+  const item = calculateGramsItem(detail, grams);
+  return item ? { item, serving: null, grams } : null;
+}
+
 /** A draft whose amount changed by a ratio, for a row that has no food detail to recalculate from. */
 export function scaleDraft(item: MealItemDraft, quantity: number, ratio: number): MealItemDraft {
   const scaled = (value: number | null): number | null => (value == null ? null : roundDecimal(value * ratio, 1));
