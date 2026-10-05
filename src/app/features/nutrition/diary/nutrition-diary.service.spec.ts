@@ -128,6 +128,17 @@ describe('NutritionDiaryService', () => {
     meal.flush(null);
   });
 
+  it('marks a past day as fasted with a FAST meal that has no foods, put at midday of that day', () => {
+    dataService.createMeal.and.returnValue(of({ mealId: 'm-3' } as Meal));
+    service.markFasted('2026-09-29', '2026-10-05').subscribe();
+    const draft = dataService.createMeal.calls.mostRecent().args[0];
+
+    expect(draft.mealType).toBe('FAST');
+    expect(draft.items).toEqual([]);
+    const at = new Date(draft.consumedAt ?? '');
+    expect([at.getFullYear(), at.getMonth(), at.getDate(), at.getHours()]).toEqual([2026, 8, 29, 12]);
+  });
+
   it('logs a drink as a meal of one food with the meal type the clock gives', () => {
     dataService.createMeal.and.returnValue(of({ mealId: 'm-2' } as Meal));
     const at = new Date(2026, 9, 2, 8, 0);

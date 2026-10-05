@@ -1,6 +1,7 @@
 import { of } from 'rxjs';
 
 import { NutritionDiaryService } from './nutrition-diary.service';
+import { Meal } from '../../../core/fitsync.models';
 import { BalanceEntry, DiaryItem, DiaryMeal, DiarySummary, NutrientRow, RangeDay, WaterDay } from './diary.models';
 
 /** Builders for specs. Each takes only what a spec cares about and fills the rest with plain values. */
@@ -151,6 +152,7 @@ export function diaryServiceStub(): jasmine.SpyObj<NutritionDiaryService> {
     'logWater',
     'deleteWater',
     'logDrink',
+    'markFasted',
     'deleteMeal'
   ]);
   stub.getSummary.and.returnValue(of(summary()));
@@ -161,6 +163,7 @@ export function diaryServiceStub(): jasmine.SpyObj<NutritionDiaryService> {
   stub.searchDrinks.and.returnValue(of([]));
   stub.recentDrinks.and.returnValue(of([]));
   stub.frequentDrinks.and.returnValue(of([]));
+  stub.markFasted.and.returnValue(of({ mealId: 'fast-1' } as unknown as Meal));
   stub.deleteMeal.and.returnValue(of(undefined));
   stub.deleteWater.and.returnValue(of(undefined));
   return stub;

@@ -302,6 +302,89 @@ describe('DiaryDayComponent', () => {
     });
   });
 
+  describe('fasted days', () => {
+    const PAST = '2026-10-01';
+
+    it('posts a fasted mark for a past day with nothing logged, then reloads the day', () => {
+      const fixture = render(PAST);
+      const loads = diary.getMeals.calls.count();
+      qa<HTMLButtonElement>(fixture, '.pill')[0].click();
+
+      expect(diary.markFasted).toHaveBeenCalledOnceWith(PAST, TODAY);
+      expect(toast.toasts().map((entry) => entry.message)).toContain('Marked Thursday 1 Oct as fasted.');
+      expect(diary.getMeals.calls.count()).toBe(loads + 1);
+    });
+
+    it('says so and keeps the line when the mark cannot be saved', () => {
+      diary.markFasted.and.returnValue(throwError(() => new Error('down')));
+      const fixture = render(PAST);
+      qa<HTMLButtonElement>(fixture, '.pill')[0].click();
+
+      expect(toast.toasts().map((entry) => entry.message)).toContain('Unable to mark that day. Please retry.');
+      expect(q(fixture, 'app-day-mark .ask')).not.toBeNull();
+    });
+
+    it('offers the line on no day but a past one', () => {
+      expect(q(render(TODAY), 'app-day-mark')).toBeNull();
+      expect(q(render(PAST), 'app-day-mark .ask')).not.toBeNull();
+    });
+
+    it("hides the line for the day after I ate, didn't log, for this visit only, and brings it back on another day", () => {
+      const fixture = render(PAST);
+      qa<HTMLButtonElement>(fixture, '.pill')[1].click();
+      fixture.detectChanges();
+      expect(q(fixture, 'app-day-mark')).toBeNull();
+      expect(diary.markFasted).not.toHaveBeenCalled();
+
+      fixture.componentRef.setInput('date', '2026-09-30');
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(q(fixture, 'app-day-mark .ask')).not.toBeNull();
+      fixture.componentRef.setInput('date', PAST);
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(q(fixture, 'app-day-mark')).toBeNull();
+    });
+
+    it('shows Fasted for a day that holds the mark, and Delete in its menu removes it after a confirmation', () => {
+      diary.getMeals.and.returnValue(of([meal({ mealId: 'fast-1', mealType: 'FAST', items: [] })]));
+      const fixture = render(PAST);
+      expect(text(q(fixture, 'app-day-mark .fasted'))).toContain('Fasted');
+
+      (q(fixture, 'app-day-mark .more') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      (q(fixture, 'app-day-mark [role="menuitem"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(diary.deleteMeal).not.toHaveBeenCalled();
+      expect(text(q(fixture, 'app-confirm-dialog h2'))).toBe('Delete the fasted mark?');
+
+      (q(fixture, 'app-confirm-dialog .confirm') as HTMLButtonElement).click();
+      expect(diary.deleteMeal).toHaveBeenCalledOnceWith('fast-1');
+    });
+
+    it('logs the usual breakfast, lunch and dinner at their usual times from Log my usual', () => {
+      const usual = (mealType: string, id: string, time: string): UsualMeal => ({
+        mealType,
+        label: mealType,
+        usualTime: time,
+        sourceMealId: id,
+        totalCalories: 500,
+        totalProteinGrams: 30,
+        totalCarbsGrams: 50,
+        totalFatGrams: 20,
+        items: [{ name: 'Oats', calories: 150, proteinGrams: 5, categoryCode: 'GRAINS' }]
+      });
+      data.getUsualMeals.and.returnValue(of([usual('BREAKFAST', 's-b', '07:30'), usual('DINNER', 's-d', '19:00')]));
+      const fixture = render(PAST);
+      (q(fixture, 'app-day-mark .link') as HTMLButtonElement).click();
+
+      expect(data.copyMeal).toHaveBeenCalledTimes(2);
+      expect(data.copyMeal.calls.argsFor(0).slice(0, 2)).toEqual(['s-b', 'BREAKFAST']);
+      expect(data.copyMeal.calls.argsFor(1).slice(0, 2)).toEqual(['s-d', 'DINNER']);
+      expect(toast.toasts().map((entry) => entry.message)).toContain('Logged your usual meals.');
+    });
+  });
+
   describe('water and drinks', () => {
     const toastWithUndo = () => toast.toasts().find((entry) => entry.action?.label === 'Undo');
 
