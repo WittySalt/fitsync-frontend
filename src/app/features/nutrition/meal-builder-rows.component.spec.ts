@@ -204,3 +204,42 @@ describe('MealBuilderComponent serving select', () => {
     expect(h.component.items()[0].calories).toBe(250);
   });
 });
+
+describe('MealBuilderComponent tiles', () => {
+  const rice = foodDetail('rice', 'Rice', 130, [hundredGrams('rice-100')]);
+  const mac = { ...foodDetail('mac', 'Big Mac', 250, [hundredGrams('mac-100')]), brandName: "McDonald's" };
+  const cereal = foodDetail('cereal', 'Corn flakes', 380, [hundredGrams('cereal-100')]);
+  const results = [
+    searchItem('rice', 'Rice', { categoryCode: 'GRAINS' }),
+    searchItem('mac', 'Big Mac', { brandName: "McDonald's", categoryCode: 'MEAT_POULTRY' }),
+    searchItem('cereal', 'Corn flakes', { brandName: 'Kellogg', imageUrl: 'https://images.example/flakes.jpg' })
+  ];
+  let h: BuilderHarness;
+
+  beforeEach(async () => {
+    h = await createBuilder([rice, mac, cereal], results);
+  });
+
+  function tiles(scope: string): HTMLElement[] {
+    return Array.from(h.el.querySelectorAll<HTMLElement>(`${scope} app-food-tile`));
+  }
+
+  it('gives each search result a tile: group icon, brand letter or photo', () => {
+    const [grains, brand, photo] = tiles('.food-row');
+
+    expect((grains.querySelector('app-food-icon') as HTMLElement).style.getPropertyValue('--tile')).toBe('var(--food-grains)');
+    expect(brand.querySelector('.brand')?.textContent?.trim()).toBe('M');
+    expect(brand.querySelector('.brand')?.getAttribute('title')).toBe("McDonald's");
+    expect(photo.querySelector('img')?.getAttribute('src')).toBe('https://images.example/flakes.jpg');
+  });
+
+  it('keeps the tile on the rows of the meal', () => {
+    results.forEach((food) => h.component.addFoodResult(food));
+    h.fixture.detectChanges();
+
+    const [grains, brand, photo] = tiles('.meal-item');
+    expect((grains.querySelector('app-food-icon') as HTMLElement).style.getPropertyValue('--tile')).toBe('var(--food-grains)');
+    expect(brand.querySelector('.brand')?.textContent?.trim()).toBe('M');
+    expect(photo.querySelector('img')).not.toBeNull();
+  });
+});

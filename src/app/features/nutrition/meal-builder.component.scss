@@ -286,6 +286,7 @@
   width: 100%;
   min-width: 0;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-height: 0;
@@ -305,6 +306,11 @@
 .empty-copy {
   margin: 0;
   color: var(--text-secondary);
+}
+
+.food-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .food-cal,
@@ -504,7 +510,7 @@
 .ring-copy strong.over { color: var(--danger); }
 
 .meal-item {
-  grid-template-columns: minmax(0, 1fr) auto minmax(100px, auto);
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(100px, auto);
   align-items: center;
   padding: 12px;
   border: 1px solid var(--border);

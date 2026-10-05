@@ -16,6 +16,7 @@ import {
   PagedFoods
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { FoodTileComponent } from '../../shared/food/food-tile.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { BuilderDrinksComponent } from './builder-drinks.component';
 import { DrinkDetail, FrequentDrink } from './diary/diary.models';
@@ -44,6 +45,11 @@ interface BuilderMealItem extends MealItemDraft {
   /** True while the row holds an amount typed in grams instead of a count of a serving. */
   custom?: boolean;
   grams?: number;
+}
+
+interface FoodFace {
+  categoryCode: string | null;
+  imageUrl: string | null;
 }
 
 interface ServingOption {
@@ -76,7 +82,7 @@ export function defaultMealType(now: Date): string {
 
 @Component({
   selector: 'app-meal-builder',
-  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent],
+  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent, FoodTileComponent],
   templateUrl: './meal-builder.component.html',
   styleUrl: './meal-builder.component.scss'
 })
@@ -116,6 +122,8 @@ export class MealBuilderComponent implements OnInit {
   readonly favoriteFoods = signal<FoodSearchResult[]>([]);
   readonly frequentFoods = signal<LoggedFood[]>([]);
   readonly mealTemplates = signal<MealTemplate[]>([]);
+  /** What the tile of a row needs beyond its brand, kept by food id from the results seen so far. */
+  private readonly faces = signal<ReadonlyMap<string, FoodFace>>(new Map());
   /** The drinks the person has most often, the same ones the water card offers as chips. */
   readonly frequentDrinks = signal<FrequentDrink[]>([]);
   /** The catalogue's water, which a glass or a bottle of water is added from. */
@@ -819,7 +827,10 @@ export class MealBuilderComponent implements OnInit {
   private loadReferenceData(): void {
     this.dataService.getFoodCategories().subscribe((categories) => this.categories.set(categories));
     this.dataService.getRecentFoods().subscribe((foods) => this.recentFoods.set(foods));
-    this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
+    this.dataService.getFavoriteFoods().subscribe((foods) => {
+      this.favoriteFoods.set(foods);
+      this.rememberFaces(foods);
+    });
     this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
     this.dataService.getMealTemplates().subscribe((templates) => this.mealTemplates.set(templates));
     this.loadDrinks();
@@ -894,6 +905,7 @@ export class MealBuilderComponent implements OnInit {
   }
 
   private applySearchResult(result: PagedFoods): void {
+    this.rememberFaces(result.items);
     this.foods.set(result.items);
     this.page.set(result.totalPages > 0 ? result.page : 0);
     this.totalPages.set(result.totalPages);
@@ -917,6 +929,24 @@ export class MealBuilderComponent implements OnInit {
       detail.servings[0] ??
       null
     );
+  }
+
+  /** The category and photo of the food behind a row, when a search or the favorites showed it. */
+  face(item: MealItemDraft): FoodFace | null {
+    const foodId = item.foodCatalogItemId ?? item.customFoodId;
+    return foodId ? (this.faces().get(foodId) ?? null) : null;
+  }
+
+  private rememberFaces(foods: FoodSearchResult[]): void {
+    const known = foods.filter((food) => food.foodId && (food.categoryCode || food.imageUrl));
+    if (!known.length) {
+      return;
+    }
+    this.faces.update((current) => {
+      const next = new Map(current);
+      known.forEach((food) => next.set(food.foodId as string, { categoryCode: food.categoryCode ?? null, imageUrl: food.imageUrl ?? null }));
+      return next;
+    });
   }
 
   private toDraft(item: BuilderMealItem): MealItemDraft {

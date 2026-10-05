@@ -157,7 +157,8 @@
             @for (food of foods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <span>
+                  <app-food-tile [brandName]="food.brandName" [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <span class="food-main">
                     <strong>{{ food.displayName }}</strong>
                     <small>per {{ food.basisLabel || food.basisUnit }}</small>
                     <span class="tag-list">
@@ -252,7 +253,8 @@
             @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <span>
+                  <app-food-tile [brandName]="food.brandName" [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <span class="food-main">
                     <strong>{{ food.displayName }}</strong>
                     <small>{{ food.brandName || 'Generic' }} · per {{ food.basisLabel || food.basisUnit }}</small>
                     <span class="tag-list">
@@ -494,6 +496,11 @@
           <div class="item-list">
             @for (item of items(); track item.id) {
               <article class="meal-item">
+                <app-food-tile
+                  [brandName]="item.brandName"
+                  [categoryCode]="face(item)?.categoryCode"
+                  [imageUrl]="face(item)?.imageUrl"
+                />
                 <div class="item-name">
                   <strong>{{ item.foodName }}</strong>
                   <select
