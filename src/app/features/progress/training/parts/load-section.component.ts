@@ -65,15 +65,16 @@ export class LoadSectionComponent {
     const fatigue = load.fatigue[load.fatigue.length - 1]?.value ?? null;
     return formPosition(load.form, fitness, fatigue);
   });
-  /** The one sentence under the name: the last week's load against the six-week average. */
+  /** The one sentence under the name: the last full week's load against the six-week average. Today is never a week. */
   protected readonly sentence = computed(() => {
     const load = this.load();
-    const week = load.weeks[load.weeks.length - 1];
+    const full = this.hasCurrent() ? load.weeks.slice(0, -1) : load.weeks;
+    const week = full[full.length - 1];
     const fitness = load.fitness[load.fitness.length - 1]?.value ?? null;
     if (load.weeks.length < 2 || !week || fitness === null) {
       return 'Effort × minutes of every session, each week.';
     }
-    return `Load is ${grouped(week.total)} this week so far against a six-week average of ${grouped(fitness)}.`;
+    return `Load was ${grouped(week.total)} in the last full week against a six-week average of ${grouped(fitness)}.`;
   });
   protected readonly ask = computed(() => `How is my training load worked out? It is effort × minutes of every session, each week. ${this.estimatedNote()}`.trim());
   protected readonly estimatedNote = computed(() => {

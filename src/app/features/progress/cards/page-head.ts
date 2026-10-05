@@ -1,5 +1,5 @@
 import { dateRangeLabel, parseLocalDate } from '../../../shared/date-label';
-import { lastDays } from '../../../shared/progress/progress-format';
+import { formatNumber, lastDays } from '../../../shared/progress/progress-format';
 import { ReviewFact, WeeklyReview } from '../progress-api.models';
 
 export type PeriodKey = '4w' | '3m' | '1y';
@@ -53,9 +53,21 @@ function chip(spec: { key: string; label: string }, fact: ReviewFact | undefined
   return { ...spec, figure: fact.unit === 'g' ? `${fact.value} g` : fact.value, delta: fact.detail || fact.note };
 }
 
+/**
+ * Today is never a week, so a daily average never holds today. While the week has no full logged
+ * day the server sends today's figure and the chip reads "476 today so far"; afterwards it keeps
+ * the average with its "on N logged days".
+ */
+function todaySoFar(spec: { key: string; label: string }, soFar: number | undefined, unit: string): WeekChip {
+  return { key: spec.key, label: spec.label.replace(' a day', ''), figure: `${formatNumber(Math.round(soFar ?? 0))}${unit}`, delta: 'today so far' };
+}
+
 /** The four chips of "This week so far", from the facts of the current week's review. */
 export function weekChips(review: WeeklyReview | null): WeekChip[] {
-  return CHIPS.map((spec) => chip(spec, review?.facts.find((fact) => fact.key === spec.key)));
+  return CHIPS.map((spec) => {
+    const soFar = !review?.current ? undefined : spec.key === 'CALORIES_PER_DAY' ? review.eatenTodaySoFarKcal : spec.key === 'PROTEIN_PER_DAY' ? review.proteinTodaySoFarGrams : undefined;
+    return soFar === undefined ? chip(spec, review?.facts.find((fact) => fact.key === spec.key)) : todaySoFar(spec, soFar, spec.key === 'PROTEIN_PER_DAY' ? ' g' : '');
+  });
 }
 
 /** The chips of one earlier week: only the facts it has. */

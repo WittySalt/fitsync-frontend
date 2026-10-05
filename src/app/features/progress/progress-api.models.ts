@@ -13,6 +13,16 @@ export interface PeriodPair {
   previous: { from: string; to: string } | null;
 }
 
+/**
+ * Whether the week still under way is a point of the weekly series. Today is never a week: the
+ * backend leaves the current week out until it holds two full logged days before today and says
+ * so here. Absent on a server from before the rule, which reads as the old behaviour.
+ */
+export interface CurrentWeek {
+  included: boolean;
+  daysLogged: number;
+}
+
 export interface DatedValue {
   date: string;
   value: number;
@@ -71,6 +81,7 @@ export interface GoalRoad {
 }
 
 export interface GoalProgress extends PeriodPair {
+  currentWeek?: CurrentWeek | null;
   goal: WeightGoal | null;
   /** Absent on a server from before Progress V5. */
   road: GoalRoad | null;
@@ -122,6 +133,7 @@ export interface FoodNutrition {
 }
 
 export interface FoodProgress extends PeriodPair {
+  currentWeek?: CurrentWeek | null;
   hero: {
     eatenPerDay: Compared<number>;
     proteinPerDay: Compared<number>;
@@ -164,4 +176,7 @@ export interface WeeklyReview {
   headline: string;
   body: string;
   facts: ReviewFact[];
+  /** What was eaten and the protein taken today, sent while the week holds no full logged day yet. */
+  eatenTodaySoFarKcal?: number;
+  proteinTodaySoFarGrams?: number;
 }

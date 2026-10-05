@@ -112,6 +112,33 @@ describe('progress mappers', () => {
     expect(mapFoodProgress({}).hero.eatenPerDay).toEqual({ value: null, previous: null });
   });
 
+  it('ends the weekly series at the last full week when the server says the current week is not in', () => {
+    const food = mapFoodProgress({ ...FOOD_WIRE, currentWeek: { included: false, daysLogged: 0 } });
+    expect(food.currentWeek).toEqual({ included: false, daysLogged: 0 });
+    expect(food.macros.protein?.series).toEqual([{ weekStart: '2026-08-10', value: 150 }]);
+    expect(food.macros.protein?.thisWeek).toBe(150);
+    expect(food.macros.carbs?.series.map((point) => point.weekStart)).toEqual(['2026-08-10']);
+    expect(food.energy.weeklyBalance.map((week) => week.weekStart)).toEqual(['2026-09-21']);
+  });
+
+  it('keeps the current week when it is in, or when the server says nothing about it', () => {
+    const inside = mapFoodProgress({ ...FOOD_WIRE, currentWeek: { included: true, daysLogged: 3 } });
+    expect(inside.macros.protein?.series.length).toBe(2);
+    expect(inside.macros.protein?.thisWeek).toBe(136);
+    const silent = mapFoodProgress(FOOD_WIRE);
+    expect(silent.currentWeek).toBeNull();
+    expect(silent.macros.protein?.series.length).toBe(2);
+    expect(silent.energy.weeklyBalance.length).toBe(2);
+  });
+
+  it('reads the figures of today so far from a review and leaves them out when they are not sent', () => {
+    const [soFar] = mapReviews([{ weekStart: '2026-09-28', current: true, status: 'READY', eatenTodaySoFarKcal: 476, proteinTodaySoFarGrams: 29 }]);
+    expect(soFar.eatenTodaySoFarKcal).toBe(476);
+    expect(soFar.proteinTodaySoFarGrams).toBe(29);
+    const [plain] = mapReviews([{ weekStart: '2026-09-28', status: 'READY' }]);
+    expect('eatenTodaySoFarKcal' in plain).toBeFalse();
+  });
+
   it('reads nutrition’s part of the food page', () => {
     const nutrition = mapFoodNutrition(NUTRITION_WIRE);
     expect(nutrition.mealTimes[0].medianMinuteOfDay).toBe(1160);
