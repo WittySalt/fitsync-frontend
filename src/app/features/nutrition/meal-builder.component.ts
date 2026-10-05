@@ -1,6 +1,6 @@
 import { Component, HostListener, OnInit, computed, inject, output, signal } from '@angular/core';
 import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
@@ -17,6 +17,10 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { BuilderDrinksComponent } from './builder-drinks.component';
+import { DrinkDetail, FrequentDrink } from './diary/diary.models';
+import { drinkItem } from './diary/diary-water';
+import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import {
   CUSTOM_SERVING_KEY,
   calculateGramsItem,
@@ -72,12 +76,13 @@ export function defaultMealType(now: Date): string {
 
 @Component({
   selector: 'app-meal-builder',
-  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent],
+  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent],
   templateUrl: './meal-builder.component.html',
   styleUrl: './meal-builder.component.scss'
 })
 export class MealBuilderComponent implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
+  private readonly diary = inject(NutritionDiaryService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
 
@@ -111,6 +116,10 @@ export class MealBuilderComponent implements OnInit {
   readonly favoriteFoods = signal<FoodSearchResult[]>([]);
   readonly frequentFoods = signal<LoggedFood[]>([]);
   readonly mealTemplates = signal<MealTemplate[]>([]);
+  /** The drinks the person has most often, the same ones the water card offers as chips. */
+  readonly frequentDrinks = signal<FrequentDrink[]>([]);
+  /** The catalogue's water, which a glass or a bottle of water is added from. */
+  readonly waterFood = signal<DrinkDetail | null>(null);
   readonly favoriteUpdating = signal<Set<string>>(new Set());
   readonly selectedCategory = signal<FoodCategory | null>(null);
   readonly selectedDetail = signal<FoodDetail | null>(null);
@@ -158,6 +167,7 @@ export class MealBuilderComponent implements OnInit {
     const options = this.categoryOptions();
     return query ? options.filter((category) => category.displayName.toLowerCase().includes(query)) : options;
   });
+  readonly beveragesCategory = computed(() => this.categoryOptions().find((category) => category.code === 'BEVERAGES') ?? null);
   readonly categoryLabel = computed(() => this.selectedCategory()?.displayName ?? 'All foods');
   readonly favoriteIds = computed(
     () => new Set(this.favoriteFoods().map((food) => food.foodId).filter((foodId): foodId is string => Boolean(foodId)))
@@ -812,6 +822,50 @@ export class MealBuilderComponent implements OnInit {
     this.dataService.getFavoriteFoods().subscribe((foods) => this.favoriteFoods.set(foods));
     this.dataService.getFrequentFoods().subscribe((foods) => this.frequentFoods.set(foods));
     this.dataService.getMealTemplates().subscribe((templates) => this.mealTemplates.set(templates));
+    this.loadDrinks();
+  }
+
+  private loadDrinks(): void {
+    this.diary
+      .frequentDrinks(2)
+      .pipe(catchError(() => of([] as FrequentDrink[])))
+      .subscribe((drinks) => this.frequentDrinks.set(drinks));
+    this.diary
+      .searchDrinks('water')
+      .pipe(
+        switchMap((options) => {
+          const water = options.find((option) => /^water\b/i.test(option.name)) ?? options.find((option) => option.countsTowardWater);
+          return water ? this.diary.getDrinkDetail(water.foodId) : of(null);
+        }),
+        catchError(() => of(null))
+      )
+      .subscribe((detail) => this.waterFood.set(detail));
+  }
+
+  /** Adds a glass or a bottle of the catalogue's water to the meal. */
+  addWater(ml: number): void {
+    const detail = this.waterFood();
+    const item = detail ? drinkItem(detail, ml) : null;
+    if (!item) {
+      this.toast.error('Water is not available to add right now.');
+      return;
+    }
+    this.mergeMealItem(item);
+    this.toast.success(`Added ${ml} ml of water.`);
+  }
+
+  addFrequentDrink(drink: FrequentDrink): void {
+    this.mergeMealItem(drink.draft);
+    this.toast.success(`Added "${drink.name}".`);
+  }
+
+  /** Narrows the search to the beverages category. */
+  searchDrinks(): void {
+    const category = this.beveragesCategory();
+    if (category) {
+      this.activeTab.set('results');
+      this.selectCategory(category);
+    }
   }
 
   private loadDailySummary(): void {
