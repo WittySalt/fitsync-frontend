@@ -51,6 +51,7 @@ interface BuilderMealItem extends MealItemDraft {
 interface FoodFace {
   categoryCode: string | null;
   imageUrl: string | null;
+  brandLogoUrl: string | null;
 }
 
 interface ServingOption {
@@ -125,6 +126,8 @@ export class MealBuilderComponent implements OnInit {
   readonly mealTemplates = signal<MealTemplate[]>([]);
   /** What the tile of a row needs beyond its brand, kept by food id from the results seen so far. */
   private readonly faces = signal<ReadonlyMap<string, FoodFace>>(new Map());
+  /** The detail head's logo that failed to load, so the head falls back to the plain brand chip. */
+  protected readonly detailLogoFailed = signal<string | null>(null);
   /** The drinks the person has most often, the same ones the water card offers as chips. */
   readonly frequentDrinks = signal<FrequentDrink[]>([]);
   /** The catalogue's water, which a glass or a bottle of water is added from. */
@@ -934,19 +937,23 @@ export class MealBuilderComponent implements OnInit {
   }
 
   /** The category and photo of the food behind a row, when a search or the favorites showed it. */
+  protected detailLogoOk(url: string | null | undefined): boolean {
+    return !!url && url !== this.detailLogoFailed();
+  }
+
   face(item: MealItemDraft): FoodFace | null {
     const foodId = item.foodCatalogItemId ?? item.customFoodId;
     return foodId ? (this.faces().get(foodId) ?? null) : null;
   }
 
   private rememberFaces(foods: FoodSearchResult[]): void {
-    const known = foods.filter((food) => food.foodId && (food.categoryCode || food.imageUrl));
+    const known = foods.filter((food) => food.foodId && (food.categoryCode || food.imageUrl || food.brandLogoUrl));
     if (!known.length) {
       return;
     }
     this.faces.update((current) => {
       const next = new Map(current);
-      known.forEach((food) => next.set(food.foodId as string, { categoryCode: food.categoryCode ?? null, imageUrl: food.imageUrl ?? null }));
+      known.forEach((food) => next.set(food.foodId as string, { categoryCode: food.categoryCode ?? null, imageUrl: food.imageUrl ?? null, brandLogoUrl: food.brandLogoUrl ?? null }));
       return next;
     });
   }
@@ -1041,6 +1048,7 @@ export class MealBuilderComponent implements OnInit {
       foodServingId: food.foodServingId,
       foodName: food.foodName,
       brandName: food.brandName || null,
+      brandLogoUrl: food.brandLogoUrl ?? null,
       quantity: food.quantity || 1,
       unit: food.unit || 'serving',
       servingSize: food.servingSize,
@@ -1063,6 +1071,7 @@ export class MealBuilderComponent implements OnInit {
       foodServingId: item.foodServingId,
       foodName: item.foodName,
       brandName: item.brandName,
+      brandLogoUrl: item.brandLogoUrl ?? null,
       quantity: item.quantity || 1,
       unit: item.unit || 'serving',
       servingSize: null,

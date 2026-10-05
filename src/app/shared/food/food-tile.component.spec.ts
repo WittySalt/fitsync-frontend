@@ -44,6 +44,40 @@ describe('FoodTileComponent', () => {
     expect(icon().querySelectorAll('svg circle, svg path').length).toBeGreaterThan(0);
   });
 
+  it('draws the brand logo after the photo and before the group icon', () => {
+    show({ logoUrl: 'https://logo.clearbit.com/kfc.com', brandName: 'KFC', categoryCode: 'MEAT_POULTRY' });
+
+    const img = el().querySelector('img.logo') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe('https://logo.clearbit.com/kfc.com');
+    expect(img.alt).toBe('KFC');
+    expect(img.getAttribute('loading')).toBe('lazy');
+    expect(icon()).toBeNull();
+  });
+
+  it('prefers the food photo over the brand logo', () => {
+    show({ imageUrl: 'https://images.example/a.jpg', logoUrl: 'https://logo.clearbit.com/kfc.com' });
+
+    expect(el().querySelectorAll('img').length).toBe(1);
+    expect(el().querySelector('img.logo')).toBeNull();
+  });
+
+  it('falls back to the group icon when the logo fails to load', () => {
+    show({ logoUrl: 'https://logo.clearbit.com/gone.example', categoryCode: 'VEGETABLES' });
+    el().querySelector('img.logo')?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(el().querySelector('img')).toBeNull();
+    expect(icon().style.getPropertyValue('--tile')).toBe('var(--food-veg)');
+  });
+
+  it('falls back to the plate icon when the logo fails and there is no group', () => {
+    show({ logoUrl: 'https://logo.clearbit.com/gone.example' });
+    el().querySelector('img.logo')?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(icon().style.getPropertyValue('--tile')).toBe('var(--text-secondary)');
+  });
+
   it('never draws a brand letter, whatever the food carries', () => {
     show({ categoryCode: 'MEAT_POULTRY', brandName: "McDonald's" });
 

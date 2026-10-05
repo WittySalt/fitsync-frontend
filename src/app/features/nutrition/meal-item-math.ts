@@ -23,6 +23,7 @@ export function calculateMealItem(detail: FoodDetail, serving: FoodServing, quan
     foodServingId: serving.servingId,
     foodName: detail.displayName,
     brandName: detail.brandName || null,
+    brandLogoUrl: detail.brandLogoUrl ?? null,
     quantity: roundDecimal(safeQuantity, 2),
     unit: 'serving',
     servingSize: serving.quantity,

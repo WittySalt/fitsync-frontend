@@ -86,6 +86,26 @@ describe('PlateCardComponent', () => {
     expect(element.querySelector('.badges')).not.toBeNull();
   });
 
+  it('draws a plate of mixed foods alone and counts no food group', () => {
+    const element = render([food(null, 219)]);
+    expect(element.querySelector('app-plate-chart')).not.toBeNull();
+    expect(element.querySelectorAll('.wedge').length).toBe(1);
+    expect(text(element.querySelector('.sentence'))).toBe('219 g of mixed foods, not split by group');
+    expect(Array.from(element.querySelectorAll('.legend li')).map((row) => text(row))).toEqual(['Mixed 100%']);
+    expect(text(element.querySelector('.badges-head strong'))).toBe('0 of 7 food groups today');
+  });
+
+  it('adds a Mixed wedge after the groups and keeps the group count to groups', () => {
+    const element = render([food('VEG', 100), food(null, 219)]);
+    expect(element.querySelectorAll('.wedge').length).toBe(2);
+    expect(text(element.querySelector('.sentence'))).toContain('and 219 g of mixed foods.');
+    expect(text(element.querySelector('.badges-head strong'))).toBe('1 of 7 food groups today');
+  });
+
+  it('still explains food that has no weight when nothing is mixed', () => {
+    expect(text(render([food(null, null)]).querySelector('.empty'))).toBe('These foods have no weight yet, so there is no plate to draw.');
+  });
+
   it('says only the drinks are in water when there is nothing else to draw', () => {
     const element = render([food('DRINKS', 250)]);
     expect(text(element.querySelector('.empty'))).toBe('Drinks count in water, so there is no plate to draw.');

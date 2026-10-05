@@ -28,6 +28,11 @@ export function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** A brand logo is an external https image; anything else is dropped. */
+function logoUrl(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('https://') ? value : null;
+}
+
 export function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
@@ -113,6 +118,7 @@ export function mapDiaryItem(raw: Wire): DiaryItem {
     sugarGrams: draft.sugarGrams,
     sodiumMg: draft.sodiumMg,
     categoryCode: text(raw['categoryCode']),
+    brandLogoUrl: logoUrl(raw['brandLogoUrl']),
     foodGroup: asFoodGroup(text(raw['foodGroup'])),
     gramsConsumed,
     waterMl: num(raw['waterMl']),

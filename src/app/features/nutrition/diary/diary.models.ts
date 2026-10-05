@@ -21,6 +21,8 @@ export interface DiaryItem {
   sugarGrams: number | null;
   sodiumMg: number | null;
   categoryCode: string | null;
+  /** An external https logo of the item's brand, null when it has none. */
+  brandLogoUrl?: string | null;
   foodGroup: FoodGroup | null;
   gramsConsumed: number | null;
   waterMl: number | null;

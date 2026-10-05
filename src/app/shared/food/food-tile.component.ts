@@ -1,12 +1,12 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 
 import { FoodIconComponent } from './food-icon.component';
 import { FoodGroup, groupForCategory } from './food-groups';
 
 /**
- * The leading tile of a food row: the photo when the food has one, otherwise the icon of its food
+ * The leading tile of a food row: the photo when the food has one, then the brand logo, otherwise the icon of its food
  * group in the group's colour, and the plate and fork on the neutral colour when it has no group.
- * Brands are never drawn here; a row shows the brand as a chip.
+ * Between the two sits the brand logo, which falls back to the icon when it fails to load.
  */
 @Component({
   selector: 'app-food-tile',
@@ -14,6 +14,8 @@ import { FoodGroup, groupForCategory } from './food-groups';
   template: `
     @if (imageUrl(); as url) {
       <img [src]="url" alt="" loading="lazy" />
+    } @else if (logo(); as logoSrc) {
+      <img class="logo" [src]="logoSrc" [alt]="brandName() ?? ''" loading="lazy" (error)="failedLogo.set(logoSrc)" />
     } @else {
       <app-food-icon [group]="resolvedGroup()" [categoryCode]="categoryCodeValue()" [size]="size()" />
     }
@@ -35,6 +37,12 @@ import { FoodGroup, groupForCategory } from './food-groups';
         object-fit: cover;
         background: var(--surface-sunken);
       }
+
+      img.logo {
+        padding: 4px;
+        object-fit: contain;
+        background: #fff;
+      }
     `
   ],
   host: {
@@ -50,6 +58,15 @@ export class FoodTileComponent {
   /** The food group when the caller already knows it; otherwise it comes from the category code. */
   readonly group = input<FoodGroup | null | undefined>(null);
   readonly size = input(40);
+  /** The brand's logo, drawn when the food has no photo of its own. */
+  readonly logoUrl = input<string | null | undefined>(null);
+  readonly brandName = input<string | null | undefined>(null);
+
+  protected readonly failedLogo = signal<string | null>(null);
+  protected readonly logo = computed(() => {
+    const url = this.logoUrl();
+    return url && url !== this.failedLogo() ? url : null;
+  });
 
   protected readonly resolvedGroup = computed(() => this.group() ?? groupForCategory(this.categoryCode()));
   protected readonly categoryCodeValue = computed(() => this.categoryCode() ?? null);

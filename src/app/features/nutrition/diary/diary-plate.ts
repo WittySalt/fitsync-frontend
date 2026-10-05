@@ -13,10 +13,18 @@ export const BADGE_GROUPS: readonly FoodGroup[] = ['VEG', 'FRUIT', 'GRAINS', 'PR
 /** A wedge is given an icon only when it is wide enough to hold one. */
 export const MIN_ICON_SWEEP = 30;
 
+/** A wedge of the plate: one of the food groups, or the foods that have no plate group. */
+export type PlateGroup = FoodGroup | 'MIXED';
+
+export const MIXED_LABEL = 'Mixed';
+
 export interface PlateTotals {
   grams: Partial<Record<FoodGroup, number>>;
+  /** Grams of foods with no plate group, such as prepared and restaurant food. They get their own grey wedge. */
+  mixedGrams: number;
+  /** Grams on the plate, mixed foods included. */
   totalGrams: number;
-  /** Foods left off the plate: those with no weight, or with no food group to place them in. Drinks are not counted. */
+  /** Foods left off the plate because they have no weight. Drinks are not counted. */
   leftOut: number;
 }
 
@@ -24,23 +32,28 @@ export interface PlateTotals {
 export function plateTotals(items: readonly DiaryItem[]): PlateTotals {
   const grams: Partial<Record<FoodGroup, number>> = {};
   let totalGrams = 0;
+  let mixedGrams = 0;
   let leftOut = 0;
   for (const item of items) {
     if (item.foodGroup === 'DRINKS') {
       continue;
     }
-    if (item.foodGroup === null || item.gramsConsumed === null || item.gramsConsumed <= 0) {
+    if (item.gramsConsumed === null || item.gramsConsumed <= 0) {
       leftOut += 1;
       continue;
     }
-    grams[item.foodGroup] = (grams[item.foodGroup] ?? 0) + item.gramsConsumed;
+    if (item.foodGroup === null) {
+      mixedGrams += item.gramsConsumed;
+    } else {
+      grams[item.foodGroup] = (grams[item.foodGroup] ?? 0) + item.gramsConsumed;
+    }
     totalGrams += item.gramsConsumed;
   }
-  return { grams, totalGrams, leftOut };
+  return { grams, mixedGrams, totalGrams, leftOut };
 }
 
 export interface PlateWedge {
-  group: FoodGroup;
+  group: PlateGroup;
   grams: number;
   /** Share of the plate, 0 to 1. */
   share: number;
@@ -65,8 +78,9 @@ export function plateWedges(totals: PlateTotals, size: number): PlateWedge[] {
   ];
   const wedges: PlateWedge[] = [];
   let angle = -90;
-  for (const group of PLATE_ORDER) {
-    const grams = totals.grams[group] ?? 0;
+  const order: readonly PlateGroup[] = [...PLATE_ORDER, 'MIXED'];
+  for (const group of order) {
+    const grams = group === 'MIXED' ? totals.mixedGrams : (totals.grams[group] ?? 0);
     if (grams <= 0) {
       continue;
     }
@@ -94,11 +108,13 @@ export function plateWedges(totals: PlateTotals, size: number): PlateWedge[] {
 }
 
 /** One legend line per group on the plate, in the order the groups are listed everywhere else. */
-export function plateLegend(wedges: readonly PlateWedge[]): { group: FoodGroup; label: string; percent: number }[] {
-  return FOOD_GROUPS.map((info) => {
+export function plateLegend(wedges: readonly PlateWedge[]): { group: PlateGroup; label: string; percent: number }[] {
+  const lines = FOOD_GROUPS.map((info) => {
     const wedge = wedges.find((entry) => entry.group === info.key);
-    return wedge ? { group: info.key, label: info.label, percent: Math.round(wedge.share * 100) } : null;
-  }).filter((entry): entry is { group: FoodGroup; label: string; percent: number } => entry !== null);
+    return wedge ? { group: info.key as PlateGroup, label: info.label, percent: Math.round(wedge.share * 100) } : null;
+  }).filter((entry): entry is { group: PlateGroup; label: string; percent: number } => entry !== null);
+  const mixed = wedges.find((entry) => entry.group === 'MIXED');
+  return mixed ? [...lines, { group: 'MIXED', label: MIXED_LABEL, percent: Math.round(mixed.share * 100) }] : lines;
 }
 
 /** The one sentence that sets fruit and veg against the half of a balanced plate. */
@@ -106,6 +122,15 @@ export function fruitVegSentence(totals: PlateTotals): string {
   if (totals.totalGrams <= 0) {
     return '';
   }
+  const mixed = `${Math.round(totals.mixedGrams)} g of mixed foods`;
+  if (totals.totalGrams === totals.mixedGrams) {
+    return `${mixed}, not split by group`;
+  }
+  const sentence = groupSentence(totals);
+  return totals.mixedGrams > 0 ? `${sentence.replace(/.$/, '')} and ${mixed}.` : sentence;
+}
+
+function groupSentence(totals: PlateTotals): string {
   const grams = (totals.grams.VEG ?? 0) + (totals.grams.FRUIT ?? 0);
   const percent = Math.round((grams / totals.totalGrams) * 100);
   if (grams <= 0) {
