@@ -43,21 +43,30 @@ export function dayTiles(days: readonly RangeDay[], dates: readonly string[], to
 }
 
 export interface WeekFigures {
-  /** "4 of 4": the logged days among the days before today. */
+  /** "4 of 5": the logged days among the days of the week up to and including today. */
   daysLogged: string;
+  /** How many days have been logged, today included. */
+  loggedCount: number;
   onTarget: number;
-  /** Average kcal over the logged days before today, or null when there is none. */
+  /** Average kcal over the logged days, or null when no day is logged. */
   kcalPerDay: number | null;
 }
 
-/** Today is left out of every figure because its total is still growing. */
+/**
+ * The days logged are counted over the days of the week up to today. Today is left out of the
+ * average and of the days on target while it is still growing, and stands in for the average only
+ * when it is the one day logged.
+ */
 export function weekFigures(tiles: readonly DayTile[]): WeekFigures {
-  const past = tiles.filter((tile) => tile.state === 'past');
-  const logged = past.filter((tile) => tile.logged);
+  const sofar = tiles.filter((tile) => tile.state !== 'future');
+  const loggedDays = sofar.filter((tile) => tile.logged);
+  const past = loggedDays.filter((tile) => tile.state === 'past');
+  const averaged = past.length ? past : loggedDays;
   return {
-    daysLogged: `${logged.length} of ${past.length}`,
-    onTarget: logged.filter((tile) => tile.onTarget).length,
-    kcalPerDay: logged.length ? Math.round(logged.reduce((sum, tile) => sum + tile.kcal, 0) / logged.length) : null
+    daysLogged: `${loggedDays.length} of ${sofar.length}`,
+    loggedCount: loggedDays.length,
+    onTarget: past.filter((tile) => tile.onTarget).length,
+    kcalPerDay: averaged.length ? Math.round(averaged.reduce((sum, tile) => sum + tile.kcal, 0) / averaged.length) : null
   };
 }
 

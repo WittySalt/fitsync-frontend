@@ -13,7 +13,7 @@ import { RecipeCard } from './recipes.models';
   template: `
     <div class="media">
       <a class="cover" [routerLink]="['/nutrition/recipes', card().id]" [queryParams]="query()" tabindex="-1" aria-hidden="true">
-        <app-recipe-cover [imageUrl]="card().imageUrl" [groups]="card().topFoodGroups" [credit]="true" ratio="16 / 9" />
+        <app-recipe-cover [imageUrl]="card().imageUrl" [groups]="card().topFoodGroups" ratio="16 / 9" />
       </a>
       @if (cookable()) {
         <button class="cook" type="button" [attr.aria-label]="'Cook ' + card().name" (click)="cook.emit(card())">

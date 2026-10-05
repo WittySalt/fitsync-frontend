@@ -34,6 +34,15 @@ describe('BalanceCardComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  it('says Nothing logged today once, instead of a no-data line for every nutrient', () => {
+    const none = entries.map((entry) => ({ ...entry, amount: null, share: null }));
+    const element = render({ entries: none, protein: null });
+    expect(element.querySelectorAll('.empty').length).toBe(1);
+    expect(text(element.querySelector('.empty'))).toBe('Nothing logged today');
+    expect(element.querySelector('app-balance-row')).toBeNull();
+    expect(element.textContent).not.toContain('No data for these foods yet.');
+  });
+
   it('has three parts: aim for, keep under, and through the day', () => {
     const element = render();
     const heads = Array.from(element.querySelectorAll('.section-head strong')).map((node) => node.textContent);
@@ -51,7 +60,7 @@ describe('BalanceCardComponent', () => {
 
   it('says there is no data for a nutrient with no amount, with no bar and the week dots not yet', () => {
     const unknown = balanceEntry({ amount: null, share: null });
-    const element = render({ entries: [unknown], days: [rangeDay('2026-09-28', { fiberMet: null }), rangeDay('2026-09-29', { fiberMet: null })] });
+    const element = render({ entries: [unknown, entries[1]], days: [rangeDay('2026-09-28', { fiberMet: null }), rangeDay('2026-09-29', { fiberMet: null })] });
     const row = element.querySelector('app-balance-row') as HTMLElement;
     expect(text(row.querySelector('.unknown'))).toBe('No data for these foods yet.');
     expect(row.querySelector('.bar')).toBeNull();

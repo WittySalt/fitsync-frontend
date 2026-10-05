@@ -70,7 +70,15 @@ describe('DiaryWeekComponent', () => {
 
   it('shows days logged, days on target and kcal a day', () => {
     const figures = Array.from<HTMLElement>(render().nativeElement.querySelectorAll('.figure')).map((node) => Array.from(node.children).map((child) => child.textContent?.trim()).join(' '));
-    expect(figures).toEqual(['4 of 4 days logged', '3 on target', '2,008 kcal a day']);
+    expect(figures).toEqual(['5 of 5 days logged', '3 on target', '2,008 kcal a day']);
+  });
+
+  it('says No days logged yet in place of the kcal figure when no day is logged', () => {
+    const fixture = render();
+    fixture.componentInstance.days = [];
+    fixture.detectChanges();
+    const figures = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('.figure')).map((node) => Array.from(node.children).map((child) => child.textContent?.trim()).join(' '));
+    expect(figures).toEqual(['0 of 5 days logged', '0 on target', 'No days logged yet']);
   });
 
   it('shows the range of the week', () => {

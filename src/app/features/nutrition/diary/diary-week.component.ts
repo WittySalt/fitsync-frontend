@@ -53,8 +53,12 @@ import { whole } from './diary-figures';
             <span>on target</span>
           </div>
           <div class="figure">
-            <strong>{{ kcalPerDay() }}</strong>
-            <span>kcal a day</span>
+            @if (figures().kcalPerDay === null) {
+              <strong>No days logged yet</strong>
+            } @else {
+              <strong>{{ kcalPerDay() }}</strong>
+              <span>kcal a day</span>
+            }
           </div>
         </div>
       </div>
@@ -76,10 +80,7 @@ export class DiaryWeekComponent {
 
   protected readonly tiles = computed(() => dayTiles(this.days(), this.dates(), this.today(), this.target()));
   protected readonly figures = computed(() => weekFigures(this.tiles()));
-  protected readonly kcalPerDay = computed(() => {
-    const average = this.figures().kcalPerDay;
-    return average === null ? 'None yet' : whole(average);
-  });
+  protected readonly kcalPerDay = computed(() => whole(this.figures().kcalPerDay ?? 0));
   protected readonly range = computed(() => {
     const dates = this.dates();
     return dates.length ? rangeLabel(dates[0], dates[dates.length - 1]) : '';

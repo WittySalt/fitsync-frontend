@@ -99,6 +99,9 @@ interface ListRequest {
           <app-recipe-card [card]="card" [logTo]="logTo()" [heart]="isLibrary()" (favourite)="toggleFavorite($event)" (cook)="readyFor.set($event)" />
         }
       </div>
+      @if (hasPhotos(s.data.items)) {
+        <p class="credit">Photo from TheMealDB</p>
+      }
       <app-pager
         [page]="s.data.page"
         [totalPages]="s.data.totalPages"
@@ -154,6 +157,11 @@ export class RecipeListComponent {
     const state = this.state();
     return state.status === 'ready' ? fitLine(state.data.fit) : null;
   });
+
+  /** True when a card of the page shows a photo, so the credit line is worth a footer. */
+  protected hasPhotos(items: readonly { imageUrl: string | null }[]): boolean {
+    return items.some((card) => !!card.imageUrl);
+  }
 
   protected readonly isLibrary = computed(() => this.scope() === 'library');
   protected readonly filtered = computed(() => !!this.q() || this.category() !== null || this.diet() !== null || this.saved() || this.highProtein());
