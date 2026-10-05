@@ -70,7 +70,7 @@ describe('dayTiles', () => {
 });
 
 describe('weekFigures', () => {
-  it('counts logged days among the past days and averages them, leaving today out', () => {
+  it('counts logged days among the days up to today and averages the past ones, leaving today out', () => {
     const days = [
       rangeDay('2026-09-28', { totalCalories: 2050 }),
       rangeDay('2026-09-29', { totalCalories: 1980 }),
@@ -79,15 +79,28 @@ describe('weekFigures', () => {
       rangeDay(TODAY, { totalCalories: 900 })
     ];
     const figures = weekFigures(dayTiles(days, DATES, TODAY, 2100));
-    expect(figures.daysLogged).toBe('4 of 4');
+    expect(figures.daysLogged).toBe('5 of 5');
     expect(figures.onTarget).toBe(3);
     expect(figures.kcalPerDay).toBe(2008);
   });
 
-  it('has no average before any past day was logged', () => {
+  it('has no average before any day was logged, and counts today in the days so far', () => {
     const figures = weekFigures(dayTiles([], DATES, TODAY, 2100));
-    expect(figures.daysLogged).toBe('0 of 4');
+    expect(figures.daysLogged).toBe('0 of 5');
+    expect(figures.loggedCount).toBe(0);
     expect(figures.kcalPerDay).toBeNull();
+  });
+
+  it('counts one day on a Monday, the first day of the week', () => {
+    const monday = '2026-09-28';
+    expect(weekFigures(dayTiles([], weekOf(monday), monday, 2100)).daysLogged).toBe('0 of 1');
+  });
+
+  it('uses today for the average only when it is the one day logged', () => {
+    const figures = weekFigures(dayTiles([rangeDay(TODAY, { totalCalories: 900 })], DATES, TODAY, 2100));
+    expect(figures.daysLogged).toBe('1 of 5');
+    expect(figures.kcalPerDay).toBe(900);
+    expect(figures.onTarget).toBe(0);
   });
 });
 

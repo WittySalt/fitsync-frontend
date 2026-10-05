@@ -75,8 +75,11 @@ export function groupForCategory(categoryCode: string | null | undefined): FoodG
   return CATEGORY_GROUP[(categoryCode ?? '').toUpperCase()] ?? null;
 }
 
-/** The icon for a food: fish and eggs have their own drawing, everything else uses its group's. */
-export function iconFor(group: FoodGroup | null | undefined, categoryCode?: string | null): string | null {
+/**
+ * The icon for a food: fish and eggs have their own drawing, everything else uses its group's.
+ * A food with no group (prepared and restaurant food, for one) gets the plate and fork.
+ */
+export function iconFor(group: FoodGroup | null | undefined, categoryCode?: string | null): string {
   const category = (categoryCode ?? '').toUpperCase();
   if (!group && isSeasoning(category)) {
     return 'SHAKER';
@@ -87,5 +90,5 @@ export function iconFor(group: FoodGroup | null | undefined, categoryCode?: stri
   if (category === 'EGGS') {
     return 'EGG';
   }
-  return foodGroupInfo(group)?.icon ?? null;
+  return foodGroupInfo(group)?.icon ?? 'PLATE';
 }

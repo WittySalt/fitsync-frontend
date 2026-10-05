@@ -9,6 +9,7 @@ import { NutrientsPage } from './nutrients.page';
 import { NutrientPage } from './nutrient.page';
 import { detail, overview } from './nutrients-testing.spec';
 import { takeScroll } from './nutrients-scroll';
+import { ProgressBack } from '../../progress/cards/progress-back';
 
 describe('NutrientsPage', () => {
   let service: jasmine.SpyObj<NutrientsService>;
@@ -48,6 +49,25 @@ describe('NutrientsPage', () => {
   }
 
   const text = (el: HTMLElement) => (el.textContent ?? '').replace(/\s+/g, ' ');
+
+  it('heads the page with a Back that steps back through ProgressBack and falls back to Nutrition', async () => {
+    const el = await open();
+    const back = spyOn(TestBed.inject(ProgressBack), 'back');
+    const link = el.querySelector<HTMLAnchorElement>('a.back');
+
+    expect(link?.textContent?.trim()).toBe('‹ Back');
+    link?.click();
+
+    expect(back).toHaveBeenCalledOnceWith('/nutrition');
+  });
+
+  it('lands on Nutrition when Back has no earlier page of the app to return to', async () => {
+    const el = await open();
+    el.querySelector<HTMLAnchorElement>('a.back')?.click();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/nutrition');
+  });
 
   it('opens on 7 days when the URL names no period', async () => {
     const el = await open();

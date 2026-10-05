@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription, map } from 'rxjs';
 
 import { StatePanelComponent } from '../../../shared/state-panel.component';
+import { ProgressBack } from '../../progress/cards/progress-back';
 import { LOADING, Load } from '../diary/diary.models';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { NutrientDetail, NutrientTileData, NutrientsOverview, PeriodKey } from './nutrients.models';
@@ -29,7 +30,7 @@ const FAILURE = 'Your nutrients could not load. Please retry.';
   imports: [NutrientHeroComponent, NutrientSidePanelComponent, NutrientTableComponent, RouterLink, StatePanelComponent],
   template: `
     <div class="page-grid nutrients-page">
-      <a class="back" routerLink="/nutrition" aria-label="Back to Nutrition">&larr; Nutrition</a>
+      <a class="back" routerLink="/nutrition" aria-label="Back" (click)="goBack($event)">&lsaquo; Back</a>
       <header class="head">
         <div class="title">
           <h1>All nutrients</h1>
@@ -76,11 +77,18 @@ const FAILURE = 'Your nutrients could not load. Please retry.';
 })
 export class NutrientsPage {
   private readonly service = inject(NutrientsService);
+  private readonly progressBack = inject(ProgressBack);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly userTimezone = inject(UserTimezoneService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Steps back to wherever the person came from, else opens Nutrition. */
+  protected goBack(event: Event): void {
+    event.preventDefault();
+    this.progressBack.back('/nutrition');
+  }
 
   protected readonly periods = PERIODS;
   protected readonly period = toSignal(this.route.queryParamMap.pipe(map((params) => parsePeriod(params.get('period')))), {

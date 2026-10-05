@@ -12,8 +12,8 @@
       @for (type of mealTypeOptions; track type.value) {
         <button
           type="button"
-          [class.active]="mealForm.controls.mealType.value === type.value"
-          [attr.aria-pressed]="mealForm.controls.mealType.value === type.value"
+          [class.active]="mealType() === type.value"
+          [attr.aria-pressed]="mealType() === type.value"
           (click)="setMealType(type.value)"
         >
           {{ type.label }}
@@ -142,6 +142,14 @@
       </div>
 
       @if (activeTab() === 'results') {
+        <app-builder-drinks
+          [hasWater]="waterFood() !== null"
+          [recent]="frequentDrinks()"
+          [canSearch]="beveragesCategory() !== null"
+          (water)="addWater($event)"
+          (pick)="addFrequentDrink($event)"
+          (narrow)="searchDrinks()"
+        />
         @if (searching()) {
           <div class="summary-card skeleton"></div>
         } @else if (foods().length) {
@@ -149,8 +157,14 @@
             @for (food of foods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <span>
-                    <strong>{{ food.displayName }}</strong>
+                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <span class="food-main">
+                    <span class="name-line">
+                      <strong class="food-name">{{ food.displayName }}</strong>
+                      @if (food.verified) {
+                        <app-food-glyph class="verified" name="CHECK" [size]="12" [strokeWidth]="3" aria-label="Verified" role="img" />
+                      }
+                    </span>
                     <small>per {{ food.basisLabel || food.basisUnit }}</small>
                     <span class="tag-list">
                       @for (tag of foodTags(food); track tag) {
@@ -160,10 +174,9 @@
                   </span>
                   <span class="food-cal">
                     @if (selectedCount(food) > 0) {
-                      <small class="in-meal">In meal · {{ formatQuantity(selectedCount(food)) }}</small>
+                      <span class="in-meal">&times;{{ formatQuantity(selectedCount(food)) }} in meal</span>
                     }
-                    <strong>{{ formatAmount(food.calories) }}</strong>
-                    <small>kcal</small>
+                    <span class="kcal">{{ formatAmount(food.calories) }} kcal</span>
                   </span>
                 </button>
                 <div class="row-actions">
@@ -244,8 +257,14 @@
             @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <span>
-                    <strong>{{ food.displayName }}</strong>
+                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <span class="food-main">
+                    <span class="name-line">
+                      <strong class="food-name">{{ food.displayName }}</strong>
+                      @if (food.verified) {
+                        <app-food-glyph class="verified" name="CHECK" [size]="12" [strokeWidth]="3" aria-label="Verified" role="img" />
+                      }
+                    </span>
                     <small>{{ food.brandName || 'Generic' }} · per {{ food.basisLabel || food.basisUnit }}</small>
                     <span class="tag-list">
                       @for (tag of foodTags(food); track tag) {
@@ -254,8 +273,7 @@
                     </span>
                   </span>
                   <span class="food-cal">
-                    <strong>{{ formatAmount(food.calories) }}</strong>
-                    <small>kcal</small>
+                    <span class="kcal">{{ formatAmount(food.calories) }} kcal</span>
                   </span>
                 </button>
                 <button type="button" class="quantity-button" [disabled]="!food.foodId" (click)="addFoodResult(food, $event)">+</button>
@@ -486,17 +504,38 @@
           <div class="item-list">
             @for (item of items(); track item.id) {
               <article class="meal-item">
-                <div>
+                <app-food-tile
+                  [categoryCode]="face(item)?.categoryCode"
+                  [imageUrl]="face(item)?.imageUrl"
+                />
+                <div class="item-name">
                   <strong>{{ item.foodName }}</strong>
-                  <span>{{ formatServing(item) }}</span>
+                  <select
+                    class="serving-select"
+                    [attr.aria-label]="'Serving for ' + item.foodName"
+                    [disabled]="!item.detail"
+                    (change)="setItemServing(item.id, $any($event.target).value)"
+                  >
+                    @for (option of servingOptions(item); track option.value) {
+                      <option [value]="option.value" [selected]="option.value === rowServingKey(item)">{{ option.label }}</option>
+                    }
+                  </select>
                 </div>
                 <div class="item-stepper">
-                  <label class="sr-only" for="meal-item-quantity-{{ item.id }}">Quantity for {{ item.foodName }}</label>
-                  <div class="stepper compact">
-                    <button type="button" (click)="incrementItem(item.id, -1)">-</button>
-                    <input id="meal-item-quantity-{{ item.id }}" type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
-                    <button type="button" (click)="incrementItem(item.id, 1)">+</button>
-                  </div>
+                  @if (item.custom) {
+                    <label class="sr-only" for="meal-item-grams-{{ item.id }}">Grams of {{ item.foodName }}</label>
+                    <div class="grams-field">
+                      <input id="meal-item-grams-{{ item.id }}" type="number" min="1" step="1" [value]="item.grams" (input)="setItemGrams(item.id, $any($event.target).value)" />
+                      <span aria-hidden="true">g</span>
+                    </div>
+                  } @else {
+                    <label class="sr-only" for="meal-item-quantity-{{ item.id }}">Quantity for {{ item.foodName }}</label>
+                    <div class="stepper compact">
+                      <button type="button" (click)="incrementItem(item.id, -1)">-</button>
+                      <input id="meal-item-quantity-{{ item.id }}" type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
+                      <button type="button" (click)="incrementItem(item.id, 1)">+</button>
+                    </div>
+                  }
                 </div>
                 <div class="item-calories">
                   <strong>{{ formatAmount(item.calories) }} kcal</strong>
@@ -513,19 +552,19 @@
           <button
             type="button"
             class="label-note-toggle"
-            [attr.aria-expanded]="labelNoteOpen() || mealForm.controls.mealType.value === 'OTHER'"
+            [attr.aria-expanded]="labelNoteOpen() || mealType() === 'OTHER'"
             (click)="toggleLabelNote()"
           >
             <span>Add label & note</span>
             <small>
-              {{ mealForm.controls.mealType.value === 'OTHER' ? 'Required for Other meals' : 'Optional - defaults to "' + defaultMealName() + '"' }}
+              {{ mealType() === 'OTHER' ? 'Required for Other meals' : 'Optional - defaults to "' + defaultMealName() + '"' }}
             </small>
           </button>
-          @if (labelNoteOpen() || mealForm.controls.mealType.value === 'OTHER') {
+          @if (labelNoteOpen() || mealType() === 'OTHER') {
             <div class="meal-text-grid">
               <label>
                 Meal name
-                <input formControlName="name" [placeholder]="mealForm.controls.mealType.value === 'OTHER' ? 'Name your meal' : defaultMealName()" />
+                <input formControlName="name" [placeholder]="mealType() === 'OTHER' ? 'Name your meal' : defaultMealName()" />
                 @if (mealForm.controls.name.hasError('required') && mealForm.controls.name.touched) {
                   <span class="field-error">Name your meal</span>
                 }

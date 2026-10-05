@@ -13,6 +13,7 @@ import {
   PagedFoods
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent, calculateMealItem } from './meal-builder.component';
 
 describe('MealBuilderComponent', () => {
@@ -197,11 +198,15 @@ describe('MealBuilderComponent', () => {
     dataService.removeFavoriteFood.and.returnValue(of(void 0));
 
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
+    const diary = jasmine.createSpyObj<NutritionDiaryService>('NutritionDiaryService', ['frequentDrinks', 'searchDrinks', 'getDrinkDetail']);
+    diary.frequentDrinks.and.returnValue(of([]));
+    diary.searchDrinks.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [MealBuilderComponent],
       providers: [
         { provide: FitSyncDataService, useValue: dataService },
+        { provide: NutritionDiaryService, useValue: diary },
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
@@ -336,7 +341,7 @@ describe('MealBuilderComponent', () => {
     component.favoriteFoods.set([searchFood]);
     fixture.detectChanges();
 
-    expect(component.foodTags(searchFood)).toEqual(['Verified', 'Hawker', 'Prepared meals', 'Recent', 'Favorite']);
+    expect(component.foodTags(searchFood)).toEqual(['Hawker', 'Prepared meals', 'Recent', 'Favorite']);
     expect(fixture.nativeElement.textContent).toContain('Prepared meals');
   });
 

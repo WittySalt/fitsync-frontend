@@ -34,7 +34,10 @@ const KIDNEY_NOTE =
         <span><i></i>not yet</span>
       </span>
     </div>
-    @if (aim().length) {
+    @if (nothingLogged()) {
+      <p class="empty">Nothing logged today</p>
+    }
+    @if (!nothingLogged() && aim().length) {
       <section>
         <div class="section-head">
           <strong>Aim for</strong>
@@ -48,7 +51,7 @@ const KIDNEY_NOTE =
         }
       </section>
     }
-    @if (under().length) {
+    @if (!nothingLogged() && under().length) {
       <section>
         <div class="section-head">
           <strong>Keep under</strong>
@@ -79,6 +82,11 @@ export class BalanceCardComponent {
   protected readonly kidneyNote = KIDNEY_NOTE;
   protected readonly aim = computed(() => this.rows('TARGET'));
   protected readonly under = computed(() => this.rows('LIMIT'));
+  /** True when none of the lines has an amount, which is what a day with nothing logged looks like. */
+  protected readonly nothingLogged = computed(() => {
+    const lines = this.entries().filter((entry) => entry.kind === 'TARGET' || entry.kind === 'LIMIT');
+    return lines.length > 0 && lines.every((entry) => entry.amount === null);
+  });
   protected readonly hasPotassium = computed(() => this.entries().some((entry) => entry.code === 'POTASSIUM'));
   protected readonly chart = computed<ProteinChart | null>(() => {
     const view = this.proteinByMeal();

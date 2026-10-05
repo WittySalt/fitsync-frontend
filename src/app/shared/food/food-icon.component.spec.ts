@@ -38,12 +38,12 @@ describe('food icon', () => {
     expect(tile.querySelector('circle')).not.toBeNull();
   });
 
-  it('keeps a neutral empty tile for a food with no group', () => {
+  it('draws the plate and fork on the neutral colour for a food with no group', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.componentInstance.group = null;
     fixture.detectChanges();
     const tile: HTMLElement = fixture.nativeElement.querySelector('app-food-icon');
-    expect(tile.querySelector('svg')).toBeNull();
+    expect(tile.querySelectorAll('svg path, svg circle').length).toBeGreaterThan(0);
     expect(tile.style.getPropertyValue('--tile')).toBe('var(--text-secondary)');
   });
 

@@ -35,6 +35,26 @@ describe('RecipeListComponent', () => {
   const lastQuery = () => service.list.calls.mostRecent().args[0];
   const cards = (count: number): RecipeCard[] => Array.from({ length: count }, (_, index) => card({ id: `r${index}`, name: `Recipe ${index}` }));
 
+  it('credits TheMealDB once under the list, not on every card', () => {
+    service.list.and.returnValue(of({ items: cards(3), page: 0, totalPages: 1, totalElements: 3 }));
+    const fixture = render();
+    fixture.detectChanges();
+
+    const credits = Array.from(el(fixture).querySelectorAll('.credit')).map((node) => node.textContent?.trim());
+    expect(credits).toEqual(['Photo from TheMealDB']);
+    expect(el(fixture).querySelector('app-recipe-card .credit')).toBeNull();
+    const grid = el(fixture).querySelector('.grid') as HTMLElement;
+    expect(grid.compareDocumentPosition(el(fixture).querySelector('.credit') as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('leaves the credit out when no card has a photo', () => {
+    service.list.and.returnValue(of({ items: [card({ imageUrl: null })], page: 0, totalPages: 1, totalElements: 1 }));
+    const fixture = render();
+    fixture.detectChanges();
+
+    expect(el(fixture).querySelector('.credit')).toBeNull();
+  });
+
   it('takes up search, filters and page again when the person comes back from a recipe', fakeAsync(() => {
     const place = jasmine.createSpyObj<RecipesLibraryState>('RecipesLibraryState', ['take', 'keep']);
     place.take.and.returnValue({ scope: 'library', q: 'salmon', category: 'Seafood', diet: 'VEGAN', saved: false, highProtein: true, sort: 'protein', page: 2, scrollY: 640 });

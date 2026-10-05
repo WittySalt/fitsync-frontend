@@ -286,6 +286,7 @@
   width: 100%;
   min-width: 0;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-height: 0;
@@ -307,14 +308,58 @@
   color: var(--text-secondary);
 }
 
+.food-main {
+  flex: 1;
+  min-width: 0;
+}
+
 .food-cal,
 .item-calories {
   text-align: right;
   white-space: nowrap;
 }
 
+.food-cal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
 .in-meal {
-  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+.kcal {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.food-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verified {
+  color: var(--accent-text);
+}
+
+.result-tag {
+  white-space: nowrap;
 }
 
 .result-tag,
@@ -372,6 +417,10 @@
     cursor: pointer;
   }
 
+  span {
+    margin-top: 0;
+  }
+
   input {
     text-align: center;
   }
@@ -382,6 +431,10 @@
   grid-template-columns: 34px 54px 34px;
 
   button,
+  span {
+    margin-top: 0;
+  }
+
   input {
     min-height: 34px;
     padding: 4px;
@@ -496,7 +549,7 @@
 .ring-copy strong.over { color: var(--danger); }
 
 .meal-item {
-  grid-template-columns: minmax(0, 1fr) auto minmax(100px, auto);
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(100px, auto);
   align-items: center;
   padding: 12px;
   border: 1px solid var(--border);
@@ -508,6 +561,44 @@
     margin-top: 4px;
     color: var(--text-secondary);
     font-size: 13px;
+  }
+}
+
+.item-name {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.serving-select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.grams-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  span {
+    margin-top: 0;
+  }
+
+  input {
+    width: 76px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
   }
 }
 
