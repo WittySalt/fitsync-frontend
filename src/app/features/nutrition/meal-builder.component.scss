@@ -372,6 +372,10 @@
     cursor: pointer;
   }
 
+  span {
+    margin-top: 0;
+  }
+
   input {
     text-align: center;
   }
@@ -382,6 +386,10 @@
   grid-template-columns: 34px 54px 34px;
 
   button,
+  span {
+    margin-top: 0;
+  }
+
   input {
     min-height: 34px;
     padding: 4px;
@@ -508,6 +516,44 @@
     margin-top: 4px;
     color: var(--text-secondary);
     font-size: 13px;
+  }
+}
+
+.item-name {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.serving-select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.grams-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  span {
+    margin-top: 0;
+  }
+
+  input {
+    width: 76px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
   }
 }
 

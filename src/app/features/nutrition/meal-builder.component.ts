@@ -17,6 +17,17 @@ import {
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import {
+  CUSTOM_SERVING_KEY,
+  calculateGramsItem,
+  calculateMealItem,
+  isCustomFoodScope,
+  roundDecimal,
+  scaleDraft,
+  servingGrams
+} from './meal-item-math';
+
+export { calculateMealItem, isCustomFoodScope };
 
 type FinderTab = 'results' | 'recent' | 'favorites' | 'templates';
 type RecentSort = 'recent' | 'frequent';
@@ -26,6 +37,14 @@ interface BuilderMealItem extends MealItemDraft {
   id: string;
   detail?: FoodDetail;
   serving?: FoodServing;
+  /** True while the row holds an amount typed in grams instead of a count of a serving. */
+  custom?: boolean;
+  grams?: number;
+}
+
+interface ServingOption {
+  value: string;
+  label: string;
 }
 
 interface RingMetric {
@@ -49,113 +68,6 @@ export function defaultMealType(now: Date): string {
     return 'DINNER';
   }
   return 'SNACK';
-}
-
-export function isCustomFoodScope(scope: string | null | undefined): boolean {
-  const normalized = (scope ?? '').toUpperCase();
-  return normalized === 'USER' || normalized === 'CUSTOM';
-}
-
-export function calculateMealItem(detail: FoodDetail, serving: FoodServing, quantity: number): MealItemDraft | null {
-  const safeQuantity = Number(quantity);
-  if (!Number.isFinite(safeQuantity) || safeQuantity <= 0) {
-    return null;
-  }
-
-  const scale = calculateServingScale(detail, serving, safeQuantity);
-  if (scale == null) {
-    return null;
-  }
-
-  const isCustom = isCustomFoodScope(detail.scope);
-  return {
-    foodCatalogItemId: isCustom ? null : detail.foodId,
-    customFoodId: isCustom ? detail.foodId : null,
-    foodServingId: serving.servingId,
-    foodName: detail.displayName,
-    brandName: detail.brandName || null,
-    quantity: roundDecimal(safeQuantity, 2),
-    unit: 'serving',
-    servingSize: serving.quantity,
-    servingUnit: serving.unit ?? null,
-    snapshotServingLabel: serving.label,
-    calories: Math.round(detail.calories * scale),
-    proteinGrams: roundDecimal(detail.proteinGrams * scale),
-    carbsGrams: roundDecimal(detail.carbsGrams * scale),
-    fatGrams: roundDecimal(detail.fatGrams * scale),
-    fiberGrams: detail.fiberGrams == null ? null : roundDecimal(detail.fiberGrams * scale),
-    sugarGrams: detail.sugarGrams == null ? null : roundDecimal(detail.sugarGrams * scale),
-    sodiumMg: detail.sodiumMg == null ? null : roundDecimal(detail.sodiumMg * scale)
-  };
-}
-
-function calculateServingScale(detail: FoodDetail, serving: FoodServing, quantity: number): number | null {
-  const basis = basisAmount(detail);
-  const servingAmount = servingAmountForBasis(detail, serving);
-  if (!basis || !servingAmount) {
-    return null;
-  }
-  return (quantity * servingAmount) / basis;
-}
-
-function basisAmount(detail: FoodDetail): number | null {
-  const amount = Number(detail.basisQuantity);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return null;
-  }
-  const unit = normalizeUnit(detail.basisUnit);
-  if (unit === 'kg' || unit === 'l') {
-    return amount * 1000;
-  }
-  return amount;
-}
-
-function servingAmountForBasis(detail: FoodDetail, serving: FoodServing): number | null {
-  const basisUnit = normalizeUnit(detail.basisUnit);
-  if (basisUnit === 'g' || basisUnit === 'kg') {
-    if (serving.gramsEquivalent != null) {
-      return serving.gramsEquivalent;
-    }
-    if (serving.millilitersEquivalent != null && detail.densityGramsPerMl != null) {
-      return serving.millilitersEquivalent * detail.densityGramsPerMl;
-    }
-  }
-  if (basisUnit === 'ml' || basisUnit === 'l') {
-    if (serving.millilitersEquivalent != null) {
-      return serving.millilitersEquivalent;
-    }
-    if (serving.gramsEquivalent != null && detail.densityGramsPerMl != null && detail.densityGramsPerMl > 0) {
-      return serving.gramsEquivalent / detail.densityGramsPerMl;
-    }
-  }
-
-  if (serving.quantity != null && normalizeUnit(serving.unit) === basisUnit) {
-    return serving.quantity;
-  }
-
-  return basisAmount(detail);
-}
-
-function normalizeUnit(unit: string | null | undefined): string {
-  const normalized = (unit ?? '').trim().toLowerCase();
-  if (['g', 'gram', 'grams'].includes(normalized)) {
-    return 'g';
-  }
-  if (['kg', 'kilogram', 'kilograms'].includes(normalized)) {
-    return 'kg';
-  }
-  if (['ml', 'milliliter', 'milliliters'].includes(normalized)) {
-    return 'ml';
-  }
-  if (['l', 'liter', 'liters'].includes(normalized)) {
-    return 'l';
-  }
-  return normalized;
-}
-
-function roundDecimal(value: number, digits = 1): number {
-  const scale = 10 ** digits;
-  return Math.round(value * scale) / scale;
 }
 
 @Component({
@@ -436,7 +348,7 @@ export class MealBuilderComponent implements OnInit {
       return;
     }
     this.dataService.getFoodDetail(food.foodId).subscribe((detail) => {
-      const serving = detail?.servings.find((entry) => entry.defaultServing) ?? detail?.servings[0] ?? null;
+      const serving = detail ? this.defaultServingOf(detail, food) : null;
       const item = detail && serving ? calculateMealItem(detail, serving, 1) : null;
       if (!detail || !serving || !item) {
         this.toast.error('Choose a serving with enough nutrition data first.');
@@ -493,19 +405,67 @@ export class MealBuilderComponent implements OnInit {
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return;
     }
+    this.replaceItem(itemId, (item) => {
+      if (item.custom) {
+        return item;
+      }
+      const next = roundDecimal(quantity, 2);
+      if (!item.detail || !item.serving) {
+        return { ...item, ...scaleDraft(item, next, item.quantity > 0 ? next / item.quantity : 1) };
+      }
+      const draft = calculateMealItem(item.detail, item.serving, next);
+      return draft ? { ...draft, id: item.id, detail: item.detail, serving: item.serving } : item;
+    });
+  }
 
-    this.items.update((items) =>
-      items.map((item) => {
-        if (item.id !== itemId) {
-          return item;
-        }
-        if (!item.detail || !item.serving) {
-          return { ...item, quantity: roundDecimal(quantity, 2) };
-        }
-        const next = calculateMealItem(item.detail, item.serving, quantity);
-        return next ? { ...next, id: item.id, detail: item.detail, serving: item.serving } : item;
-      })
-    );
+  /** The serving choices of a row: the food's servings, then custom grams. */
+  servingOptions(item: BuilderMealItem): ServingOption[] {
+    if (!item.detail) {
+      return [{ value: '', label: item.snapshotServingLabel || item.unit || 'serving' }];
+    }
+    const options = item.detail.servings.map((serving) => ({ value: this.servingKey(serving), label: serving.label }));
+    if (!item.serving && !item.custom) {
+      options.unshift({ value: '', label: item.snapshotServingLabel || item.unit || 'serving' });
+    }
+    return [...options, { value: CUSTOM_SERVING_KEY, label: 'Custom grams' }];
+  }
+
+  rowServingKey(item: BuilderMealItem): string {
+    if (item.custom) {
+      return CUSTOM_SERVING_KEY;
+    }
+    return item.serving ? this.servingKey(item.serving) : '';
+  }
+
+  /** A row switches to another serving of its food, or to an amount in grams, keeping what it can. */
+  setItemServing(itemId: string, key: string): void {
+    this.replaceItem(itemId, (item) => {
+      const detail = item.detail;
+      if (!detail || key === this.rowServingKey(item)) {
+        return item;
+      }
+      if (key === CUSTOM_SERVING_KEY) {
+        const each = item.serving ? servingGrams(detail, item.serving) : null;
+        const grams = item.custom ? (item.grams ?? 100) : roundDecimal((each ?? 100) * item.quantity, 1);
+        const draft = calculateGramsItem(detail, grams);
+        return draft ? { ...draft, id: item.id, detail, custom: true, grams } : item;
+      }
+      const serving = detail.servings.find((entry) => this.servingKey(entry) === key);
+      const draft = serving ? calculateMealItem(detail, serving, item.custom ? 1 : item.quantity) : null;
+      return serving && draft ? { ...draft, id: item.id, detail, serving } : item;
+    });
+  }
+
+  /** The grams typed on a custom row. */
+  setItemGrams(itemId: string, rawValue: string): void {
+    const grams = roundDecimal(Number(rawValue), 1);
+    if (!Number.isFinite(grams) || grams <= 0) {
+      return;
+    }
+    this.replaceItem(itemId, (item) => {
+      const draft = item.custom && item.detail ? calculateGramsItem(item.detail, grams) : null;
+      return draft ? { ...draft, id: item.id, detail: item.detail, custom: true, grams } : item;
+    });
   }
 
   incrementItem(itemId: string, delta: number): void {
@@ -543,7 +503,7 @@ export class MealBuilderComponent implements OnInit {
         mealType: raw.mealType,
         name: this.resolveMealName(raw.mealType, raw.name),
         note: raw.note,
-        items: this.items().map(({ id: _id, detail: _detail, serving: _serving, ...item }) => item)
+        items: this.items().map((item) => this.toDraft(item))
       })
       .subscribe({
         next: () => {
@@ -577,7 +537,7 @@ export class MealBuilderComponent implements OnInit {
         name: this.resolveMealName(raw.mealType, raw.name),
         mealType: raw.mealType,
         note: raw.note,
-        items: this.items().map(({ id: _id, detail: _detail, serving: _serving, ...item }) => item)
+        items: this.items().map((item) => this.toDraft(item))
       })
       .subscribe({
         next: (template) => {
@@ -894,11 +854,53 @@ export class MealBuilderComponent implements OnInit {
     this.selectedQuantity.set(1);
   }
 
+  /** The serving a food is added with: the one the search named, else the flagged default, else the first. */
+  private defaultServingOf(detail: FoodDetail, food?: FoodSearchResult): FoodServing | null {
+    const named = food?.defaultServing?.servingId;
+    return (
+      (named ? detail.servings.find((entry) => entry.servingId === named) : undefined) ??
+      detail.servings.find((entry) => entry.defaultServing) ??
+      detail.servings[0] ??
+      null
+    );
+  }
+
+  private toDraft(item: BuilderMealItem): MealItemDraft {
+    const { id: _id, detail: _detail, serving: _serving, custom: _custom, grams: _grams, ...draft } = item;
+    return draft;
+  }
+
+  private replaceItem(itemId: string, change: (item: BuilderMealItem) => BuilderMealItem): void {
+    this.items.update((items) => items.map((item) => (item.id === itemId ? change(item) : item)));
+  }
+
+  /** Loads the food behind a row that arrived without it, so its serving and quantity can be changed. */
+  private attachDetail(itemId: string, foodId: string): void {
+    this.dataService.getFoodDetail(foodId).subscribe((detail) => {
+      if (!detail) {
+        return;
+      }
+      this.replaceItem(itemId, (item) =>
+        item.detail
+          ? item
+          : {
+              ...item,
+              detail,
+              serving: detail.servings.find((entry) => entry.servingId !== null && entry.servingId === item.foodServingId)
+            }
+      );
+    });
+  }
+
   private mergeMealItem(item: MealItemDraft, detail?: FoodDetail, serving?: FoodServing): void {
+    const newId = crypto.randomUUID();
+    const foodId = item.customFoodId ?? item.foodCatalogItemId ?? null;
+    let created = false;
     this.items.update((items) => {
-      const matchIndex = items.findIndex((existing) => this.itemMergeKey(existing) === this.itemMergeKey(item));
+      const matchIndex = items.findIndex((existing) => !existing.custom && this.itemMergeKey(existing) === this.itemMergeKey(item));
       if (matchIndex < 0) {
-        return [...items, { ...item, id: crypto.randomUUID(), detail, serving }];
+        created = true;
+        return [...items, { ...item, id: newId, detail, serving }];
       }
       return items.map((existing, index) => {
         if (index !== matchIndex) {
@@ -926,6 +928,9 @@ export class MealBuilderComponent implements OnInit {
         };
       });
     });
+    if (created && !detail && foodId) {
+      this.attachDetail(newId, foodId);
+    }
   }
 
   private itemMergeKey(item: Pick<MealItemDraft, 'foodCatalogItemId' | 'customFoodId' | 'foodServingId' | 'foodName' | 'snapshotServingLabel'>): string {

@@ -27,6 +27,7 @@ import {
   ExerciseRecordValue,
   ExerciseSearchOptions,
   FoodCategory,
+  FoodDefaultServing,
   FoodDetail,
   FoodSearchResult,
   FoodServing,
@@ -488,6 +489,13 @@ interface BackendFoodSearchResult {
   basisUnit?: string | null;
   primaryBarcode?: string | null;
   verified?: boolean | null;
+  defaultServing?: {
+    servingId?: string | null;
+    label?: string | null;
+    gramsEquivalent?: number | string | null;
+    grams?: number | string | null;
+  } | null;
+  imageUrl?: string | null;
 }
 
 interface BackendWorkoutPlanExercise {
@@ -2840,7 +2848,22 @@ export class FitSyncDataService {
       basisUnit: food.basisLabel ?? food.basisUnit ?? 'serving',
       basisLabel: food.basisLabel ?? food.basisUnit ?? 'serving',
       primaryBarcode: food.primaryBarcode ?? '',
-      verified: food.verified ?? false
+      verified: food.verified ?? false,
+      categoryCode: food.categoryCode ?? null,
+      defaultServing: this.mapDefaultServing(food.defaultServing),
+      imageUrl: food.imageUrl || null
+    };
+  }
+
+  private mapDefaultServing(serving: BackendFoodSearchResult['defaultServing']): FoodDefaultServing | null {
+    const label = serving?.label?.trim();
+    if (!serving || !label) {
+      return null;
+    }
+    return {
+      servingId: serving.servingId ?? null,
+      label,
+      gramsEquivalent: this.numericValue(serving.gramsEquivalent ?? serving.grams)
     };
   }
 

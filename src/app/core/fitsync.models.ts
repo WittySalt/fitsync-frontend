@@ -819,6 +819,18 @@ export interface FoodSearchResult {
   basisLabel: string;
   primaryBarcode: string;
   verified: boolean;
+  /** The backend category code, which picks the group icon of the row's tile. */
+  categoryCode?: string | null;
+  /** The food's usual serving, so a row can show it before the detail loads. */
+  defaultServing?: FoodDefaultServing | null;
+  /** A photo, set for Open Food Facts items that have one. */
+  imageUrl?: string | null;
+}
+
+export interface FoodDefaultServing {
+  servingId: string | null;
+  label: string;
+  gramsEquivalent: number | null;
 }
 
 export interface PagedFoods {

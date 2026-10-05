@@ -486,17 +486,34 @@
           <div class="item-list">
             @for (item of items(); track item.id) {
               <article class="meal-item">
-                <div>
+                <div class="item-name">
                   <strong>{{ item.foodName }}</strong>
-                  <span>{{ formatServing(item) }}</span>
+                  <select
+                    class="serving-select"
+                    [attr.aria-label]="'Serving for ' + item.foodName"
+                    [disabled]="!item.detail"
+                    (change)="setItemServing(item.id, $any($event.target).value)"
+                  >
+                    @for (option of servingOptions(item); track option.value) {
+                      <option [value]="option.value" [selected]="option.value === rowServingKey(item)">{{ option.label }}</option>
+                    }
+                  </select>
                 </div>
                 <div class="item-stepper">
-                  <label class="sr-only" for="meal-item-quantity-{{ item.id }}">Quantity for {{ item.foodName }}</label>
-                  <div class="stepper compact">
-                    <button type="button" (click)="incrementItem(item.id, -1)">-</button>
-                    <input id="meal-item-quantity-{{ item.id }}" type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
-                    <button type="button" (click)="incrementItem(item.id, 1)">+</button>
-                  </div>
+                  @if (item.custom) {
+                    <label class="sr-only" for="meal-item-grams-{{ item.id }}">Grams of {{ item.foodName }}</label>
+                    <div class="grams-field">
+                      <input id="meal-item-grams-{{ item.id }}" type="number" min="1" step="1" [value]="item.grams" (input)="setItemGrams(item.id, $any($event.target).value)" />
+                      <span aria-hidden="true">g</span>
+                    </div>
+                  } @else {
+                    <label class="sr-only" for="meal-item-quantity-{{ item.id }}">Quantity for {{ item.foodName }}</label>
+                    <div class="stepper compact">
+                      <button type="button" (click)="incrementItem(item.id, -1)">-</button>
+                      <input id="meal-item-quantity-{{ item.id }}" type="number" min="0.1" step="0.1" [value]="item.quantity" (input)="updateItemQuantity(item.id, $any($event.target).value)" />
+                      <button type="button" (click)="incrementItem(item.id, 1)">+</button>
+                    </div>
+                  }
                 </div>
                 <div class="item-calories">
                   <strong>{{ formatAmount(item.calories) }} kcal</strong>

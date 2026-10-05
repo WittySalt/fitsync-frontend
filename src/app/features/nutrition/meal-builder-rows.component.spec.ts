@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { FoodDetail, FoodSearchResult, FoodServing, NutritionSummary } from '../../core/fitsync.models';
@@ -184,5 +184,138 @@ describe('MealBuilderComponent rows', () => {
     h.component.setMealType('DINNER');
     expect(() => h.fixture.detectChanges()).not.toThrow();
     expect(h.el.querySelector('.label-note-toggle small')?.textContent).toContain('defaults to "Dinner"');
+  });
+});
+
+describe('MealBuilderComponent serving select', () => {
+  const sandwich: FoodServing = {
+    servingId: 'mac-1',
+    label: '1 sandwich',
+    quantity: 1,
+    unit: 'sandwich',
+    gramsEquivalent: 200,
+    millilitersEquivalent: null,
+    sortOrder: 0,
+    defaultServing: true
+  };
+  const mac = foodDetail('mac', 'Big Mac', 250, [sandwich, hundredGrams('mac-100')]);
+  let h: BuilderHarness;
+
+  beforeEach(async () => {
+    h = await createBuilder([mac], [searchItem('mac', 'Big Mac', { defaultServing: { servingId: 'mac-1', label: '1 sandwich', gramsEquivalent: 200 } })]);
+  });
+
+  function select(): HTMLSelectElement {
+    return h.el.querySelector<HTMLSelectElement>('.meal-item .serving-select')!;
+  }
+
+  function choose(value: string): void {
+    const element = select();
+    element.value = value;
+    element.dispatchEvent(new Event('change'));
+    h.fixture.detectChanges();
+  }
+
+  function addMac(): void {
+    h.component.addFoodResult(searchItem('mac', 'Big Mac', { defaultServing: { servingId: 'mac-1', label: '1 sandwich', gramsEquivalent: 200 } }));
+    h.fixture.detectChanges();
+  }
+
+  it('adds a row on the serving the search named and offers every serving then custom grams', () => {
+    addMac();
+
+    expect(Array.from(select().options).map((option) => option.textContent?.trim())).toEqual(['1 sandwich', '100 g', 'Custom grams']);
+    expect(select().selectedOptions[0].textContent?.trim()).toBe('1 sandwich');
+    expect(h.component.items()[0].calories).toBe(500);
+  });
+
+  it('keeps the quantity as a count of the chosen serving and prices it by grams', () => {
+    addMac();
+    h.component.updateItemQuantity(h.component.items()[0].id, '2');
+    expect(h.component.items()[0].calories).toBe(1000);
+
+    choose('mac-100');
+
+    const item = h.component.items()[0];
+    expect(item.quantity).toBe(2);
+    expect(item.foodServingId).toBe('mac-100');
+    expect(item.calories).toBe(500);
+  });
+
+  it('reveals a grams field for custom grams, carrying over the weight, and logs it without a serving id', () => {
+    addMac();
+    h.component.updateItemQuantity(h.component.items()[0].id, '2');
+    expect(h.el.querySelector('.grams-field')).toBeNull();
+
+    choose('__custom_grams__');
+
+    const grams = h.el.querySelector<HTMLInputElement>('.grams-field input')!;
+    expect(grams.value).toBe('400');
+    expect(h.el.querySelector('.meal-item .stepper')).toBeNull();
+
+    grams.value = '150';
+    grams.dispatchEvent(new Event('input'));
+    h.fixture.detectChanges();
+    expect(h.component.items()[0].calories).toBe(375);
+
+    h.component.saveMeal();
+    const sent = h.data.createMeal.calls.mostRecent().args[0].items[0];
+    expect(sent.foodServingId).toBeNull();
+    expect(sent.snapshotServingLabel).toBe('150 g');
+    expect(sent.calories).toBe(375);
+    expect(Object.keys(sent)).not.toContain('custom');
+    expect(Object.keys(sent)).not.toContain('grams');
+  });
+
+  it('goes back from custom grams to a serving count of one', () => {
+    addMac();
+    choose('__custom_grams__');
+    choose('mac-1');
+
+    expect(h.component.items()[0].custom).toBeFalsy();
+    expect(h.component.items()[0].quantity).toBe(1);
+    expect(h.component.items()[0].calories).toBe(500);
+    expect(h.el.querySelector('.meal-item .stepper')).not.toBeNull();
+  });
+
+  it('shows the logged serving until the food loads, then lets the person change it', () => {
+    const detail$ = new Subject<FoodDetail | null>();
+    h.data.getFoodDetail.and.returnValue(detail$);
+    const pending = h.data.getFoodDetail.calls.count();
+    h.component.addLoggedFoodToMeal({
+      foodId: 'mac',
+      customFoodId: null,
+      foodServingId: 'mac-1',
+      scope: 'CATALOG',
+      foodName: 'Big Mac',
+      brandName: '',
+      servingLabel: '1 sandwich',
+      quantity: 1,
+      unit: 'serving',
+      servingSize: 1,
+      servingUnit: 'sandwich',
+      calories: 500,
+      proteinGrams: 24,
+      carbsGrams: 40,
+      fatGrams: 28,
+      fiberGrams: null,
+      sugarGrams: null,
+      sodiumMg: null,
+      timesLogged: 1,
+      lastLoggedAt: null
+    });
+    h.fixture.detectChanges();
+
+    expect(h.data.getFoodDetail.calls.count()).toBe(pending + 1);
+    expect(select().disabled).toBeTrue();
+    expect(select().options[0].textContent?.trim()).toBe('1 sandwich');
+
+    detail$.next(mac);
+    h.fixture.detectChanges();
+
+    expect(select().disabled).toBeFalse();
+    expect(select().selectedOptions[0].textContent?.trim()).toBe('1 sandwich');
+    choose('mac-100');
+    expect(h.component.items()[0].calories).toBe(250);
   });
 });

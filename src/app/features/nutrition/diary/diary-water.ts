@@ -1,5 +1,5 @@
 import { FoodServing, MealItemDraft } from '../../../core/fitsync.models';
-import { calculateMealItem } from '../meal-builder.component';
+import { calculateMealItem } from '../meal-item-math';
 import { DrinkDetail, WaterDay } from './diary.models';
 import { atClock, clockText } from './diary-time';
 
