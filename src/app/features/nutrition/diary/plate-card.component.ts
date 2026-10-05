@@ -3,7 +3,7 @@ import { Component, computed, input } from '@angular/core';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { FoodGroup, foodGroupInfo } from '../../../shared/food/food-groups';
 import { DiaryItem } from './diary.models';
-import { badgeNote, fruitVegSentence, groupBadges, plateLegend, plateTotals, plateWedges } from './diary-plate';
+import { PlateGroup, badgeNote, fruitVegSentence, groupBadges, plateLegend, plateTotals, plateWedges } from './diary-plate';
 import { whole } from './diary-figures';
 import { PlateChartComponent, toWedgeViews } from './plate-chart.component';
 
@@ -94,8 +94,8 @@ export class PlateCardComponent {
   protected readonly eatenCount = computed(() => this.badges().filter((badge) => badge.eaten).length);
   protected readonly note = computed(() => badgeNote(this.badges()));
 
-  protected colour(group: FoodGroup): string {
-    return foodGroupInfo(group)?.colour ?? 'var(--text-secondary)';
+  protected colour(group: PlateGroup): string {
+    return group === 'MIXED' ? 'var(--text-secondary)' : foodGroupInfo(group)?.colour ?? 'var(--text-secondary)';
   }
 
   protected icon(group: FoodGroup): string {

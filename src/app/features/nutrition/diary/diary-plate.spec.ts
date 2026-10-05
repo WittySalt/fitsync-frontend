@@ -19,10 +19,17 @@ describe('plateTotals', () => {
     expect(totals.leftOut).toBe(0);
   });
 
-  it('counts foods with no weight or no group as left out', () => {
-    const totals = plateTotals([veg, item({ gramsConsumed: null }), item({ foodGroup: null, gramsConsumed: 80 }), item({ gramsConsumed: 0 })]);
+  it('counts foods with no weight as left out', () => {
+    const totals = plateTotals([veg, item({ gramsConsumed: null }), item({ gramsConsumed: 0 })]);
     expect(totals.totalGrams).toBe(50);
-    expect(totals.leftOut).toBe(3);
+    expect(totals.leftOut).toBe(2);
+  });
+
+  it('puts weighed foods with no plate group in the mixed total', () => {
+    const totals = plateTotals([veg, item({ foodGroup: null, gramsConsumed: 219 })]);
+    expect(totals.mixedGrams).toBe(219);
+    expect(totals.totalGrams).toBe(269);
+    expect(totals.leftOut).toBe(0);
   });
 });
 
@@ -63,6 +70,24 @@ describe('plateLegend', () => {
     const legend = plateLegend(plateWedges(plateTotals([grains, fruit, veg]), 200));
     expect(legend.map((entry) => entry.label)).toEqual(['Vegetables', 'Fruit', 'Grains']);
     expect(legend.map((entry) => entry.percent)).toEqual([8, 50, 42]);
+  });
+});
+
+describe('mixed foods', () => {
+  const burger = item({ foodGroup: null, gramsConsumed: 219 });
+
+  it('draws a grey Mixed wedge after the groups', () => {
+    const wedges = plateWedges(plateTotals([burger, veg]), 200);
+    expect(wedges.map((wedge) => wedge.group)).toEqual(['VEG', 'MIXED']);
+    expect(plateLegend(wedges).map((line) => line.label)).toEqual(['Vegetables', 'Mixed']);
+  });
+
+  it('names mixed foods alone in a sentence', () => {
+    expect(fruitVegSentence(plateTotals([burger]))).toBe('219 g of mixed foods, not split by group');
+  });
+
+  it('appends mixed foods to the fruit and veg sentence', () => {
+    expect(fruitVegSentence(plateTotals([veg, burger]))).toContain('balanced plate and 219 g of mixed foods.');
   });
 });
 

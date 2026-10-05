@@ -133,14 +133,14 @@ export type PlateWedgeInput = WedgeView;
 /** Turns calculated wedges into what the chart draws. */
 export function toWedgeViews(wedges: readonly PlateWedge[]): WedgeView[] {
   return wedges.map((wedge) => {
-    const info = foodGroupInfo(wedge.group);
+    const info = wedge.group === 'MIXED' ? null : foodGroupInfo(wedge.group);
     return {
       group: wedge.group,
       path: wedge.path,
       colour: info?.colour ?? 'var(--text-secondary)',
       showIcon: wedge.showIcon,
       transform: `translate(${wedge.iconX - ICON_SIZE / 2} ${wedge.iconY - ICON_SIZE / 2}) scale(${ICON_SIZE / 24})`,
-      shapes: GLYPHS[info?.icon ?? ''] ?? []
+      shapes: GLYPHS[info?.icon ?? 'PLATE'] ?? []
     };
   });
 }
