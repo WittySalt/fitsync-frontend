@@ -5,7 +5,7 @@ import { FoodGroup, groupColour, iconFor } from './food-groups';
 
 /**
  * A food's drawn icon on a tile tinted with the colour of its group. A food with no known group
- * gets a neutral tile and the group-less plate icon is left out rather than guessed.
+ * gets the neutral tile colour and the plate and fork.
  */
 @Component({
   selector: 'app-food-icon',

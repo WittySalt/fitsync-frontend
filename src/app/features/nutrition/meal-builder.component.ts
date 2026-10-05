@@ -16,6 +16,7 @@ import {
   PagedFoods
 } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { FoodGlyphComponent } from '../../shared/food/food-glyph.component';
 import { FoodTileComponent } from '../../shared/food/food-tile.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { BuilderDrinksComponent } from './builder-drinks.component';
@@ -82,7 +83,7 @@ export function defaultMealType(now: Date): string {
 
 @Component({
   selector: 'app-meal-builder',
-  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent, FoodTileComponent],
+  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent, FoodTileComponent, FoodGlyphComponent],
   templateUrl: './meal-builder.component.html',
   styleUrl: './meal-builder.component.scss'
 })
@@ -768,9 +769,6 @@ export class MealBuilderComponent implements OnInit {
 
   foodTags(food: FoodSearchResult): string[] {
     const tags: string[] = [];
-    if (food.verified) {
-      tags.push('Verified');
-    }
     if (food.brandName) {
       tags.push(food.brandName);
     }

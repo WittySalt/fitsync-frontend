@@ -5,6 +5,7 @@ import { FoodTileComponent } from './food-tile.component';
 describe('FoodTileComponent', () => {
   let fixture: ComponentFixture<FoodTileComponent>;
   const el = () => fixture.nativeElement as HTMLElement;
+  const icon = () => el().querySelector('app-food-icon') as HTMLElement;
 
   beforeEach(() => {
     fixture = TestBed.createComponent(FoodTileComponent);
@@ -15,37 +16,38 @@ describe('FoodTileComponent', () => {
     fixture.detectChanges();
   }
 
-  it('draws the food group icon in its market colour when the food has no brand', () => {
+  it('shows the photo first when the food has an image', () => {
+    show({ imageUrl: 'https://images.example/cereal.jpg', categoryCode: 'GRAINS' });
+
+    expect((el().querySelector('img') as HTMLImageElement).getAttribute('src')).toBe('https://images.example/cereal.jpg');
+    expect(icon()).toBeNull();
+  });
+
+  it('then draws the group icon in its market colour', () => {
     show({ categoryCode: 'VEGETABLES' });
 
-    const icon = el().querySelector('app-food-icon') as HTMLElement;
-    expect(icon).not.toBeNull();
-    expect(icon.style.getPropertyValue('--tile')).toBe('var(--food-veg)');
-    expect(el().querySelector('.brand')).toBeNull();
+    expect(icon().style.getPropertyValue('--tile')).toBe('var(--food-veg)');
+    expect(icon().querySelector('svg')).not.toBeNull();
     expect(el().style.width).toBe('40px');
   });
 
-  it('draws a brand tile with the first letter and the brand as its title', () => {
-    show({ brandName: "McDonald's", categoryCode: 'MEAT_POULTRY' });
+  it('takes the group a caller already knows over the category code', () => {
+    show({ group: 'DRINKS', categoryCode: null });
 
-    const brand = el().querySelector('.brand') as HTMLElement;
-    expect(brand.textContent?.trim()).toBe('M');
-    expect(brand.getAttribute('title')).toBe("McDonald's");
-    expect(el().querySelector('app-food-icon')).toBeNull();
+    expect(icon().style.getPropertyValue('--tile')).toBe('var(--food-drinks)');
   });
 
-  it('shows the photo when the food has an image, ahead of the brand', () => {
-    show({ brandName: 'Kellogg', imageUrl: 'https://images.example/cereal.jpg' });
+  it('and last the plate and fork on the neutral colour when the food has no group', () => {
+    show({ categoryCode: 'PREPARED_MEALS' });
 
-    const image = el().querySelector('img') as HTMLImageElement;
-    expect(image.getAttribute('src')).toBe('https://images.example/cereal.jpg');
-    expect(el().querySelector('.brand')).toBeNull();
+    expect(icon().style.getPropertyValue('--tile')).toBe('var(--text-secondary)');
+    expect(icon().querySelectorAll('svg circle, svg path').length).toBeGreaterThan(0);
   });
 
-  it('ignores a blank brand', () => {
-    show({ brandName: '   ', categoryCode: 'DAIRY' });
+  it('never draws a brand letter, whatever the food carries', () => {
+    show({ categoryCode: 'MEAT_POULTRY', brandName: "McDonald's" });
 
     expect(el().querySelector('.brand')).toBeNull();
-    expect(el().querySelector('app-food-icon')).not.toBeNull();
+    expect(el().textContent?.trim()).toBe('');
   });
 });

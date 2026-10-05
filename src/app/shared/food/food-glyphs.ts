@@ -78,6 +78,12 @@ export const GLYPHS: Record<string, readonly GlyphShape[]> = {
     { d: 'M10 2h4v3l1.8 2.8V20a2 2 0 0 1-2 2h-3.6a2 2 0 0 1-2-2V7.8L10 5Z' },
     { d: 'M8.2 11.5h7.6' }
   ],
+  PLATE: [
+    { cx: 12, cy: 12, r: 4.5 },
+    { d: 'M3.5 3v5.5a1.5 1.5 0 0 0 3 0V3' },
+    { d: 'M5 10v11' },
+    { d: 'M20.5 21V3c-1.7 1-3 3.5-3 6.5V13h3' }
+  ],
   CHECK: [
     { d: 'M5 12.5l4.5 4.5L19 7.5' }
   ],

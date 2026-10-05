@@ -210,8 +210,8 @@ describe('MealBuilderComponent tiles', () => {
   const mac = { ...foodDetail('mac', 'Big Mac', 250, [hundredGrams('mac-100')]), brandName: "McDonald's" };
   const cereal = foodDetail('cereal', 'Corn flakes', 380, [hundredGrams('cereal-100')]);
   const results = [
-    searchItem('rice', 'Rice', { categoryCode: 'GRAINS' }),
-    searchItem('mac', 'Big Mac', { brandName: "McDonald's", categoryCode: 'MEAT_POULTRY' }),
+    searchItem('rice', 'Rice', { categoryCode: 'GRAINS', verified: true }),
+    searchItem('mac', 'Big Mac', { brandName: "McDonald's", categoryCode: 'MEAT_POULTRY', verified: false }),
     searchItem('cereal', 'Corn flakes', { brandName: 'Kellogg', imageUrl: 'https://images.example/flakes.jpg' })
   ];
   let h: BuilderHarness;
@@ -224,22 +224,44 @@ describe('MealBuilderComponent tiles', () => {
     return Array.from(h.el.querySelectorAll<HTMLElement>(`${scope} app-food-tile`));
   }
 
-  it('gives each search result a tile: group icon, brand letter or photo', () => {
-    const [grains, brand, photo] = tiles('.food-row');
+  it('gives each search result a tile: group icon, plate icon or photo, never a brand letter', () => {
+    const [grains, plain, photo] = tiles('.food-row');
 
     expect((grains.querySelector('app-food-icon') as HTMLElement).style.getPropertyValue('--tile')).toBe('var(--food-grains)');
-    expect(brand.querySelector('.brand')?.textContent?.trim()).toBe('M');
-    expect(brand.querySelector('.brand')?.getAttribute('title')).toBe("McDonald's");
+    expect((plain.querySelector('app-food-icon') as HTMLElement).style.getPropertyValue('--tile')).toBe('var(--food-protein)');
     expect(photo.querySelector('img')?.getAttribute('src')).toBe('https://images.example/flakes.jpg');
+    expect(h.el.querySelector('.food-row .brand')).toBeNull();
+  });
+
+  it('shows the brand as a chip, a check after a verified name and no Verified chip', () => {
+    const [verified, branded] = Array.from(h.el.querySelectorAll('.food-row'));
+    const chips = Array.from(branded.querySelectorAll('.result-tag')).map((chip) => chip.textContent?.trim());
+
+    expect(chips).toContain("McDonald's");
+    expect(Array.from(h.el.querySelectorAll('.result-tag')).map((chip) => chip.textContent?.trim())).not.toContain('Verified');
+    expect(verified.querySelector('.name-line app-food-glyph.verified')).not.toBeNull();
+    expect(branded.querySelector('.name-line app-food-glyph.verified')).toBeNull();
+  });
+
+  it('puts the quantity in the meal in its own pill, apart from the calories', () => {
+    h.component.addFoodResult(results[0]);
+    h.component.addFoodResult(results[0]);
+    h.fixture.detectChanges();
+
+    const [inMeal, other] = Array.from(h.el.querySelectorAll('.food-row .food-cal'));
+    expect(inMeal.querySelector('.in-meal')?.textContent?.trim()).toBe('×2 in meal');
+    expect(inMeal.querySelector('.kcal')?.textContent?.trim()).toBe('100 kcal');
+    expect(other.querySelector('.in-meal')).toBeNull();
+    expect(other.querySelector('.kcal')?.textContent?.trim()).toBe('100 kcal');
   });
 
   it('keeps the tile on the rows of the meal', () => {
     results.forEach((food) => h.component.addFoodResult(food));
     h.fixture.detectChanges();
 
-    const [grains, brand, photo] = tiles('.meal-item');
+    const [grains, plain, photo] = tiles('.meal-item');
     expect((grains.querySelector('app-food-icon') as HTMLElement).style.getPropertyValue('--tile')).toBe('var(--food-grains)');
-    expect(brand.querySelector('.brand')?.textContent?.trim()).toBe('M');
+    expect(plain.querySelector('app-food-icon')).not.toBeNull();
     expect(photo.querySelector('img')).not.toBeNull();
   });
 });

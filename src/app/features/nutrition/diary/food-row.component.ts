@@ -1,15 +1,15 @@
 import { Component, computed, input } from '@angular/core';
 
-import { FoodIconComponent } from '../../../shared/food/food-icon.component';
+import { FoodTileComponent } from '../../../shared/food/food-tile.component';
 import { DiaryItem } from './diary.models';
 import { foodTags, macroLine } from './diary-food';
 
 /** One food of a meal: its icon, name, protein carbs and fat, quality tags, kcal and amount. */
 @Component({
   selector: 'app-food-row',
-  imports: [FoodIconComponent],
+  imports: [FoodTileComponent],
   template: `
-    <app-food-icon [group]="item().foodGroup" [categoryCode]="item().categoryCode" [size]="38" />
+    <app-food-tile [group]="item().foodGroup" [categoryCode]="item().categoryCode" [size]="38" />
     <div class="text">
       <span class="name">{{ item().foodName }}</span>
       <div class="detail">

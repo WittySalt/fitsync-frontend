@@ -319,8 +319,47 @@
   white-space: nowrap;
 }
 
+.food-cal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
 .in-meal {
-  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+.kcal {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.food-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verified {
+  color: var(--accent-text);
+}
+
+.result-tag {
+  white-space: nowrap;
 }
 
 .result-tag,

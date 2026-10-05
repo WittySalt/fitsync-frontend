@@ -341,7 +341,7 @@ describe('MealBuilderComponent', () => {
     component.favoriteFoods.set([searchFood]);
     fixture.detectChanges();
 
-    expect(component.foodTags(searchFood)).toEqual(['Verified', 'Hawker', 'Prepared meals', 'Recent', 'Favorite']);
+    expect(component.foodTags(searchFood)).toEqual(['Hawker', 'Prepared meals', 'Recent', 'Favorite']);
     expect(fixture.nativeElement.textContent).toContain('Prepared meals');
   });
 

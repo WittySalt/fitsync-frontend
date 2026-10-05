@@ -157,9 +157,14 @@
             @for (food of foods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <app-food-tile [brandName]="food.brandName" [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
                   <span class="food-main">
-                    <strong>{{ food.displayName }}</strong>
+                    <span class="name-line">
+                      <strong class="food-name">{{ food.displayName }}</strong>
+                      @if (food.verified) {
+                        <app-food-glyph class="verified" name="CHECK" [size]="12" [strokeWidth]="3" aria-label="Verified" role="img" />
+                      }
+                    </span>
                     <small>per {{ food.basisLabel || food.basisUnit }}</small>
                     <span class="tag-list">
                       @for (tag of foodTags(food); track tag) {
@@ -169,10 +174,9 @@
                   </span>
                   <span class="food-cal">
                     @if (selectedCount(food) > 0) {
-                      <small class="in-meal">In meal · {{ formatQuantity(selectedCount(food)) }}</small>
+                      <span class="in-meal">&times;{{ formatQuantity(selectedCount(food)) }} in meal</span>
                     }
-                    <strong>{{ formatAmount(food.calories) }}</strong>
-                    <small>kcal</small>
+                    <span class="kcal">{{ formatAmount(food.calories) }} kcal</span>
                   </span>
                 </button>
                 <div class="row-actions">
@@ -253,9 +257,14 @@
             @for (food of favoriteFoods(); track food.foodId ?? food.displayName) {
               <article class="food-result">
                 <button type="button" class="food-row" (click)="selectFood(food)">
-                  <app-food-tile [brandName]="food.brandName" [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
+                  <app-food-tile [categoryCode]="food.categoryCode" [imageUrl]="food.imageUrl" />
                   <span class="food-main">
-                    <strong>{{ food.displayName }}</strong>
+                    <span class="name-line">
+                      <strong class="food-name">{{ food.displayName }}</strong>
+                      @if (food.verified) {
+                        <app-food-glyph class="verified" name="CHECK" [size]="12" [strokeWidth]="3" aria-label="Verified" role="img" />
+                      }
+                    </span>
                     <small>{{ food.brandName || 'Generic' }} · per {{ food.basisLabel || food.basisUnit }}</small>
                     <span class="tag-list">
                       @for (tag of foodTags(food); track tag) {
@@ -264,8 +273,7 @@
                     </span>
                   </span>
                   <span class="food-cal">
-                    <strong>{{ formatAmount(food.calories) }}</strong>
-                    <small>kcal</small>
+                    <span class="kcal">{{ formatAmount(food.calories) }} kcal</span>
                   </span>
                 </button>
                 <button type="button" class="quantity-button" [disabled]="!food.foodId" (click)="addFoodResult(food, $event)">+</button>
@@ -497,7 +505,6 @@
             @for (item of items(); track item.id) {
               <article class="meal-item">
                 <app-food-tile
-                  [brandName]="item.brandName"
                   [categoryCode]="face(item)?.categoryCode"
                   [imageUrl]="face(item)?.imageUrl"
                 />

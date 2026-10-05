@@ -31,7 +31,7 @@ describe('food groups', () => {
     expect(groupColour(null, 'spices')).toBe('var(--food-spice)');
     expect(groupColour('VEG', 'SPICES')).toBe('var(--food-veg)');
     expect(groupColour(null, 'DAIRY')).not.toBe('var(--food-spice)');
-    expect(iconFor(null, 'HERBS')).toBeNull();
+    expect(iconFor(null, 'HERBS')).toBe('PLATE');
     expect(groupForCategory(undefined)).toBeNull();
   });
 
@@ -39,6 +39,6 @@ describe('food groups', () => {
     expect(iconFor('PROTEIN', 'SEAFOOD')).toBe('FISH');
     expect(iconFor('PROTEIN', 'EGGS')).toBe('EGG');
     expect(iconFor('PROTEIN', 'MEAT_POULTRY')).toBe('PROTEIN');
-    expect(iconFor(null)).toBeNull();
+    expect(iconFor(null)).toBe('PLATE');
   });
 });
