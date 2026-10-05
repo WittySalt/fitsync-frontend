@@ -50,6 +50,6 @@ export class CookedRecentlyComponent {
   }
 
   protected when(card: RecipeCard): string {
-    return cookedWhen(card.lastCookedAt);
+    return cookedWhen(card.lastCookedAt, new Date(), card.lastActivity === 'LOGGED' ? 'Logged' : 'Cooked');
   }
 }

@@ -13,7 +13,7 @@ import { diaryServiceStub, item, meal, rangeDay } from './diary/diary-testing.sp
 import { toIsoDate } from './diary/diary-time';
 import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent } from './meal-builder.component';
-import { recipesServiceStub } from './recipes/recipes-testing.spec';
+import { recipesServiceStub, suggestionsOf } from './recipes/recipes-testing.spec';
 import { RecipesService } from './recipes/recipes.service';
 import { NutritionPage } from './nutrition.page';
 
@@ -59,8 +59,10 @@ describe('NutritionPage', () => {
       'getFoodByBarcode',
       'addFavoriteFood',
       'removeFavoriteFood',
-      'getDailyNutritionSummary'
+      'getDailyNutritionSummary',
+      'getRecipeSuggestions'
     ]);
+    dataService.getRecipeSuggestions.and.returnValue(of(suggestionsOf()));
     dataService.getDailyNutritionSummary.and.returnValue(
       of({
         totalCalories: 0,
