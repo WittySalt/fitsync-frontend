@@ -36,6 +36,21 @@ interface RingMetric {
   meal: number;
 }
 
+/** The meal type a meal logged at `now` most likely is. Read once when the builder opens. */
+export function defaultMealType(now: Date): string {
+  const hour = now.getHours() + now.getMinutes() / 60;
+  if (hour >= 5 && hour < 10.5) {
+    return 'BREAKFAST';
+  }
+  if (hour >= 10.5 && hour < 15) {
+    return 'LUNCH';
+  }
+  if (hour >= 17 && hour < 22) {
+    return 'DINNER';
+  }
+  return 'SNACK';
+}
+
 export function isCustomFoodScope(scope: string | null | undefined): boolean {
   const normalized = (scope ?? '').toUpperCase();
   return normalized === 'USER' || normalized === 'CUSTOM';
@@ -170,6 +185,11 @@ export class MealBuilderComponent implements OnInit {
     { value: 'templates', label: 'Saved meals' }
   ];
 
+  /**
+   * The chosen meal type as a signal, so the label that names the default meal follows the form
+   * through change detection instead of changing under a view that was already checked.
+   */
+  readonly mealType = signal('');
   readonly searchControl = new FormControl('', { nonNullable: true });
   readonly barcodeControl = new FormControl('', { nonNullable: true });
   readonly categorySearchControl = new FormControl('', { nonNullable: true });
@@ -206,7 +226,7 @@ export class MealBuilderComponent implements OnInit {
   readonly pageSizeOptions = [10, 20, 50] as const;
 
   readonly mealForm = this.fb.nonNullable.group({
-    mealType: ['LUNCH', Validators.required],
+    mealType: [defaultMealType(new Date()), Validators.required],
     name: ['', Validators.maxLength(120)],
     note: ['', Validators.maxLength(300)]
   });
@@ -304,7 +324,11 @@ export class MealBuilderComponent implements OnInit {
       )
       .subscribe((result) => this.applySearchResult(result));
 
-    this.mealForm.controls.mealType.valueChanges.subscribe((mealType) => this.updateMealNameValidator(mealType));
+    this.mealType.set(this.mealForm.controls.mealType.value);
+    this.mealForm.controls.mealType.valueChanges.subscribe((mealType) => {
+      this.mealType.set(mealType);
+      this.updateMealNameValidator(mealType);
+    });
   }
 
   setMealType(mealType: string): void {
@@ -472,7 +496,10 @@ export class MealBuilderComponent implements OnInit {
 
     this.items.update((items) =>
       items.map((item) => {
-        if (item.id !== itemId || !item.detail || !item.serving) {
+        if (item.id !== itemId) {
+          return item;
+        }
+        if (!item.detail || !item.serving) {
           return { ...item, quantity: roundDecimal(quantity, 2) };
         }
         const next = calculateMealItem(item.detail, item.serving, quantity);
@@ -711,9 +738,7 @@ export class MealBuilderComponent implements OnInit {
     return `${Math.round(value ?? 0)}${suffix}`;
   }
 
-  defaultMealName(): string {
-    return this.resolveMealName(this.mealForm.controls.mealType.value, '');
-  }
+  readonly defaultMealName = computed(() => this.resolveMealName(this.mealType(), ''));
 
   formatServing(item: MealItemDraft): string {
     const label = item.snapshotServingLabel || item.unit || 'serving';

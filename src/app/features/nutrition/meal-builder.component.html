@@ -12,8 +12,8 @@
       @for (type of mealTypeOptions; track type.value) {
         <button
           type="button"
-          [class.active]="mealForm.controls.mealType.value === type.value"
-          [attr.aria-pressed]="mealForm.controls.mealType.value === type.value"
+          [class.active]="mealType() === type.value"
+          [attr.aria-pressed]="mealType() === type.value"
           (click)="setMealType(type.value)"
         >
           {{ type.label }}
@@ -513,19 +513,19 @@
           <button
             type="button"
             class="label-note-toggle"
-            [attr.aria-expanded]="labelNoteOpen() || mealForm.controls.mealType.value === 'OTHER'"
+            [attr.aria-expanded]="labelNoteOpen() || mealType() === 'OTHER'"
             (click)="toggleLabelNote()"
           >
             <span>Add label & note</span>
             <small>
-              {{ mealForm.controls.mealType.value === 'OTHER' ? 'Required for Other meals' : 'Optional - defaults to "' + defaultMealName() + '"' }}
+              {{ mealType() === 'OTHER' ? 'Required for Other meals' : 'Optional - defaults to "' + defaultMealName() + '"' }}
             </small>
           </button>
-          @if (labelNoteOpen() || mealForm.controls.mealType.value === 'OTHER') {
+          @if (labelNoteOpen() || mealType() === 'OTHER') {
             <div class="meal-text-grid">
               <label>
                 Meal name
-                <input formControlName="name" [placeholder]="mealForm.controls.mealType.value === 'OTHER' ? 'Name your meal' : defaultMealName()" />
+                <input formControlName="name" [placeholder]="mealType() === 'OTHER' ? 'Name your meal' : defaultMealName()" />
                 @if (mealForm.controls.name.hasError('required') && mealForm.controls.name.touched) {
                   <span class="field-error">Name your meal</span>
                 }
