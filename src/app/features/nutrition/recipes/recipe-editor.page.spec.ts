@@ -285,6 +285,9 @@ describe('RecipeEditorPage', () => {
       (el(fixture).querySelector('.steps ~ .link') as HTMLButtonElement).click();
       fixture.detectChanges();
       type(fixture, '.steps li:last-child textarea', 'Serve.');
+      // Move up and Move down belong to the step being edited, so the second step is opened first.
+      el(fixture).querySelectorAll('.steps li')[1].querySelector('textarea')?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      fixture.detectChanges();
       (el(fixture).querySelectorAll('.steps li')[1].querySelector('.up') as HTMLButtonElement).click();
       fixture.detectChanges();
       expect(Array.from(el(fixture).querySelectorAll<HTMLTextAreaElement>('.steps textarea')).map((box) => box.value)).toEqual(['Serve.', 'Mix.']);

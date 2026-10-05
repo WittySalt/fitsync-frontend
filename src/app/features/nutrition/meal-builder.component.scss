@@ -714,3 +714,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+// The close x stays on the title row at every width; a long name is cut with an ellipsis.
+.food-detail-card .section-title {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+
+  > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .icon-button {
+    flex: none;
+  }
+}

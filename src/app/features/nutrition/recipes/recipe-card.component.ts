@@ -24,7 +24,7 @@ import { RecipeCard } from './recipes.models';
     <div class="body">
       <div class="top">
         <a class="name" [routerLink]="['/nutrition/recipes', card().id]" [queryParams]="query()">
-          <strong>{{ card().name }}</strong>
+          <strong [attr.title]="card().name">{{ card().name }}</strong>
           <span>{{ sub() }}</span>
         </a>
         @if (heart()) {

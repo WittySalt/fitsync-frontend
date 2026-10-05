@@ -389,7 +389,7 @@
           <div class="section-title">
             <div>
               <span class="card-label">Food Detail</span>
-              <h3>{{ detail.displayName }}</h3>
+              <h3 [attr.title]="detail.displayName">{{ detail.displayName }}</h3>
             </div>
             <button type="button" class="icon-button" aria-label="Close food detail" (click)="clearSelectedFood()">x</button>
           </div>

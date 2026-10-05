@@ -19,6 +19,24 @@ describe('RecipeCardComponent', () => {
 
   const el = (fixture: ComponentFixture<RecipeCardComponent>) => fixture.nativeElement as HTMLElement;
 
+  it('keeps the title block two lines tall whatever the name, clips a third line and keeps the full name in the title', () => {
+    const heightOf = (name: string): number => {
+      const fixture = render(card({ name }));
+      (fixture.nativeElement as HTMLElement).style.display = 'block';
+      (fixture.nativeElement as HTMLElement).style.width = '200px';
+      const title = el(fixture).querySelector('.name strong') as HTMLElement;
+      expect(title.getAttribute('title')).toBe(name);
+      return title.getBoundingClientRect().height;
+    };
+    const short = heightOf('Omelette');
+    const two = heightOf('Chicken Quinoa Greek Salad with Lemon');
+    const long = heightOf('Slow cooked chicken quinoa and greek salad with lemon dressing, feta, olives and a long extra name');
+
+    expect(short).toBeGreaterThan(30);
+    expect(two).toBe(short);
+    expect(long).toBe(short);
+  });
+
   it('shows the name, category and cuisine, kcal and protein a serving, and the tags', () => {
     const element = el(render(card({ dietFlags: ['VEGETARIAN'] })));
 
