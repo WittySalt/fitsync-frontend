@@ -17,7 +17,7 @@ import { DAY_KIND_GLYPHS, isTrainingDayKind } from '../dashboard/brief/day-kind-
 import { GlyphShape } from '../dashboard/brief/muscle-icons';
 import { HabitDayStartComponent } from './habit-day-start.component';
 import { lastTitle } from './workout-week';
-import { isoWeekdayOfDateKey } from './plan-day-pick';
+import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { TrainElseSheetComponent } from './train-else-sheet.component';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
@@ -379,7 +379,7 @@ export class TodayOverviewComponent {
       title: today.title || today.label,
       chips: [formatDuration(minutes), formatKm(distance), this.suffixed(formatPace(pace), 'per km')],
       primary: FREE_BUTTON,
-      secondary: BROWSE_BUTTON,
+      secondary: { label: 'See the session', action: 'open' },
       ariaLabel: "Today's workout, done"
     });
   }
@@ -389,15 +389,23 @@ export class TodayOverviewComponent {
     const weekday = next ? this.weekdayOfDate(next.date) : '';
     const nextName = next?.kind === 'SPORT' ? next.label : (next?.title || next?.label);
     const chips = next && weekday ? [`Next: ${weekday}`, nextName ?? '', formatDuration(next.estimatedMinutes)] : [];
+    // The next training does not say which plan day it is, so the day is found by its weekday.
+    const day = next ? planDayOn(this.activePlan()?.days, isoWeekdayOfDateKey(next.date)) : null;
     return this.makeCard({
       kind: 'REST',
       eyebrow: 'Today · Rest',
       title: 'Rest day',
       chips,
       primary: FREE_BUTTON,
-      secondary: BROWSE_BUTTON,
+      secondary: next && weekday && day ? this.restNextButton(weekday) : BROWSE_BUTTON,
+      planDayId: day?.planDayId ?? null,
       ariaLabel: "Today's workout, rest day"
     });
+  }
+
+  /** The rest day's one-tap choice: the next planned session, done today. */
+  private restNextButton(weekday: string): TodayButton {
+    return { label: `Do ${weekday}'s session today`, action: 'start' };
   }
 
   private carriedOverCard(today: TodayInsight): TodayCard {

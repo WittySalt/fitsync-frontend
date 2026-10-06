@@ -83,7 +83,9 @@
             </button>
           }
           @if (c.secondary; as secondary) {
-            <button class="action-secondary" type="button" (click)="run(secondary.action)">{{ secondary.label }}</button>
+            <button class="action-secondary" type="button" [disabled]="isDisabled(secondary)" (click)="run(secondary.action)">
+              {{ buttonLabel(secondary) }}
+            </button>
           }
         </div>
       }

@@ -202,6 +202,12 @@
   cursor: pointer;
 }
 
+.action-primary:disabled,
+.action-secondary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .action-primary {
   border: 0;
   background: var(--accent);
@@ -209,11 +215,6 @@
 
   &:hover:not(:disabled) {
     background: var(--accent-hover);
-  }
-
-  &:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
   }
 }
 

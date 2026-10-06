@@ -335,7 +335,7 @@ describe('TodayOverviewComponent', () => {
       expect(text(root, '.eyebrow')).toBe('Done today');
       expect(chips(root)).toEqual(['50 min']);
       expect(text(root, '.action-primary')).toBe('Start a free workout');
-      expect(text(root, '.action-secondary')).toBe('Browse plans');
+      expect(text(root, '.action-secondary')).toBe('See the session');
     });
 
     it('adds distance and pace to a finished cardio day when the day entry has them', () => {
@@ -645,15 +645,12 @@ describe('TodayOverviewComponent', () => {
       expect(emit).toHaveBeenCalledOnceWith('SPORT');
     });
 
-    it('browses plans from the outlined button of a rest day, a finished day and the no-plan card', () => {
+    it('browses plans from the outlined button of a rest day without a next session and the no-plan card', () => {
       const emit = spyOn(component.browsePlans, 'emit');
-      const kinds: TodayInsight[] = [today({ kind: 'REST', planDayId: null }), today({ source: 'DONE' })];
-      for (const insight of kinds) {
-        render({ today: insight }).querySelector<HTMLButtonElement>('.action-secondary')?.click();
-      }
+      render({ today: today({ kind: 'REST', planDayId: null }) }).querySelector<HTMLButtonElement>('.action-secondary')?.click();
       render({ activePlan: null, today: null }).querySelector<HTMLButtonElement>('.action-secondary')?.click();
 
-      expect(emit).toHaveBeenCalledTimes(3);
+      expect(emit).toHaveBeenCalledTimes(2);
     });
 
     it('starts a free workout from the filled button when there is no plan, on a rest day and after a finished day', () => {
@@ -722,6 +719,28 @@ describe('TodayOverviewComponent', () => {
       expect(emit).toHaveBeenCalledOnceWith({ sessionId: 's-run', status: 'IN_PROGRESS' });
     });
 
+    it('opens the longest finished session with See the session', () => {
+      const emit = spyOn(component.openSession, 'emit');
+      const finished = (sessionId: string, minutes: number) => ({
+        sessionId,
+        kind: 'STRENGTH' as const,
+        label: 'Strength',
+        sportActivity: null,
+        status: 'COMPLETED',
+        minutes,
+        distanceKm: null,
+        planDayId: null
+      });
+      const root = render({
+        today: today({ source: 'DONE' }),
+        todayDay: dayEntry({ sessions: [finished('short', 10), finished('long', 50)] })
+      });
+
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
+
+      expect(emit).toHaveBeenCalledOnceWith({ sessionId: 'long', status: 'COMPLETED' });
+    });
+
     it('opens without a session id when the insight names none', () => {
       const emit = spyOn(component.openSession, 'emit');
       const root = render({ today: today({ source: 'IN_PROGRESS' }), todayDay: null });
@@ -776,6 +795,66 @@ describe('TodayOverviewComponent', () => {
       expect(root.querySelector('.action-secondary')?.tagName).toBe('BUTTON');
       expect(root.querySelector('.past-link')?.tagName).toBe('BUTTON');
       expect(root.querySelector('.kind-tile')?.getAttribute('aria-hidden')).toBe('true');
+    });
+  });
+
+  describe('a rest day with a next session in the plan', () => {
+    const thursday = () => ({ ...planDay('d-thu', 'CARDIO', [move(1, 'Treadmill run')], 'Treadmill run'), dayOfWeek: 4 });
+    const rest = () => today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null });
+
+    it('offers a free workout and the next planned session today, with no Browse plans', () => {
+      const root = render({ activePlan: plan({ days: [thursday()] }), today: rest(), nextTraining: next() });
+
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe("Do Thursday's session today");
+      expect(root.textContent).not.toContain('Browse plans');
+      expect(chips(root)).toEqual(['Next: Thursday', 'Treadmill run', '35 min']);
+    });
+
+    it('starts the plan day that falls on the weekday of the next training', () => {
+      const active = plan({ days: [thursday(), { ...planDay('d-fri', 'STRENGTH', [move(1, 'Squat')]), dayOfWeek: 5 }] });
+      const root = render({ activePlan: active, today: rest(), nextTraining: next() });
+      const started: Array<{ planDayId: string | null }> = [];
+      component.startPlan.subscribe((event) => started.push(event));
+
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
+
+      expect(started.length).toBe(1);
+      expect(started[0].planDayId).toBe('d-thu');
+    });
+
+    it('names the weekday of the next training in the label', () => {
+      const friday = { ...planDay('d-fri', 'STRENGTH', [move(1, 'Squat')], 'Legs'), dayOfWeek: 5 };
+      const root = render({
+        activePlan: plan({ days: [friday] }),
+        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
+        nextTraining: next({ date: '2026-10-02', kind: 'STRENGTH', label: 'Strength', title: 'Legs' })
+      });
+
+      expect(text(root, '.action-secondary')).toBe("Do Friday's session today");
+    });
+
+    it('falls back to Browse plans when the plan has no day on that weekday, or no next training', () => {
+      for (const days of [[{ ...planDay('d-mon', 'STRENGTH', []), dayOfWeek: 1 }], []]) {
+        const root = render({ activePlan: plan({ days }), today: rest(), nextTraining: next() });
+        expect(text(root, '.action-secondary')).toBe('Browse plans');
+      }
+      const withoutNext = render({ activePlan: plan({ days: [thursday()] }), today: rest(), nextTraining: null });
+      expect(text(withoutNext, '.action-secondary')).toBe('Browse plans');
+    });
+
+    it('offers Browse plans when there is no plan', () => {
+      const root = render({ activePlan: null, today: rest(), nextTraining: next() });
+
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe('Browse plans');
+    });
+
+    it('disables the next session while the plan is starting', () => {
+      const root = render({ activePlan: plan({ days: [thursday()] }), today: rest(), nextTraining: next(), starting: true });
+
+      expect(root.querySelector<HTMLButtonElement>('.action-secondary')?.disabled).toBeTrue();
+      expect(text(root, '.action-secondary')).toBe('Starting…');
     });
   });
 
