@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 
 import { BalanceCardComponent } from './balance-card.component';
@@ -23,6 +24,8 @@ const week: RangeDay[] = [
 ];
 
 describe('BalanceCardComponent', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+
   function render(options: { entries?: BalanceEntry[]; protein?: ProteinByMealView | null; days?: RangeDay[] } = {}) {
     const fixture = TestBed.createComponent(BalanceCardComponent);
     fixture.componentRef.setInput('entries', options.entries ?? entries);
@@ -118,5 +121,11 @@ describe('BalanceCardComponent', () => {
     expect(element.querySelector('.eyebrow.muted')).toBeNull();
     expect(element.querySelectorAll('.section-head').length).toBe(1);
     expect(element.querySelector('.note')).toBeNull();
+  });
+
+  it('has a door to the four weeks of macros on the Food progress page', () => {
+    const link = render().querySelector<HTMLAnchorElement>('a.door-link');
+    expect(link?.textContent?.trim()).toBe('4 weeks ›');
+    expect(link?.getAttribute('href')).toBe('/progress/food#macros');
   });
 });

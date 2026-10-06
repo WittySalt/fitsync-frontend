@@ -54,7 +54,10 @@
         <div class="week-card">
           <div class="week-head">
             @if (view() === 'week') {
-              <span class="week-title">This week</span>
+              <span class="week-lead">
+                <span class="week-title">This week</span>
+                <a class="door-link" routerLink="/progress" [queryParams]="{ weeks: 'earlier' }">Earlier weeks ›</a>
+              </span>
             } @else {
               <app-month-nav />
             }

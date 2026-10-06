@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { FoodIconComponent } from '../../../shared/food/food-icon.component';
 import { asFoodGroup } from '../../../shared/food/food-groups';
@@ -33,10 +34,11 @@ function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
  */
 @Component({
   selector: 'app-food-meals-section',
-  imports: [DetailSectionComponent, FoodIconComponent],
+  imports: [DetailSectionComponent, FoodIconComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-detail-section name="Meals" anchor="meals" [sentence]="sentence()" [context]="context()" ask="When do I usually eat, and which meal carries most of my calories? The band is where half of my meals fall and the dot is the middle time.">
+      <a sectionControl class="door-link" routerLink="/nutrition">Diary meals ›</a>
       <div class="block">
         <strong class="heading">When you usually eat</strong>
         @if (clock().length) {

@@ -23,6 +23,7 @@ export interface RecordRow {
 /** One exercise as its card: its summary line, which columns it shows, and its rows. */
 export interface RecordExercise {
   key: string;
+  exerciseId: string;
   sequence: number;
   name: string;
   summary: string;
@@ -152,6 +153,7 @@ export function recordExercises(session: WorkoutSessionDetail): RecordExercise[]
       };
       return {
         key: log.exerciseLogId || `${log.sequence}`,
+        exerciseId: log.exerciseId,
         sequence: log.sequence,
         name: log.exerciseNameSnapshot,
         summary: exerciseSummary(log, done),

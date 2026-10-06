@@ -170,6 +170,19 @@
   color: var(--green-400);
 }
 
+.door {
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  color: var(--green-400);
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .written {
   font-size: 12px;
   color: var(--slate-300);

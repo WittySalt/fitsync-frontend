@@ -8,7 +8,7 @@
       </div>
     </header>
 
-    <app-insight-panel class="fade-in" surface="WORKOUT" />
+    <app-insight-panel class="fade-in" surface="WORKOUT" [door]="{ label: '4 weeks ›', path: '/progress/training' }" />
 
     <app-workout-week
       class="fade-in"
@@ -145,6 +145,9 @@
           } @else {
             <span>{{ plan.exerciseCount }} exercises</span>
           }
+          @if (plan.status === 'ACTIVE') {
+            <a class="door-link" routerLink="/progress/training" fragment="muscles">How it is going ›</a>
+          }
         </div>
         <h3>{{ plan.name }}</h3>
         <p>{{ formatLabel(plan.goalFocus) }} - {{ formatLabel(plan.workoutType) }} - {{ formatLabel(plan.difficulty) }}</p>
@@ -237,9 +240,12 @@
           <span class="card-label">Recent sessions</span>
           <h2>Training history</h2>
         </div>
-        <button class="button secondary" type="button" [disabled]="repeatingLatest()" (click)="repeatLatestSession()">
-          {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
-        </button>
+        <div class="head-actions">
+          <a class="door-link" routerLink="/progress/training" fragment="log">Trends ›</a>
+          <button class="button secondary" type="button" [disabled]="repeatingLatest()" (click)="repeatLatestSession()">
+            {{ repeatingLatest() ? 'Repeating...' : 'Repeat latest' }}
+          </button>
+        </div>
       </div>
       <div class="history-filter-bar" aria-label="Filter workout history">
         <label>

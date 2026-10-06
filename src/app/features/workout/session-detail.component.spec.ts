@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
@@ -124,7 +125,8 @@ describe('SessionDetailComponent', () => {
       imports: [SessionDetailComponent],
       providers: [
         { provide: FitSyncDataService, useValue: dataService },
-        { provide: ToastService, useValue: toast }
+        { provide: ToastService, useValue: toast },
+        provideRouter([])
       ]
     }).compileComponents();
   });

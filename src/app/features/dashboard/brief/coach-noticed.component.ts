@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { BriefObservation } from './brief-observations';
 import { DAY_KIND_GLYPHS } from './day-kind-icons';
@@ -20,11 +21,13 @@ const WEEK: GlyphShape[] = [
  * The three things the coach noticed, under the week strip.
  *
  * Each row is a measured fact and one sentence about it. The rows are observations. Nothing here
- * is a button, because the coach does not tell the user what to do.
+ * is a button, because the coach does not tell the user what to do. A quiet door under a row leads to
+ * the page its figures come from.
  */
 @Component({
   selector: 'app-coach-noticed',
   standalone: true,
+  imports: [RouterLink],
   templateUrl: './coach-noticed.component.html',
   styleUrl: './coach-noticed.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

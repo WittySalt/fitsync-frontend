@@ -21,6 +21,12 @@
   justify-content: space-between;
 }
 
+.title-end {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
 .eyebrow {
   font-size: 12px;
   font-weight: var(--fw-bold);

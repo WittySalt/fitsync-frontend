@@ -1,4 +1,5 @@
 import { Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { BalanceEntry, ProteinByMealView, RangeDay } from './diary.models';
 import { BalanceRowView, ProteinChart, balanceRow, proteinChart } from './diary-figures';
@@ -21,12 +22,15 @@ const KIDNEY_NOTE =
  */
 @Component({
   selector: 'app-balance-card',
-  imports: [BalanceRowComponent, ProteinChartComponent],
+  imports: [RouterLink, BalanceRowComponent, ProteinChartComponent],
   template: `
     <div class="head">
       <div class="title">
         <span class="eyebrow">Balance</span>
-        <span class="aside">dots are this week</span>
+        <span class="title-end">
+          <span class="aside">dots are this week</span>
+          <a class="door-link" routerLink="/progress/food" fragment="macros">4 weeks ›</a>
+        </span>
       </div>
       <span class="key" aria-label="Dot key">
         <span><i class="on"></i>on target</span>

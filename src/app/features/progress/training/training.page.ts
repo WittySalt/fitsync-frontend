@@ -13,7 +13,8 @@ import {
   InkSwitchComponent,
   JumpItem,
   NO_EARLIER_DATA,
-  periodEyebrow
+  periodEyebrow,
+  useFragmentScroll
 } from '../../../shared/progress';
 import { ActivityCardComponent } from './parts/activity-card.component';
 import { minutesTop } from './parts/chart-geometry';
@@ -149,6 +150,7 @@ export class TrainingPage {
   protected readonly unitValue = unitValue;
   protected readonly eyebrow = computed(() => periodEyebrow('Training', this.period.code(), this.period.range().from, this.period.range().to));
   protected readonly data = computed(() => shownData(this.state()));
+  private readonly scrollToSection = useFragmentScroll(computed(() => this.data() !== null));
   protected readonly verdict = computed(() => {
     const data = this.data();
     return data ? trainingVerdict(data, this.period.code()) : { text: '', tone: 'ink' as const };

@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { BriefObservation } from './brief-observations';
@@ -14,7 +15,7 @@ describe('CoachNoticedComponent', () => {
   let element: HTMLElement;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [CoachNoticedComponent] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [CoachNoticedComponent], providers: [provideRouter([])] }).compileComponents();
     fixture = TestBed.createComponent(CoachNoticedComponent);
     fixture.componentRef.setInput('observations', observations);
     fixture.detectChanges();
@@ -40,8 +41,20 @@ describe('CoachNoticedComponent', () => {
     expect(rows[2].querySelectorAll('svg rect').length).toBe(0);
   });
 
-  it('offers no controls, because an observation is not an instruction', () => {
-    expect(element.querySelectorAll('button, a').length).toBe(0);
+  it('offers no buttons, because an observation is not an instruction', () => {
+    expect(element.querySelectorAll('button').length).toBe(0);
+    expect(element.querySelectorAll('a').length).toBe(0);
+  });
+
+  it('shows a quiet door to the page a fact came from when the observation has one', () => {
+    fixture.componentRef.setInput('observations', [
+      { ...observations[0], door: { label: 'Muscles ›', path: '/progress/training', fragment: 'muscles' } },
+      { ...observations[2], door: { label: 'Over time ›', path: '/progress/training/exercises/ex-1' } }
+    ]);
+    fixture.detectChanges();
+    const doors = Array.from(element.querySelectorAll<HTMLAnchorElement>('a.door-link'));
+    expect(doors.map((link) => link.textContent?.trim())).toEqual(['Muscles ›', 'Over time ›']);
+    expect(doors.map((link) => link.getAttribute('href'))).toEqual(['/progress/training#muscles', '/progress/training/exercises/ex-1']);
   });
 
   it('labels the section with its heading', () => {

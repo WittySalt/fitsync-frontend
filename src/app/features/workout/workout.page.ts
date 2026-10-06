@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Component, computed, DestroyRef, effect, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
@@ -57,6 +57,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 @Component({
   selector: 'app-workout-page',
   imports: [InsightPanelComponent,
+    RouterLink,
     PagerComponent,
     AutoClosedNoticeComponent,
     NgTemplateOutlet,

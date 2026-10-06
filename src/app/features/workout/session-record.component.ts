@@ -1,4 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
 import { SegmentStripComponent } from './plan-flow/segments/segment-strip.component';
@@ -12,7 +13,7 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
  */
 @Component({
   selector: 'app-session-record',
-  imports: [SegmentStripComponent],
+  imports: [RouterLink, SegmentStripComponent],
   template: `
     <dl class="stats" [style.--columns]="stats().length">
       @for (stat of stats(); track stat.label) {
@@ -62,6 +63,9 @@ import { doneSetCount, recordExercises, recordStats } from './session-record';
               <h3 class="name">{{ exercise.name }}</h3>
               <span class="summary">{{ exercise.summary }}</span>
             </div>
+            @if (exercise.exerciseId) {
+              <a class="door-link over-time" [routerLink]="['/progress/training/exercises', exercise.exerciseId]">This exercise over time ›</a>
+            }
           </div>
           @if (exercise.rows.length) {
             <table [attr.aria-label]="exercise.name + ' sets'">

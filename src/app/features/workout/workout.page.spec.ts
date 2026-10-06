@@ -461,6 +461,22 @@ describe('WorkoutPage', () => {
     });
   });
 
+  describe('the doors to Progress', () => {
+    it('leads the reading to four weeks of Training and History to the training log', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      const panel = fixture.debugElement.query((node) => node.name === 'app-insight-panel');
+      expect(panel.componentInstance.door()).toEqual({ label: '4 weeks ›', path: '/progress/training' });
+
+      fixture.componentInstance.selectedTab.set('history');
+      fixture.detectChanges();
+      const link = root.querySelector<HTMLAnchorElement>('#workout-panel-history a.door-link');
+      expect(link?.textContent?.trim()).toBe('Trends ›');
+      expect(link?.getAttribute('href')).toBe('/progress/training#log');
+    });
+  });
+
   describe('quick start card', () => {
     function startCard(fixture: ComponentFixture<WorkoutPage>): Element | null {
       return (fixture.nativeElement as HTMLElement).querySelector('app-live-start-card');
@@ -1603,6 +1619,15 @@ describe('WorkoutPage', () => {
       expect(cards.map((card) => card.querySelector('h3')?.textContent?.trim())).toEqual(['Current one', 'Draft one']);
       expect(buttons(cards[0])).toEqual(['Edit', 'Archive', 'Start session']);
       expect(buttons(cards[1])).toEqual(['Edit', 'Activate', 'Archive']);
+    });
+
+    it('gives the current plan a door to how it is going on Progress', () => {
+      dataService.getActivePlan.and.returnValue(of(active()));
+      dataService.getWorkoutPlans.and.returnValue(of([active(), draft()]));
+      const { root } = openPlans();
+      const doors = Array.from(root.querySelectorAll<HTMLAnchorElement>('.plan-card a.door-link'));
+      expect(doors.map((link) => link.textContent?.trim())).toEqual(['How it is going ›']);
+      expect(doors[0].getAttribute('href')).toBe('/progress/training#muscles');
     });
 
     it('filters the other plans by Draft, Archived or All, with Draft first', () => {

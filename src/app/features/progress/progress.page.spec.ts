@@ -197,6 +197,11 @@ describe('ProgressPage', () => {
     expect(el.ownerDocument.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it('opens the earlier weeks on arrival when the address says weeks=earlier', async () => {
+    await open('/progress?weeks=earlier');
+    expect(el.ownerDocument.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
   it('keeps ?period= in the address and reads the other periods', async () => {
     await open();
     const links = Array.from(el.querySelectorAll<HTMLAnchorElement>('.periods a'));
