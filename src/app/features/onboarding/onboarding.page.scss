@@ -119,7 +119,7 @@
 }
 
 .chip-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
 }
 
 .choice-pill,
@@ -153,6 +153,7 @@
 .select-chip {
   min-height: 44px;
   padding: 0 12px;
+  white-space: nowrap;
   text-align: center;
   font-weight: var(--fw-semibold);
 }
@@ -223,7 +224,7 @@
   gap: 10px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1100px) {
   .layout {
     grid-template-columns: minmax(0, 1fr) 280px;
   }
