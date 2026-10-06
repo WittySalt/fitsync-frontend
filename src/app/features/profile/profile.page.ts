@@ -105,20 +105,22 @@ export class ProfilePage implements OnInit {
         this.user.set(user);
         this.loading.set(false);
         this.loadAround();
+        this.loadFootprint();
       },
       error: () => {
         this.error.set('Your profile could not be loaded. Nothing is lost. Try again in a moment.');
         this.loading.set(false);
       }
     });
-    this.loadFootprint();
     this.loadBadges();
   }
 
+  /** The grid starts on the Monday of the week the account was created, so the join date is passed along. */
   protected loadFootprint(): void {
     this.footprintLoading.set(true);
     this.footprintFailed.set(false);
-    this.data.getFootprint().subscribe({
+    const since = this.user()?.profile?.createdAt?.slice(0, 10) ?? null;
+    this.data.getFootprint(since).subscribe({
       next: (footprint) => {
         this.footprint.set(footprint);
         this.footprintLoading.set(false);

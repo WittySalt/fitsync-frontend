@@ -1287,8 +1287,9 @@ export class FitSyncDataService {
   }
 
   /** Every day since the person joined, with whether they trained and whether they logged meals. */
-  getFootprint(): Observable<Footprint> {
-    return this.http.get<unknown>(`${this.apiBaseUrl}/analytics/me/footprint`).pipe(map(mapFootprint));
+  getFootprint(since?: string | null): Observable<Footprint> {
+    const params = since ? new HttpParams().set('since', since) : undefined;
+    return this.http.get<unknown>(`${this.apiBaseUrl}/analytics/me/footprint`, { params }).pipe(map(mapFootprint));
   }
 
   /** The seventeen badges as paths by theme, with the latest earned and the two closest to earning. */
