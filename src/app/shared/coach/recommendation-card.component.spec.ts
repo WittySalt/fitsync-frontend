@@ -49,16 +49,21 @@ describe('RecommendationCardComponent', () => {
     source: 'RULE',
     facts: { caloriesConsumed: 2037, caloriesTarget: 2100 },
     narrative: "You have 63 kcal left of today's 2100 kcal target.",
-    generatedAt: new Date(Date.now() - 2 * 60_000).toISOString(),
+    generatedAt: '2026-10-06T09:58:00Z',
     expiresAt: null
   };
 
   beforeEach(async () => {
+    // A fixed clock: the freshness line is "2m ago" however long the suite has been running.
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date('2026-10-06T10:00:00Z'));
     await TestBed.configureTestingModule({ imports: [RecommendationCardComponent] }).compileComponents();
     fixture = TestBed.createComponent(RecommendationCardComponent);
     fixture.componentRef.setInput('recommendation', recommendation);
     fixture.detectChanges();
   });
+
+  afterEach(() => jasmine.clock().uninstall());
 
   it('shows the sentence, the facts it came from, its source and its freshness together', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
