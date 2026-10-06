@@ -217,8 +217,7 @@
   }
 }
 
-.action-secondary,
-.action-primary.quiet {
+.action-secondary {
   border: 1.5px solid var(--green-200);
   background: var(--surface);
   color: var(--green-900);
@@ -227,12 +226,6 @@
     border-color: var(--accent);
     background: var(--surface-tint);
   }
-}
-
-// A rest day's two choices share the row evenly.
-.actions.equal > * {
-  flex: 1 1 0;
-  min-width: 0;
 }
 
 .last-session {
@@ -250,6 +243,23 @@
   }
 }
 
+// The one entry to a past session sits at the right of the foot, quiet like the page's other links.
+.past-link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--pg-control);
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .last-label {
   font-size: 11px;
   font-weight: var(--fw-bold);
@@ -258,6 +268,7 @@
 }
 
 .move:focus-visible,
+.past-link:focus-visible,
 .action-primary:focus-visible,
 .action-secondary:focus-visible {
   outline: 3px solid var(--focus-ring);
@@ -278,8 +289,7 @@
     align-items: stretch;
   }
 
-  .actions > *,
-  .actions.equal > * {
+  .actions > * {
     flex: none;
     width: 100%;
   }

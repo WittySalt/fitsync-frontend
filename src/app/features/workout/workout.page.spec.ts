@@ -468,7 +468,7 @@ describe('WorkoutPage', () => {
       return (fixture.nativeElement as HTMLElement).querySelector('app-live-start-card');
     }
 
-    it('shows when nothing is in progress and today is not done', () => {
+    it('shows when nothing is in progress', () => {
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.detectChanges();
 
@@ -485,12 +485,34 @@ describe('WorkoutPage', () => {
       expect(startCard(fixture)).toBeNull();
     });
 
-    it('is hidden when today was already trained', () => {
+    it('stays when today was already trained, because the card foot still logs a past workout', () => {
       dataService.getWeeklyTrainingInsight.and.returnValue(of(weeklyInsight({ today: todayInsight({ source: 'DONE' }) })));
       const fixture = TestBed.createComponent(WorkoutPage);
       fixture.detectChanges();
 
-      expect(startCard(fixture)).toBeNull();
+      expect(startCard(fixture)).not.toBeNull();
+    });
+
+    it('opens the free workout sheet from the Today card', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const card = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+
+      fixture.componentInstance.handleTodayStartFree();
+
+      expect(card.freeOpen()).toBeTrue();
+    });
+
+    it('opens the past workout form from the foot link of the Today card', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const card = fixture.debugElement.query(By.directive(LiveStartCardComponent)).componentInstance as LiveStartCardComponent;
+
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.today-card .past-link')?.click();
+      fixture.detectChanges();
+
+      expect(card.pastWorkoutOpen()).toBeTrue();
+      expect((fixture.nativeElement as HTMLElement).querySelector('#past-workout-form')).not.toBeNull();
     });
   });
 

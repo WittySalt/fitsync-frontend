@@ -107,14 +107,6 @@ select {
   font-size: var(--text-sm);
 }
 
-// One quiet row under the Today card: two links, 13 px ink.
-.quick-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  padding: 4px 2px;
-}
-
 .quiet-link {
   padding: 0;
   border: 0;

@@ -467,6 +467,34 @@ describe('InsightPanelComponent', () => {
     expect(text('.working-list li:first-child strong')).toBe('Estimated best single');
     expect(text('.working-list li:first-child .working-text > span')).toBe('22.5 kg, Dumbbell Bench Press, 20 kg before');
   });
+
+  describe('the eyebrow', () => {
+    const thisWeek: CoachReading = { ...ready, period: 'THIS_WEEK', periodStart: '2026-09-28', periodEnd: '2026-09-28' };
+
+    it("says This week so far when the window starts on this week's Monday, with the dates after it", () => {
+      api.getReading.and.returnValue(of(thisWeek));
+      render('WORKOUT');
+      expect(text('.eyebrow-dark')).toBe('This week so far');
+      expect(text('.eyebrow-period')).toBe('28 Sept');
+    });
+
+    it('does the same on the Nutrition page', () => {
+      api.getReading.and.returnValue(of({ ...thisWeek, surface: 'NUTRITION' as const }));
+      render('NUTRITION');
+      expect(text('.eyebrow-dark')).toBe('This week so far');
+    });
+
+    it('keeps the plain title when the window is another week', () => {
+      render('WORKOUT');
+      expect(text('.eyebrow-dark')).toBe("Your coach's reading");
+    });
+
+    it('keeps the plain title on Progress even when its window starts on this Monday', () => {
+      api.getReading.and.returnValue(of({ ...progressReady, periodStart: '2026-09-28' }));
+      render('PROGRESS');
+      expect(text('.eyebrow-dark')).toBe("Your coach's reading");
+    });
+  });
 });
 
 describe('ageLabel', () => {

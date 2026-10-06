@@ -121,10 +121,12 @@
           (openSession)="handleTodayOpenSession($event)"
           (habitStarted)="handleHabitStarted()"
           (browsePlans)="browsePlans()"
+          (startFree)="handleTodayStartFree()"
+          (logPast)="handleTodayLogPast()"
           (templateActivated)="handleTemplateActivated($event)"
         />
 
-        @if (!workoutLive.active() && todayInsight()?.source !== 'DONE') {
+        @if (!workoutLive.active()) {
           <app-live-start-card
             (started)="handleLiveTrackerStarted($event)"
             (backfilled)="handlePastWorkoutLogged()"

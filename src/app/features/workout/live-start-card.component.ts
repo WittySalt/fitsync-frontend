@@ -127,6 +127,12 @@ export class LiveStartCardComponent {
     this.pastWorkoutOpen.update((open) => !open);
   }
 
+  /** The Today card's foot link: opens the form, and leaves it open when pressed twice. */
+  openPastWorkout(): void {
+    this.freeOpen.set(false);
+    this.pastWorkoutOpen.set(true);
+  }
+
   closeSheets(): void {
     this.freeOpen.set(false);
     this.pastWorkoutOpen.set(false);

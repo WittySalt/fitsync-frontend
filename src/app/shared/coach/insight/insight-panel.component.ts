@@ -6,6 +6,7 @@ import { CoachApiService } from '../../../core/coach/coach-api.service';
 import { CoachReading, ReadingFact, ReadingSurface } from '../../../core/coach/coach.models';
 import { CoachStore } from '../../../core/coach/coach.store';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { NutritionInsightsPage, ProgressInsight } from '../../../core/fitsync.models';
 import { strengthFactsAsBestSingle } from './best-single';
 import { InsightReadState } from './insight-read-state';
@@ -48,6 +49,7 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private readonly coachStore = inject(CoachStore);
   private readonly readState = inject(InsightReadState);
   private readonly now = inject(INSIGHT_NOW);
+  private readonly timezone = inject(UserTimezoneService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly surface = input.required<ReadingSurface>();
@@ -116,6 +118,16 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
 
   /** The days the reading describes, shown beside its title, for example "21 to 27 Sept". */
   readonly periodRange = computed(() => dateRange(this.result()?.periodStart ?? null, this.result()?.periodEnd ?? null));
+
+  /**
+   * What the eyebrow says. Workout and Nutrition read this week so far, and say so when the window the
+   * backend used starts on this week's Monday. Any other window, and Progress, keep the plain title.
+   */
+  readonly eyebrow = computed(() => {
+    const start = this.result()?.periodStart ?? null;
+    const thisWeek = this.surface() !== 'PROGRESS' && start !== null && start === mondayOf(this.timezone.dateKey(this.now()));
+    return thisWeek ? 'This week so far' : "Your coach's reading";
+  });
 
   readonly periodLabel = computed(() => {
     const result = this.result();
@@ -251,6 +263,14 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
  */
 function readKey(reading: CoachReading): string | null {
   return reading.readingId && reading.reading ? `${reading.readingId}:${reading.reading.source}` : null;
+}
+
+/** The Monday of the week that holds a YYYY-MM-DD day, as YYYY-MM-DD. */
+function mondayOf(dateKey: string): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return date.toISOString().slice(0, 10);
 }
 
 /** "just now", "5 min ago", "3 h ago" or "2 days ago". An unreadable time gives an empty label. */

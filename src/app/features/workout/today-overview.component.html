@@ -70,12 +70,11 @@
     </div>
 
     <div class="card-foot">
-      @if (c.primary || c.secondary || c.link) {
-        <div class="actions" [class.equal]="c.quiet">
+      @if (c.primary || c.secondary) {
+        <div class="actions">
           @if (c.primary; as primary) {
             <button
               class="action-primary"
-              [class.quiet]="c.quiet"
               type="button"
               [disabled]="isDisabled(primary)"
               (click)="run(primary.action)"
@@ -85,9 +84,6 @@
           }
           @if (c.secondary; as secondary) {
             <button class="action-secondary" type="button" (click)="run(secondary.action)">{{ secondary.label }}</button>
-          }
-          @if (c.link; as link) {
-            <a class="action-secondary" href="/workout" (click)="run(link.action, $event)">{{ link.label }}</a>
           }
         </div>
       }
@@ -103,11 +99,16 @@
           <strong>None yet</strong>
           <span>Your first session will show here</span>
         }
+        <button type="button" class="past-link" (click)="logPast.emit()">Log a past workout</button>
       </div>
     </div>
   </article>
 
   @if (c.showTemplates) {
     <app-plan-templates (planActivated)="templateActivated.emit($event)" />
+  }
+
+  @if (elseOpen()) {
+    <app-train-else-sheet (chosen)="chooseElse($event)" (dismissed)="elseOpen.set(false)" />
   }
 </section>

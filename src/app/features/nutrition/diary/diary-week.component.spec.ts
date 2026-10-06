@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { DiaryWeekComponent } from './diary-week.component';
 import { RangeDay } from './diary.models';
@@ -41,6 +42,8 @@ class HostComponent {
 }
 
 describe('DiaryWeekComponent', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+
   function render() {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
@@ -68,17 +71,26 @@ describe('DiaryWeekComponent', () => {
     expect(captions.map((node) => node.classList.contains('far'))).toEqual([false, false, false, true, false, false, false]);
   });
 
-  it('shows days logged, days on target and kcal a day', () => {
-    const figures = Array.from<HTMLElement>(render().nativeElement.querySelectorAll('.figure')).map((node) => Array.from(node.children).map((child) => child.textContent?.trim()).join(' '));
-    expect(figures).toEqual(['5 of 5 days logged', '3 on target', '2,008 kcal a day']);
+  it("shows the days logged and today's kcal so far, with no on-target count and no kcal a day", () => {
+    const fixture = render();
+    const figures = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('.figure')).map((node) => Array.from(node.children).map((child) => child.textContent?.trim()).join(' '));
+    expect(figures).toEqual(['5 of 5 days logged', '900 kcal today so far']);
+    expect(fixture.nativeElement.textContent).not.toContain('on target');
+    expect(fixture.nativeElement.textContent).not.toContain('kcal a day');
   });
 
-  it('says No days logged yet in place of the kcal figure when no day is logged', () => {
+  it('shows zero for today when nothing is logged yet', () => {
     const fixture = render();
     fixture.componentInstance.days = [];
     fixture.detectChanges();
     const figures = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('.figure')).map((node) => Array.from(node.children).map((child) => child.textContent?.trim()).join(' '));
-    expect(figures).toEqual(['0 of 5 days logged', '0 on target', 'No days logged yet']);
+    expect(figures).toEqual(['0 of 5 days logged', '0 kcal today so far']);
+  });
+
+  it('links Longer in the head to the four-week food view', () => {
+    const link = render().nativeElement.querySelector('.head a.longer') as HTMLAnchorElement;
+    expect(link.textContent?.replace(/s+/g, ' ').trim()).toBe('Longer ›');
+    expect(link.getAttribute('href')).toBe('/progress/food');
   });
 
   it('shows the range of the week', () => {
