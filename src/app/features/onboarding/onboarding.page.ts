@@ -5,9 +5,18 @@ import { Router } from '@angular/router';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { StatePanelComponent } from '../../shared/state-panel.component';
 import { EntryTarget } from '../workout/plan-flow/plan-entry';
 import { PlanEntrySheetComponent } from '../workout/plan-flow/plan-entry-sheet.component';
+import {
+  ExplainState,
+  HOW_HARD_CHOICES,
+  HowHardChoice,
+  explainStep,
+  howHardFor,
+  planSummary
+} from './onboarding-explain';
+import { OnboardingExplainCardComponent } from './onboarding-explain-card.component';
+import { OnboardingStepLineComponent } from './onboarding-step-line.component';
 import {
   GoalProjection,
   PrimaryGoal,
@@ -61,13 +70,12 @@ type ControlName =
   | 'targetCalories'
   | 'targetProteinGrams'
   | 'targetCarbsGrams'
-  | 'targetFatGrams'
-  | 'workoutReminderEnabled'
-  | 'mealReminderEnabled';
+  | 'targetFatGrams';
 
 interface OnboardingStep {
   label: string;
   title: string;
+  subtitle: string;
 }
 
 interface ChoiceOption {
@@ -78,7 +86,12 @@ interface ChoiceOption {
 
 @Component({
   selector: 'app-onboarding-page',
-  imports: [ReactiveFormsModule, StatePanelComponent, PlanEntrySheetComponent],
+  imports: [
+    ReactiveFormsModule,
+    PlanEntrySheetComponent,
+    OnboardingExplainCardComponent,
+    OnboardingStepLineComponent
+  ],
   templateUrl: './onboarding.page.html',
   styleUrl: './onboarding.page.scss'
 })
@@ -111,30 +124,28 @@ export class OnboardingPage implements OnInit {
   );
 
   readonly steps: OnboardingStep[] = [
-    { label: 'Goal', title: 'Choose your main goal' },
-    { label: 'Profile', title: 'Tell us the basics' },
-    { label: 'Projection', title: 'Set your plan' },
-    { label: 'Training', title: 'Shape your training style' },
-    { label: 'Health', title: 'Check your readiness' },
-    { label: 'Habits', title: 'Set nutrition habits' },
-    { label: 'Review', title: 'Review your targets' }
+    {
+      label: 'Goal',
+      title: 'Choose your main goal',
+      subtitle: 'Pick the outcome that matters most right now. You can change it later.'
+    },
+    { label: 'You', title: 'About you', subtitle: 'The basics the targets are worked out from.' },
+    { label: 'Training', title: 'Your training', subtitle: 'What the coach plans your week from.' },
+    {
+      label: 'Health',
+      title: 'Check your readiness',
+      subtitle: 'FitSync is not medical advice. Answer as best you can.'
+    },
+    { label: 'Your plan', title: 'Your plan', subtitle: 'Check the targets, then save.' }
   ];
+  readonly stepLabels = this.steps.map((step) => step.label);
+  readonly howHardChoices = HOW_HARD_CHOICES;
 
   readonly trainingLocationOptions: ChoiceOption[] = [
     { value: 'HOME', label: 'Home', description: 'Compact sessions around bodyweight and small equipment.' },
     { value: 'GYM', label: 'Gym', description: 'Use machines, barbells, and structured strength work.' },
     { value: 'OUTDOOR', label: 'Outdoor', description: 'Prioritize cardio, mobility, and outdoor-friendly sessions.' },
     { value: 'MIXED', label: 'Mixed', description: 'Blend gym, home, and outdoor training across the week.' }
-  ];
-  readonly fitnessLevelOptions: ChoiceOption[] = [
-    { value: 'BEGINNER', label: 'Beginner', description: 'New or returning after a long break.' },
-    { value: 'INTERMEDIATE', label: 'Intermediate', description: 'Consistent training with familiar exercises.' },
-    { value: 'ADVANCED', label: 'Advanced', description: 'Experienced, structured, and comfortable with progression.' }
-  ];
-  readonly intensityOptions: ChoiceOption[] = [
-    { value: 'LOW', label: 'Low', description: 'Easy starts, more recovery, gentle progression.' },
-    { value: 'MODERATE', label: 'Moderate', description: 'Balanced effort with sustainable weekly work.' },
-    { value: 'HIGH', label: 'High', description: 'Challenging sessions when recovery is reliable.' }
   ];
   readonly equipmentOptions: ChoiceOption[] = [
     { value: 'NONE', label: 'None', description: 'Bodyweight only' },
@@ -181,7 +192,7 @@ export class OnboardingPage implements OnInit {
     weeklyPaceKg: [0.5 as number | null],
     activityLevel: ['MODERATELY_ACTIVE', Validators.required],
     weeklyWorkoutDays: [4 as number | null, [weeklyDaysValidator]],
-    fitnessLevel: ['BEGINNER', Validators.required],
+    fitnessLevel: ['INTERMEDIATE', Validators.required],
     trainingLocation: ['MIXED', Validators.required],
     preferredDurationMinutes: [45 as number | null, [Validators.required, Validators.min(5), Validators.max(240)]],
     preferredWorkoutTime: ['19:00'],
@@ -201,9 +212,7 @@ export class OnboardingPage implements OnInit {
     targetCalories: [null as number | null, [Validators.required, Validators.min(1000), Validators.max(6000)]],
     targetProteinGrams: [null as number | null, [Validators.required, Validators.min(20), Validators.max(400)]],
     targetCarbsGrams: [null as number | null, [Validators.required, Validators.min(0), Validators.max(900)]],
-    targetFatGrams: [null as number | null, [Validators.required, Validators.min(10), Validators.max(300)]],
-    workoutReminderEnabled: [true],
-    mealReminderEnabled: [true]
+    targetFatGrams: [null as number | null, [Validators.required, Validators.min(10), Validators.max(300)]]
   });
 
   private planEdited = false;
@@ -319,7 +328,7 @@ export class OnboardingPage implements OnInit {
 
     this.dataService.saveOnboarding(this.toOnboardingValue()).subscribe({
       next: () => {
-        this.toast.success('Your plan is ready. Welcome to FitSync!');
+        this.toast.success('Your plan is ready.');
         this.submitting.set(false);
         this.entryOpen.set(true);
       },
@@ -370,9 +379,20 @@ export class OnboardingPage implements OnInit {
     return this.form.controls.primaryGoal.value === goal;
   }
 
-  selectChoice(controlName: 'trainingLocation' | 'fitnessLevel' | 'intensityPreference', value: string): void {
+  selectChoice(controlName: 'trainingLocation', value: string): void {
     this.form.controls[controlName].setValue(value);
     this.error.set(null);
+  }
+
+  /** One "How hard" choice writes both the experience and the starting intensity of the request. */
+  selectHowHard(choice: HowHardChoice): void {
+    this.form.patchValue({ fitnessLevel: choice.fitnessLevel, intensityPreference: choice.intensityPreference });
+    this.form.controls.fitnessLevel.markAsDirty();
+    this.error.set(null);
+  }
+
+  isHowHardSelected(choice: HowHardChoice): boolean {
+    return howHardFor(this.form.controls.fitnessLevel.value, this.form.controls.intensityPreference.value)?.value === choice.value;
   }
 
   /** True while the user has chosen to leave the weekly training frequency open. */
@@ -389,7 +409,7 @@ export class OnboardingPage implements OnInit {
     this.refreshProjection(false);
   }
 
-  isChoiceSelected(controlName: 'trainingLocation' | 'fitnessLevel' | 'intensityPreference', value: string): boolean {
+  isChoiceSelected(controlName: 'trainingLocation', value: string): boolean {
     return this.form.controls[controlName].value === value;
   }
 
@@ -439,65 +459,39 @@ export class OnboardingPage implements OnInit {
     );
   }
 
-  private weeklyDaysChip(): string {
-    const days = this.form.controls.weeklyWorkoutDays.value;
-    return days === null ? 'Days to be decided' : `${days} days/week`;
+  subtitle(): string {
+    return this.steps[this.currentStep()].subtitle;
   }
 
-  planChips(): string[] {
-    const chips: string[] = [];
-    const location = this.optionLabel(this.trainingLocationOptions, this.form.controls.trainingLocation.value);
-    const level = this.optionLabel(this.fitnessLevelOptions, this.form.controls.fitnessLevel.value);
-    const intensity = this.optionLabel(this.intensityOptions, this.form.controls.intensityPreference.value);
-    chips.push(location, level, this.weeklyDaysChip(), `${this.form.controls.preferredDurationMinutes.value ?? 0} min`, intensity);
-
-    const equipment = this.form.controls.equipmentInventory.value ?? [];
-    if (equipment.length) {
-      chips.push(`${equipment.length} equipment`);
-    }
-    const focus = this.form.controls.focusAreas.value ?? [];
-    if (focus.length) {
-      chips.push(`${focus.length} focus area${focus.length === 1 ? '' : 's'}`);
-    }
-    if (this.hasParqRisk()) {
-      chips.push('Health notes');
-    }
-    return chips.filter(Boolean);
+  /** The state the "What this changes" sentences and the plan summary are built from. */
+  explainState(): ExplainState {
+    const controls = this.form.controls;
+    return {
+      goal: controls.primaryGoal.value,
+      units: this.preferredUnits(),
+      currentWeightKg: this.currentWeightKg(),
+      targetWeightKg: this.showsTargetAndPace() ? this.targetWeightKg() : null,
+      weeklyPaceKg: this.showsTargetAndPace() ? controls.weeklyPaceKg.value : null,
+      projection: this.projection(),
+      weeklyWorkoutDays: controls.weeklyWorkoutDays.value,
+      durationMinutes: controls.preferredDurationMinutes.value,
+      location: controls.trainingLocation.value ?? 'MIXED',
+      fitnessLevel: controls.fitnessLevel.value ?? '',
+      intensity: controls.intensityPreference.value ?? '',
+      equipment: controls.equipmentInventory.value ?? [],
+      focusAreas: controls.focusAreas.value ?? [],
+      hasHealthFlag: this.hasParqRisk(),
+      injuryAreas: controls.injuryAreas.value ?? [],
+      calorieTrackingMode: controls.calorieTrackingMode.value ?? 'FLEXIBLE'
+    };
   }
 
-  goalCopy(): string {
-    if (this.currentStep() === 3) {
-      switch (this.form.controls.trainingLocation.value) {
-        case 'HOME':
-          return 'We will make the plan work around your space and the equipment you actually have.';
-        case 'GYM':
-          return 'We will use your gym access for structured progression and clear training days.';
-        case 'OUTDOOR':
-          return 'We will bias toward outdoor-friendly conditioning, mobility, and simple strength work.';
-        default:
-          return 'We will keep your training flexible across home, gym, and outdoor sessions.';
-      }
-    }
-    if (this.currentStep() === 4) {
-      return 'FitSync is not medical advice. If anything here is a yes, we will keep the plan conservative and suggest checking with a doctor first.';
-    }
-
-    switch (this.form.controls.primaryGoal.value) {
-      case 'LOSE_FAT':
-        return 'We will pair a sustainable deficit with enough protein to protect training performance.';
-      case 'BUILD_MUSCLE':
-        return 'We will use a measured surplus and strength-focused habits to support lean mass.';
-      case 'MAINTAIN':
-        return 'We will keep calories near maintenance and focus on consistent routines.';
-      case 'IMPROVE_FITNESS':
-        return 'We will prioritize activity consistency and recovery instead of chasing a scale target.';
-      default:
-        return 'Pick the outcome that matters most right now. You can change it later.';
-    }
+  explainLines(): string[] {
+    return explainStep(this.currentStep(), this.explainState());
   }
 
-  private optionLabel(options: ChoiceOption[], value: string | null | undefined): string {
-    return options.find((option) => option.value === value)?.label ?? '';
+  summary(): string {
+    return planSummary(this.explainState());
   }
 
   private applyGoalDefaults(goal: PrimaryGoal): void {
@@ -589,22 +583,19 @@ export class OnboardingPage implements OnInit {
     }
   }
 
+  /** The five steps and the fields each one has to have in order before Continue. */
   private isStepValid(step: number): boolean {
     switch (step) {
       case 0:
         return this.form.controls.primaryGoal.valid;
       case 1:
-        return this.isProfileStepValid();
+        return this.isProfileStepValid() && this.isGoalPlanStepValid();
       case 2:
-        return this.isGoalPlanStepValid();
-      case 3:
         return this.isTrainingStepValid();
-      case 4:
+      case 3:
         return this.isHealthStepValid();
-      case 5:
-        return this.isNutritionPreferenceStepValid();
       default:
-        return this.isNutritionTargetStepValid();
+        return this.isNutritionPreferenceStepValid() && this.isNutritionTargetStepValid();
     }
   }
 
@@ -614,6 +605,7 @@ export class OnboardingPage implements OnInit {
       : this.form.controls.heightFt.valid && this.form.controls.heightIn.valid;
 
     return (
+      this.form.controls.activityLevel.valid &&
       this.form.controls.displayName.valid &&
       this.form.controls.gender.valid &&
       this.form.controls.birthDate.valid &&
@@ -635,7 +627,6 @@ export class OnboardingPage implements OnInit {
 
   private isTrainingStepValid(): boolean {
     return (
-      this.form.controls.activityLevel.valid &&
       this.form.controls.weeklyWorkoutDays.valid &&
       this.form.controls.fitnessLevel.valid &&
       this.form.controls.trainingLocation.valid &&
@@ -673,10 +664,22 @@ export class OnboardingPage implements OnInit {
   private markStepTouched(step: number): void {
     const controlsByStep: ControlName[][] = [
       ['primaryGoal'],
-      ['displayName', 'gender', 'birthDate', 'preferredUnits', 'heightCm', 'heightFt', 'heightIn'],
-      ['currentWeightKg', 'currentWeightLb', 'targetWeightKg', 'targetWeightLb', 'weeklyPaceKg'],
       [
-        'activityLevel',
+        'displayName',
+        'gender',
+        'birthDate',
+        'preferredUnits',
+        'heightCm',
+        'heightFt',
+        'heightIn',
+        'currentWeightKg',
+        'currentWeightLb',
+        'targetWeightKg',
+        'targetWeightLb',
+        'weeklyPaceKg',
+        'activityLevel'
+      ],
+      [
         'weeklyWorkoutDays',
         'fitnessLevel',
         'trainingLocation',
@@ -696,8 +699,7 @@ export class OnboardingPage implements OnInit {
         'injuryAreas',
         'parqAcknowledged'
       ],
-      ['dietaryPattern', 'calorieTrackingMode'],
-      ['targetCalories', 'targetProteinGrams', 'targetCarbsGrams', 'targetFatGrams']
+      ['dietaryPattern', 'calorieTrackingMode', 'targetCalories', 'targetProteinGrams', 'targetCarbsGrams', 'targetFatGrams']
     ];
 
     for (const controlName of controlsByStep[step] ?? []) {
@@ -747,8 +749,9 @@ export class OnboardingPage implements OnInit {
       targetCarbsGrams: raw.targetCarbsGrams,
       targetFatGrams: raw.targetFatGrams,
       projectedTargetDate: this.projection().projectedDate,
-      workoutReminderEnabled: raw.workoutReminderEnabled ?? false,
-      mealReminderEnabled: raw.mealReminderEnabled ?? false
+      // The reminders have no feature behind them yet, so the request carries them switched off.
+      workoutReminderEnabled: false,
+      mealReminderEnabled: false
     };
   }
 

@@ -1,11 +1,11 @@
 .onboarding-shell {
-  max-width: 960px;
+  max-width: 1120px;
 }
 
 .form-card {
   display: grid;
   gap: 18px;
-  max-width: 960px;
+  max-width: 1120px;
   padding: 24px;
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -26,51 +26,27 @@
   }
 }
 
-.step-rail {
+.layout {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.step-pill {
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 10px;
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: var(--fw-semibold);
-
-  span {
-    width: 22px;
-    height: 22px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text-primary);
-    font-size: 12px;
-  }
-}
-
-.step-pill.current,
-.step-pill.complete {
-  background: var(--surface-tint);
-  color: var(--accent-text);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
 }
 
 .step-panel {
   display: grid;
   gap: 18px;
+  min-width: 0;
 
   h2 {
     margin: 0;
     font-size: 24px;
   }
+}
+
+.step-head {
+  display: grid;
+  gap: 6px;
 }
 
 .coach-copy {
@@ -80,20 +56,11 @@
   line-height: 1.55;
 }
 
-.plan-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  span {
-    padding: 6px 10px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface-sunken);
-    color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: var(--fw-semibold);
-  }
+.summary-text {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.45;
 }
 
 .goal-grid {
@@ -168,7 +135,8 @@
 .choice-pill {
   display: grid;
   gap: 6px;
-  min-height: 104px;
+  align-content: start;
+  min-height: 96px;
   padding: 14px;
 
   strong {
@@ -222,40 +190,6 @@
   gap: 8px;
 }
 
-.toggle-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.projection-card {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px;
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-
-  div {
-    display: grid;
-    gap: 5px;
-  }
-
-  span {
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: var(--fw-semibold);
-  }
-
-  strong {
-    line-height: 1.35;
-  }
-
-  app-state-panel {
-    grid-column: 1 / -1;
-  }
-}
-
 .warning-list {
   display: grid;
   gap: 8px;
@@ -269,12 +203,6 @@
     color: var(--text-primary);
     font-weight: var(--fw-semibold);
   }
-}
-
-.review-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 14px;
 }
 
 .editable-plan {
@@ -295,25 +223,28 @@
   gap: 10px;
 }
 
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  app-onboarding-explain-card {
+    position: sticky;
+    top: 16px;
+  }
+}
+
 @media (max-width: 760px) {
   .form-card {
     padding: 18px;
   }
 
-  .step-rail,
   .goal-grid,
   .option-row,
   .chip-grid,
   .form-grid.two,
-  .form-grid.three,
-  .toggle-grid,
-  .projection-card,
-  .review-grid {
+  .form-grid.three {
     grid-template-columns: 1fr;
-  }
-
-  .step-pill {
-    justify-content: flex-start;
   }
 
   .form-actions {
