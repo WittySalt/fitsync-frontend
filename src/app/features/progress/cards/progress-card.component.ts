@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../../core/coach/coach.store';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 
 /**
@@ -11,18 +12,18 @@ import { ProgressCardContext } from '../../../shared/progress/progress.models';
  */
 @Component({
   selector: 'app-progress-card',
-  imports: [RouterLink],
+  imports: [RouterLink, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article class="card" [attr.aria-label]="name()">
       <header class="head">
         <span class="eyebrow">{{ name() }}</span>
         <div class="actions">
-          <button type="button" class="ask" (click)="ask($event)" [attr.aria-label]="'Ask the coach about ' + name().toLowerCase()">
+          <button type="button" class="ask" [appSpotlight]="tour() ? 'progress' : null" spotlightStep="ask" (click)="ask($event)" [attr.aria-label]="'Ask the coach about ' + name().toLowerCase()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4Z"></path></svg>
             Ask
           </button>
-          <a class="open" [routerLink]="link()" [attr.aria-label]="'Open ' + name()">Open ›</a>
+          <a class="open" [routerLink]="link()" [appSpotlight]="tour() ? 'progress' : null" spotlightStep="open" [attr.aria-label]="'Open ' + name()">Open ›</a>
         </div>
       </header>
       @if (coachLine()) {
@@ -43,6 +44,8 @@ export class ProgressCardComponent {
 
   readonly name = input.required<string>();
   readonly link = input.required<string>();
+  /** The card carries the Ask and Open steps of the Progress path. */
+  readonly tour = input(false);
   /** The text the composer opens with when Ask is pressed. */
   readonly askPrefill = input<string | undefined>(undefined);
   readonly context = input.required<ProgressCardContext>();

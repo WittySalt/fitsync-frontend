@@ -41,6 +41,7 @@ import { WorkoutWeekComponent } from './workout-week.component';
 import { TodayOpenSessionEvent, TodayOverviewComponent, TodayStartEvent } from './today-overview.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 
 
@@ -56,7 +57,8 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
-  imports: [InsightPanelComponent,
+  imports: [SpotlightDirective,
+    InsightPanelComponent,
     RouterLink,
     PagerComponent,
     AutoClosedNoticeComponent,

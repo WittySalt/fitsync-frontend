@@ -49,6 +49,7 @@ export function usualNames(meal: UsualMeal): string {
             class="add"
             type="button"
             [appSpotlight]="tourAnchor() ? 'nutrition' : null"
+            spotlightStep="log"
             aria-haspopup="menu"
             [attr.aria-expanded]="addMenuOpen()"
             [disabled]="busy()"

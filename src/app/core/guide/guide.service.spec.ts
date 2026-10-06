@@ -85,6 +85,7 @@ describe('GuideService', () => {
     guide.adopt(USER);
 
     expect(guide.spotlightDue('workout')).toBeTrue();
+    expect(guide.spotlightDue('workout', true)).toBeTrue();
     guide.markSeen('workout');
     expect(guide.spotlightDue('workout')).toBeFalse();
     expect(guide.spotlightDue('nutrition')).toBeTrue();

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { BadgeNode, BadgesModel, FootprintDay } from '../../../core/me.models';
 import { BadgeDiscComponent } from '../../../shared/badges/badge-disc.component';
 import { earnedLabel, evidenceLine, nextUpLine, weekCells } from '../../../shared/badges/badge-model';
@@ -9,7 +10,7 @@ import { WeekStripComponent } from '../../../shared/badges/week-strip.component'
 /** The Achievements card of the Me page: the latest badge with its evidence, the two closest, and the door to all of them. */
 @Component({
   selector: 'app-achievements-card',
-  imports: [RouterLink, BadgeDiscComponent, WeekStripComponent],
+  imports: [RouterLink, BadgeDiscComponent, WeekStripComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './achievements-card.component.html',
   styleUrl: './achievements-card.component.scss'

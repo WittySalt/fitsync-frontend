@@ -200,3 +200,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.head-actions {
+  display: flex;
+  flex: none;
+  gap: 14px;
+}

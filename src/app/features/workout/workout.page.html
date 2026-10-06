@@ -18,7 +18,7 @@
       (openSession)="openSessionDetail($event)"
     />
 
-    <div class="segmented workout-tabs fade-in" role="tablist" aria-label="Workout sections">
+    <div class="segmented workout-tabs fade-in" appSpotlight="workout" spotlightStep="tabs" role="tablist" aria-label="Workout sections">
       <button
         id="workout-tab-overview"
         [class.active]="selectedTab() === 'overview'"

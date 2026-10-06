@@ -27,7 +27,7 @@
       </header>
 
       @if (c.chips.length) {
-        <p class="info" aria-label="Session summary">{{ c.chips.join(' \u00b7 ') }}</p>
+        <p class="info" aria-label="Session summary" appSpotlight="workout" spotlightStep="focus">{{ c.chips.join(' \u00b7 ') }}</p>
       }
 
       @if (focus(); as f) {
@@ -84,6 +84,8 @@
             <button
               class="action-primary"
               appSpotlight="workout"
+              spotlightStep="today"
+              [spotlightVariant]="activePlan() ? '' : 'empty'"
               type="button"
               [disabled]="isDisabled(primary)"
               (click)="run(primary.action)"

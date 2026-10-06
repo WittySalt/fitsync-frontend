@@ -30,6 +30,9 @@ describe('GuideCardComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  const hideButton = (el: HTMLElement, label: string): HTMLButtonElement =>
+    Array.from(el.querySelectorAll<HTMLButtonElement>('.hide')).find((b) => b.textContent?.trim() === label) as HTMLButtonElement;
+
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
 
@@ -44,7 +47,7 @@ describe('GuideCardComponent', () => {
     expect(tiles[0].classList).toContain('current');
     expect(el.querySelectorAll('.go.primary').length).toBe(1);
     const links = Array.from(el.querySelectorAll('a.go')).map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['/me#goal-lifecycle', '/workout/plans/new', '/nutrition?log=BREAKFAST', '/workout']);
+    expect(links).toEqual(['/me?guide=me#goal-lifecycle', '/workout?guide=workout', '/nutrition?log=BREAKFAST&guide=nutrition', '/workout?guide=workout-session']);
   });
 
   it('marks finished steps with a check, drops their button and moves the highlight on', () => {
@@ -71,12 +74,28 @@ describe('GuideCardComponent', () => {
 
     expect(el.querySelector('.tiles')).toBeNull();
     expect(el.querySelector('.folded-line')?.textContent).toContain("You're set up. The coach takes it from here.");
-    expect(el.querySelector('.hide')).not.toBeNull();
+    expect(Array.from(el.querySelectorAll('.hide')).map((b) => b.textContent?.trim())).toEqual(['Take the tour again', 'Hide']);
+  });
+
+  it('"Take the tour again" brings every page path back and scrolls to the card', () => {
+    localStorage.setItem('fitsync.guide.card-user.tour.workout', '1');
+    localStorage.setItem('fitsync.guide.card-user.tour-skipped', '1');
+    const el = render({});
+    const scroll = spyOn(fixture.nativeElement as HTMLElement, 'scrollIntoView');
+
+    hideButton(el, 'Take the tour again').click();
+    fixture.detectChanges();
+
+    expect(localStorage.getItem('fitsync.guide.card-user.tour.workout')).toBeNull();
+    expect(localStorage.getItem('fitsync.guide.card-user.tour-skipped')).toBeNull();
+    expect(localStorage.getItem('fitsync.guide.card-user.restarted')).toBe('1');
+    expect(scroll).toHaveBeenCalled();
+    expect(el.querySelector('.tiles')).not.toBeNull();
   });
 
   it('is hidden by Hide and stays hidden on the next visit', () => {
     const el = render({});
-    (el.querySelector('.hide') as HTMLButtonElement).click();
+    hideButton(el, 'Hide').click();
     fixture.detectChanges();
 
     expect(el.querySelector('section')).toBeNull();
