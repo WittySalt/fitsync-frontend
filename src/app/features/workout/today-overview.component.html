@@ -31,7 +31,7 @@
       }
 
       @if (focus(); as f) {
-        <app-today-focus class="focus-strip" variant="strip" [model]="f" />
+        <app-today-focus class="focus-strip" appSpotlight="workout" spotlightStep="focus" variant="strip" [model]="f" />
       }
 
       @if (c.habit; as habit) {
@@ -84,6 +84,8 @@
             <button
               class="action-primary"
               appSpotlight="workout"
+              spotlightStep="today"
+              [spotlightVariant]="activePlan() ? '' : 'empty'"
               type="button"
               [disabled]="isDisabled(primary)"
               (click)="run(primary.action)"
@@ -116,7 +118,7 @@
   </article>
 
   @if (focusTarget()) {
-    <app-today-focus class="focus-side" variant="side" [model]="focus()" [loading]="focusLoading()" [range]="focusRange()" />
+    <app-today-focus class="focus-side" appSpotlight="workout" spotlightStep="focus" variant="side" [model]="focus()" [loading]="focusLoading()" [range]="focusRange()" />
   }
 
   @if (c.showTemplates) {

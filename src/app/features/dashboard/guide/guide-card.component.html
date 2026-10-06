@@ -2,7 +2,10 @@
   @if (guide.allDone()) {
     <section class="guide folded" aria-label="Getting started">
       <p class="folded-line"><span class="check" aria-hidden="true">&#10003;</span>You're set up. The coach takes it from here.</p>
-      <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
+      <span class="head-actions">
+        <button type="button" class="hide" (click)="tourAgain()">Take the tour again</button>
+        <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
+      </span>
     </section>
   } @else {
     <section class="guide" aria-labelledby="guide-title">
@@ -11,7 +14,10 @@
           <span class="eyebrow">Getting started</span>
           <h2 id="guide-title">Four steps to your first week</h2>
         </div>
-        <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
+        <span class="head-actions">
+          <button type="button" class="hide" (click)="tourAgain()">Take the tour again</button>
+          <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
+        </span>
       </header>
       <ol class="tiles">
         @for (step of steps(); track step.id) {

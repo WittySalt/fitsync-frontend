@@ -1,10 +1,12 @@
 import { Injectable, Injector, computed, inject, signal } from '@angular/core';
-import { catchError, forkJoin, map, of } from 'rxjs';
+import { Router } from '@angular/router';
+import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 
 import { AUTH_STORAGE_KEYS } from '../auth/auth.config';
 import { subjectFromAccessToken } from '../auth/jwt-role';
 import { FitSyncDataService } from '../fitsync-data.service';
 import { Goal } from '../fitsync.models';
+import { ToastService } from '../toast/toast.service';
 
 /** The four steps of the Getting started card, in the order a new account takes them. */
 export const GUIDE_STEP_IDS = ['targets', 'plan', 'meal', 'session'] as const;
@@ -24,6 +26,10 @@ const TARGET_GOAL_TYPES = ['WEIGHT', 'WORKOUT_FREQUENCY'];
 
 export type GuideProgress = Record<GuideStepId, boolean>;
 
+/** How often a followed task is looked at again while the person works on it. */
+const FOLLOW_POLL_MS = 6000;
+const FOLLOW_TOAST_MS = 6000;
+
 const NONE_DONE: GuideProgress = { targets: false, plan: false, meal: false, session: false };
 
 /**
@@ -36,7 +42,10 @@ const NONE_DONE: GuideProgress = { targets: false, plan: false, meal: false, ses
  *   fitsync.guide.{userId}.first-seen    the first time this browser saw the account (the 14-day rule counts from it)
  *   fitsync.guide.{userId}.restarted     the guide was restarted from Settings, so age no longer matters
  *   fitsync.guide.{userId}.tour-skipped  "Skip the tour" was chosen
- *   fitsync.guide.{userId}.tour.{page}   the spotlight of that page was shown and closed
+ *   fitsync.guide.{userId}.tour.{page}   the path of that page was run to its end or closed
+ *
+ * A path that was opened from a Home card step (`?guide=`) is followed: when the card's task is done the person
+ * gets a toast with a way back to Home. That is held in memory only, for the visit.
  */
 @Injectable({ providedIn: 'root' })
 export class GuideService {
@@ -49,9 +58,17 @@ export class GuideService {
   private readonly eligibleForTour = signal(false);
   private readonly tourSkipped = signal(false);
   private readonly seenPages = signal<readonly TourPage[]>([]);
+  private readonly followed = signal<GuideStepId | null>(null);
+  private followTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   /** True once the person is known, so the stored flags have been read. */
   readonly ready = signal(false);
+  /** True while a spotlight path is on screen. The "step done" toast waits until it is closed. */
+  readonly pathRunning = signal(false);
+  /** The Home card step the person arrived from and is working on, or null. */
+  readonly following = this.followed.asReadonly();
   /** True once the completion of the four steps has been read from the account. */
   readonly loaded = signal(false);
 
@@ -107,15 +124,9 @@ export class GuideService {
     }
     const data = this.injector.get(FitSyncDataService);
     forkJoin({
-      plan: data.getWorkoutPlans('ACTIVE').pipe(
-        map((plans) => plans.some((plan) => plan.status === 'ACTIVE')),
-        catchError(() => of(false))
-      ),
-      session: data.getWorkoutSessionPage({ size: 1, status: 'COMPLETED' }).pipe(
-        map((page) => page.sessions.length > 0),
-        catchError(() => of(false))
-      ),
-      meal: data.hasLoggedMeal().pipe(catchError(() => of(false)))
+      plan: this.planDone(data),
+      session: this.sessionDone(data),
+      meal: this.mealDone(data)
     }).subscribe(({ plan, session, meal }) => {
       this.progress.set({
         targets: goals.some((goal) => goal.status === 'ACTIVE' && TARGET_GOAL_TYPES.includes(goal.goalType)),
@@ -127,14 +138,98 @@ export class GuideService {
     });
   }
 
+  /** Whether one card step is done now, read from the account. A request that fails reads as not done. */
+  stepDone(step: GuideStepId): Observable<boolean> {
+    const data = this.injector.get(FitSyncDataService);
+    switch (step) {
+      case 'targets':
+        return data.getGoals().pipe(
+          map((goals) => goals.some((goal) => goal.status === 'ACTIVE' && TARGET_GOAL_TYPES.includes(goal.goalType))),
+          catchError(() => of(false))
+        );
+      case 'plan':
+        return this.planDone(data);
+      case 'meal':
+        return this.mealDone(data);
+      case 'session':
+        return this.sessionDone(data);
+    }
+  }
+
+  /**
+   * The person came from this Home card step. When its task is done, and the page's path is not on screen, a quiet
+   * toast says so with a link back to Home. A task that is already done at arrival is not followed.
+   */
+  follow(step: GuideStepId): void {
+    if (this.followed() === step || !this.ready()) {
+      return;
+    }
+    this.stopFollowing();
+    this.stepDone(step).subscribe((done) => {
+      if (done || this.followed() !== null) {
+        return;
+      }
+      this.followed.set(step);
+      this.followTimer = setInterval(() => this.checkFollowed(), FOLLOW_POLL_MS);
+    });
+  }
+
+  /** Looks at the followed task once; the poll and a few page events call it. */
+  checkFollowed(): void {
+    const step = this.followed();
+    if (!step || this.pathRunning()) {
+      return;
+    }
+    this.stepDone(step).subscribe((done) => {
+      if (!done || this.followed() !== step) {
+        return;
+      }
+      this.stopFollowing();
+      const number = GUIDE_STEP_IDS.indexOf(step) + 1;
+      this.toast.success(`Step ${number} done.`, FOLLOW_TOAST_MS, {
+        label: 'Back to Home ›',
+        run: () => void this.router.navigateByUrl('/dashboard')
+      });
+    });
+  }
+
+  stopFollowing(): void {
+    if (this.followTimer !== null) {
+      clearInterval(this.followTimer);
+      this.followTimer = null;
+    }
+    this.followed.set(null);
+  }
+
+  private planDone(data: FitSyncDataService): Observable<boolean> {
+    return data.getWorkoutPlans('ACTIVE').pipe(
+      map((plans) => plans.some((plan) => plan.status === 'ACTIVE')),
+      catchError(() => of(false))
+    );
+  }
+
+  private sessionDone(data: FitSyncDataService): Observable<boolean> {
+    return data.getWorkoutSessionPage({ size: 1, status: 'COMPLETED' }).pipe(
+      map((page) => page.sessions.length > 0),
+      catchError(() => of(false))
+    );
+  }
+
+  private mealDone(data: FitSyncDataService): Observable<boolean> {
+    return data.hasLoggedMeal().pipe(catchError(() => of(false)));
+  }
+
   hideCard(): void {
     this.cardHidden.set(true);
     this.write('card-hidden', '1');
   }
 
-  /** Whether the spotlight of a page is due: new account (or restarted), not seen, not skipped. */
-  spotlightDue(page: TourPage): boolean {
-    return this.ready() && this.eligibleForTour() && !this.tourSkipped() && !this.seenPages().includes(page);
+  /**
+   * Whether the path of a page is due: new account (or restarted), not seen, not skipped. A page opened from a Home
+   * card (`explicit`) does not need the account to be new.
+   */
+  spotlightDue(page: TourPage, explicit = false): boolean {
+    return this.ready() && (explicit || this.eligibleForTour()) && !this.tourSkipped() && !this.seenPages().includes(page);
   }
 
   markSeen(page: TourPage): void {
@@ -163,6 +258,7 @@ export class GuideService {
       this.remove(key);
     }
     this.write('restarted', '1');
+    this.stopFollowing();
     this.cardHidden.set(false);
     this.tourSkipped.set(false);
     this.seenPages.set([]);

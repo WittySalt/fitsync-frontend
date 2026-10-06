@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 import { RouterLink } from '@angular/router';
 
 import { GoalType, UserGoal } from '../../../core/fitsync.models';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { TargetKind, TargetRow, missingMacro, targetRows, unsetKinds } from './targets';
 import { TargetSheetComponent } from './target-sheet.component';
 
@@ -17,7 +18,7 @@ interface OpenSheet {
  */
 @Component({
   selector: 'app-targets-card',
-  imports: [RouterLink, TargetSheetComponent],
+  imports: [RouterLink, TargetSheetComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './targets-card.component.html',
   styleUrl: './targets-card.component.scss'

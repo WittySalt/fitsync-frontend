@@ -1,6 +1,7 @@
 import { Component, Injector, OnInit, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
 import { DiaryDayComponent } from './diary/diary-day.component';
 import { DiaryWeekComponent } from './diary/diary-week.component';
@@ -22,7 +23,7 @@ const LINKABLE_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
  */
 @Component({
   selector: 'app-nutrition-page',
-  imports: [InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent, RecipesTabComponent],
+  imports: [SpotlightDirective, InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent, RecipesTabComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })
@@ -49,6 +50,8 @@ export class NutritionPage implements OnInit {
   /** Raised to make the Diary reload, for example after a meal was saved. */
   readonly refresh = signal(0);
 
+  /** Whether any day of the week has a meal, for the words of the spotlight. */
+  readonly anyLogged = computed(() => this.days().some((day) => day.logged));
   readonly days = computed(() => {
     const state = this.range();
     return state.status === 'ready' ? state.data : [];

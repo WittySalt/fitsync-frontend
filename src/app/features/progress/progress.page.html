@@ -7,7 +7,7 @@
     <div #answer id="progress-answer" class="answer">
       <header class="head">
         <span class="eyebrow">{{ eyebrow() }}</span>
-        <nav class="periods" aria-label="Period" appSpotlight="progress">
+        <nav class="periods" aria-label="Period" appSpotlight="progress" spotlightStep="period">
           @for (option of periods; track option.key) {
             <a
               [routerLink]="[]"
@@ -38,7 +38,7 @@
     </div>
 
     <div id="progress-goal" class="section">
-      <app-goal-card [goal]="goal()" [loading]="goalLoading()" [failed]="goalFailed()" [today]="today" [askPeriod]="range()" [span]="span()" (retry)="loadGoal()" />
+      <app-goal-card [tour]="true" [goal]="goal()" [loading]="goalLoading()" [failed]="goalFailed()" [today]="today" [askPeriod]="range()" [span]="span()" (retry)="loadGoal()" />
     </div>
 
     <div id="progress-training" class="section">

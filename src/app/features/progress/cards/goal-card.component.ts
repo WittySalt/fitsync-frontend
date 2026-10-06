@@ -27,6 +27,8 @@ import { SummaryListComponent } from './summary-list.component';
 })
 export class GoalCardComponent {
   readonly goal = input<GoalProgress | null>(null);
+  /** The card carries the Ask and Open steps of the Progress path. */
+  readonly tour = input(false);
   readonly loading = input(false);
   readonly failed = input(false);
   readonly today = input.required<string>();

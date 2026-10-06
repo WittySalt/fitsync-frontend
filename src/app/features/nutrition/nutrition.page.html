@@ -13,6 +13,9 @@
       <div class="skeleton week-skeleton" aria-busy="true"></div>
     } @else {
       <app-diary-week
+        appSpotlight="nutrition"
+        spotlightStep="week"
+        [spotlightVariant]="anyLogged() ? '' : 'empty'"
         [days]="days()"
         [dates]="dates"
         [today]="today"
@@ -44,6 +47,8 @@
       [class.active]="tab() === 'recipes'"
       [attr.aria-selected]="tab() === 'recipes'"
       aria-controls="nutrition-panel-recipes"
+      appSpotlight="nutrition"
+      spotlightStep="recipes"
       (click)="setTab('recipes')"
     >
       Recipes

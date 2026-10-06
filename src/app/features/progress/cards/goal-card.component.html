@@ -1,4 +1,4 @@
-<app-progress-card name="Goal" link="/progress/goal" askPrefill="Ask about your goal" [context]="context()" [coachLine]="coachLine()">
+<app-progress-card [tour]="tour()" name="Goal" link="/progress/goal" askPrefill="Ask about your goal" [context]="context()" [coachLine]="coachLine()">
   <div card-headline>
     @if (loading()) {
       <div class="skeleton head-skeleton" aria-busy="true" aria-label="Loading your goal"></div>

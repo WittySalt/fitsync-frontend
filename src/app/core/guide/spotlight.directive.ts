@@ -1,159 +1,38 @@
-import {
-  ApplicationRef,
-  ComponentRef,
-  Directive,
-  ElementRef,
-  EnvironmentInjector,
-  OnDestroy,
-  OnInit,
-  createComponent,
-  effect,
-  inject,
-  input,
-  untracked
-} from '@angular/core';
+import { Directive, ElementRef, OnInit, effect, inject, input } from '@angular/core';
 
 import { GuideService, TourPage } from './guide.service';
-import { SpotlightComponent } from './spotlight.component';
-
-/** The words of each page's spotlight. */
-export const SPOTLIGHT_COPY: Record<TourPage, { title: string; text: string }> = {
-  workout: { title: 'Today starts here', text: 'This card shows what your plan has for today. Start from here and the session keeps its own count.' },
-  nutrition: { title: 'Add a meal', text: 'Add puts a food, a recipe or a saved meal on this meal. One entry is enough for the day to start adding up.' },
-  progress: { title: 'Pick a period', text: 'Switch the period to read the same answer over a week, a month or longer.' },
-  me: { title: 'What your coach reads', text: 'Everything here is what the coach knows about you. Tap anything to change it.' }
-};
+import { SpotlightPathService } from './spotlight-path.service';
 
 /**
- * Marks the key control of a page for its first-visit spotlight. Put it on the anchor element with the page it
- * belongs to, or null to leave that anchor alone. The spotlight opens once the guide says it is due and is
- * recorded as seen when it closes, so it never appears twice.
+ * Marks one anchor of a page's spotlight path: the page it belongs to, the step it is (see GUIDE_PATHS) and, when the
+ * words depend on the account, a variant such as "empty". Leave the page or the step empty to leave the anchor alone.
+ * The path service decides when the path runs, so an anchor only has to say what and where it is.
  */
 @Directive({ selector: '[appSpotlight]' })
-export class SpotlightDirective implements OnInit, OnDestroy {
+export class SpotlightDirective implements OnInit {
   readonly appSpotlight = input<TourPage | null>(null);
+  readonly spotlightStep = input('');
+  readonly spotlightVariant = input('');
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly guide = inject(GuideService);
-  private readonly appRef = inject(ApplicationRef);
-  private readonly injector = inject(EnvironmentInjector);
-
-  private overlay: ComponentRef<SpotlightComponent> | null = null;
-  private shownFor: TourPage | null = null;
-  private opening = false;
-  private cancelOpening: (() => void) | null = null;
-  private readonly reposition = (): void => this.place();
+  private readonly path = inject(SpotlightPathService);
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const page = this.appSpotlight();
-      if (page && this.guide.spotlightDue(page) && !this.overlay) {
-        untracked(() => this.open(page));
+      const step = this.spotlightStep();
+      if (!page || !step) {
+        return;
       }
+      const unregister = this.path.register({ page, step, element: this.host.nativeElement, variant: () => this.spotlightVariant() });
+      onCleanup(unregister);
     });
   }
 
   ngOnInit(): void {
     if (this.appSpotlight()) {
       this.guide.start();
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.cancelOpening?.();
-    this.close();
-  }
-
-  /** Brings the anchor into view first, waits for the scroll to settle, then shows the spotlight. */
-  private open(page: TourPage): void {
-    if (this.opening) {
-      return;
-    }
-    const anchor = this.host.nativeElement;
-    const r = anchor.getBoundingClientRect();
-    const inView = r.top >= 0 && r.bottom <= window.innerHeight;
-    if (inView || !anchor.scrollIntoView) {
-      this.show(page);
-      return;
-    }
-    this.opening = true;
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    anchor.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
-    let done = false;
-    const finish = (): void => {
-      if (done) {
-        return;
-      }
-      done = true;
-      window.removeEventListener('scrollend', finish, true);
-      window.clearTimeout(timer);
-      this.opening = false;
-      if (this.host.nativeElement.isConnected && !this.overlay) {
-        // One more frame so the layout after the scroll is what gets measured.
-        requestAnimationFrame(() => this.show(page));
-      }
-    };
-    const timer = window.setTimeout(finish, 400);
-    window.addEventListener('scrollend', finish, true);
-    this.cancelOpening = (): void => {
-      done = true;
-      window.removeEventListener('scrollend', finish, true);
-      window.clearTimeout(timer);
-      this.opening = false;
-    };
-  }
-
-  private show(page: TourPage): void {
-    if (this.overlay) {
-      return;
-    }
-    const copy = SPOTLIGHT_COPY[page];
-    const overlay = createComponent(SpotlightComponent, { environmentInjector: this.injector });
-    overlay.setInput('title', copy.title);
-    overlay.setInput('text', copy.text);
-    overlay.setInput('rect', this.measure());
-    overlay.instance.gotIt.subscribe(() => this.close());
-    overlay.instance.skip.subscribe(() => {
-      this.guide.skipTour();
-      this.close();
-    });
-    this.appRef.attachView(overlay.hostView);
-    document.body.appendChild(overlay.location.nativeElement);
-    this.overlay = overlay;
-    this.shownFor = page;
-    window.addEventListener('resize', this.reposition);
-    window.addEventListener('scroll', this.reposition, true);
-    overlay.changeDetectorRef.detectChanges();
-    this.place();
-  }
-
-  private measure(): { top: number; left: number; width: number; height: number } {
-    const r = this.host.nativeElement.getBoundingClientRect();
-    return { top: r.top, left: r.left, width: r.width, height: r.height };
-  }
-
-  private place(): void {
-    this.overlay?.setInput('rect', this.measure());
-    this.overlay?.setInput('viewport', { width: window.innerWidth, height: window.innerHeight });
-    const pop = this.overlay?.location.nativeElement.querySelector('.pop') as HTMLElement | null;
-    if (pop && pop.offsetHeight > 0) {
-      this.overlay?.setInput('cardHeight', pop.offsetHeight);
-    }
-  }
-
-  /** Closing, or leaving the page with the spotlight open, records the page as seen. */
-  private close(): void {
-    const overlay = this.overlay;
-    if (!overlay) {
-      return;
-    }
-    this.overlay = null;
-    window.removeEventListener('resize', this.reposition);
-    window.removeEventListener('scroll', this.reposition, true);
-    this.appRef.detachView(overlay.hostView);
-    overlay.destroy();
-    if (this.shownFor) {
-      this.guide.markSeen(this.shownFor);
     }
   }
 }

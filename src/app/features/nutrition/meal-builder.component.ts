@@ -3,6 +3,7 @@ import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule, Validators 
 import { catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import {
   FoodCategory,
   FoodDetail,
@@ -84,7 +85,7 @@ export function defaultMealType(now: Date): string {
 
 @Component({
   selector: 'app-meal-builder',
-  imports: [FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent, FoodTileComponent, FoodGlyphComponent],
+  imports: [SpotlightDirective, FormsModule, ReactiveFormsModule, StatePanelComponent, BuilderDrinksComponent, FoodTileComponent, FoodGlyphComponent],
   templateUrl: './meal-builder.component.html',
   styleUrl: './meal-builder.component.scss'
 })
