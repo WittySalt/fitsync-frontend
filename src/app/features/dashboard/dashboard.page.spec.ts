@@ -88,7 +88,7 @@ const dashboardData: HomeDashboardData = {
 // The coach brief injects the real CoachStore (only its "ask" path is used by these specs, and
 // none of them trigger it), which in turn needs CoachApiService; only the wire is stubbed so
 // nothing here makes a real HTTP call it never asked for.
-const coachApiStub = { listRecommendations: () => of([]), refreshRecommendations: () => of(undefined) };
+const coachApiStub = {};
 
 describe('DashboardPage', () => {
   let fixture: ComponentFixture<DashboardPage>;

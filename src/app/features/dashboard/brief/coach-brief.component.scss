@@ -613,3 +613,9 @@ app-muscle-wheel {
     flex: 1 1 100%;
   }
 }
+
+.week-lead {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+}

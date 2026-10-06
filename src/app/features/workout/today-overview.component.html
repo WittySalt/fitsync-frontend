@@ -1,4 +1,4 @@
-<section class="today-overview">
+<section class="today-overview" [class.has-focus]="focusTarget()">
   @let c = card();
   <article class="today-card" [attr.aria-label]="c.ariaLabel">
     <div class="card-main">
@@ -28,6 +28,10 @@
 
       @if (c.chips.length) {
         <p class="info" aria-label="Session summary">{{ c.chips.join(' \u00b7 ') }}</p>
+      }
+
+      @if (focus(); as f) {
+        <app-today-focus class="focus-strip" variant="strip" [model]="f" />
       }
 
       @if (c.habit; as habit) {
@@ -66,6 +70,10 @@
 
       @if (c.body) {
         <p class="lede">{{ c.body }}</p>
+      }
+
+      @if (focus()?.cardBlock; as block) {
+        <app-focus-card-block [block]="block" />
       }
     </div>
 
@@ -106,6 +114,10 @@
       </div>
     </div>
   </article>
+
+  @if (focusTarget()) {
+    <app-today-focus class="focus-side" variant="side" [model]="focus()" [loading]="focusLoading()" [range]="focusRange()" />
+  }
 
   @if (c.showTemplates) {
     <app-plan-templates (planActivated)="templateActivated.emit($event)" />

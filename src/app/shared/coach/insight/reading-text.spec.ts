@@ -1,4 +1,4 @@
-import { ReadingSegment, readingSegments, withoutCitations } from './reading-text';
+import { ReadingSegment, readingSegments, roundedNumbers, withoutCitations } from './reading-text';
 
 function citations(segments: ReadingSegment[]): number[] {
   return segments.flatMap((segment) => (segment.kind === 'citation' ? [segment.number] : []));
@@ -98,5 +98,19 @@ describe('withoutCitations', () => {
 
   it('leaves text with no markers unchanged', () => {
     expect(withoutCitations('Your week was steady.')).toBe('Your week was steady.');
+  });
+});
+
+describe('roundedNumbers', () => {
+  it('shows grams and kilocalories as whole numbers', () => {
+    expect(roundedNumbers('You ate 29.15 grams, 1843.6 kcal and 120.5 g.')).toBe('You ate 29 grams, 1844 kcal and 121 g.');
+  });
+
+  it('shows kilograms with one decimal at most', () => {
+    expect(roundedNumbers('Down to 74.26 kg, from 75.04 kilograms.')).toBe('Down to 74.3 kg, from 75 kilograms.');
+  });
+
+  it('leaves whole figures, ratios and unitless numbers alone', () => {
+    expect(roundedNumbers('4 sessions, 1.6 g/kg, 22.5 reps, 80 g and 74.3 kg.')).toBe('4 sessions, 1.6 g/kg, 22.5 reps, 80 g and 74.3 kg.');
   });
 });

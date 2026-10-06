@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Coach</p>
       <h1>Plan Studio</h1>
-      <p>A generated session, checked against your catalogue and your constraints before you see it. Accepting makes it real.</p>
+      <p>Tell the coach what you want to train. It drafts a session from your exercise library and the equipment you own. Nothing is saved until you start it.</p>
     </div>
     <a class="button secondary" routerLink="/workout">Workout page</a>
   </header>
@@ -12,15 +12,16 @@
     <aside class="studio-side" aria-label="Your drafts">
       <form class="build" (submit)="$event.preventDefault(); build()">
         <label for="studio-request">What do you want today?</label>
-        <input
+        <textarea
           id="studio-request"
-          type="text"
+          rows="3"
           [value]="request()"
           (input)="request.set($any($event.target).value)"
-          placeholder="e.g. chest and back, I have a barbell"
+          (keydown.enter)="$event.preventDefault(); build()"
+          placeholder="Chest and back, I have a barbell and about 45 minutes"
           autocomplete="off"
           [disabled]="building()"
-        />
+        ></textarea>
         <button class="button primary" type="submit" [disabled]="building()">
           {{ building() ? 'Drafting…' : 'Build a session' }}
         </button>

@@ -265,6 +265,20 @@ describe('CoachBriefComponent', () => {
       expect(tab('Month').getAttribute('aria-pressed')).toBe('false');
     });
 
+    it('has a door to the earlier weeks on Progress beside the week title', () => {
+      setup();
+      const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('.week-lead a.door-link');
+      expect(link?.textContent?.trim()).toBe('Earlier weeks ›');
+      expect(link?.getAttribute('href')).toBe('/progress?weeks=earlier');
+    });
+
+    it('has a door to the earlier weeks on Progress beside the week title', () => {
+      setup();
+      const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('.week-lead a.door-link');
+      expect(link?.textContent?.trim()).toBe('Earlier weeks ›');
+      expect(link?.getAttribute('href')).toBe('/progress?weeks=earlier');
+    });
+
     it('opens in the week view, without asking for a month', () => {
       setup();
       const element = fixture.nativeElement as HTMLElement;

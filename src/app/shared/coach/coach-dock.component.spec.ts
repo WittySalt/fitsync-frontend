@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Surface } from '../../core/coach/coach-context.service';
-import { CoachCardContext, CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
+import { CoachCardContext, CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStatus, CoachStore, LiveStep } from '../../core/coach/coach.store';
 import { CoachDockComponent, MATCH_MEDIA, isBuildRequest } from './coach-dock.component';
 
@@ -45,7 +45,6 @@ describe('isBuildRequest', () => {
 const WORKOUT_SURFACE: Surface = {
   id: 'workout',
   label: 'Workout, this week',
-  inlineTypes: [],
   suggestions: [{ text: 'Should I train today?', generative: false }],
   code: 'WORKOUT'
 };
@@ -70,12 +69,11 @@ class FakeCoachStore {
   dockOpen = signal(true);
   status = signal<CoachStatus>('idle');
   error = signal<string | null>(null);
-  recommendations = signal<Recommendation[]>([]);
-  recommendationsLoadedAt = signal<string | null>('2026-09-28T00:00:00Z');
   thread = signal<CoachThreadDetail | null>(null);
   liveSteps = signal<LiveStep[]>([]);
   pendingQuestion = signal<string | null>(null);
   latestDraft = signal<SessionDraftView | null>(null);
+  draftRequest = signal<string | null>(null);
   composerPrefill = signal<string | null>(null);
   pinnedReading = signal<CoachReading | null>(null);
   pinnedCard = signal<CoachCardContext | null>(null);
@@ -94,8 +92,6 @@ class FakeCoachStore {
 
   // Plain functions rather than real computed signals: the template only ever calls them, and a
   // fresh read on every change-detection pass is all a fake needs to stay in sync with `thread`.
-  orderedRecommendations = (): Recommendation[] => this.recommendations();
-  inlineRecommendations = (): Recommendation[] => this.recommendations();
   turns = (): CoachTurn[] => this.thread()?.turns ?? [];
 
   open = jasmine.createSpy('open');
@@ -112,7 +108,6 @@ class FakeCoachStore {
   archiveThread = jasmine.createSpy('archiveThread');
   ask = jasmine.createSpy('ask');
   buildSession = jasmine.createSpy('buildSession');
-  askAbout = jasmine.createSpy('askAbout');
   askAboutReading = jasmine.createSpy('askAboutReading').and.callFake((reading: CoachReading) => this.pinnedReading.set(reading));
   letGoOfReading = jasmine.createSpy('letGoOfReading').and.callFake(() => this.pinnedReading.set(null));
   letGoOfCard = jasmine.createSpy('letGoOfCard').and.callFake(() => this.pinnedCard.set(null));
@@ -209,24 +204,6 @@ describe('CoachDockComponent — pinned reading', () => {
     expect(store.buildSession).toHaveBeenCalledWith('Build a session for today');
   });
 
-  it('hides the recommendation cards while a reading is pinned', () => {
-    store.recommendations.set([{ type: 'WEEKLY_ADHERENCE', source: 'RULE', facts: {}, narrative: 'w', generatedAt: '', expiresAt: null }]);
-    store.pinnedReading.set(PINNED_READING);
-    render();
-
-    expect(element.querySelector('app-recommendation-card')).toBeNull();
-  });
-
-  it('keeps the recommendation cards behind the earlier notes row once nothing is pinned', () => {
-    store.recommendations.set([{ type: 'WEEKLY_ADHERENCE', source: 'RULE', facts: {}, narrative: 'w', generatedAt: '', expiresAt: null }]);
-    render();
-
-    expect(element.querySelector('app-recommendation-card')).toBeNull();
-    (element.querySelector('.earlier-toggle') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(element.querySelector('app-recommendation-card')).not.toBeNull();
-  });
-
   it('shows the header line as "one reading pinned" instead of the insight count', () => {
     store.pinnedReading.set({ ...PINNED_READING, period: 'PREVIOUS_WEEK', periodStart: '2026-09-21', periodEnd: '2026-09-27' });
     render();
@@ -270,10 +247,6 @@ describe('CoachDockComponent — pinned reading', () => {
     expect(element.querySelector('.turn-a p')?.textContent?.trim()).toBe('This mentions fact in passing.');
   });
 });
-
-/** Two older insight cards, for the first-screen tests below. */
-const WEEKLY_NOTE: Recommendation = { type: 'WEEKLY_ADHERENCE', source: 'RULE', facts: {}, narrative: 'w', generatedAt: '', expiresAt: null };
-const STREAK_NOTE: Recommendation = { type: 'STREAK_NUDGE', source: 'RULE', facts: {}, narrative: 's', generatedAt: '', expiresAt: null };
 
 /** The panel as it first opens: its width, the order of what it shows, and the questions it offers. */
 describe('CoachDockComponent — first screen', () => {
@@ -389,47 +362,6 @@ describe('CoachDockComponent — first screen', () => {
     expect(store.buildSession).toHaveBeenCalledWith('Build me a session for today');
   });
 
-  it('keeps the earlier notes collapsed at first, with their count, and opens them on a click', () => {
-    store.recommendations.set([WEEKLY_NOTE, STREAK_NOTE]);
-    render();
-
-    const toggle = element.querySelector('.earlier-toggle') as HTMLButtonElement;
-    expect(toggle.textContent).toContain('Earlier notes');
-    expect(element.querySelector('.earlier-count')?.textContent?.trim()).toBe('2');
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(element.querySelectorAll('app-recommendation-card').length).toBe(0);
-
-    toggle.click();
-    fixture.detectChanges();
-
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(element.querySelectorAll('app-recommendation-card').length).toBe(2);
-  });
-
-  it('puts the earlier notes after the suggestions', () => {
-    store.recommendations.set([WEEKLY_NOTE]);
-    render();
-
-    expect(follows(element.querySelector('.suggs'), element.querySelector('.earlier'))).toBeTrue();
-  });
-
-  it('has no earlier notes row when there are no notes', () => {
-    render();
-
-    expect(element.querySelector('.earlier')).toBeNull();
-  });
-
-  it('has no earlier notes row once the conversation has begun', () => {
-    store.recommendations.set([WEEKLY_NOTE]);
-    store.thread.set({
-      thread: { threadId: 't1', title: null, turnCount: 1, lastActiveAt: '', createdAt: '' },
-      turns: [turn({ content: 'Yes.' })]
-    });
-    render();
-
-    expect(element.querySelector('.earlier')).toBeNull();
-  });
-
   it('draws the floating button when the sidebar is not showing', () => {
     render();
 
@@ -467,6 +399,87 @@ describe('CoachDockComponent — first screen', () => {
 
     expect(store.toggle).toHaveBeenCalledTimes(1);
   });
+
+  it('has no Earlier notes row and no recommendation cards, on the first screen or after', () => {
+    render();
+
+    expect(element.textContent).not.toContain('Earlier notes');
+    expect(element.querySelector('.earlier')).toBeNull();
+    expect(element.querySelector('app-recommendation-card')).toBeNull();
+    expect(element.querySelector('.suggs')).not.toBeNull();
+  });
+
+  it('has a Back to page row that closes the dock', () => {
+    render();
+
+    const row = element.querySelector('.back-row') as HTMLButtonElement;
+    expect(row.textContent).toContain('Back to page');
+    row.click();
+
+    expect(store.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws the scrim, and pressing it closes the dock', () => {
+    render();
+    const scrimStore = TestBed.inject(CoachStore);
+
+    const scrim = element.querySelector('app-coach-scrim .scrim') as HTMLElement;
+    scrim.click();
+
+    expect(scrimStore.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows what the person asked as a bubble before the draft card', () => {
+    store.draftRequest.set('Chest and back, I have a barbell');
+    store.latestDraft.set({
+      artifactId: 'a1',
+      status: 'DRAFT',
+      source: 'MODEL',
+      validationAttempts: 1,
+      session: { title: 'Upper Body Strength', focus: [], estimatedMinutes: 40, exercises: [], summary: '' },
+      planId: null,
+      sessionId: null,
+      rejectionReason: null
+    } as SessionDraftView);
+    render();
+
+    const bubble = element.querySelector('.turn-q');
+    const card = element.querySelector('.draft-link');
+    expect(bubble?.textContent?.trim()).toBe('Chest and back, I have a barbell');
+    expect(follows(bubble, card)).toBeTrue();
+  });
+
+  it('draws the draft card from the app tokens, not a peach or amber colour', () => {
+    render();
+    const styles = ((CoachDockComponent as unknown as { ɵcmp: { styles: string[] } }).ɵcmp.styles ?? []).join('').replace(/\[_ngcontent-%COMP%\]/g, '');
+    const rule = /\.draft-link \{[^}]*\}/.exec(styles)?.[0] ?? '';
+
+    expect(rule).toContain('var(--accent-subtle)');
+    expect(rule).not.toMatch(/amber|peach|orange|#f/i);
+  });
+
+  it('answers Ctrl+K typed in a text box on the coach workspace, where the request box lives', () => {
+    store.surface.set({ id: 'coach', label: 'Coach workspace', suggestions: [], code: null });
+    render();
+    const box = document.createElement('input');
+    document.body.appendChild(box);
+
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    box.remove();
+
+    expect(store.toggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves Ctrl+K typed in a text box on other pages to the browser', () => {
+    render();
+    const box = document.createElement('input');
+    document.body.appendChild(box);
+
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    box.remove();
+
+    expect(store.toggle).not.toHaveBeenCalled();
+  });
 });
 
 /** A Progress card pinned from its Ask button: the chip, the card's own questions and the composer's words. */
@@ -485,7 +498,7 @@ describe('CoachDockComponent — pinned card', () => {
 
   beforeEach(async () => {
     store = new FakeCoachStore();
-    store.surface.set({ id: 'progress', label: 'Progress', inlineTypes: [], suggestions: [{ text: 'How am I doing?', generative: false }], code: 'PROGRESS' });
+    store.surface.set({ id: 'progress', label: 'Progress', suggestions: [{ text: 'How am I doing?', generative: false }], code: 'PROGRESS' });
     await TestBed.configureTestingModule({
       imports: [CoachDockComponent],
       providers: [provideRouter([]), { provide: CoachStore, useValue: store }]

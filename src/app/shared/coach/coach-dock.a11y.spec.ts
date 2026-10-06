@@ -3,14 +3,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Surface } from '../../core/coach/coach-context.service';
-import { CoachCardContext, CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, Recommendation, SessionDraftView } from '../../core/coach/coach.models';
+import { CoachCardContext, CoachReading, CoachThreadDetail, CoachThreadSummary, CoachTurn, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStatus, CoachStore, LiveStep } from '../../core/coach/coach.store';
 import { CoachDockComponent, isTypingOutsideDock } from './coach-dock.component';
 
 const SURFACE: Surface = {
   id: 'workout',
   label: 'Workout, this week',
-  inlineTypes: [],
   suggestions: [{ text: 'Should I train today?', generative: false }],
   code: 'WORKOUT'
 };
@@ -36,8 +35,6 @@ class FakeStore {
   dockOpen = signal(true);
   status = signal<CoachStatus>('idle');
   error = signal<string | null>(null);
-  recommendations = signal<Recommendation[]>([]);
-  recommendationsLoadedAt = signal<string | null>('x');
   thread = signal<CoachThreadDetail | null>(null);
   liveSteps = signal<LiveStep[]>([]);
   pendingQuestion = signal<string | null>(null);
@@ -57,8 +54,6 @@ class FakeStore {
   historyLoadingMore = signal(false);
   historyNotice = signal<string | null>(null);
   currentThreadId = (): string | null => null;
-  orderedRecommendations = (): Recommendation[] => [];
-  inlineRecommendations = (): Recommendation[] => [];
   turns = (): CoachTurn[] => this.thread()?.turns ?? [];
 
   open = jasmine.createSpy('open').and.callFake(() => this.dockOpen.set(true));
@@ -67,7 +62,6 @@ class FakeStore {
   newThread = jasmine.createSpy('newThread');
   ask = jasmine.createSpy('ask');
   buildSession = jasmine.createSpy('buildSession');
-  askAbout = jasmine.createSpy('askAbout');
   askAboutReading = jasmine.createSpy('askAboutReading');
   letGoOfReading = jasmine.createSpy('letGoOfReading');
   letGoOfCard = jasmine.createSpy('letGoOfCard');

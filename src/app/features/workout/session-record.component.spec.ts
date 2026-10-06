@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
@@ -33,6 +34,8 @@ function cancelledWithSets(done: number): WorkoutSessionDetail {
 }
 
 describe('SessionRecordComponent', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+
   let fixture: ComponentFixture<SessionRecordComponent>;
   const root = () => fixture.nativeElement as HTMLElement;
 
@@ -88,5 +91,12 @@ describe('SessionRecordComponent', () => {
 
     mount(cancelledWithSets(2));
     expect(root().querySelector('.segments')).toBeNull();
+  });
+
+  it('opens each exercise over time on Progress', () => {
+    mount(cancelledWithSets(2));
+    const link = root().querySelector<HTMLAnchorElement>('a.door-link');
+    expect(link?.textContent?.trim()).toBe('This exercise over time ›');
+    expect(link?.getAttribute('href')).toBe('/progress/training/exercises/ex-1');
   });
 });

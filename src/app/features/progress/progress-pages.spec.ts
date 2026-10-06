@@ -442,6 +442,15 @@ describe('progress pages', () => {
       expect(coach.askAboutCard).toHaveBeenCalledOnceWith(jasmine.objectContaining({ kind: 'FOOD' }), jasmine.stringContaining('3 Sept to 3 Oct'));
     });
 
+    it('opens the Diary from the Macros and Meals sections', () => {
+      const { el } = render(FoodPage);
+      const door = (id: string) => el.querySelector<HTMLAnchorElement>(`#${id} a.door-link`);
+      expect(text(door('macros'))).toBe("Today's budget ›");
+      expect(door('macros')?.getAttribute('href')).toBe('/nutrition');
+      expect(text(door('meals'))).toBe('Diary meals ›');
+      expect(door('meals')?.getAttribute('href')).toBe('/nutrition');
+    });
+
     it('asks again for a longer period and keeps it in the address', () => {
       const { fixture, el } = render(FoodPage);
       const buttons = el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button');

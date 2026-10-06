@@ -137,7 +137,22 @@ describe('dailyObservations - rested groups (rule A)', () => {
     });
     const [observation] = dailyObservations(fixture, now, TZ);
     expect(observation.fact).toBe('Back has had seven days off.');
-    expect(observation.note).toBe('It was last trained on Sunday, so it is ready whenever you are.');
+    expect(observation.note).toBe('It was last trained on Sunday, 20 Sept, so it is ready whenever you are.');
+  });
+
+  it('names the weekday alone inside the last week and adds the date from seven days back', () => {
+    const now = new Date('2026-10-05T00:10:00Z');
+    const within = insight({
+      referenceDate: '2026-10-05',
+      muscleGroups: [group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-30', consecutiveSessions: 0 })]
+    });
+    const older = insight({
+      referenceDate: '2026-10-05',
+      muscleGroups: [group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-28', consecutiveSessions: 0 })]
+    });
+
+    expect(dailyObservations(within, now, TZ)[0].note).toBe('It was last trained on Wednesday, so it is ready whenever you are.');
+    expect(dailyObservations(older, now, TZ)[0].note).toBe('It was last trained on Monday, 28 Sept, so it is ready whenever you are.');
   });
 
   it('keeps the plural verb for one group whose name is a plural noun', () => {
@@ -504,5 +519,33 @@ describe("dailyObservations - today's kind", () => {
 
     const noLastOfKind = insight({ referenceDate: '2026-09-27', today: today({ kind: 'CARDIO', label: 'Cardio' }) });
     expect(dailyObservations(noLastOfKind, now, TZ).some((o) => o.id === 'today-kind')).toBe(false);
+  });
+});
+
+describe('dailyObservations - doors to the page a fact came from', () => {
+  const now = new Date('2026-09-27T00:10:00Z');
+  const read = (fixture: WeeklyTrainingInsight, id: string) => dailyObservations(fixture, now, TZ).find((o) => o.id === id);
+
+  it('sends a rested or streak fact to the muscles on the Training page', () => {
+    const fixture = insight({
+      referenceDate: '2026-09-27',
+      muscleGroups: [
+        group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-20' }),
+        group({ muscleGroup: 'CORE', consecutiveSessions: 4, lastTrainedOn: '2026-09-27' })
+      ]
+    });
+    const expected = { label: 'Muscles ›', path: '/progress/training', fragment: 'muscles' };
+    expect(read(fixture, 'rested')?.door).toEqual(expected);
+    expect(read(fixture, 'streak')?.door).toEqual(expected);
+  });
+
+  it('sends a lift fact to that exercise on Progress', () => {
+    const fixture = insight({ referenceDate: '2026-09-27', lifts: [{ exerciseId: 'x-8', name: 'Deadlift', e1rmStart: 81.7, e1rmNow: 93.3, changePct: 14 }] });
+    expect(read(fixture, 'best-single')?.door).toEqual({ label: 'Over time ›', path: '/progress/training/exercises/x-8' });
+  });
+
+  it('sends a week fact to the four weeks of Training', () => {
+    const fixture = insight({ referenceDate: '2026-09-27', completedSessions: 2, totalMinutes: 90, previousWeekCompletedSessions: 1, previousWeekTotalMinutes: 40 });
+    expect(read(fixture, 'week')?.door).toEqual({ label: '4 weeks ›', path: '/progress/training' });
   });
 });

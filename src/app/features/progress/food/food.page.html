@@ -33,6 +33,7 @@
     </app-detail-section>
 
     <app-detail-section name="Macros" anchor="macros" [sentence]="macroLine()" [context]="context()" [ask]="macroPrompt()">
+      <a sectionControl class="door-link" routerLink="/nutrition">Today's budget ›</a>
       <div class="macros">
         @for (tile of macroTiles(); track tile.name) {
           <article class="macro">

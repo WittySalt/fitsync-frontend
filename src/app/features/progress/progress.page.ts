@@ -93,7 +93,7 @@ export class ProgressPage {
   protected readonly reviews = signal<WeeklyReview[]>([]);
   protected readonly reviewsLoading = signal(true);
   protected readonly reviewsFailed = signal(false);
-  protected readonly sheetOpen = signal(false);
+  protected readonly sheetOpen = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('weeks') === 'earlier');
   private reviewsRead: Subscription | null = null;
   private current = signal<WeeklyReview | null>(null);
 

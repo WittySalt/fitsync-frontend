@@ -132,7 +132,6 @@ export class PlanStudioPage implements OnInit {
         } else {
           this.toast.info('Plan saved. The session could not be started; start it from the plan.');
         }
-        this.store.refreshRecommendations();
         void this.router.navigate(['/workout'], { queryParams: { tab: 'history', status: 'IN_PROGRESS' } });
       },
       error: (failure: { status?: number; error?: { message?: string } }) => {

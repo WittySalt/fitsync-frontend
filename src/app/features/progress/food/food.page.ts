@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, switchMap } from 'rxjs';
@@ -8,6 +9,7 @@ import { DetailHeadComponent } from '../../../shared/progress/detail-head.compon
 import { DetailLayoutComponent } from '../../../shared/progress/detail-layout.component';
 import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { HighlightsComponent } from '../../../shared/progress/highlights.component';
+import { useFragmentScroll } from '../../../shared/progress/fragment-scroll';
 import { InkSwitchComponent } from '../../../shared/progress/ink-switch.component';
 import { lastDays, periodEyebrow } from '../../../shared/progress/progress-format';
 import { JumpItem, ProgressCardContext, SeriesPoint, WeekBar } from '../../../shared/progress/progress.models';
@@ -53,6 +55,7 @@ interface MacroTile {
 @Component({
   selector: 'app-food-page',
   imports: [
+    RouterLink,
     ContentsRailComponent,
     DetailHeadComponent,
     DetailLayoutComponent,
@@ -101,6 +104,7 @@ export class FoodPage {
   readonly loading = computed(() => this.state().status === 'loading');
   readonly failed = computed(() => this.state().status === 'error');
   readonly data = computed(() => shownData(this.state()));
+  private readonly scrollToSection = useFragmentScroll(computed(() => this.data() !== null));
 
   readonly days = computed(() => {
     const { from, to } = this.period.range();

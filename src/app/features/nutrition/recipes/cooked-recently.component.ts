@@ -20,7 +20,10 @@ const SHOWN = 6;
   template: `
     @if (items().length > 0) {
       <section aria-labelledby="cooked-recently-title">
-        <h2 id="cooked-recently-title">Cooked recently</h2>
+        <div class="head">
+          <h2 id="cooked-recently-title">Cooked recently</h2>
+          <a class="door-link" routerLink="/progress/food" fragment="habits">All cooks ›</a>
+        </div>
         <ul>
           @for (card of items(); track card.id) {
             <li>

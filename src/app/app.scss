@@ -9,6 +9,24 @@
   overflow-x: clip;
 }
 
+// The open coach dock takes its 420 px from the page on wide screens, so the page reflows beside it
+// rather than sitting under it. Below 1200 px the dock overlays the page instead.
+@media (min-width: 1200px) {
+  .app-shell {
+    transition: padding-right 200ms ease;
+  }
+
+  .app-shell.dock-open {
+    padding-right: 420px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell {
+    transition: none;
+  }
+}
+
 .app-shell.cook-open {
   .sidebar,
   .topbar,

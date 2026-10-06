@@ -2422,6 +2422,7 @@ export class FitSyncDataService {
       endedAt: session.endedAt ?? null,
       caloriesEstimated: session.caloriesEstimated === true,
       effortEstimated: session.effortEstimated === true,
+      perceivedExertion: session.perceivedExertion ?? null,
       ...this.setCounts(session)
     };
   }

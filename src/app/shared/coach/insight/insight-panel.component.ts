@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, OnDestroy, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { Subscription, catchError, of, timer } from 'rxjs';
 
 import { CoachApiService } from '../../../core/coach/coach-api.service';
@@ -25,6 +26,13 @@ export const INSIGHT_NOW = new InjectionToken<() => Date>('INSIGHT_NOW', {
 export const READING_POLL_MS = 3000;
 export const READING_POLL_LIMIT = 8;
 
+/** Where a reading's head leads: the label, the route and the section of the target page. */
+export interface ReadingDoor {
+  label: string;
+  path: string;
+  fragment?: string;
+}
+
 type PanelView = 'loading' | 'hidden' | 'reading' | 'folded' | 'writing' | 'resting';
 
 /**
@@ -38,7 +46,7 @@ type PanelView = 'loading' | 'hidden' | 'reading' | 'folded' | 'writing' | 'rest
 @Component({
   selector: 'app-insight-panel',
   standalone: true,
-  imports: [SlopeChartComponent, MealBarsComponent, WeightProjectionComponent],
+  imports: [RouterLink, SlopeChartComponent, MealBarsComponent, WeightProjectionComponent],
   templateUrl: './insight-panel.component.html',
   styleUrl: './insight-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -53,6 +61,8 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly surface = input.required<ReadingSurface>();
+  /** A quiet link in the reading's head to the longer view of what it describes, such as "4 weeks ›". */
+  readonly door = input<ReadingDoor | null>(null);
   /** A fact that cites a Progress card was chosen, so the page can scroll to that card. */
   readonly factChosen = output<ReadingFact>();
 

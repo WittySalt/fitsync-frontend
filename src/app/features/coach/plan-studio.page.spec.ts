@@ -36,16 +36,12 @@ describe('PlanStudioPage', () => {
 
   function setup(queryDraft: string | null): void {
     api = jasmine.createSpyObj<CoachApiService>('CoachApiService', [
-      'listRecommendations',
-      'refreshRecommendations',
       'listSessionDrafts',
       'getSessionDraft',
       'draftSession',
       'acceptSessionDraft',
       'rejectSessionDraft'
     ]);
-    api.listRecommendations.and.returnValue(of([]));
-    api.refreshRecommendations.and.returnValue(of(undefined));
     api.listSessionDrafts.and.returnValue(of([draft]));
     api.getSessionDraft.and.returnValue(of(draft));
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'info', 'error']);
@@ -64,6 +60,13 @@ describe('PlanStudioPage', () => {
     fixture = TestBed.createComponent(PlanStudioPage);
     fixture.detectChanges();
   }
+
+  it('draws the open draft from the app green and slate, with no amber', () => {
+    const css = ((PlanStudioPage as unknown as { ɵcmp: { styles: string[] } }).ɵcmp.styles ?? []).join('');
+
+    expect(css).not.toMatch(/amber|peach|orange/i);
+    expect(css).toContain('var(--accent-subtle)');
+  });
 
   it('lists the drafts and opens the one named in the URL', () => {
     setup('a1');

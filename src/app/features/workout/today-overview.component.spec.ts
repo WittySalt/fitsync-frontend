@@ -1,7 +1,8 @@
+import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import {
@@ -9,6 +10,7 @@ import {
   DayKind,
   NextTraining,
   TodayInsight,
+  WeeklyTrainingInsight,
   WorkoutPlan,
   WorkoutPlanDay,
   WorkoutPlanExercise,
@@ -17,6 +19,8 @@ import {
 import { ToastService } from '../../core/toast/toast.service';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { TodayOverviewComponent } from './today-overview.component';
+import { FocusFacts } from './today-focus/today-focus';
+import { TodayFocusService } from './today-focus/today-focus.service';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 
 function move(sequence: number, name: string, overrides: Partial<WorkoutPlanExercise> = {}): WorkoutPlanExercise {
@@ -141,6 +145,7 @@ function dayEntry(overrides: Partial<DayInsight> = {}): DayInsight {
 describe('TodayOverviewComponent', () => {
   let dataService: jasmine.SpyObj<FitSyncDataService>;
   let toast: jasmine.SpyObj<ToastService>;
+  let focusService: jasmine.SpyObj<TodayFocusService>;
   let fixture: ComponentFixture<TodayOverviewComponent>;
   let component: TodayOverviewComponent;
 
@@ -165,6 +170,8 @@ describe('TodayOverviewComponent', () => {
   beforeEach(async () => {
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getExercises', 'getExercise', 'createWorkoutPlan', 'activateWorkoutPlan']);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
+    focusService = jasmine.createSpyObj<TodayFocusService>('TodayFocusService', ['load']);
+    focusService.load.and.callFake((_target, insight, next) => of({ insight, next, moves: [], history: [], runs: [] } as FocusFacts));
     dataService.getExercises.and.returnValue(of([]));
     dataService.getExercise.and.returnValue(of(null));
     dataService.createWorkoutPlan.and.returnValue(of(plan()));
@@ -172,7 +179,7 @@ describe('TodayOverviewComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [TodayOverviewComponent],
-      providers: [provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }, { provide: ToastService, useValue: toast }]
+      providers: [provideRouter([]), provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }, { provide: ToastService, useValue: toast }, { provide: TodayFocusService, useValue: focusService }]
     }).compileComponents();
 
     fixture = TestBed.createComponent(TodayOverviewComponent);
@@ -885,6 +892,79 @@ describe('TodayOverviewComponent', () => {
 
       expect(root.textContent).not.toContain('Free workout ›');
       expect(root.querySelector('.quick-row')).toBeNull();
+    });
+  });
+
+  describe("today's focus", () => {
+    function exerciseFacts(): FocusFacts {
+      return {
+        insight: null,
+        next: null,
+        moves: [{ exerciseId: 'exercise-1', primary: ['CHEST'], secondary: ['ARMS'], history: [] }],
+        history: [],
+        runs: []
+      };
+    }
+
+    it('draws a companion beside the card and the same one as a strip inside it on a strength day', () => {
+      focusService.load.and.returnValue(of(exerciseFacts()));
+      const root = render({ today: today() });
+
+      expect(root.querySelectorAll('app-today-focus').length).toBe(2);
+      expect(root.querySelector('.today-card app-today-focus.focus-strip')).not.toBeNull();
+      expect(root.querySelector('.today-overview > app-today-focus.focus-side')).not.toBeNull();
+      expect(text(root, '.focus-side .caption strong')).toContain('Chest');
+    });
+
+    it('draws no companion without a plan, on a mobility day or on a finished day', () => {
+      expect(render({ activePlan: null, today: null }).querySelector('app-today-focus')).toBeNull();
+      expect(focusService.load).not.toHaveBeenCalled();
+      fixture = TestBed.createComponent(TodayOverviewComponent);
+      expect(render({ today: today({ kind: 'MOBILITY', planDayId: 'd-mobility' }) }).querySelector('app-today-focus')).toBeNull();
+      fixture = TestBed.createComponent(TodayOverviewComponent);
+      expect(render({ today: today({ source: 'DONE' }) }).querySelector('app-today-focus')).toBeNull();
+    });
+
+    it('shows a loading block beside the card while the facts are on their way', () => {
+      focusService.load.and.returnValue(NEVER);
+      const root = render({ today: today() });
+      expect(root.querySelector('.focus-side [aria-busy="true"]')).not.toBeNull();
+      expect(root.querySelector('.focus-strip')).toBeNull();
+    });
+
+    it('puts the rest of the week into a rest day card, above its buttons', () => {
+      const insight = {
+        referenceDate: '2026-09-30',
+        weekStart: '2026-09-28',
+        weekEnd: '2026-10-04',
+        completedSessions: 1,
+        totalMinutes: 50,
+        muscleGroups: [],
+        days: [
+          dayEntry({ date: '2026-10-01', dayOfWeek: 4, kind: 'CARDIO', label: 'Cardio', source: 'PLAN', planned: { planDayId: 'd-cardio', kind: 'CARDIO', title: 'Easy run', sportActivity: null, estimatedMinutes: 30, moves: 2, fulfilled: false } })
+        ]
+      } as unknown as WeeklyTrainingInsight;
+      focusService.load.and.callFake((_target, given, following) => of({ insight: given, next: following, moves: [], history: [], runs: [] }));
+      const root = render({ today: today({ kind: 'REST', source: 'PLAN', planDayId: null }), insight, nextTraining: next() });
+
+      expect(text(root, '.today-card app-focus-card-block .heading')).toBe('Rest of the week');
+      expect(all(root, '.today-card app-focus-card-block .week li').length).toBe(1);
+      expect(text(root, '.focus-side .foot p')).toBe('A rest day counts. Tomorrow is the treadmill run.');
+    });
+
+    it('switches between the side companion and the strip at 1100 px of card width', () => {
+      focusService.load.and.returnValue(of(exerciseFacts()));
+      const root = render({ today: today() });
+      const host = root as HTMLElement;
+      document.body.appendChild(host);
+      const display = (selector: string) => getComputedStyle(host.querySelector(selector) as HTMLElement).display;
+      host.style.width = '1200px';
+      expect(display('.focus-side')).toBe('block');
+      expect(display('.focus-strip')).toBe('none');
+      host.style.width = '700px';
+      expect(display('.focus-side')).toBe('none');
+      expect(display('.focus-strip')).not.toBe('none');
+      host.remove();
     });
   });
 });

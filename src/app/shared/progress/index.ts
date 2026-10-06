@@ -21,3 +21,4 @@ export type { InkOption } from './ink-switch.component';
 export { measureWidth } from './measure-width';
 export * from './chart-axis';
 export { LadderComponent, LADDER_LEVELS, ladderGeometry, ladderRungs, rungRatios } from './ladder.component';
+export { useFragmentScroll } from './fragment-scroll';

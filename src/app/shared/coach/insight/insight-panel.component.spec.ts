@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
@@ -132,7 +133,8 @@ describe('InsightPanelComponent', () => {
         { provide: FitSyncDataService, useValue: data },
         { provide: CoachStore, useValue: store },
         { provide: InsightReadState, useValue: readState },
-        { provide: INSIGHT_NOW, useValue: () => new Date('2026-09-28T15:22:00Z') }
+        { provide: INSIGHT_NOW, useValue: () => new Date('2026-09-28T15:22:00Z') },
+        provideRouter([])
       ]
     }).compileComponents();
   });
@@ -323,6 +325,18 @@ describe('InsightPanelComponent', () => {
     render();
     expect(data.getNutritionInsightsPage).not.toHaveBeenCalled();
     expect(data.getProgressInsight).not.toHaveBeenCalled();
+  });
+
+  describe('its door', () => {
+    it('shows the door the page gives it in the head of the reading, and none otherwise', () => {
+      render();
+      expect(element.querySelector('a.door')).toBeNull();
+      fixture.componentRef.setInput('door', { label: '4 weeks ›', path: '/progress/training' });
+      fixture.detectChanges();
+      const link = element.querySelector<HTMLAnchorElement>('.reading-meta a.door');
+      expect(link?.textContent?.trim()).toBe('4 weeks ›');
+      expect(link?.getAttribute('href')).toBe('/progress/training');
+    });
   });
 
   describe('on the nutrition page', () => {

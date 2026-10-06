@@ -19,8 +19,6 @@ export interface Surface {
   id: SurfaceId;
   /** What the dock header says it is looking at, for example "Nutrition, this week". */
   label: string;
-  /** Recommendation types this surface shows inline; the dock shows these first. */
-  inlineTypes: string[];
   suggestions: SuggestedQuestion[];
   /** The code sent to the server with a question, or null for a surface the server does not know. */
   code: CoachSurfaceCode | null;
@@ -69,7 +67,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   dashboard: {
     id: 'dashboard',
     label: 'Home, today',
-    inlineTypes: ['NUTRITION_GAP', 'STREAK_NUDGE', 'LOGGING_REMINDER', 'COLD_START'],
     suggestions: [
       { text: 'How is my day going?', generative: false },
       { text: 'Build me a session for today', generative: true },
@@ -80,7 +77,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   workout: {
     id: 'workout',
     label: 'Workout, this week',
-    inlineTypes: ['WEEKLY_ADHERENCE', 'PERSONAL_RECORD'],
     suggestions: [
       { text: 'Should I train today?', generative: false },
       { text: 'Build me a session for today', generative: true },
@@ -91,7 +87,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   nutrition: {
     id: 'nutrition',
     label: 'Nutrition, this week',
-    inlineTypes: ['NUTRITION_GAP'],
     suggestions: [
       { text: 'How did I eat this week?', generative: false },
       { text: 'Which nutrient am I lowest in?', generative: false },
@@ -102,7 +97,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   progress: {
     id: 'progress',
     label: 'Progress, this week',
-    inlineTypes: ['WEEKLY_NARRATIVE', 'GOAL_PACE'],
     suggestions: [
       { text: 'Am I on pace for my goal?', generative: false },
       { text: 'What changed this week?', generative: false }
@@ -112,7 +106,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   profile: {
     id: 'profile',
     label: 'Your profile',
-    inlineTypes: ['GOAL_PACE'],
     suggestions: [
       { text: 'Is my target realistic?', generative: false },
       { text: 'Am I on pace for my goals?', generative: false }
@@ -122,7 +115,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   coach: {
     id: 'coach',
     label: 'Coach workspace',
-    inlineTypes: [],
     suggestions: [
       { text: 'Build me a session for today', generative: true },
       { text: 'Should I train today?', generative: false }
@@ -132,7 +124,6 @@ const SURFACES: Record<SurfaceId, Surface> = {
   other: {
     id: 'other',
     label: 'FitSync',
-    inlineTypes: [],
     suggestions: [
       { text: 'How is my day going?', generative: false },
       { text: 'Build me a session for today', generative: true }

@@ -1,0 +1,72 @@
+@if (loading() && !model()) {
+  @if (variant() === 'side') {
+    <section class="focus" aria-busy="true" aria-label="Loading today's focus">
+      <div class="skeleton"></div>
+    </section>
+  }
+} @else if (model(); as m) {
+  <section class="focus" [attr.aria-label]="labelled()">
+    <header class="head">
+      <h3 class="eyebrow">Today's focus</h3>
+      @if (variant() === 'side' && range()) {
+        <button type="button" class="ask" aria-label="Ask the coach about today's focus" (click)="ask()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4Z"></path></svg>
+          Ask
+        </button>
+      }
+    </header>
+    <div class="body">
+      @if (m.sets) {
+        <div class="lead">
+          <a class="figure" routerLink="/progress/training" fragment="muscles" aria-label="Muscles on Progress">
+            <span class="fig" [class.light]="m.light"><app-muscle-figure [setsByGroup]="m.sets" [interactive]="false" [height]="140" /></span>
+          </a>
+          <p class="caption">
+            <strong>{{ m.caption }}</strong>
+            @if (m.subcaption) {
+              <span>{{ m.subcaption }}</span>
+            }
+          </p>
+        </div>
+      }
+      @if (m.bar; as bar) {
+        <div class="bar" role="img" [attr.aria-label]="bar.parts.length + ' parts, ' + bar.target">
+          @for (part of bar.parts; track $index) {
+            <span class="part" [class.main]="part.seconds * 3 > total(m)" [style.flex-grow]="part.seconds">
+              <span class="name">{{ part.name }}</span>
+              <i></i>
+              <span class="mins">{{ part.minutes }}</span>
+            </span>
+          }
+        </div>
+        @if (bar.target) {
+          <p class="target">{{ bar.target }}</p>
+        }
+      }
+      @if (variant() === 'side') {
+        @if (m.heading && m.rows.length) {
+          <h4 class="heading">{{ m.heading }}</h4>
+        }
+        @if (m.rows.length) {
+          <ol class="rows">
+            @for (row of m.rows; track $index) {
+              <li>
+                @if (row.mark) {
+                  <span class="num" aria-hidden="true">{{ row.mark }}</span>
+                }
+                <span class="text">{{ row.text }}</span>
+                @if (row.right) {
+                  <span class="right">{{ row.right }}</span>
+                }
+              </li>
+            }
+          </ol>
+        }
+      }
+    </div>
+    <footer class="foot">
+      <span class="mark" aria-hidden="true">C</span>
+      <p>{{ m.coach }}</p>
+    </footer>
+  </section>
+}

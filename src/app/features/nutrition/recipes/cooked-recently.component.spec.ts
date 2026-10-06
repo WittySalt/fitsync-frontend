@@ -68,4 +68,11 @@ describe('CookedRecentlyComponent', () => {
     service.list.and.returnValue(throwError(() => new Error('down')));
     expect(render().querySelector('section')).toBeNull();
   });
+
+  it('has a door to every cook on the Food progress page', () => {
+    service.list.and.returnValue(of({ items: [card({ id: 'a', name: 'Salmon' })], page: 0, totalPages: 1, totalElements: 1 }));
+    const link = render().querySelector<HTMLAnchorElement>('a.door-link');
+    expect(link?.textContent?.trim()).toBe('All cooks ›');
+    expect(link?.getAttribute('href')).toBe('/progress/food#habits');
+  });
 });

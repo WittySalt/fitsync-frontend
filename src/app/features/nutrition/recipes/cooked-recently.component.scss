@@ -2,8 +2,16 @@
   display: block;
 }
 
-h2 {
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0 0 10px;
+}
+
+h2 {
+  margin: 0;
   font-size: 15px;
   font-weight: var(--fw-bold);
 }
@@ -22,7 +30,7 @@ li {
   width: 150px;
 }
 
-a {
+li a {
   display: flex;
   flex-direction: column;
   gap: 6px;

@@ -1,3 +1,4 @@
+import { TodayFocusService } from './today-focus/today-focus.service';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { CoachApiService } from '../../core/coach/coach-api.service';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
@@ -208,8 +209,6 @@ function goal(overrides: Partial<UserGoal> = {}): UserGoal {
 // The page carries the coach's insight panel. Only the wire is stubbed, and the reading request
 // fails, so the panel takes no space and these specs stay about the page.
 const coachApiStub = {
-  listRecommendations: () => of([]),
-  refreshRecommendations: () => of(undefined),
   getReading: () => throwError(() => new Error('not under test'))
 };
 
@@ -315,6 +314,7 @@ describe('WorkoutPage', () => {
         { provide: CoachApiService, useValue: coachApiStub },
         // The page reads an optional ?tab= on init; these specs land on the default.
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
+        { provide: TodayFocusService, useValue: { load: () => of({ insight: null, next: null, moves: [], history: [], runs: [] }) } },
         provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }]
     }).compileComponents();
 
@@ -460,6 +460,22 @@ describe('WorkoutPage', () => {
       press('Home');
       expect(fixture.componentInstance.selectedTab()).toBe('overview');
       fixture.nativeElement.remove();
+    });
+  });
+
+  describe('the doors to Progress', () => {
+    it('leads the reading to four weeks of Training and History to the training log', () => {
+      const fixture = TestBed.createComponent(WorkoutPage);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      const panel = fixture.debugElement.query((node) => node.name === 'app-insight-panel');
+      expect(panel.componentInstance.door()).toEqual({ label: '4 weeks ›', path: '/progress/training' });
+
+      fixture.componentInstance.selectedTab.set('history');
+      fixture.detectChanges();
+      const link = root.querySelector<HTMLAnchorElement>('#workout-panel-history a.door-link');
+      expect(link?.textContent?.trim()).toBe('Trends ›');
+      expect(link?.getAttribute('href')).toBe('/progress/training#log');
     });
   });
 
@@ -1605,6 +1621,15 @@ describe('WorkoutPage', () => {
       expect(cards.map((card) => card.querySelector('h3')?.textContent?.trim())).toEqual(['Current one', 'Draft one']);
       expect(buttons(cards[0])).toEqual(['Edit', 'Archive', 'Start session']);
       expect(buttons(cards[1])).toEqual(['Edit', 'Activate', 'Archive']);
+    });
+
+    it('gives the current plan a door to how it is going on Progress', () => {
+      dataService.getActivePlan.and.returnValue(of(active()));
+      dataService.getWorkoutPlans.and.returnValue(of([active(), draft()]));
+      const { root } = openPlans();
+      const doors = Array.from(root.querySelectorAll<HTMLAnchorElement>('.plan-card a.door-link'));
+      expect(doors.map((link) => link.textContent?.trim())).toEqual(['How it is going ›']);
+      expect(doors[0].getAttribute('href')).toBe('/progress/training#muscles');
     });
 
     it('filters the other plans by Draft, Archived or All, with Draft first', () => {
