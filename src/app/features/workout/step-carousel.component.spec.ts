@@ -57,35 +57,88 @@ describe('StepCarouselComponent', () => {
     expect(root().querySelector('.carousel')).toBeNull();
   });
 
-  it('moves on at reading pace, goes round once and stays on the first step', fakeAsync(() => {
+  it('does not turn by itself when no set is running', fakeAsync(() => {
     mount();
 
-    // 13 words: 2.5 s + 13 x 0.3 s.
-    wait(6399);
-    expect(index()).toBe(0);
-    wait(1);
-    expect(index()).toBe(1);
-
-    // 8 words: 4.9 s.
-    wait(4899);
-    expect(index()).toBe(1);
-    wait(1);
-    expect(index()).toBe(2);
-
-    // 2 words: the 4 s minimum.
-    wait(3999);
-    expect(index()).toBe(2);
-    wait(1);
-    expect(index()).toBe(0);
-
     wait(120_000);
+
     expect(index()).toBe(0);
     discardPeriodicTasks();
     flush();
   }));
 
+  it('turns at reading pace while a set runs and the last step stays', fakeAsync(() => {
+    mount({ running: true });
+
+    // 13 words: 13 / 3 s + 2 s = 6.33 s.
+    wait(6333);
+    expect(index()).toBe(0);
+    wait(1);
+    expect(index()).toBe(1);
+
+    // 8 words: 4.67 s, so the 5 s minimum.
+    wait(4999);
+    expect(index()).toBe(1);
+    wait(1);
+    expect(index()).toBe(2);
+
+    wait(120_000);
+    expect(index()).toBe(2);
+    discardPeriodicTasks();
+    flush();
+  }));
+
+  it('shares a short set evenly when that is shorter than the reading time, never under 3 s', fakeAsync(() => {
+    mount({ running: true, setSeconds: 12 });
+
+    wait(3999);
+    expect(index()).toBe(0);
+    wait(1);
+    expect(index()).toBe(1);
+
+    fixture.componentRef.setInput('setSeconds', 3);
+    fixture.detectChanges();
+    wait(2999);
+    expect(index()).toBe(1);
+    wait(1);
+    expect(index()).toBe(2);
+    discardPeriodicTasks();
+    flush();
+  }));
+
+  it('waits while paused and goes on when resumed', fakeAsync(() => {
+    mount({ running: true, paused: true });
+
+    wait(120_000);
+    expect(index()).toBe(0);
+
+    fixture.componentRef.setInput('paused', false);
+    fixture.detectChanges();
+    wait(6334);
+    expect(index()).toBe(1);
+    discardPeriodicTasks();
+    flush();
+  }));
+
+  it('starts again from the first step when the next set runs, and a tap only held the set before', fakeAsync(() => {
+    mount({ running: true });
+    click('.dot:nth-child(2)');
+    wait(120_000);
+    expect(index()).toBe(1);
+
+    fixture.componentRef.setInput('running', false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('running', true);
+    fixture.detectChanges();
+    expect(index()).toBe(0);
+    wait(6334);
+    expect(index()).toBe(1);
+    discardPeriodicTasks();
+    flush();
+  }));
+
   it('does not announce a step that turns by itself, and does once a person holds it', fakeAsync(() => {
-    mount();
+    mount({ running: true });
     expect(root().querySelector('.step')?.getAttribute('aria-live')).toBe('off');
 
     click('.text');
@@ -96,7 +149,7 @@ describe('StepCarouselComponent', () => {
   }));
 
   it('holds on a tap, and moves to the next step on a second tap', fakeAsync(() => {
-    mount();
+    mount({ running: true });
 
     click('.text');
     wait(120_000);
@@ -110,11 +163,18 @@ describe('StepCarouselComponent', () => {
     flush();
   }));
 
-  it('never moves by itself with reduced motion, and a tap goes straight to the next step', fakeAsync(() => {
-    mount({ reducedMotion: true });
+  it('still turns with reduced motion, without the slide', fakeAsync(() => {
+    mount({ running: true, reducedMotion: true });
 
-    wait(120_000);
-    expect(index()).toBe(0);
+    wait(6334);
+
+    expect(index()).toBe(1);
+    discardPeriodicTasks();
+    flush();
+  }));
+
+  it('goes straight to the next step on a tap when no set is running', fakeAsync(() => {
+    mount();
 
     click('.text');
     expect(index()).toBe(1);
@@ -126,7 +186,7 @@ describe('StepCarouselComponent', () => {
   }));
 
   it('does not move while the workout is paused or the guide is open over it', fakeAsync(() => {
-    mount({ paused: true });
+    mount({ running: true, paused: true });
 
     wait(120_000);
 
@@ -136,7 +196,7 @@ describe('StepCarouselComponent', () => {
   }));
 
   it('goes to the step of a dot and holds there', fakeAsync(() => {
-    mount();
+    mount({ running: true });
 
     click('.dot:nth-child(2)');
     wait(120_000);
@@ -158,8 +218,8 @@ describe('StepCarouselComponent', () => {
   });
 
   describe('reading aloud', () => {
-    it('reads the current step, and the end of a step moves on instead of the timer', fakeAsync(() => {
-      mount();
+    it('reads the current step and holds the turn until the reading ends', fakeAsync(() => {
+      mount({ running: true });
 
       click('.speaker');
       expect(root().querySelector('.speaker')?.getAttribute('aria-pressed')).toBe('true');
@@ -171,37 +231,11 @@ describe('StepCarouselComponent', () => {
 
       speech.speak.calls.mostRecent().args[1].ended();
       fixture.detectChanges();
-      expect(index()).toBe(1);
-      expect(speech.speak.calls.mostRecent().args[0]).toBe(STEPS[1]);
-      expect(root().querySelector('.step')?.getAttribute('aria-live')).toBe('off');
-      discardPeriodicTasks();
-      flush();
-    }));
-
-    it('stops reading after the last step and settles on the first', fakeAsync(() => {
-      mount({ index: 2 });
-
-      click('.speaker');
-      speech.speak.calls.mostRecent().args[1].ended();
-      fixture.detectChanges();
-
-      expect(index()).toBe(0);
       expect(fixture.componentInstance.reading()).toBeFalse();
-      wait(120_000);
       expect(index()).toBe(0);
-      discardPeriodicTasks();
-      flush();
-    }));
-
-    it('does not move on at the end of a step that a tap holds', fakeAsync(() => {
-      mount();
-      click('.speaker');
-      click('.text');
-
-      speech.speak.calls.mostRecent().args[1].ended();
-      fixture.detectChanges();
-
-      expect(index()).toBe(0);
+      wait(6334);
+      expect(index()).toBe(1);
+      expect(speech.speak).toHaveBeenCalledTimes(1);
       discardPeriodicTasks();
       flush();
     }));

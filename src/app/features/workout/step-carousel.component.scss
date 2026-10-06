@@ -153,6 +153,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .swap.a,
+  .swap.b {
+    animation: none;
+  }
+
   .dot span {
     transition: none;
   }

@@ -497,6 +497,16 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   readonly setClock = computed(() => this.formatClock(this.setElapsedSeconds()));
   /** Nothing turns by itself while the workout is paused or the guide is open. */
   readonly holdSteps = computed(() => this.live.paused() || this.guideOpen());
+  /** The steps turn by themselves only while a set is running. */
+  readonly stepsRunning = computed(() => this.setActive() || this.workGuideActive());
+  /** The planned length of the running set: reps at their tempo, or the timed segment. */
+  readonly stepsSetSeconds = computed(() => {
+    const run = this.runHere();
+    if (!run || run.phase !== 'active') {
+      return 0;
+    }
+    return run.kind === 'timed' ? run.targetSeconds : run.targetReps * run.tempoSeconds;
+  });
   readonly guideInline = computed(() => this.guideOpen() && !this.guideAsDialog());
   readonly guideBackLabel = computed(() =>
     this.stage() === 'rest' ? 'Back to the rest' : `Back to set ${this.currentSetNumber()}`
