@@ -7,7 +7,7 @@
     <div #answer id="progress-answer" class="answer">
       <header class="head">
         <span class="eyebrow">{{ eyebrow() }}</span>
-        <nav class="periods" aria-label="Period">
+        <nav class="periods" aria-label="Period" appSpotlight="progress">
           @for (option of periods; track option.key) {
             <a
               [routerLink]="[]"

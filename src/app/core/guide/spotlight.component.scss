@@ -1,0 +1,101 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+// The scrim catches clicks; the cut-out lets its shadow darken everything except the anchor.
+.scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.cut {
+  position: absolute;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.6);
+  pointer-events: none;
+}
+
+.pop {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100vw - 24px));
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: pop-in 160ms ease-out;
+
+  h2 {
+    margin: 0;
+    font-size: var(--text-lg);
+    color: var(--text-primary);
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+
+  button {
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--border-accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.primary {
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--text-on-accent);
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+}
+
+.quiet {
+  padding: 8px 2px;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    animation: none;
+  }
+}

@@ -28,3 +28,19 @@ export function roleFromAccessToken(token: string | null): UserRole | null {
     return null;
   }
 }
+
+/** Reads the subject claim of an application token without verifying it. It only names the person for local settings. */
+export function subjectFromAccessToken(token: string | null): string | null {
+  const payload = token?.split('.')[1];
+  if (!payload) {
+    return null;
+  }
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded: unknown = JSON.parse(atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')));
+    const subject = decoded && typeof decoded === 'object' ? (decoded as { sub?: unknown }).sub : null;
+    return typeof subject === 'string' && subject.trim() ? subject : null;
+  } catch {
+    return null;
+  }
+}

@@ -1716,6 +1716,18 @@ export class FitSyncDataService {
       );
   }
 
+  /** Whether any meal was logged in the last 30 days. The Getting started guide uses it for its meal step, and
+   *  a failed request is an error here, never a "no". */
+  hasLoggedMeal(): Observable<boolean> {
+    const now = new Date();
+    const from = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    const to = new Date(now.getTime() + 24 * 3600 * 1000);
+    const params = new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
+    return this.http
+      .get<unknown[]>(`${this.apiBaseUrl}/nutrition/meals`, { params })
+      .pipe(map((meals) => (meals ?? []).length > 0));
+  }
+
   /**
    * Every meal logged on the device-local calendar day of `day` in the user's zone, with macros and foods. Unlike
    * getTodayMeals it lets a failure through, because the Today card shows a retry for it, and it

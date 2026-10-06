@@ -19,6 +19,7 @@ import {
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
+import { GuideService } from '../../core/guide/guide.service';
 import { ToggleComponent } from '../../shared/toggle.component';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
 
@@ -70,6 +71,7 @@ export class SettingsPage implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly themeService = inject(ThemeService);
   private readonly toast = inject(ToastService);
+  private readonly guide = inject(GuideService);
 
   readonly data = signal<AccountCenterData | null>(null);
   readonly loading = signal(true);
@@ -667,6 +669,12 @@ export class SettingsPage implements OnInit {
 
   setThemePreference(preference: ThemePreference): void {
     this.themeService.setTheme(preference);
+  }
+
+  /** Clears what the guide remembers, so the Home card and the page tips come back. */
+  showGuideAgain(userId: string): void {
+    this.guide.restart(userId);
+    this.toast.success('The guide is back on Home and on each page.');
   }
 
   @HostListener('document:click', ['$event'])

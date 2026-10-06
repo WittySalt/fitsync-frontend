@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 
 import { MuscleFigureComponent } from '../../../shared/charts/muscle-figure/muscle-figure.component';
 import { AboutData, AboutField, dietLabel, equipmentLabels, focusCaption, focusSets, injuryLabels, leadParts, leadSentence } from './about-you';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { DayLineComponent } from './day-line.component';
 
 /**
@@ -11,7 +12,7 @@ import { DayLineComponent } from './day-line.component';
  */
 @Component({
   selector: 'app-about-you',
-  imports: [MuscleFigureComponent, DayLineComponent],
+  imports: [MuscleFigureComponent, DayLineComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './about-you.component.html',
   styleUrl: './about-you.component.scss'
