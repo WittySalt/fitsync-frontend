@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { AccountDataService, AccountUserResponse } from '../../core/account-data.service';
-import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { FitSyncDataService, normalizeFocusAreas } from '../../core/fitsync-data.service';
 import { UserGoal } from '../../core/fitsync.models';
 import { BadgesModel, Footprint } from '../../core/me.models';
 import { UserTimezoneService } from '../../core/user-timezone.service';
@@ -79,11 +79,11 @@ export class ProfilePage implements OnInit {
       ? { type: weight.goalType, targetValue: weight.targetValue, targetUnit: weight.targetUnit, targetDate: weight.targetDate }
       : null;
     return {
-      weeklyDays: training?.weeklyWorkoutDays ?? null,
+      weeklyDays: this.sessionsPerWeek(),
       trainingTime: this.usualStart() ?? training?.preferredWorkoutTime?.slice(0, 5) ?? null,
       goal,
       weightKg: user.latestBodyMetrics?.weightKg ?? null,
-      focusAreas: training?.focusAreas ?? [],
+      focusAreas: normalizeFocusAreas(training?.focusAreas),
       equipment: training?.equipmentInventory ?? [],
       injuries: this.injuries(),
       diet: user.preferences?.nutrition?.dietaryPattern ?? null,
@@ -91,7 +91,13 @@ export class ProfilePage implements OnInit {
     };
   });
 
-  protected readonly pace = computed(() => this.user()?.preferences?.training?.weeklyWorkoutDays ?? null);
+  /** The sessions-a-week target when one is set, else the preference. Targets and the lead sentence then agree. */
+  private readonly sessionsPerWeek = computed(() => {
+    const target = this.goals().find((goal) => goal.goalType === 'WORKOUT_FREQUENCY' && goal.targetValue !== null && goal.targetValue > 0);
+    return target?.targetValue ?? this.user()?.preferences?.training?.weeklyWorkoutDays ?? null;
+  });
+
+  protected readonly pace = this.sessionsPerWeek;
 
   ngOnInit(): void {
     this.load();

@@ -66,6 +66,7 @@ describe('About you', () => {
       expect(focusCaption(['SHOULDERS', 'ARMS', 'GLUTES'])).toBe('Focus: shoulders, arms, glutes');
       expect(focusCaption(['UPPER', 'CARDIO'])).toBe('Focus: upper body, cardio');
       expect(focusCaption([])).toBe('Focus: not set');
+      expect(focusCaption(['240002', '240003'])).toBe('Focus: not set');
     });
   });
 

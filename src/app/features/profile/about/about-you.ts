@@ -112,7 +112,7 @@ export function focusSets(focusAreas: readonly string[]): Record<string, number>
 export function focusCaption(focusAreas: readonly string[]): string {
   const words = focusAreas
     .map((raw) => raw.trim().toUpperCase())
-    .filter((code, index, all) => code !== '' && all.indexOf(code) === index)
+    .filter((code, index, all) => code !== '' && !/^\d+$/.test(code) && all.indexOf(code) === index)
     .map((code) => ((MUSCLE_GROUPS as readonly string[]).includes(code) ? groupLabel(code).toLowerCase() : (FOCUS_WORDS[code] ?? code.toLowerCase().replace(/_/g, ' '))));
   return words.length ? `Focus: ${words.join(', ')}` : 'Focus: not set';
 }

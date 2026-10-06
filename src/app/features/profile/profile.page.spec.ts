@@ -139,6 +139,22 @@ describe('ProfilePage', () => {
     expect(data.getInjuryAreas).toHaveBeenCalled();
   });
 
+  it('names focus areas that arrive as codes and never shows a code', () => {
+    const base = user();
+    account.getCurrentUser.and.returnValue(of(user({ preferences: { ...base.preferences, training: { ...base.preferences.training, focusAreas: ['240002', '240003'] } } })));
+
+    const el = render();
+
+    expect(el.querySelector('app-about-you .caption')?.textContent).toBe('Focus: upper body, core');
+    expect(el.textContent).not.toMatch(/2400\d\d/);
+  });
+
+  it('writes the lead sentence from the sessions target, not the preference', () => {
+    data.getGoals.and.returnValue(of([...goals, { goalId: 'g3', goalType: 'WORKOUT_FREQUENCY', targetValue: 3, targetUnit: 'sessions/week', targetDate: null, status: 'ACTIVE', notes: null }]));
+
+    expect(render().querySelector('app-about-you .lead')?.textContent).toBe('Three evenings a week, lose weight to 68 kg by 11 Dec.');
+  });
+
   it('has six settings rows, each to its section, with Delete account in the danger colour', () => {
     const el = render();
 
