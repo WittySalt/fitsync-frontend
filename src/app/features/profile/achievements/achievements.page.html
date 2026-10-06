@@ -1,0 +1,45 @@
+<div class="page">
+  <header class="head">
+    <a class="back" routerLink="/me">&lsaquo; Me</a>
+    <h1>Achievements</h1>
+    @if (head()) {
+      <p class="sub">{{ head() }}</p>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="skeleton" aria-busy="true" aria-label="Loading your achievements"></div>
+    <div class="skeleton"></div>
+  } @else if (failed()) {
+    <app-state-panel title="Achievements are unavailable" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="load()" />
+  } @else if (badges(); as model) {
+    @for (theme of model.themes; track theme.code || theme.name) {
+      <app-theme-card [theme]="theme" [today]="today" [pace]="pace()" (opened)="opened.set($event)" />
+    }
+
+    @if (earlier().length) {
+      <section class="earlier" aria-labelledby="earlier-title">
+        <h2 id="earlier-title" class="eyebrow">Earlier badges</h2>
+        <ul>
+          @for (badge of earlier(); track badge.code) {
+            <li><strong>{{ badge.name }}</strong>@if (badge.date) { <span>{{ badge.date }}</span> }</li>
+          }
+        </ul>
+      </section>
+    }
+
+    <p class="footnote">{{ footnote }}</p>
+  }
+
+  @if (opened(); as open) {
+    <app-badge-sheet
+      [node]="open.node"
+      [state]="open.state"
+      [theme]="open.theme"
+      [days]="days()"
+      [today]="today"
+      [pace]="pace()"
+      (closed)="opened.set(null)"
+    />
+  }
+</div>

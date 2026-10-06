@@ -1,0 +1,31 @@
+<section class="card" id="goal-lifecycle" aria-labelledby="targets-title">
+  <header>
+    <h2 id="targets-title" class="eyebrow">Targets</h2>
+    @if (rows().length) {
+      <a class="open" routerLink="/progress/goal">See progress <span aria-hidden="true">&rsaquo;</span></a>
+    }
+  </header>
+
+  @if (rows().length) {
+    <ul class="rows">
+      @for (row of rows(); track row.kind.type) {
+        <li class="row">
+          <span class="icon"><span class="fs-icon" [attr.data-icon]="row.kind.icon" aria-hidden="true"></span></span>
+          <span class="name">{{ row.kind.label }}</span>
+          <span class="value">{{ row.text }}</span>
+          <button type="button" class="change" [attr.aria-label]="'Change the ' + row.kind.label.toLowerCase() + ' target'" (click)="edit(row)">Change</button>
+        </li>
+      }
+    </ul>
+    @if (macro(); as kind) {
+      <button type="button" class="quiet" (click)="addMacro(kind)">Add a carbs or fat target</button>
+    }
+  } @else {
+    <p class="none">No targets yet</p>
+    <button type="button" class="set" (click)="addAny()">Set a target</button>
+  }
+
+  @if (sheet(); as open) {
+    <app-target-sheet [type]="open.type" [goal]="open.goal" [choices]="open.choices" (saved)="onSaved()" (dismissed)="sheet.set(null)" />
+  }
+</section>

@@ -1,133 +1,50 @@
-<div class="page-grid profile-page">
+<div class="me">
   @if (loading()) {
-    <div class="summary-card skeleton tall"></div>
-    <div class="summary-card skeleton"></div>
+    <div class="skeleton tall" aria-busy="true" aria-label="Loading your profile"></div>
+    <div class="skeleton"></div>
   } @else if (error()) {
-    <app-state-panel
-      title="Profile unavailable"
-      [message]="error() ?? ''"
-      actionLabel="Retry"
-      [error]="true"
-      (action)="load()"
+    <app-state-panel title="Me is unavailable" [message]="error() ?? ''" actionLabel="Try again" [error]="true" (action)="load()" />
+  } @else if (user(); as person) {
+    <app-identity-card
+      [name]="person.profile.displayName"
+      [avatarUrl]="person.profile.avatarUrl"
+      [place]="person.profile.locationDisplay"
+      [createdAt]="person.profile.createdAt ?? null"
+      [footprint]="footprint()"
+      [loading]="footprintLoading()"
+      [failed]="footprintFailed()"
+      [today]="today"
+      (retry)="loadFootprint()"
     />
-  } @else if (data(); as dashboard) {
-    <header class="profile-hero">
-      <span class="profile-avatar" aria-hidden="true">{{ initials() }}</span>
-      <div class="profile-id">
-        <p class="eyebrow">Profile</p>
-        <h1>{{ dashboard.profile.displayName }}</h1>
-        <p class="profile-sub">
-          {{ label(dashboard.profile.activityLevel) }}@if (age() !== null) { · {{ age() }} yrs }
-          @if (dashboard.profile.timezone) { · {{ dashboard.profile.timezone }} }
-        </p>
-      </div>
-      <div class="profile-actions">
-        <a class="button secondary" routerLink="/settings" fragment="personal">Edit profile</a>
-        <a class="button secondary" routerLink="/settings">Settings</a>
-      </div>
-    </header>
 
-    <section class="summary-card">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Lifetime stats</span>
-          <h2>Your training history</h2>
-        </div>
-      </div>
-      @if (workoutSummary(); as summary) {
-        @if (hasTrainingHistory(summary)) {
-          <div class="training-stat-grid">
-            <article>
-              <span>Workouts</span>
-              <strong>{{ summary.totalWorkoutCount }}</strong>
-            </article>
-            <article>
-              <span>Hours trained</span>
-              <strong>{{ totalTrainingHours(summary) }}</strong>
-            </article>
-            <article>
-              <span>Average session</span>
-              <strong>{{ (summary.averageDurationMinutes || 0) | number: '1.0-0' }} min</strong>
-            </article>
-            <article>
-              <span>Calories burned</span>
-              <strong>{{ summary.totalCaloriesBurned || 0 }}</strong>
-            </article>
-          </div>
-        } @else {
-          <app-state-panel title="No training history yet" message="Complete a workout to start building your training totals." />
+    @if (about(); as aboutData) {
+      <app-about-you [data]="aboutData" />
+    }
+
+    <app-targets-card [goals]="goals()" (changed)="loadGoals()" />
+
+    <app-achievements-card
+      [badges]="badges()"
+      [loading]="badgesLoading()"
+      [failed]="badgesFailed()"
+      [days]="footprint()?.days ?? []"
+      [today]="today"
+      [pace]="pace()"
+      (retry)="loadBadges()"
+    />
+
+    <section class="card settings" aria-labelledby="settings-title">
+      <h2 id="settings-title" class="eyebrow">Settings</h2>
+      <ul>
+        @for (row of settingsRows; track row.label) {
+          <li>
+            <a [class.danger]="row.danger" routerLink="/settings" [queryParams]="{ section: row.section }">
+              <span>{{ row.label }}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+            </a>
+          </li>
         }
-      } @else {
-        <app-state-panel title="No training history yet" message="Complete a workout to start building your training totals." />
-      }
-    </section>
-
-    <section class="profile-split">
-      <article class="summary-card">
-        <span class="card-label">Consistency</span>
-        <h2>Streak</h2>
-        @if (workoutSummary()?.activeStreakDays; as streakDays) {
-          <div class="streak-metric">
-            <strong>{{ streakLabel(streakDays) }}</strong>
-            <span>Active workout streak</span>
-          </div>
-        } @else {
-          <app-state-panel title="No active streak" message="Complete a workout to start a new streak." />
-        }
-      </article>
-
-      <article class="summary-card goal-card">
-        <div class="section-title">
-          <div>
-            <span class="card-label">Current goal</span>
-            <h2>Active target</h2>
-          </div>
-          <a routerLink="/me" fragment="goal-lifecycle" class="text-link">Manage</a>
-        </div>
-
-        @if (activeGoal(); as goal) {
-          <div class="goal-headline">
-            <strong>{{ label(goal.goalType) }}</strong>
-            <span>{{ goalTargetLabel(goal) }} &middot; {{ goalTargetDateLabel(goal) }}</span>
-          </div>
-          <div class="progress-track" aria-hidden="true">
-            <span [style.width.%]="goalProgress()"></span>
-          </div>
-          <p class="goal-progress-label">{{ goalProgress() }}% complete</p>
-        } @else {
-          <app-state-panel title="No active goal" message="Set a measurable target to track progress here." />
-        }
-      </article>
-    </section>
-
-    <app-goal-lifecycle />
-
-    <section class="summary-card">
-      <div class="section-title">
-        <div>
-          <span class="card-label">Recent activity</span>
-          <h2>Latest entries</h2>
-        </div>
-      </div>
-
-      @if (recentActivity().length) {
-        <div class="activity-list">
-          @for (item of recentActivity(); track item.title + item.when) {
-            <article class="activity-row">
-              <span class="activity-icon">
-                <span class="fs-icon" [attr.data-icon]="item.icon" aria-hidden="true"></span>
-              </span>
-              <div class="activity-body">
-                <strong>{{ item.title }}</strong>
-                <small>{{ item.detail }}</small>
-              </div>
-              <span class="activity-when">{{ formatDate(item.when) }}</span>
-            </article>
-          }
-        </div>
-      } @else {
-        <app-state-panel title="Nothing logged yet" message="Log a workout, meal, or weigh-in to see it here." />
-      }
+      </ul>
     </section>
   }
 </div>

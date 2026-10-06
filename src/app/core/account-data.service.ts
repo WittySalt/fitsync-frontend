@@ -26,6 +26,8 @@ export interface AccountProfile {
   membershipTier: string | null;
   membershipStatus: string | null;
   onboardingCompleted: boolean;
+  /** When the account was created, when the server sends it (the Me page falls back to it for "member since"). */
+  createdAt?: string | null;
 }
 
 export interface AccountBodyMetric {
@@ -127,6 +129,8 @@ export interface AccountUserResponse {
   preferences: AccountPreferences;
   activeGoals: UserGoal[];
   latestBodyMetrics: AccountBodyMetric | null;
+  /** The health readiness answers; only the injured areas are read, by the Me page. */
+  healthReadiness?: { injuryAreas?: string[] | null } | null;
 }
 
 export interface AuthAccountResponse {

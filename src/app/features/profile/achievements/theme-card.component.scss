@@ -1,0 +1,60 @@
+:host { display: block; min-width: 0; }
+
+.card {
+  box-sizing: border-box;
+  padding: var(--pg-card-pad);
+  border: 1px solid var(--border);
+  border-radius: var(--pg-card-radius);
+  background: var(--surface);
+}
+
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--pg-eyebrow);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--pg-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.count { font-size: var(--pg-control); color: var(--text-secondary); }
+
+.path { position: relative; }
+.path.second { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+/* The line runs along the disc centres: half a slot in from the left, 20px down from the top of the path. */
+.line { position: absolute; left: 10%; top: 20px; height: 2px; background: var(--border); }
+.path.second .line { top: 38px; }
+.line.green { background: var(--accent); }
+
+ol { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+li { min-width: 0; }
+
+.node {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  width: 100%;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: center;
+  color: inherit;
+}
+
+button.node { cursor: pointer; }
+button.node:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; border-radius: 8px; }
+.name { font-size: var(--pg-control); font-weight: var(--fw-semibold); color: var(--text-primary); line-height: var(--lh-snug); overflow-wrap: anywhere; }
+.sub { font-size: var(--pg-chart); color: var(--text-secondary); line-height: var(--lh-snug); overflow-wrap: anywhere; }
+.sub.gap { font-weight: var(--fw-bold); color: var(--text-primary); }
+.soft { color: var(--text-secondary); font-weight: var(--fw-normal); }
+
+@media (max-width: 640px) {
+  .card { padding: var(--pg-card-pad-phone); }
+  .name { font-size: var(--pg-chart); }
+  .sub { font-size: 11px; }
+}
