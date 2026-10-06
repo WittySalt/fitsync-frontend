@@ -28,6 +28,7 @@ import { ENERGY_ASK, balanceHeadline, foodHeroStats, foodSentence, foodVerdict, 
 import { FoodMealsSectionComponent } from './food-meals-section.component';
 import { FoodNutrientsSectionComponent } from './food-nutrients-section.component';
 import { FoodPlateSectionComponent } from './food-plate-section.component';
+import { markVisit } from '../../../core/guide/guide.service';
 
 /** The sections of the page, in order, as the contents rail lists them. */
 export const FOOD_SECTIONS: readonly JumpItem[] = [
@@ -76,6 +77,7 @@ interface MacroTile {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FoodPage {
+  private readonly visit = markVisit('progress-food');
   private readonly api = inject(ProgressApiService);
   private readonly nutrientsApi = inject(NutrientsService);
   private readonly destroyRef = inject(DestroyRef);

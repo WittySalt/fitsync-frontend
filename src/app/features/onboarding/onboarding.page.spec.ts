@@ -43,9 +43,7 @@ function fillValidOnboarding(component: OnboardingPage): void {
     targetCalories: 2100,
     targetProteinGrams: 140,
     targetCarbsGrams: 210,
-    targetFatGrams: 70,
-    workoutReminderEnabled: true,
-    mealReminderEnabled: false
+    targetFatGrams: 70
   });
 }
 
@@ -93,13 +91,13 @@ describe('OnboardingPage', () => {
 
   it('hides target and pace inputs for maintain goals', () => {
     component.selectPrimaryGoal('MAINTAIN');
-    component.currentStep.set(2);
+    component.currentStep.set(1);
     fixture.detectChanges();
 
     const element = fixture.nativeElement as HTMLElement;
     expect(component.showsTargetAndPace()).toBeFalse();
-    expect(element.textContent).toContain('Activity-based plan');
     expect(element.textContent).not.toContain('Target weight');
+    expect(element.textContent).not.toContain('Weekly pace');
   });
 
   it('switches profile inputs to imperial units', () => {
@@ -132,12 +130,12 @@ describe('OnboardingPage', () => {
   });
 
   it('requires training choices before advancing from the training step', () => {
-    component.currentStep.set(3);
+    component.currentStep.set(2);
     component.form.controls.preferredDurationMinutes.setValue(2);
 
     component.nextStep();
 
-    expect(component.currentStep()).toBe(3);
+    expect(component.currentStep()).toBe(2);
     expect(component.error()).toContain('Please complete');
     expect(component.form.controls.preferredDurationMinutes.invalid).toBeTrue();
   });
@@ -174,18 +172,18 @@ describe('OnboardingPage', () => {
   });
 
   it('requires PAR-Q disclaimer acknowledgement when a readiness risk is selected', () => {
-    component.currentStep.set(4);
+    component.currentStep.set(3);
     component.form.controls.parqHeartCondition.setValue(true);
 
     component.nextStep();
 
-    expect(component.currentStep()).toBe(4);
+    expect(component.currentStep()).toBe(3);
     expect(component.hasParqRisk()).toBeTrue();
 
     component.setParqAcknowledged(true);
     component.nextStep();
 
-    expect(component.currentStep()).toBe(5);
+    expect(component.currentStep()).toBe(4);
     const value = (component as unknown as { toOnboardingValue(): { parqAcknowledgedAt: string | null } }).toOnboardingValue();
     expect(value.parqAcknowledgedAt).toBeTruthy();
   });
@@ -271,48 +269,168 @@ describe('OnboardingPage', () => {
     expect(component.form.pristine).toBeTrue();
   });
 
-  it('applies goal defaults and goal copy for each primary goal', () => {
+  it('applies goal defaults for each primary goal and says what the goal changes', () => {
     component.selectPrimaryGoal('LOSE_FAT');
     expect(component.form.controls.weeklyPaceKg.value).toBe(0.5);
     expect(component.form.controls.calorieTrackingMode.value).toBe('STRICT');
-    expect(component.goalCopy()).toContain('sustainable deficit');
+    expect(component.explainLines()[0]).toContain('Lose fat sets a weekly pace');
 
     component.selectPrimaryGoal('BUILD_MUSCLE');
     expect(component.form.controls.weeklyPaceKg.value).toBe(0.25);
-    expect(component.goalCopy()).toContain('measured surplus');
+    expect(component.explainLines()[0]).toContain('gentle surplus');
 
     component.selectPrimaryGoal('MAINTAIN');
     expect(component.form.controls.weeklyWorkoutDays.value).toBe(3);
     expect(component.form.controls.weeklyPaceKg.value).toBeNull();
-    expect(component.goalCopy()).toContain('maintenance');
+    expect(component.explainLines()[0]).toContain('close to what you burn');
 
     component.selectPrimaryGoal('IMPROVE_FITNESS');
     expect(component.form.controls.weeklyWorkoutDays.value).toBe(5);
     expect(component.showsTargetAndPace()).toBeFalse();
-    expect(component.goalCopy()).toContain('activity consistency');
+    expect(component.explainLines()[0]).toContain('training rhythm');
 
     component.form.controls.primaryGoal.setValue(null);
-    expect(component.goalCopy()).toContain('Pick the outcome');
+    expect(component.explainLines()[0]).toContain('first defaults');
   });
 
-  it('covers training and health goal copy branches', () => {
-    component.currentStep.set(3);
+  it('groups the setup into five named steps with one subtitle each', () => {
+    expect(component.steps.map((step) => step.label)).toEqual(['Goal', 'You', 'Training', 'Health', 'Your plan']);
+    expect(component.subtitle()).toBe('Pick the outcome that matters most right now. You can change it later.');
+    component.currentStep.set(1);
+    expect(component.subtitle()).toBe('The basics the targets are worked out from.');
+    component.currentStep.set(2);
+    expect(component.subtitle()).toBe('What the coach plans your week from.');
+  });
 
-    component.selectChoice('trainingLocation', 'HOME');
-    expect(component.goalCopy()).toContain('your space');
-    expect(component.isChoiceSelected('trainingLocation', 'HOME')).toBeTrue();
+  it('shows the step line and the What this changes card instead of the chip strip', () => {
+    component.selectPrimaryGoal('LOSE_FAT');
+    fixture.detectChanges();
 
-    component.selectChoice('trainingLocation', 'GYM');
-    expect(component.goalCopy()).toContain('gym access');
+    const element = fixture.nativeElement as HTMLElement;
+    expect(Array.from(element.querySelectorAll('app-onboarding-step-line li')).map((li) => li.textContent?.trim())).toEqual([
+      'Goal',
+      'You',
+      'Training',
+      'Health',
+      'Your plan'
+    ]);
+    expect(element.querySelector('app-onboarding-step-line li.current')?.textContent?.trim()).toBe('Goal');
+    expect(element.querySelector('app-onboarding-explain-card')?.textContent).toContain('What this changes');
+    expect(element.querySelector('.plan-strip')).toBeNull();
+  });
 
-    component.selectChoice('trainingLocation', 'OUTDOOR');
-    expect(component.goalCopy()).toContain('outdoor-friendly');
+  it('keeps the sentences of the card current while choices change', () => {
+    component.currentStep.set(2);
+    component.form.controls.weeklyWorkoutDays.setValue(3);
+    fixture.detectChanges();
+    const card = (fixture.nativeElement as HTMLElement).querySelector('app-onboarding-explain-card') as HTMLElement;
+    expect(card.textContent).toContain('Three sessions a week becomes your target');
 
-    component.selectChoice('trainingLocation', 'MIXED');
-    expect(component.goalCopy()).toContain('flexible');
+    component.form.controls.weeklyWorkoutDays.setValue(5);
+    fixture.detectChanges();
+    expect(card.textContent).toContain('Five sessions a week becomes your target');
+  });
 
+  it('writes experience and intensity together from the How hard row', () => {
+    const [easeIn, steady, push] = component.howHardChoices;
+
+    component.selectHowHard(easeIn);
+    expect(component.form.controls.fitnessLevel.value).toBe('BEGINNER');
+    expect(component.form.controls.intensityPreference.value).toBe('LOW');
+    expect(component.isHowHardSelected(easeIn)).toBeTrue();
+
+    component.selectHowHard(steady);
+    expect(component.form.controls.fitnessLevel.value).toBe('INTERMEDIATE');
+    expect(component.form.controls.intensityPreference.value).toBe('MODERATE');
+
+    component.selectHowHard(push);
+    expect(component.form.controls.fitnessLevel.value).toBe('ADVANCED');
+    expect(component.form.controls.intensityPreference.value).toBe('HIGH');
+    expect(component.isHowHardSelected(push)).toBeTrue();
+    expect(component.isHowHardSelected(steady)).toBeFalse();
+  });
+
+  it('renders the three How hard choices on the training step and no separate level rows', () => {
+    component.currentStep.set(2);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const labels = Array.from(element.querySelectorAll('[aria-label="How hard"] .choice-pill strong')).map((node) => node.textContent?.trim());
+    expect(labels).toEqual(['Ease in', 'Steady', 'Push']);
+    expect(element.textContent).not.toContain('How experienced are you?');
+    expect(element.textContent).not.toContain('How hard should we start?');
+  });
+
+  it('has no reminder toggles and sends both reminders off', () => {
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
     component.currentStep.set(4);
-    expect(component.goalCopy()).toContain('not medical advice');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('reminder');
+    expect(Object.keys(component.form.controls)).not.toContain('workoutReminderEnabled');
+    expect(Object.keys(component.form.controls)).not.toContain('mealReminderEnabled');
+
+    fillValidOnboarding(component);
+    component.submit();
+
+    expect(dataService.saveOnboarding).toHaveBeenCalledWith(
+      jasmine.objectContaining({ workoutReminderEnabled: false, mealReminderEnabled: false })
+    );
+  });
+
+  it('sends the same request fields as before, with the How hard mapping on experience and intensity', () => {
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    fillValidOnboarding(component);
+    component.selectHowHard(component.howHardChoices[2]);
+
+    component.submit();
+
+    expect(dataService.saveOnboarding).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        primaryGoal: 'LOSE_FAT',
+        fitnessLevel: 'ADVANCED',
+        intensityPreference: 'HIGH',
+        trainingLocation: 'GYM',
+        activityLevel: 'MODERATELY_ACTIVE',
+        dietaryPattern: 'NONE',
+        calorieTrackingMode: 'STRICT'
+      })
+    );
+  });
+
+  it('asks for the You fields, weight included, before leaving step two', () => {
+    component.selectPrimaryGoal('LOSE_FAT');
+    component.currentStep.set(1);
+    component.form.patchValue({ displayName: 'Alice Tan', gender: 'FEMALE', birthDate: '1992-03-14', heightCm: 168 });
+
+    component.nextStep();
+    expect(component.currentStep()).toBe(1);
+    expect(component.form.controls.currentWeightKg.invalid).toBeTrue();
+
+    component.form.patchValue({ currentWeightKg: 72, targetWeightKg: 65 });
+    component.nextStep();
+    expect(component.currentStep()).toBe(2);
+  });
+
+  it('asks for the targets and the pattern before the plan can be saved', () => {
+    component.currentStep.set(4);
+    component.form.patchValue({ targetCalories: null });
+
+    component.submit();
+    expect(dataService.saveOnboarding).not.toHaveBeenCalled();
+
+    component.form.patchValue({ targetCalories: 2000 });
+    expect(component.form.controls.targetCalories.valid).toBeTrue();
+  });
+
+  it('writes the plan summary in words on the last step', () => {
+    fillValidOnboarding(component);
+    component.currentStep.set(4);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Gym, four days a week, 45 minutes, steady effort. Lose fat to 65 kg by');
+    expect(text).toContain('Use recommendation');
+    expect(text).toContain('Save and continue');
   });
 
   it('advances and retreats within step bounds after valid input', () => {
@@ -351,12 +469,12 @@ describe('OnboardingPage', () => {
   });
 
   it('requires valid injury areas and clears PAR-Q acknowledgement timestamps', () => {
-    component.currentStep.set(4);
+    component.currentStep.set(3);
     component.form.controls.injuryAreas.setValue(['bad-value']);
 
     component.nextStep();
 
-    expect(component.currentStep()).toBe(4);
+    expect(component.currentStep()).toBe(3);
     expect(component.form.controls.injuryAreas.invalid).toBeTrue();
 
     component.form.controls.injuryAreas.setValue(['KNEE']);
@@ -368,39 +486,6 @@ describe('OnboardingPage', () => {
     expect(value.parqAcknowledgedAt).toBeNull();
   });
 
-  it('summarizes plan chips with optional equipment, focus, and health notes', () => {
-    component.form.patchValue({
-      trainingLocation: 'GYM',
-      fitnessLevel: 'ADVANCED',
-      intensityPreference: 'HIGH',
-      weeklyWorkoutDays: 5,
-      preferredDurationMinutes: 60,
-      equipmentInventory: ['DUMBBELLS', 'BARBELL'],
-      focusAreas: ['UPPER', 'LOWER'],
-      parqOtherReason: true
-    });
-
-    expect(component.planChips()).toEqual([
-      'Gym',
-      'Advanced',
-      '5 days/week',
-      '60 min',
-      'High',
-      '2 equipment',
-      '2 focus areas',
-      'Health notes'
-    ]);
-
-    component.form.patchValue({
-      equipmentInventory: [],
-      focusAreas: ['CORE'],
-      parqOtherReason: false
-    });
-
-    expect(component.planChips()).toContain('1 focus area');
-    expect(component.planChips()).not.toContain('Health notes');
-  });
-
   it('submits a valid onboarding payload and offers the three ways into a first plan', () => {
     const navigateByUrl = spyOn(router, 'navigateByUrl').and.resolveTo(true);
     fillValidOnboarding(component);
@@ -408,7 +493,7 @@ describe('OnboardingPage', () => {
     component.submit();
 
     expect(dataService.saveOnboarding).toHaveBeenCalled();
-    expect(toast.success).toHaveBeenCalledWith('Your plan is ready. Welcome to FitSync!');
+    expect(toast.success).toHaveBeenCalledWith('Your plan is ready.');
     expect(component.entryOpen()).toBeTrue();
     expect(navigateByUrl).not.toHaveBeenCalled();
   });
@@ -461,7 +546,7 @@ describe('OnboardingPage', () => {
     }
 
     it('offers Decide later beside the number on the training step', () => {
-      component.currentStep.set(3);
+      component.currentStep.set(2);
       fixture.detectChanges();
 
       const checkbox = decideLaterCheckbox();
@@ -471,7 +556,7 @@ describe('OnboardingPage', () => {
     });
 
     it('makes the value null and the step valid when Decide later is chosen', () => {
-      component.currentStep.set(3);
+      component.currentStep.set(2);
       fixture.detectChanges();
 
       decideLaterCheckbox().click();
@@ -483,11 +568,11 @@ describe('OnboardingPage', () => {
       expect(decideLaterCheckbox().checked).toBeTrue();
 
       component.nextStep();
-      expect(component.currentStep()).toBe(4);
+      expect(component.currentStep()).toBe(3);
     });
 
     it('goes back to a number when Decide later is cleared, and when a number is typed', () => {
-      component.currentStep.set(3);
+      component.currentStep.set(2);
       component.setWeeklyDaysLater(true);
       fixture.detectChanges();
 
@@ -540,12 +625,12 @@ describe('OnboardingPage', () => {
         of({ ...emptySeed(), value: { weeklyWorkoutDays: null }, hasExistingTrainingBaseline: true })
       );
       const returning = TestBed.createComponent(OnboardingPage);
-      returning.componentInstance.currentStep.set(3);
+      returning.componentInstance.currentStep.set(2);
       returning.detectChanges();
 
       expect(returning.componentInstance.form.controls.weeklyWorkoutDays.value).toBeNull();
       expect(decideLaterCheckbox(returning).checked).toBeTrue();
-      expect(returning.componentInstance.planChips()).toContain('Days to be decided');
+      expect(returning.componentInstance.summary()).toContain('days a week to be decided');
     });
   });
 });

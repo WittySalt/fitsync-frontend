@@ -25,6 +25,8 @@ import { StatePanelComponent } from '../../shared/state-panel.component';
 import { SessionRecordComponent } from './session-record.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
+import { SESSION_OPENED } from '../../core/guide/guide-gates';
+import { GuideService } from '../../core/guide/guide.service';
 
 type ExerciseSetEditGroup = FormGroup<{
   reps: FormControl<number | null>;
@@ -63,6 +65,7 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   private readonly live = inject(WorkoutLiveService);
+  private readonly guide = inject(GuideService);
 
   @Input() sessionId: string | null = null;
   @Output() closed = new EventEmitter<void>();
@@ -509,6 +512,8 @@ export class SessionDetailComponent implements OnInit, OnChanges {
         this.session.set(session);
         if (!session) {
           this.toast.error('Unable to load session detail.');
+        } else if (session.status === 'COMPLETED') {
+          this.guide.bump(SESSION_OPENED);
         }
         this.loading.set(false);
       },

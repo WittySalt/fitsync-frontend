@@ -3,512 +3,402 @@
     <div>
       <p class="eyebrow">Setup</p>
       <h1>Build your FitSync plan</h1>
-      <p>Start with the outcome you care about, then FitSync will shape the defaults and daily targets around it.</p>
     </div>
   </header>
 
   <form class="form-card" [formGroup]="form" (ngSubmit)="submit()">
     <fieldset [disabled]="submitting()">
-      <nav class="step-rail" aria-label="Onboarding steps">
-        @for (step of steps; track step.label; let index = $index) {
-          <span
-            class="step-pill"
-            [class.complete]="index < currentStep()"
-            [class.current]="index === currentStep()"
-            [attr.aria-current]="index === currentStep() ? 'step' : null"
-          >
-            <span>{{ index + 1 }}</span>
-            {{ step.label }}
-          </span>
-        }
-      </nav>
+      <app-onboarding-step-line [labels]="stepLabels" [current]="currentStep()" />
 
-      <section class="step-panel">
-        <p class="eyebrow">{{ steps[currentStep()].label }}</p>
-        <h2>{{ steps[currentStep()].title }}</h2>
-        <p class="coach-copy">{{ goalCopy() }}</p>
-        @if (planChips().length) {
-          <div class="plan-strip" aria-label="Your plan so far">
-            @for (chip of planChips(); track chip) {
-              <span>{{ chip }}</span>
-            }
+      <div class="layout">
+        <section class="step-panel">
+          <div class="step-head">
+            <h2>{{ steps[currentStep()].title }}</h2>
+            <p class="coach-copy">{{ subtitle() }}</p>
           </div>
-        }
 
-        @switch (currentStep()) {
-          @case (0) {
-            <div class="goal-grid" role="radiogroup" aria-label="Primary goal">
-              <button
-                type="button"
-                class="goal-card"
-                [class.selected]="isSelectedGoal('LOSE_FAT')"
-                [attr.aria-pressed]="isSelectedGoal('LOSE_FAT')"
-                (click)="selectPrimaryGoal('LOSE_FAT')"
-              >
-                <strong>Lose fat</strong>
-                <span>Set a target weight, pace, ETA, and calorie deficit.</span>
-              </button>
-              <button
-                type="button"
-                class="goal-card"
-                [class.selected]="isSelectedGoal('BUILD_MUSCLE')"
-                [attr.aria-pressed]="isSelectedGoal('BUILD_MUSCLE')"
-                (click)="selectPrimaryGoal('BUILD_MUSCLE')"
-              >
-                <strong>Build muscle</strong>
-                <span>Use a measured surplus and training consistency.</span>
-              </button>
-              <button
-                type="button"
-                class="goal-card"
-                [class.selected]="isSelectedGoal('MAINTAIN')"
-                [attr.aria-pressed]="isSelectedGoal('MAINTAIN')"
-                (click)="selectPrimaryGoal('MAINTAIN')"
-              >
-                <strong>Maintain</strong>
-                <span>Keep nutrition steady and reinforce weekly habits.</span>
-              </button>
-              <button
-                type="button"
-                class="goal-card"
-                [class.selected]="isSelectedGoal('IMPROVE_FITNESS')"
-                [attr.aria-pressed]="isSelectedGoal('IMPROVE_FITNESS')"
-                (click)="selectPrimaryGoal('IMPROVE_FITNESS')"
-              >
-                <strong>Improve fitness</strong>
-                <span>Prioritize activity, recovery, and workout rhythm.</span>
-              </button>
-            </div>
-
-            @if (!hasPrimaryGoal()) {
-              <app-state-panel title="Choose a goal to start" message="Your answer sets the defaults for pace, workouts, and daily targets." />
-            }
-          }
-
-          @case (1) {
-            <div class="form-grid two">
-              <label>
-                Display name
-                <input formControlName="displayName" placeholder="Your name" autocomplete="name" />
-                @if (isInvalid('displayName')) {
-                  <span class="field-error">Display name is required.</span>
-                }
-              </label>
-
-              <label>
-                Gender
-                <select formControlName="gender">
-                  <option value="">Select gender</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="MALE">Male</option>
-                  <option value="NON_BINARY">Non-binary</option>
-                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                </select>
-                @if (isInvalid('gender')) {
-                  <span class="field-error">Gender is required.</span>
-                }
-              </label>
-
-              <label>
-                Birth date
-                <input type="date" formControlName="birthDate" autocomplete="bday" />
-                @if (isInvalid('birthDate')) {
-                  <span class="field-error">Birth date is required.</span>
-                }
-              </label>
-
-              <label>
-                Preferred units
-                <select formControlName="preferredUnits" (change)="changeUnits($any($event.target).value)">
-                  <option value="METRIC">Metric</option>
-                  <option value="IMPERIAL">Imperial</option>
-                </select>
-              </label>
-            </div>
-
-            @if (preferredUnits() === 'METRIC') {
-              <div class="form-grid two">
-                <label>
-                  Height (cm)
-                  <input type="number" formControlName="heightCm" min="80" max="240" />
-                  @if (isInvalid('heightCm')) {
-                    <span class="field-error">Enter a height between 80 and 240 cm.</span>
-                  }
-                </label>
-              </div>
-            } @else {
-              <div class="form-grid two">
-                <label>
-                  Height (ft)
-                  <input type="number" formControlName="heightFt" min="3" max="8" />
-                  @if (isInvalid('heightFt')) {
-                    <span class="field-error">Enter feet between 3 and 8.</span>
-                  }
-                </label>
-                <label>
-                  Height (in)
-                  <input type="number" formControlName="heightIn" min="0" max="11" />
-                  @if (isInvalid('heightIn')) {
-                    <span class="field-error">Enter inches between 0 and 11.</span>
-                  }
-                </label>
+          @switch (currentStep()) {
+            @case (0) {
+              <div class="goal-grid" role="radiogroup" aria-label="Primary goal">
+                <button
+                  type="button"
+                  class="goal-card"
+                  [class.selected]="isSelectedGoal('LOSE_FAT')"
+                  [attr.aria-pressed]="isSelectedGoal('LOSE_FAT')"
+                  (click)="selectPrimaryGoal('LOSE_FAT')"
+                >
+                  <strong>Lose fat</strong>
+                  <span>Set a target weight, pace, ETA, and calorie deficit.</span>
+                </button>
+                <button
+                  type="button"
+                  class="goal-card"
+                  [class.selected]="isSelectedGoal('BUILD_MUSCLE')"
+                  [attr.aria-pressed]="isSelectedGoal('BUILD_MUSCLE')"
+                  (click)="selectPrimaryGoal('BUILD_MUSCLE')"
+                >
+                  <strong>Build muscle</strong>
+                  <span>Use a measured surplus and training consistency.</span>
+                </button>
+                <button
+                  type="button"
+                  class="goal-card"
+                  [class.selected]="isSelectedGoal('MAINTAIN')"
+                  [attr.aria-pressed]="isSelectedGoal('MAINTAIN')"
+                  (click)="selectPrimaryGoal('MAINTAIN')"
+                >
+                  <strong>Maintain</strong>
+                  <span>Keep nutrition steady and reinforce weekly habits.</span>
+                </button>
+                <button
+                  type="button"
+                  class="goal-card"
+                  [class.selected]="isSelectedGoal('IMPROVE_FITNESS')"
+                  [attr.aria-pressed]="isSelectedGoal('IMPROVE_FITNESS')"
+                  (click)="selectPrimaryGoal('IMPROVE_FITNESS')"
+                >
+                  <strong>Improve fitness</strong>
+                  <span>Prioritize activity, recovery, and workout rhythm.</span>
+                </button>
               </div>
             }
-          }
 
-          @case (2) {
-            @if (preferredUnits() === 'METRIC') {
+            @case (1) {
               <div class="form-grid two">
                 <label>
-                  Current weight (kg)
-                  <input type="number" formControlName="currentWeightKg" min="20" max="350" step="0.1" />
-                  @if (isInvalid('currentWeightKg')) {
-                    <span class="field-error">Enter a valid current weight.</span>
+                  Display name
+                  <input formControlName="displayName" placeholder="Your name" autocomplete="name" />
+                  @if (isInvalid('displayName')) {
+                    <span class="field-error">Display name is required.</span>
                   }
                 </label>
+
+                <label>
+                  Gender
+                  <select formControlName="gender">
+                    <option value="">Select gender</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="MALE">Male</option>
+                    <option value="NON_BINARY">Non-binary</option>
+                    <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                  </select>
+                  @if (isInvalid('gender')) {
+                    <span class="field-error">Gender is required.</span>
+                  }
+                </label>
+
+                <label>
+                  Birth date
+                  <input type="date" formControlName="birthDate" autocomplete="bday" />
+                  @if (isInvalid('birthDate')) {
+                    <span class="field-error">Birth date is required.</span>
+                  }
+                </label>
+
+                <label>
+                  Preferred units
+                  <select formControlName="preferredUnits" (change)="changeUnits($any($event.target).value)">
+                    <option value="METRIC">Metric</option>
+                    <option value="IMPERIAL">Imperial</option>
+                  </select>
+                </label>
+
+                @if (preferredUnits() === 'METRIC') {
+                  <label>
+                    Height (cm)
+                    <input type="number" formControlName="heightCm" min="80" max="240" />
+                    @if (isInvalid('heightCm')) {
+                      <span class="field-error">Enter a height between 80 and 240 cm.</span>
+                    }
+                  </label>
+                  <label>
+                    Current weight (kg)
+                    <input type="number" formControlName="currentWeightKg" min="20" max="350" step="0.1" />
+                    @if (isInvalid('currentWeightKg')) {
+                      <span class="field-error">Enter a valid current weight.</span>
+                    }
+                  </label>
+                  @if (showsTargetAndPace()) {
+                    <label>
+                      Target weight (kg)
+                      <input type="number" formControlName="targetWeightKg" min="20" max="350" step="0.1" />
+                      @if (isInvalid('targetWeightKg')) {
+                        <span class="field-error">Enter a valid target weight.</span>
+                      }
+                    </label>
+                  }
+                } @else {
+                  <label>
+                    Height (ft)
+                    <input type="number" formControlName="heightFt" min="3" max="8" />
+                    @if (isInvalid('heightFt')) {
+                      <span class="field-error">Enter feet between 3 and 8.</span>
+                    }
+                  </label>
+                  <label>
+                    Height (in)
+                    <input type="number" formControlName="heightIn" min="0" max="11" />
+                    @if (isInvalid('heightIn')) {
+                      <span class="field-error">Enter inches between 0 and 11.</span>
+                    }
+                  </label>
+                  <label>
+                    Current weight (lb)
+                    <input type="number" formControlName="currentWeightLb" min="44" max="772" step="0.1" />
+                    @if (isInvalid('currentWeightLb')) {
+                      <span class="field-error">Enter a valid current weight.</span>
+                    }
+                  </label>
+                  @if (showsTargetAndPace()) {
+                    <label>
+                      Target weight (lb)
+                      <input type="number" formControlName="targetWeightLb" min="44" max="772" step="0.1" />
+                      @if (isInvalid('targetWeightLb')) {
+                        <span class="field-error">Enter a valid target weight.</span>
+                      }
+                    </label>
+                  }
+                }
 
                 @if (showsTargetAndPace()) {
                   <label>
-                    Target weight (kg)
-                    <input type="number" formControlName="targetWeightKg" min="20" max="350" step="0.1" />
-                    @if (isInvalid('targetWeightKg')) {
-                      <span class="field-error">Enter a valid target weight.</span>
+                    Pace (kg a week)
+                    <input type="number" formControlName="weeklyPaceKg" min="0.25" max="1" step="0.05" />
+                    @if (isInvalid('weeklyPaceKg')) {
+                      <span class="field-error">Choose a pace from 0.25 to 1.0 kg/week.</span>
                     }
                   </label>
                 }
-              </div>
-            } @else {
-              <div class="form-grid two">
-                <label>
-                  Current weight (lb)
-                  <input type="number" formControlName="currentWeightLb" min="44" max="772" step="0.1" />
-                  @if (isInvalid('currentWeightLb')) {
-                    <span class="field-error">Enter a valid current weight.</span>
-                  }
-                </label>
 
-                @if (showsTargetAndPace()) {
-                  <label>
-                    Target weight (lb)
-                    <input type="number" formControlName="targetWeightLb" min="44" max="772" step="0.1" />
-                    @if (isInvalid('targetWeightLb')) {
-                      <span class="field-error">Enter a valid target weight.</span>
-                    }
-                  </label>
-                }
-              </div>
-            }
-
-            @if (showsTargetAndPace()) {
-              <div class="form-grid two">
                 <label>
-                  Weekly pace (kg/week)
-                  <input type="number" formControlName="weeklyPaceKg" min="0.25" max="1" step="0.05" />
-                  @if (isInvalid('weeklyPaceKg')) {
-                    <span class="field-error">Choose a pace from 0.25 to 1.0 kg/week.</span>
-                  }
+                  Daily activity
+                  <select formControlName="activityLevel">
+                    <option value="SEDENTARY">Mostly seated</option>
+                    <option value="LIGHTLY_ACTIVE">Lightly active</option>
+                    <option value="MODERATELY_ACTIVE">Moderately active</option>
+                    <option value="VERY_ACTIVE">Very active</option>
+                    <option value="EXTRA_ACTIVE">Extra active</option>
+                  </select>
                 </label>
               </div>
-            } @else {
-              <app-state-panel
-                title="Activity-based plan"
-                message="This goal stays focused on workout consistency and maintenance calories, so target weight and weekly pace are not needed."
-              />
-            }
 
-            <div class="projection-card" aria-live="polite">
-              @if (projection().dailyCalories) {
-                <div>
-                  <span>Daily target</span>
-                  <strong>{{ projection().dailyCalories }} kcal</strong>
+              @if (projection().warnings.length) {
+                <div class="warning-list" aria-live="polite">
+                  @for (warning of projection().warnings; track warning) {
+                    <p>{{ warning }}</p>
+                  }
                 </div>
-                @if (projection().weekCount && projection().projectedDate) {
-                  <div>
-                    <span>Projected date</span>
-                    <strong>{{ projection().projectedDate }} (+{{ projection().weekCount }} weeks)</strong>
-                  </div>
-                }
-                <div>
-                  <span>Macros</span>
-                  <strong>{{ projection().proteinGrams }}g protein / {{ projection().carbsGrams }}g carbs / {{ projection().fatGrams }}g fat</strong>
-                </div>
-              } @else {
-                <app-state-panel title="Projection pending" message="Enter your height and current weight to calculate calories and macros." />
               }
-            </div>
+            }
 
-            @if (projection().warnings.length) {
-              <div class="warning-list" aria-live="polite">
-                @for (warning of projection().warnings; track warning) {
-                  <p>{{ warning }}</p>
+            @case (2) {
+              <div class="choice-section">
+                <h3>Where do you train most often?</h3>
+                <div class="goal-grid" role="radiogroup" aria-label="Training location">
+                  @for (option of trainingLocationOptions; track option.value) {
+                    <button
+                      type="button"
+                      class="goal-card"
+                      [class.selected]="isChoiceSelected('trainingLocation', option.value)"
+                      [attr.aria-pressed]="isChoiceSelected('trainingLocation', option.value)"
+                      (click)="selectChoice('trainingLocation', option.value)"
+                    >
+                      <strong>{{ option.label }}</strong>
+                      <span>{{ option.description }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="form-grid three">
+                <div class="weekly-days">
+                  <label>
+                    Days a week
+                    <input type="number" formControlName="weeklyWorkoutDays" min="1" max="7" />
+                    @if (isInvalid('weeklyWorkoutDays')) {
+                      <span class="field-error">Choose 1 to 7 days.</span>
+                    }
+                  </label>
+                  <label class="toggle-row">
+                    <input
+                      type="checkbox"
+                      [checked]="weeklyDaysUndecided()"
+                      (change)="setWeeklyDaysLater($any($event.target).checked)"
+                    />
+                    <span>Decide later</span>
+                  </label>
+                </div>
+
+                <label>
+                  Session (min)
+                  <input type="number" formControlName="preferredDurationMinutes" min="5" max="240" />
+                  @if (isInvalid('preferredDurationMinutes')) {
+                    <span class="field-error">Choose 5 to 240 minutes.</span>
+                  }
+                </label>
+
+                <label>
+                  Preferred time
+                  <input type="time" formControlName="preferredWorkoutTime" />
+                </label>
+              </div>
+
+              <div class="choice-section">
+                <h3>How hard</h3>
+                <div class="option-row" role="radiogroup" aria-label="How hard">
+                  @for (choice of howHardChoices; track choice.value) {
+                    <button
+                      type="button"
+                      class="choice-pill"
+                      [class.selected]="isHowHardSelected(choice)"
+                      [attr.aria-pressed]="isHowHardSelected(choice)"
+                      (click)="selectHowHard(choice)"
+                    >
+                      <strong>{{ choice.label }}</strong>
+                      <span>{{ choice.description }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="choice-section">
+                <h3>Equipment you can use</h3>
+                <div class="chip-grid" aria-label="Equipment inventory">
+                  @for (option of equipmentOptions; track option.value) {
+                    <button
+                      type="button"
+                      class="select-chip"
+                      [class.selected]="isMultiSelected('equipmentInventory', option.value)"
+                      [attr.aria-pressed]="isMultiSelected('equipmentInventory', option.value)"
+                      (click)="toggleMultiSelect('equipmentInventory', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  }
+                </div>
+                @if (isInvalid('equipmentInventory')) {
+                  <span class="field-error">Choose up to 8 equipment options.</span>
+                }
+              </div>
+
+              <div class="choice-section">
+                <h3>Focus areas</h3>
+                <div class="chip-grid" aria-label="Training focus areas">
+                  @for (option of focusOptions; track option.value) {
+                    <button
+                      type="button"
+                      class="select-chip"
+                      [class.selected]="isMultiSelected('focusAreas', option.value)"
+                      [attr.aria-pressed]="isMultiSelected('focusAreas', option.value)"
+                      (click)="toggleMultiSelect('focusAreas', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  }
+                </div>
+                @if (isInvalid('focusAreas')) {
+                  <span class="field-error">Choose up to 6 focus areas.</span>
                 }
               </div>
             }
-          }
 
-          @case (3) {
-            <div class="choice-section">
-              <h3>Where do you train most often?</h3>
-              <div class="goal-grid" role="radiogroup" aria-label="Training location">
-                @for (option of trainingLocationOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="goal-card"
-                    [class.selected]="isChoiceSelected('trainingLocation', option.value)"
-                    [attr.aria-pressed]="isChoiceSelected('trainingLocation', option.value)"
-                    (click)="selectChoice('trainingLocation', option.value)"
-                  >
-                    <strong>{{ option.label }}</strong>
-                    <span>{{ option.description }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="form-grid three">
-              <label>
-                Activity level
-                <select formControlName="activityLevel">
-                  <option value="SEDENTARY">Mostly seated</option>
-                  <option value="LIGHTLY_ACTIVE">Lightly active</option>
-                  <option value="MODERATELY_ACTIVE">Moderately active</option>
-                  <option value="VERY_ACTIVE">Very active</option>
-                  <option value="EXTRA_ACTIVE">Extra active</option>
-                </select>
-              </label>
-
-              <div class="weekly-days">
-                <label>
-                  Weekly workout days
-                  <input type="number" formControlName="weeklyWorkoutDays" min="1" max="7" />
-                  @if (isInvalid('weeklyWorkoutDays')) {
-                    <span class="field-error">Choose 1 to 7 days.</span>
-                  }
+            @case (3) {
+              <fieldset class="parq-list" aria-label="Health readiness questions">
+                <label class="toggle-row">
+                  <input type="checkbox" formControlName="parqHeartCondition" />
+                  <span>Has a doctor ever said you have a heart condition?</span>
                 </label>
                 <label class="toggle-row">
-                  <input
-                    type="checkbox"
-                    [checked]="weeklyDaysUndecided()"
-                    (change)="setWeeklyDaysLater($any($event.target).checked)"
-                  />
-                  <span>Decide later</span>
+                  <input type="checkbox" formControlName="parqChestPainActivity" />
+                  <span>Do you feel chest pain during physical activity?</span>
+                </label>
+                <label class="toggle-row">
+                  <input type="checkbox" formControlName="parqDizziness" />
+                  <span>Do you lose balance from dizziness or ever lose consciousness?</span>
+                </label>
+                <label class="toggle-row">
+                  <input type="checkbox" formControlName="parqBoneJointIssue" />
+                  <span>Do you have a bone or joint issue that could worsen with activity?</span>
+                </label>
+                <label class="toggle-row">
+                  <input type="checkbox" formControlName="parqBpOrHeartMeds" />
+                  <span>Do you take blood pressure or heart medication?</span>
+                </label>
+                <label class="toggle-row">
+                  <input type="checkbox" formControlName="parqOtherReason" />
+                  <span>Is there another reason you should avoid unsupervised exercise?</span>
+                </label>
+              </fieldset>
+
+              <div class="choice-section">
+                <h3>Any areas we should be careful with?</h3>
+                <div class="chip-grid" aria-label="Injury areas">
+                  @for (option of injuryOptions; track option.value) {
+                    <button
+                      type="button"
+                      class="select-chip"
+                      [class.selected]="isMultiSelected('injuryAreas', option.value)"
+                      [attr.aria-pressed]="isMultiSelected('injuryAreas', option.value)"
+                      (click)="toggleMultiSelect('injuryAreas', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  }
+                </div>
+                @if (isInvalid('injuryAreas')) {
+                  <span class="field-error">Choose up to 8 valid injury areas.</span>
+                }
+              </div>
+
+              <label class="toggle-row disclaimer-row">
+                <input
+                  type="checkbox"
+                  formControlName="parqAcknowledged"
+                  (change)="setParqAcknowledged($any($event.target).checked)"
+                />
+                <span>I understand FitSync is not medical advice and I should consult a qualified professional when needed.</span>
+              </label>
+              @if (hasParqRisk() && !form.controls.parqAcknowledged.value) {
+                <span class="field-error">Confirm the disclaimer to save these health readiness answers.</span>
+              }
+            }
+
+            @case (4) {
+              <div class="form-grid two">
+                <label>
+                  Dietary pattern
+                  <select formControlName="dietaryPattern">
+                    <option value="NONE">None</option>
+                    <option value="HALAL">Halal</option>
+                    <option value="VEGETARIAN">Vegetarian</option>
+                    <option value="VEGAN">Vegan</option>
+                    <option value="LOW_CARB">Low carb</option>
+                  </select>
+                </label>
+
+                <label>
+                  Calorie tracking
+                  <select formControlName="calorieTrackingMode">
+                    <option value="OFF">Off</option>
+                    <option value="FLEXIBLE">Flexible</option>
+                    <option value="STRICT">Strict</option>
+                  </select>
                 </label>
               </div>
 
-              <label>
-                Session duration (min)
-                <input type="number" formControlName="preferredDurationMinutes" min="5" max="240" />
-                @if (isInvalid('preferredDurationMinutes')) {
-                  <span class="field-error">Choose 5 to 240 minutes.</span>
-                }
-              </label>
-
-              <label>
-                Preferred workout time
-                <input type="time" formControlName="preferredWorkoutTime" />
-              </label>
-            </div>
-
-            <div class="choice-section">
-              <h3>How experienced are you?</h3>
-              <div class="option-row" role="radiogroup" aria-label="Fitness level">
-                @for (option of fitnessLevelOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="choice-pill"
-                    [class.selected]="isChoiceSelected('fitnessLevel', option.value)"
-                    [attr.aria-pressed]="isChoiceSelected('fitnessLevel', option.value)"
-                    (click)="selectChoice('fitnessLevel', option.value)"
-                  >
-                    <strong>{{ option.label }}</strong>
-                    <span>{{ option.description }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="choice-section">
-              <h3>How hard should we start?</h3>
-              <div class="option-row" role="radiogroup" aria-label="Training intensity">
-                @for (option of intensityOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="choice-pill"
-                    [class.selected]="isChoiceSelected('intensityPreference', option.value)"
-                    [attr.aria-pressed]="isChoiceSelected('intensityPreference', option.value)"
-                    (click)="selectChoice('intensityPreference', option.value)"
-                  >
-                    <strong>{{ option.label }}</strong>
-                    <span>{{ option.description }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="choice-section">
-              <h3>Equipment you can use</h3>
-              <div class="chip-grid" aria-label="Equipment inventory">
-                @for (option of equipmentOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="select-chip"
-                    [class.selected]="isMultiSelected('equipmentInventory', option.value)"
-                    [attr.aria-pressed]="isMultiSelected('equipmentInventory', option.value)"
-                    (click)="toggleMultiSelect('equipmentInventory', option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-              </div>
-              @if (isInvalid('equipmentInventory')) {
-                <span class="field-error">Choose up to 8 equipment options.</span>
-              }
-            </div>
-
-            <div class="choice-section">
-              <h3>Focus areas</h3>
-              <div class="chip-grid" aria-label="Training focus areas">
-                @for (option of focusOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="select-chip"
-                    [class.selected]="isMultiSelected('focusAreas', option.value)"
-                    [attr.aria-pressed]="isMultiSelected('focusAreas', option.value)"
-                    (click)="toggleMultiSelect('focusAreas', option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-              </div>
-              @if (isInvalid('focusAreas')) {
-                <span class="field-error">Choose up to 6 focus areas.</span>
-              }
-            </div>
-          }
-
-          @case (4) {
-            <fieldset class="parq-list" aria-label="Health readiness questions">
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="parqHeartCondition" />
-                <span>Has a doctor ever said you have a heart condition?</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="parqChestPainActivity" />
-                <span>Do you feel chest pain during physical activity?</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="parqDizziness" />
-                <span>Do you lose balance from dizziness or ever lose consciousness?</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="parqBoneJointIssue" />
-                <span>Do you have a bone or joint issue that could worsen with activity?</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="parqBpOrHeartMeds" />
-                <span>Do you take blood pressure or heart medication?</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="parqOtherReason" />
-                <span>Is there another reason you should avoid unsupervised exercise?</span>
-              </label>
-            </fieldset>
-
-            <div class="choice-section">
-              <h3>Any areas we should be careful with?</h3>
-              <div class="chip-grid" aria-label="Injury areas">
-                @for (option of injuryOptions; track option.value) {
-                  <button
-                    type="button"
-                    class="select-chip"
-                    [class.selected]="isMultiSelected('injuryAreas', option.value)"
-                    [attr.aria-pressed]="isMultiSelected('injuryAreas', option.value)"
-                    (click)="toggleMultiSelect('injuryAreas', option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-              </div>
-              @if (isInvalid('injuryAreas')) {
-                <span class="field-error">Choose up to 8 valid injury areas.</span>
-              }
-            </div>
-
-            @if (hasParqRisk()) {
-              <div class="warning-list" aria-live="polite">
-                <p>We recommend checking with a doctor first; FitSync will keep intensity conservative.</p>
-              </div>
-            }
-
-            <label class="toggle-row disclaimer-row">
-              <input
-                type="checkbox"
-                formControlName="parqAcknowledged"
-                (change)="setParqAcknowledged($any($event.target).checked)"
-              />
-              <span>I understand FitSync is not medical advice and I should consult a qualified professional when needed.</span>
-            </label>
-            @if (hasParqRisk() && !form.controls.parqAcknowledged.value) {
-              <span class="field-error">Confirm the disclaimer to save these health readiness answers.</span>
-            }
-          }
-
-          @case (5) {
-            <div class="form-grid three">
-              <label>
-                Dietary pattern
-                <select formControlName="dietaryPattern">
-                  <option value="NONE">None</option>
-                  <option value="HALAL">Halal</option>
-                  <option value="VEGETARIAN">Vegetarian</option>
-                  <option value="VEGAN">Vegan</option>
-                  <option value="LOW_CARB">Low carb</option>
-                </select>
-              </label>
-
-              <label>
-                Calorie tracking
-                <select formControlName="calorieTrackingMode">
-                  <option value="OFF">Off</option>
-                  <option value="FLEXIBLE">Flexible</option>
-                  <option value="STRICT">Strict</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="toggle-grid">
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="workoutReminderEnabled" />
-                <span>Workout reminder</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" formControlName="mealReminderEnabled" />
-                <span>Meal reminder</span>
-              </label>
-            </div>
-          }
-
-          @case (6) {
-            <div class="review-grid">
               <div class="summary-card">
                 <p class="card-label">Plan summary</p>
-                <h3>{{ goalCopy() }}</h3>
-                @if (projection().projectedDate && projection().weekCount) {
-                  <p>Projected {{ projection().projectedDate }} (+{{ projection().weekCount }} weeks).</p>
-                } @else {
-                  <p>Activity-focused plan with maintenance calories and {{ form.controls.weeklyWorkoutDays.value === null ? 'a weekly workout count to be decided' : form.controls.weeklyWorkoutDays.value + ' workout days per week' }}.</p>
-                }
-                <p>{{ form.controls.trainingLocation.value }} / {{ form.controls.fitnessLevel.value }} / {{ form.controls.intensityPreference.value }}</p>
+                <p class="summary-text">{{ summary() }}</p>
               </div>
 
-              <div class="summary-card editable-plan">
-                <p class="card-label">Editable daily targets</p>
+              <div class="editable-plan">
+                <p class="card-label">Daily targets</p>
                 <div class="form-grid two">
                   <label>
                     Calories
                     <input type="number" formControlName="targetCalories" (input)="onPlanEdited()" />
                     @if (isInvalid('targetCalories')) {
-                      <span class="field-error">Enter 1000 to 6000 kcal.</span>
+                      <span class="field-error">Enter 1,000 to 6,000 kcal.</span>
                     }
                   </label>
                   <label>
@@ -535,10 +425,12 @@
                 </div>
                 <button class="button secondary" type="button" (click)="useRecommendedPlan()">Use recommendation</button>
               </div>
-            </div>
+            }
           }
-        }
-      </section>
+        </section>
+
+        <app-onboarding-explain-card [lines]="explainLines()" />
+      </div>
 
       @if (error()) {
         <p class="form-error" role="alert">{{ error() }}</p>

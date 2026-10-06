@@ -8,6 +8,8 @@
   margin: 0 auto;
 }
 
+.head-row { display: flex; justify-content: flex-end; margin-bottom: -6px; }
+
 .skeleton { height: 160px; border-radius: var(--pg-card-radius); background: var(--surface-sunken); }
 .skeleton.tall { height: 260px; }
 

@@ -95,8 +95,8 @@ interface ListRequest {
     } @else {
       <span class="count">{{ countLine() }}</span>
       <div class="grid">
-        @for (card of s.data.items; track card.id) {
-          <app-recipe-card [card]="card" [logTo]="logTo()" [heart]="isLibrary()" (favourite)="toggleFavorite($event)" (cook)="readyFor.set($event)" />
+        @for (card of s.data.items; track card.id; let first = $first) {
+          <app-recipe-card [card]="card" [logTo]="logTo()" [heart]="isLibrary()" [tour]="isLibrary() && first" (favourite)="toggleFavorite($event)" (cook)="readyFor.set($event)" />
         }
       </div>
       @if (hasPhotos(s.data.items)) {

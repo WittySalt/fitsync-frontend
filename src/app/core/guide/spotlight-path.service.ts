@@ -2,8 +2,8 @@ import { ApplicationRef, ComponentRef, EnvironmentInjector, Injectable, createCo
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 
-import { GUIDE_ARRIVALS, GUIDE_PATHS, PathCopy } from './guide-paths';
-import { GuideService, GuideStepId, TOUR_PAGES, TourPage } from './guide.service';
+import { GUIDE_ARRIVALS, GUIDE_PATHS, PathCopy, SURFACE_MIN_STEPS } from './guide-paths';
+import { GuideService, GuideStepId, TOUR_PAGES, TourPage, isSurface } from './guide.service';
 import { SpotlightComponent } from './spotlight.component';
 
 /** Waits for the anchors of a page to arrive, since cards load their data at different moments. */
@@ -45,6 +45,26 @@ export class SpotlightPathService {
         this.guide.checkFollowed();
       }
     });
+    // A path that waited for the data of its page (a plan edited, a cook record) starts once the page reports.
+    this.guide.usageReported.subscribe(() => this.schedule());
+  }
+
+  /**
+   * "Show me": plays the path of a surface now, whatever the once flag and the skip condition say. A path that is
+   * on screen is closed first. Does nothing when no step of the surface has an anchor on the page.
+   */
+  replay(page: TourPage): void {
+    this.guide.start();
+    if (this.running) {
+      this.finish();
+    }
+    this.guide.markReplayed(page);
+    if (this.present(page).length === 0) {
+      return;
+    }
+    this.running = { page, index: -1, step: '' };
+    this.guide.pathRunning.set(true);
+    this.advance();
   }
 
   /** Adds an anchor and returns the way to take it away again. */
@@ -88,13 +108,35 @@ export class SpotlightPathService {
     if (arrival?.card) {
       this.guide.follow(arrival.card);
     }
-    const pages = TOUR_PAGES.filter((page) => this.anchors.some((anchor) => anchor.page === page && anchor.element.isConnected));
-    const page = pages.find((candidate) => this.guide.spotlightDue(candidate, arrival?.page === candidate));
+    let pages = TOUR_PAGES.filter((page) => this.anchors.some((anchor) => anchor.page === page && anchor.element.isConnected));
+    // The coach dock covers the page, so while it is open its path is the only one that can run.
+    if (pages.includes('coach-dock')) {
+      pages = ['coach-dock'];
+    }
+    const page = pages.find((candidate) => this.startable(candidate, arrival?.page === candidate));
     if (page) {
       this.running = { page, index: -1, step: '' };
       this.guide.pathRunning.set(true);
       this.advance();
     }
+  }
+
+  /**
+   * Whether the path of a page starts now: it is due, enough of its steps are on screen, and its skip condition
+   * does not say the person already uses the surface. A path that must be skipped is recorded as skipped by data.
+   */
+  private startable(page: TourPage, explicit: boolean): boolean {
+    if (!this.guide.spotlightDue(page, explicit)) {
+      return false;
+    }
+    if (isSurface(page) && this.present(page).length < SURFACE_MIN_STEPS) {
+      return false;
+    }
+    const gate = this.guide.gate(page);
+    if (gate === 'skip') {
+      this.guide.markSkippedByData(page);
+    }
+    return gate === 'go';
   }
 
   /** The steps of the running page that have an anchor on screen now, in path order. */

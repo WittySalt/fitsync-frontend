@@ -5,18 +5,26 @@ import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { RecipeCoverComponent } from './recipe-cover.component';
 import { cardTags, heading, isCaution } from './recipes-figures';
 import { RecipeCard } from './recipes.models';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 
 /** One recipe of the library or of My recipes: its cover, name, what a serving gives, tags and a heart to save it. */
 @Component({
   selector: 'app-recipe-card',
-  imports: [FoodGlyphComponent, RouterLink, RecipeCoverComponent],
+  imports: [SpotlightDirective, FoodGlyphComponent, RouterLink, RecipeCoverComponent],
   template: `
     <div class="media">
       <a class="cover" [routerLink]="['/nutrition/recipes', card().id]" [queryParams]="query()" tabindex="-1" aria-hidden="true">
         <app-recipe-cover [imageUrl]="card().imageUrl" [groups]="card().topFoodGroups" ratio="16 / 9" />
       </a>
       @if (cookable()) {
-        <button class="cook" type="button" [attr.aria-label]="'Cook ' + card().name" (click)="cook.emit(card())">
+        <button
+          class="cook"
+          type="button"
+          [appSpotlight]="tour() ? 'nutrition-recipes' : null"
+          spotlightStep="cook"
+          [attr.aria-label]="'Cook ' + card().name"
+          (click)="cook.emit(card())"
+        >
           <app-food-glyph name="PLAY" [size]="13" [strokeWidth]="2.4" />Cook
         </button>
       }
@@ -64,6 +72,8 @@ export class RecipeCardComponent {
   readonly heart = input(true);
   /** A Cook button on the cover opens the Ready screen; left out where a card should only open the recipe. */
   readonly cookable = input(true);
+  /** The card whose Cook button the Recipes path points at. */
+  readonly tour = input(false);
   readonly favourite = output<RecipeCard>();
   readonly cook = output<RecipeCard>();
 

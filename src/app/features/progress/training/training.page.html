@@ -1,11 +1,11 @@
 <app-detail-layout>
   @if (data()) {
-    <app-detail-head detailHead [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="tiles()">
+    <app-detail-head detailHead surface="progress-training" [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="tiles()">
       <app-ink-switch headPeriod label="Period" [options]="periodOptions" [value]="period.code()" (picked)="choose($event)" />
     </app-detail-head>
   }
   @if (data() && !empty()) {
-    <app-contents-rail detailRail [items]="sections" label="Sections of the Training page" />
+    <app-contents-rail detailRail tour="progress-training" [items]="sections" label="Sections of the Training page" />
   }
   @if (data(); as progress) {
     @if (empty()) {
@@ -16,7 +16,7 @@
     } @else {
       <app-highlights [highlights]="progress.highlights" [format]="unitValue" [barMax]="25" [context]="cards().training" />
 
-      <app-detail-section name="By activity" anchor="activities" [sentence]="activityLine()" [context]="cards().training" ask="Which kind of training is taking my time, and is the balance right?">
+      <app-detail-section name="By activity" tour="progress-training" anchor="activities" [sentence]="activityLine()" [context]="cards().training" ask="Which kind of training is taking my time, and is the balance right?">
         @if (progress.activities.length) {
           <div class="activities">
             @for (activity of progress.activities; track activity.key) {

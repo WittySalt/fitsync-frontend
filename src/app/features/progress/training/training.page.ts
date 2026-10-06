@@ -28,6 +28,7 @@ import { grouped, heroChange, heroTime, mondayOf, plural, unitValue } from './tr
 import { shownData, useLoad, usePeriod } from './training-load';
 import { PERIODS, PeriodCode } from './training-period';
 import { TrainingProgress } from './training.models';
+import { markVisit } from '../../../core/guide/guide.service';
 
 const FAILURE = 'Training progress could not load. Please retry.';
 
@@ -140,6 +141,7 @@ export function trainingSentence(progress: TrainingProgress, code: PeriodCode): 
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TrainingPage {
+  private readonly visit = markVisit('progress-training');
   private readonly api = inject(TrainingApiService);
   protected readonly period = usePeriod();
   private readonly read = useLoad(this.period.range, (range) => this.api.getTraining(range.from, range.to), FAILURE);

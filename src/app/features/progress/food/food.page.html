@@ -1,16 +1,16 @@
 <app-detail-layout>
   @if (data()) {
-    <app-detail-head detailHead [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="stats()">
+    <app-detail-head detailHead surface="progress-food" [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="stats()">
       <app-ink-switch headPeriod label="Period" [options]="periodOptions" [value]="period.code()" (picked)="choosePeriod($event)" />
     </app-detail-head>
   }
   @if (data()) {
-    <app-contents-rail detailRail [items]="sections" label="Sections of the Food page" />
+    <app-contents-rail detailRail tour="progress-food" [items]="sections" label="Sections of the Food page" />
   }
   @if (data(); as food) {
     <app-highlights [highlights]="food.highlights" [context]="context()" />
 
-    <app-detail-section name="Energy" anchor="energy" [sentence]="energyLine()" [context]="context()" [ask]="energyAsk">
+    <app-detail-section name="Energy" tour="progress-food" anchor="energy" [sentence]="energyLine()" [context]="context()" [ask]="energyAsk">
       @if (food.energy.thisWeek; as week) {
         @if (headline(); as h) {
           <div class="headline"><strong>{{ h.value }}</strong><span>{{ h.words }} this week</span></div>

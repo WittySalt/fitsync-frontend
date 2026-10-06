@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, effect, inject, input, signal } from '@angular/core';
 
 import { JumpItem } from './progress.models';
+import { TourPage } from '../../core/guide/guide.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
 /** The line, in pixels from the top of the window, a section's top must have passed to be the current one. */
 export const CURRENT_LINE = 96;
@@ -34,10 +36,11 @@ export function currentSection(tops: readonly { id: string; top: number }[], lin
  */
 @Component({
   selector: 'app-contents-rail',
+  imports: [SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (items().length) {
-      <nav class="rail" [attr.aria-label]="label()">
+      <nav class="rail" [attr.aria-label]="label()" [appSpotlight]="tour()" spotlightStep="nav">
         @for (item of items(); track item.id) {
           <a class="item" [class.on]="item.id === current()" [attr.href]="'#' + item.id" [attr.aria-current]="item.id === current() ? 'true' : null" (click)="go($event, item.id)">{{ item.label }}</a>
         }
@@ -75,6 +78,8 @@ export class ContentsRailComponent {
 
   readonly items = input.required<readonly JumpItem[]>();
   readonly label = input('Sections of this page');
+  /** The page's surface in the first-run guide, when its path points at this rail. */
+  readonly tour = input<TourPage | null>(null);
   readonly current = signal<string | null>(null);
 
   constructor() {

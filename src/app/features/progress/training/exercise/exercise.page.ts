@@ -25,6 +25,8 @@ import { shownData, useLoad, usePeriod } from '../training-load';
 import { PERIODS } from '../training-period';
 import { ExerciseProgress, ExerciseSeriesKey } from '../training.models';
 import { ExerciseHistoryComponent } from './exercise-history.component';
+import { EXERCISE_OPENED } from '../../../../core/guide/guide-gates';
+import { GuideService } from '../../../../core/guide/guide.service';
 
 const FAILURE = 'This exercise could not load. Please retry.';
 
@@ -116,6 +118,7 @@ export function exerciseSentence(data: ExerciseProgress): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExercisePage {
+  private readonly opened = inject(GuideService).bump(EXERCISE_OPENED);
   private readonly api = inject(TrainingApiService);
   protected readonly period = usePeriod();
   protected readonly exerciseId = toSignal(inject(ActivatedRoute).paramMap.pipe(map((params) => params.get('exerciseId') ?? '')), { initialValue: '' });

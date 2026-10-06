@@ -57,8 +57,73 @@ export const GUIDE_PATHS: Record<TourPage, readonly PathStep[]> = {
     { id: 'period', copy: fixed('Pick a period', 'Four weeks, three months or a year.') },
     { id: 'ask', copy: fixed('Ask about a card', 'Every card can be asked about.') },
     { id: 'open', copy: fixed('Open a card', 'Open a card for the full picture.') }
+  ],
+  'workout-plans': [
+    { id: 'card', copy: fixed('Your week', 'This is your week. Each day says what it is for.') },
+    { id: 'new', copy: fixed('A new plan', 'The coach fills a week from your profile. Change any day.') },
+    { id: 'week', copy: fixed('Change a day', 'Tap a day to change its kind, drag a segment to change its length.') }
+  ],
+  'workout-history': [
+    { id: 'filters', copy: fixed('Find a session', 'Filter by kind or date.') },
+    { id: 'row', copy: fixed('Open a session', 'Open a session for every set and segment.') },
+    { id: 'trends', copy: fixed('Longer changes', 'Longer changes live in Progress.') }
+  ],
+  'workout-library': [
+    { id: 'search', copy: fixed('Search', 'Search any exercise.') },
+    { id: 'filters', copy: fixed('Narrow it down', 'Narrow by muscle or by what you own.') },
+    { id: 'progress', copy: fixed('Your progress', 'Every exercise has its own history.') }
+  ],
+  'nutrition-recipes': [
+    { id: 'tonight', copy: fixed('Cook for tonight', 'Picks that fit what is left today.') },
+    { id: 'sort', copy: fixed('Sort the library', 'Fits today puts the closest fit first.') },
+    { id: 'cook', copy: fixed('Cook a recipe', 'Cook opens the Ready sheet, then cook mode with timers.') }
+  ],
+  'nutrition-nutrients': [
+    { id: 'period', copy: fixed('Pick a period', 'Switch between today, 7 days and 30 days.') },
+    { id: 'tile', copy: fixed('A nutrient', 'Tap a nutrient for its page and guide.') },
+    { id: 'door', copy: fixed('Longer stretches', 'Longer stretches live in Progress.') }
+  ],
+  'progress-goal': progressSurface(),
+  'progress-training': progressSurface(),
+  'progress-food': progressSurface(),
+  'coach-dock': [
+    { id: 'reading', copy: fixed('The reading', 'The coach has read this page.') },
+    { id: 'questions', copy: fixed('Questions to start from', 'Start from one of these, or type.') },
+    { id: 'composer', copy: fixed('Ask the coach', 'Ask, or ask it to build something.') }
   ]
 };
+
+/** The path of one Progress detail page; the three pages share their words. */
+function progressSurface(): readonly PathStep[] {
+  return [
+    { id: 'nav', copy: fixed('Sections', 'Jump to a section.') },
+    { id: 'ask', copy: fixed('Ask about it', 'Ask about this section.') },
+    { id: 'back', copy: fixed('Back to Progress', 'Back to the overview.') }
+  ];
+}
+
+/** What the "How this works" link and sheet call each surface. */
+export const SURFACE_LABELS: Record<TourPage, string> = {
+  workout: 'Workout',
+  nutrition: 'Nutrition',
+  progress: 'Progress',
+  me: 'Me',
+  'workout-plans': 'Workout plans',
+  'workout-history': 'Workout history',
+  'workout-library': 'Exercise library',
+  'nutrition-recipes': 'Recipes',
+  'nutrition-nutrients': 'All nutrients',
+  'progress-goal': 'Goal',
+  'progress-training': 'Training',
+  'progress-food': 'Food',
+  'coach-dock': 'The coach'
+};
+
+/**
+ * The surfaces of v3 start only when at least this many of their steps have an anchor on screen, so a stray anchor
+ * (the week strip of the plan flow, say) never opens a path of one step.
+ */
+export const SURFACE_MIN_STEPS = 2;
 
 /** What `?guide=` can name: the page whose path starts and the Home card step the arrival belongs to, if any. */
 export const GUIDE_ARRIVALS: Record<string, { page: TourPage; card: GuideStepId | null }> = {

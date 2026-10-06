@@ -89,7 +89,7 @@ describe('GuideService', () => {
     guide.markSeen('workout');
     expect(guide.spotlightDue('workout')).toBeFalse();
     expect(guide.spotlightDue('nutrition')).toBeTrue();
-    expect(localStorage.getItem(key('tour.workout'))).toBe('1');
+    expect(JSON.parse(localStorage.getItem(key('tour-map')) ?? '{}').workout.seen).toBeTrue();
   });
 
   it('stops every spotlight after Skip the tour', () => {

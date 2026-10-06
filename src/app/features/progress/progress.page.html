@@ -7,19 +7,22 @@
     <div #answer id="progress-answer" class="answer">
       <header class="head">
         <span class="eyebrow">{{ eyebrow() }}</span>
-        <nav class="periods" aria-label="Period" appSpotlight="progress" spotlightStep="period">
-          @for (option of periods; track option.key) {
-            <a
-              [routerLink]="[]"
-              [queryParams]="queryFor(option.key)"
-              queryParamsHandling="merge"
-              replaceUrl
-              [class.current]="period().key === option.key"
-              [attr.aria-current]="period().key === option.key ? 'true' : null"
-              >{{ option.label }}</a
-            >
-          }
-        </nav>
+        <div class="head-tools">
+          <app-how-this-works surface="progress" />
+          <nav class="periods" aria-label="Period" appSpotlight="progress" spotlightStep="period">
+            @for (option of periods; track option.key) {
+              <a
+                [routerLink]="[]"
+                [queryParams]="queryFor(option.key)"
+                queryParamsHandling="merge"
+                replaceUrl
+                [class.current]="period().key === option.key"
+                [attr.aria-current]="period().key === option.key ? 'true' : null"
+                >{{ option.label }}</a
+              >
+            }
+          </nav>
+        </div>
       </header>
       <div class="verdict-block" [attr.aria-busy]="goalLoading()">
         @if (!goalLoading() && !goalFailed()) {

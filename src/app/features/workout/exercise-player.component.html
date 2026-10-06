@@ -160,6 +160,8 @@
                   [(reading)]="readAloud"
                   [reducedMotion]="prefersReducedMotion"
                   [paused]="holdSteps()"
+                  [running]="stepsRunning()"
+                  [setSeconds]="stepsSetSeconds()"
                   (howTo)="openGuide()"
                 />
                 <div slot="main" class="set-main">

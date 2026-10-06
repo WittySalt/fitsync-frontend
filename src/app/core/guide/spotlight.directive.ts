@@ -1,4 +1,4 @@
-import { Directive, ElementRef, OnInit, effect, inject, input } from '@angular/core';
+import { Directive, ElementRef, Injector, OnInit, effect, inject, input } from '@angular/core';
 
 import { GuideService, TourPage } from './guide.service';
 import { SpotlightPathService } from './spotlight-path.service';
@@ -16,7 +16,8 @@ export class SpotlightDirective implements OnInit {
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly guide = inject(GuideService);
-  private readonly path = inject(SpotlightPathService);
+  // Fetched when the anchor is in use, so a component that carries a directive with no page never starts the path.
+  private readonly injector = inject(Injector);
 
   constructor() {
     effect((onCleanup) => {
@@ -25,7 +26,7 @@ export class SpotlightDirective implements OnInit {
       if (!page || !step) {
         return;
       }
-      const unregister = this.path.register({ page, step, element: this.host.nativeElement, variant: () => this.spotlightVariant() });
+      const unregister = this.injector.get(SpotlightPathService).register({ page, step, element: this.host.nativeElement, variant: () => this.spotlightVariant() });
       onCleanup(unregister);
     });
   }

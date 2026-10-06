@@ -26,6 +26,8 @@ import { CoachTraceComponent } from './coach-trace.component';
 import { questionsFor } from './insight/reading-questions';
 import { ReadingSegment, readingSegments, roundedNumbers, withoutCitations } from './insight/reading-text';
 import { dateRange } from './insight/slope-chart.geometry';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
 /** The browser's `matchMedia`, injectable so a test can decide whether the sidebar is showing. */
 export const MATCH_MEDIA = new InjectionToken<(query: string) => MediaQueryList | null>('MATCH_MEDIA', {
@@ -58,7 +60,7 @@ interface DockSuggestion {
  */
 @Component({
   selector: 'app-coach-dock',
-  imports: [CardPinComponent, RouterLink, NgTemplateOutlet, CoachTraceComponent, CoachHistoryComponent, CoachScrimComponent],
+  imports: [CardPinComponent, HowThisWorksComponent, SpotlightDirective, RouterLink, NgTemplateOutlet, CoachTraceComponent, CoachHistoryComponent, CoachScrimComponent],
   template: `
     @if (!store.dockOpen()) {
       @if (!sidebarVisible()) {
@@ -96,15 +98,18 @@ interface DockSuggestion {
             }
             <button type="button" class="tgl close" (click)="store.close()" aria-label="Close the coach">×</button>
           </div>
-          <p class="looking">
-            @if (store.pinnedReading()) {
-              Looking at <b>{{ pinnedLabel(store.pinnedReading()!) }}</b> · one reading pinned
-            } @else if (store.pinnedCard(); as card) {
-              Looking at <b>{{ cardLabel(card) }}</b> · one card pinned
-            } @else {
-              Looking at <b>{{ store.surface().label }}</b>
-            }
-          </p>
+          <div class="looking-row">
+            <p class="looking">
+              @if (store.pinnedReading()) {
+                Looking at <b>{{ pinnedLabel(store.pinnedReading()!) }}</b> · one reading pinned
+              } @else if (store.pinnedCard(); as card) {
+                Looking at <b>{{ cardLabel(card) }}</b> · one card pinned
+              } @else {
+                Looking at <b>{{ store.surface().label }}</b>
+              }
+            </p>
+            <app-how-this-works surface="coach-dock" />
+          </div>
         </div>
 
         @if (store.historyOpen()) {
@@ -130,7 +135,7 @@ interface DockSuggestion {
           } @else if (store.pinnedCard(); as card) {
             <app-card-pin [card]="card" (release)="store.letGoOfCard()" />
           } @else if (empty && store.availableReading(); as reading) {
-            <button type="button" class="reading-row" (click)="store.askAboutReading(reading)">
+            <button type="button" class="reading-row" appSpotlight="coach-dock" spotlightStep="reading" (click)="store.askAboutReading(reading)">
               <span class="reading-text">
                 <span class="reading-label">Reading</span>
                 <span class="reading-headline">{{ pinnedHeadline(reading) }}</span>
@@ -208,7 +213,7 @@ interface DockSuggestion {
           @if (!empty) {
             <ng-container [ngTemplateOutlet]="suggestionList" />
           }
-          <form class="composer" (submit)="submit($event)">
+          <form class="composer" appSpotlight="coach-dock" spotlightStep="composer" (submit)="submit($event)">
             <input
               #input
               type="text"
@@ -231,7 +236,7 @@ interface DockSuggestion {
     }
 
     <ng-template #suggestionList>
-      <div class="suggs">
+      <div class="suggs" appSpotlight="coach-dock" spotlightStep="questions">
         @for (s of suggestions(); track s.text) {
           <button type="button" class="sugg" (click)="pick(s)" [disabled]="store.status() === 'answering' || store.limited()">
             <span class="sugg-text">{{ s.text }}</span>
@@ -376,6 +381,12 @@ interface DockSuggestion {
       .tgl:hover {
         background: var(--surface-sunken);
         color: var(--text-primary);
+      }
+      .looking-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
       }
       .looking {
         margin: 0;
@@ -1062,7 +1073,8 @@ export class CoachDockComponent {
       this.store.toggle();
       return;
     }
-    if (event.key === 'Escape' && this.store.dockOpen()) {
+    // While a step of the dock's path is on screen, Escape belongs to the path.
+    if (event.key === 'Escape' && this.store.dockOpen() && !document.querySelector('app-spotlight')) {
       this.store.close();
     }
   }

@@ -5,6 +5,8 @@
   } @else if (error()) {
     <app-state-panel title="Me is unavailable" [message]="error() ?? ''" actionLabel="Try again" [error]="true" (action)="load()" />
   } @else if (user(); as person) {
+    <div class="head-row"><app-how-this-works surface="me" /></div>
+
     <app-identity-card
       [name]="person.profile.displayName"
       [avatarUrl]="person.profile.avatarUrl"

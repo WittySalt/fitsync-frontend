@@ -31,6 +31,12 @@
   color: var(--text-secondary);
 }
 
+.head-tools {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
 .periods {
   display: inline-flex;
   gap: 20px;

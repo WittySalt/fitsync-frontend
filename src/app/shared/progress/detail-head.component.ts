@@ -3,6 +3,9 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import { Router } from '@angular/router';
 
 import { HeroStat } from './progress.models';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
+import { TourPage } from '../../core/guide/guide.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
 /** True when the entry before this one in the history is a page of this app (Angular numbers its navigations from 1). */
 export function cameFromThisApp(state: unknown): boolean {
@@ -18,14 +21,20 @@ export function cameFromThisApp(state: unknown): boolean {
  */
 @Component({
   selector: 'app-detail-head',
+  imports: [HowThisWorksComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button type="button" class="back" (click)="back()">
+    <button type="button" class="back" [appSpotlight]="surface()" spotlightStep="back" (click)="back()">
       <span aria-hidden="true">‹</span> {{ backLabel() }}
     </button>
     <div class="line">
       <span class="eyebrow">{{ eyebrow() }}</span>
-      <ng-content select="[headPeriod]" />
+      <div class="tools">
+        @if (surface(); as page) {
+          <app-how-this-works [surface]="page" />
+        }
+        <ng-content select="[headPeriod]" />
+      </div>
     </div>
     <div class="answer">
       <h1 class="verdict" [class.ink]="tone() === 'ink'">{{ verdict() }}</h1>
@@ -53,6 +62,7 @@ export function cameFromThisApp(state: unknown): boolean {
     .back:hover { text-decoration: underline; text-underline-offset: 4px; }
     .back:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 3px; border-radius: 4px; }
     .line { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .tools { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
     .eyebrow { font: 700 var(--pg-eyebrow) var(--font-sans); letter-spacing: var(--pg-eyebrow-tracking); text-transform: uppercase; color: var(--text-secondary); }
     .answer { display: flex; flex-direction: column; gap: 10px; }
     .verdict { margin: 0; font: 600 var(--pg-verdict) / 1.1 var(--font-display); letter-spacing: -0.01em; color: var(--accent-text); }
@@ -81,6 +91,8 @@ export class DetailHeadComponent {
   readonly stats = input<readonly HeroStat[]>([]);
   readonly fallback = input('/progress');
   readonly backLabel = input('Progress');
+  /** The page's surface in the first-run guide; it gives the page a "How this works" link and its Back an anchor. */
+  readonly surface = input<TourPage | null>(null);
 
   back(): void {
     if (this.inApp) {

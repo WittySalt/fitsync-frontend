@@ -22,6 +22,9 @@ import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component
 import { PagerComponent } from '../../shared/pager.component';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { ExerciseVideoComponent, isAllowedEmbedVideoUrl } from './exercise-video.component';
+import { EXERCISE_OPENED } from '../../core/guide/guide-gates';
+import { GuideService } from '../../core/guide/guide.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
 interface RecordCard {
   label: string;
@@ -36,13 +39,14 @@ interface HistoryTrend {
 
 @Component({
   selector: 'app-exercise-library',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, RouterLink, FsChartComponent, StatePanelComponent, ExerciseVideoComponent, PagerComponent],
+  imports: [SpotlightDirective, ReactiveFormsModule, NgTemplateOutlet, RouterLink, FsChartComponent, StatePanelComponent, ExerciseVideoComponent, PagerComponent],
   templateUrl: './exercise-library.component.html',
   styleUrl: './exercise-library.component.scss'
 })
 export class ExerciseLibraryComponent implements OnInit {
   private readonly dataService = inject(FitSyncDataService);
   private readonly fb = inject(FormBuilder);
+  private readonly guide = inject(GuideService);
   private readonly toast = inject(ToastService);
 
   /** Emitted after an exercise was created, updated or archived, so the page can refresh what shows it. */
@@ -443,6 +447,7 @@ export class ExerciseLibraryComponent implements OnInit {
       return;
     }
 
+    this.guide.bump(EXERCISE_OPENED);
     this.selectedExercise.set(exercise);
     this.scrollToTop();
     this.selectedExerciseDetail.set(null);

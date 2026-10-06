@@ -5,10 +5,11 @@ import { SpeechService } from './speech.service';
 import { stepDwellMs } from './step-timing';
 
 /**
- * The steps of an exercise, one at a time. On its own it moves on at reading pace, goes round once
- * and settles on the first step. A tap holds it, and a tap on a held carousel moves to the next
- * step. With reduced motion it never moves by itself. The speaker reads the current step aloud
- * with the voice of the browser; while it reads, the end of a step replaces the timer.
+ * The steps of an exercise, one at a time. While a set runs it turns by itself at reading pace (or
+ * the set length shared evenly) and the last step stays until the set ends. The next set starts
+ * from the first step again. A tap on a dot or on the caption stops the turn for the rest of that
+ * set, and a tap on a held caption moves to the next step. The speaker reads the current step
+ * aloud with the voice of the browser and holds the turn until the reading ends.
  */
 @Component({
   selector: 'app-step-carousel',
@@ -21,19 +22,23 @@ export class StepCarouselComponent implements OnDestroy {
   readonly steps = input.required<string[]>();
   readonly index = model(0);
   readonly reading = model(false);
+  /** Reduced motion only drops the slide of a new step; the steps still turn. */
   readonly reducedMotion = input(false);
   /** The workout is paused, or the guide is open over this carousel: nothing moves by itself. */
   readonly paused = input(false);
+  /** A set is running: only then do the steps turn by themselves. */
+  readonly running = input(false);
+  /** The planned length of the running set in seconds, 0 when it is not known. */
+  readonly setSeconds = input(0);
   readonly howTo = output<void>();
 
   protected readonly held = signal(false);
-  protected readonly settled = signal(false);
 
   private timerId: ReturnType<typeof setTimeout> | null = null;
   private stepsKey = '';
 
   protected readonly autoMoving = computed(
-    () => !this.held() && !this.settled() && !this.reducedMotion() && !this.paused() && this.steps().length > 1
+    () => this.running() && !this.held() && !this.paused() && this.steps().length > 1
   );
   protected readonly speaking = computed(() => this.reading() && this.speech.available);
   /** The step is announced when a person changes it, never while it turns by itself or is read aloud. */
@@ -51,8 +56,18 @@ export class StepCarouselComponent implements OnDestroy {
       this.stepsKey = key;
       untracked(() => {
         this.held.set(false);
-        this.settled.set(false);
         if (this.index() >= this.steps().length) {
+          this.index.set(0);
+        }
+      });
+    });
+
+    // Every set starts again from the first step, and a tap only holds for the set it was made in.
+    effect(() => {
+      const running = this.running();
+      untracked(() => {
+        this.held.set(false);
+        if (running) {
           this.index.set(0);
         }
       });
@@ -61,13 +76,14 @@ export class StepCarouselComponent implements OnDestroy {
     effect(() => {
       const steps = this.steps();
       const index = this.index();
+      const setSeconds = this.setSeconds();
       const auto = this.autoMoving();
       const speaking = this.speaking();
       this.clearTimer();
-      if (!auto || speaking || !steps[index]) {
+      if (!auto || speaking || !steps[index] || index >= steps.length - 1) {
         return;
       }
-      this.timerId = setTimeout(() => this.advanceByTimer(), stepDwellMs(steps[index]));
+      this.timerId = setTimeout(() => this.advanceByTimer(), stepDwellMs(steps[index], setSeconds, steps.length));
     });
 
     effect(() => {
@@ -92,7 +108,7 @@ export class StepCarouselComponent implements OnDestroy {
     if (this.steps().length < 2) {
       return;
     }
-    if (this.reducedMotion() || this.held()) {
+    if (this.held() || !this.running()) {
       this.next();
       return;
     }
@@ -119,22 +135,10 @@ export class StepCarouselComponent implements OnDestroy {
     this.timerId = null;
     if (this.index() < this.steps().length - 1) {
       this.index.update((value) => value + 1);
-      return;
     }
-    this.index.set(0);
-    this.settled.set(true);
   }
 
   private readingEnded(): void {
-    if (this.held()) {
-      return;
-    }
-    if (this.index() < this.steps().length - 1) {
-      this.index.update((value) => value + 1);
-      return;
-    }
-    this.index.set(0);
-    this.settled.set(true);
     this.reading.set(false);
   }
 
