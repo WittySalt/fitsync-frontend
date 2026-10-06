@@ -14,8 +14,27 @@
 .head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 12px;
+}
+
+.range {
+  margin-left: auto;
+}
+
+.longer {
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  color: var(--accent-text);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 .eyebrow {
@@ -136,7 +155,7 @@
 
 .figures {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   padding-left: 28px;
   border-left: 1px solid var(--border);

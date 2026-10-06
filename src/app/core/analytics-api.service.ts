@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
+import { mapBadges } from './me-mappers';
 import {
   AnalyticsAchievement,
   AnalyticsAchievementsResponse,
@@ -76,14 +77,27 @@ export class AnalyticsApiService {
     });
   }
 
-  /** The nine badges with their progress. Entries without a code are dropped, a missing list is
-   *  empty, and progress is forced into 0 to 1 so the ring on the page can never overdraw. */
+  /** The badges flattened to one list with their progress, for the pages that only need a date or a
+   *  percentage (the month view, the workout celebration). Both the old response and the themed one
+   *  are read. Entries without a code are dropped and progress is forced into 0 to 1. */
   getAchievements(): Observable<AnalyticsAchievementsResponse> {
-    return this.http
-      .get<{ achievements?: Partial<AnalyticsAchievement>[] | null }>(`${this.analyticsBaseUrl}/achievements`)
-      .pipe(
-        map((response) => ({
-          achievements: (Array.isArray(response?.achievements) ? response.achievements : [])
+    return this.http.get<Record<string, unknown>>(`${this.analyticsBaseUrl}/achievements`).pipe(
+      map((response) => {
+        if (Array.isArray(response?.['themes'])) {
+          const nodes = mapBadges(response).themes.flatMap((theme) => theme.paths.flatMap((path) => path.nodes));
+          return {
+            achievements: nodes.map((node) => ({
+              code: node.code,
+              title: node.name,
+              unlocked: node.earnedOn !== null,
+              unlockedAt: node.earnedOn ? `${node.earnedOn}T00:00:00Z` : null,
+              progress: node.earnedOn ? 1 : node.progress.target > 0 ? clampUnit(node.progress.current / node.progress.target) : 0
+            }))
+          };
+        }
+        const list = response?.['achievements'] as Partial<AnalyticsAchievement>[] | null | undefined;
+        return {
+          achievements: (Array.isArray(list) ? list : [])
             .filter((entry) => typeof entry?.code === 'string' && entry.code.length > 0)
             .map((entry) => ({
               code: entry.code as string,
@@ -92,8 +106,9 @@ export class AnalyticsApiService {
               unlockedAt: typeof entry.unlockedAt === 'string' && entry.unlockedAt ? entry.unlockedAt : null,
               progress: clampUnit(entry.progress)
             }))
-        }))
-      );
+        };
+      })
+    );
   }
 
   private rangeBucketParams(from: string, to: string, bucket: AnalyticsBucket): HttpParams {

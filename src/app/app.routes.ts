@@ -123,6 +123,12 @@ export const routes: Routes = [
   // Body metrics moved to the Goal page; old /body links and bookmarks still arrive there.
   { path: 'body', pathMatch: 'full', redirectTo: 'progress/goal' },
   {
+    path: 'me/achievements',
+    loadComponent: () => import('./features/profile/achievements/achievements.page').then((module) => module.AchievementsPage),
+    canActivate: [authGuard],
+    title: 'FitSync Achievements'
+  },
+  {
     path: 'me',
     loadComponent: () => import('./features/profile/profile.page').then((module) => module.ProfilePage),
     canActivate: [authGuard],

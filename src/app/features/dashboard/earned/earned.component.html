@@ -1,94 +1,48 @@
 <section class="earned" aria-labelledby="earned-heading">
   <h2 class="eyebrow" id="earned-heading">Earned</h2>
 
-  <div class="layout">
-    <div class="results">
-      <article class="result">
-        <h3 class="result-label">This week's training</h3>
-        @if (trainingLoading()) {
-          <div class="skeleton result-skeleton"></div>
-        } @else if (trainingFailed()) {
-          <div class="failed">
-            <p class="result-value">Could not load</p>
-            <button type="button" class="retry" (click)="loadTraining()">Try again</button>
-          </div>
-        } @else {
-          <p class="result-value">{{ trainingHeadline() }}</p>
-          @if (trainingComparison()) {
-            <p class="result-note">{{ trainingComparison() }}</p>
-          }
-          @if (streakLine()) {
-            <p class="result-note">{{ streakLine() }}</p>
-          }
-        }
-      </article>
+  <article class="result">
+    <h3 class="result-label">This week's training</h3>
+    @if (trainingLoading()) {
+      <div class="skeleton result-skeleton"></div>
+    } @else if (trainingFailed()) {
+      <div class="failed">
+        <p class="result-value">Could not load</p>
+        <button type="button" class="retry" (click)="loadTraining()">Try again</button>
+      </div>
+    } @else {
+      <p class="result-value">{{ trainingHeadline() }}</p>
+      @if (trainingComparison()) {
+        <p class="result-note">{{ trainingComparison() }}</p>
+      }
+      @if (streakLine()) {
+        <p class="result-note">{{ streakLine() }}</p>
+      }
+    }
+  </article>
 
-      <article class="result">
-        <h3 class="result-label">Badges</h3>
-        @if (achievementsLoading()) {
-          <div class="skeleton result-skeleton"></div>
-        } @else if (achievementsFailed()) {
-          <p class="result-value">Not available</p>
-        } @else {
-          <p class="result-value">{{ badgeHeadline() }}</p>
-          @if (latestEarnedLine()) {
-            <p class="result-note">{{ latestEarnedLine() }}</p>
-          }
-        }
-      </article>
-    </div>
-
-    <div class="wall">
-      @if (achievementsLoading()) {
-        <div class="skeleton wall-skeleton" aria-hidden="true"></div>
-      } @else if (achievementsFailed()) {
-        <div class="failed">
-          <p>This could not be loaded.</p>
-          <button type="button" class="retry" (click)="loadAchievements()">Try again</button>
+  <div class="strip">
+    @if (badgesLoading()) {
+      <div class="skeleton strip-skeleton" aria-hidden="true"></div>
+    } @else if (badgesFailed()) {
+      <div class="failed">
+        <p>Your badges could not be loaded.</p>
+        <button type="button" class="retry" (click)="loadBadges()">Try again</button>
+      </div>
+    } @else if (strip(); as view) {
+      @if (view.badge; as badge) {
+        <app-badge-disc [node]="badge" state="earned" [size]="40" />
+        <div class="strip-text">
+          <span class="strip-label">Earned this week</span>
+          <strong class="strip-title">{{ view.title }}</strong>
         </div>
       } @else {
-        <ul class="badges">
-          @for (badge of badges(); track badge.code) {
-            <li class="badge" [class.earned]="badge.earned" [attr.aria-label]="badge.accessibleName">
-              <svg class="seal" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                @if (badge.earned) {
-                  <circle class="seal-fill" cx="32" cy="32" r="30"></circle>
-                } @else {
-                  <circle class="ring-track" cx="32" cy="32" r="29"></circle>
-                  @if (badge.ring.length > 0) {
-                    <circle
-                      class="ring-arc"
-                      cx="32"
-                      cy="32"
-                      r="29"
-                      transform="rotate(-90 32 32)"
-                      [attr.stroke-dasharray]="badge.ring.length + ' ' + badge.ring.circumference"
-                    ></circle>
-                  }
-                  <circle class="seal-inner" cx="32" cy="32" r="24.5"></circle>
-                }
-                <g class="glyph" transform="translate(20 20)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  @for (part of badge.glyph; track $index) {
-                    @switch (part.tag) {
-                      @case ('path') {
-                        <path [attr.d]="part.d"></path>
-                      }
-                      @case ('circle') {
-                        <circle [attr.cx]="part.cx" [attr.cy]="part.cy" [attr.r]="part.r"></circle>
-                      }
-                      @case ('rect') {
-                        <rect [attr.x]="part.x" [attr.y]="part.y" [attr.width]="part.width" [attr.height]="part.height" [attr.rx]="part.rx"></rect>
-                      }
-                    }
-                  }
-                </g>
-              </svg>
-              <span class="badge-title">{{ badge.title }}</span>
-              <span class="badge-detail">{{ badge.earned ? badge.dateLabel : badge.countLabel }}</span>
-            </li>
-          }
-        </ul>
+        <div class="strip-text">
+          <strong class="strip-title">{{ view.title }}</strong>
+          <span class="strip-note">{{ view.note }}</span>
+        </div>
       }
-    </div>
+      <a class="see-all" routerLink="/me/achievements">See all <span aria-hidden="true">&rsaquo;</span></a>
+    }
   </div>
 </section>

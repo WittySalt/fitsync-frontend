@@ -1,0 +1,36 @@
+<app-workout-modal [heading]="node().name" (dismissed)="closed.emit()">
+  <div class="sheet">
+    <app-badge-disc [node]="node()" [state]="state()" [size]="88" />
+
+    @if (state() === 'earned') {
+      <p class="evidence">{{ evidence() }}</p>
+      @if (cells().length) {
+        <app-week-strip [cells]="cells()" [large]="true" />
+      }
+    } @else {
+      <p class="evidence">{{ node().how }}</p>
+      <p class="gap">{{ gap().headline }}</p>
+      @if (count()) {
+        <p class="count">{{ count() }}</p>
+      }
+      @if (paceLine()) {
+        <p class="pace">{{ paceLine() }}</p>
+      } @else if (gap().detail) {
+        <p class="pace">{{ gap().detail }}</p>
+      }
+    }
+
+    @if (door(); as link) {
+      <a class="door" [routerLink]="link.link" [queryParams]="link.query" [fragment]="link.fragment" (click)="closed.emit()">
+        <span>{{ link.label }}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+      </a>
+    }
+
+    @if (state() === 'earned' && earned()) {
+      <p class="earned">Earned {{ earned() }}</p>
+    }
+
+    <button type="button" class="close" (click)="closed.emit()">Close</button>
+  </div>
+</app-workout-modal>

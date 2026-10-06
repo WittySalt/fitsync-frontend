@@ -26,6 +26,8 @@ export interface AccountProfile {
   membershipTier: string | null;
   membershipStatus: string | null;
   onboardingCompleted: boolean;
+  /** When the account was created, when the server sends it (the Me page falls back to it for "member since"). */
+  createdAt?: string | null;
 }
 
 export interface AccountBodyMetric {

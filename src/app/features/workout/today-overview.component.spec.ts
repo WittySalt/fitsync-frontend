@@ -211,9 +211,8 @@ describe('TodayOverviewComponent', () => {
       expect(rows(root)).toEqual(['Dumbbell bench press', 'Bent-over row', 'Goblet squat', 'Plank hold']);
       expect(all(root, '.move-copy small')[0]).toBe('3 × 10 · 22.5 kg · 75 s rest');
       expect(text(root, '.action-primary')).toBe('Start session');
-      expect(text(root, 'a.action-secondary')).toBe('Train something else');
-      expect(root.querySelector('button.action-secondary')).toBeNull();
-      expect(root.querySelector('.action-primary')?.classList).not.toContain('quiet');
+      expect(text(root, '.action-secondary')).toBe('Train something else');
+      expect(root.querySelector('.action-secondary')?.tagName).toBe('BUTTON');
       expect(root.querySelector('.action-primary svg')).toBeNull();
     });
 
@@ -234,7 +233,7 @@ describe('TodayOverviewComponent', () => {
       expect(chips(root)).toEqual(['35 min', '5.75 km last time', '6:05 per km']);
       expect(rows(root)).toEqual(['Treadmill run', 'Plank hold']);
       expect(all(root, '.move-copy small')[0]).toBe('5 km · 35 min');
-      expect(text(root, 'a.action-secondary')).toBe('Train something else');
+      expect(text(root, '.action-secondary')).toBe('Train something else');
     });
 
     it('shows a mobility day with three moves and a quiet line for the rest', () => {
@@ -276,7 +275,6 @@ describe('TodayOverviewComponent', () => {
       expect(root.querySelector('.moves')).toBeNull();
       expect(text(root, '.action-primary')).toBe('Start session');
       expect(text(root, '.action-secondary')).toBe('Log it afterwards');
-      expect(root.querySelector('a.action-secondary')).toBeNull();
     });
 
     it('shows the planned length on a sport day nobody has played yet', () => {
@@ -309,7 +307,7 @@ describe('TodayOverviewComponent', () => {
       expect(all(root, 'app-habit-day-start .facts li')).toEqual(['35 min last time', '5.75 km last time']);
       expect(root.querySelector('.moves')).toBeNull();
       expect(root.querySelector('.action-primary')).toBeNull();
-      expect(root.querySelector('a.action-secondary')).toBeNull();
+      expect(root.querySelector('.action-secondary')).toBeNull();
       expect(text(root, 'app-habit-day-start .start')).toBe('Start this');
     });
 
@@ -328,16 +326,16 @@ describe('TodayOverviewComponent', () => {
       expect(root.querySelector('.info')).toBeNull();
       expect(root.querySelector('.moves')).toBeNull();
       expect(text(root, '.action-primary')).toBe('Continue');
-      expect(root.querySelector('a.action-secondary')).toBeNull();
+      expect(root.querySelector('.action-secondary')).toBeNull();
     });
 
-    it('shows a finished strength day with its minutes and a link to the session', () => {
+    it('shows a finished strength day with its minutes and a free workout or the plans', () => {
       const root = render({ today: today({ source: 'DONE' }), todayDay: dayEntry({ minutes: 50 }) });
 
       expect(text(root, '.eyebrow')).toBe('Done today');
       expect(chips(root)).toEqual(['50 min']);
-      expect(root.querySelector('.action-primary')).toBeNull();
-      expect(text(root, 'a.action-secondary')).toBe('See the session');
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe('See the session');
     });
 
     it('adds distance and pace to a finished cardio day when the day entry has them', () => {
@@ -365,7 +363,7 @@ describe('TodayOverviewComponent', () => {
       expect(chips(root)).toEqual(['35 min']);
     });
 
-    it('shows a rest day with the next training day and no start button', () => {
+    it('shows a rest day with the next training day, a free workout and the plans', () => {
       const root = render({
         today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
         nextTraining: next()
@@ -374,9 +372,8 @@ describe('TodayOverviewComponent', () => {
       expect(text(root, '.eyebrow')).toBe('Today · Rest');
       expect(text(root, 'h2')).toBe('Rest day');
       expect(chips(root)).toEqual(['Next: Thursday', 'Treadmill run', '35 min']);
-      expect(root.querySelector('.action-primary')).toBeNull();
-      expect(root.querySelector('button.action-secondary')).toBeNull();
-      expect(text(root, 'a.action-secondary')).toBe('Train today');
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe('Browse plans');
     });
 
     it('names a sport by its name in the next-training line', () => {
@@ -403,7 +400,7 @@ describe('TodayOverviewComponent', () => {
       expect(chips(root)).toEqual(['50 min']);
       expect(rows(root)).toEqual(['Monday squat']);
       expect(text(root, '.action-primary')).toBe('Start session');
-      expect(text(root, 'a.action-secondary')).toBe('Train something else');
+      expect(text(root, '.action-secondary')).toBe('Train something else');
     });
 
     it('offers the earlier open day on an open day too, and leaves the rows out when the plan lacks it', () => {
@@ -427,17 +424,19 @@ describe('TodayOverviewComponent', () => {
       expect(text(root, '.eyebrow')).toBe('No plan yet');
       expect(text(root, 'h2')).toBe('Pick a plan for today');
       expect(text(root, '.lede')).toBe('A plan says what each day of the week is for.');
-      expect(text(root, '.action-primary')).toBe('Browse plans');
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe('Browse plans');
       expect(root.querySelector('app-plan-templates')).not.toBeNull();
     });
 
-    it('shows the plain plan on an open day with an active plan', () => {
+    it('offers a free workout and Plan a session on an open day with an active plan', () => {
       const root = render({ today: today({ kind: 'OPEN', label: 'Today', source: 'NONE', planDayId: null }) });
 
       expect(text(root, '.eyebrow')).toBe('Today');
       expect(text(root, 'h2')).toBe('Strength base');
       expect(rows(root)).toEqual(['Push up', 'Back squat']);
-      expect(text(root, '.action-primary')).toBe('Start session');
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe('Plan a session');
       expect(root.querySelector('app-plan-templates')).toBeNull();
     });
   });
@@ -523,7 +522,7 @@ describe('TodayOverviewComponent', () => {
 
       expect(text(root, '.last-label')).toBe('Last session');
       expect(text(root, '.last-session strong')).toBe('Cardio, treadmill');
-      expect(text(root, '.last-session span:last-child')).toMatch(/^Thursday 1 Oct · 35 min$/);
+      expect(text(root, '.last-session span:last-of-type')).toMatch(/^Thursday 1 Oct · 35 min$/);
       expect(root.textContent).not.toContain('Cancelled draft');
       expect(root.textContent).not.toContain('Still running');
     });
@@ -531,8 +530,8 @@ describe('TodayOverviewComponent', () => {
     it('reads the day in the given timezone', () => {
       const late = session({ startedAt: '2026-09-30T22:00:00Z', completedAt: '2026-09-30T23:00:00Z' });
 
-      expect(text(render({ today: today(), timezone: 'Asia/Singapore', sessions: [late] }), '.last-session span:last-child')).toContain('Thursday 1 Oct');
-      expect(text(render({ today: today(), timezone: 'UTC', sessions: [late] }), '.last-session span:last-child')).toMatch(/Wednesday 30 Sep/);
+      expect(text(render({ today: today(), timezone: 'Asia/Singapore', sessions: [late] }), '.last-session span:last-of-type')).toContain('Thursday 1 Oct');
+      expect(text(render({ today: today(), timezone: 'UTC', sessions: [late] }), '.last-session span:last-of-type')).toMatch(/Wednesday 30 Sep/);
     });
 
     it('still renders with an unknown timezone name', () => {
@@ -553,14 +552,14 @@ describe('TodayOverviewComponent', () => {
       });
 
       expect(text(root, '.last-session strong')).toBe('Pull day');
-      expect(text(root, '.last-session span:last-child')).toMatch(/^Tuesday 29 Sep.* · 50 min$/);
+      expect(text(root, '.last-session span:last-of-type')).toMatch(/^Tuesday 29 Sep.* · 50 min$/);
     });
 
     it('says none yet when there is no completed session', () => {
       const root = render({ today: today(), sessions: [] });
 
       expect(text(root, '.last-session strong')).toBe('None yet');
-      expect(text(root, '.last-session span:last-child')).toBe('Your first session will show here');
+      expect(text(root, '.last-session span:last-of-type')).toBe('Your first session will show here');
     });
   });
 
@@ -646,24 +645,61 @@ describe('TodayOverviewComponent', () => {
       expect(emit).toHaveBeenCalledOnceWith('SPORT');
     });
 
-    it('browses plans from the links and from the no-plan button', () => {
+    it('browses plans from the outlined button of a rest day without a next session and the no-plan card', () => {
       const emit = spyOn(component.browsePlans, 'emit');
-      const kinds: TodayInsight[] = [today(), today({ kind: 'REST', planDayId: null })];
+      render({ today: today({ kind: 'REST', planDayId: null }) }).querySelector<HTMLButtonElement>('.action-secondary')?.click();
+      render({ activePlan: null, today: null }).querySelector<HTMLButtonElement>('.action-secondary')?.click();
+
+      expect(emit).toHaveBeenCalledTimes(2);
+    });
+
+    it('starts a free workout from the filled button when there is no plan, on a rest day and after a finished day', () => {
+      const emit = spyOn(component.startFree, 'emit');
+      const kinds: TodayInsight[] = [today({ kind: 'REST', planDayId: null }), today({ source: 'DONE' })];
       for (const insight of kinds) {
-        render({ today: insight }).querySelector<HTMLAnchorElement>('a.action-secondary')?.click();
+        render({ today: insight }).querySelector<HTMLButtonElement>('.action-primary')?.click();
       }
       render({ activePlan: null, today: null }).querySelector<HTMLButtonElement>('.action-primary')?.click();
 
       expect(emit).toHaveBeenCalledTimes(3);
     });
 
-    it('does not follow the fallback href of a link', () => {
+    it('opens the Train something else sheet with A free workout first, and closes it on a choice', () => {
+      const free = spyOn(component.startFree, 'emit');
+      const browse = spyOn(component.browsePlans, 'emit');
       const root = render({ today: today() });
-      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      expect(root.querySelector('app-train-else-sheet')).toBeNull();
 
-      root.querySelector('a.action-secondary')?.dispatchEvent(event);
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
+      fixture.detectChanges();
+      expect(all(root, 'app-train-else-sheet .row strong')).toEqual(['A free workout', 'Browse plans']);
 
-      expect(event.defaultPrevented).toBeTrue();
+      root.querySelector<HTMLButtonElement>('app-train-else-sheet .row.free')?.click();
+      fixture.detectChanges();
+      expect(free).toHaveBeenCalledTimes(1);
+      expect(root.querySelector('app-train-else-sheet')).toBeNull();
+
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
+      fixture.detectChanges();
+      root.querySelector<HTMLButtonElement>('app-train-else-sheet .row.browse')?.click();
+      fixture.detectChanges();
+      expect(browse).toHaveBeenCalledTimes(1);
+      expect(root.querySelector('app-train-else-sheet')).toBeNull();
+    });
+
+    it('closes the Train something else sheet with Not now and starts nothing', () => {
+      const free = spyOn(component.startFree, 'emit');
+      const browse = spyOn(component.browsePlans, 'emit');
+      const root = render({ today: today() });
+
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
+      fixture.detectChanges();
+      root.querySelector<HTMLButtonElement>('app-train-else-sheet .foot button')?.click();
+      fixture.detectChanges();
+
+      expect(root.querySelector('app-train-else-sheet')).toBeNull();
+      expect(free).not.toHaveBeenCalled();
+      expect(browse).not.toHaveBeenCalled();
     });
 
     it('opens the running session with Continue', () => {
@@ -700,7 +736,7 @@ describe('TodayOverviewComponent', () => {
         todayDay: dayEntry({ sessions: [finished('short', 10), finished('long', 50)] })
       });
 
-      root.querySelector<HTMLAnchorElement>('a.action-secondary')?.click();
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
 
       expect(emit).toHaveBeenCalledOnceWith({ sessionId: 'long', status: 'COMPLETED' });
     });
@@ -751,45 +787,37 @@ describe('TodayOverviewComponent', () => {
       });
     }
 
-    it('uses real buttons and links, and hides the decorative glyph', () => {
+    it('uses real buttons, and hides the decorative glyph', () => {
       const root = render({ today: today() });
 
       expect(root.querySelector('.action-primary')?.tagName).toBe('BUTTON');
       expect(root.querySelector('.action-primary')?.getAttribute('type')).toBe('button');
-      expect(root.querySelector('a.action-secondary')?.tagName).toBe('A');
+      expect(root.querySelector('.action-secondary')?.tagName).toBe('BUTTON');
+      expect(root.querySelector('.past-link')?.tagName).toBe('BUTTON');
       expect(root.querySelector('.kind-tile')?.getAttribute('aria-hidden')).toBe('true');
     });
   });
 
   describe('a rest day with a next session in the plan', () => {
     const thursday = () => ({ ...planDay('d-thu', 'CARDIO', [move(1, 'Treadmill run')], 'Treadmill run'), dayOfWeek: 4 });
+    const rest = () => today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null });
 
-    it('offers the next planned session today as a quiet choice, and names it once in the line above', () => {
-      const root = render({
-        activePlan: plan({ days: [thursday()] }),
-        today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
-        nextTraining: next()
-      });
+    it('offers a free workout and the next planned session today, with no Browse plans', () => {
+      const root = render({ activePlan: plan({ days: [thursday()] }), today: rest(), nextTraining: next() });
 
-      expect(text(root, '.action-primary')).toBe("Do Thursday's session today");
-      expect(root.querySelector('.action-primary')?.classList).toContain('quiet');
-      expect(root.querySelector('.actions')?.classList).toContain('equal');
-      expect(root.querySelector('.action-primary svg')).toBeNull();
-      expect(text(root, 'a.action-secondary')).toBe('Train something else');
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe("Do Thursday's session today");
+      expect(root.textContent).not.toContain('Browse plans');
       expect(chips(root)).toEqual(['Next: Thursday', 'Treadmill run', '35 min']);
     });
 
     it('starts the plan day that falls on the weekday of the next training', () => {
       const active = plan({ days: [thursday(), { ...planDay('d-fri', 'STRENGTH', [move(1, 'Squat')]), dayOfWeek: 5 }] });
-      const root = render({
-        activePlan: active,
-        today: today({ kind: 'REST', label: 'Rest', planDayId: null, title: null, estimatedMinutes: null, moves: null }),
-        nextTraining: next()
-      });
+      const root = render({ activePlan: active, today: rest(), nextTraining: next() });
       const started: Array<{ planDayId: string | null }> = [];
       component.startPlan.subscribe((event) => started.push(event));
 
-      root.querySelector<HTMLButtonElement>('.action-primary')?.click();
+      root.querySelector<HTMLButtonElement>('.action-secondary')?.click();
 
       expect(started.length).toBe(1);
       expect(started[0].planDayId).toBe('d-thu');
@@ -803,46 +831,60 @@ describe('TodayOverviewComponent', () => {
         nextTraining: next({ date: '2026-10-02', kind: 'STRENGTH', label: 'Strength', title: 'Legs' })
       });
 
-      expect(text(root, '.action-primary')).toBe("Do Friday's session today");
-      expect(chips(root)).toEqual(['Next: Friday', 'Legs', '35 min']);
+      expect(text(root, '.action-secondary')).toBe("Do Friday's session today");
     });
 
-    it('stays as it was when the plan has no day on that weekday, or no days', () => {
+    it('falls back to Browse plans when the plan has no day on that weekday, or no next training', () => {
       for (const days of [[{ ...planDay('d-mon', 'STRENGTH', []), dayOfWeek: 1 }], []]) {
-        const root = render({
-          activePlan: plan({ days }),
-          today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
-          nextTraining: next()
-        });
-
-        expect(root.querySelector('.action-primary')).toBeNull();
-        expect(text(root, 'a.action-secondary')).toBe('Train today');
+        const root = render({ activePlan: plan({ days }), today: rest(), nextTraining: next() });
+        expect(text(root, '.action-secondary')).toBe('Browse plans');
       }
+      const withoutNext = render({ activePlan: plan({ days: [thursday()] }), today: rest(), nextTraining: null });
+      expect(text(withoutNext, '.action-secondary')).toBe('Browse plans');
     });
 
-    it('stays as it was without a plan or without a next training', () => {
-      const withoutPlan = render({ activePlan: null, today: today({ kind: 'REST', label: 'Rest', planDayId: null }), nextTraining: next() });
-      expect(withoutPlan.querySelector('.action-primary')).toBeNull();
+    it('offers Browse plans when there is no plan', () => {
+      const root = render({ activePlan: null, today: rest(), nextTraining: next() });
 
-      const withoutNext = render({
-        activePlan: plan({ days: [thursday()] }),
-        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
-        nextTraining: null
-      });
-      expect(withoutNext.querySelector('.action-primary')).toBeNull();
-      expect(text(withoutNext, 'a.action-secondary')).toBe('Train today');
+      expect(text(root, '.action-primary')).toBe('Start a free workout');
+      expect(text(root, '.action-secondary')).toBe('Browse plans');
     });
 
-    it('disables the start while the plan is starting', () => {
-      const root = render({
-        activePlan: plan({ days: [thursday()] }),
-        today: today({ kind: 'REST', label: 'Rest', planDayId: null }),
-        nextTraining: next(),
-        starting: true
-      });
+    it('disables the next session while the plan is starting', () => {
+      const root = render({ activePlan: plan({ days: [thursday()] }), today: rest(), nextTraining: next(), starting: true });
 
-      expect(root.querySelector<HTMLButtonElement>('.action-primary')?.disabled).toBeTrue();
-      expect(text(root, '.action-primary')).toBe('Starting…');
+      expect(root.querySelector<HTMLButtonElement>('.action-secondary')?.disabled).toBeTrue();
+      expect(text(root, '.action-secondary')).toBe('Starting…');
+    });
+  });
+
+  describe('the foot link', () => {
+    const states: Array<[string, Record<string, unknown>]> = [
+      ['a planned day', { today: today() }],
+      ['an open day', { today: today({ kind: 'OPEN', label: 'Today', source: 'NONE', planDayId: null }) }],
+      ['a rest day', { today: today({ kind: 'REST', label: 'Rest', planDayId: null }) }],
+      ['a finished day', { today: today({ source: 'DONE' }) }],
+      ['a running session', { today: today({ source: 'IN_PROGRESS' }) }],
+      ['no plan', { activePlan: null, today: null }]
+    ];
+
+    for (const [name, inputs] of states) {
+      it(`carries Log a past workout on the right of the last session row on ${name}`, () => {
+        const emit = spyOn(component.logPast, 'emit');
+        const root = render(inputs);
+        const link = root.querySelector<HTMLButtonElement>('.card-foot .last-session .past-link');
+
+        expect(link?.textContent?.trim()).toBe('Log a past workout');
+        link?.click();
+        expect(emit).toHaveBeenCalledTimes(1);
+      });
+    }
+
+    it('leaves nothing beside the card', () => {
+      const root = render({ today: today() });
+
+      expect(root.textContent).not.toContain('Free workout ›');
+      expect(root.querySelector('.quick-row')).toBeNull();
     });
   });
 });

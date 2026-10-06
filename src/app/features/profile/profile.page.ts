@@ -1,202 +1,177 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 
-import { AnalyticsApiService } from '../../core/analytics-api.service';
-import { AnalyticsWorkoutSummaryResponse } from '../../core/analytics.models';
-import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
-import { Goal } from '../../core/fitsync.models';
+import { AccountDataService, AccountUserResponse } from '../../core/account-data.service';
+import { FitSyncDataService, normalizeFocusAreas } from '../../core/fitsync-data.service';
+import { UserGoal } from '../../core/fitsync.models';
+import { BadgesModel, Footprint } from '../../core/me.models';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
-import { sessionDurationLabel } from '../workout/workout-session.util';
-import { GoalLifecycleComponent } from './goal-lifecycle.component';
+import { AboutData, AboutGoal } from './about/about-you';
+import { AboutYouComponent } from './about/about-you.component';
+import { AchievementsCardComponent } from './achievements/achievements-card.component';
+import { IdentityCardComponent } from './identity/identity-card.component';
+import { TargetsCardComponent } from './targets/targets-card.component';
 
-interface ActivityItem {
-  icon: string;
-  title: string;
-  detail: string;
-  when: string;
+interface SettingsRow {
+  label: string;
+  section: string;
+  danger?: boolean;
 }
 
+const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'DINNER'];
+const MEAL_NAMES: Record<string, string> = { BREAKFAST: 'Breakfast', LUNCH: 'Lunch', DINNER: 'Dinner' };
+
+/** The six settings rows; each opens the section of the settings page that holds it. */
+export const SETTINGS_ROWS: readonly SettingsRow[] = [
+  { label: 'Account', section: 'personal' },
+  { label: 'Units', section: 'preferences' },
+  { label: 'Nutrient reference ranges', section: 'preferences' },
+  { label: 'Notifications', section: 'notifications' },
+  { label: 'Data export', section: 'privacy-data' },
+  { label: 'Delete account', section: 'privacy-data', danger: true }
+];
+
+/**
+ * Me: what simply is. The identity card with the footprint, About you (the inputs the coach reads),
+ * Targets, the latest and next badges, and the settings rows. Judgements live on Progress. The
+ * footprint and the badges load apart from the person, so either failing leaves the rest of the page whole.
+ */
 @Component({
   selector: 'app-profile-page',
-  imports: [DecimalPipe, RouterLink, StatePanelComponent, GoalLifecycleComponent],
+  imports: [RouterLink, StatePanelComponent, IdentityCardComponent, AboutYouComponent, TargetsCardComponent, AchievementsCardComponent],
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.scss'
 })
 export class ProfilePage implements OnInit {
-  private readonly dataService = inject(FitSyncDataService);
-  private readonly analyticsApi = inject(AnalyticsApiService);
+  private readonly account = inject(AccountDataService);
+  private readonly data = inject(FitSyncDataService);
+  protected readonly today = inject(UserTimezoneService).dateKey();
 
-  readonly data = signal<DashboardData | null>(null);
-  readonly workoutSummary = signal<AnalyticsWorkoutSummaryResponse | null>(null);
-  readonly loading = signal(true);
-  readonly error = signal<string | null>(null);
+  protected readonly settingsRows = SETTINGS_ROWS;
 
-  readonly initials = computed(() => {
-    const name = this.data()?.profile.displayName?.trim();
-    if (!name) {
-      return 'FS';
-    }
-    const parts = name.split(/\s+/);
-    const first = parts[0]?.[0] ?? '';
-    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-    return (first + last).toUpperCase();
-  });
+  protected readonly user = signal<AccountUserResponse | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
 
-  readonly age = computed(() => {
-    const birthDate = this.data()?.profile.birthDate;
-    if (!birthDate) {
+  protected readonly goals = signal<UserGoal[]>([]);
+  protected readonly usualMeals = signal<{ label: string; time: string }[]>([]);
+  protected readonly usualStart = signal<string | null>(null);
+  protected readonly injuries = signal<string[]>([]);
+
+  protected readonly footprint = signal<Footprint | null>(null);
+  protected readonly footprintLoading = signal(true);
+  protected readonly footprintFailed = signal(false);
+
+  protected readonly badges = signal<BadgesModel | null>(null);
+  protected readonly badgesLoading = signal(true);
+  protected readonly badgesFailed = signal(false);
+
+  protected readonly about = computed<AboutData | null>(() => {
+    const user = this.user();
+    if (!user) {
       return null;
     }
-    const born = new Date(birthDate);
-    if (Number.isNaN(born.getTime())) {
-      return null;
-    }
-    return Math.floor((Date.now() - born.getTime()) / (365.25 * 24 * 3600 * 1000));
+    const training = user.preferences?.training;
+    const weight = this.goals().find((goal) => goal.goalType === 'WEIGHT' && goal.targetValue !== null);
+    const goal: AboutGoal | null = weight
+      ? { type: weight.goalType, targetValue: weight.targetValue, targetUnit: weight.targetUnit, targetDate: weight.targetDate }
+      : null;
+    return {
+      weeklyDays: this.sessionsPerWeek(),
+      trainingTime: this.usualStart() ?? training?.preferredWorkoutTime?.slice(0, 5) ?? null,
+      goal,
+      weightKg: user.latestBodyMetrics?.weightKg ?? null,
+      focusAreas: normalizeFocusAreas(training?.focusAreas),
+      equipment: training?.equipmentInventory ?? [],
+      injuries: this.injuries(),
+      diet: user.preferences?.nutrition?.dietaryPattern ?? null,
+      meals: this.usualMeals()
+    };
   });
 
-  readonly activeGoal = computed(() => {
-    const goals = this.data()?.goals ?? [];
-    return goals.find((goal) => goal.status === 'ACTIVE') ?? goals[0] ?? null;
+  /** The sessions-a-week target when one is set, else the preference. Targets and the lead sentence then agree. */
+  private readonly sessionsPerWeek = computed(() => {
+    const target = this.goals().find((goal) => goal.goalType === 'WORKOUT_FREQUENCY' && goal.targetValue !== null && goal.targetValue > 0);
+    return target?.targetValue ?? this.user()?.preferences?.training?.weeklyWorkoutDays ?? null;
   });
 
-  readonly recentActivity = computed<ActivityItem[]>(() => {
-    const data = this.data();
-    if (!data) {
-      return [];
-    }
-    const items: ActivityItem[] = [];
-    if (this.isCompletedWorkout(data.latestWorkout)) {
-      items.push({
-        icon: 'dumbbell',
-        title: data.latestWorkout.name,
-        detail: `${this.label(data.latestWorkout.workoutType)} · ${sessionDurationLabel(data.latestWorkout)}`,
-        when: data.latestWorkout.completedAt
-      });
-    }
-    if (data.latestMeal) {
-      items.push({
-        icon: 'utensils',
-        title: data.latestMeal.name,
-        detail: `${this.label(data.latestMeal.mealType)} · ${data.latestMeal.totalCalories} kcal`,
-        when: data.latestMeal.consumedAt
-      });
-    }
-    if (data.latestBodyMetric) {
-      items.push({
-        icon: 'scale',
-        title: `Weigh-in · ${data.latestBodyMetric.weightKg} kg`,
-        detail: `BMI ${data.latestBodyMetric.bmi}`,
-        when: data.latestBodyMetric.measuredAt ?? ''
-      });
-    }
-    return items;
-  });
+  protected readonly pace = this.sessionsPerWeek;
 
   ngOnInit(): void {
     this.load();
   }
 
-  load(): void {
+  protected load(): void {
     this.loading.set(true);
     this.error.set(null);
-
-    const range = this.trainingHistoryRange();
-
-    forkJoin({
-      dashboard: this.dataService.getDashboard(),
-      workoutSummary: this.analyticsApi.getWorkoutSummary(range.from, range.to)
-    }).subscribe({
-      next: ({ dashboard, workoutSummary }) => {
-        this.workoutSummary.set(workoutSummary);
-        this.data.set(dashboard);
+    this.account.getCurrentUser().subscribe({
+      next: (user) => {
+        this.user.set(user);
         this.loading.set(false);
+        this.loadAround();
+        this.loadFootprint();
       },
-      error: (error: Error) => {
-        this.error.set(error.message);
+      error: () => {
+        this.error.set('Your profile could not be loaded. Nothing is lost. Try again in a moment.');
         this.loading.set(false);
+      }
+    });
+    this.loadBadges();
+  }
+
+  /** The grid starts on the Monday of the week the account was created, so the join date is passed along. */
+  protected loadFootprint(): void {
+    this.footprintLoading.set(true);
+    this.footprintFailed.set(false);
+    const since = this.user()?.profile?.createdAt?.slice(0, 10) ?? null;
+    this.data.getFootprint(since).subscribe({
+      next: (footprint) => {
+        this.footprint.set(footprint);
+        this.footprintLoading.set(false);
+      },
+      error: () => {
+        this.footprintFailed.set(true);
+        this.footprintLoading.set(false);
       }
     });
   }
 
-  label(value: string | null | undefined): string {
-    return (value ?? '')
-      .replace(/_/g, ' ')
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+  protected loadBadges(): void {
+    this.badgesLoading.set(true);
+    this.badgesFailed.set(false);
+    this.data.getBadges().subscribe({
+      next: (badges) => {
+        this.badges.set(badges);
+        this.badgesLoading.set(false);
+      },
+      error: () => {
+        this.badgesFailed.set(true);
+        this.badgesLoading.set(false);
+      }
+    });
   }
 
-  goalProgress(): number {
-    const goal = this.activeGoal();
-    return goal ? Math.round(Math.min(1, Math.max(0, goal.progressRatio)) * 100) : 0;
+  /** The targets, the usual meals and the usual training time. Each may be missing without harm. */
+  protected loadAround(): void {
+    this.loadGoals();
+    forkJoin({
+      meals: this.data.getUsualMeals().pipe(catchError(() => of([]))),
+      insight: this.data.getWeeklyTrainingInsight().pipe(catchError(() => of(null))),
+      injuries: this.data.getInjuryAreas()
+    }).subscribe(({ meals, insight, injuries }) => {
+      this.injuries.set(injuries);
+      this.usualMeals.set(
+        MEAL_ORDER.map((type) => meals.find((meal) => meal.mealType === type))
+          .filter((meal): meal is NonNullable<typeof meal> => !!meal && meal.usualTime !== null)
+          .map((meal) => ({ label: MEAL_NAMES[meal.mealType] ?? meal.label, time: meal.usualTime as string }))
+      );
+      this.usualStart.set(insight?.usualStartTime ?? null);
+    });
   }
 
-  isCompletedWorkout(workout: DashboardData['latestWorkout']): workout is NonNullable<DashboardData['latestWorkout']> {
-    return workout?.status === 'COMPLETED';
-  }
-
-  goalTargetLabel(goal: Goal): string {
-    if (goal.targetValue <= 0) {
-      return 'No target set';
-    }
-    const value = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 }).format(goal.targetValue);
-    const unit = goal.targetUnit.trim();
-    return `${value}${unit ? ` ${unit}` : ''}`;
-  }
-
-  goalTargetDateLabel(goal: Goal): string {
-    return goal.targetDate ? `by ${this.formatDate(goal.targetDate, true)}` : 'No target date';
-  }
-
-  totalTrainingHours(summary: AnalyticsWorkoutSummaryResponse): string {
-    return this.formatNumber(summary.totalWorkoutMinutes / 60, 1);
-  }
-
-  hasTrainingHistory(summary: AnalyticsWorkoutSummaryResponse | null): summary is AnalyticsWorkoutSummaryResponse {
-    return Boolean(summary && (summary.totalWorkoutCount > 0 || summary.totalWorkoutMinutes > 0));
-  }
-
-  streakLabel(days: number): string {
-    return `${this.formatNumber(days)} day${days === 1 ? '' : 's'}`;
-  }
-
-  formatDate(value: string | null | undefined, includeYear = false): string {
-    if (!value) {
-      return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-    return new Intl.DateTimeFormat('en-SG', {
-      month: 'short',
-      day: 'numeric',
-      ...(includeYear ? { year: 'numeric' } : {})
-    }).format(date);
-  }
-
-  private trainingHistoryRange(): { from: string; to: string } {
-    const to = new Date();
-    const from = new Date(to);
-    from.setDate(from.getDate() - 365);
-    return {
-      from: this.toDateParam(from),
-      to: this.toDateParam(to)
-    };
-  }
-
-  private toDateParam(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  private formatNumber(value: number, maximumFractionDigits = 0): string {
-    if (!Number.isFinite(value)) {
-      return '0';
-    }
-    return new Intl.NumberFormat('en-SG', { maximumFractionDigits }).format(value);
+  protected loadGoals(): void {
+    this.data.getGoals().subscribe((goals) => this.goals.set(goals));
   }
 }

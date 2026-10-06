@@ -490,6 +490,16 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.startGuidedPlan(plan, exercise.exerciseId, day?.planDayId ?? null);
   }
 
+  /** Start a free workout on the Today card opens the name and type sheet of the quick start card. */
+  handleTodayStartFree(): void {
+    this.liveStartCard()?.openFree();
+  }
+
+  /** The card foot's Log a past workout opens the same past workout form. */
+  handleTodayLogPast(): void {
+    this.liveStartCard()?.openPastWorkout();
+  }
+
   /** The Today card has no session to start (a habit day, or a sport that is logged afterwards),
    *  so it hands over to the past-workout form of the quick start card beside it. */
   handleTodayLogManually(kind: DayKind): void {

@@ -1,0 +1,32 @@
+<section class="card" [attr.aria-label]="theme().name">
+  <header>
+    <h2 class="eyebrow">{{ theme().name }}</h2>
+    <span class="count">{{ count() }}</span>
+  </header>
+
+  @for (path of paths(); track $index) {
+    <div class="path" [class.second]="$index > 0">
+      <span class="line" [style.width.%]="path.lineWidth" aria-hidden="true"></span>
+      <span class="line green" [style.width.%]="path.greenWidth" aria-hidden="true"></span>
+      <ol>
+        @for (entry of path.nodes; track entry.node.code) {
+          <li [style.grid-column]="entry.slot + 1" [attr.data-state]="entry.state">
+            @if (entry.state === 'later') {
+              <div class="node" [attr.aria-label]="aria(entry)">
+                <app-badge-disc [node]="entry.node" state="later" [size]="40" />
+                <span class="name soft">{{ entry.node.name }}</span>
+                <span class="sub soft">{{ entry.sub }}</span>
+              </div>
+            } @else {
+              <button type="button" class="node" [attr.aria-label]="aria(entry)" (click)="open(entry)">
+                <app-badge-disc [node]="entry.node" [state]="entry.state" [size]="40" />
+                <span class="name">{{ entry.node.name }}</span>
+                <span class="sub" [class.gap]="entry.state === 'next'">{{ entry.sub }}</span>
+              </button>
+            }
+          </li>
+        }
+      </ol>
+    </div>
+  }
+</section>

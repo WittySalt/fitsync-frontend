@@ -1,4 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { RangeDay } from './diary.models';
 import { dayTiles, DayTile, weekFigures } from './diary-week';
@@ -7,14 +8,17 @@ import { whole } from './diary-figures';
 
 /**
  * The head of the Nutrition page in one card, like the Workout page's: the seven days of this week
- * filled by calories over target, days logged, days on target and kcal a day. A day opens in the Diary.
+ * filled by calories over target, the days logged and today's kcal so far. A day opens in the Diary,
+ * and Longer goes to the four-week view on Progress.
  */
 @Component({
   selector: 'app-diary-week',
+  imports: [RouterLink],
   template: `
     <div class="head">
       <span class="eyebrow">This week</span>
       <span class="range">{{ range() }}</span>
+      <a class="longer" routerLink="/progress/food">Longer &rsaquo;</a>
     </div>
     @if (failed()) {
       <div class="failed" role="alert">
@@ -49,16 +53,8 @@ import { whole } from './diary-figures';
             <span>days logged</span>
           </div>
           <div class="figure">
-            <strong>{{ figures().onTarget }}</strong>
-            <span>on target</span>
-          </div>
-          <div class="figure">
-            @if (figures().kcalPerDay === null) {
-              <strong>No days logged yet</strong>
-            } @else {
-              <strong>{{ kcalPerDay() }}</strong>
-              <span>kcal a day</span>
-            }
+            <strong>{{ todayKcal() }}</strong>
+            <span>kcal today so far</span>
           </div>
         </div>
       </div>
@@ -80,7 +76,8 @@ export class DiaryWeekComponent {
 
   protected readonly tiles = computed(() => dayTiles(this.days(), this.dates(), this.today(), this.target()));
   protected readonly figures = computed(() => weekFigures(this.tiles()));
-  protected readonly kcalPerDay = computed(() => whole(this.figures().kcalPerDay ?? 0));
+  /** Today's kcal from the same day entry the tile is drawn from, which the page reloads after a change. */
+  protected readonly todayKcal = computed(() => whole(this.tiles().find((tile) => tile.state === 'today')?.kcal ?? 0));
   protected readonly range = computed(() => {
     const dates = this.dates();
     return dates.length ? rangeLabel(dates[0], dates[dates.length - 1]) : '';

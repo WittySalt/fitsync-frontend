@@ -6,6 +6,8 @@ import { dayBoundsInZone, profileTimezone } from './zone-time';
 
 import { AnalyticsApiService } from './analytics-api.service';
 import { AccountDataService } from './account-data.service';
+import { mapBadges, mapFootprint } from './me-mappers';
+import { BadgesModel, Footprint } from './me.models';
 import { mapRecipeSuggestions } from '../features/nutrition/recipes/recipes-mappers';
 import { RecipeSuggestions } from '../features/nutrition/recipes/recipes.models';
 import {
@@ -1281,6 +1283,25 @@ export class FitSyncDataService {
           })
           .filter((point): point is WeightSeriesPoint => point !== null)
       }))
+    );
+  }
+
+  /** Every day since the person joined, with whether they trained and whether they logged meals. */
+  getFootprint(since?: string | null): Observable<Footprint> {
+    const params = since ? new HttpParams().set('since', since) : undefined;
+    return this.http.get<unknown>(`${this.apiBaseUrl}/analytics/me/footprint`, { params }).pipe(map(mapFootprint));
+  }
+
+  /** The seventeen badges as paths by theme, with the latest earned and the two closest to earning. */
+  getBadges(): Observable<BadgesModel> {
+    return this.http.get<unknown>(`${this.apiBaseUrl}/analytics/achievements`).pipe(map(mapBadges));
+  }
+
+  /** The injured areas from the health readiness answers; none when the call fails or nothing was answered. */
+  getInjuryAreas(): Observable<string[]> {
+    return this.http.get<{ injuryAreas?: string[] | null } | null>(`${this.apiBaseUrl}/users/me/health-readiness`).pipe(
+      map((view) => (Array.isArray(view?.injuryAreas) ? view.injuryAreas.filter((area): area is string => typeof area === 'string') : [])),
+      catchError(() => of([] as string[]))
     );
   }
 

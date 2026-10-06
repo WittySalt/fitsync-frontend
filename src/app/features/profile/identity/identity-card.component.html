@@ -1,0 +1,40 @@
+<section class="card" aria-label="You">
+  <header>
+    <span class="avatar" aria-hidden="true">
+      @if (avatarUrl(); as url) {
+        <img [src]="url" alt="" />
+      } @else {
+        {{ initials() }}
+      }
+    </span>
+    <div class="who">
+      <h1>{{ name() }}</h1>
+      @if (member()) {
+        <p class="member">{{ member() }}</p>
+      }
+    </div>
+    <a class="edit" routerLink="/settings" [queryParams]="{ section: 'personal' }">Edit profile</a>
+  </header>
+
+  @if (loading()) {
+    <div class="skeleton" aria-busy="true" aria-label="Loading your footprint"></div>
+  } @else if (failed()) {
+    <div class="failed">
+      <p>Your footprint could not be loaded.</p>
+      <button type="button" class="retry" (click)="retry.emit()">Try again</button>
+    </div>
+  } @else if (footprint(); as print) {
+    <app-footprint-grid [footprint]="print" [today]="today()" />
+    @if (!started()) {
+      <p class="starts">Your footprint starts with your first workout or meal.</p>
+    }
+    <div class="totals">
+      <dl>
+        <div><dd>{{ print.totals.workouts }}</dd><dt>Workouts</dt></div>
+        <div><dd>{{ print.totals.daysLogged }}</dd><dt>Days logged</dt></div>
+        <div><dd>{{ print.totals.badges }}</dd><dt>Badges</dt></div>
+      </dl>
+      <a class="log" routerLink="/progress/training" fragment="log">Training log <span aria-hidden="true">&rsaquo;</span></a>
+    </div>
+  }
+</section>

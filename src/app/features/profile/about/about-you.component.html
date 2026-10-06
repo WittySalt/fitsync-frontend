@@ -1,0 +1,60 @@
+<section class="card" aria-labelledby="about-title">
+  <header>
+    <h2 id="about-title" class="eyebrow">About you</h2>
+    <p class="sub">What your coach reads</p>
+  </header>
+  <p class="lead">{{ lead() }}</p>
+
+  <div class="body">
+    <a class="figure" routerLink="/workout/plans/new" [attr.aria-label]="caption() + '. Opens the plan flow.'">
+      <app-muscle-figure [setsByGroup]="sets()" [height]="190" [interactive]="false" />
+      <span class="caption">{{ caption() }}</span>
+    </a>
+
+    <div class="rows">
+      <div class="row">
+        <h3 class="eyebrow">Your day</h3>
+        <app-day-line [meals]="data().meals" [training]="data().trainingTime" />
+      </div>
+
+      <div class="row">
+        <h3 class="eyebrow">Equipment</h3>
+        <div class="chips">
+          @for (item of equipment(); track item) {
+            <a class="chip" routerLink="/settings" [queryParams]="preferences">{{ item }}</a>
+          } @empty {
+            <a class="chip add" routerLink="/settings" [queryParams]="preferences"><span aria-hidden="true">+</span> Add</a>
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <h3 class="eyebrow">Injuries</h3>
+        <div class="chips">
+          @for (item of injuries(); track item) {
+            <a class="chip" routerLink="/settings" [queryParams]="preferences">{{ item }}</a>
+          } @empty {
+            @if (nothingSet()) {
+              <a class="chip add" routerLink="/settings" [queryParams]="preferences"><span aria-hidden="true">+</span> Add</a>
+            } @else {
+              <a class="chip" routerLink="/settings" [queryParams]="preferences">None</a>
+            }
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <h3 class="eyebrow">Diet</h3>
+        <div class="chips">
+          @if (diet(); as label) {
+            <a class="chip" routerLink="/settings" [queryParams]="preferences">{{ label }}</a>
+          } @else {
+            <a class="chip add" routerLink="/settings" [queryParams]="preferences"><span aria-hidden="true">+</span> Add</a>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">{{ nothingSet() ? 'Tap anything to add it.' : 'Tap anything to change it.' }}</p>
+</section>

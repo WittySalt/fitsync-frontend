@@ -1,32 +1,37 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { AnalyticsApiService } from '../../../core/analytics-api.service';
-import { AnalyticsAchievement } from '../../../core/analytics.models';
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { BadgesModel } from '../../../core/me.models';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { BadgeDiscComponent } from '../../../shared/badges/badge-disc.component';
 import { formatDuration } from '../brief/brief-duration';
-import { BADGE_TOTAL, BadgeView, comparisonLine, toBadgeViews } from './earned-helpers';
+import { comparisonLine, stripView } from './earned-helpers';
 
 const NO_TRAINING_TEXT = 'Nothing yet this week';
 
 @Component({
   selector: 'app-earned',
+  imports: [RouterLink, BadgeDiscComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './earned.component.html',
   styleUrl: './earned.component.scss'
 })
 export class EarnedComponent implements OnInit {
   private readonly analyticsApi = inject(AnalyticsApiService);
+  private readonly data = inject(FitSyncDataService);
 
-  private readonly timezone = inject(UserTimezoneService).zone;
+  private readonly timezone = inject(UserTimezoneService);
   /** Minutes trained Monday to Sunday of this week in the person's zone, from the dashboard. It
    *  matches the week strip, and the comparison below is the fallback while it is not sent. */
   readonly minutesThisWeek = input<number | null>(null);
   /** Consecutive training days, from the dashboard. Nothing is said below two. */
   readonly streakDays = input<number | null>(null);
 
-  readonly achievements = signal<AnalyticsAchievement[]>([]);
-  readonly achievementsLoading = signal(true);
-  readonly achievementsFailed = signal(false);
+  readonly badges = signal<BadgesModel | null>(null);
+  readonly badgesLoading = signal(true);
+  readonly badgesFailed = signal(false);
   // The two figures come from the week-over-week comparison.
   private readonly compareMinutes = signal<number | null>(null);
   readonly previousWeekMinutes = signal<number | null>(null);
@@ -40,17 +45,10 @@ export class EarnedComponent implements OnInit {
     return days !== null && days >= 2 ? `${days} days in a row` : '';
   });
 
-  readonly badges = computed<BadgeView[]>(() => toBadgeViews(this.achievements(), this.timezone()));
-  readonly earnedBadges = computed(() => this.badges().filter((badge) => badge.earned));
-  readonly latestEarned = computed(() => this.earnedBadges()[0] ?? null);
-  readonly badgeTotal = computed(() => this.achievements().length || BADGE_TOTAL);
-  readonly badgeHeadline = computed(() => `${this.earnedBadges().length} of ${this.badgeTotal()} earned`);
-  readonly latestEarnedLine = computed(() => {
-    const latest = this.latestEarned();
-    if (!latest) {
-      return '';
-    }
-    return latest.dateLabel ? `${latest.title} · ${latest.dateLabel}` : latest.title;
+  /** The strip: the newest badge earned this week, or a quiet line when nothing is new. */
+  readonly strip = computed(() => {
+    const model = this.badges();
+    return model ? stripView(model, this.timezone.dateKey()) : null;
   });
 
   readonly trainingHeadline = computed(() => {
@@ -61,21 +59,21 @@ export class EarnedComponent implements OnInit {
   readonly trainingComparison = computed(() => comparisonLine(this.compareMinutes(), this.previousWeekMinutes()));
 
   ngOnInit(): void {
-    this.loadAchievements();
+    this.loadBadges();
     this.loadTraining();
   }
 
-  loadAchievements(): void {
-    this.achievementsLoading.set(true);
-    this.achievementsFailed.set(false);
-    this.analyticsApi.getAchievements().subscribe({
-      next: (response) => {
-        this.achievements.set(response.achievements);
-        this.achievementsLoading.set(false);
+  loadBadges(): void {
+    this.badgesLoading.set(true);
+    this.badgesFailed.set(false);
+    this.data.getBadges().subscribe({
+      next: (model) => {
+        this.badges.set(model);
+        this.badgesLoading.set(false);
       },
       error: () => {
-        this.achievementsFailed.set(true);
-        this.achievementsLoading.set(false);
+        this.badgesFailed.set(true);
+        this.badgesLoading.set(false);
       }
     });
   }

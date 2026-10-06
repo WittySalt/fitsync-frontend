@@ -1,277 +1,266 @@
-import { provideHttpClient } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
-import { ProfilePage } from './profile.page';
-import { AnalyticsApiService } from '../../core/analytics-api.service';
-import { AnalyticsWorkoutSummaryResponse } from '../../core/analytics.models';
-import { DashboardData, FitSyncDataService } from '../../core/fitsync-data.service';
+import { AccountDataService, AccountUserResponse } from '../../core/account-data.service';
+import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { UserGoal, WeeklyTrainingInsight } from '../../core/fitsync.models';
+import { BADGES, FOOTPRINT } from '../../core/me-fixtures.spec';
+import { UserTimezoneService } from '../../core/user-timezone.service';
+import { ProfilePage, SETTINGS_ROWS } from './profile.page';
 
-const mockDashboard: DashboardData = {
-  profile: {
-    displayName: 'Wang Xu',
-    firstName: 'Wang',
-    lastName: 'Xu',
-    gender: 'MALE',
-    birthDate: '1996-01-01',
-    heightCm: 178,
-    activityLevel: 'MODERATELY_ACTIVE',
-    timezone: 'Asia/Singapore',
-    onboardingCompleted: true
-  },
-  nutrition: {
-    totalCalories: 0,
-    targetCalories: 0,
-    totalProteinGrams: 0,
-    targetProteinGrams: 0,
-    totalCarbsGrams: 0,
-    targetCarbsGrams: 0,
-    totalFatGrams: 0,
-    targetFatGrams: 0,
-    mealCount: 0,
-    totalFiberGrams: null,
-    totalSugarGrams: null,
-    totalSodiumMg: null,
-    fiberTargetGrams: null,
-    sugarLimitGrams: null,
-    sodiumLimitMg: null,
-    fiberTargetMet: null,
-    sugarWithinLimit: null,
-    sodiumWithinLimit: null
-  },
-  latestWorkout: {
-    name: 'Upper body strength',
-    workoutType: 'STRENGTH',
-    status: 'COMPLETED',
-    startedAt: '2026-06-18T08:08:00Z',
-    durationMinutes: 52,
-    caloriesBurned: 320,
-    completedAt: '2026-06-18T09:00:00Z',
-    exerciseCount: 6
-  },
-  latestMeal: null,
-  latestBodyMetric: { weightKg: 70.3, bodyFatRate: 18, bmi: 22.2, measuredAt: '2026-06-19T01:00:00Z' },
-  goals: [
-    { goalType: 'WEIGHT', targetValue: 68, targetUnit: 'kg', targetDate: '2026-09-12', status: 'ACTIVE', progressRatio: 0.42 }
-  ]
-};
+function user(overrides: Partial<AccountUserResponse> = {}): AccountUserResponse {
+  return {
+    userId: 'u1',
+    email: 'steady@example.test',
+    role: 'USER',
+    profile: {
+      displayName: 'Ruixian',
+      firstName: 'Ruixian',
+      lastName: null,
+      avatarUrl: null,
+      birthDate: '1996-01-01',
+      gender: 'MALE',
+      heightCm: 171,
+      activityLevel: 'MODERATELY_ACTIVE',
+      timezone: 'Asia/Singapore',
+      locationDisplay: 'Singapore',
+      bio: null,
+      membershipTier: null,
+      membershipStatus: null,
+      onboardingCompleted: true
+    },
+    preferences: {
+      app: { preferredUnits: 'METRIC', language: 'en', timezone: null, privacyLevel: 'PRIVATE', dataSharingConsent: false },
+      training: {
+        fitnessLevel: 'INTERMEDIATE',
+        trainingLocation: 'GYM',
+        weeklyWorkoutDays: 4,
+        preferredDurationMinutes: 45,
+        preferredWorkoutTime: '19:00:00',
+        intensityPreference: 'MODERATE',
+        focusAreas: ['SHOULDERS', 'ARMS', 'GLUTES'],
+        equipmentInventory: ['DUMBBELLS']
+      },
+      nutrition: { dietaryPattern: '300001', mealFrequency: 4, calorieTrackingMode: 'AUTO', macroPreference: 'BALANCED', waterGoalMl: 2500 },
+      notifications: {} as AccountUserResponse['preferences']['notifications']
+    },
+    activeGoals: [],
+    latestBodyMetrics: { weightKg: 71.2 } as AccountUserResponse['latestBodyMetrics'],
+    ...overrides
+  };
+}
 
-const mockWorkoutSummary: AnalyticsWorkoutSummaryResponse = {
-  from: '2025-06-25',
-  to: '2026-06-25',
-  totalWorkoutCount: 82,
-  totalWorkoutMinutes: 3690,
-  totalCaloriesBurned: 24000,
-  totalExerciseCount: 420,
-  averageDurationMinutes: 45.4,
-  activeStreakDays: 7
-};
+const goals: UserGoal[] = [
+  { goalId: 'g1', goalType: 'WEIGHT', targetValue: 68, targetUnit: 'kg', targetDate: '2026-12-11', status: 'ACTIVE', notes: null },
+  { goalId: 'g2', goalType: 'CALORIES', targetValue: 2100, targetUnit: 'kcal', targetDate: null, status: 'ACTIVE', notes: null }
+];
 
 describe('ProfilePage', () => {
-  let component: ProfilePage;
-  let dataService: jasmine.SpyObj<FitSyncDataService>;
-  let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
+  let account: jasmine.SpyObj<AccountDataService>;
+  let data: jasmine.SpyObj<FitSyncDataService>;
 
   beforeEach(() => {
-    dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getDashboard', 'getGoals']);
-    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getWorkoutSummary']);
-    dataService.getDashboard.and.returnValue(of(mockDashboard));
-    dataService.getGoals.and.returnValue(of([]));
-    analyticsApi.getWorkoutSummary.and.returnValue(of(mockWorkoutSummary));
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date('2026-10-06T04:00:00Z'));
+    account = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['getCurrentUser']);
+    account.getCurrentUser.and.returnValue(of(user()));
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getFootprint', 'getBadges', 'getGoals', 'getUsualMeals', 'getWeeklyTrainingInsight', 'getInjuryAreas']);
+    data.getInjuryAreas.and.returnValue(of(['LOWER_BACK']));
+    data.getFootprint.and.returnValue(of(FOOTPRINT));
+    data.getBadges.and.returnValue(of(BADGES));
+    data.getGoals.and.returnValue(of(goals));
+    data.getUsualMeals.and.returnValue(
+      of([
+        { mealType: 'BREAKFAST', label: 'Breakfast', usualTime: '07:30', sourceMealId: null, totalCalories: null, totalProteinGrams: null, totalCarbsGrams: null, totalFatGrams: null, items: [] },
+        { mealType: 'DINNER', label: 'Dinner', usualTime: '19:00', sourceMealId: null, totalCalories: null, totalProteinGrams: null, totalCarbsGrams: null, totalFatGrams: null, items: [] }
+      ])
+    );
+    data.getWeeklyTrainingInsight.and.returnValue(of({ usualStartTime: '19:00' } as unknown as WeeklyTrainingInsight));
     TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideRouter([]),
-        { provide: FitSyncDataService, useValue: dataService },
-        { provide: AnalyticsApiService, useValue: analyticsApi }
-      ]
+      providers: [provideRouter([]), { provide: AccountDataService, useValue: account }, { provide: FitSyncDataService, useValue: data }]
     });
-    component = TestBed.createComponent(ProfilePage).componentInstance;
-    component.data.set(mockDashboard);
-    component.workoutSummary.set(mockWorkoutSummary);
+    TestBed.inject(UserTimezoneService).setProfileZone('Asia/Singapore');
   });
 
-  it('shows no coach block, because the page has no insight to read', () => {
+  afterEach(() => jasmine.clock().uninstall());
+
+  function render(): HTMLElement {
+    const fixture = TestBed.createComponent(ProfilePage);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  const clean = (element: Element | null | undefined) => ((element as HTMLElement | null)?.innerText ?? '').replace(/\s+/g, ' ').trim();
+
+  it('stacks the identity card, About you, Targets, Achievements and Settings in that order', () => {
+    const el = render();
+
+    const order = Array.from(el.querySelector('.me')!.children).map((child) => child.tagName.toLowerCase() + (child.classList.contains('settings') ? '.settings' : ''));
+    expect(order).toEqual(['app-identity-card', 'app-about-you', 'app-targets-card', 'app-achievements-card', 'section.settings']);
+  });
+
+  it('shows the identity card with the member line and the lifetime numbers', () => {
+    const el = render();
+
+    expect(el.querySelector('h1')?.textContent).toBe('Ruixian');
+    expect(el.querySelector('.member')?.textContent).toBe('Member since 4 Aug 2026 · Singapore');
+    expect(Array.from(el.querySelectorAll('.totals dl > div')).map((entry) => clean(entry))).toEqual(['31 WORKOUTS', '58 DAYS LOGGED', '7 BADGES']);
+    expect(el.querySelector('.log')?.getAttribute('href')).toBe('/progress/training#log');
+    expect(el.querySelector('.edit')?.getAttribute('href')).toBe('/settings?section=personal');
+  });
+
+  it('writes About you from the inputs, the usual meals and the usual start time', () => {
+    const el = render();
+
+    expect(el.querySelector('.lead')?.textContent).toBe('Four evenings a week, lose weight to 68 kg by 11 Dec.');
+    expect(el.querySelectorAll('app-day-line .dot').length).toBe(2);
+    expect(el.querySelector('app-day-line .training')).toBeTruthy();
+  });
+
+  it('shows the targets and the achievements with the gap in the unit of each badge', () => {
+    const el = render();
+
+    expect(el.querySelectorAll('app-targets-card .row').length).toBe(2);
+    expect(clean(el.querySelector('app-achievements-card .latest'))).toContain('A full week');
+    expect(clean(el.querySelector('app-achievements-card .latest'))).toContain('4 sessions in the week of 21 Sept');
+    expect(Array.from(el.querySelectorAll('app-achievements-card .next-up li')).map((entry) => clean(entry))).toEqual([
+      '50 workouts 19 to go · about 5 weeks at your pace',
+      'Seven days logged 2 to go · log tomorrow and Thursday'
+    ]);
+    expect(clean(el.querySelector('app-achievements-card .open'))).toBe('All 17 ›');
+    expect(el.querySelector('app-achievements-card .open')?.getAttribute('href')).toBe('/me/achievements');
+  });
+
+  it('shows the injuries from the health readiness answers', () => {
+    const chips = Array.from(render().querySelectorAll('app-about-you .chip')).map((chip) => clean(chip));
+
+    expect(chips).toContain('Lower back');
+    expect(data.getInjuryAreas).toHaveBeenCalled();
+  });
+
+  it('names focus areas that arrive as codes and never shows a code', () => {
+    const base = user();
+    account.getCurrentUser.and.returnValue(of(user({ preferences: { ...base.preferences, training: { ...base.preferences.training, focusAreas: ['240002', '240003'] } } })));
+
+    const el = render();
+
+    expect(el.querySelector('app-about-you .caption')?.textContent).toBe('Focus: upper body, core');
+    expect(el.textContent).not.toMatch(/2400\d\d/);
+  });
+
+  it('writes the lead sentence from the sessions target, not the preference', () => {
+    data.getGoals.and.returnValue(of([...goals, { goalId: 'g3', goalType: 'WORKOUT_FREQUENCY', targetValue: 3, targetUnit: 'sessions/week', targetDate: null, status: 'ACTIVE', notes: null }]));
+
+    expect(render().querySelector('app-about-you .lead')?.textContent).toBe('Three evenings a week, lose weight to 68 kg by 11 Dec.');
+  });
+
+  it('has six settings rows, each to its section, with Delete account in the danger colour', () => {
+    const el = render();
+
+    const rows = Array.from(el.querySelectorAll<HTMLAnchorElement>('.settings a'));
+    expect(rows.map((row) => clean(row))).toEqual(SETTINGS_ROWS.map((row) => row.label));
+    expect(rows.map((row) => row.getAttribute('href'))).toEqual([
+      '/settings?section=personal',
+      '/settings?section=preferences',
+      '/settings?section=preferences',
+      '/settings?section=notifications',
+      '/settings?section=privacy-data',
+      '/settings?section=privacy-data'
+    ]);
+    expect(rows.filter((row) => row.classList.contains('danger')).map((row) => clean(row))).toEqual(['Delete account']);
+  });
+
+  it('removes the old blocks', () => {
+    const text = clean(render());
+
+    for (const gone of ['Lifetime stats', 'Streak', 'Active target', 'Latest entries', 'Manage targets']) {
+      expect(text).not.toContain(gone);
+    }
+    expect(render().querySelector('app-goal-lifecycle')).toBeNull();
+  });
+
+  it('keeps the identity card and About you when the footprint fails, with the error inside the card only', () => {
+    data.getFootprint.and.returnValue(throwError(() => new Error('down')));
+
+    const el = render();
+
+    expect(clean(el.querySelector('app-identity-card .failed'))).toBe('Your footprint could not be loaded. Try again');
+    expect(el.querySelector('h1')?.textContent).toBe('Ruixian');
+    expect(el.querySelector('app-about-you .lead')).toBeTruthy();
+    expect(el.querySelector('app-targets-card')).toBeTruthy();
+    expect(el.querySelector('app-achievements-card .latest')).toBeTruthy();
+  });
+
+  it('keeps the identity card and About you when the achievements fail, with the error inside that card only', () => {
+    data.getBadges.and.returnValue(throwError(() => new Error('down')));
+
+    const el = render();
+
+    expect(clean(el.querySelector('app-achievements-card .failed'))).toBe('Your achievements could not be loaded. Try again');
+    expect(el.querySelector('app-identity-card .totals')).toBeTruthy();
+    expect(el.querySelector('app-about-you .lead')).toBeTruthy();
+    expect(el.querySelector('app-identity-card .failed')).toBeNull();
+  });
+
+  it('retries only the footprint from its own Try again', () => {
+    data.getFootprint.and.returnValue(throwError(() => new Error('down')));
     const fixture = TestBed.createComponent(ProfilePage);
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-coach-anchor')).toBeNull();
-    expect(compiled.querySelector('app-insight-panel')).toBeNull();
+    data.getFootprint.and.returnValue(of(FOOTPRINT));
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('app-identity-card .retry')!.click();
+    fixture.detectChanges();
+
+    expect(data.getFootprint).toHaveBeenCalledTimes(2);
+    expect(data.getBadges).toHaveBeenCalledTimes(1);
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-identity-card .totals')).toBeTruthy();
   });
 
-  it('derives initials from the display name', () => {
-    expect(component.initials()).toBe('WX');
-  });
+  it('shows the empty account with its empty states', () => {
+    account.getCurrentUser.and.returnValue(
+      of(
+        user({
+          preferences: { ...user().preferences, training: { ...user().preferences.training, weeklyWorkoutDays: null, preferredWorkoutTime: null, focusAreas: [], equipmentInventory: [] }, nutrition: { ...user().preferences.nutrition, dietaryPattern: '' } },
+          latestBodyMetrics: null
+        })
+      )
+    );
+    data.getFootprint.and.returnValue(of({ ...FOOTPRINT, days: [], totals: { workouts: 0, daysLogged: 0, badges: 0 }, memberSince: '2026-10-06', from: '2026-10-05' }));
+    data.getBadges.and.returnValue(of({ ...BADGES, earned: 0, latest: null, nextUp: [BADGES.themes[0].paths[0].nodes[0], BADGES.themes[2].paths[0].nodes[0]].map((entry) => ({ ...entry, earnedOn: null, progress: { ...entry.progress, current: 0 } })) }));
+    data.getGoals.and.returnValue(of([]));
+    data.getUsualMeals.and.returnValue(of([]));
+    data.getInjuryAreas.and.returnValue(of([]));
+    data.getWeeklyTrainingInsight.and.returnValue(of({ usualStartTime: null } as unknown as WeeklyTrainingInsight));
 
-  it('computes age from the birth date', () => {
-    expect(component.age()).toBeGreaterThanOrEqual(30);
-  });
+    const el = render();
 
-  it('selects the active goal and rounds its progress', () => {
-    expect(component.activeGoal()?.goalType).toBe('WEIGHT');
-    expect(component.goalProgress()).toBe(42);
-  });
-
-  it('formats the active target value and deadline without fake zero labels', () => {
-    const goal = mockDashboard.goals[0];
-
-    expect(component.goalTargetLabel(goal)).toBe('68 kg');
-    expect(component.goalTargetDateLabel(goal)).toBe('by 12 Sept 2026');
-    expect(component.goalTargetLabel({ ...goal, targetValue: 0 })).toBe('No target set');
-    expect(component.goalTargetDateLabel({ ...goal, targetDate: '' })).toBe('No target date');
-  });
-
-  it('builds recent activity from the latest workout and body metric', () => {
-    const activity = component.recentActivity();
-    expect(activity.length).toBe(2);
-    expect(activity[0].title).toBe('Upper body strength');
-    expect(activity[1].icon).toBe('scale');
-  });
-
-  it('renders missing latest workout duration without fake zeroes in recent activity', () => {
-    component.data.set({
-      ...mockDashboard,
-      latestWorkout: {
-        ...mockDashboard.latestWorkout!,
-        startedAt: '2026-06-18T08:08:00Z',
-        completedAt: '',
-        durationMinutes: null,
-        caloriesBurned: null
-      },
-      latestBodyMetric: null
-    });
-
-    expect(component.recentActivity()).toEqual([
-      jasmine.objectContaining({
-        icon: 'dumbbell',
-        detail: 'Strength · —'
-      })
+    expect(clean(el.querySelector('.starts'))).toBe('Your footprint starts with your first workout or meal.');
+    expect(Array.from(el.querySelectorAll('.totals dl > div')).map((entry) => clean(entry))).toEqual(['0 WORKOUTS', '0 DAYS LOGGED', '0 BADGES']);
+    expect(el.querySelector('app-about-you .lead')?.textContent).toBe('Nothing set yet.');
+    expect(el.querySelectorAll('app-about-you .chip.add').length).toBe(3);
+    expect(clean(el.querySelector('app-targets-card .none'))).toBe('No targets yet');
+    expect(clean(el.querySelector('app-targets-card .set'))).toBe('Set a target');
+    expect(el.querySelector('app-achievements-card .latest')).toBeNull();
+    expect(Array.from(el.querySelectorAll('app-achievements-card .next-up li')).map((entry) => clean(entry))).toEqual([
+      'First workout First workout (how)',
+      'First meal logged First meal logged (how)'
     ]);
   });
 
-  it('uses analytics workout summary for training history and streak labels', () => {
-    expect(component.hasTrainingHistory(mockWorkoutSummary)).toBeTrue();
-    expect(component.totalTrainingHours(mockWorkoutSummary)).toBe('61.5');
-    expect(component.streakLabel(mockWorkoutSummary.activeStreakDays)).toBe('7 days');
-    expect(component.streakLabel(1)).toBe('1 day');
-    expect(component.hasTrainingHistory({ ...mockWorkoutSummary, totalWorkoutCount: 0, totalWorkoutMinutes: 0 })).toBeFalse();
-  });
+  it('shows a panel with Try again when the profile cannot be loaded, and reloads from it', () => {
+    account.getCurrentUser.and.returnValue(throwError(() => new Error('down')));
+    const fixture = TestBed.createComponent(ProfilePage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
 
-  it('hides non-completed latest workouts from recent activity', () => {
-    component.data.set({
-      ...mockDashboard,
-      latestWorkout: {
-        ...mockDashboard.latestWorkout!,
-        name: 'Cancelled workout',
-        status: 'CANCELLED'
-      },
-      latestMeal: null,
-      latestBodyMetric: null
-    });
+    expect(el.querySelector('app-state-panel')).toBeTruthy();
+    expect(el.querySelector('app-identity-card')).toBeNull();
 
-    expect(component.recentActivity()).toEqual([]);
-  });
+    account.getCurrentUser.and.returnValue(of(user()));
+    el.querySelector<HTMLButtonElement>('app-state-panel button')!.click();
+    fixture.detectChanges();
 
-  it('uses initials fallbacks for missing, blank, and single-word names', () => {
-    component.data.set(null);
-    expect(component.initials()).toBe('FS');
-
-    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: '   ' } });
-    expect(component.initials()).toBe('FS');
-
-    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Madonna' } });
-    expect(component.initials()).toBe('M');
-
-    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Alice Bee Tan' } });
-    expect(component.initials()).toBe('AT');
-  });
-
-  it('returns null age for missing or invalid birth dates', () => {
-    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, birthDate: undefined } });
-    expect(component.age()).toBeNull();
-
-    component.data.set({ ...mockDashboard, profile: { ...mockDashboard.profile, birthDate: 'not-a-date' } });
-    expect(component.age()).toBeNull();
-  });
-
-  it('falls back to the first goal and clamps goal progress', () => {
-    component.data.set({
-      ...mockDashboard,
-      goals: [
-        { goalType: 'CALORIES', targetValue: 2200, targetUnit: 'kcal', targetDate: '2026-09-12', status: 'PAUSED', progressRatio: 2 },
-        { goalType: 'PROTEIN', targetValue: 120, targetUnit: 'g', targetDate: '2026-09-12', status: 'COMPLETED', progressRatio: -1 }
-      ]
-    });
-
-    expect(component.activeGoal()?.goalType).toBe('CALORIES');
-    expect(component.goalProgress()).toBe(100);
-
-    component.data.set({
-      ...mockDashboard,
-      goals: [{ goalType: 'PROTEIN', targetValue: 120, targetUnit: 'g', targetDate: '2026-09-12', status: 'ACTIVE', progressRatio: -1 }]
-    });
-    expect(component.goalProgress()).toBe(0);
-
-    component.data.set({ ...mockDashboard, goals: [] });
-    expect(component.activeGoal()).toBeNull();
-    expect(component.goalProgress()).toBe(0);
-  });
-
-  it('builds recent activity from meals and handles missing dashboard data', () => {
-    component.data.set(null);
-    expect(component.recentActivity()).toEqual([]);
-
-    component.data.set({
-      ...mockDashboard,
-      latestWorkout: null,
-      latestMeal: {
-        mealId: 'meal-1',
-        name: 'Recovery breakfast',
-        mealType: 'POST_WORKOUT',
-        consumedAt: '2026-06-21T01:00:00Z',
-        totalCalories: 480,
-        totalProteinGrams: 35,
-        itemCount: 3
-      },
-      latestBodyMetric: null
-    });
-
-    expect(component.recentActivity()).toEqual([
-      jasmine.objectContaining({
-        icon: 'utensils',
-        title: 'Recovery breakfast',
-        detail: jasmine.stringMatching(/Post Workout/)
-      })
-    ]);
-  });
-
-  it('loads dashboard data and stores load errors', () => {
-    const fresh = TestBed.createComponent(ProfilePage).componentInstance;
-    dataService.getDashboard.and.returnValue(of({ ...mockDashboard, profile: { ...mockDashboard.profile, displayName: 'Loaded User' } }));
-    analyticsApi.getWorkoutSummary.and.returnValue(of({ ...mockWorkoutSummary, totalWorkoutCount: 10 }));
-
-    fresh.load();
-
-    expect(fresh.loading()).toBeFalse();
-    expect(fresh.error()).toBeNull();
-    expect(fresh.data()?.profile.displayName).toBe('Loaded User');
-    expect(fresh.workoutSummary()?.totalWorkoutCount).toBe(10);
-    expect(analyticsApi.getWorkoutSummary).toHaveBeenCalledWith(jasmine.stringMatching(/^\d{4}-\d{2}-\d{2}$/), jasmine.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
-
-    dataService.getDashboard.and.returnValue(throwError(() => new Error('Profile unavailable')));
-    fresh.load();
-
-    expect(fresh.loading()).toBeFalse();
-    expect(fresh.error()).toBe('Profile unavailable');
-  });
-
-  it('formats labels and date guard values', () => {
-    expect(component.label(null)).toBe('');
-    expect(component.label('BODY_WEIGHT')).toBe('Body Weight');
-    expect(component.formatDate(null)).toBe('');
-    expect(component.formatDate('not-a-date')).toBe('not-a-date');
-    expect(component.formatDate('2026-06-21T08:00:00Z')).toMatch(/\d{1,2} [A-Z][a-z]{2}/);
+    expect(el.querySelector('app-identity-card')).toBeTruthy();
   });
 });

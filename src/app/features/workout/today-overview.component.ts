@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 
 import {
   DayInsight,
@@ -19,6 +19,7 @@ import { HabitDayStartComponent } from './habit-day-start.component';
 import { lastTitle } from './workout-week';
 import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
 import { PlanTemplatesComponent } from './plan-templates.component';
+import { TrainElseSheetComponent } from './train-else-sheet.component';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
 
 /** Which plan day a Start press means. The day is null when the card cannot tell (the plain
@@ -34,7 +35,7 @@ export interface TodayOpenSessionEvent {
   status: 'IN_PROGRESS' | 'COMPLETED';
 }
 
-type TodayAction = 'start' | 'log' | 'browse' | 'open';
+type TodayAction = 'start' | 'log' | 'browse' | 'open' | 'free' | 'else';
 
 interface TodayButton {
   label: string;
@@ -53,14 +54,11 @@ interface TodayCard {
   body: string | null;
   primary: TodayButton | null;
   secondary: TodayButton | null;
-  link: TodayButton | null;
   planDayId: string | null;
   ariaLabel: string;
   showTemplates: boolean;
   /** A habit day without a plan day: the card shows the habit start in place of the plain actions. */
   habit: TodayInsight | null;
-  /** A rest day: both choices are quiet, so nothing on the card asks the person to train. */
-  quiet: boolean;
 }
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -69,11 +67,13 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 const MOBILITY_ROW_LIMIT = 3;
 
 const START_LABEL = 'Start session';
-const BROWSE_LINK: TodayButton = { label: 'Train something else', action: 'browse' };
+const ELSE_BUTTON: TodayButton = { label: 'Train something else', action: 'else' };
+const FREE_BUTTON: TodayButton = { label: 'Start a free workout', action: 'free' };
+const BROWSE_BUTTON: TodayButton = { label: 'Browse plans', action: 'browse' };
 
 @Component({
   selector: 'app-today-overview',
-  imports: [PlanTemplatesComponent, HabitDayStartComponent],
+  imports: [PlanTemplatesComponent, HabitDayStartComponent, TrainElseSheetComponent],
   templateUrl: './today-overview.component.html',
   styleUrl: './today-overview.component.scss'
 })
@@ -97,6 +97,10 @@ export class TodayOverviewComponent {
   readonly browsePlans = output<void>();
   readonly templateActivated = output<WorkoutPlan>();
   readonly logManually = output<DayKind>();
+  /** The free workout sheet, from the card's own buttons or the Train something else sheet. */
+  readonly startFree = output<void>();
+  /** The quiet "Log a past workout" link in the card's foot. */
+  readonly logPast = output<void>();
   readonly openSession = output<TodayOpenSessionEvent>();
   /** A habit day started a session of its own (repeated, or a plain timer). */
   readonly habitStarted = output<WorkoutSessionDetail>();
@@ -111,6 +115,9 @@ export class TodayOverviewComponent {
       .sort((a, b) => this.timeOf(b) - this.timeOf(a));
     return sorted[0] ?? null;
   });
+
+  /** The Train something else sheet is open. */
+  readonly elseOpen = signal(false);
 
   readonly card = computed<TodayCard>(() => this.buildCard());
 
@@ -133,9 +140,7 @@ export class TodayOverviewComponent {
     return [when, duration].filter(Boolean).join(' · ');
   });
 
-  run(action: TodayAction, event?: Event): void {
-    // A link's href is only a fallback for a browser without scripts.
-    event?.preventDefault();
+  run(action: TodayAction): void {
     const card = this.card();
     switch (action) {
       case 'start': {
@@ -151,10 +156,22 @@ export class TodayOverviewComponent {
       case 'browse':
         this.browsePlans.emit();
         break;
+      case 'free':
+        this.startFree.emit();
+        break;
+      case 'else':
+        this.elseOpen.set(true);
+        break;
       case 'open':
         this.openSession.emit(this.sessionToOpen());
         break;
     }
+  }
+
+  /** A row of the Train something else sheet: the sheet closes, then the choice is made. */
+  chooseElse(choice: 'free' | 'browse'): void {
+    this.elseOpen.set(false);
+    this.run(choice);
   }
 
   startHabitPlanDay(planDayId: string | null): void {
@@ -241,13 +258,14 @@ export class TodayOverviewComponent {
       return this.restCard();
     }
     if (today.kind === 'OPEN') {
-      return plan ? this.planFallbackCard(plan) : this.noPlanCard();
+      return plan ? this.planFallbackCard(plan, true) : this.noPlanCard();
     }
     return today.source === 'HABIT' ? this.habitCard(today) : this.plannedCard(today);
   }
 
-  /** The card for a plan when the insight cannot say what today is for. */
-  private planFallbackCard(plan: WorkoutPlan): TodayCard {
+  /** The card for a plan when the insight cannot say what today is for. On a day the plan leaves
+   *  open the card offers a free workout or a plan session instead of the plan's own start. */
+  private planFallbackCard(plan: WorkoutPlan, open = false): TodayCard {
     const rows = this.sortExercises(plan.exercises);
     return this.makeCard({
       kind: this.kindOfWorkoutType(plan.workoutType),
@@ -255,7 +273,8 @@ export class TodayOverviewComponent {
       title: plan.name,
       chips: [this.movesChip(rows.length), formatDuration(plan.estimatedDurationMinutes), this.formatLabel(plan.difficulty)],
       rows,
-      primary: { label: START_LABEL, action: 'start' },
+      primary: open ? FREE_BUTTON : { label: START_LABEL, action: 'start' },
+      secondary: open ? { label: 'Plan a session', action: 'browse' } : ELSE_BUTTON,
       ariaLabel: `Today's workout, ${plan.name}`
     });
   }
@@ -266,7 +285,8 @@ export class TodayOverviewComponent {
       eyebrow: 'No plan yet',
       title: 'Pick a plan for today',
       body: 'A plan says what each day of the week is for.',
-      primary: { label: 'Browse plans', action: 'browse' },
+      primary: FREE_BUTTON,
+      secondary: BROWSE_BUTTON,
       ariaLabel: "Today's workout, no plan yet",
       showTemplates: true
     });
@@ -305,8 +325,7 @@ export class TodayOverviewComponent {
       rows,
       moreCount: allRows.length - rows.length,
       primary: { label: START_LABEL, action: 'start' },
-      secondary: kind === 'SPORT' ? { label: 'Log it afterwards', action: 'log' } : null,
-      link: kind === 'SPORT' ? null : BROWSE_LINK,
+      secondary: kind === 'SPORT' ? { label: 'Log it afterwards', action: 'log' } : ELSE_BUTTON,
       planDayId: today.planDayId,
       ariaLabel: `Today's workout, ${name}`
     });
@@ -331,7 +350,7 @@ export class TodayOverviewComponent {
       title: today.label,
       chips: [this.suffixed(formatKm(last?.distanceKm), 'last time'), this.suffixed(formatDuration(last?.minutes), 'last time')],
       primary: { label: START_LABEL, action: 'start' },
-      link: BROWSE_LINK,
+      secondary: ELSE_BUTTON,
       planDayId: today.planDayId,
       ariaLabel: `Today's workout, your usual ${this.kindName(today)}`
     });
@@ -359,7 +378,8 @@ export class TodayOverviewComponent {
       eyebrow: 'Done today',
       title: today.title || today.label,
       chips: [formatDuration(minutes), formatKm(distance), this.suffixed(formatPace(pace), 'per km')],
-      link: { label: 'See the session', action: 'open' },
+      primary: FREE_BUTTON,
+      secondary: { label: 'See the session', action: 'open' },
       ariaLabel: "Today's workout, done"
     });
   }
@@ -371,27 +391,21 @@ export class TodayOverviewComponent {
     const chips = next && weekday ? [`Next: ${weekday}`, nextName ?? '', formatDuration(next.estimatedMinutes)] : [];
     // The next training does not say which plan day it is, so the day is found by its weekday.
     const day = next ? planDayOn(this.activePlan()?.days, isoWeekdayOfDateKey(next.date)) : null;
-    if (next && weekday && day) {
-      return this.makeCard({
-        kind: 'REST',
-        eyebrow: 'Today · Rest',
-        title: 'Rest day',
-        chips,
-        primary: { label: `Do ${weekday}'s session today`, action: 'start' },
-        link: BROWSE_LINK,
-        quiet: true,
-        planDayId: day.planDayId,
-        ariaLabel: "Today's workout, rest day"
-      });
-    }
     return this.makeCard({
       kind: 'REST',
       eyebrow: 'Today · Rest',
       title: 'Rest day',
       chips,
-      link: { label: 'Train today', action: 'browse' },
+      primary: FREE_BUTTON,
+      secondary: next && weekday && day ? this.restNextButton(weekday) : BROWSE_BUTTON,
+      planDayId: day?.planDayId ?? null,
       ariaLabel: "Today's workout, rest day"
     });
+  }
+
+  /** The rest day's one-tap choice: the next planned session, done today. */
+  private restNextButton(weekday: string): TodayButton {
+    return { label: `Do ${weekday}'s session today`, action: 'start' };
   }
 
   private carriedOverCard(today: TodayInsight): TodayCard {
@@ -403,7 +417,7 @@ export class TodayOverviewComponent {
       chips: [formatDuration(first.estimatedMinutes)],
       rows: this.dayExercises(first.planDayId),
       primary: { label: START_LABEL, action: 'start' },
-      link: BROWSE_LINK,
+      secondary: ELSE_BUTTON,
       planDayId: first.planDayId,
       ariaLabel: `Today's workout, still open from ${WEEKDAYS[first.dayOfWeek - 1] ?? 'earlier this week'}`
     });
@@ -418,11 +432,9 @@ export class TodayOverviewComponent {
       body: null,
       primary: null,
       secondary: null,
-      link: null,
       planDayId: null,
       showTemplates: false,
       habit: null,
-      quiet: false,
       ...parts,
       chips: (parts.chips ?? []).filter((chip) => chip.trim() !== '')
     };

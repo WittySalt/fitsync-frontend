@@ -13,7 +13,7 @@
       </span>
       <div class="folded-text">
         <span class="eyebrow-group">
-          <span class="eyebrow-dark">Your coach's reading</span>
+          <span class="eyebrow-dark">{{ eyebrow() }}</span>
           @if (periodRange()) {
             <span class="eyebrow-period">{{ periodRange() }}</span>
           }
@@ -45,7 +45,7 @@
                   </svg>
                 </span>
                 <span class="eyebrow-group">
-                  <span class="eyebrow-dark">Your coach's reading</span>
+                  <span class="eyebrow-dark">{{ eyebrow() }}</span>
                   @if (periodRange()) {
                     <span class="eyebrow-period">{{ periodRange() }}</span>
                   }
@@ -93,7 +93,7 @@
                   }
                 </svg>
               </span>
-              <span class="eyebrow">Your coach's reading</span>
+              <span class="eyebrow">{{ eyebrow() }}</span>
             </div>
             @if (view() === 'writing') {
               <h2 class="away-headline" [id]="headingId()" aria-live="polite">The reading is being written.</h2>

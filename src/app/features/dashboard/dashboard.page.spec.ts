@@ -103,12 +103,14 @@ describe('DashboardPage', () => {
       'getActivePlan',
       'getWeeklyTrainingInsight',
       'getMealsForDay',
-      'getUsualMeals'
+      'getUsualMeals',
+      'getBadges'
     ]);
     dataService.getHomeDashboard.and.returnValue(of(dashboardData));
     dataService.loadDailyNutritionSummary.and.returnValue(of(nutrition));
     dataService.getMealsForDay.and.returnValue(of([]));
     dataService.getUsualMeals.and.returnValue(of([]));
+    dataService.getBadges.and.returnValue(throwError(() => new Error('not under test')));
     // The coach brief loads independently of the rest of the dashboard; these specs are not
     // about the brief itself (see coach-brief.component.spec.ts), so it is given a quiet,
     // empty week and no active plan unless a test says otherwise.

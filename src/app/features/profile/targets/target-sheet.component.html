@@ -1,0 +1,46 @@
+<app-workout-modal [heading]="heading()" (dismissed)="dismissed.emit()">
+  <form class="form" (ngSubmit)="save()">
+    @if (choices().length) {
+      <div class="kinds" role="group" aria-label="Kind of target">
+        @for (choice of choices(); track choice.type) {
+          <button type="button" class="kind" [class.on]="kind().type === choice.type" [attr.aria-pressed]="kind().type === choice.type" (click)="pick(choice.type)">
+            {{ choice.label }}
+          </button>
+        }
+      </div>
+    }
+
+    <label class="field">
+      <span class="label">{{ kind().label }} ({{ kind().unit }})</span>
+      <span class="stepper">
+        <button type="button" class="step" aria-label="Less" (click)="step(-1)">&minus;</button>
+        <input type="number" inputmode="decimal" name="value" [min]="kind().min" [step]="kind().step" [ngModel]="value()" (ngModelChange)="onValue($event)" />
+        <button type="button" class="step" aria-label="More" (click)="step(1)">+</button>
+      </span>
+    </label>
+
+    @if (kind().type === 'WEIGHT') {
+      <label class="field">
+        <span class="label">Until</span>
+        <input type="date" name="date" [ngModel]="date()" (ngModelChange)="date.set($event ?? '')" />
+      </label>
+    }
+
+    <label class="field">
+      <span class="label">Note</span>
+      <textarea name="note" rows="2" maxlength="300" [ngModel]="note()" (ngModelChange)="note.set($event ?? '')"></textarea>
+    </label>
+
+    @if (problem(); as message) {
+      <p class="problem" role="alert">{{ message }}</p>
+    }
+
+    <div class="actions">
+      <button type="submit" class="save" [disabled]="busy()">{{ busy() ? 'Saving...' : 'Save' }}</button>
+      @if (existing()) {
+        <button type="button" class="remove" [disabled]="busy()" (click)="remove()">Remove target</button>
+      }
+      <button type="button" class="cancel" (click)="dismissed.emit()">Cancel</button>
+    </div>
+  </form>
+</app-workout-modal>

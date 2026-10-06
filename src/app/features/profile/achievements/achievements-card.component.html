@@ -1,0 +1,47 @@
+<section class="card" aria-labelledby="achievements-title">
+  <header>
+    <h2 id="achievements-title" class="eyebrow">Achievements</h2>
+    <a class="open" routerLink="/me/achievements">{{ allLabel() }} <span aria-hidden="true">&rsaquo;</span></a>
+  </header>
+
+  @if (loading()) {
+    <div class="skeleton" aria-busy="true" aria-label="Loading your achievements"></div>
+  } @else if (failed()) {
+    <div class="failed">
+      <p>Your achievements could not be loaded.</p>
+      <button type="button" class="retry" (click)="retry.emit()">Try again</button>
+    </div>
+  } @else {
+    @if (latest(); as badge) {
+      <h3 class="label">Latest</h3>
+      <div class="latest">
+        <app-badge-disc [node]="badge" state="earned" [size]="64" />
+        <div class="latest-text">
+          <strong class="name">{{ badge.name }}</strong>
+          <p class="line">{{ latestLine() }}</p>
+          @if (cells().length) {
+            <app-week-strip [cells]="cells()" />
+          }
+          @if (earned(badge)) {
+            <p class="date">Earned {{ earned(badge) }}</p>
+          }
+        </div>
+      </div>
+    }
+
+    @if (nextUp().length) {
+      <h3 class="label next" [class.rule]="latest()">Next up</h3>
+      <ul class="next-up">
+        @for (entry of nextUp(); track entry.node.code) {
+          <li>
+            <app-badge-disc [node]="entry.node" state="next" [size]="44" />
+            <div>
+              <strong class="name">{{ entry.node.name }}</strong>
+              <p class="line">{{ entry.line }}</p>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

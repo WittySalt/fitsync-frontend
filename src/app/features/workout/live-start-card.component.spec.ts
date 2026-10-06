@@ -150,20 +150,19 @@ describe('LiveStartCardComponent', () => {
     expect(dataService.startAdHocSession).toHaveBeenCalledWith({ name: 'Track intervals', workoutType: 'CARDIO' });
   });
 
-  describe('the quiet row', () => {
+  describe('the sheets, opened from the Today card', () => {
     const root = () => fixture.nativeElement as HTMLElement;
-    const links = () => Array.from(root().querySelectorAll<HTMLButtonElement>('.quick-row .quiet-link'));
 
-    it('is one row of two links, with no form and no heading on the page', () => {
-      expect(links().map((link) => link.textContent?.trim())).toEqual(['Free workout ›', 'Log a past workout ›']);
+    it('draws nothing on the page until a sheet is opened, with no row of links of its own', () => {
+      expect(root().querySelector('.quick-row')).toBeNull();
+      expect(root().querySelector('.quiet-link')).toBeNull();
       expect(root().querySelector('.start-form')).toBeNull();
       expect(root().querySelector('#past-workout-form')).toBeNull();
-      expect(root().textContent).not.toContain('Quick start');
       expect(root().querySelector('select')).toBeNull();
     });
 
-    it('opens the name and type on the sheet behind Free workout, and closes it on start', () => {
-      links()[0].click();
+    it('opens the name and type on the free workout sheet, and closes it on start', () => {
+      component.openFree();
       fixture.detectChanges();
       expect(root().querySelector('[role="dialog"] h2')?.textContent).toBe('Free workout');
       expect(root().querySelector('select[formcontrolname="name"]')).not.toBeNull();
@@ -175,33 +174,35 @@ describe('LiveStartCardComponent', () => {
       expect(root().querySelector('[role="dialog"]')).toBeNull();
     });
 
-    it('opens the past workout form behind Log a past workout and keeps one sheet open at a time', () => {
-      links()[1].click();
+    it('opens the past workout form and keeps one sheet open at a time', () => {
+      component.openPastWorkout();
       fixture.detectChanges();
       expect(component.pastWorkoutOpen()).toBeTrue();
       expect(root().querySelector('#past-workout-form')).not.toBeNull();
-      expect(links()[1].getAttribute('aria-expanded')).toBe('true');
 
-      links()[0].click();
+      component.openPastWorkout();
+      expect(component.pastWorkoutOpen()).toBeTrue();
+
+      component.openFree();
       fixture.detectChanges();
       expect(component.pastWorkoutOpen()).toBeFalse();
       expect(component.freeOpen()).toBeTrue();
     });
 
     it('closes a sheet with Close, the scrim and Escape', () => {
-      links()[0].click();
+      component.openFree();
       fixture.detectChanges();
       root().querySelector<HTMLButtonElement>('.sheet-top .quiet-link')!.click();
       fixture.detectChanges();
       expect(component.freeOpen()).toBeFalse();
 
-      links()[1].click();
+      component.openPastWorkout();
       fixture.detectChanges();
       root().querySelector<HTMLButtonElement>('.scrim')!.click();
       fixture.detectChanges();
       expect(component.pastWorkoutOpen()).toBeFalse();
 
-      links()[0].click();
+      component.openFree();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       fixture.detectChanges();
       expect(component.freeOpen()).toBeFalse();
