@@ -7,6 +7,7 @@ import { of, throwError } from 'rxjs';
 
 import { AnalyticsApiService } from '../../core/analytics-api.service';
 import { FitSyncDataService, HomeDashboardData } from '../../core/fitsync-data.service';
+import { signInAs } from '../../core/guide/guide-testing.spec';
 import { NutritionSummary } from '../../core/fitsync.models';
 import { DashboardPage } from './dashboard.page';
 import { UserTimezoneService } from '../../core/user-timezone.service';
@@ -104,13 +105,19 @@ describe('DashboardPage', () => {
       'getWeeklyTrainingInsight',
       'getMealsForDay',
       'getUsualMeals',
-      'getBadges'
+      'getBadges',
+      'getWorkoutPlans',
+      'hasLoggedMeal',
+      'getWorkoutSessionPage'
     ]);
     dataService.getHomeDashboard.and.returnValue(of(dashboardData));
     dataService.loadDailyNutritionSummary.and.returnValue(of(nutrition));
     dataService.getMealsForDay.and.returnValue(of([]));
     dataService.getUsualMeals.and.returnValue(of([]));
     dataService.getBadges.and.returnValue(throwError(() => new Error('not under test')));
+    dataService.getWorkoutPlans.and.returnValue(of([]));
+    dataService.hasLoggedMeal.and.returnValue(of(false));
+    dataService.getWorkoutSessionPage.and.returnValue(of({ sessions: [] }) as never);
     // The coach brief loads independently of the rest of the dashboard; these specs are not
     // about the brief itself (see coach-brief.component.spec.ts), so it is given a quiet,
     // empty week and no active plan unless a test says otherwise.
@@ -160,6 +167,15 @@ describe('DashboardPage', () => {
     expect(pageText()).not.toContain('Latest Workout');
     expect(pageText()).not.toContain('Alice');
     expect(pageText()).not.toContain('Complete setup');
+  });
+
+  it('shows the Getting started card inside the brief for a signed-in new account', () => {
+    signInAs('home-user');
+    fixture.detectChanges();
+
+    const card = (fixture.nativeElement as HTMLElement).querySelector('app-coach-brief app-guide-card');
+    expect(card?.textContent).toContain('Four steps to your first week');
+    localStorage.clear();
   });
 
   it('passes the profile through to the brief', () => {

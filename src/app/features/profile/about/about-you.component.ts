@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 import { MuscleFigureComponent } from '../../../shared/charts/muscle-figure/muscle-figure.component';
-import { AboutData, dietLabel, equipmentLabels, focusCaption, focusSets, injuryLabels, leadSentence } from './about-you';
+import { AboutData, AboutField, dietLabel, equipmentLabels, focusCaption, focusSets, injuryLabels, leadParts, leadSentence } from './about-you';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { DayLineComponent } from './day-line.component';
 
 /**
@@ -12,13 +12,15 @@ import { DayLineComponent } from './day-line.component';
  */
 @Component({
   selector: 'app-about-you',
-  imports: [RouterLink, MuscleFigureComponent, DayLineComponent],
+  imports: [MuscleFigureComponent, DayLineComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './about-you.component.html',
   styleUrl: './about-you.component.scss'
 })
 export class AboutYouComponent {
   readonly data = input.required<AboutData>();
+  /** The person pressed an element; the page opens the sheet that changes it. */
+  readonly edit = output<AboutField>();
 
   protected readonly lead = computed(() => leadSentence(this.data()));
   protected readonly sets = computed(() => focusSets(this.data().focusAreas));
@@ -27,5 +29,8 @@ export class AboutYouComponent {
   protected readonly injuries = computed(() => injuryLabels(this.data().injuries));
   protected readonly diet = computed(() => dietLabel(this.data().diet));
   protected readonly nothingSet = computed(() => this.lead() === 'Nothing set yet.');
-  protected readonly preferences = { section: 'preferences' };
+  protected readonly parts = computed(() => {
+    const { training, goal } = leadParts(this.data());
+    return { training: training.charAt(0).toUpperCase() + training.slice(1), goal };
+  });
 }

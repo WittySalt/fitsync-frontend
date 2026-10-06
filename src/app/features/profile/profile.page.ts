@@ -8,10 +8,12 @@ import { UserGoal } from '../../core/fitsync.models';
 import { BadgesModel, Footprint } from '../../core/me.models';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
-import { AboutData, AboutGoal } from './about/about-you';
+import { AboutData, AboutField, AboutGoal } from './about/about-you';
+import { AboutSheetComponent } from './about/about-sheet.component';
 import { AboutYouComponent } from './about/about-you.component';
 import { AchievementsCardComponent } from './achievements/achievements-card.component';
 import { IdentityCardComponent } from './identity/identity-card.component';
+import { TargetSheetComponent } from './targets/target-sheet.component';
 import { TargetsCardComponent } from './targets/targets-card.component';
 
 interface SettingsRow {
@@ -40,7 +42,16 @@ export const SETTINGS_ROWS: readonly SettingsRow[] = [
  */
 @Component({
   selector: 'app-profile-page',
-  imports: [RouterLink, StatePanelComponent, IdentityCardComponent, AboutYouComponent, TargetsCardComponent, AchievementsCardComponent],
+  imports: [
+    RouterLink,
+    StatePanelComponent,
+    IdentityCardComponent,
+    AboutYouComponent,
+    AboutSheetComponent,
+    TargetSheetComponent,
+    TargetsCardComponent,
+    AchievementsCardComponent
+  ],
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.scss'
 })
@@ -80,7 +91,8 @@ export class ProfilePage implements OnInit {
       : null;
     return {
       weeklyDays: this.sessionsPerWeek(),
-      trainingTime: this.usualStart() ?? training?.preferredWorkoutTime?.slice(0, 5) ?? null,
+      // The time the person set wins; the usual start from their sessions fills in when none is set.
+      trainingTime: training?.preferredWorkoutTime?.slice(0, 5) ?? this.usualStart() ?? null,
       goal,
       weightKg: user.latestBodyMetrics?.weightKg ?? null,
       focusAreas: normalizeFocusAreas(training?.focusAreas),
@@ -98,6 +110,24 @@ export class ProfilePage implements OnInit {
   });
 
   protected readonly pace = this.sessionsPerWeek;
+
+  /** The About you sheet that is open, if any. */
+  protected readonly sheet = signal<AboutField | null>(null);
+  protected readonly weightGoal = computed(() => this.goals().find((goal) => goal.goalType === 'WEIGHT' && goal.targetValue !== null) ?? null);
+  protected readonly sessionsGoal = computed(() => this.goals().find((goal) => goal.goalType === 'WORKOUT_FREQUENCY' && goal.targetValue !== null && goal.targetValue > 0) ?? null);
+
+  /** An element of About you was pressed. The days of a person with a sessions target change that target. */
+  protected openAbout(field: AboutField): void {
+    this.sheet.set(field);
+  }
+
+  /** A sheet saved: the person, the injuries and the targets are read again. */
+  protected aboutSaved(): void {
+    this.sheet.set(null);
+    this.account.getCurrentUser().subscribe((user) => this.user.set(user));
+    this.data.getInjuryAreas().subscribe((injuries) => this.injuries.set(injuries));
+    this.loadGoals();
+  }
 
   ngOnInit(): void {
     this.load();

@@ -75,6 +75,7 @@
           @if (c.primary; as primary) {
             <button
               class="action-primary"
+              appSpotlight="workout"
               type="button"
               [disabled]="isDisabled(primary)"
               (click)="run(primary.action)"

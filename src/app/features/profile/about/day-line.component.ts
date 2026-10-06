@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 const START = 6 * 60;
 const END = 24 * 60;
@@ -40,41 +39,41 @@ export function trainingBlock(start: string | null | undefined): { left: number;
  */
 @Component({
   selector: 'app-day-line',
-  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <a class="line" routerLink="/settings" [queryParams]="{ section: 'preferences' }" [attr.aria-label]="summary()">
-      <div class="band" [class.faint]="empty()">
+    <div class="line" role="group" [attr.aria-label]="summary()">
+      <button type="button" class="band" [class.faint]="empty()" aria-label="Usual training time" (click)="editTime.emit()">
         @if (block(); as training) {
           <span class="training-name" [style.left.%]="training.left">Training</span>
           <span class="training" [style.left.%]="training.left" [style.width.%]="training.width"></span>
         }
-      </div>
-      <div class="band meals" [class.faint]="empty()">
+      </button>
+      <button type="button" class="band meals" [class.faint]="empty()" aria-label="Usual meals" (click)="viewMeals.emit()">
         @for (dot of dots(); track dot.label) {
           <span class="dot" [style.left.%]="dot.left"></span>
           <span class="time" [style.left.%]="dot.left">{{ dot.time }}</span>
         }
-      </div>
+      </button>
       @if (empty()) {
         <span class="hint">Add your usual meals and training time</span>
       }
       <div class="axis" aria-hidden="true">
         <span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
       </div>
-    </a>
+    </div>
   `,
   styles: `
     :host { display: block; }
-    .line { position: relative; display: grid; gap: 10px; color: inherit; text-decoration: none; }
-    .band { position: relative; height: 12px; border-radius: 6px; background: var(--surface-sunken); }
+    .line { position: relative; display: grid; gap: 10px; }
+    .band { position: relative; display: block; width: 100%; height: 12px; padding: 0; border: 0; border-radius: 6px; background: var(--surface-sunken); cursor: pointer; }
+    .band:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 3px; }
     .meals { margin-top: 6px; }
     .faint { opacity: 0.7; }
     .training { position: absolute; top: 0; height: 12px; border-radius: 4px; background: var(--accent); }
     .training-name { position: absolute; top: -17px; transform: translateX(-20%); font-size: var(--pg-eyebrow); font-weight: var(--fw-semibold); color: var(--accent-text); }
     .dot { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--text-primary); border: 2px solid var(--surface); transform: translate(-50%, -50%); box-sizing: content-box; }
     .time { position: absolute; top: 16px; transform: translateX(-50%); font-size: var(--pg-chart); font-weight: var(--fw-semibold); color: var(--text-primary); white-space: nowrap; }
-    .hint { position: absolute; inset: 0 0 auto 0; text-align: center; font-size: var(--pg-chart); color: var(--text-primary); line-height: 12px; padding-top: 14px; }
+    .hint { position: absolute; inset: 0 0 auto 0; text-align: center; font-size: var(--pg-chart); color: var(--text-primary); line-height: 12px; padding-top: 14px; pointer-events: none; }
     .axis { display: flex; justify-content: space-between; margin-top: 18px; font-size: var(--pg-chart); color: var(--text-muted); }
   `
 })
@@ -82,6 +81,10 @@ export class DayLineComponent {
   readonly meals = input<readonly DayMark[]>([]);
   /** The usual training start as "HH:mm", or null. */
   readonly training = input<string | null>(null);
+  /** The training band was pressed: the person wants to change the usual time. */
+  readonly editTime = output<void>();
+  /** The meals band was pressed: the usual meals come from the diary and are only shown. */
+  readonly viewMeals = output<void>();
 
   protected readonly dots = computed(() =>
     this.meals()
@@ -96,6 +99,6 @@ export class DayLineComponent {
     if (start) {
       parts.push(`training at ${start}`);
     }
-    return parts.length ? `Your usual day: ${parts.join(', ')}. Opens your preferences.` : 'No usual meals or training time yet. Opens your preferences.';
+    return parts.length ? `Your usual day: ${parts.join(', ')}.` : 'No usual meals or training time yet.';
   });
 }

@@ -1,0 +1,73 @@
+<app-workout-modal [heading]="heading()" (dismissed)="dismissed.emit()">
+  <form class="form" (ngSubmit)="save()">
+    @switch (field()) {
+      @case ('days') {
+        <div class="stepper">
+          <button type="button" class="step" aria-label="Fewer days" (click)="step(-1)">&minus;</button>
+          <output class="days" aria-live="polite">{{ days() }} {{ days() === 1 ? 'day' : 'days' }} a week</output>
+          <button type="button" class="step" aria-label="More days" (click)="step(1)">+</button>
+        </div>
+      }
+      @case ('time') {
+        <label class="field">
+          <span class="label">Time you usually start</span>
+          <input type="time" name="time" [ngModel]="time()" (ngModelChange)="time.set($event ?? ''); problem.set(null)" />
+        </label>
+      }
+      @case ('equipment') {
+        <div class="chips" role="group" aria-label="Equipment">
+          @for (option of equipmentOptions; track option.value) {
+            <button type="button" class="chip" [class.on]="has(option.value)" [attr.aria-pressed]="has(option.value)" (click)="toggle(option.value)">{{ option.label }}</button>
+          }
+        </div>
+      }
+      @case ('focus') {
+        <div class="chips" role="group" aria-label="Focus areas">
+          @for (option of focusOptions; track option.value) {
+            <button type="button" class="chip" [class.on]="has(option.value)" [attr.aria-pressed]="has(option.value)" (click)="toggle(option.value)">{{ option.label }}</button>
+          }
+        </div>
+      }
+      @case ('injuries') {
+        <div class="chips" role="group" aria-label="Injuries">
+          @for (option of injuryOptions; track option.value) {
+            <button type="button" class="chip" [class.on]="has(option.value)" [attr.aria-pressed]="has(option.value)" (click)="toggle(option.value)">{{ option.label }}</button>
+          }
+        </div>
+      }
+      @case ('diet') {
+        <label class="field">
+          <span class="label">Dietary pattern</span>
+          <select name="diet" [ngModel]="diet()" (ngModelChange)="diet.set($event)">
+            @for (option of dietOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+      }
+      @case ('meals') {
+        <p class="from-diary">From your diary</p>
+        <ul class="meals">
+          @for (meal of meals(); track meal.label) {
+            <li><span>{{ meal.label }}</span><strong>{{ meal.time }}</strong></li>
+          } @empty {
+            <li><span>No usual meal times yet</span></li>
+          }
+        </ul>
+      }
+    }
+
+    @if (problem(); as message) {
+      <p class="problem" role="alert">{{ message }}</p>
+    }
+
+    <div class="actions">
+      @if (!readOnly()) {
+        <button type="submit" class="save" [disabled]="busy()">{{ busy() ? 'Saving...' : 'Save' }}</button>
+        <button type="button" class="cancel" (click)="dismissed.emit()">Cancel</button>
+      } @else {
+        <button type="button" class="cancel" (click)="dismissed.emit()">Close</button>
+      }
+    </div>
+  </form>
+</app-workout-modal>

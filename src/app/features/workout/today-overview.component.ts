@@ -18,6 +18,7 @@ import { GlyphShape } from '../dashboard/brief/muscle-icons';
 import { HabitDayStartComponent } from './habit-day-start.component';
 import { lastTitle } from './workout-week';
 import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { TrainElseSheetComponent } from './train-else-sheet.component';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
@@ -73,7 +74,7 @@ const BROWSE_BUTTON: TodayButton = { label: 'Browse plans', action: 'browse' };
 
 @Component({
   selector: 'app-today-overview',
-  imports: [PlanTemplatesComponent, HabitDayStartComponent, TrainElseSheetComponent],
+  imports: [PlanTemplatesComponent, HabitDayStartComponent, TrainElseSheetComponent, SpotlightDirective],
   templateUrl: './today-overview.component.html',
   styleUrl: './today-overview.component.scss'
 })

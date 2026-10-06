@@ -18,7 +18,24 @@
     />
 
     @if (about(); as aboutData) {
-      <app-about-you [data]="aboutData" />
+      <app-about-you [data]="aboutData" (edit)="openAbout($event)" />
+    }
+
+    @if (sheet(); as field) {
+      @if (field === 'goal') {
+        <app-target-sheet type="WEIGHT" [goal]="weightGoal()" [choices]="[]" (saved)="aboutSaved()" (dismissed)="sheet.set(null)" />
+      } @else if (field === 'days' && sessionsGoal(); as sessions) {
+        <app-target-sheet type="WORKOUT_FREQUENCY" [goal]="sessions" [choices]="[]" (saved)="aboutSaved()" (dismissed)="sheet.set(null)" />
+      } @else {
+        <app-about-sheet
+          [field]="field"
+          [preferences]="person.preferences"
+          [injuries]="injuries()"
+          [meals]="usualMeals()"
+          (saved)="aboutSaved()"
+          (dismissed)="sheet.set(null)"
+        />
+      }
     }
 
     <app-targets-card [goals]="goals()" (changed)="loadGoals()" />

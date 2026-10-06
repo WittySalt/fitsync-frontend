@@ -7,6 +7,7 @@ import { UsualMeal } from '../../../core/fitsync.models';
 import { FoodRowComponent } from './food-row.component';
 import { RecipeRowComponent } from './recipe-row.component';
 import { DiaryRow, MealPart, diaryRows, macroSplit } from './diary-food';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { AddSource } from './diary.models';
 import { whole } from './diary-figures';
 
@@ -26,7 +27,7 @@ export function usualNames(meal: UsualMeal): string {
  */
 @Component({
   selector: 'app-meal-part',
-  imports: [FoodRowComponent, FoodGlyphComponent, FoodIconComponent, RecipeRowComponent],
+  imports: [FoodRowComponent, FoodGlyphComponent, FoodIconComponent, RecipeRowComponent, SpotlightDirective],
   template: `
     <div class="head">
       <div class="title">
@@ -47,6 +48,7 @@ export function usualNames(meal: UsualMeal): string {
           <button
             class="add"
             type="button"
+            [appSpotlight]="tourAnchor() ? 'nutrition' : null"
             aria-haspopup="menu"
             [attr.aria-expanded]="addMenuOpen()"
             [disabled]="busy()"
@@ -126,6 +128,8 @@ export class MealPartComponent {
   /** The person's usual meal for this part, when they have one. */
   readonly usual = input<UsualMeal | null>(null);
   readonly busy = input(false);
+  /** True for the first meal of the card, which carries the Nutrition spotlight. */
+  readonly tourAnchor = input(false);
   /** Search foods, the first entry of the Add menu. */
   readonly add = output<void>();
   /** The other entries of the Add menu. */

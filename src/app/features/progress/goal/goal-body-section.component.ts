@@ -6,6 +6,7 @@ import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { SmallTrendComponent } from '../../../shared/progress/small-trend.component';
 import { BodyPage } from '../../body/body.page';
 import { BodySeries, GoalProgress } from '../progress-api.models';
+import { GoalMeasurementsTableComponent } from './goal-measurements-table.component';
 
 interface BodyTile {
   name: string;
@@ -21,7 +22,7 @@ interface BodyTile {
  */
 @Component({
   selector: 'app-goal-body-section',
-  imports: [BodyPage, DetailSectionComponent, SmallTrendComponent],
+  imports: [BodyPage, DetailSectionComponent, GoalMeasurementsTableComponent, SmallTrendComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-detail-section name="Body" anchor="body" [sentence]="sentence()" [context]="context()" ask="What do my waist, body fat and BMI say about the weight I lost?">
@@ -44,15 +45,18 @@ interface BodyTile {
         }
       </div>
       <div class="actions">
-        <button type="button" class="link" (click)="openMeasurements()">Record a measurement ›</button>
+        <button type="button" class="link" [attr.aria-expanded]="recording()" (click)="openMeasurements()">Record a measurement ›</button>
         <button type="button" class="link" [attr.aria-expanded]="measurementsOpen()" (click)="toggleMeasurements()">
-          {{ measurementsOpen() ? 'Hide measurements' : 'All measurements ›' }}
+          {{ measurementsOpen() ? 'Fewer ›' : 'All measurements ›' }}
         </button>
       </div>
-      @if (measurementsOpen()) {
-        <div #measurements class="measurements">
-          <app-body-page [embedded]="true" />
+      @if (recording()) {
+        <div #recorder class="recorder">
+          <app-body-page [embedded]="true" [formOnly]="true" (closed)="recordingClosed()" />
         </div>
+      }
+      @if (measurementsOpen()) {
+        <app-goal-measurements-table />
       }
     </app-detail-section>
   `,
@@ -75,13 +79,14 @@ interface BodyTile {
 })
 export class GoalBodySectionComponent {
   private readonly injector = inject(Injector);
-  private readonly measurementsRef = viewChild<ElementRef<HTMLElement>>('measurements');
+  private readonly recorderRef = viewChild<ElementRef<HTMLElement>>('recorder');
 
   readonly body = input.required<GoalProgress['body']>();
   readonly sentence = input('');
   readonly context = input<ProgressCardContext | null>(null);
 
   readonly measurementsOpen = signal(false);
+  readonly recording = signal(false);
 
   protected readonly tiles = computed<BodyTile[]>(() => {
     const body = this.body();
@@ -93,8 +98,17 @@ export class GoalBodySectionComponent {
   });
 
   openMeasurements(): void {
-    this.measurementsOpen.set(true);
-    afterNextRender(() => this.measurementsRef()?.nativeElement.scrollIntoView({ block: 'start' }), { injector: this.injector });
+    this.recording.set(true);
+    afterNextRender(() => this.recorderRef()?.nativeElement.scrollIntoView({ block: 'start' }), { injector: this.injector });
+  }
+
+  /** The form is done: fold it and read the table again, so a saved measurement is in it. */
+  recordingClosed(): void {
+    this.recording.set(false);
+    if (this.measurementsOpen()) {
+      this.measurementsOpen.set(false);
+      afterNextRender(() => this.measurementsOpen.set(true), { injector: this.injector });
+    }
   }
 
   toggleMeasurements(): void {

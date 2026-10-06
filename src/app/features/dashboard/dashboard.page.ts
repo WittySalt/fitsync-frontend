@@ -6,12 +6,13 @@ import { NutritionSummary } from '../../core/fitsync.models';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { CoachBriefComponent } from './brief/coach-brief.component';
+import { GuideCardComponent } from './guide/guide-card.component';
 import { EarnedComponent } from './earned/earned.component';
 import { TodayCardComponent } from './today/today-card.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [CoachBriefComponent, EarnedComponent, RouterLink, StatePanelComponent, TodayCardComponent],
+  imports: [CoachBriefComponent, EarnedComponent, GuideCardComponent, RouterLink, StatePanelComponent, TodayCardComponent],
   templateUrl: './dashboard.page.html'
 })
 export class DashboardPage implements OnInit {

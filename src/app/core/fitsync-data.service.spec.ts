@@ -1338,6 +1338,23 @@ describe('FitSyncDataService', () => {
     expect(failed).toBeTrue();
   });
 
+  it('answers whether any meal was logged lately, and lets a failure through', () => {
+    const answers: boolean[] = [];
+    let failed = false;
+    service.hasLoggedMeal().subscribe((value) => answers.push(value));
+    service.hasLoggedMeal().subscribe((value) => answers.push(value));
+    service.hasLoggedMeal().subscribe({ error: () => (failed = true) });
+
+    const requests = httpTesting.match((req) => req.url === '/api/v1/nutrition/meals');
+    expect(requests.length).toBe(3);
+    requests[0].flush([{ mealId: 'm1' }]);
+    requests[1].flush([]);
+    requests[2].flush('nope', { status: 500, statusText: 'Server Error' });
+
+    expect(answers).toEqual([true, false]);
+    expect(failed).toBeTrue();
+  });
+
   it('lists workout sessions from the paginated sessions endpoint', () => {
     let result: WorkoutSession[] | undefined;
     service.getWorkoutSessions().subscribe((value) => (result = value));

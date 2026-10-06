@@ -1,6 +1,6 @@
 import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, delay, forkJoin, map, Observable, of, tap, throwError } from 'rxjs';
+import { catchError, delay, forkJoin, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
 import { UserTimezoneService } from './user-timezone.service';
 import { dayBoundsInZone, profileTimezone } from './zone-time';
 
@@ -364,7 +364,7 @@ function mapTodayInsight(entry: Partial<TodayInsight> | null | undefined): Today
   };
 }
 
-const FOCUS_AREA_CODES: Record<string, string> = {
+export const FOCUS_AREA_CODES: Record<string, string> = {
   '240001': 'FULL_BODY',
   '240002': 'UPPER',
   '240003': 'CORE',
@@ -1305,6 +1305,29 @@ export class FitSyncDataService {
     );
   }
 
+  /** Saves the injured areas. The server replaces the whole readiness record, so the answers already
+   *  given are read first and sent back unchanged. */
+  saveInjuryAreas(injuryAreas: string[]): Observable<string[]> {
+    const url = `${this.apiBaseUrl}/users/me/health-readiness`;
+    return this.http.get<Record<string, unknown> | null>(url).pipe(
+      catchError(() => of(null)),
+      switchMap((current) =>
+        this.http.put<{ injuryAreas?: string[] | null }>(url, {
+          heartCondition: current?.['heartCondition'] === true,
+          chestPainActivity: current?.['chestPainActivity'] === true,
+          dizziness: current?.['dizziness'] === true,
+          boneJointIssue: current?.['boneJointIssue'] === true,
+          bpOrHeartMeds: current?.['bpOrHeartMeds'] === true,
+          otherReason: current?.['otherReason'] === true,
+          injuryAreas: injuryAreas.filter((area) => /^[A-Z_]{2,40}$/.test(area)),
+          acknowledgedDisclaimerAt:
+            typeof current?.['acknowledgedDisclaimerAt'] === 'string' ? current['acknowledgedDisclaimerAt'] : new Date().toISOString()
+        })
+      ),
+      map((view) => (Array.isArray(view?.injuryAreas) ? view.injuryAreas : injuryAreas))
+    );
+  }
+
   getGoals(): Observable<UserGoal[]> {
     return this.http.get<BackendUserGoal[]>(`${this.apiBaseUrl}/users/me/goals`).pipe(
       map((goals) =>
@@ -1691,6 +1714,18 @@ export class FitSyncDataService {
         map((meals) => meals.map((meal) => this.mapMeal(meal)).filter((meal): meal is Meal => meal !== null)),
         catchError(() => of([] as Meal[]))
       );
+  }
+
+  /** Whether any meal was logged in the last 30 days. The Getting started guide uses it for its meal step, and
+   *  a failed request is an error here, never a "no". */
+  hasLoggedMeal(): Observable<boolean> {
+    const now = new Date();
+    const from = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    const to = new Date(now.getTime() + 24 * 3600 * 1000);
+    const params = new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
+    return this.http
+      .get<unknown[]>(`${this.apiBaseUrl}/nutrition/meals`, { params })
+      .pipe(map((meals) => (meals ?? []).length > 0));
   }
 
   /**

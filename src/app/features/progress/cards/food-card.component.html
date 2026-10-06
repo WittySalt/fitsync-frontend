@@ -28,7 +28,12 @@
         } @else {
           <div class="box pair">
             @if (week(); as w) {
-              <div class="bars"><app-energy-pair [week]="w" /></div>
+              <div class="bars">
+                <p class="bars-label">{{ w.label }}</p>
+                <app-energy-pair [week]="w.week" />
+              </div>
+            } @else {
+              <div class="bars"><p class="bars-note">Eaten against used needs three logged days in a week. It appears as you log.</p></div>
             }
             @if (overview(); as o) {
               <div class="petals">

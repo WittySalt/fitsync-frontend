@@ -102,10 +102,11 @@ export function reviewsData(): WeeklyReview[] {
 
 /** A ProgressApiService stand-in whose answers each test can change. */
 export function progressApi(): jasmine.SpyObj<ProgressApiService> {
-  const api = jasmine.createSpyObj<ProgressApiService>('ProgressApiService', ['getGoal', 'getFood', 'getReviews']);
+  const api = jasmine.createSpyObj<ProgressApiService>('ProgressApiService', ['getGoal', 'getFood', 'getReviews', 'getEnergyWeek']);
   api.getGoal.and.callFake(() => of(goalData()));
   api.getFood.and.callFake(() => of(foodData()));
   api.getReviews.and.callFake(() => of(reviewsData()));
+  api.getEnergyWeek.and.callFake(() => of(null));
   return api;
 }
 

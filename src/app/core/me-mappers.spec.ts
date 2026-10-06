@@ -138,6 +138,23 @@ describe('the data layer for Me', () => {
     expect(results).toEqual([['LOWER_BACK'], []]);
   });
 
+  it('saves the injured areas on top of the readiness answers already given', () => {
+    let saved: string[] = [];
+    TestBed.inject(FitSyncDataService)
+      .saveInjuryAreas(['KNEE'])
+      .subscribe((areas) => (saved = areas));
+
+    http.expectOne({ method: 'GET', url: '/api/v1/users/me/health-readiness' }).flush({ dizziness: true, acknowledgedDisclaimerAt: '2026-08-04T01:00:00Z', injuryAreas: [] });
+    const put = http.expectOne({ method: 'PUT', url: '/api/v1/users/me/health-readiness' });
+    expect(put.request.body.dizziness).toBeTrue();
+    expect(put.request.body.heartCondition).toBeFalse();
+    expect(put.request.body.injuryAreas).toEqual(['KNEE']);
+    expect(put.request.body.acknowledgedDisclaimerAt).toBe('2026-08-04T01:00:00Z');
+    put.flush({ injuryAreas: ['KNEE'] });
+
+    expect(saved).toEqual(['KNEE']);
+  });
+
   it('loads the badges from the achievements endpoint', () => {
     let codes: string[] = [];
     TestBed.inject(FitSyncDataService)

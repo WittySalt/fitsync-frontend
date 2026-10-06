@@ -1,0 +1,49 @@
+@if (guide.cardVisible()) {
+  @if (guide.allDone()) {
+    <section class="guide folded" aria-label="Getting started">
+      <p class="folded-line"><span class="check" aria-hidden="true">&#10003;</span>You're set up. The coach takes it from here.</p>
+      <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
+    </section>
+  } @else {
+    <section class="guide" aria-labelledby="guide-title">
+      <header class="guide-head">
+        <div>
+          <span class="eyebrow">Getting started</span>
+          <h2 id="guide-title">Four steps to your first week</h2>
+        </div>
+        <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
+      </header>
+      <ol class="tiles">
+        @for (step of steps(); track step.id) {
+          <li class="tile" [class.current]="step.current" [class.done]="step.done" [attr.data-step]="step.id">
+            <span class="disc" [class.filled]="step.done" aria-hidden="true">
+              @if (step.done) {
+                &#10003;
+              } @else {
+                {{ step.number }}
+              }
+            </span>
+            <div class="copy">
+              <strong>{{ step.name }}</strong>
+              <span class="what">{{ step.what }}</span>
+              @if (step.done) {
+                <span class="done-note">Done</span>
+              }
+            </div>
+            @if (!step.done) {
+              <a
+                class="go"
+                [class.primary]="step.current"
+                [routerLink]="step.path"
+                [fragment]="step.fragment"
+                [queryParams]="step.query"
+                [attr.aria-label]="'Step ' + step.number + ': ' + step.button"
+                >{{ step.button }} &rsaquo;</a
+              >
+            }
+          </li>
+        }
+      </ol>
+    </section>
+  }
+}

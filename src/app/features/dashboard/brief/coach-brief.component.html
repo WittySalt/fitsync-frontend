@@ -48,6 +48,9 @@
           <app-month-line [todayKey]="todayDateKey()" [shown]="view() === 'week'" (seeMonth)="seeMonth($event)" />
         </div>
 
+        <!-- The Getting started card of the Home page is projected here, under the head. -->
+        <ng-content select="app-guide-card" />
+
         <div class="week-card">
           <div class="week-head">
             @if (view() === 'week') {

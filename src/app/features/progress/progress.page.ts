@@ -20,6 +20,7 @@ import { watchSections } from './cards/section-watch';
 import { TrainingCardComponent } from './cards/training-card.component';
 import { WeekChipsComponent } from './cards/week-chips.component';
 import { GoalProgress, WeeklyReview } from './progress-api.models';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ProgressApiService } from './progress-api.service';
 import { periodRange } from './training/training-period';
 
@@ -46,6 +47,7 @@ export const READING_POLL_LIMIT = 8;
     FoodCardComponent,
     GoalCardComponent,
     RouterLink,
+    SpotlightDirective,
     TrainingCardComponent,
     WeekChipsComponent
   ],

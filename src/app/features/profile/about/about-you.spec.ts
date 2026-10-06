@@ -127,18 +127,30 @@ describe('About you', () => {
       expect(el.querySelectorAll('app-muscle-figure button').length).toBe(0);
     });
 
-    it('sends each element to where it is changed', () => {
+    it('asks the page to open the sheet of the element pressed, and links nowhere', () => {
       const el = render(steady);
+      const asked: string[] = [];
+      fixture.componentInstance.edit.subscribe((field) => asked.push(field));
 
-      expect(el.querySelector('.figure')?.getAttribute('href')).toBe('/workout/plans/new');
-      expect(el.querySelector('.chip')?.getAttribute('href')).toBe('/settings?section=preferences');
-      expect(el.querySelector('app-day-line a')?.getAttribute('href')).toBe('/settings?section=preferences');
+      el.querySelector<HTMLElement>('.figure')!.click();
+      el.querySelectorAll<HTMLElement>('.lead .part')[0].click();
+      el.querySelectorAll<HTMLElement>('.lead .part')[1].click();
+      el.querySelector<HTMLElement>('app-day-line button[aria-label="Usual training time"]')!.click();
+      el.querySelector<HTMLElement>('app-day-line button[aria-label="Usual meals"]')!.click();
+      const chips = Array.from(el.querySelectorAll<HTMLElement>('.chip'));
+      chips[0].click();
+      chips[chips.length - 2].click();
+      chips[chips.length - 1].click();
+
+      expect(asked).toEqual(['focus', 'days', 'goal', 'time', 'meals', 'equipment', 'injuries', 'diet']);
+      expect(el.querySelector('a')).toBeNull();
+      expect(el.innerHTML).not.toContain('/settings');
     });
 
     it('shows the empty account with an Add chip in each row and the day line hint', () => {
       const el = render(fresh);
 
-      expect(el.querySelector('.lead')?.textContent).toBe('Nothing set yet.');
+      expect(el.querySelector('.lead span')?.textContent).toBe('Nothing set yet.');
       expect(el.querySelector('.caption')?.textContent).toBe('Focus: not set');
       expect(el.querySelectorAll('.chip.add').length).toBe(3);
       expect(el.querySelector('app-day-line .hint')?.textContent).toBe('Add your usual meals and training time');

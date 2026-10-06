@@ -1,29 +1,45 @@
-<section class="card" aria-labelledby="about-title">
+<section class="card" aria-labelledby="about-title" appSpotlight="me">
   <header>
     <h2 id="about-title" class="eyebrow">About you</h2>
     <p class="sub">What your coach reads</p>
   </header>
-  <p class="lead">{{ lead() }}</p>
+  <p class="lead">
+    @if (nothingSet()) {
+      <span>{{ lead() }}</span>
+      <button type="button" class="part" (click)="edit.emit('days')">Add training days</button>
+    } @else {
+      @if (parts().training) {
+        <button type="button" class="part" (click)="edit.emit('days')">{{ parts().training }}</button>
+      }
+      @if (parts().training && parts().goal) {
+        <span>, </span>
+      }
+      @if (parts().goal) {
+        <button type="button" class="part" (click)="edit.emit('goal')">{{ parts().goal }}</button>
+      }
+      <span>.</span>
+    }
+  </p>
 
   <div class="body">
-    <a class="figure" routerLink="/workout/plans/new" [attr.aria-label]="caption() + '. Opens the plan flow.'">
+    <button type="button" class="figure" [attr.aria-label]="caption() + '. Change the focus areas.'" (click)="edit.emit('focus')">
       <app-muscle-figure [setsByGroup]="sets()" [height]="190" [interactive]="false" />
       <span class="caption">{{ caption() }}</span>
-    </a>
+    </button>
 
     <div class="rows">
       <div class="row">
         <h3 class="eyebrow">Your day</h3>
-        <app-day-line [meals]="data().meals" [training]="data().trainingTime" />
+        <app-day-line [meals]="data().meals" [training]="data().trainingTime" (editTime)="edit.emit('time')" (viewMeals)="edit.emit('meals')" />
       </div>
 
       <div class="row">
         <h3 class="eyebrow">Equipment</h3>
         <div class="chips">
           @for (item of equipment(); track item) {
-            <a class="chip" routerLink="/settings" [queryParams]="preferences">{{ item }}</a>
+            <button type="button" class="chip" (click)="edit.emit('equipment')">{{ item }}</button>
           } @empty {
-            <a class="chip add" routerLink="/settings" [queryParams]="preferences"><span aria-hidden="true">+</span> Add</a>
+            <button type="button" class="chip add" (click)="edit.emit('equipment')"><span aria-hidden="true">+</span> Add</button>
           }
         </div>
       </div>
@@ -32,12 +48,12 @@
         <h3 class="eyebrow">Injuries</h3>
         <div class="chips">
           @for (item of injuries(); track item) {
-            <a class="chip" routerLink="/settings" [queryParams]="preferences">{{ item }}</a>
+            <button type="button" class="chip" (click)="edit.emit('injuries')">{{ item }}</button>
           } @empty {
             @if (nothingSet()) {
-              <a class="chip add" routerLink="/settings" [queryParams]="preferences"><span aria-hidden="true">+</span> Add</a>
+              <button type="button" class="chip add" (click)="edit.emit('injuries')"><span aria-hidden="true">+</span> Add</button>
             } @else {
-              <a class="chip" routerLink="/settings" [queryParams]="preferences">None</a>
+              <button type="button" class="chip" (click)="edit.emit('injuries')">None</button>
             }
           }
         </div>
@@ -47,9 +63,9 @@
         <h3 class="eyebrow">Diet</h3>
         <div class="chips">
           @if (diet(); as label) {
-            <a class="chip" routerLink="/settings" [queryParams]="preferences">{{ label }}</a>
+            <button type="button" class="chip" (click)="edit.emit('diet')">{{ label }}</button>
           } @else {
-            <a class="chip add" routerLink="/settings" [queryParams]="preferences"><span aria-hidden="true">+</span> Add</a>
+            <button type="button" class="chip add" (click)="edit.emit('diet')"><span aria-hidden="true">+</span> Add</button>
           }
         </div>
       </div>

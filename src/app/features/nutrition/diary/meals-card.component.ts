@@ -27,9 +27,10 @@ const USUAL_SLOTS: readonly MealSlot[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
         (deleteFast)="deleteFast.emit(fasted()!)"
       />
     }
-    @for (part of parts(); track part.slot) {
+    @for (part of parts(); track part.slot; let first = $first) {
       <app-meal-part
         [part]="part"
+        [tourAnchor]="first"
         [usual]="usualFor(part)"
         [busy]="busy()"
         (add)="addMeal.emit(part.slot)"

@@ -8,6 +8,7 @@ import {
   AccountDataExportPayload
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { GuideService } from '../../core/guide/guide.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { SettingsPage } from './settings.page';
@@ -274,6 +275,20 @@ describe('SettingsPage', () => {
     expect(service.preference()).toBe('system');
     expect(localStorage.getItem('fs-theme')).toBe('system');
     expect(systemButton?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('restarts the guide from the Appearance section and says so', () => {
+    const guide = TestBed.inject(GuideService);
+    spyOn(guide, 'restart');
+    fixture.componentInstance.selectedSection.set('appearance');
+    fixture.detectChanges();
+
+    const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-test="show-guide"]');
+    expect(row?.textContent).toContain('Show the guide again');
+    row?.click();
+
+    expect(guide.restart).toHaveBeenCalledWith('user-1');
+    expect(toast.success).toHaveBeenCalledWith('The guide is back on Home and on each page.');
   });
 
   it('saves identity fields through the profile endpoint', () => {

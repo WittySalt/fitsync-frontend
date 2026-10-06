@@ -24,7 +24,9 @@
       [caloriesTarget]="nutritionSummary()?.targetCalories ?? null"
       [focusAreas]="dashboard.profile.focusAreas ?? []"
       [goals]="dashboard.goals"
-    />
+    >
+      <app-guide-card [goals]="dashboard.goals" />
+    </app-coach-brief>
 
     <app-today-card [nutrition]="nutritionSummary()" [nutritionFailed]="nutritionFailed()" (retryNutrition)="loadNutrition()" />
 
