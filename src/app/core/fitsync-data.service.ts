@@ -1,6 +1,6 @@
 import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, delay, forkJoin, map, Observable, of, tap, throwError } from 'rxjs';
+import { catchError, delay, forkJoin, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
 import { UserTimezoneService } from './user-timezone.service';
 import { dayBoundsInZone, profileTimezone } from './zone-time';
 
@@ -364,7 +364,7 @@ function mapTodayInsight(entry: Partial<TodayInsight> | null | undefined): Today
   };
 }
 
-const FOCUS_AREA_CODES: Record<string, string> = {
+export const FOCUS_AREA_CODES: Record<string, string> = {
   '240001': 'FULL_BODY',
   '240002': 'UPPER',
   '240003': 'CORE',
@@ -1302,6 +1302,29 @@ export class FitSyncDataService {
     return this.http.get<{ injuryAreas?: string[] | null } | null>(`${this.apiBaseUrl}/users/me/health-readiness`).pipe(
       map((view) => (Array.isArray(view?.injuryAreas) ? view.injuryAreas.filter((area): area is string => typeof area === 'string') : [])),
       catchError(() => of([] as string[]))
+    );
+  }
+
+  /** Saves the injured areas. The server replaces the whole readiness record, so the answers already
+   *  given are read first and sent back unchanged. */
+  saveInjuryAreas(injuryAreas: string[]): Observable<string[]> {
+    const url = `${this.apiBaseUrl}/users/me/health-readiness`;
+    return this.http.get<Record<string, unknown> | null>(url).pipe(
+      catchError(() => of(null)),
+      switchMap((current) =>
+        this.http.put<{ injuryAreas?: string[] | null }>(url, {
+          heartCondition: current?.['heartCondition'] === true,
+          chestPainActivity: current?.['chestPainActivity'] === true,
+          dizziness: current?.['dizziness'] === true,
+          boneJointIssue: current?.['boneJointIssue'] === true,
+          bpOrHeartMeds: current?.['bpOrHeartMeds'] === true,
+          otherReason: current?.['otherReason'] === true,
+          injuryAreas: injuryAreas.filter((area) => /^[A-Z_]{2,40}$/.test(area)),
+          acknowledgedDisclaimerAt:
+            typeof current?.['acknowledgedDisclaimerAt'] === 'string' ? current['acknowledgedDisclaimerAt'] : new Date().toISOString()
+        })
+      ),
+      map((view) => (Array.isArray(view?.injuryAreas) ? view.injuryAreas : injuryAreas))
     );
   }
 

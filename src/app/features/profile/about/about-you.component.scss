@@ -36,9 +36,13 @@ h3.eyebrow { color: var(--text-secondary); margin-bottom: 8px; }
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-sunken);
+  font: inherit;
+  cursor: pointer;
   color: inherit;
-  text-decoration: none;
 }
+
+.part { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; border-bottom: 1px dashed var(--border-strong); }
+.part:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }
 
 .figure:focus-visible, .chip:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }
 .caption { font-size: var(--pg-chart); color: var(--text-secondary); text-align: center; }
@@ -57,7 +61,8 @@ h3.eyebrow { color: var(--text-secondary); margin-bottom: 8px; }
   font-size: var(--pg-control);
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
-  text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .chip.add {

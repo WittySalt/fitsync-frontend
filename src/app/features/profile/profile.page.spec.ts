@@ -155,6 +155,32 @@ describe('ProfilePage', () => {
     expect(render().querySelector('app-about-you .lead')?.textContent).toBe('Three evenings a week, lose weight to 68 kg by 11 Dec.');
   });
 
+  it('opens the Targets sheet for weight from the goal in the lead sentence, and for sessions from the days', async () => {
+    data.getGoals.and.returnValue(of([...goals, { goalId: 'g3', goalType: 'WORKOUT_FREQUENCY', targetValue: 3, targetUnit: 'sessions/week', targetDate: null, status: 'ACTIVE', notes: null }]));
+    const fixture = TestBed.createComponent(ProfilePage);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const parts = el.querySelectorAll<HTMLElement>('app-about-you .lead .part');
+
+    parts[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(el.querySelector('app-target-sheet h2')?.textContent).toBe('Weight target');
+
+    el.querySelector<HTMLElement>('app-target-sheet .cancel')!.click();
+    fixture.detectChanges();
+    parts[0].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(el.querySelector('app-target-sheet h2')?.textContent).toBe('Sessions target');
+  });
+
+  it('sends nothing from About you to the settings page', () => {
+    const el = render();
+
+    expect(el.querySelector('app-about-you a')).toBeNull();
+  });
+
   it('has six settings rows, each to its section, with Delete account in the danger colour', () => {
     const el = render();
 
@@ -237,7 +263,7 @@ describe('ProfilePage', () => {
 
     expect(clean(el.querySelector('.starts'))).toBe('Your footprint starts with your first workout or meal.');
     expect(Array.from(el.querySelectorAll('.totals dl > div')).map((entry) => clean(entry))).toEqual(['0 WORKOUTS', '0 DAYS LOGGED', '0 BADGES']);
-    expect(el.querySelector('app-about-you .lead')?.textContent).toBe('Nothing set yet.');
+    expect(el.querySelector('app-about-you .lead span')?.textContent).toBe('Nothing set yet.');
     expect(el.querySelectorAll('app-about-you .chip.add').length).toBe(3);
     expect(clean(el.querySelector('app-targets-card .none'))).toBe('No targets yet');
     expect(clean(el.querySelector('app-targets-card .set'))).toBe('Set a target');

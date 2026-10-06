@@ -1,0 +1,59 @@
+:host { display: contents; }
+
+.form { display: grid; gap: 16px; }
+.field { display: grid; gap: 6px; }
+.label { font-size: var(--pg-control); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+
+.stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; align-items: center; }
+.days { text-align: center; font-size: var(--pg-name); font-weight: var(--fw-semibold); color: var(--text-primary); }
+
+.step {
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+  font-size: 20px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.chip {
+  min-height: 40px;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--pg-control);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.chip.on { border-color: var(--border-accent); background: var(--surface-tint); color: var(--accent-text); font-weight: var(--fw-semibold); }
+
+input, select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+  color: var(--text-primary);
+}
+
+.from-diary { margin: 0; font-size: var(--pg-control); color: var(--text-secondary); }
+.meals { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.meals li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--pg-text); }
+.problem { margin: 0; font-size: var(--pg-control); color: var(--danger); }
+.actions { display: grid; gap: 8px; }
+
+.save, .cancel { min-height: 44px; border-radius: var(--radius-md); font: inherit; font-weight: var(--fw-semibold); cursor: pointer; }
+.save { border: 1px solid var(--accent); background: var(--accent); color: var(--text-on-accent); }
+.save:disabled { opacity: 0.6; cursor: default; }
+.cancel { border: 1px solid transparent; background: none; color: var(--text-secondary); }
+.chip:focus-visible, .step:focus-visible, .save:focus-visible, .cancel:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }

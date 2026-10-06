@@ -80,7 +80,7 @@ export function profileProblem(profile: PlanProfile): string | null {
 }
 
 const LEVEL_CODES: Record<string, string> = { '200001': 'BEGINNER', '200002': 'INTERMEDIATE', '200003': 'ADVANCED' };
-const EQUIPMENT_CODES: Record<string, string> = {
+export const EQUIPMENT_CODES: Record<string, string> = {
   '230001': 'NONE',
   '230002': 'DUMBBELLS',
   '230003': 'BARBELL',

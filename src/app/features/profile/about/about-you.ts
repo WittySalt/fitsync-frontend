@@ -68,13 +68,25 @@ function goalPart(inputs: AboutInputs): string {
   return '';
 }
 
+export type AboutField = 'days' | 'goal' | 'time' | 'meals' | 'equipment' | 'focus' | 'injuries' | 'diet';
+
+export interface LeadParts {
+  /** "Four evenings a week", or empty. */
+  training: string;
+  /** "lose weight to 68 kg by 11 Dec", or empty. */
+  goal: string;
+}
+
+export function leadParts(inputs: AboutInputs): LeadParts {
+  return { training: trainingPart(inputs), goal: goalPart(inputs) };
+}
+
 /**
  * The lead sentence of About you, written from the inputs: "Four evenings a week, lose weight to
  * 68 kg by 11 Dec." With only one part it stands alone; with none it says nothing is set.
  */
 export function leadSentence(inputs: AboutInputs): string {
-  const training = trainingPart(inputs);
-  const goal = goalPart(inputs);
+  const { training, goal } = leadParts(inputs);
   if (training && goal) {
     return `${training}, ${goal}.`;
   }
