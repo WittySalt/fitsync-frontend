@@ -31,8 +31,12 @@
     color: var(--text-primary);
   }
 
-  input {
+  textarea {
     min-width: 0;
+    min-height: 84px;
+    resize: vertical;
+    font: inherit;
+    line-height: 1.45;
     font-size: var(--text-sm);
     color: var(--text-primary);
     background: var(--surface-sunken);
@@ -41,7 +45,7 @@
     padding: 9px 10px;
   }
 
-  input:focus-visible {
+  textarea:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }

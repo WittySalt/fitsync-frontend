@@ -12,15 +12,16 @@
     <aside class="studio-side" aria-label="Your drafts">
       <form class="build" (submit)="$event.preventDefault(); build()">
         <label for="studio-request">What do you want today?</label>
-        <input
+        <textarea
           id="studio-request"
-          type="text"
+          rows="3"
           [value]="request()"
           (input)="request.set($any($event.target).value)"
-          placeholder="e.g. chest and back, I have a barbell"
+          (keydown.enter)="$event.preventDefault(); build()"
+          placeholder="Chest and back, I have a barbell and about 45 minutes"
           autocomplete="off"
           [disabled]="building()"
-        />
+        ></textarea>
         <button class="button primary" type="submit" [disabled]="building()">
           {{ building() ? 'Drafting…' : 'Build a session' }}
         </button>
