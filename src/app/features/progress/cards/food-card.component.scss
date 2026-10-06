@@ -32,6 +32,19 @@
   min-width: 0;
 }
 
+.bars-label {
+  margin: 0;
+  font-size: var(--pg-chart);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bars-note {
+  margin: 0;
+  font-size: var(--pg-chart);
+  color: var(--text-secondary);
+}
+
 .petals {
   align-self: center;
   width: 240px;
@@ -82,7 +95,8 @@
   }
 
   .bars {
-    flex: 1 1 0;
+    flex: 1 1 320px;
+    min-width: 320px;
   }
 
   .petals {
@@ -90,6 +104,7 @@
     align-self: flex-start;
     width: 300px;
     margin-left: auto;
+    min-width: 300px;
   }
 
   .petal-pic {

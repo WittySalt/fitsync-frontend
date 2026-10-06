@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 
@@ -45,6 +45,9 @@ export class BodyPage implements OnInit {
 
   /** When rendered inside another page (e.g. the Progress hub) the page header is suppressed. */
   readonly embedded = input(false);
+  /** Embedded and showing only the measurement form, open from the start; `closed` says when it is done. */
+  readonly formOnly = input(false);
+  readonly closed = output<void>();
 
   readonly data = signal<AccountCenterData | null>(null);
   readonly metrics = signal<AccountBodyMetric[]>([]);
@@ -214,6 +217,9 @@ export class BodyPage implements OnInit {
         this.metrics.set(this.sortMetrics(metrics));
         this.loading.set(false);
         this.patchNewMeasurement();
+        if (this.formOnly()) {
+          this.formOpen.set(true);
+        }
       },
       error: (error: Error) => {
         this.error.set(error.message || 'Unable to load body metrics.');
@@ -268,6 +274,9 @@ export class BodyPage implements OnInit {
     this.formOpen.set(false);
     this.editingMetricId.set(null);
     this.patchNewMeasurement();
+    if (this.formOnly()) {
+      this.closed.emit();
+    }
   }
 
   saveBody(): void {

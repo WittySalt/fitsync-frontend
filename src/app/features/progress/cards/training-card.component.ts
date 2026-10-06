@@ -86,15 +86,15 @@ export class TrainingCardComponent {
   protected readonly leftHeight = signal(0);
   /** The width of the picture row, which decides side by side or stacked. */
   protected readonly rowWidth = signal(0);
-  /** Beside the strip the figures get what is left of the row; if even 140 px views do not fit, the row stacks. */
+  /** Two columns from 760 px, one column below, and nothing in between. */
   protected readonly stacked = computed(() => {
     const width = this.rowWidth();
-    return width > 0 && (width < 520 || fittingHeight(width - 300 - 32) < 140);
+    return width > 0 && width < 760;
   });
   /** The tallest a view may be so that the figures, the gap and the scale never overflow the card. */
   protected readonly figureCap = computed(() => {
     const width = this.rowWidth();
-    return width === 0 ? null : fittingHeight(this.stacked() ? width : width - 300 - 32);
+    return width === 0 ? null : fittingHeight(this.stacked() ? width : width - 300 - 48);
   });
 
   protected retry(): void {

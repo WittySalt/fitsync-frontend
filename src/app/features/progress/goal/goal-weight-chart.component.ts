@@ -51,22 +51,29 @@ export function weightChartGeometry(
   height: number,
   cardView: boolean,
   compact: boolean,
-  width = WIDTH
+  width = WIDTH,
+  since: string | null = null
 ): WeightChartGeometry | null {
-  const weeks = weight.weekly.map((w) => ({ date: shiftDay(w.weekStart, 3), kg: w.avgKg }));
-  const line = weeks.length >= 2 ? weeks : weight.daily.map((d) => ({ date: d.date, kg: d.kg }));
+  const inWindow = (date: string) => since === null || date >= since;
+  const daily = weight.daily.filter((d) => inWindow(d.date));
+  const weeks = weight.weekly.map((w) => ({ date: shiftDay(w.weekStart, 3), kg: w.avgKg })).filter((w) => inWindow(w.date));
+  const line = weeks.length >= 2 ? weeks : daily.map((d) => ({ date: d.date, kg: d.kg }));
   if (line.length < 2) {
     return null;
   }
   const target = goal?.targetKg ?? null;
   const projection = weight.projection;
-  const dates = [...line.map((p) => p.date), ...weight.daily.map((d) => d.date), ...projection.map((p) => p.date), today];
+  const dates = [...line.map((p) => p.date), ...daily.map((d) => d.date), ...projection.map((p) => p.date), today];
+  if (since !== null) {
+    // The axis starts where the chosen range starts, so a longer range shows more room before the first weigh-in.
+    dates.push(since);
+  }
   if (goal?.byDate) {
     dates.push(goal.byDate);
   }
   const d0 = dates.reduce((a, b) => (a < b ? a : b));
   const d1 = dates.reduce((a, b) => (a > b ? a : b));
-  const kgs = [...line.map((p) => p.kg), ...weight.daily.map((d) => d.kg), ...projection.map((p) => p.kg), ...(target === null ? [] : [target])];
+  const kgs = [...line.map((p) => p.kg), ...daily.map((d) => d.kg), ...projection.map((p) => p.kg), ...(target === null ? [] : [target])];
   const step = Math.max(...kgs) - Math.min(...kgs) > 6 ? 2 : 1;
   let lo = Math.floor((Math.min(...kgs) - 0.5) / step) * step;
   const hi = Math.ceil((Math.max(...kgs) + 0.5) / step) * step;
@@ -84,7 +91,7 @@ export function weightChartGeometry(
   for (let v = lo + step; v < hi; v += step) {
     ticks.push({ y: y(v), text: `${formatNumber(v)} kg` });
   }
-  const lastDaily = weight.daily.at(-1);
+  const lastDaily = daily.at(-1);
   const nowPoint = lastDaily ? { date: lastDaily.date, kg: lastDaily.kg } : line[line.length - 1];
   const reference = new Date(Number(today.slice(0, 4)), 0, 1);
   const projEnd = projection.length >= 2 ? projection[projection.length - 1] : null;
@@ -96,7 +103,7 @@ export function weightChartGeometry(
   return {
     ticks,
     labels: timeAxisLabels(d0, d1, x),
-    dots: cardView ? [] : weight.daily.map((d) => ({ x: x(d.date), y: y(d.kg) })),
+    dots: cardView ? [] : daily.map((d) => ({ x: x(d.date), y: y(d.kg) })),
     line: line.map((p) => `${x(p.date).toFixed(1)},${y(p.kg).toFixed(1)}`).join(' '),
     first: { x: x(line[0].date), y: y(line[0].kg), text: formatNumber(line[0].kg, 1) },
     now: { x: x(nowPoint.date), y: y(nowPoint.kg), text: `${formatNumber(nowPoint.kg, 1)} kg` },
@@ -219,10 +226,12 @@ export class GoalWeightChartComponent {
   readonly height = input(280);
   readonly cardView = input(false);
   readonly compact = input(false);
+  /** The first day of the chosen range; the line starts there and nothing older is drawn. */
+  readonly since = input<string | null>(null);
 
   protected readonly width = measureWidth(WIDTH);
   protected readonly geometry = computed(() =>
-    weightChartGeometry(this.weight(), this.goal(), this.today(), this.height(), this.cardView(), this.compact(), this.width())
+    weightChartGeometry(this.weight(), this.goal(), this.today(), this.height(), this.cardView(), this.compact(), this.width(), this.since())
   );
 
   protected readonly summary = computed(() => {

@@ -13,7 +13,7 @@
     <app-detail-section name="Weight" anchor="weight" [sentence]="weightLine()" [context]="context()" [ask]="weightPrompt()">
       <app-ink-switch sectionControl label="How far back the chart goes" [options]="rangeOptions" [value]="range()" (picked)="chooseRange($event)" />
       <div [attr.aria-busy]="loading()">
-        <app-goal-weight-chart [weight]="weight() ?? goal.weight" [goal]="goal.goal" [today]="today" [height]="280" />
+        <app-goal-weight-chart [weight]="weight() ?? goal.weight" [goal]="goal.goal" [today]="today" [since]="weightWindow().from" [height]="280" />
       </div>
       <div class="legend">
         <span><i class="dot"></i>A weigh-in</span>

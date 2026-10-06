@@ -101,6 +101,21 @@ describe('goal figures', () => {
     expect(weightChartGeometry({ ...goal.weight, weekly: [], daily: [] }, null, TODAY, 280, false, false)).toBeNull();
   });
 
+  it('starts the weight chart at the first day of the chosen range and leaves older weigh-ins out', () => {
+    const goal = goalData();
+    const draw = (since: string) => weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false, 700, since)!;
+    const threeMonths = draw('2026-07-05');
+    const sixMonths = draw('2026-04-05');
+    const oneMonth = draw('2026-07-12');
+    // A longer range puts the same weigh-ins further right, so the axis has been re-scaled.
+    expect(sixMonths.first.x).toBeGreaterThan(threeMonths.first.x);
+    expect(sixMonths.labels.map((m) => m.text)).not.toEqual(threeMonths.labels.map((m) => m.text));
+    // A shorter range leaves the weigh-ins before it out of the line.
+    expect(threeMonths.first.text).toBe('74.6');
+    expect(oneMonth.first.text).toBe('71.4');
+    expect(weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false, 700, '2026-10-02')).toBeNull();
+  });
+
   it('shortens the goal label under 560 px of plot and keeps the goal above the line and the pace below it', () => {
     const goal = goalData();
     const narrow = weightChartGeometry(goal.weight, goal.goal, TODAY, 280, false, false, 600)!;
@@ -265,6 +280,20 @@ describe('progress pages', () => {
       expect(text(tiles[2])).toContain('Not enough data yet');
     });
 
+    it('lists every measurement as a table behind All measurements, and folds it with Fewer', () => {
+      const { fixture, el } = render(GoalPage);
+      const toggle = () => el.querySelectorAll<HTMLButtonElement>('app-goal-body-section .link')[1];
+      expect(text(toggle())).toBe('All measurements ›');
+      toggle().click();
+      fixture.detectChanges();
+      expect(el.querySelector('app-goal-measurements-table')).not.toBeNull();
+      expect(el.querySelector('app-body-page')).toBeNull();
+      expect(text(toggle())).toBe('Fewer ›');
+      toggle().click();
+      fixture.detectChanges();
+      expect(el.querySelector('app-goal-measurements-table')).toBeNull();
+    });
+
     it('opens the measurements, with the same form as before, from Record a measurement', () => {
       const { fixture, el } = render(GoalPage);
       el.querySelector<HTMLButtonElement>('app-goal-body-section .link')!.click();
@@ -304,6 +333,22 @@ describe('progress pages', () => {
       // The chart range reads for the chart only: the figures and the page read stay as they were.
       expect(api.getGoal.calls.allArgs().filter(([from]) => from === '2026-09-06').length).toBe(pageReads);
       expect(texts(el, 'app-detail-head dd')).toEqual(before);
+    });
+
+    it('moves the chart window and the selected range together when 6 months is chosen', () => {
+      const { fixture, el } = render(GoalPage);
+      const buttons = el.querySelectorAll<HTMLButtonElement>('#weight app-ink-switch button');
+      expect(texts(el, '#weight app-ink-switch button')).toEqual(['3 months', '6 months', '1 year', 'All']);
+      const x = () => el.querySelector('#weight app-goal-weight-chart circle.start')!.getAttribute('cx');
+      const before = x();
+      buttons[1].click();
+      fixture.detectChanges();
+      TestBed.tick();
+      fixture.detectChanges();
+      expect(api.getGoal).toHaveBeenCalledWith('2026-04-05', TODAY);
+      expect(buttons[1].getAttribute('aria-pressed')).toBe('true');
+      expect(buttons[0].getAttribute('aria-pressed')).toBe('false');
+      expect(x()).not.toBe(before);
     });
 
     it('reads the page again for a longer period, and the head figures follow it', () => {

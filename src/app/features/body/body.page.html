@@ -8,7 +8,7 @@
       </div>
       <button class="button primary" type="button" (click)="openNewMeasurement()">Add measurement</button>
     </header>
-  } @else {
+  } @else if (!formOnly()) {
     <div class="section-title">
       <div>
         <span class="card-label">Body</span>
@@ -71,6 +71,7 @@
       </section>
     }
 
+    @if (!formOnly()) {
     <section class="summary-card body-snapshot" aria-label="Current body snapshot">
       <article class="body-weight-hero">
         <span class="card-label">Current weight</span>
@@ -211,5 +212,6 @@
         />
       }
     </section>
+    }
   }
 </div>

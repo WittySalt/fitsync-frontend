@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 
+import { mapEnergyWeek } from './energy/energy-mappers';
+import { EnergyWeek } from './energy/energy.models';
 import { mapFoodNutrition, mapFoodProgress, mapGoalProgress, mapReviews } from './progress-api.mappers';
 import { dateRangeLabel } from '../../shared/date-label';
 import { FoodNutrition, FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
@@ -31,6 +33,16 @@ export class ProgressApiService {
         catchError(() => of(null))
       )
     }).pipe(map(({ analytics, nutrition }) => mergeFood(analytics, nutrition)));
+  }
+
+  /** One week of energy by its Monday; null when the read fails or the answer has no week, so a card can go without it. */
+  getEnergyWeek(weekStart: string): Observable<EnergyWeek | null> {
+    return this.http
+      .get<Record<string, unknown>>('/api/v1/analytics/energy/weekly', { params: new HttpParams().set('weekStart', weekStart) })
+      .pipe(
+        map((wire) => mapEnergyWeek(wire)),
+        catchError(() => of(null))
+      );
   }
 
   /** The last `weeks` weekly reviews, newest first. */
