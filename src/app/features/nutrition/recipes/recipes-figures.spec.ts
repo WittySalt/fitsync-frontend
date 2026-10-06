@@ -295,6 +295,10 @@ describe('ticks', () => {
     expect(cookedWhen(at(25), now)).toBe('Cooked last week');
     expect(cookedWhen(at(15), now)).toBe('Cooked 15 Sept');
     expect(cookedWhen(null, now)).toBe('');
+    expect(cookedWhen(new Date(2026, 9, 1, 12).toISOString(), now, 'Logged')).toBe('Logged Thursday');
+    expect(cookedWhen(new Date(2026, 9, 2, 23).toISOString(), now, 'Logged')).toBe('Logged yesterday');
+    expect(cookedWhen(at(25), now, 'Logged')).toBe('Logged last week');
+    expect(cookedWhen(at(15), now, 'Logged')).toBe('Logged 15 Sept');
     expect(cookedWhen('not a date', now)).toBe('');
   });
 

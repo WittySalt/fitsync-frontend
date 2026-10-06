@@ -160,7 +160,7 @@ export function goalVerdict(goal: GoalProgress, today: string): Verdict {
   }
   const early = daysEarly(goal);
   if (early !== null && early >= 7) {
-    return { text: 'Ahead of schedule.', tone: 'good' };
+    return { text: 'Ahead of plan.', tone: 'good' };
   }
   if (early !== null && early <= -7) {
     return { text: 'Behind schedule.', tone: 'ink' };

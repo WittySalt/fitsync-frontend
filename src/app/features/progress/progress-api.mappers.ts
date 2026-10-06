@@ -1,8 +1,10 @@
 import { withoutCitations } from '../../shared/coach/insight/reading-text';
 import { arr, bool, compared, list, mapDotDays, mapHighlights, mapSummaryLines, num, obj, str } from '../../shared/progress/progress-mappers';
 import { mapEnergyWeek } from './energy/energy-mappers';
+import { mondayOf } from './training/training-format';
 import {
   BodySeries,
+  CurrentWeek,
   FoodNutrition,
   FoodProgress,
   GoalProgress,
@@ -28,6 +30,24 @@ function range(value: unknown): { from: string; to: string } | null {
   const from = str(wire?.['from']);
   const to = str(wire?.['to']);
   return from && to ? { from, to } : null;
+}
+
+/** The `currentWeek` note of a response; null when the server sends none, which keeps the old behaviour. */
+export function mapCurrentWeek(value: unknown): CurrentWeek | null {
+  const wire = obj(value);
+  return wire && typeof wire['included'] === 'boolean' ? { included: wire['included'], daysLogged: num(wire['daysLogged']) ?? 0 } : null;
+}
+
+/**
+ * Today is never a week: when the server says the current week is not in, a weekly series ends at
+ * the last full week, whatever the server put in it. Anything else leaves the series as it came.
+ */
+export function endAtLastFullWeek<T>(points: T[], weekOf: (point: T) => string, currentWeek: CurrentWeek | null, to: string | null): T[] {
+  if (currentWeek?.included !== false || !to) {
+    return points;
+  }
+  const monday = mondayOf(to);
+  return points.filter((point) => weekOf(point) < monday);
 }
 
 function bodySeries(value: unknown): BodySeries | null {
@@ -123,6 +143,7 @@ export function mapGoalProgress(response: unknown): GoalProgress {
   return {
     period: range(wire['period']),
     previous: range(wire['previous']),
+    currentWeek: mapCurrentWeek(wire['currentWeek']),
     road: mapRoad(wire['road']),
     leadType: str(wire['leadType']),
     goal: goal ? { type: str(goal['type']) ?? 'WEIGHT', targetKg: num(goal['targetKg']), byDate: str(goal['byDate']) } : null,
@@ -164,21 +185,20 @@ export function mapGoalProgress(response: unknown): GoalProgress {
   };
 }
 
-function macro(value: unknown): MacroTrend | null {
+function macro(value: unknown, currentWeek: CurrentWeek | null, to: string | null): MacroTrend | null {
   const wire = obj(value);
   if (!wire) {
     return null;
   }
-  return {
-    firstWeek: num(wire['firstWeek']),
-    thisWeek: num(wire['thisWeek']),
-    target: num(wire['target']),
-    series: list(wire['series'], (item) => {
-      const weekStart = str(item['weekStart']);
-      const point = num(item['value']);
-      return weekStart && point !== null ? { weekStart, value: point } : null;
-    })
-  };
+  const all = list(wire['series'], (item) => {
+    const weekStart = str(item['weekStart']);
+    const point = num(item['value']);
+    return weekStart && point !== null ? { weekStart, value: point } : null;
+  });
+  const series = endAtLastFullWeek(all, (point) => point.weekStart, currentWeek, to);
+  // A week taken off the end also takes the figure that stood for "this week".
+  const cut = series.length < all.length;
+  return { firstWeek: num(wire['firstWeek']), thisWeek: cut ? (series.at(-1)?.value ?? null) : num(wire['thisWeek']), target: num(wire['target']), series };
 }
 
 function plateShares(value: unknown): PlateShare[] {
@@ -200,9 +220,13 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
   const plate = obj(wire['plate']) ?? {};
   const habits = obj(wire['habits']) ?? {};
   const thisWeek = obj(energy['thisWeek']);
+  const period = range(wire['period']);
+  const currentWeek = mapCurrentWeek(wire['currentWeek']);
+  const to = period?.to ?? null;
   return {
-    period: range(wire['period']),
+    period,
     previous: range(wire['previous']),
+    currentWeek,
     hero: {
       eatenPerDay: compared(hero['eatenPerDay'], num),
       proteinPerDay: compared(hero['proteinPerDay'], num),
@@ -212,12 +236,17 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
     highlights: mapHighlights(wire['highlights']),
     energy: {
       thisWeek: thisWeek ? mapEnergyWeek(thisWeek) : null,
-      weeklyBalance: list(energy['weeklyBalance'], (item) => {
-        const weekStart = str(item['weekStart']);
-        return weekStart ? { weekStart, balance: num(item['balance']), daysLogged: num(item['daysLogged']) ?? 0, current: bool(item['current']) } : null;
-      })
+      weeklyBalance: endAtLastFullWeek(
+        list(energy['weeklyBalance'], (item) => {
+          const weekStart = str(item['weekStart']);
+          return weekStart ? { weekStart, balance: num(item['balance']), daysLogged: num(item['daysLogged']) ?? 0, current: bool(item['current']) } : null;
+        }),
+        (week) => week.weekStart,
+        currentWeek,
+        to
+      )
     },
-    macros: { protein: macro(macros['protein']), carbs: macro(macros['carbs']), fat: macro(macros['fat']), summary: mapSummaryLines(macros['summary']) },
+    macros: { protein: macro(macros['protein'], currentWeek, to), carbs: macro(macros['carbs'], currentWeek, to), fat: macro(macros['fat'], currentWeek, to), summary: mapSummaryLines(macros['summary']) },
     plate: {
       basis: str(plate['basis']) ?? 'CALORIES',
       current: plateShares(plate['current']),
@@ -291,6 +320,11 @@ function reviewFact(item: Record<string, unknown>): ReviewFact | null {
   return { key, label: str(item['label']) ?? key, value, unit: str(item['unit']) ?? '', note: str(item['note']) ?? '', detail: str(item['detail']) ?? '' };
 }
 
+function optionalNumber<K extends string>(key: K, value: unknown): Partial<Record<K, number>> {
+  const figure = num(value);
+  return figure === null ? {} : ({ [key]: figure } as Record<K, number>);
+}
+
 const REVIEW_STATUSES: readonly ReviewStatus[] = ['READY', 'WRITING', 'NONE'];
 
 /** The weekly reviews, newest first whatever order they came in. */
@@ -309,7 +343,9 @@ export function mapReviews(response: unknown): WeeklyReview[] {
       headline: str(item['headline']) ?? '',
       // The chips carry the facts, so the body's citation markers are left out rather than shown as "[1]".
       body: withoutCitations(str(item['body']) ?? '').trim(),
-      facts: list(item['facts'], reviewFact)
+      facts: list(item['facts'], reviewFact),
+      ...optionalNumber('eatenTodaySoFarKcal', item['eatenTodaySoFarKcal']),
+      ...optionalNumber('proteinTodaySoFarGrams', item['proteinTodaySoFarGrams'])
     };
   }).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
 }

@@ -21,6 +21,8 @@ export interface RecipeCard {
   favorite: boolean;
   /** When the person last finished cooking it (an ISO moment), on the Cooked recently row; null otherwise. */
   lastCookedAt: string | null;
+  /** Whether that moment is a cook record or a meal logged from the recipe. Absent from an older backend, read as cooked. */
+  lastActivity?: 'COOKED' | 'LOGGED' | null;
 }
 
 /** What today leaves room for, sent with a list that is sorted by how well recipes fit (contract section 9). */
@@ -174,4 +176,35 @@ export interface SavedMeal {
   items: SavedMealItem[];
   /** The items as the server sent them, so a saved meal can be rebuilt with one more recipe in it. */
   raw: Record<string, unknown>[];
+}
+
+/** The five states of the Cook for tonight card (spec section 1). */
+export type SuggestionState = 'FITS' | 'NOTHING_LOGGED' | 'PAST_TARGET' | 'PROTEIN_ONLY' | 'DINNER_LOGGED';
+
+export interface SuggestionFacts {
+  kcalLeft: number | null;
+  proteinShortGrams: number | null;
+  /** The display name of the vitamin or mineral the week is lowest on. */
+  lowestNutrient: string | null;
+  /** The usual dinner time as HH:mm. */
+  usualDinnerTime: string | null;
+  eatenKcal: number | null;
+  targetKcal: number | null;
+  proteinMet: boolean;
+}
+
+export interface RecipeSuggestion {
+  recipeId: string;
+  name: string;
+  imageUrl: string | null;
+  kcalPerServing: number;
+  proteinPerServing: number;
+  reason: string;
+  source: 'LIBRARY' | 'MINE' | 'RECENT';
+}
+
+export interface RecipeSuggestions {
+  state: SuggestionState;
+  facts: SuggestionFacts;
+  suggestions: RecipeSuggestion[];
 }

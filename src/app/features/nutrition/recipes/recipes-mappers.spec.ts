@@ -1,4 +1,5 @@
-import { mapGroupsGrams, mapRecipeCard, mapRecipeDetail, mapRecipePage, mapSavedMeal, safeImageUrl } from './recipes-mappers';
+import { mapGroupsGrams, mapRecipeCard, mapRecipeDetail, mapRecipePage, mapRecipeSuggestions, mapSavedMeal, safeImageUrl } from './recipes-mappers';
+import { SUGGESTION_PAYLOADS } from './recipes-testing.spec';
 
 describe('recipe mappers', () => {
   it('maps a card and keeps only known plate groups', () => {
@@ -30,6 +31,46 @@ describe('recipe mappers', () => {
     expect(page.fit).toEqual({ kcalLeft: 950, proteinShortGrams: 41, lowestNutrient: 'Vitamin D' });
     expect(mapRecipePage({ content: [], fit: { lowestNutrient: 'Zinc' } }).fit).toEqual({ kcalLeft: null, proteinShortGrams: null, lowestNutrient: 'Zinc' });
     expect(mapRecipePage({ content: [], fit: 'no' }).fit).toBeNull();
+  });
+
+  it('reads what the last activity of a card was, and leaves it null from an older backend', () => {
+    expect(mapRecipeCard({ id: 'a', lastActivity: 'LOGGED' }).lastActivity).toBe('LOGGED');
+    expect(mapRecipeCard({ id: 'a', lastActivity: 'COOKED' }).lastActivity).toBe('COOKED');
+    expect(mapRecipeCard({ id: 'a', lastActivity: 'SOMETHING' }).lastActivity).toBeNull();
+    expect(mapRecipeCard({ id: 'a' }).lastActivity).toBeNull();
+  });
+
+  describe('suggestions', () => {
+    it('maps the FITS payload with its facts and three recipes', () => {
+      const mapped = mapRecipeSuggestions(SUGGESTION_PAYLOADS['FITS']);
+      expect(mapped.state).toBe('FITS');
+      expect(mapped.facts).toEqual({ kcalLeft: 620, proteinShortGrams: 41, lowestNutrient: 'Iron', usualDinnerTime: '19:30', eatenKcal: 1480, targetKcal: 2100, proteinMet: false });
+      expect(mapped.suggestions.map((entry) => [entry.recipeId, entry.source, entry.kcalPerServing, entry.proteinPerServing])).toEqual([
+        ['s1', 'LIBRARY', 548, 38],
+        ['s2', 'MINE', 455, 14],
+        ['s3', 'RECENT', 286, 19]
+      ]);
+      expect(mapped.suggestions[0].reason).toBe('Fits your 620 left and closes most of the protein gap');
+    });
+
+    it('maps every state, and the folded one has no recipes', () => {
+      expect(Object.keys(SUGGESTION_PAYLOADS).map((key) => mapRecipeSuggestions(SUGGESTION_PAYLOADS[key]).state)).toEqual(['FITS', 'NOTHING_LOGGED', 'PAST_TARGET', 'PROTEIN_ONLY', 'DINNER_LOGGED']);
+      expect(mapRecipeSuggestions(SUGGESTION_PAYLOADS['DINNER_LOGGED']).suggestions).toEqual([]);
+      expect(mapRecipeSuggestions(SUGGESTION_PAYLOADS['PAST_TARGET']).facts.proteinMet).toBeTrue();
+    });
+
+    it('is forgiving: an unknown state reads as FITS, a recipe without an id is dropped, a photo that is not a web address is left out', () => {
+      const mapped = mapRecipeSuggestions({ state: 'ODD', suggestions: [{ name: 'No id' }, { recipeId: 'x', name: 'Soup', imageUrl: 'javascript:alert(1)', source: 'ELSEWHERE' }] });
+      expect(mapped.state).toBe('FITS');
+      expect(mapped.facts.kcalLeft).toBeNull();
+      expect(mapped.facts.proteinMet).toBeFalse();
+      expect(mapped.suggestions.length).toBe(1);
+      expect(mapped.suggestions[0]).toEqual(jasmine.objectContaining({ recipeId: 'x', imageUrl: null, source: 'LIBRARY', kcalPerServing: 0 }));
+    });
+
+    it('takes the nutrient as a plain name too', () => {
+      expect(mapRecipeSuggestions({ state: 'FITS', facts: { lowestNutrient: 'Zinc' }, suggestions: [] }).facts.lowestNutrient).toBe('Zinc');
+    });
   });
 
   it('reads the cook count and the last cook of a recipe, and a recipe without them was never cooked', () => {

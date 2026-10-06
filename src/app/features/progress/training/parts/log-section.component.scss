@@ -1,5 +1,6 @@
 :host {
   display: block;
+  container-type: inline-size;
 }
 
 .layout {
@@ -45,6 +46,7 @@
     font-weight: var(--fw-bold);
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -55,7 +57,9 @@
   color: var(--text-secondary);
 }
 
-@media (max-width: 760px) {
+/* When the section is narrower than 760 px (the card, not the viewport: the sidebar and the section rail
+   take their share first) the four figures sit under the calendar as a 2 × 2 grid. */
+@container (max-width: 759px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;

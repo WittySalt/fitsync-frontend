@@ -53,12 +53,19 @@ const DAY_SPAN_HOURS = 16;
               [meals]="m.data"
               [usual]="usual()"
               [busy]="busy()"
+              [date]="date()"
+              [today]="today()"
+              [dismissed]="dismissedDays().has(date())"
               (addMeal)="addMeal.emit($event)"
               (addFrom)="addFrom.emit($event)"
               (logAgain)="logAgain($event)"
               (saveAsMeal)="saveAsMeal($event)"
               (deleteMeal)="confirming.set($event)"
               (logUsual)="logUsual($event)"
+              (logUsualDay)="logUsualDay($event)"
+              (markFasted)="markFasted()"
+              (ateUnlogged)="ateUnlogged()"
+              (deleteFast)="confirmingFast.set($event)"
             />
           } @else if (m.status === 'error') {
             <app-state-panel title="Meals unavailable" [message]="m.message" actionLabel="Retry" [error]="true" (action)="loadMeals()" />
@@ -132,6 +139,17 @@ const DAY_SPAN_HOURS = 16;
         (cancelled)="confirming.set(null)"
       />
     }
+    @if (confirmingFast(); as fast) {
+      <app-confirm-dialog
+        title="Delete the fasted mark?"
+        [message]="'The day is no longer marked as fasted on ' + label() + '.'"
+        confirmLabel="Delete"
+        [danger]="true"
+        [busy]="busy()"
+        (confirmed)="deleteFast(fast)"
+        (cancelled)="confirmingFast.set(null)"
+      />
+    }
     @if (dialogOpen()) {
       <app-add-drink-dialog [date]="date()" [today]="today()" [busy]="busy()" (closed)="dialogOpen.set(false)" (addWater)="addWater($event)" (addDrink)="addDrink($event)" />
     }
@@ -172,6 +190,9 @@ export class DiaryDayComponent {
   protected readonly busy = signal(false);
   protected readonly confirming = signal<MealPart | null>(null);
   protected readonly dialogOpen = signal(false);
+  protected readonly confirmingFast = signal<DiaryMeal | null>(null);
+  /** Days the person said they ate without logging. Kept for this visit only, never stored. */
+  protected readonly dismissedDays = signal<ReadonlySet<string>>(new Set<string>());
 
   private readonly weekStart = computed(() => weekRange(this.date()).monday);
   protected readonly isToday = computed(() => this.date() === this.today());
@@ -353,19 +374,74 @@ export class DiaryDayComponent {
   }
 
   protected logUsual(meal: UsualMeal): void {
-    if (!meal.sourceMealId) {
+    this.copyUsual([meal], 'Logged your usual meal.');
+  }
+
+  /** "Log my usual" on a past day with nothing logged: the usual breakfast, lunch and dinner at their usual times. */
+  protected logUsualDay(meals: UsualMeal[]): void {
+    this.copyUsual(meals, 'Logged your usual meals.');
+  }
+
+  private copyUsual(meals: UsualMeal[], done: string): void {
+    const copyable = meals.filter((meal) => !!meal.sourceMealId);
+    if (copyable.length === 0) {
       return;
     }
     this.busy.set(true);
-    this.data.copyMeal(meal.sourceMealId, meal.mealType, this.isToday() ? undefined : loggedMoment(this.date(), meal.usualTime ?? '', this.today(), new Date()).toISOString()).subscribe({
+    forkJoin(
+      copyable.map((meal) =>
+        this.data.copyMeal(meal.sourceMealId as string, meal.mealType, this.isToday() ? undefined : loggedMoment(this.date(), meal.usualTime ?? '', this.today(), new Date()).toISOString())
+      )
+    ).subscribe({
       next: () => {
         this.busy.set(false);
-        this.toast.success('Logged your usual meal.');
+        this.toast.success(done);
         this.afterMealChange();
       },
       error: () => {
         this.busy.set(false);
         this.toast.error('Unable to log that meal. Please retry.');
+        this.afterMealChange();
+      }
+    });
+  }
+
+  // ---- fasted days
+
+  protected markFasted(): void {
+    if (this.isToday()) {
+      return;
+    }
+    this.busy.set(true);
+    this.service.markFasted(this.date(), this.today()).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.success('Marked ' + this.label() + ' as fasted.');
+        this.afterMealChange();
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Unable to mark that day. Please retry.');
+      }
+    });
+  }
+
+  protected ateUnlogged(): void {
+    this.dismissedDays.update((days) => new Set(days).add(this.date()));
+  }
+
+  protected deleteFast(meal: DiaryMeal): void {
+    this.busy.set(true);
+    this.service.deleteMeal(meal.mealId).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.confirmingFast.set(null);
+        this.toast.success('Removed the fasted mark.');
+        this.afterMealChange();
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Unable to delete that. Please retry.');
       }
     });
   }

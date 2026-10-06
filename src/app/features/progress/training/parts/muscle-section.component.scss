@@ -38,7 +38,8 @@
 
 .row {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) 54px;
+  /* The bars never get narrower than the scale above them needs, so 0 · 6 · 10 · 20 · 25 cannot touch. */
+  grid-template-columns: 104px minmax(150px, 1fr) 54px;
   align-items: center;
   gap: 10px;
   height: 26px;
@@ -94,6 +95,8 @@
   span {
     position: absolute;
     font-size: var(--pg-eyebrow);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     transform: translateX(-50%);
   }
 
@@ -154,12 +157,13 @@
   }
 }
 
-@media (max-width: 700px) {
+/* The figure stacks above the table below 720 px. */
+@media (max-width: 719px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .row {
-    grid-template-columns: 96px minmax(0, 1fr) 54px;
+    grid-template-columns: 96px minmax(120px, 1fr) 54px;
   }
 }

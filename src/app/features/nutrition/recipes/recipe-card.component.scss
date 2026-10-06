@@ -64,7 +64,15 @@
   color: var(--text-primary);
   text-decoration: none;
 
+  // Two lines tall whatever the name, so the line under it sits at the same height across a row.
+  // A third line is cut with an ellipsis and the full name is in the title attribute.
   strong {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    min-height: 2.5em;
     font-family: var(--font-display);
     font-size: 17px;
     font-weight: var(--fw-semibold);

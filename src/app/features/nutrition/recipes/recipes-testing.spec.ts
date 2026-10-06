@@ -1,6 +1,6 @@
 import { of } from 'rxjs';
 
-import { PerServing, RecipeCard, RecipeDetail, RecipeIngredient, SavedMeal } from './recipes.models';
+import { PerServing, RecipeCard, RecipeDetail, RecipeIngredient, RecipeSuggestion, RecipeSuggestions, SavedMeal } from './recipes.models';
 import { RecipesService } from './recipes.service';
 
 /** Builders for specs. Each takes only what a spec cares about and fills the rest with plain values. */
@@ -21,6 +21,7 @@ export function card(overrides: Partial<RecipeCard> = {}): RecipeCard {
     topFoodGroups: ['VEG', 'PROTEIN', 'FRUIT'],
     favorite: false,
     lastCookedAt: null,
+    lastActivity: null,
     ...overrides
   };
 }
@@ -127,6 +128,55 @@ export function savedMeal(overrides: Partial<SavedMeal> = {}): SavedMeal {
 }
 
 /** A stand-in for the recipes service. A spec overrides what it cares about. */
+/** The wire payload of GET /recipes/suggestions in the five states, as the spec section 1 describes them. */
+export const SUGGESTION_PAYLOADS: Record<string, Record<string, unknown>> = {
+  FITS: {
+    state: 'FITS',
+    facts: { kcalLeft: 620, proteinShortGrams: 41, lowestNutrient: { code: 'FE', displayName: 'Iron' }, usualDinnerTime: '19:30', eatenKcal: 1480, targetKcal: 2100, proteinMet: false },
+    suggestions: [
+      { recipeId: 's1', name: 'Chicken Quinoa Greek Salad', imageUrl: null, kcalPerServing: 548, proteinPerServing: 38, reason: 'Fits your 620 left and closes most of the protein gap', source: 'LIBRARY' },
+      { recipeId: 's2', name: 'Chickpea Fajitas', imageUrl: null, kcalPerServing: 455, proteinPerServing: 14, reason: 'Brings Iron, your lowest this week', source: 'MINE' },
+      { recipeId: 's3', name: 'French Omelette', imageUrl: null, kcalPerServing: 286, proteinPerServing: 19, reason: 'You cooked it 2 times this month', source: 'RECENT' }
+    ]
+  },
+  NOTHING_LOGGED: {
+    state: 'NOTHING_LOGGED',
+    facts: { kcalLeft: 2100, proteinShortGrams: 155, lowestNutrient: null, usualDinnerTime: '19:30', eatenKcal: 0, targetKcal: 2100, proteinMet: false },
+    suggestions: [{ recipeId: 's1', name: 'Chicken Quinoa Greek Salad', imageUrl: null, kcalPerServing: 548, proteinPerServing: 38, reason: 'Your most cooked this month', source: 'RECENT' }]
+  },
+  PAST_TARGET: {
+    state: 'PAST_TARGET',
+    facts: { kcalLeft: 0, proteinShortGrams: 0, lowestNutrient: null, usualDinnerTime: '19:30', eatenKcal: 2340, targetKcal: 2100, proteinMet: true },
+    suggestions: [{ recipeId: 's4', name: 'Chickpea Fajitas', imageUrl: null, kcalPerServing: 310, proteinPerServing: 12, reason: '310 kcal, mostly vegetables', source: 'LIBRARY' }]
+  },
+  PROTEIN_ONLY: {
+    state: 'PROTEIN_ONLY',
+    facts: { kcalLeft: 620, proteinShortGrams: 41, lowestNutrient: null, usualDinnerTime: null, eatenKcal: 1480, targetKcal: 2100, proteinMet: false },
+    suggestions: [
+      { recipeId: 's1', name: 'Chicken Quinoa Greek Salad', imageUrl: null, kcalPerServing: 548, proteinPerServing: 38, reason: 'High protein, 38 g in a serving', source: 'LIBRARY' },
+      { recipeId: 's5', name: 'Honey Teriyaki Salmon', imageUrl: null, kcalPerServing: 398, proteinPerServing: 31, reason: 'High protein, and it fits your 620 left', source: 'LIBRARY' }
+    ]
+  },
+  DINNER_LOGGED: {
+    state: 'DINNER_LOGGED',
+    facts: { kcalLeft: 90, proteinShortGrams: 0, lowestNutrient: null, usualDinnerTime: '19:30', eatenKcal: 2010, targetKcal: 2100, proteinMet: true },
+    suggestions: []
+  }
+};
+
+export function suggestionOf(overrides: Partial<RecipeSuggestion> = {}): RecipeSuggestion {
+  return { recipeId: 's1', name: 'Chicken Quinoa Greek Salad', imageUrl: null, kcalPerServing: 548, proteinPerServing: 38, reason: 'Fits your 620 left', source: 'LIBRARY', ...overrides };
+}
+
+export function suggestionsOf(overrides: Partial<RecipeSuggestions> = {}): RecipeSuggestions {
+  return {
+    state: 'FITS',
+    facts: { kcalLeft: 620, proteinShortGrams: 41, lowestNutrient: 'Iron', usualDinnerTime: '19:30', eatenKcal: 1480, targetKcal: 2100, proteinMet: false },
+    suggestions: [suggestionOf()],
+    ...overrides
+  };
+}
+
 export function recipesServiceStub(): jasmine.SpyObj<RecipesService> {
   const stub = jasmine.createSpyObj<RecipesService>('RecipesService', [
     'list',

@@ -103,6 +103,12 @@ describe('slot summaries', () => {
     expect(lunch.foods.map((food) => food.name)).toEqual(['Rice', 'Apple']);
   });
 
+  it('does not count a fasted mark as a meal in any slot', () => {
+    const summaries = summariseSlots([meal('FAST', 12, 0)]);
+
+    expect(Object.values(summaries).every((slot) => !slot.logged && slot.calories === 0)).toBeTrue();
+  });
+
   it('marks slots without a meal as not logged', () => {
     const summaries = summariseSlots([meal('BREAKFAST', 8, 400)]);
 

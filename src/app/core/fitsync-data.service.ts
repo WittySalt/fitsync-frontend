@@ -6,6 +6,8 @@ import { dayBoundsInZone, profileTimezone } from './zone-time';
 
 import { AnalyticsApiService } from './analytics-api.service';
 import { AccountDataService } from './account-data.service';
+import { mapRecipeSuggestions } from '../features/nutrition/recipes/recipes-mappers';
+import { RecipeSuggestions } from '../features/nutrition/recipes/recipes.models';
 import {
   AnalyticsBodyTrendPoint,
   AnalyticsBucket,
@@ -1230,6 +1232,12 @@ export class FitSyncDataService {
       return 10;
     }
     return Math.min(Math.max(parsed, 1), 100);
+  }
+
+  /** The Cook for tonight card: today's state and the recipes that suit it. Errors propagate so the card can say so. */
+  getRecipeSuggestions(limit = 3): Observable<RecipeSuggestions> {
+    const params = new HttpParams().set('limit', String(Math.min(Math.max(Math.trunc(limit) || 3, 1), 6)));
+    return this.http.get<Record<string, unknown>>(`${this.apiBaseUrl}/nutrition/recipes/suggestions`, { params }).pipe(map((raw) => mapRecipeSuggestions(raw ?? {})));
   }
 
   /** The protein-by-meal figures that draw the chart in the nutrition reading. Errors propagate so

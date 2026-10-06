@@ -75,6 +75,13 @@ export function clockText(value: string | Date | null | undefined): string {
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short' });
 
+const WEEKDAY_LONG = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
+
+/** "Tuesday", for the day line of a past day with nothing logged. */
+export function weekdayName(iso: string): string {
+  return WEEKDAY_LONG.format(parseIsoDate(iso));
+}
+
 /** "Friday 2 Oct". */
 export function dayLabel(iso: string): string {
   const date = parseIsoDate(iso);

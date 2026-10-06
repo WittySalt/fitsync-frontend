@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of } from 'rxjs';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, map, of, switchMap } from 'rxjs';
 
 import { shortDateLabel } from '../../../shared/date-label';
 import { ContentsRailComponent } from '../../../shared/progress/contents-rail.component';
@@ -83,6 +83,18 @@ export class FoodPage {
   readonly period = usePeriod();
   readonly today = this.period.today();
   readonly nutrients = signal<NutrientsOverview | null>(null);
+  /** The calorie goal's target, which the head judges the four weeks against; null while unknown or unset. */
+  protected readonly calorieTarget = toSignal(
+    toObservable(this.period.range).pipe(
+      switchMap(({ from, to }) =>
+        this.api.getGoal(from, to).pipe(
+          map((goal) => goal.otherGoals.find((item) => item.type === 'CALORIES')?.target ?? null),
+          catchError(() => of(null))
+        )
+      )
+    ),
+    { initialValue: null }
+  );
   private readonly read = useLoad(this.period.range, (range) => this.api.getFood(range.from, range.to), 'Food progress could not load.');
   protected readonly state = this.read.state;
 
@@ -98,7 +110,7 @@ export class FoodPage {
   readonly eyebrow = computed(() => periodEyebrow('Food', this.period.code(), this.period.range().from, this.period.range().to));
   readonly verdict = computed(() => {
     const data = this.data();
-    return data ? foodVerdict(data, this.days()) : { text: '', tone: 'ink' as const };
+    return data ? foodVerdict(data, this.days(), this.calorieTarget()) : { text: '', tone: 'ink' as const };
   });
   readonly sentence = computed(() => {
     const data = this.data();

@@ -1,4 +1,4 @@
-import { MEAL_SLOTS, MealSlot, slotForMealType } from '../../dashboard/today/today-meals';
+import { FAST_MEAL_TYPE, MEAL_SLOTS, MealSlot, slotForMealType } from '../../dashboard/today/today-meals';
 import { FoodGroup } from '../../../shared/food/food-groups';
 import { DiaryItem, DiaryMeal } from './diary.models';
 import { clockText } from './diary-time';
@@ -69,6 +69,11 @@ export interface MealPart {
   meals: DiaryMeal[];
 }
 
+/** The fasted mark of a day, when it has one. */
+export function fastedMeal(meals: readonly DiaryMeal[]): DiaryMeal | null {
+  return meals.find((meal) => meal.mealType === FAST_MEAL_TYPE) ?? null;
+}
+
 /** The four parts in order. Supper counts as dinner and any other type as a snack, as on the Today card. */
 export function mealParts(meals: readonly DiaryMeal[]): MealPart[] {
   const parts: MealPart[] = MEAL_SLOTS.map((slot) => ({
@@ -84,7 +89,8 @@ export function mealParts(meals: readonly DiaryMeal[]): MealPart[] {
     items: [],
     meals: []
   }));
-  const ordered = [...meals].sort((a, b) => a.consumedAt.localeCompare(b.consumedAt));
+  // A fasted mark is not a meal: it has no foods and is shown on its own row.
+  const ordered = meals.filter((meal) => meal.mealType !== FAST_MEAL_TYPE).sort((a, b) => a.consumedAt.localeCompare(b.consumedAt));
   for (const meal of ordered) {
     const part = parts.find((entry) => entry.slot === slotForMealType(meal.mealType));
     if (!part) {

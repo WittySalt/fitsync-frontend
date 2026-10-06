@@ -5,6 +5,7 @@ import { shortDateLabel } from '../../../shared/date-label';
 import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { DotStripComponent } from '../../../shared/progress/dot-strip.component';
 import { daysBetween, formatNumber, shiftDay } from '../../../shared/progress/progress-format';
+import { mondayOf } from '../training/training-format';
 import { DotDay, ProgressCardContext } from '../../../shared/progress/progress.models';
 import { OtherGoal } from '../progress-api.models';
 
@@ -18,6 +19,11 @@ const NAMES: Record<string, string> = {
 
 /** Protein and sessions count when reached; calories, carbs and fat count within 10% either way. */
 const AT_LEAST = new Set(['PROTEIN', 'WORKOUT_FREQUENCY']);
+
+/** True for the week that holds `today`: it has not ended, so its box is neither met nor missed. */
+export function isCurrentWeek(weekStart: string, today: string): boolean {
+  return weekStart === mondayOf(today);
+}
 
 /**
  * One dot for each day from `from` to `to`, the days the server did not report as not logged, so a
@@ -60,7 +66,7 @@ export function windowDays(days: readonly DotDay[], from: string, to: string): D
                 @if (row.weeks.length) {
                   <div class="weeks">
                     @for (week of row.weeks; track week.weekStart) {
-                      <span class="box" [class.met]="week.met">{{ week.value }}</span>
+                      <span class="box" [class.met]="week.met" [class.current]="week.current" [attr.title]="week.current ? 'this week, in progress' : null">{{ week.value }}</span>
                     }
                   </div>
                   <div class="ends"><span>{{ row.weeks[0].label }}</span><span>{{ row.weeks[row.weeks.length - 1].label }}</span></div>
@@ -94,6 +100,7 @@ export function windowDays(days: readonly DotDay[], from: string, to: string): D
     .visual { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .weeks { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
     .box { height: 24px; box-sizing: border-box; border-radius: 4px; display: flex; align-items: center; justify-content: center; font: 600 var(--pg-chart) var(--font-sans); border: 1px solid var(--text-secondary); color: var(--text-primary); }
+    .box.current { border-style: dashed; border-color: var(--text-muted); color: var(--text-secondary); background: none; }
     .box.met { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent); }
     .ends { display: flex; justify-content: space-between; font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
     .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -129,16 +136,19 @@ export class GoalOtherGoalsComponent {
         weekStart: week.weekStart,
         value: formatNumber(week.value),
         label: shortDateLabel(week.weekStart, reference),
-        met: week.value >= (week.target ?? goal.target ?? Infinity)
+        current: isCurrentWeek(week.weekStart, this.to()),
+        met: !isCurrentWeek(week.weekStart, this.to()) && week.value >= (week.target ?? goal.target ?? Infinity)
       }));
-      const metWeeks = weeks.filter((week) => week.met).length;
+      // The week under way is not a miss yet, so it is in neither count.
+      const full = weeks.filter((week) => !week.current);
+      const metWeeks = full.filter((week) => week.met).length;
       const name = NAMES[goal.type] ?? goal.type.charAt(0) + goal.type.slice(1).toLowerCase().replace(/_/g, ' ');
       return {
         type: goal.type,
         name,
         rule: target ? `${target} · ${rule}` : rule,
-        met: weekly ? (weeks.length ? metWeeks : goal.metDays) : goal.metDays,
-        of: weekly ? `${weeks.length || (goal.loggedDays ?? 0)} weeks` : `${goal.loggedDays ?? 0} logged days`,
+        met: weekly ? (full.length ? metWeeks : goal.metDays) : goal.metDays,
+        of: weekly ? `${full.length || (goal.loggedDays ?? 0)} weeks` : `${goal.loggedDays ?? 0} logged days`,
         days: windowDays(goal.days, this.from(), this.to()),
         weeks: weekly ? weeks : []
       };
@@ -160,8 +170,11 @@ export class GoalOtherGoalsComponent {
       parts.push(`${NAMES[daily.type] ?? daily.type} was met on ${daily.metDays} of ${daily.loggedDays} logged days.`);
     }
     if (sessions) {
-      const met = sessions.weeks.filter((week) => week.value >= (week.target ?? sessions.target ?? Infinity)).length;
-      parts.push(`Sessions reached the target in ${met} of ${sessions.weeks.length} weeks.`);
+      const full = sessions.weeks.filter((week) => !isCurrentWeek(week.weekStart, this.to()));
+      const met = full.filter((week) => week.value >= (week.target ?? sessions.target ?? Infinity)).length;
+      if (full.length) {
+        parts.push(`Sessions reached the target in ${met} of ${full.length} weeks.`);
+      }
     }
     return parts.join(' ') || 'Nothing is logged against these goals yet.';
   });

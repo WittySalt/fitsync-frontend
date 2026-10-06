@@ -48,13 +48,45 @@ describe('EditorStepsComponent', () => {
     expect(items()[0].querySelector('.found')?.textContent?.trim()).toBe('A 10 min timer was found · Simmer');
   });
 
-  it('moves a step with the buttons, and the first cannot go up', () => {
+  const open = (index: number): void => {
+    items()[index].querySelector('textarea')?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    fixture.detectChanges();
+  };
+
+  it('keeps a closed row to handle, number, text and remove, with no Move buttons', () => {
+    render(['One.', 'Two.']);
+    expect(el().querySelectorAll('.up, .down').length).toBe(0);
+    const row = items()[0];
+    expect(Array.from(row.children).map((child) => child.tagName.toLowerCase() + (child.className ? '.' + String(child.className).split(' ')[0] : ''))).toEqual(['app-reorder', 'span.number', 'div.body', 'button.remove']);
+  });
+
+  it('shows the Move buttons inside the row being edited only, and the first cannot go up', () => {
     render(['One.', 'Two.', 'Three.']);
+    open(0);
+    expect(el().querySelectorAll('.up').length).toBe(1);
+    expect(items()[0].querySelector('.body .move')).not.toBeNull();
     expect((items()[0].querySelector('.up') as HTMLButtonElement).disabled).toBeTrue();
+    open(2);
+    expect(items()[0].querySelector('.move')).toBeNull();
     expect(items()[2].querySelector('.down')?.getAttribute('aria-label')).toBe('Move step 3 down');
+    expect((items()[2].querySelector('.down') as HTMLButtonElement).disabled).toBeTrue();
+  });
+
+  it('closes the row when the focus leaves it', () => {
+    render(['One.', 'Two.']);
+    open(0);
+    items()[0].dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    fixture.detectChanges();
+    expect(el().querySelectorAll('.move').length).toBe(0);
+  });
+
+  it('moves a step with the buttons of its open row', () => {
+    render(['One.', 'Two.', 'Three.']);
+    open(1);
     (items()[1].querySelector('.up') as HTMLButtonElement).click();
-    (items()[1].querySelector('.down') as HTMLButtonElement).click();
-    expect(seen).toEqual(['move 1 0', 'move 1 2']);
+    fixture.detectChanges();
+    (items()[0].querySelector('.down') as HTMLButtonElement).click();
+    expect(seen).toEqual(['move 1 0', 'move 0 1']);
   });
 
   it('moves a step by dragging, and reports add and remove', () => {

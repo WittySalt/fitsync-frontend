@@ -18,6 +18,13 @@ describe('ReorderComponent', () => {
     expect(el.querySelector('.down')?.getAttribute('aria-label')).toBe('Move Rolled oats down');
   });
 
+  it('keeps only the grip when the arrows are turned off', () => {
+    const el = render({ arrows: false }).nativeElement as HTMLElement;
+    expect(el.querySelector('.grip')).not.toBeNull();
+    expect(el.querySelector('.up')).toBeNull();
+    expect(el.querySelector('.down')).toBeNull();
+  });
+
   it('reports the buttons and the drag, and switches off a direction that cannot go further', () => {
     const fixture = render({ canUp: false });
     const el = fixture.nativeElement as HTMLElement;

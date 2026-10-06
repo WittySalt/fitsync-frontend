@@ -1,4 +1,4 @@
-import { foodTags, groupsOf, macroLine, macroSplit, mealParts } from './diary-food';
+import { fastedMeal, foodTags, groupsOf, macroLine, macroSplit, mealParts } from './diary-food';
 import { item, meal } from './diary-testing.spec';
 
 describe('foodTags', () => {
@@ -55,6 +55,13 @@ describe('macroLine and macroSplit', () => {
 
 describe('mealParts', () => {
   const at = (hour: number) => new Date(2026, 9, 2, hour, 15).toISOString();
+
+  it('leaves a fasted mark out of the four parts and finds it on its own', () => {
+    const fast = meal({ mealId: 'f', mealType: 'FAST', consumedAt: at(12), items: [] });
+    expect(mealParts([fast]).every((part) => !part.logged)).toBeTrue();
+    expect(fastedMeal([meal({ mealId: 'a', mealType: 'LUNCH' }), fast])?.mealId).toBe('f');
+    expect(fastedMeal([meal({ mealId: 'a', mealType: 'LUNCH' })])).toBeNull();
+  });
 
   it('always returns the four parts in order', () => {
     const parts = mealParts([]);

@@ -59,6 +59,8 @@ describe('TrainingPage', () => {
       expect(host.querySelector(selector)).withContext(selector).not.toBeNull();
     }
     expect(host.textContent).toContain('The lighter bar is this week so far');
+    // Today is never a week: the sentence reads the last full week, not the one under way.
+    expect(host.querySelector('#load .sentence')?.textContent?.trim()).toBe('Load was 1,240 in the last full week against a six-week average of 1,070.');
     expect(Array.from(host.querySelectorAll('app-detail-section h2')).map((h) => h.textContent?.trim())).toEqual([
       'Highlights',
       'By activity',

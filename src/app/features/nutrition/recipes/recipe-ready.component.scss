@@ -93,7 +93,9 @@ h2 {
   div {
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     gap: 2px;
+    min-width: 0;
   }
 
   dd {
@@ -101,10 +103,12 @@ h2 {
     font-family: var(--font-display);
     font-size: 20px;
     font-weight: var(--fw-semibold);
+    line-height: 1.2;
   }
 
   dt {
     font-size: 12px;
+    line-height: 1.2;
     color: var(--text-secondary);
   }
 }

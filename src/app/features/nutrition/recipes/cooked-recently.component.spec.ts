@@ -41,6 +41,24 @@ describe('CookedRecentlyComponent', () => {
     expect(items[0].querySelector('a')?.getAttribute('href')).toBe('/nutrition/recipes/a');
   });
 
+  it('says Logged for a time that comes from a meal logged from the recipe, and Cooked for a cook record or when the field is absent', () => {
+    const now = new Date().toISOString();
+    service.list.and.returnValue(
+      of({
+        items: [
+          card({ id: 'a', lastCookedAt: now, lastActivity: 'LOGGED' }),
+          card({ id: 'b', lastCookedAt: now, lastActivity: 'COOKED' }),
+          card({ id: 'c', lastCookedAt: now })
+        ],
+        page: 0,
+        totalPages: 1,
+        totalElements: 3
+      })
+    );
+    const labels = Array.from(render().querySelectorAll('li')).map((item) => item.querySelector('span')?.textContent);
+    expect(labels).toEqual(['Logged today', 'Cooked today', 'Cooked today']);
+  });
+
   it('shows nothing while it loads, when the list is empty and when it fails', () => {
     const pending = new Subject<RecipePageOf<RecipeCard>>();
     service.list.and.returnValue(pending);

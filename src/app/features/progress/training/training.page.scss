@@ -18,6 +18,13 @@
   gap: 12px;
 }
 
+/* Three cards across leave each fact too little room to read whole, so two take over below 900 px. */
+@media (max-width: 899px) {
+  .activities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .quiet {
   margin: 0;
   font: 400 var(--pg-text) var(--font-sans);

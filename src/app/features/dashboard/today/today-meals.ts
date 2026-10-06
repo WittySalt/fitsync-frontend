@@ -32,6 +32,9 @@ export interface SlotSummary {
   foods: DayMealItem[];
 }
 
+/** The meal type of a day marked as fasted. It has no foods and is never offered as a choice when logging. */
+export const FAST_MEAL_TYPE = 'FAST';
+
 /** The slot a backend meal type belongs to. Supper counts as dinner and anything else as a snack,
  *  so that the four slots add up to what the day's summary counts. */
 export function slotForMealType(mealType: string): MealSlot {
@@ -58,6 +61,10 @@ export function summariseSlots(meals: DayMeal[]): Record<MealSlot, SlotSummary> 
   ) as Record<MealSlot, SlotSummary>;
 
   for (const meal of meals) {
+    // A fasted mark has no foods and belongs to no meal.
+    if (meal.mealType.toUpperCase() === FAST_MEAL_TYPE) {
+      continue;
+    }
     const summary = summaries[slotForMealType(meal.mealType)];
     summary.logged = true;
     summary.calories += meal.totalCalories;

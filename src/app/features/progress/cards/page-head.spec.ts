@@ -39,6 +39,21 @@ describe('the "this week so far" chips', () => {
     expect(chips.map((chip) => chip.delta)).toEqual(['Same as the week before', '−35 min', 'on 5 logged days', 'on 5 logged days']);
   });
 
+  it('reads today so far while the week has no full logged day, and never counts today in an average', () => {
+    const soFar = mapReviews([
+      { weekStart: '2026-09-28', weekEnd: '2026-10-04', current: true, status: 'READY', facts: FACTS, eatenTodaySoFarKcal: 476, proteinTodaySoFarGrams: 29 }
+    ])[0];
+    const chips = weekChips(soFar);
+    expect(chips.map((chip) => chip.label)).toEqual(['Sessions', 'Minutes', 'Calories', 'Protein']);
+    expect(chips.map((chip) => chip.figure)).toEqual(['4', '170', '476', '29 g']);
+    expect(chips.map((chip) => chip.delta)).toEqual(['Same as the week before', '−35 min', 'today so far', 'today so far']);
+    // Without the fields the chips keep the average and its logged days.
+    expect(weekChips(review()).map((chip) => chip.figure)).toEqual(['4', '170', '2,011', '131 g']);
+    // An earlier week never reads so far.
+    const earlier = mapReviews([{ weekStart: '2026-09-21', weekEnd: '2026-09-27', status: 'READY', facts: FACTS, eatenTodaySoFarKcal: 476 }])[0];
+    expect(weekChips(earlier)[2].figure).toBe('2,011');
+  });
+
   it('keeps a chip with a dash for a fact the review lacks, and for no review at all', () => {
     const chips = weekChips(review(FACTS.slice(0, 2)));
     expect(chips.map((chip) => chip.figure)).toEqual(['4', '170', '–', '–']);

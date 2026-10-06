@@ -9,10 +9,14 @@ import {
   RecipeIngredient,
   RecipeNutrient,
   RecipePageOf,
+  RecipeSuggestion,
+  RecipeSuggestions,
   RecipeStep,
   RecipeTimer,
   SavedMeal,
-  SavedMealItem
+  SavedMealItem,
+  SuggestionFacts,
+  SuggestionState
 } from './recipes.models';
 
 type Wire = Record<string, unknown>;
@@ -53,7 +57,8 @@ export function mapRecipeCard(raw: Wire): RecipeCard {
     dietFlags: words(raw['dietFlags']),
     topFoodGroups: groups(raw['topFoodGroups']),
     favorite: raw['favorite'] === true,
-    lastCookedAt: text(raw['lastCookedAt'])
+    lastCookedAt: text(raw['lastCookedAt']),
+    lastActivity: raw['lastActivity'] === 'LOGGED' ? 'LOGGED' : raw['lastActivity'] === 'COOKED' ? 'COOKED' : null
   };
 }
 
@@ -207,5 +212,51 @@ export function mapSavedMeal(raw: Wire): SavedMeal {
     totalCalories: num(raw['totalCalories']) ?? 0,
     items: items.map(mapSavedItem),
     raw: items
+  };
+}
+
+const STATES: readonly SuggestionState[] = ['FITS', 'NOTHING_LOGGED', 'PAST_TARGET', 'PROTEIN_ONLY', 'DINNER_LOGGED'];
+const SOURCES = ['LIBRARY', 'MINE', 'RECENT'] as const;
+
+function mapSuggestionFacts(value: unknown): SuggestionFacts {
+  const raw = typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Wire) : {};
+  const nutrient = raw['lowestNutrient'];
+  return {
+    kcalLeft: num(raw['kcalLeft']),
+    proteinShortGrams: num(raw['proteinShortGrams']),
+    lowestNutrient: typeof nutrient === 'object' && nutrient !== null ? text((nutrient as Wire)['displayName']) : text(nutrient),
+    usualDinnerTime: text(raw['usualDinnerTime']),
+    eatenKcal: num(raw['eatenKcal']),
+    targetKcal: num(raw['targetKcal']),
+    proteinMet: raw['proteinMet'] === true
+  };
+}
+
+function mapSuggestion(raw: Wire): RecipeSuggestion | null {
+  const recipeId = text(raw['recipeId']);
+  if (!recipeId) {
+    return null;
+  }
+  const source = SOURCES.find((entry) => entry === raw['source']);
+  return {
+    recipeId,
+    name: text(raw['name']) ?? 'Recipe',
+    imageUrl: safeImageUrl(raw['imageUrl']),
+    kcalPerServing: num(raw['kcalPerServing']) ?? 0,
+    proteinPerServing: num(raw['proteinPerServing']) ?? 0,
+    reason: text(raw['reason']) ?? '',
+    source: source ?? 'LIBRARY'
+  };
+}
+
+/** The Cook for tonight payload. An unknown state is read as FITS, a suggestion without an id is dropped. */
+export function mapRecipeSuggestions(raw: Wire): RecipeSuggestions {
+  const state = STATES.find((entry) => entry === raw['state']) ?? 'FITS';
+  return {
+    state,
+    facts: mapSuggestionFacts(raw['facts']),
+    suggestions: list(raw['suggestions'])
+      .map(mapSuggestion)
+      .filter((entry): entry is RecipeSuggestion => entry !== null)
   };
 }

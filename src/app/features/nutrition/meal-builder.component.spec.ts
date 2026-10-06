@@ -216,6 +216,28 @@ describe('MealBuilderComponent', () => {
     fixture.detectChanges();
   });
 
+  it('never offers a fasted day as a meal type', () => {
+    expect(component.mealTypeOptions.map((option) => String(option.value))).not.toContain('FAST');
+    expect(component.mealTypeOptions.map((option) => option.label.toLowerCase())).not.toContain('fast');
+  });
+
+  it('keeps the close x on the title row of the food detail, with a long name cut instead of wrapped', () => {
+    component.addLoggedFood(loggedFood);
+    fixture.detectChanges();
+    const head = (fixture.nativeElement as HTMLElement).querySelector('.food-detail-card .section-title') as HTMLElement;
+    const title = head.querySelector('h3') as HTMLElement;
+    const close = head.querySelector('.icon-button') as HTMLElement;
+    const styles = getComputedStyle(head);
+
+    expect(close.getAttribute('aria-label')).toBe('Close food detail');
+    expect(title.getAttribute('title')).toBe(chickenDetail.displayName);
+    expect(styles.flexDirection).toBe('row');
+    expect(styles.flexWrap).toBe('nowrap');
+    expect(getComputedStyle(title).textOverflow).toBe('ellipsis');
+    expect(close.getBoundingClientRect().top).toBeLessThan(title.getBoundingClientRect().bottom);
+    expect(close.getBoundingClientRect().left).toBeGreaterThan(title.getBoundingClientRect().right - 1);
+  });
+
   it('calculates nutrition from selected serving scale', () => {
     const item = calculateMealItem(chickenDetail, serving, 2);
 

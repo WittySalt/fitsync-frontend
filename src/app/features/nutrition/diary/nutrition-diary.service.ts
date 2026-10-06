@@ -25,7 +25,9 @@ import {
   mapWaterDay
 } from './diary-mappers';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { FAST_MEAL_TYPE } from '../../dashboard/today/today-meals';
 import { dayBounds, mealTypeByClock } from './diary-time';
+import { loggedMoment } from './diary-water';
 
 type Wire = Record<string, unknown>;
 
@@ -116,6 +118,17 @@ export class NutritionDiaryService {
       note: '',
       consumedAt: at.toISOString(),
       items: [item]
+    });
+  }
+
+  /** Marks a past day as fasted: a meal of type FAST with no foods, put at midday of that day. */
+  markFasted(date: string, today: string): Observable<Meal> {
+    return this.dataService.createMeal({
+      mealType: FAST_MEAL_TYPE,
+      name: '',
+      note: '',
+      consumedAt: loggedMoment(date, '', today, new Date()).toISOString(),
+      items: []
     });
   }
 

@@ -310,11 +310,11 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 
 const DAY_MS = 86_400_000;
 
 /**
- * When a recipe was last cooked, in words: "Cooked today", "Cooked yesterday", "Cooked Tuesday" within
+ * When a recipe was last cooked (or logged, with verb Logged), in words: "Cooked today", "Cooked yesterday", "Cooked Tuesday" within
  * the last week, "Cooked last week" for the week before, then "Cooked 28 Sept". Days are the person's
  * calendar days. Something that is not a date gives an empty string.
  */
-export function cookedWhen(iso: string | null, now: Date = new Date()): string {
+export function cookedWhen(iso: string | null, now: Date = new Date(), verb: 'Cooked' | 'Logged' = 'Cooked'): string {
   const moment = iso ? new Date(iso) : null;
   if (!moment || Number.isNaN(moment.getTime())) {
     return '';
@@ -322,18 +322,18 @@ export function cookedWhen(iso: string | null, now: Date = new Date()): string {
   const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
   const ago = Math.round((day(now) - day(moment)) / DAY_MS);
   if (ago <= 0) {
-    return 'Cooked today';
+    return `${verb} today`;
   }
   if (ago === 1) {
-    return 'Cooked yesterday';
+    return `${verb} yesterday`;
   }
   if (ago < 7) {
-    return `Cooked ${WEEKDAYS[moment.getDay()]}`;
+    return `${verb} ${WEEKDAYS[moment.getDay()]}`;
   }
   if (ago < 14) {
-    return 'Cooked last week';
+    return `${verb} last week`;
   }
-  return `Cooked ${moment.getDate()} ${MONTHS[moment.getMonth()]}`;
+  return `${verb} ${moment.getDate()} ${MONTHS[moment.getMonth()]}`;
 }
 
 /**

@@ -1,18 +1,32 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 
+import { CoachStore } from '../../../core/coach/coach.store';
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { diaryServiceStub } from '../diary/diary-testing.spec';
 import { RecipesTabComponent } from './recipes-tab.component';
 import { RecipesService } from './recipes.service';
-import { recipesServiceStub } from './recipes-testing.spec';
+import { card, recipesServiceStub, suggestionsOf } from './recipes-testing.spec';
 
 describe('RecipesTabComponent', () => {
-  beforeEach(() =>
+  let service: jasmine.SpyObj<RecipesService>;
+
+  beforeEach(() => {
+    service = recipesServiceStub();
+    const data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getRecipeSuggestions']);
+    data.getRecipeSuggestions.and.returnValue(of(suggestionsOf()));
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: RecipesService, useValue: recipesServiceStub() }, { provide: NutritionDiaryService, useValue: diaryServiceStub() }]
-    })
-  );
+      providers: [
+        { provide: CoachStore, useValue: { open: () => undefined, ask: () => undefined } },
+        provideRouter([]),
+        { provide: RecipesService, useValue: service },
+        { provide: NutritionDiaryService, useValue: diaryServiceStub() },
+        { provide: FitSyncDataService, useValue: data }
+      ]
+    });
+  });
 
   function render(inputs: Record<string, unknown> = {}): ComponentFixture<RecipesTabComponent> {
     const fixture = TestBed.createComponent(RecipesTabComponent);
@@ -23,53 +37,46 @@ describe('RecipesTabComponent', () => {
   }
 
   const el = (fixture: ComponentFixture<RecipesTabComponent>) => fixture.nativeElement as HTMLElement;
-  const tabs = (fixture: ComponentFixture<RecipesTabComponent>) => Array.from(el(fixture).querySelectorAll<HTMLButtonElement>('[role="tab"]'));
 
-  it('has Library, My recipes and Saved meals, and a New recipe button that opens the editor', () => {
+  it('is one scroll in order: Continue cooking, Cook for tonight, Cooked recently, My recipes, then the Library', () => {
     const fixture = render();
+    const order = ['app-cook-continue', 'app-cook-tonight', 'app-cooked-recently', 'app-my-recipes', 'section.library'];
+    const positions = order.map((selector) => Array.from(el(fixture).children).findIndex((child) => child.matches(selector)));
 
-    expect(tabs(fixture).map((tab) => tab.textContent?.trim())).toEqual(['Library', 'My recipes', 'Saved meals']);
-    expect(el(fixture).querySelector('.new')?.getAttribute('href')).toBe('/nutrition/recipes/new');
-    expect(el(fixture).querySelector('.new')?.textContent).toContain('New recipe');
+    expect(positions.every((position) => position >= 0)).toBeTrue();
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(el(fixture).querySelector('.library h2')?.textContent).toBe('Library');
+    expect(el(fixture).querySelector('.library app-recipe-list')).not.toBeNull();
   });
 
-  it('shows Continue cooking above the sections and Cooked recently in the library only', () => {
-    const fixture = render();
-    expect(el(fixture).querySelector('app-cook-continue')).not.toBeNull();
-    expect(el(fixture).querySelector('app-cooked-recently')).not.toBeNull();
-    tabs(fixture)[1].click();
-    fixture.detectChanges();
-    expect(el(fixture).querySelector('app-cooked-recently')).toBeNull();
-    expect(el(fixture).querySelector('app-cook-continue')).not.toBeNull();
-  });
-
-  it('opens on the library', () => {
+  it('has no Library, My recipes or Saved meals switch any more', () => {
     const fixture = render();
 
-    expect(el(fixture).querySelector('app-recipe-list')).not.toBeNull();
-    expect(el(fixture).querySelector('app-recipe-list.mine')).toBeNull();
-    expect(tabs(fixture)[0].getAttribute('aria-selected')).toBe('true');
+    expect(el(fixture).querySelector('[role="tablist"]')).toBeNull();
     expect(el(fixture).querySelector('app-saved-meals')).toBeNull();
+    expect(el(fixture).querySelector('app-recipe-list.mine')).toBeNull();
   });
 
-  it('switches between the three sections', () => {
+  it('opens the whole list of the person\'s own recipes from See all, and goes back', () => {
+    service.list.and.returnValue(of({ items: [card()], page: 0, totalPages: 3, totalElements: 12 }));
     const fixture = render();
 
-    tabs(fixture)[1].click();
+    (el(fixture).querySelector('.see-all') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(tabs(fixture)[1].getAttribute('aria-selected')).toBe('true');
     expect(el(fixture).querySelector('app-recipe-list.mine')).not.toBeNull();
+    expect(el(fixture).querySelector('app-cook-tonight')).toBeNull();
 
-    tabs(fixture)[2].click();
+    (el(fixture).querySelector('.back') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(el(fixture).querySelector('app-saved-meals')).not.toBeNull();
-    expect(el(fixture).querySelector('app-recipe-list')).toBeNull();
+    expect(el(fixture).querySelector('app-cook-tonight')).not.toBeNull();
+    expect(el(fixture).querySelector('app-recipe-list.mine')).toBeNull();
   });
 
-  it('opens on the section it is given', () => {
-    const fixture = render({ section: 'saved' });
-
-    expect(el(fixture).querySelector('app-saved-meals')).not.toBeNull();
+  it('opens on the list of own recipes, or on the saved meals, when a link asks for them', () => {
+    expect(el(render({ section: 'mine' })).querySelector('app-recipe-list.mine')).not.toBeNull();
+    const saved = render({ section: 'saved' });
+    expect(el(saved).querySelector('app-saved-meals')).not.toBeNull();
+    expect(el(saved).querySelector('app-cook-tonight')).toBeNull();
   });
 
   it('says which meal the pick is for and lets the person cancel', () => {

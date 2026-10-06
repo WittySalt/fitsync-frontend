@@ -19,13 +19,24 @@ export interface StepGeometry {
   ticks: { y: number; value: number }[];
   x0: number;
   x1: number;
+  /** The date at the left edge of the plot is left-aligned to it and the one at the right edge right-aligned; never any in between. */
+  fromX: number;
+  toX: number;
 }
 
 /**
  * A running total drawn as steps: flat between sessions, rising at each one. The scale can be
  * shared between several charts by passing the same `max`, so their heights compare.
  */
-export function stepGeometry(points: readonly StepPoint[], from: string, to: string, height: number, max: number | null, width = WIDTH): StepGeometry | null {
+export function stepGeometry(
+  points: readonly StepPoint[],
+  from: string,
+  to: string,
+  height: number,
+  max: number | null,
+  width = WIDTH,
+  labels: { from: string; to: string } = { from: '', to: '' }
+): StepGeometry | null {
   const span = daysBetween(from, to);
   if (!points.length || !(span > 0)) {
     return null;
@@ -42,7 +53,10 @@ export function stepGeometry(points: readonly StepPoint[], from: string, to: str
     path += ` H${x(point.date).toFixed(1)} V${y(point.value).toFixed(1)}`;
   }
   path += ` H${x1}`;
-  return { path, end: { x: x1, y: y(last) }, ticks: [0, hi / 2, hi].map((value) => ({ y: y(value), value })), x0: X0, x1 };
+  // Two dates that would touch push the last one to the right, into the room the total label leaves.
+  const needed = textWidth(labels.from, SIZE) + textWidth(labels.to, SIZE) + 10;
+  const toX = Math.min(Math.max(x1, X0 + needed), width);
+  return { path, end: { x: x1, y: y(last) }, ticks: [0, hi / 2, hi].map((value) => ({ y: y(value), value })), x0: X0, x1, fromX: X0, toX };
 }
 
 const formatTotal = (minutes: number): string => (minutes ? hoursAndMinutes(minutes) : '0');
@@ -61,8 +75,8 @@ const formatTotal = (minutes: number): string => (minutes ? hoursAndMinutes(minu
         <path class="step" [attr.d]="g.path"></path>
         <circle class="dot" [attr.cx]="g.end.x" [attr.cy]="g.end.y" r="3"></circle>
         <text class="total" [attr.x]="g.end.x + 8" [attr.y]="g.end.y" dominant-baseline="central">{{ format(total()) }}</text>
-        <text class="axis" [attr.x]="g.x0" [attr.y]="height() - 3">{{ fromLabel() }}</text>
-        <text class="axis" [attr.x]="g.x1" [attr.y]="height() - 3" text-anchor="end">{{ toLabel() }}</text>
+        <text class="axis" [attr.x]="g.fromX" [attr.y]="height() - 3">{{ fromLabel() }}</text>
+        <text class="axis" [attr.x]="g.toX" [attr.y]="height() - 3" text-anchor="end">{{ toLabel() }}</text>
       </svg>
     } @else {
       <p class="none">Not enough data yet</p>
@@ -98,10 +112,12 @@ export class StepChartComponent {
   readonly kind = input<string | null>(null);
 
   protected readonly width = measureWidth(WIDTH);
-  protected readonly geometry = computed(() => stepGeometry(this.points(), this.from(), this.to(), this.height(), this.max(), this.width()));
-  protected readonly total = computed(() => this.points().at(-1)?.value ?? 0);
   protected readonly fromLabel = computed(() => pointLabel(this.from()));
   protected readonly toLabel = computed(() => pointLabel(this.to()));
+  protected readonly geometry = computed(() =>
+    stepGeometry(this.points(), this.from(), this.to(), this.height(), this.max(), this.width(), { from: this.fromLabel(), to: this.toLabel() })
+  );
+  protected readonly total = computed(() => this.points().at(-1)?.value ?? 0);
   protected readonly summary = computed(() => `${this.label()}: ${this.format(this.total())} from ${this.fromLabel()} to ${this.toLabel()}`);
 
   format(value: number): string {
