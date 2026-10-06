@@ -15,6 +15,7 @@ import { AchievementsCardComponent } from './achievements/achievements-card.comp
 import { IdentityCardComponent } from './identity/identity-card.component';
 import { TargetSheetComponent } from './targets/target-sheet.component';
 import { TargetsCardComponent } from './targets/targets-card.component';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
 
 interface SettingsRow {
   label: string;
@@ -42,7 +43,7 @@ export const SETTINGS_ROWS: readonly SettingsRow[] = [
  */
 @Component({
   selector: 'app-profile-page',
-  imports: [
+  imports: [HowThisWorksComponent, 
     RouterLink,
     StatePanelComponent,
     IdentityCardComponent,

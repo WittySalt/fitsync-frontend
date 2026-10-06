@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 
 import { CoachStore } from '../../core/coach/coach.store';
 import { ProgressCardContext } from './progress.models';
+import { TourPage } from '../../core/guide/guide.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
 /**
  * One section of a Progress detail page: its name and one sentence that says what the picture shows
@@ -11,6 +13,7 @@ import { ProgressCardContext } from './progress.models';
  */
 @Component({
   selector: 'app-detail-section',
+  imports: [SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [attr.id]="anchor() || null" [attr.aria-label]="name()">
@@ -24,7 +27,7 @@ import { ProgressCardContext } from './progress.models';
         <div class="tools">
           <ng-content select="[sectionControl]" />
           @if (context()) {
-            <button type="button" class="ask" [attr.aria-label]="'Ask the coach about ' + name()" (click)="askCoach($event)">
+            <button type="button" class="ask" [appSpotlight]="tour()" spotlightStep="ask" [attr.aria-label]="'Ask the coach about ' + name()" (click)="askCoach($event)">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4Z"></path></svg>
               Ask
             </button>
@@ -61,6 +64,8 @@ export class DetailSectionComponent {
   readonly context = input<ProgressCardContext | null>(null);
   /** The words Ask puts in the composer; nothing is sent until the person sends it. */
   readonly ask = input('');
+  /** The page's surface in the first-run guide, set on the one section whose Ask the path points at. */
+  readonly tour = input<TourPage | null>(null);
 
   askCoach(event: Event): void {
     event.stopPropagation();

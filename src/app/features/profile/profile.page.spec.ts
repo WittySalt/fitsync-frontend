@@ -93,11 +93,12 @@ describe('ProfilePage', () => {
 
   const clean = (element: Element | null | undefined) => ((element as HTMLElement | null)?.innerText ?? '').replace(/\s+/g, ' ').trim();
 
-  it('stacks the identity card, About you, Targets, Achievements and Settings in that order', () => {
+  it('stacks the identity card, About you, Targets, Achievements and Settings in that order, under the How this works link', () => {
     const el = render();
 
     const order = Array.from(el.querySelector('.me')!.children).map((child) => child.tagName.toLowerCase() + (child.classList.contains('settings') ? '.settings' : ''));
-    expect(order).toEqual(['app-identity-card', 'app-about-you', 'app-targets-card', 'app-achievements-card', 'section.settings']);
+    expect(el.querySelector('.head-row app-how-this-works')).not.toBeNull();
+    expect(order.filter((tag) => tag !== 'div')).toEqual(['app-identity-card', 'app-about-you', 'app-targets-card', 'app-achievements-card', 'section.settings']);
   });
 
   it('shows the identity card with the member line and the lifetime numbers', () => {

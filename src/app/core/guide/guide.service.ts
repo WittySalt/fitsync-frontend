@@ -1,20 +1,56 @@
 import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, catchError, forkJoin, map, of } from 'rxjs';
+import { Observable, Subject, catchError, forkJoin, map, of } from 'rxjs';
 
 import { AUTH_STORAGE_KEYS } from '../auth/auth.config';
 import { subjectFromAccessToken } from '../auth/jwt-role';
 import { FitSyncDataService } from '../fitsync-data.service';
 import { Goal } from '../fitsync.models';
 import { ToastService } from '../toast/toast.service';
+import { GUIDE_GATES } from './guide-gates';
 
 /** The four steps of the Getting started card, in the order a new account takes them. */
 export const GUIDE_STEP_IDS = ['targets', 'plan', 'meal', 'session'] as const;
 export type GuideStepId = (typeof GUIDE_STEP_IDS)[number];
 
-/** The pages that carry a first-visit spotlight, in the order the tour meets them. */
-export const TOUR_PAGES = ['workout', 'nutrition', 'progress', 'me'] as const;
+/** The four pages of the first tour, in the order it meets them. */
+export const FIRST_TOUR_PAGES = ['workout', 'nutrition', 'progress', 'me'] as const;
+
+/** The second-level surfaces that carry a path of their own (guide v3), in the order they are listed. */
+export const TOUR_SURFACES = [
+  'workout-plans',
+  'workout-history',
+  'workout-library',
+  'nutrition-recipes',
+  'nutrition-nutrients',
+  'progress-goal',
+  'progress-training',
+  'progress-food',
+  'coach-dock'
+] as const;
+
+/** Every surface that carries a first-visit spotlight path, in the order the tour meets them. */
+export const TOUR_PAGES = [...FIRST_TOUR_PAGES, ...TOUR_SURFACES] as const;
 export type TourPage = (typeof TOUR_PAGES)[number];
+
+/** True for the surfaces added in v3, which are not held back by the age of the account. */
+export function isSurface(page: TourPage): boolean {
+  return (TOUR_SURFACES as readonly string[]).includes(page);
+}
+
+/** What the tour map keeps for one surface. */
+export interface TourEntry {
+  /** The path was run to its end, skipped or closed. */
+  seen: boolean;
+  /** The path was left out because the account's own data shows the surface is already in use. */
+  skippedByData: boolean;
+  /** When "Show me" last replayed the path (ISO time), or null. */
+  replayedAt: string | null;
+}
+
+export type TourMap = Partial<Record<TourPage, TourEntry>>;
+
+const NEW_ENTRY: TourEntry = { seen: false, skippedByData: false, replayedAt: null };
 
 /** A spotlight is for new accounts. After this many days the account is left alone unless the person restarts the guide. */
 export const TOUR_ACCOUNT_AGE_DAYS = 14;
@@ -42,7 +78,9 @@ const NONE_DONE: GuideProgress = { targets: false, plan: false, meal: false, ses
  *   fitsync.guide.{userId}.first-seen    the first time this browser saw the account (the 14-day rule counts from it)
  *   fitsync.guide.{userId}.restarted     the guide was restarted from Settings, so age no longer matters
  *   fitsync.guide.{userId}.tour-skipped  "Skip the tour" was chosen
- *   fitsync.guide.{userId}.tour.{page}   the path of that page was run to its end or closed
+ *   fitsync.guide.{userId}.tour-map      the tour map: per surface seen, skippedByData and replayedAt (JSON)
+ *   fitsync.guide.{userId}.counters      what the person has opened so far, for the paths that skip on use (JSON)
+ *   fitsync.guide.{userId}.tour.{page}   an older flag for a page whose path was run; still read, cleared on restart
  *
  * A path that was opened from a Home card step (`?guide=`) is followed: when the card's task is done the person
  * gets a toast with a way back to Home. That is held in memory only, for the visit.
@@ -57,7 +95,9 @@ export class GuideService {
   private readonly cardHidden = signal(false);
   private readonly eligibleForTour = signal(false);
   private readonly tourSkipped = signal(false);
-  private readonly seenPages = signal<readonly TourPage[]>([]);
+  private readonly tourMap = signal<TourMap>({});
+  private readonly counters = signal<Record<string, number>>({});
+  private readonly used = signal<Partial<Record<TourPage, boolean>>>({});
   private readonly followed = signal<GuideStepId | null>(null);
   private followTimer: ReturnType<typeof setInterval> | null = null;
   private readonly router = inject(Router);
@@ -67,6 +107,10 @@ export class GuideService {
   readonly ready = signal(false);
   /** True while a spotlight path is on screen. The "step done" toast waits until it is closed. */
   readonly pathRunning = signal(false);
+  /** Fires when a page has told the guide whether its surface is in use, so a path waiting on that can start. */
+  readonly usageReported = new Subject<void>();
+  /** The tour map as it stands, for tests and for the restart. */
+  readonly map = this.tourMap.asReadonly();
   /** The Home card step the person arrived from and is working on, or null. */
   readonly following = this.followed.asReadonly();
   /** True once the completion of the four steps has been read from the account. */
@@ -91,7 +135,9 @@ export class GuideService {
     }
     this.cardHidden.set(this.read('card-hidden') === '1');
     this.tourSkipped.set(this.read('tour-skipped') === '1');
-    this.seenPages.set(TOUR_PAGES.filter((page) => this.read(`tour.${page}`) === '1'));
+    this.tourMap.set(this.readMap());
+    this.counters.set(this.readJson<Record<string, number>>('counters') ?? {});
+    this.used.set({});
     this.eligibleForTour.set(this.read('restarted') === '1' || this.accountIsNew());
     this.ready.set(true);
   }
@@ -226,18 +272,81 @@ export class GuideService {
 
   /**
    * Whether the path of a page is due: new account (or restarted), not seen, not skipped. A page opened from a Home
-   * card (`explicit`) does not need the account to be new.
+   * card (`explicit`) does not need the account to be new. The surfaces of v3 are not held back by the age of the
+   * account; what keeps them away from a person who already uses them is their skip condition (see `gate`).
    */
   spotlightDue(page: TourPage, explicit = false): boolean {
-    return this.ready() && (explicit || this.eligibleForTour()) && !this.tourSkipped() && !this.seenPages().includes(page);
+    const entry = this.entry(page);
+    const eligible = explicit || isSurface(page) || this.eligibleForTour();
+    return this.ready() && eligible && !this.tourSkipped() && !entry.seen && !entry.skippedByData;
+  }
+
+  /** Whether the path of a page has been run, closed or skipped. */
+  seen(page: TourPage): boolean {
+    return this.entry(page).seen;
   }
 
   markSeen(page: TourPage): void {
-    if (this.seenPages().includes(page)) {
+    if (this.entry(page).seen) {
       return;
     }
-    this.seenPages.update((pages) => [...pages, page]);
-    this.write(`tour.${page}`, '1');
+    this.setEntry(page, { seen: true });
+  }
+
+  /** The path was left out because the data shows the surface is in use; it is not offered again until a restart. */
+  markSkippedByData(page: TourPage): void {
+    if (!this.entry(page).skippedByData) {
+      this.setEntry(page, { skippedByData: true });
+    }
+  }
+
+  /** "Show me" replayed the path now. */
+  markReplayed(page: TourPage): void {
+    this.setEntry(page, { replayedAt: new Date().toISOString() });
+  }
+
+  /** What the person has opened, counted on this browser: sessions, exercises, visits of a surface. */
+  count(key: string): number {
+    return this.counters()[key] ?? 0;
+  }
+
+  bump(key: string): void {
+    this.start();
+    if (!this.userId()) {
+      return;
+    }
+    this.counters.update((counters) => ({ ...counters, [key]: (counters[key] ?? 0) + 1 }));
+    this.writeJson('counters', this.counters());
+  }
+
+  /** A surface was opened; the skip condition of "opened twice" counts these. */
+  noteVisit(page: TourPage): void {
+    this.bump(`visit.${page}`);
+  }
+
+  /** A page that knows from the data it already loaded tells whether the surface is in use. */
+  reportUsed(page: TourPage, used: boolean): void {
+    if (this.used()[page] === used) {
+      return;
+    }
+    this.used.update((all) => ({ ...all, [page]: used }));
+    this.usageReported.next();
+  }
+
+  /**
+   * Whether the path of a surface may run now: "go", "skip" when its skip condition says the person already uses
+   * it, or "wait" while the data that decides is not in yet.
+   */
+  gate(page: TourPage): 'go' | 'skip' | 'wait' {
+    const rule = GUIDE_GATES[page];
+    if (!rule) {
+      return 'go';
+    }
+    if (rule.kind === 'count') {
+      return this.count(rule.key) >= rule.min ? 'skip' : 'go';
+    }
+    const used = this.used()[page];
+    return used === undefined ? 'wait' : used ? 'skip' : 'go';
   }
 
   /** "Skip the tour": no page shows a spotlight again until the guide is restarted. */
@@ -254,16 +363,66 @@ export class GuideService {
     if (!this.userId()) {
       return;
     }
-    for (const key of ['card-hidden', 'tour-skipped', ...TOUR_PAGES.map((page) => `tour.${page}`)]) {
+    for (const key of ['card-hidden', 'tour-skipped', 'counters', ...TOUR_PAGES.map((page) => `tour.${page}`)]) {
       this.remove(key);
     }
+    // Every surface can be offered again; the times of earlier replays stay.
+    const kept: TourMap = {};
+    for (const [page, entry] of Object.entries(this.tourMap()) as [TourPage, TourEntry][]) {
+      if (entry.replayedAt) {
+        kept[page] = { ...NEW_ENTRY, replayedAt: entry.replayedAt };
+      }
+    }
+    this.tourMap.set(kept);
+    this.writeJson('tour-map', kept);
+    this.counters.set({});
+    this.used.set({});
     this.write('restarted', '1');
     this.stopFollowing();
     this.cardHidden.set(false);
     this.tourSkipped.set(false);
-    this.seenPages.set([]);
     this.eligibleForTour.set(true);
     this.ready.set(true);
+  }
+
+  private entry(page: TourPage): TourEntry {
+    return this.tourMap()[page] ?? NEW_ENTRY;
+  }
+
+  private setEntry(page: TourPage, change: Partial<TourEntry>): void {
+    this.tourMap.update((map) => ({ ...map, [page]: { ...(map[page] ?? NEW_ENTRY), ...change } }));
+    this.writeJson('tour-map', this.tourMap());
+  }
+
+  /** The stored tour map, with the older per-page flags folded in. */
+  private readMap(): TourMap {
+    const stored = this.readJson<TourMap>('tour-map') ?? {};
+    const map: TourMap = {};
+    for (const page of TOUR_PAGES) {
+      const entry = stored[page];
+      const legacy = this.read(`tour.${page}`) === '1';
+      if (entry || legacy) {
+        map[page] = { ...NEW_ENTRY, ...entry, seen: !!entry?.seen || legacy };
+      }
+    }
+    return map;
+  }
+
+  private readJson<T>(name: string): T | null {
+    const raw = this.read(name);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const value: unknown = JSON.parse(raw);
+      return value && typeof value === 'object' ? (value as T) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeJson(name: string, value: unknown): void {
+    this.write(name, JSON.stringify(value));
   }
 
   private accountIsNew(): boolean {
@@ -304,4 +463,9 @@ export class GuideService {
       // Nothing stored, nothing to clear.
     }
   }
+}
+
+/** Counts one visit of a surface for the skip condition "opened twice"; call it where the page is created. */
+export function markVisit(page: TourPage): void {
+  inject(GuideService).noteVisit(page);
 }

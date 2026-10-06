@@ -14,6 +14,9 @@ import { saveScroll, takeScroll } from './nutrients-scroll';
 import { NutrientHeroComponent } from './nutrient-hero.component';
 import { NutrientSidePanelComponent } from './nutrient-side-panel.component';
 import { NutrientTableComponent } from './nutrient-table.component';
+import { HowThisWorksComponent } from '../../../core/guide/how-this-works.component';
+import { markVisit } from '../../../core/guide/guide.service';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 
 /** Wide enough for the side panel beside the table. Below it a tile opens the nutrient page. */
 export const WIDE_FROM = 760;
@@ -27,7 +30,7 @@ const FAILURE = 'Your nutrients could not load. Please retry.';
  */
 @Component({
   selector: 'app-nutrients-page',
-  imports: [NutrientHeroComponent, NutrientSidePanelComponent, NutrientTableComponent, RouterLink, StatePanelComponent],
+  imports: [HowThisWorksComponent, SpotlightDirective, NutrientHeroComponent, NutrientSidePanelComponent, NutrientTableComponent, RouterLink, StatePanelComponent],
   template: `
     <div class="page-grid nutrients-page">
       <a class="back" routerLink="/nutrition" aria-label="Back" (click)="goBack($event)">&lsaquo; Back</a>
@@ -44,12 +47,15 @@ const FAILURE = 'Your nutrients could not load. Please retry.';
             </span>
           }
         </div>
-        <div class="segmented periods" role="group" aria-label="Period">
-          @for (option of periods; track option.key) {
-            <button type="button" [class.active]="period() === option.key" [attr.aria-pressed]="period() === option.key" (click)="setPeriod(option.key)">
-              {{ option.label }}
-            </button>
-          }
+        <div class="tools">
+          <app-how-this-works surface="nutrition-nutrients" />
+          <div class="segmented periods" role="group" aria-label="Period" appSpotlight="nutrition-nutrients" spotlightStep="period">
+            @for (option of periods; track option.key) {
+              <button type="button" [class.active]="period() === option.key" [attr.aria-pressed]="period() === option.key" (click)="setPeriod(option.key)">
+                {{ option.label }}
+              </button>
+            }
+          </div>
         </div>
       </header>
 
@@ -77,6 +83,7 @@ const FAILURE = 'Your nutrients could not load. Please retry.';
 })
 export class NutrientsPage {
   private readonly service = inject(NutrientsService);
+  private readonly visit = markVisit('nutrition-nutrients');
   private readonly progressBack = inject(ProgressBack);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);

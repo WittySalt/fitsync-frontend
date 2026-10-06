@@ -12,6 +12,8 @@ import { dayLabel, weekOf } from './diary/diary-time';
 import { NutritionDiaryService } from './diary/nutrition-diary.service';
 import { MealBuilderComponent } from './meal-builder.component';
 import { RecipeSection, RecipesTabComponent } from './recipes/recipes-tab.component';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
+import { TourPage } from '../../core/guide/guide.service';
 
 /** The meal types a deep link may preselect in the meal builder. */
 const LINKABLE_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
@@ -23,7 +25,7 @@ const LINKABLE_MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
  */
 @Component({
   selector: 'app-nutrition-page',
-  imports: [SpotlightDirective, InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent, RecipesTabComponent],
+  imports: [HowThisWorksComponent, SpotlightDirective, InsightPanelComponent, DiaryWeekComponent, DiaryDayComponent, MealBuilderComponent, RecipesTabComponent],
   templateUrl: './nutrition.page.html',
   styleUrl: './nutrition.page.scss'
 })
@@ -41,6 +43,8 @@ export class NutritionPage implements OnInit {
   readonly dates = weekOf(this.today);
 
   readonly tab = signal<'diary' | 'recipes'>('diary');
+  /** The surface whose "How this works" the page head offers: the open tab's. */
+  protected readonly howSurface = computed<TourPage>(() => (this.tab() === 'recipes' ? 'nutrition-recipes' : 'nutrition'));
   /** The Recipes section to open on, from a link, and the meal being picked for, from a meal's Add menu. */
   readonly recipeSection = signal<RecipeSection>('library');
   readonly logTo = signal<string | null>(null);

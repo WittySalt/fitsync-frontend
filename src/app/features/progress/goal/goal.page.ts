@@ -21,6 +21,7 @@ import { PACE_ASK, bodySentence, goalHeroStats, goalSentence, goalVerdict, paceS
 import { GoalOtherGoalsComponent } from './goal-other-goals.component';
 import { GoalWeightChartComponent } from './goal-weight-chart.component';
 import { PaceChartComponent } from './pace-chart.component';
+import { markVisit } from '../../../core/guide/guide.service';
 
 /** The weight chart's ranges. "All" asks for the longest period the server allows. */
 export const WEIGHT_RANGES = [
@@ -66,6 +67,7 @@ export const GOAL_SECTIONS: readonly JumpItem[] = [
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GoalPage {
+  private readonly visit = markVisit('progress-goal');
   private readonly api = inject(ProgressApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly injector = inject(Injector);

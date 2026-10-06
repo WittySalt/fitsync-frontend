@@ -9,6 +9,7 @@ import { COOK_CARD_PREFILL, SUGGESTIONS_ERROR, TOMORROW_QUESTION, cookChips, coo
 import { RecipeCoverComponent } from './recipe-cover.component';
 import { RecipeReadyComponent } from './recipe-ready.component';
 import { RecipeSuggestion, RecipeSuggestions } from './recipes.models';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 
 const LIMIT = 3;
 const NO_GROUPS: never[] = [];
@@ -21,7 +22,7 @@ const NO_GROUPS: never[] = [];
  */
 @Component({
   selector: 'app-cook-tonight',
-  imports: [FoodGlyphComponent, RecipeCoverComponent, RecipeReadyComponent],
+  imports: [SpotlightDirective, FoodGlyphComponent, RecipeCoverComponent, RecipeReadyComponent],
   template: `
     @let s = state();
     @if (s.status === 'loading') {
@@ -44,7 +45,7 @@ const NO_GROUPS: never[] = [];
         </button>
       </section>
     } @else {
-      <section class="card" aria-labelledby="cook-tonight-headline">
+      <section class="card" aria-labelledby="cook-tonight-headline" appSpotlight="nutrition-recipes" spotlightStep="tonight">
         <header class="head">
           <span class="mark" aria-hidden="true">C</span>
           <span class="eyebrow">Cook for tonight</span>

@@ -3,6 +3,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { FitLine } from './recipes-figures';
 import { RecipeSort } from './recipes.models';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 
 const LABELS: Record<RecipeSort, string> = { fit: 'Fits today', name: 'A to Z', protein: 'Most protein' };
 
@@ -12,9 +13,9 @@ const LABELS: Record<RecipeSort, string> = { fit: 'Fits today', name: 'A to Z', 
  */
 @Component({
   selector: 'app-recipe-sort',
-  imports: [FoodGlyphComponent],
+  imports: [SpotlightDirective, FoodGlyphComponent],
   template: `
-    <div class="row">
+    <div class="row" appSpotlight="nutrition-recipes" spotlightStep="sort">
       <span class="label" aria-hidden="true">Sort</span>
       <div class="segmented" role="group" aria-label="Sort">
         @for (option of options(); track option.key) {

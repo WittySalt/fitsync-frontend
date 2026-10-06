@@ -23,6 +23,7 @@ import { GoalProgress, WeeklyReview } from './progress-api.models';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ProgressApiService } from './progress-api.service';
 import { periodRange } from './training/training-period';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
 
 /** The height of the app shell's top bar when it sticks or is fixed; 0 when it scrolls away or is absent. */
 export function stickyHeaderHeight(root: Document): number {
@@ -41,7 +42,7 @@ export const READING_POLL_LIMIT = 8;
  */
 @Component({
   selector: 'app-progress-page',
-  imports: [
+  imports: [HowThisWorksComponent, 
     ContentsNavComponent,
     EarlierWeeksSheetComponent,
     FoodCardComponent,

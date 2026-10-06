@@ -4,6 +4,7 @@
       <h1>Nutrition</h1>
       <p class="head-line">{{ headLine() }}</p>
     </div>
+    <app-how-this-works [surface]="howSurface()" />
   </header>
 
   @if (tab() === 'diary') {

@@ -43,6 +43,9 @@ import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
+import { plansInUse } from '../../core/guide/guide-gates';
+import { GuideService, TourPage } from '../../core/guide/guide.service';
 
 
 /** The offer to make an activated plan's weekly session count the user's weekly goal. */
@@ -57,7 +60,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
-  imports: [SpotlightDirective,
+  imports: [HowThisWorksComponent, SpotlightDirective,
     InsightPanelComponent,
     RouterLink,
     PagerComponent,
@@ -86,6 +89,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
   readonly workoutLive = inject(WorkoutLiveService);
   private readonly coachContext = inject(CoachContextService);
+  private readonly guide = inject(GuideService);
   private readonly liveStartCard = viewChild(LiveStartCardComponent);
   /** What the search box holds, as typed. The server is asked once the typing pauses. */
   private readonly searchTyped = new Subject<string>();
@@ -110,6 +114,11 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly activePlanLoading = signal(true);
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
+  /** The surface whose "How this works" the page head offers: the open tab's. */
+  protected readonly howSurface = computed<TourPage>(() => {
+    const tab = this.selectedTab();
+    return tab === 'overview' ? 'workout' : tab === 'plans' ? 'workout-plans' : tab === 'history' ? 'workout-history' : 'workout-library';
+  });
   /** The exercise screen is on screen: there is a workout, the Today tab is open, and it is not minimised. */
   readonly screenVisible = computed(
     () => this.selectedTab() === 'overview' && !!this.workoutLive.session() && !this.workoutLive.minimised()
@@ -819,6 +828,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
     this.dataService.getActivePlan().subscribe((plan) => {
       this.activePlan.set(plan);
       this.activePlanLoading.set(false);
+      this.guide.reportUsed('workout-plans', plansInUse(plan));
       if (this.editActiveOnArrival) {
         this.editActiveOnArrival = false;
         if (plan?.planId) {

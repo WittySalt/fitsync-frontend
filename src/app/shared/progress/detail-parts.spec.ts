@@ -1,7 +1,7 @@
 import { Location } from '@angular/common';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
 import { ContentsRailComponent, currentSection } from './contents-rail.component';
@@ -290,5 +290,27 @@ describe('DetailSectionComponent and DetailLayoutComponent', () => {
     expect(el.querySelector('main > .head')).not.toBeNull();
     expect(el.querySelector('.body > .rail')).not.toBeNull();
     expect(el.querySelectorAll('.body .sections > app-detail-section').length).toBe(2);
+  });
+});
+
+describe('DetailHeadComponent in the first-run guide', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter([])] }));
+
+  function create(surface: string | null): HTMLElement {
+    const fixture = TestBed.createComponent(DetailHeadComponent);
+    fixture.componentRef.setInput('eyebrow', 'GOAL');
+    fixture.componentRef.setInput('verdict', 'Ahead of schedule.');
+    fixture.componentRef.setInput('surface', surface);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('offers How this works on a page that has a surface, in the head row', () => {
+    const el = create('progress-goal');
+    expect(text(el.querySelector('.line app-how-this-works'))).toBe('How this works');
+  });
+
+  it('has no link on a page without a surface', () => {
+    expect(create(null).querySelector('app-how-this-works')).toBeNull();
   });
 });

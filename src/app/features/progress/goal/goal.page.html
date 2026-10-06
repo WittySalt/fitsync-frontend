@@ -1,16 +1,16 @@
 <app-detail-layout>
   @if (data()) {
-    <app-detail-head detailHead [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="stats()">
+    <app-detail-head detailHead surface="progress-goal" [eyebrow]="eyebrow()" [verdict]="verdict().text" [tone]="verdict().tone" [sentence]="sentence()" [stats]="stats()">
       <app-ink-switch headPeriod label="Period" [options]="periodOptions" [value]="period.code()" (picked)="choosePeriod($event)" />
     </app-detail-head>
   }
   @if (data()) {
-    <app-contents-rail detailRail [items]="sections" label="Sections of the Goal page" />
+    <app-contents-rail detailRail tour="progress-goal" [items]="sections" label="Sections of the Goal page" />
   }
   @if (data(); as goal) {
     <app-highlights [highlights]="goal.highlights" [context]="context()" />
 
-    <app-detail-section name="Weight" anchor="weight" [sentence]="weightLine()" [context]="context()" [ask]="weightPrompt()">
+    <app-detail-section name="Weight" tour="progress-goal" anchor="weight" [sentence]="weightLine()" [context]="context()" [ask]="weightPrompt()">
       <app-ink-switch sectionControl label="How far back the chart goes" [options]="rangeOptions" [value]="range()" (picked)="chooseRange($event)" />
       <div [attr.aria-busy]="loading()">
         <app-goal-weight-chart [weight]="weight() ?? goal.weight" [goal]="goal.goal" [today]="today" [since]="weightWindow().from" [height]="280" />

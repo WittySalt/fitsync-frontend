@@ -269,7 +269,7 @@
     } @else {
       @if (!displayExercise()) {
         <form class="filter-panel" [formGroup]="filterForm">
-          <label>
+          <label appSpotlight="workout-library" spotlightStep="search">
             Search
             <input formControlName="q" type="search" placeholder="Search exercises" autocomplete="off" />
           </label>
@@ -282,7 +282,7 @@
               }
             </select>
           </label>
-          <label>
+          <label appSpotlight="workout-library" spotlightStep="filters">
             Muscle
             <select formControlName="primaryMuscleGroup">
               <option value="">All muscles</option>
@@ -319,7 +319,7 @@
           <div class="skeleton tall"></div>
         } @else if (exercises().length) {
           <div class="exercise-list">
-            @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code) {
+            @for (exercise of exercises(); track exercise.exerciseId ?? exercise.code; let first = $first) {
               <article class="exercise-item">
                 <button class="exercise-select" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
                   @if (exerciseThumbnail(exercise); as thumb) {
@@ -340,7 +340,14 @@
                   </span>
                 </button>
                 <div class="item-actions">
-                  <button class="button secondary" type="button" [disabled]="!exercise.exerciseId" (click)="selectExercise(exercise)">
+                  <button
+                    class="button secondary"
+                    type="button"
+                    [appSpotlight]="first ? 'workout-library' : null"
+                    spotlightStep="progress"
+                    [disabled]="!exercise.exerciseId"
+                    (click)="selectExercise(exercise)"
+                  >
                     Details
                   </button>
                   @if (exercise.custom) {
@@ -376,7 +383,7 @@
               <span class="card-label">Exercise detail</span>
               <h3>{{ exercise.name }}</h3>
             </div>
-            <a class="text-link" [routerLink]="['/progress/training/exercises', exercise.exerciseId]">Your progress &rsaquo;</a>
+            <a class="text-link" appSpotlight="workout-library" spotlightStep="progress" [routerLink]="['/progress/training/exercises', exercise.exerciseId]">Your progress &rsaquo;</a>
             <button class="button secondary" type="button" (click)="clearSelectedExercise()">&larr; Back to library</button>
           </div>
 

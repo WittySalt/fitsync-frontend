@@ -147,7 +147,7 @@ describe('The spotlight path', () => {
     button('Done')?.click();
 
     expect(overlay()).toBeNull();
-    expect(localStorage.getItem('fitsync.guide.tour-user.tour.me')).toBe('1');
+    expect(JSON.parse(localStorage.getItem('fitsync.guide.tour-user.tour-map') ?? '{}').me.seen).toBeTrue();
     expect(guide.pathRunning()).toBeFalse();
     wrapUp();
   }));
@@ -160,7 +160,7 @@ describe('The spotlight path', () => {
     escape();
     escape();
     expect(overlay()).toBeNull();
-    expect(localStorage.getItem('fitsync.guide.tour-user.tour.me')).toBe('1');
+    expect(JSON.parse(localStorage.getItem('fitsync.guide.tour-user.tour-map') ?? '{}').me.seen).toBeTrue();
     wrapUp();
   }));
 

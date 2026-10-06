@@ -6,6 +6,7 @@ import { RecipeCoverComponent } from './recipe-cover.component';
 import { cookedWhen } from './recipes-figures';
 import { RecipeCard } from './recipes.models';
 import { RecipesService } from './recipes.service';
+import { GuideService } from '../../../core/guide/guide.service';
 
 const SHOWN = 6;
 
@@ -42,6 +43,7 @@ const SHOWN = 6;
 })
 export class CookedRecentlyComponent {
   private readonly service = inject(RecipesService);
+  private readonly guide = inject(GuideService);
 
   protected readonly items = signal<RecipeCard[]>([]);
 
@@ -49,7 +51,14 @@ export class CookedRecentlyComponent {
     this.service
       .list({ scope: 'recent', size: SHOWN })
       .pipe(takeUntilDestroyed())
-      .subscribe({ next: (page) => this.items.set(page.items), error: () => this.items.set([]) });
+      .subscribe({
+        next: (page) => {
+          this.items.set(page.items);
+          // A cook record means the person already uses recipes, so the Recipes path is left out.
+          this.guide.reportUsed('nutrition-recipes', page.items.some((card) => (card.lastActivity ? card.lastActivity === 'COOKED' : !!card.lastCookedAt)));
+        },
+        error: () => this.items.set([])
+      });
   }
 
   protected when(card: RecipeCard): string {
