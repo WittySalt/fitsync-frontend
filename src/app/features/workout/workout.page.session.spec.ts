@@ -197,8 +197,6 @@ describe('WorkoutPage and the workout in progress', () => {
         {
           provide: CoachApiService,
           useValue: {
-            listRecommendations: () => of([]),
-            refreshRecommendations: () => of(undefined),
             getReading: () => throwError(() => new Error('not under test'))
           }
         },

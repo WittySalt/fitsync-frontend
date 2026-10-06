@@ -48,7 +48,6 @@ describe('CoachStore turns, limits and history', () => {
   beforeEach(() => {
     stream = new Subject<CoachStreamEvent>();
     api = jasmine.createSpyObj<CoachApiService>('CoachApiService', [
-      'listRecommendations',
       'createThread',
       'getThread',
       'sendMessage',
@@ -57,7 +56,6 @@ describe('CoachStore turns, limits and history', () => {
       'archiveThread',
       'draftSession'
     ]);
-    api.listRecommendations.and.returnValue(of([]));
     api.createThread.and.returnValue(of(thread));
     api.getThread.and.returnValue(of(detail));
     api.streamMessage.and.returnValue(stream.asObservable());

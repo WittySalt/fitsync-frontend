@@ -1,7 +1,7 @@
 @if (isAuthRoute() || isAdminRoute()) {
   <router-outlet />
 } @else {
-<div class="app-shell" [class.cook-open]="isCookRoute()">
+<div class="app-shell" [class.cook-open]="isCookRoute()" [class.dock-open]="coach.dockOpen() && !isCookRoute()">
   <aside class="sidebar" aria-label="Primary navigation">
     <a class="brand" routerLink="/dashboard" aria-label="FitSync home">
       <span class="brand-mark">F</span>

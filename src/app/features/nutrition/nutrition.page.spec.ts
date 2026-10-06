@@ -31,8 +31,6 @@ const emptyReading: CoachReading = {
   lifts: []
 };
 const coachApiStub = {
-  listRecommendations: () => of([]),
-  refreshRecommendations: () => of(undefined),
   getReading: jasmine.createSpy('getReading').and.returnValue(of(emptyReading))
 };
 

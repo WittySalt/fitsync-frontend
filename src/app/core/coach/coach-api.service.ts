@@ -18,7 +18,6 @@ import {
   DraftMetrics,
   ReadingStatus,
   ReadingSurface,
-  Recommendation,
   SessionDraftView
 } from './coach.models';
 import { parseSseChunk } from './sse';
@@ -38,15 +37,6 @@ export class CoachApiService {
   private readonly auth = inject(AuthService);
 
   private readonly coachBaseUrl = '/api/v1/coach';
-  private readonly recommendationsUrl = '/api/v1/recommendations';
-
-  listRecommendations(): Observable<Recommendation[]> {
-    return this.http.get<Recommendation[]>(this.recommendationsUrl);
-  }
-
-  refreshRecommendations(): Observable<void> {
-    return this.http.post<void>(`${this.recommendationsUrl}/refresh`, {});
-  }
 
   /**
    * One page's reading with the facts it stands on.

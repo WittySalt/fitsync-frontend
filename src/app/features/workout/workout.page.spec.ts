@@ -208,8 +208,6 @@ function goal(overrides: Partial<UserGoal> = {}): UserGoal {
 // The page carries the coach's insight panel. Only the wire is stubbed, and the reading request
 // fails, so the panel takes no space and these specs stay about the page.
 const coachApiStub = {
-  listRecommendations: () => of([]),
-  refreshRecommendations: () => of(undefined),
   getReading: () => throwError(() => new Error('not under test'))
 };
 

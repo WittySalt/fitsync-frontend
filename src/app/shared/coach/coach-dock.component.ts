@@ -17,15 +17,15 @@ import {
 import { RouterLink } from '@angular/router';
 
 import { CoachStore } from '../../core/coach/coach.store';
-import { CoachCardContext, CoachReading, CoachTurn, Recommendation } from '../../core/coach/coach.models';
+import { CoachCardContext, CoachReading, CoachTurn } from '../../core/coach/coach.models';
 import { CardPinComponent } from './card-pin.component';
 import { CARD_LABELS, cardPlaceholder, cardQuestions } from './card-questions';
 import { CoachHistoryComponent } from './coach-history.component';
+import { CoachScrimComponent } from './coach-scrim.component';
 import { CoachTraceComponent } from './coach-trace.component';
 import { questionsFor } from './insight/reading-questions';
-import { ReadingSegment, readingSegments, withoutCitations } from './insight/reading-text';
+import { ReadingSegment, readingSegments, roundedNumbers, withoutCitations } from './insight/reading-text';
 import { dateRange } from './insight/slope-chart.geometry';
-import { RecommendationCardComponent } from './recommendation-card.component';
 
 /** The browser's `matchMedia`, injectable so a test can decide whether the sidebar is showing. */
 export const MATCH_MEDIA = new InjectionToken<(query: string) => MediaQueryList | null>('MATCH_MEDIA', {
@@ -58,7 +58,7 @@ interface DockSuggestion {
  */
 @Component({
   selector: 'app-coach-dock',
-  imports: [CardPinComponent, RouterLink, NgTemplateOutlet, RecommendationCardComponent, CoachTraceComponent, CoachHistoryComponent],
+  imports: [CardPinComponent, RouterLink, NgTemplateOutlet, CoachTraceComponent, CoachHistoryComponent, CoachScrimComponent],
   template: `
     @if (!store.dockOpen()) {
       @if (!sidebarVisible()) {
@@ -69,6 +69,7 @@ interface DockSuggestion {
       }
     } @else {
       @let empty = !store.turns().length && !store.pendingQuestion();
+      <app-coach-scrim />
       <aside
         class="dock dock-wide"
         [class.kb]="viewport() !== null"
@@ -78,6 +79,10 @@ interface DockSuggestion {
         role="complementary"
       >
         <div class="sr" aria-live="polite" aria-atomic="true">{{ announcement() }}</div>
+        <button type="button" class="back-row" (click)="store.close()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+          Back to page
+        </button>
         <div class="dock-head">
           <div class="dock-title">
             <span class="mark" aria-hidden="true">C</span>
@@ -98,9 +103,6 @@ interface DockSuggestion {
               Looking at <b>{{ cardLabel(card) }}</b> · one card pinned
             } @else {
               Looking at <b>{{ store.surface().label }}</b>
-              @if (store.inlineRecommendations().length) {
-                · {{ store.inlineRecommendations().length }} {{ store.inlineRecommendations().length === 1 ? 'insight' : 'insights' }}
-              }
             }
           </p>
         </div>
@@ -141,22 +143,6 @@ interface DockSuggestion {
 
           @if (empty) {
             <ng-container [ngTemplateOutlet]="suggestionList" />
-            @if (!store.pinnedReading() && !store.pinnedCard() && store.orderedRecommendations().length) {
-              <section class="earlier">
-                <button type="button" class="earlier-toggle" [attr.aria-expanded]="earlierOpen()" (click)="earlierOpen.set(!earlierOpen())">
-                  <span class="earlier-title">Earlier notes</span>
-                  <span class="earlier-count">{{ store.orderedRecommendations().length }}</span>
-                  <svg class="chevron" [class.open]="earlierOpen()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M9 6l6 6-6 6"></path>
-                  </svg>
-                </button>
-                @if (earlierOpen()) {
-                  @for (rec of store.orderedRecommendations(); track rec.type) {
-                    <app-recommendation-card [recommendation]="rec" (ask)="askAbout($event)" />
-                  }
-                }
-              </section>
-            }
           }
 
           <div class="thread">
@@ -195,6 +181,9 @@ interface DockSuggestion {
             }
 
             @if (store.latestDraft(); as draft) {
+              @if (store.draftRequest(); as request) {
+                <div class="turn-q">{{ request }}</div>
+              }
               <div class="draft-link">
                 <b>{{ draft.session.title }}</b>
                 <span>{{ draft.session.estimatedMinutes }} min · {{ draft.session.exercises.length }} exercises · {{ draft.source === 'RULE_FALLBACK' ? 'built by the rules' : 'drafted by the model' }}</span>
@@ -676,8 +665,8 @@ interface DockSuggestion {
         display: flex;
         flex-direction: column;
         gap: 6px;
-        background: var(--surface-sunken);
-        border: 1px solid var(--border-strong);
+        background: var(--accent-subtle);
+        border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
         border-radius: var(--radius-lg);
         padding: 11px 12px;
         font-size: var(--text-sm);
@@ -737,50 +726,6 @@ interface DockSuggestion {
         min-width: 0;
         overflow-wrap: anywhere;
       }
-      .earlier {
-        display: flex;
-        flex-direction: column;
-        gap: 9px;
-      }
-      .earlier-toggle {
-        min-height: 44px;
-        box-sizing: border-box;
-        padding: 0 14px;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        background: var(--surface-sunken);
-        color: var(--text-secondary);
-        font: inherit;
-        font-size: var(--text-sm);
-        font-weight: var(--fw-semibold);
-        text-align: left;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-      }
-      .earlier-title {
-        flex: 1;
-        min-width: 0;
-      }
-      .earlier-count {
-        min-width: 22px;
-        height: 22px;
-        box-sizing: border-box;
-        padding: 0 7px;
-        border-radius: var(--radius-full);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        font-size: 11px;
-        font-weight: var(--fw-bold);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-variant-numeric: tabular-nums;
-      }
-      .earlier-toggle .chevron.open {
-        transform: rotate(90deg);
-      }
       .composer {
         display: flex;
         gap: 7px;
@@ -825,12 +770,35 @@ interface DockSuggestion {
       }
       .pinned-release:focus-visible,
       .reading-row:focus-visible,
-      .earlier-toggle:focus-visible,
       .sugg:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
       }
-      @media (max-width: 640px) {
+      .back-row {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 0 14px;
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: var(--text-sm);
+        font-weight: var(--fw-semibold);
+        cursor: pointer;
+      }
+      .back-row:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
+      /* Below the sidebar breakpoint the bottom navigation is on screen, so the launcher rides above it,
+         and above the bar of a workout in progress when that is showing. */
+      @media (max-width: 860px) {
+        .launch {
+          bottom: calc(88px + var(--workout-bar-space, 0px));
+        }
         .dock-foot {
           padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         }
@@ -838,21 +806,16 @@ interface DockSuggestion {
           padding-bottom: 12px;
         }
         .dock {
-          top: auto;
-          height: 82vh;
+          top: 0;
+          height: 100vh;
           max-height: var(--dock-vh, 100vh);
           bottom: var(--dock-kb, 0px);
           width: 100vw;
           border-left: 0;
-          border-top: 1px solid var(--border);
-          border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+          border-radius: 0;
         }
-      }
-      /* Below the sidebar breakpoint the bottom navigation is on screen, so the launcher rides above it,
-         and above the bar of a workout in progress when that is showing. */
-      @media (max-width: 860px) {
-        .launch {
-          bottom: calc(88px + var(--workout-bar-space, 0px));
+        .back-row {
+          display: flex;
         }
       }
     `
@@ -861,8 +824,6 @@ interface DockSuggestion {
 export class CoachDockComponent {
   protected readonly store = inject(CoachStore);
   protected readonly draft = signal('');
-  /** Whether the first screen's row of earlier insight cards is open. */
-  protected readonly earlierOpen = signal(false);
 
   /** True while the shell's sidebar is showing, which carries the coach entry in place of the floating button. */
   protected readonly sidebarVisible = signal(false);
@@ -1006,11 +967,6 @@ export class CoachDockComponent {
     this.draft.set('');
   }
 
-  /** A card's "Ask about this": pre-fill the composer with the card as subject, do not send. */
-  protected askAbout(recommendation: Recommendation): void {
-    this.store.askAbout(recommendation);
-  }
-
   /**
    * The one list of questions, at most three: those that follow from the pinned reading when there
    * is one, otherwise the page's own.
@@ -1081,12 +1037,12 @@ export class CoachDockComponent {
   }
 
   protected citedSegments(turn: CoachTurn, reading: CoachReading): ReadingSegment[] {
-    return readingSegments(turn.content, reading.facts.length);
+    return readingSegments(roundedNumbers(turn.content), reading.facts.length);
   }
 
   /** An answer the server did not cite: markers are stripped so a stray `[2]` never shows as text. */
   protected uncitedAnswer(turn: CoachTurn): string {
-    return withoutCitations(turn.content);
+    return roundedNumbers(withoutCitations(turn.content));
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -1097,8 +1053,9 @@ export class CoachDockComponent {
   private handleKeydown(event: KeyboardEvent): void {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       // Typing somewhere else on the page keeps the browser's own shortcut; only the dock's own
-      // composer, where the shortcut closes the dock, still answers to it.
-      if (isTypingOutsideDock(event.target)) {
+      // composer, where the shortcut closes the dock, still answers to it. Plan Studio is the
+      // exception: its request box is a text field, so the shortcut would otherwise never answer there.
+      if (isTypingOutsideDock(event.target) && this.store.surface().id !== 'coach') {
         return;
       }
       event.preventDefault();

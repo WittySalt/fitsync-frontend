@@ -6,18 +6,6 @@
  * a value that was true when the type was written. The field names below are the wire names.
  */
 
-export type RecommendationSource = 'RULE' | 'AI';
-
-/** One insight the rule engine or the narrative model produced, with the facts it came from. */
-export interface Recommendation {
-  type: string;
-  source: RecommendationSource;
-  facts: Record<string, unknown>;
-  narrative: string;
-  generatedAt: string;
-  expiresAt: string | null;
-}
-
 export interface CoachThread {
   threadId: string;
   title: string | null;

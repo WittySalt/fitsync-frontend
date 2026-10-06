@@ -120,7 +120,7 @@
 }
 
 .studio {
-  border: 1px solid color-mix(in srgb, var(--amber-500) 35%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--surface);
@@ -132,8 +132,8 @@
 
 .studio-head {
   padding: 14px 16px;
-  background: color-mix(in srgb, var(--amber-500) 12%, var(--surface));
-  border-bottom: 1px solid color-mix(in srgb, var(--amber-500) 25%, var(--border));
+  background: var(--accent-subtle);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
 
   .row {
     display: flex;
@@ -151,7 +151,7 @@
   .meta {
     margin-left: auto;
     font-size: var(--text-xs);
-    color: var(--amber-500);
+    color: var(--accent-text);
     font-weight: var(--fw-medium);
     white-space: nowrap;
   }
@@ -219,7 +219,7 @@
 
   .why::before {
     content: '▸ ';
-    color: var(--amber-500);
+    color: var(--accent-text);
   }
 }
 
@@ -246,7 +246,7 @@
 
   .k.note::before {
     content: '↺';
-    color: var(--amber-500);
+    color: var(--accent-text);
   }
 }
 

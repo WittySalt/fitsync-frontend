@@ -24,14 +24,6 @@ describe('CoachApiService', () => {
 
   afterEach(() => httpTesting.verify());
 
-  it('lists recommendations', () => {
-    service.listRecommendations().subscribe();
-
-    const request = httpTesting.expectOne('/api/v1/recommendations');
-    expect(request.request.method).toBe('GET');
-    request.flush([]);
-  });
-
   it('asks for a page reading with the surface in the path and no timezone parameter', () => {
     let status = '';
     service.getReading('WORKOUT').subscribe((reading) => (status = reading.status));

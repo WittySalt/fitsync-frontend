@@ -137,7 +137,22 @@ describe('dailyObservations - rested groups (rule A)', () => {
     });
     const [observation] = dailyObservations(fixture, now, TZ);
     expect(observation.fact).toBe('Back has had seven days off.');
-    expect(observation.note).toBe('It was last trained on Sunday, so it is ready whenever you are.');
+    expect(observation.note).toBe('It was last trained on Sunday, 20 Sept, so it is ready whenever you are.');
+  });
+
+  it('names the weekday alone inside the last week and adds the date from seven days back', () => {
+    const now = new Date('2026-10-05T00:10:00Z');
+    const within = insight({
+      referenceDate: '2026-10-05',
+      muscleGroups: [group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-30', consecutiveSessions: 0 })]
+    });
+    const older = insight({
+      referenceDate: '2026-10-05',
+      muscleGroups: [group({ muscleGroup: 'BACK', inActivePlan: true, lastTrainedOn: '2026-09-28', consecutiveSessions: 0 })]
+    });
+
+    expect(dailyObservations(within, now, TZ)[0].note).toBe('It was last trained on Wednesday, so it is ready whenever you are.');
+    expect(dailyObservations(older, now, TZ)[0].note).toBe('It was last trained on Monday, 28 Sept, so it is ready whenever you are.');
   });
 
   it('keeps the plural verb for one group whose name is a plural noun', () => {

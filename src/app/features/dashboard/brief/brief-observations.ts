@@ -2,6 +2,7 @@ import { DayKind, MuscleGroupCode, MuscleGroupInsight, WeeklyLiftChange, WeeklyT
 import { formatDuration, formatKm, formatPace } from './brief-duration';
 import { numberWord } from './brief-copy';
 import { joinLabels, muscleLabel } from './brief-muscles';
+import { shortDateLabel } from '../../../shared/date-label';
 
 export type ObservationIcon = 'rest' | 'streak' | 'strength' | 'week' | 'day-kind';
 
@@ -51,6 +52,13 @@ function daysBetweenKeys(fromKey: string, toKey: string): number {
 /** Full weekday name for a YYYY-MM-DD key, read from the calendar date itself. */
 function weekdayFull(key: string): string {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(asUtcDate(key));
+}
+
+/** A weekday for a past day: the bare name inside the last week, and the date too from seven days
+ *  back, when the name alone could mean this week's day: "Friday", then "Monday, 28 Sept". */
+function pastWeekday(key: string, referenceDate: string): string {
+  const name = weekdayFull(key);
+  return daysBetweenKeys(key, referenceDate) >= 7 ? `${name}, ${shortDateLabel(key, asUtcDate(referenceDate))}` : name;
 }
 
 /** "Tuesday 23 Sep", read from a YYYY-MM-DD key: the weekday and day-month the coach uses when
@@ -115,8 +123,8 @@ function restedObservation(insight: WeeklyTrainingInsight): BriefObservation | n
   const labels = joinLabels(picked.labels);
   const fact = `${labels} ${picked.plural ? 'have' : 'has'} had ${numberWord(daysOff)} days off.`;
   const note = picked.plural
-    ? `They were last trained on ${weekdayFull(picked.lastTrainedOn)}, so they are ready whenever you are.`
-    : `It was last trained on ${weekdayFull(picked.lastTrainedOn)}, so it is ready whenever you are.`;
+    ? `They were last trained on ${pastWeekday(picked.lastTrainedOn, insight.referenceDate)}, so they are ready whenever you are.`
+    : `It was last trained on ${pastWeekday(picked.lastTrainedOn, insight.referenceDate)}, so it is ready whenever you are.`;
   return { id: 'rested', icon: 'rest', fact, note, muscle: picked.firstMuscle };
 }
 
@@ -161,7 +169,7 @@ function mostRecentPhrase(lastTrainedOn: string | null, referenceDate: string): 
   if (daysBetweenKeys(lastTrainedOn, referenceDate) === 1) {
     return 'yesterday';
   }
-  return `on ${weekdayFull(lastTrainedOn)}`;
+  return `on ${pastWeekday(lastTrainedOn, referenceDate)}`;
 }
 
 /** The change of a lift's estimated best single, as a whole percent. The server sends it; when it is

@@ -58,3 +58,18 @@ export function readingSegments(body: string, factCount: number): ReadingSegment
 export function withoutCitations(text: string): string {
   return text.replace(CITATION, '');
 }
+
+const UNIT_NUMBER = /(\d+\.\d+)(\s*)(kg|kilograms?|kcal|calories|g|grams?)(?![\w/])/gi;
+
+/**
+ * Shows grams and kilocalories as whole numbers and kilograms with one decimal, whatever the text
+ * carries: "29.15 grams" reads "29 grams", "74.26 kg" reads "74.3 kg". The server rounds too; this
+ * keeps a longer figure from ever reaching the screen. Numbers with no unit are left alone.
+ */
+export function roundedNumbers(text: string): string {
+  return text.replace(UNIT_NUMBER, (_match, figure: string, space: string, unit: string) => {
+    const value = Number(figure);
+    const shown = /^k(g|ilogram)/i.test(unit) ? String(Math.round(value * 10) / 10) : String(Math.round(value));
+    return `${shown}${space}${unit}`;
+  });
+}

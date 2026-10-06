@@ -72,6 +72,29 @@ describe('App', () => {
     expect(navLabels).toEqual(['Home', 'Workout', 'Nutrition', 'Progress', 'Me']);
   });
 
+  it('marks the shell while the coach dock is open and lifts the mark when it closes', () => {
+    const fixture = TestBed.createComponent(App);
+    const shell = (): HTMLElement | null => (fixture.nativeElement as HTMLElement).querySelector('.app-shell');
+    fixture.detectChanges();
+    expect(shell()?.classList).not.toContain('dock-open');
+
+    TestBed.inject(CoachStore).open();
+    fixture.detectChanges();
+    expect(shell()?.classList).toContain('dock-open');
+
+    TestBed.inject(CoachStore).close();
+    fixture.detectChanges();
+    expect(shell()?.classList).not.toContain('dock-open');
+  });
+
+  it('makes room for the dock only from 1200 px, in 200 ms, and not for reduced motion', () => {
+    const css = ((App as unknown as { ɵcmp: { styles: string[] } }).ɵcmp.styles ?? []).join('').replace(/\[_ngcontent-%COMP%\]/g, '').replace(/\s+/g, ' ');
+
+    expect(css).toMatch(/@media \(min-width: 1200px\) \{[^@]*\.app-shell\.dock-open \{ padding-right: 420px;/);
+    expect(css).toContain('transition: padding-right 200ms');
+    expect(css).toMatch(/prefers-reduced-motion: reduce\) \{ \.app-shell \{ transition: none;/);
+  });
+
   it('opens the account menu from the avatar control', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();

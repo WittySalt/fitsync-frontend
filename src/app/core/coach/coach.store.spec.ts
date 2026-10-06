@@ -1,11 +1,11 @@
 import { ApplicationRef, WritableSignal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { Observable, Subject, of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import { CoachApiService } from './coach-api.service';
 import { CoachContextService, Surface } from './coach-context.service';
-import { CoachMessageResponse, CoachReading, CoachStreamEvent, CoachThreadDetail, Recommendation } from './coach.models';
+import { CoachMessageResponse, CoachReading, CoachStreamEvent, CoachThreadDetail } from './coach.models';
 import { CoachStore } from './coach.store';
 
 /**
@@ -41,8 +41,6 @@ describe('CoachStore', () => {
   beforeEach(() => {
     stream = new Subject<CoachStreamEvent>();
     api = jasmine.createSpyObj<CoachApiService>('CoachApiService', [
-      'listRecommendations',
-      'refreshRecommendations',
       'createThread',
       'getThread',
       'sendMessage',
@@ -52,7 +50,6 @@ describe('CoachStore', () => {
       'acceptSessionDraft',
       'rejectSessionDraft'
     ]);
-    api.listRecommendations.and.returnValue(of([]));
     api.createThread.and.returnValue(of(thread));
     api.getThread.and.returnValue(of(detail));
     api.streamMessage.and.returnValue(stream.asObservable());
@@ -61,15 +58,6 @@ describe('CoachStore', () => {
       providers: [provideRouter([]), { provide: CoachApiService, useValue: api }]
     });
     store = TestBed.inject(CoachStore);
-  });
-
-  it('opens the dock and loads recommendations once', () => {
-    store.open();
-    store.close();
-    store.open();
-
-    expect(store.dockOpen()).toBeTrue();
-    expect(api.listRecommendations).toHaveBeenCalledTimes(1);
   });
 
   it('creates a thread on the first question and streams it', () => {
@@ -196,21 +184,12 @@ describe('CoachStore', () => {
     expect(store.error()).toContain('stopped before answering');
   });
 
-  it('pre-fills the composer from a card and opens the dock, sending nothing', () => {
-    const rec: Recommendation = { type: 'NUTRITION_GAP', source: 'RULE', facts: {}, narrative: 'x', generatedAt: '', expiresAt: null };
-
-    store.askAbout(rec);
-
-    expect(store.dockOpen()).toBeTrue();
-    expect(store.composerPrefill()).toBe('Tell me more about my nutrition gap');
-    expect(api.streamMessage).not.toHaveBeenCalled();
-  });
-
   it('starts a new thread cleanly', () => {
     store.ask('Should I train?');
     stream.next({ name: 'answer', data: answer });
     store.newThread();
 
+    expect(store.draftRequest()).toBeNull();
     expect(store.thread()).toBeNull();
     expect(store.turns()).toEqual([]);
     expect(store.status()).toBe('idle');
@@ -240,6 +219,7 @@ describe('CoachStore', () => {
     expect(store.drafts().map((d) => d.artifactId)).toEqual(['a1']);
     expect(store.status()).toBe('idle');
     expect(store.pendingQuestion()).toBeNull();
+    expect(store.draftRequest()).toBe('chest and back');
   });
 
   it('carries the thread into the draft when a conversation is open', () => {
@@ -290,17 +270,6 @@ describe('CoachStore', () => {
     expect(store.drafts()[0].rejectionReason).toBe('too long');
   });
 
-  it('orders the current surface insights first in the dock feed', () => {
-    const recs: Recommendation[] = [
-      { type: 'WEEKLY_ADHERENCE', source: 'RULE', facts: {}, narrative: 'w', generatedAt: '', expiresAt: null },
-      { type: 'NUTRITION_GAP', source: 'RULE', facts: {}, narrative: 'n', generatedAt: '', expiresAt: null }
-    ];
-    api.listRecommendations.and.returnValue(of(recs) as Observable<Recommendation[]>);
-    store.loadRecommendations();
-
-    // The test router sits at "/", which maps to the dashboard surface: nutrition first.
-    expect(store.orderedRecommendations().map((r) => r.type)).toEqual(['NUTRITION_GAP', 'WEEKLY_ADHERENCE']);
-  });
 });
 
 /**
@@ -316,9 +285,9 @@ describe('CoachStore — pinned reading', () => {
   let stream: Subject<CoachStreamEvent>;
   let surface: WritableSignal<Surface>;
 
-  const workoutSurface: Surface = { id: 'workout', label: 'Workout, this week', inlineTypes: [], suggestions: [], code: 'WORKOUT' };
-  const nutritionSurface: Surface = { id: 'nutrition', label: 'Nutrition, this week', inlineTypes: [], suggestions: [], code: 'NUTRITION' };
-  const coachSurface: Surface = { id: 'coach', label: 'Coach workspace', inlineTypes: [], suggestions: [], code: null };
+  const workoutSurface: Surface = { id: 'workout', label: 'Workout, this week', suggestions: [], code: 'WORKOUT' };
+  const nutritionSurface: Surface = { id: 'nutrition', label: 'Nutrition, this week', suggestions: [], code: 'NUTRITION' };
+  const coachSurface: Surface = { id: 'coach', label: 'Coach workspace', suggestions: [], code: null };
 
   const thread = { threadId: 't1', title: null, turnCount: 0, lastActiveAt: '', createdAt: '' };
   const detail: CoachThreadDetail = { thread: { ...thread, turnCount: 2 }, turns: [] };
@@ -349,8 +318,7 @@ describe('CoachStore — pinned reading', () => {
   beforeEach(() => {
     stream = new Subject<CoachStreamEvent>();
     surface = signal(workoutSurface);
-    api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['listRecommendations', 'createThread', 'getThread', 'sendMessage', 'streamMessage']);
-    api.listRecommendations.and.returnValue(of([]));
+    api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['createThread', 'getThread', 'sendMessage', 'streamMessage']);
     api.createThread.and.returnValue(of(thread));
     api.getThread.and.returnValue(of(detail));
     api.streamMessage.and.returnValue(stream.asObservable());
@@ -464,8 +432,8 @@ describe('CoachStore — pinned card', () => {
   let store: CoachStore;
   let api: jasmine.SpyObj<CoachApiService>;
   let surface: WritableSignal<Surface>;
-  const progressSurface: Surface = { id: 'progress', label: 'Progress', inlineTypes: [], suggestions: [], code: 'PROGRESS' };
-  const homeSurface: Surface = { id: 'dashboard', label: 'Home', inlineTypes: [], suggestions: [], code: 'HOME' };
+  const progressSurface: Surface = { id: 'progress', label: 'Progress', suggestions: [], code: 'PROGRESS' };
+  const homeSurface: Surface = { id: 'dashboard', label: 'Home', suggestions: [], code: 'HOME' };
   const thread = { threadId: 't1', title: null, turnCount: 0, lastActiveAt: '', createdAt: '' };
   const reading: CoachReading = {
     surface: 'PROGRESS',
@@ -481,8 +449,7 @@ describe('CoachStore — pinned card', () => {
 
   beforeEach(() => {
     surface = signal(progressSurface);
-    api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['listRecommendations', 'createThread', 'getThread', 'sendMessage', 'streamMessage']);
-    api.listRecommendations.and.returnValue(of([]));
+    api = jasmine.createSpyObj<CoachApiService>('CoachApiService', ['createThread', 'getThread', 'sendMessage', 'streamMessage']);
     api.createThread.and.returnValue(of(thread));
     api.getThread.and.returnValue(of({ thread, turns: [] }));
     api.streamMessage.and.returnValue(new Subject<CoachStreamEvent>().asObservable());

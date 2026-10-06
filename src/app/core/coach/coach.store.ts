@@ -14,7 +14,6 @@ import {
   CoachThreadDetail,
   CoachThreadSummary,
   CoachTurn,
-  Recommendation,
   SessionDraftView
 } from './coach.models';
 
@@ -35,9 +34,7 @@ export interface LiveStep {
 /**
  * One store, many surfaces.
  *
- * The recommendation list is fetched once and read by every inline anchor and by the dock, so
- * adding the coach to another page costs no extra requests. The thread is the same: the dock and
- * any page that links into a conversation read one signal.
+ * The thread is one signal that the dock and any page that links into a conversation read.
  *
  * The streamed turn is the interesting part. Progress events accumulate in `liveSteps` while the
  * turn runs, then the answer replaces them with a persisted turn that carries the same facts as its
@@ -53,9 +50,6 @@ export class CoachStore {
   readonly status = signal<CoachStatus>('idle');
   readonly error = signal<string | null>(null);
 
-  readonly recommendations = signal<Recommendation[]>([]);
-  readonly recommendationsLoadedAt = signal<string | null>(null);
-
   readonly thread = signal<CoachThreadDetail | null>(null);
   readonly liveSteps = signal<LiveStep[]>([]);
   /** The question in flight, shown as a user turn before the server has stored it. */
@@ -64,18 +58,14 @@ export class CoachStore {
   /** A draft produced from the conversation, offered as a card under the answer. */
   readonly latestDraft = signal<SessionDraftView | null>(null);
 
+  /** What the person asked for, shown as their own bubble before the draft card it produced. */
+  readonly draftRequest = signal<string | null>(null);
+
   /**
    * Text a surface wants in the composer, set by a card's "Ask about this". The dock consumes it
    * once and clears it; nothing is sent until the user does.
    */
   readonly composerPrefill = signal<string | null>(null);
-
-  /** Opens the dock with a card as the subject of the next question. */
-  askAbout(recommendation: Recommendation): void {
-    const label = recommendation.type.toLowerCase().replace(/_/g, ' ');
-    this.composerPrefill.set(`Tell me more about my ${label}`);
-    this.open();
-  }
 
   /**
    * The reading a page's insight panel asked about, pinned as the subject of the conversation.
@@ -161,18 +151,6 @@ export class CoachStore {
       }
     });
   }
-
-  /** The current surface's insights first, then everything else, so the dock reads as "about here". */
-  readonly orderedRecommendations = computed(() => {
-    const inline = new Set(this.surface().inlineTypes);
-    const all = this.recommendations();
-    return [...all.filter((r) => inline.has(r.type)), ...all.filter((r) => !inline.has(r.type))];
-  });
-
-  readonly inlineRecommendations = computed(() => {
-    const inline = new Set(this.surface().inlineTypes);
-    return this.recommendations().filter((r) => inline.has(r.type));
-  });
 
   /**
    * The turns worth showing. An assistant turn with no text is what a stream that died after the
@@ -264,6 +242,7 @@ export class CoachStore {
         this.liveSteps.set([]);
         this.pendingQuestion.set(null);
         this.latestDraft.set(null);
+        this.draftRequest.set(null);
         this.citedTurns.set(new Map());
         this.status.set('idle');
         this.error.set(null);
@@ -291,9 +270,6 @@ export class CoachStore {
 
   open(): void {
     this.dockOpen.set(true);
-    if (!this.recommendationsLoadedAt()) {
-      this.loadRecommendations();
-    }
   }
 
   close(): void {
@@ -306,27 +282,6 @@ export class CoachStore {
     } else {
       this.open();
     }
-  }
-
-  loadRecommendations(): void {
-    this.api.listRecommendations().subscribe({
-      next: (list) => {
-        this.recommendations.set(list);
-        this.recommendationsLoadedAt.set(new Date().toISOString());
-      },
-      error: () => {
-        // Cards are the passive surface; failing to load them must not make the dock unusable.
-        this.recommendationsLoadedAt.set(new Date().toISOString());
-      }
-    });
-  }
-
-  /** After a mutation elsewhere in the app, re-read so a new personal record can surface. */
-  refreshRecommendations(): void {
-    this.api.refreshRecommendations().subscribe({
-      next: () => this.loadRecommendations(),
-      error: () => this.loadRecommendations()
-    });
   }
 
   /**
@@ -409,6 +364,7 @@ export class CoachStore {
     this.api.draftSession(request?.trim() || undefined, this.thread()?.thread.threadId).subscribe({
       next: (draft) => {
         this.latestDraft.set(draft);
+        this.draftRequest.set(this.pendingQuestion());
         this.pendingQuestion.set(null);
         this.liveSteps.set([]);
         this.status.set('idle');
@@ -457,6 +413,7 @@ export class CoachStore {
         // The card offered the draft; once it is accepted there is nothing left for it to offer.
         if (this.latestDraft()?.artifactId === artifactId) {
           this.latestDraft.set(null);
+          this.draftRequest.set(null);
         }
       })
     );
@@ -468,6 +425,7 @@ export class CoachStore {
         this.drafts.update((list) => list.map((d) => (d.artifactId === artifactId ? rejected : d)));
         if (this.latestDraft()?.artifactId === artifactId) {
           this.latestDraft.set(null);
+          this.draftRequest.set(null);
         }
       })
     );
@@ -485,6 +443,7 @@ export class CoachStore {
     this.liveSteps.set([]);
     this.pendingQuestion.set(null);
     this.latestDraft.set(null);
+    this.draftRequest.set(null);
     this.citedTurns.set(new Map());
     this.status.set('idle');
     this.error.set(null);
