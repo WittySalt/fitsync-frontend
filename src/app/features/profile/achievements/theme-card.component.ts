@@ -57,7 +57,7 @@ export class ThemeCardComponent {
       return earnedLabel(entry.node);
     }
     if (entry.state === 'next') {
-      return gapLine(entry.node, this.today(), this.pace()).headline;
+      return gapLine(entry.node, this.today(), this.pace()).headline || laterLine(entry.node);
     }
     return laterLine(entry.node);
   }

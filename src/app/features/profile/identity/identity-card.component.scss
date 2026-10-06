@@ -10,6 +10,8 @@
   color: #ffffff;
 }
 
+h1 { color: #ffffff; }
+
 header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; }
 
 .avatar {

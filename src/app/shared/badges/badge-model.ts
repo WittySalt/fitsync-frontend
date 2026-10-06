@@ -178,6 +178,10 @@ export interface GapLine {
 
 /** The gap to a badge in its own unit. `fallbackPace` is the person's own sessions a week. */
 export function gapLine(node: BadgeNode, today: string, fallbackPace: number | null): GapLine {
+  if (!(node.progress.target > 0)) {
+    // A badge the figures cannot measure yet (no record stored): nothing to count down.
+    return { headline: '', detail: '', pace: null };
+  }
   const left = remaining(node);
   if (isRatio(node)) {
     return { headline: `${node.progress.current.toFixed(2)} of ${node.progress.target.toFixed(2)}`, detail: '× body weight', pace: null };
