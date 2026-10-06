@@ -40,6 +40,8 @@ export class SpotlightDirective implements OnInit, OnDestroy {
 
   private overlay: ComponentRef<SpotlightComponent> | null = null;
   private shownFor: TourPage | null = null;
+  private opening = false;
+  private cancelOpening: (() => void) | null = null;
   private readonly reposition = (): void => this.place();
 
   constructor() {
@@ -58,12 +60,53 @@ export class SpotlightDirective implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.cancelOpening?.();
     this.close();
   }
 
+  /** Brings the anchor into view first, waits for the scroll to settle, then shows the spotlight. */
   private open(page: TourPage): void {
+    if (this.opening) {
+      return;
+    }
     const anchor = this.host.nativeElement;
-    anchor.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    const r = anchor.getBoundingClientRect();
+    const inView = r.top >= 0 && r.bottom <= window.innerHeight;
+    if (inView || !anchor.scrollIntoView) {
+      this.show(page);
+      return;
+    }
+    this.opening = true;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    anchor.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    let done = false;
+    const finish = (): void => {
+      if (done) {
+        return;
+      }
+      done = true;
+      window.removeEventListener('scrollend', finish, true);
+      window.clearTimeout(timer);
+      this.opening = false;
+      if (this.host.nativeElement.isConnected && !this.overlay) {
+        // One more frame so the layout after the scroll is what gets measured.
+        requestAnimationFrame(() => this.show(page));
+      }
+    };
+    const timer = window.setTimeout(finish, 400);
+    window.addEventListener('scrollend', finish, true);
+    this.cancelOpening = (): void => {
+      done = true;
+      window.removeEventListener('scrollend', finish, true);
+      window.clearTimeout(timer);
+      this.opening = false;
+    };
+  }
+
+  private show(page: TourPage): void {
+    if (this.overlay) {
+      return;
+    }
     const copy = SPOTLIGHT_COPY[page];
     const overlay = createComponent(SpotlightComponent, { environmentInjector: this.injector });
     overlay.setInput('title', copy.title);
@@ -80,6 +123,8 @@ export class SpotlightDirective implements OnInit, OnDestroy {
     this.shownFor = page;
     window.addEventListener('resize', this.reposition);
     window.addEventListener('scroll', this.reposition, true);
+    overlay.changeDetectorRef.detectChanges();
+    this.place();
   }
 
   private measure(): { top: number; left: number; width: number; height: number } {
@@ -90,6 +135,10 @@ export class SpotlightDirective implements OnInit, OnDestroy {
   private place(): void {
     this.overlay?.setInput('rect', this.measure());
     this.overlay?.setInput('viewport', { width: window.innerWidth, height: window.innerHeight });
+    const pop = this.overlay?.location.nativeElement.querySelector('.pop') as HTMLElement | null;
+    if (pop && pop.offsetHeight > 0) {
+      this.overlay?.setInput('cardHeight', pop.offsetHeight);
+    }
   }
 
   /** Closing, or leaving the page with the spotlight open, records the page as seen. */

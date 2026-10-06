@@ -9,10 +9,28 @@ export interface SpotRect {
 }
 
 const CARD_GAP = 12;
-const EDGE = 12;
+const EDGE = 16;
 const CARD_WIDTH = 320;
 const CARD_HEIGHT_ESTIMATE = 170;
 const PAD = 6;
+
+/**
+ * Where the pop card goes: under the cut-out, or above it when there is no room below, always fully inside the
+ * viewport, with a 16 px gutter at the sides.
+ */
+export function placeCard(
+  cut: SpotRect,
+  view: { width: number; height: number },
+  cardHeight = CARD_HEIGHT_ESTIMATE
+): { top: number; left: number } {
+  const width = Math.min(CARD_WIDTH, view.width - EDGE * 2);
+  const below = cut.top + cut.height + CARD_GAP;
+  const above = cut.top - CARD_GAP - cardHeight;
+  const raw = below + cardHeight <= view.height - EDGE ? below : above >= EDGE ? above : below;
+  const top = Math.min(Math.max(EDGE, raw), Math.max(EDGE, view.height - cardHeight - EDGE));
+  const left = Math.min(Math.max(EDGE, cut.left), Math.max(EDGE, view.width - width - EDGE));
+  return { top, left };
+}
 
 /**
  * The pop card of a first-visit spotlight, with a dark scrim that has a cut-out around the anchor. The scrim
@@ -47,6 +65,8 @@ export class SpotlightComponent {
   readonly rect = input.required<SpotRect>();
   readonly viewport = input<{ width: number; height: number }>({ width: window.innerWidth, height: window.innerHeight });
 
+  readonly cardHeight = input<number>(CARD_HEIGHT_ESTIMATE);
+
   readonly gotIt = output<void>();
   readonly skip = output<void>();
 
@@ -57,14 +77,7 @@ export class SpotlightComponent {
   });
 
   /** The card goes under the anchor, or above it when there is no room below, and stays inside the viewport. */
-  protected readonly pop = computed(() => {
-    const r = this.cut();
-    const view = this.viewport();
-    const below = r.top + r.height + CARD_GAP;
-    const top = below + CARD_HEIGHT_ESTIMATE <= view.height ? below : Math.max(EDGE, r.top - CARD_GAP - CARD_HEIGHT_ESTIMATE);
-    const left = Math.min(Math.max(EDGE, r.left), Math.max(EDGE, view.width - CARD_WIDTH - EDGE));
-    return { top, left };
-  });
+  protected readonly pop = computed(() => placeCard(this.cut(), this.viewport(), this.cardHeight()));
 
   @HostListener('document:keydown.escape')
   protected onEscape(): void {

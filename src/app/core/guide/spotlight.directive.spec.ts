@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GuideService } from './guide.service';
 import { signInAs } from './guide-testing.spec';
 import { SpotlightDirective } from './spotlight.directive';
+import { placeCard } from './spotlight.component';
 
 @Component({
   imports: [SpotlightDirective],
@@ -80,5 +81,34 @@ describe('SpotlightDirective', () => {
     localStorage.setItem('fitsync.guide.tour-user.first-seen', String(Date.now() - 30 * 24 * 3600 * 1000));
     mount();
     expect(overlay()).toBeNull();
+  });
+
+  describe('placeCard', () => {
+    const view = { width: 1000, height: 700 };
+    const inside = (p: { top: number; left: number }, h = 170, w = 320): boolean =>
+      p.top >= 16 && p.left >= 16 && p.top + h <= view.height - 16 && p.left + w <= view.width - 16;
+
+    it('puts the card under an anchor with room below', () => {
+      const p = placeCard({ top: 100, left: 200, width: 120, height: 40 }, view);
+      expect(p.top).toBe(152);
+      expect(inside(p)).toBeTrue();
+    });
+
+    it('flips above the anchor near the bottom of the viewport', () => {
+      const cut = { top: 600, left: 200, width: 120, height: 40 };
+      const p = placeCard(cut, view);
+      expect(p.top + 170).toBeLessThanOrEqual(cut.top);
+      expect(inside(p)).toBeTrue();
+    });
+
+    it('keeps the card inside the viewport for an anchor below the fold and at the right edge', () => {
+      const p = placeCard({ top: 900, left: 950, width: 120, height: 40 }, view);
+      expect(inside(p)).toBeTrue();
+    });
+
+    it('clamps to a 16 px gutter on a narrow screen', () => {
+      const p = placeCard({ top: 100, left: -20, width: 120, height: 40 }, { width: 360, height: 640 });
+      expect(p.left).toBe(16);
+    });
   });
 });
