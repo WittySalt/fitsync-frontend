@@ -58,6 +58,7 @@ export class ProfilePage implements OnInit {
   protected readonly goals = signal<UserGoal[]>([]);
   protected readonly usualMeals = signal<{ label: string; time: string }[]>([]);
   protected readonly usualStart = signal<string | null>(null);
+  protected readonly injuries = signal<string[]>([]);
 
   protected readonly footprint = signal<Footprint | null>(null);
   protected readonly footprintLoading = signal(true);
@@ -84,7 +85,7 @@ export class ProfilePage implements OnInit {
       weightKg: user.latestBodyMetrics?.weightKg ?? null,
       focusAreas: training?.focusAreas ?? [],
       equipment: training?.equipmentInventory ?? [],
-      injuries: user.healthReadiness?.injuryAreas ?? [],
+      injuries: this.injuries(),
       diet: user.preferences?.nutrition?.dietaryPattern ?? null,
       meals: this.usualMeals()
     };
@@ -149,8 +150,10 @@ export class ProfilePage implements OnInit {
     this.loadGoals();
     forkJoin({
       meals: this.data.getUsualMeals().pipe(catchError(() => of([]))),
-      insight: this.data.getWeeklyTrainingInsight().pipe(catchError(() => of(null)))
-    }).subscribe(({ meals, insight }) => {
+      insight: this.data.getWeeklyTrainingInsight().pipe(catchError(() => of(null))),
+      injuries: this.data.getInjuryAreas()
+    }).subscribe(({ meals, insight, injuries }) => {
+      this.injuries.set(injuries);
       this.usualMeals.set(
         MEAL_ORDER.map((type) => meals.find((meal) => meal.mealType === type))
           .filter((meal): meal is NonNullable<typeof meal> => !!meal && meal.usualTime !== null)

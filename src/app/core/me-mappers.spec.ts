@@ -127,6 +127,17 @@ describe('the data layer for Me', () => {
     expect(days).toBe(1);
   });
 
+  it('reads the injured areas from the health readiness endpoint, and none when it fails', () => {
+    const results: string[][] = [];
+    const service = TestBed.inject(FitSyncDataService);
+    service.getInjuryAreas().subscribe((areas) => results.push(areas));
+    http.expectOne('/api/v1/users/me/health-readiness').flush({ injuryAreas: ['LOWER_BACK'] });
+    service.getInjuryAreas().subscribe((areas) => results.push(areas));
+    http.expectOne('/api/v1/users/me/health-readiness').flush('down', { status: 500, statusText: 'Server Error' });
+
+    expect(results).toEqual([['LOWER_BACK'], []]);
+  });
+
   it('loads the badges from the achievements endpoint', () => {
     let codes: string[] = [];
     TestBed.inject(FitSyncDataService)

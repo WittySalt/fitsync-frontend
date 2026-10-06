@@ -65,7 +65,8 @@ describe('ProfilePage', () => {
     jasmine.clock().mockDate(new Date('2026-10-06T04:00:00Z'));
     account = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['getCurrentUser']);
     account.getCurrentUser.and.returnValue(of(user()));
-    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getFootprint', 'getBadges', 'getGoals', 'getUsualMeals', 'getWeeklyTrainingInsight']);
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getFootprint', 'getBadges', 'getGoals', 'getUsualMeals', 'getWeeklyTrainingInsight', 'getInjuryAreas']);
+    data.getInjuryAreas.and.returnValue(of(['LOWER_BACK']));
     data.getFootprint.and.returnValue(of(FOOTPRINT));
     data.getBadges.and.returnValue(of(BADGES));
     data.getGoals.and.returnValue(of(goals));
@@ -129,6 +130,13 @@ describe('ProfilePage', () => {
     ]);
     expect(clean(el.querySelector('app-achievements-card .open'))).toBe('All 17 ›');
     expect(el.querySelector('app-achievements-card .open')?.getAttribute('href')).toBe('/me/achievements');
+  });
+
+  it('shows the injuries from the health readiness answers', () => {
+    const chips = Array.from(render().querySelectorAll('app-about-you .chip')).map((chip) => clean(chip));
+
+    expect(chips).toContain('Lower back');
+    expect(data.getInjuryAreas).toHaveBeenCalled();
   });
 
   it('has six settings rows, each to its section, with Delete account in the danger colour', () => {
@@ -206,6 +214,7 @@ describe('ProfilePage', () => {
     data.getBadges.and.returnValue(of({ ...BADGES, earned: 0, latest: null, nextUp: [BADGES.themes[0].paths[0].nodes[0], BADGES.themes[2].paths[0].nodes[0]].map((entry) => ({ ...entry, earnedOn: null, progress: { ...entry.progress, current: 0 } })) }));
     data.getGoals.and.returnValue(of([]));
     data.getUsualMeals.and.returnValue(of([]));
+    data.getInjuryAreas.and.returnValue(of([]));
     data.getWeeklyTrainingInsight.and.returnValue(of({ usualStartTime: null } as unknown as WeeklyTrainingInsight));
 
     const el = render();

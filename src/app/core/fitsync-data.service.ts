@@ -1296,6 +1296,14 @@ export class FitSyncDataService {
     return this.http.get<unknown>(`${this.apiBaseUrl}/analytics/achievements`).pipe(map(mapBadges));
   }
 
+  /** The injured areas from the health readiness answers; none when the call fails or nothing was answered. */
+  getInjuryAreas(): Observable<string[]> {
+    return this.http.get<{ injuryAreas?: string[] | null } | null>(`${this.apiBaseUrl}/users/me/health-readiness`).pipe(
+      map((view) => (Array.isArray(view?.injuryAreas) ? view.injuryAreas.filter((area): area is string => typeof area === 'string') : [])),
+      catchError(() => of([] as string[]))
+    );
+  }
+
   getGoals(): Observable<UserGoal[]> {
     return this.http.get<BackendUserGoal[]>(`${this.apiBaseUrl}/users/me/goals`).pipe(
       map((goals) =>

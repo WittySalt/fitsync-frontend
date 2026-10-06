@@ -129,8 +129,6 @@ export interface AccountUserResponse {
   preferences: AccountPreferences;
   activeGoals: UserGoal[];
   latestBodyMetrics: AccountBodyMetric | null;
-  /** The health readiness answers; only the injured areas are read, by the Me page. */
-  healthReadiness?: { injuryAreas?: string[] | null } | null;
 }
 
 export interface AuthAccountResponse {
