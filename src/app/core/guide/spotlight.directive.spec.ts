@@ -16,6 +16,11 @@ describe('SpotlightDirective', () => {
 
   function mount(): void {
     signInAs('tour-user');
+    // Whatever earlier specs left in the document, the anchor counts as in view, so the directive takes its
+    // synchronous path instead of scrolling first.
+    if (!jasmine.isSpy(HTMLElement.prototype.getBoundingClientRect)) {
+      spyOn(HTMLElement.prototype, 'getBoundingClientRect').and.returnValue(new DOMRect(120, 140, 90, 36));
+    }
     fixture = TestBed.createComponent(HostComponent);
     document.body.appendChild(fixture.nativeElement);
     fixture.detectChanges();
