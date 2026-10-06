@@ -101,7 +101,9 @@ export class SpotlightPathService {
   private present(page: TourPage): { id: string; anchor: SpotlightAnchor }[] {
     const found: { id: string; anchor: SpotlightAnchor }[] = [];
     for (const step of GUIDE_PATHS[page]) {
-      const anchor = this.anchors.find((candidate) => candidate.page === page && candidate.step === step.id && candidate.element.isConnected);
+      const candidates = this.anchors.filter((candidate) => candidate.page === page && candidate.step === step.id && candidate.element.isConnected);
+      // A step can have two anchors when the layout swaps one for the other; the one with a box on screen wins.
+      const anchor = candidates.find((candidate) => candidate.element.getClientRects().length > 0) ?? candidates[0];
       if (anchor) {
         found.push({ id: step.id, anchor });
       }

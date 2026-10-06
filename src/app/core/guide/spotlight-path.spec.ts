@@ -33,6 +33,10 @@ class BlankComponent {}
     }
     @if (withWorkout()) {
       <button id="today" style="top: 140px" appSpotlight="workout" spotlightStep="today" [spotlightVariant]="variant()">Today</button>
+      @if (twinFocus()) {
+        <button id="focus-hidden" style="display: none" appSpotlight="workout" spotlightStep="focus">Hidden</button>
+        <button id="focus-shown" style="top: 160px" appSpotlight="workout" spotlightStep="focus">Shown</button>
+      }
       <button id="tabs" style="top: 180px" appSpotlight="workout" spotlightStep="tabs">Tabs</button>
     }
     @if (withNutrition()) {
@@ -46,6 +50,7 @@ class HostComponent {
   readonly withNutrition = signal(false);
   readonly showAbout = signal(true);
   readonly variant = signal('');
+  readonly twinFocus = signal(false);
 }
 
 describe('The spotlight path', () => {
@@ -173,6 +178,21 @@ describe('The spotlight path', () => {
     button('Next')?.click();
     expect(eyebrow()).toBe('Step 2 of 2');
     expect(title()).toBe('Your badges');
+    wrapUp();
+  }));
+
+  it('points a step with two anchors at the one that has a box on screen', fakeAsync(() => {
+    open('/workout', (host) => {
+      host.withMe.set(false);
+      host.withWorkout.set(true);
+      host.twinFocus.set(true);
+    });
+
+    button('Next')?.click();
+    expect(title()).toBe('Today’s focus');
+    const shown = (fixture.nativeElement as HTMLElement).querySelector('#focus-shown') as HTMLElement;
+    const cut = overlay()?.querySelector('.cut') as HTMLElement;
+    expect(parseFloat(cut.style.top)).toBeCloseTo(shown.getBoundingClientRect().top - 6, 1);
     wrapUp();
   }));
 
