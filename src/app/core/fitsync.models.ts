@@ -113,6 +113,8 @@ export interface WorkoutSession {
   /** The calories, or the effort, were estimated by the server rather than entered by the person. */
   caloriesEstimated?: boolean;
   effortEstimated?: boolean;
+  /** The effort the person gave the session, 1 to 10; null when none was given. */
+  perceivedExertion?: number | null;
 }
 
 /** A personal record a session set, given only in the answer to completing or counting it. */

@@ -1,3 +1,4 @@
+import { TodayFocusService } from './today-focus/today-focus.service';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -201,6 +202,7 @@ describe('WorkoutPage and the workout in progress', () => {
           }
         },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
+        { provide: TodayFocusService, useValue: { load: () => of({ insight: null, next: null, moves: [], history: [], runs: [] }) } },
         { provide: FitSyncDataService, useValue: dataService },
         { provide: ToastService, useValue: toast }
       ]

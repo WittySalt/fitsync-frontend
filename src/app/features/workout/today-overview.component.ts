@@ -1,10 +1,13 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { of, startWith, switchMap } from 'rxjs';
 
 import {
   DayInsight,
   DayKind,
   DaySessionInsight,
   NextTraining,
+  WeeklyTrainingInsight,
   TodayInsight,
   WorkoutPlan,
   WorkoutPlanExercise,
@@ -21,6 +24,10 @@ import { isoWeekdayOfDateKey, planDayOn } from './plan-day-pick';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { PlanTemplatesComponent } from './plan-templates.component';
 import { TrainElseSheetComponent } from './train-else-sheet.component';
+import { FocusCardBlockComponent } from './today-focus/focus-card-block.component';
+import { FocusKind, FocusModel, FocusTarget, buildFocus } from './today-focus/today-focus';
+import { TodayFocusComponent } from './today-focus/today-focus.component';
+import { TodayFocusService } from './today-focus/today-focus.service';
 import { deriveDurationMinutes, isCompletedSession } from './workout-session.util';
 
 /** Which plan day a Start press means. The day is null when the card cannot tell (the plain
@@ -67,6 +74,20 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 /** A mobility card shows a taste of the routine, not all of it. */
 const MOBILITY_ROW_LIMIT = 3;
 
+/** The kinds of day that have a companion. */
+function focusKindOf(kind: DayKind): FocusKind | null {
+  switch (kind) {
+    case 'STRENGTH':
+      return 'strength';
+    case 'CARDIO':
+      return 'cardio';
+    case 'SPORT':
+      return 'sport';
+    default:
+      return null;
+  }
+}
+
 const START_LABEL = 'Start session';
 const ELSE_BUTTON: TodayButton = { label: 'Train something else', action: 'else' };
 const FREE_BUTTON: TodayButton = { label: 'Start a free workout', action: 'free' };
@@ -74,7 +95,7 @@ const BROWSE_BUTTON: TodayButton = { label: 'Browse plans', action: 'browse' };
 
 @Component({
   selector: 'app-today-overview',
-  imports: [PlanTemplatesComponent, HabitDayStartComponent, TrainElseSheetComponent, SpotlightDirective],
+  imports: [PlanTemplatesComponent, HabitDayStartComponent, TrainElseSheetComponent, SpotlightDirective, TodayFocusComponent, FocusCardBlockComponent],
   templateUrl: './today-overview.component.html',
   styleUrl: './today-overview.component.scss'
 })
@@ -91,7 +112,11 @@ export class TodayOverviewComponent {
   readonly nextTraining = input<NextTraining | null>(null);
   /** Today's entry in the insight's week, which knows the sessions behind a finished day. */
   readonly todayDay = input<DayInsight | null>(null);
-  private readonly timezone = inject(UserTimezoneService).zone;
+  /** The week's reading, which the companion takes its muscles and its week from. */
+  readonly insight = input<WeeklyTrainingInsight | null>(null);
+  private readonly zoneService = inject(UserTimezoneService);
+  private readonly focusService = inject(TodayFocusService);
+  private readonly timezone = this.zoneService.zone;
 
   readonly startPlan = output<TodayStartEvent>();
   readonly startExercise = output<WorkoutPlanExercise>();
@@ -121,6 +146,27 @@ export class TodayOverviewComponent {
   readonly elseOpen = signal(false);
 
   readonly card = computed<TodayCard>(() => this.buildCard());
+
+  /** The day the companion is built for; null when the day has none (no plan, a finished or open day, mobility). */
+  readonly focusTarget = computed<FocusTarget | null>(() => this.buildFocusTarget());
+  private readonly focusFacts = toSignal(
+    toObservable(computed(() => ({ target: this.focusTarget(), insight: this.insight(), next: this.nextTraining() }))).pipe(
+      switchMap(({ target, insight, next }) => (target ? this.focusService.load(target, insight, next).pipe(startWith(null)) : of(null)))
+    ),
+    { initialValue: null }
+  );
+  /** The companion of the day, once its facts are in. */
+  readonly focus = computed<FocusModel | null>(() => {
+    const target = this.focusTarget();
+    const facts = this.focusFacts();
+    return target && facts ? buildFocus(target, facts, (value) => (value ? this.zoneService.dateKey(new Date(value)) : '')) : null;
+  });
+  readonly focusLoading = computed(() => this.focusTarget() !== null && this.focus() === null);
+  /** The week Ask sends with its question. */
+  readonly focusRange = computed(() => {
+    const insight = this.insight();
+    return insight?.weekStart && insight.weekEnd ? { from: insight.weekStart, to: insight.weekEnd } : null;
+  });
 
   readonly glyph = computed<GlyphShape[]>(() => DAY_KIND_GLYPHS[this.card().kind]);
 
@@ -238,6 +284,25 @@ export class TodayOverviewComponent {
       .replaceAll('_', ' ')
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  private buildFocusTarget(): FocusTarget | null {
+    const today = this.today();
+    const plan = this.activePlan();
+    if (!plan || !today || today.source === 'IN_PROGRESS' || today.source === 'DONE') {
+      return null;
+    }
+    const rest = today.kind === 'REST' || today.kind === 'OPEN';
+    if (rest && today.carriedOver.length > 0) {
+      const first = today.carriedOver[0];
+      const kind = focusKindOf(first.kind);
+      return kind ? { kind, title: first.title, label: first.title, minutes: first.estimatedMinutes, moves: this.dayExercises(first.planDayId), today: today.date } : null;
+    }
+    if (today.kind === 'REST') {
+      return { kind: 'rest', title: 'Rest day', label: 'Rest', minutes: null, moves: [], today: today.date };
+    }
+    const kind = rest || (today.source === 'HABIT' && !today.planDayId) ? null : focusKindOf(today.kind);
+    return kind ? { kind, title: today.title || today.label, label: today.label, minutes: today.estimatedMinutes, moves: this.dayExercises(today.planDayId), today: today.date } : null;
   }
 
   private buildCard(): TodayCard {

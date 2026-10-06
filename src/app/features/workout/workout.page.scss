@@ -246,4 +246,13 @@
       grid-column: 1 / -1;
     }
   }
+
+  // From 1412 px the content is 1100 px wide: the Today card and its companion take the row, and quick start sits below them.
+  @media (min-width: 1412px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    > app-live-start-card {
+      position: static;
+    }
+  }
 }

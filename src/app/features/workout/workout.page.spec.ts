@@ -1,3 +1,4 @@
+import { TodayFocusService } from './today-focus/today-focus.service';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { CoachApiService } from '../../core/coach/coach-api.service';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
@@ -313,6 +314,7 @@ describe('WorkoutPage', () => {
         { provide: CoachApiService, useValue: coachApiStub },
         // The page reads an optional ?tab= on init; these specs land on the default.
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
+        { provide: TodayFocusService, useValue: { load: () => of({ insight: null, next: null, moves: [], history: [], runs: [] }) } },
         provideHttpClient(), { provide: FitSyncDataService, useValue: dataService }]
     }).compileComponents();
 
