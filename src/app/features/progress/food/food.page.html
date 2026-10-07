@@ -8,7 +8,7 @@
     <app-contents-rail detailRail tour="progress-food" [items]="sections" label="Sections of the Food page" />
   }
   @if (data(); as food) {
-    <app-highlights [highlights]="food.highlights" [context]="context()" />
+    <app-highlights [highlights]="highlights()" [context]="context()" />
 
     <app-detail-section name="Energy" tour="progress-food" anchor="energy" [sentence]="energyLine()" [context]="context()" [ask]="energyAsk">
       @if (food.energy.thisWeek; as week) {

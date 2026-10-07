@@ -1,7 +1,9 @@
 import { shortDateLabel } from '../../../shared/date-label';
 import { monthName } from '../../../shared/progress/chart-axis';
 import { NO_EARLIER_DATA, formatNumber, signed } from '../../../shared/progress/progress-format';
-import { HeroStat, SummaryLine } from '../../../shared/progress/progress.models';
+import { HeroStat, Highlight, SummaryLine } from '../../../shared/progress/progress.models';
+import { reachSummary } from '../../nutrition/nutrients/nutrients-figures';
+import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { FoodGranularity, FoodProgress, MacroTrend } from '../progress-api.models';
 
 /** Within this share of the period before, a daily figure reads as steady (board 19c: −3% is steady). */
@@ -222,3 +224,34 @@ export function monthSlots(from: string, to: string): string[] {
 }
 
 export const ENERGY_ASK = 'How is my energy balance worked out? It is what I ate against resting energy × 1.2 plus workouts, on logged days only.';
+
+/**
+ * The lowest-nutrient highlight follows the same read as the Nutrients section's petals, so the page says one
+ * figure for the furthest-short nutrient. Without the petal read the highlights are returned as they came.
+ */
+export function highlightsWithOverview(highlights: Highlight[], overview: NutrientsOverview | null, days: number): Highlight[] {
+  if (!overview) {
+    return highlights;
+  }
+  const lowest = reachSummary(overview.nutrients).lowest[0];
+  const rest = highlights.filter((item) => item.code !== 'LOWEST_NUTRIENT');
+  if (!lowest || lowest.share === null) {
+    return rest;
+  }
+  const pct = Math.round(lowest.share * 100);
+  const card: Highlight = {
+    code: 'LOWEST_NUTRIENT',
+    title: `${lowest.displayName} is the furthest short, ${pct}% of the daily amount.`,
+    series: [
+      { label: lowest.displayName, value: pct },
+      { label: 'Daily amount', value: 100 }
+    ],
+    unit: '%',
+    context: `On average, the last ${days} days`
+  };
+  const index = highlights.findIndex((item) => item.code === 'LOWEST_NUTRIENT');
+  if (index >= 0) {
+    return highlights.map((item, i) => (i === index ? card : item));
+  }
+  return rest.length < 4 ? [...rest, card] : rest;
+}
