@@ -140,8 +140,11 @@ export class FoodNutrientsSectionComponent {
     return item && item.share !== null ? { code: item.code, name: item.displayName, pct: Math.round(item.share * 100) } : null;
   });
 
-  /** Nutrients and habits cover nutrition's recent window, the last 31 days of the period at most. */
+  /** The days the petals and the chips cover: the page's range when the petal read is in, else nutrition's recent window. */
   protected readonly windowText = computed(() => {
+    if (this.overview()) {
+      return `the last ${this.range().days} days`;
+    }
     const window = this.nutrition()?.recentWindow;
     return window ? dateRangeLabel(window.from, window.to) : `the last ${this.range().days} days`;
   });
@@ -153,12 +156,12 @@ export class FoodNutrientsSectionComponent {
     const reach = this.reach();
     return reach && reach.total ? `${reach.reached} of ${reach.total} reached the daily amount on average.` : '';
   });
-  /** Nutrition's own lowest three, or the petal data's when that read failed. */
+  /** The lowest three from the same read as the petals, so the chips and the petals agree; nutrition's own list only when that read failed. */
   protected readonly lowest = computed(() => {
-    const fromNutrition = this.nutrition()?.lowestNutrients ?? [];
-    const items = fromNutrition.length
-      ? fromNutrition.map((item) => ({ code: item.code, displayName: item.displayName, share: item.share }))
-      : (this.reach()?.lowest ?? []).map((item) => ({ code: item.code, displayName: item.displayName, share: item.share ?? 0 }));
+    const fromPetals = this.reach()?.lowest ?? [];
+    const items = fromPetals.length
+      ? fromPetals.map((item) => ({ code: item.code, displayName: item.displayName, share: item.share ?? 0 }))
+      : (this.nutrition()?.lowestNutrients ?? []).map((item) => ({ code: item.code, displayName: item.displayName, share: item.share }));
     return items.map((item) => ({ ...item, pct: Math.round(item.share * 100) }));
   });
   /** The one sentence under Nutrients: how many reached the daily amount and the furthest short. */
