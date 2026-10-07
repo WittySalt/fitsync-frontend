@@ -78,14 +78,14 @@ describe('NutrientsPage', () => {
 
   it('follows ?range=90 from Progress with a 90 days button and asks the server for 90 days', async () => {
     const el = await open('/nutrition/nutrients?range=90');
-    expect(service.getAll.calls.mostRecent().args[2]).toBe(90);
+    const [from, to] = service.getAll.calls.mostRecent().args;
+    expect((new Date(to).getTime() - new Date(from).getTime()) / 86400000).toBe(89);
     expect(el.querySelector('.periods button[aria-pressed="true"]')?.textContent?.trim()).toBe('90 days');
     expect(el.querySelectorAll('.periods button').length).toBe(4);
   });
 
   it('keeps All nutrients at 7 days with no 90 days button when it is opened from Nutrition', async () => {
     const el = await open();
-    expect(service.getAll.calls.mostRecent().args[2]).toBeNull();
     expect(el.querySelectorAll('.periods button').length).toBe(3);
   });
 

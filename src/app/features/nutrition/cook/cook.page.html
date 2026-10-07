@@ -131,7 +131,7 @@
       [servingsCooked]="servings()"
       [kcalPerServing]="finishedRecipe.kcalPerServing"
       [firstCook]="finishedRecipe.cookCount === 0"
-      (done)="close()"
+      (done)="leaveFinished($event)"
     />
   }
 

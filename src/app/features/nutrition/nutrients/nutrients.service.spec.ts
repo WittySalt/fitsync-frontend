@@ -28,11 +28,12 @@ describe('NutrientsService', () => {
     expect(count).toBe(1);
   });
 
-  it('asks for 90 days with days=90 alone, because from and to stop at 31 days', () => {
-    service.getAll('2026-07-05', '2026-10-02', 90).subscribe();
+  it('asks for 90 days with from and to, and sends no days parameter', () => {
+    service.getAll('2026-07-05', '2026-10-02').subscribe();
     const request = http.expectOne((req) => req.url === '/api/v1/nutrition/nutrients/summary');
-    expect(request.request.params.get('days')).toBe('90');
-    expect(request.request.params.has('from')).toBeFalse();
+    expect(request.request.params.get('from')).toBe('2026-07-05');
+    expect(request.request.params.get('to')).toBe('2026-10-02');
+    expect(request.request.params.has('days')).toBeFalse();
     request.flush({ daysLogged: 40, nutrients: [] });
   });
 

@@ -57,7 +57,6 @@ describe('NutrientPage', () => {
     expect(el.querySelector('a.door')).toBeNull();
     const [, from, to] = service.getOne.calls.mostRecent().args;
     expect((new Date(to).getTime() - new Date(from).getTime()) / 86400000).toBe(89);
-    expect(service.getAll.calls.mostRecent().args[2]).toBe(90);
     expect(el.querySelector('a.back')?.getAttribute('href')).toContain('range=90');
   });
 

@@ -332,7 +332,7 @@ export class DiaryDayComponent {
     this.data.eatLeftover(row.cookId, { mealType: slot, servings: 1 }).subscribe({
       next: (updated) => {
         this.busy.set(false);
-        const left = updated?.servingsLeft ?? row.servingsLeft - 1;
+        const left = updated ? updated.servingsLeft : row.servingsLeft - 1;
         this.leftovers.update((rows) => rows.flatMap((item) => (item.cookId !== row.cookId ? [item] : left > 0 ? [{ ...item, servingsLeft: left }] : [])));
         this.toast.success(`Logged one serving of ${row.name.toLowerCase()}.`);
         this.afterMealChange();

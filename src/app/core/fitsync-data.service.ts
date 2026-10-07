@@ -1996,11 +1996,17 @@ export class FitSyncDataService {
     );
   }
 
-  /** Logs `servings` of a leftover into a meal; the answer is the updated row, whose servingsLeft may be 0. A 409 means none were left. */
-  eatLeftover(cookId: string, request: { mealType: string; servings: number }): Observable<Leftover | null> {
+  /** Logs `servings` of a leftover into a meal; the answer carries the servings still left (0 at the end). A 409 means none were left. */
+  eatLeftover(cookId: string, request: { mealType: string; servings: number }): Observable<{ cookId: string; servingsLeft: number } | null> {
     return this.http
       .post<unknown>(`${this.apiBaseUrl}/nutrition/recipes/cooks/${encodeURIComponent(cookId)}/leftover`, request)
-      .pipe(map(toLeftover));
+      .pipe(
+        map((response) => {
+          const row = (response ?? {}) as Record<string, unknown>;
+          const left = finiteOrNull(row['servingsLeft']);
+          return left === null ? null : { cookId: typeof row['cookId'] === 'string' ? row['cookId'] : cookId, servingsLeft: left };
+        })
+      );
   }
 
   /** The meals a person usually has, from the last fourteen days, one entry per meal type. */

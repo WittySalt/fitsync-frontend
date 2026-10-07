@@ -922,13 +922,13 @@ describe('FitSyncDataService', () => {
   });
 
   it('eats one serving of a leftover and returns the updated row', () => {
-    let result: Leftover | null | undefined;
+    let result: { cookId: string; servingsLeft: number } | null | undefined;
     service.eatLeftover('c 1', { mealType: 'DINNER', servings: 1 }).subscribe((value) => (result = value));
 
     const request = httpTesting.expectOne('/api/v1/nutrition/recipes/cooks/c%201/leftover');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ mealType: 'DINNER', servings: 1 });
-    request.flush({ cookId: 'c 1', recipeId: 'r1', name: 'Beef stew', cookedAt: '2026-10-05T11:00:00Z', servingsLeft: 2, kcalPerServing: 540 });
+    request.flush({ cookId: 'c 1', servingsLeft: 2, meal: { mealId: 'm1' } });
 
     expect(result?.servingsLeft).toBe(2);
   });

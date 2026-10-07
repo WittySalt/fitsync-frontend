@@ -17,9 +17,8 @@ export class NutrientsService {
   private readonly base = '/api/v1/nutrition/nutrients';
 
   /** Every nutrient with a reference, in table order, for the days from `from` to `to`. */
-  getAll(from: string, to: string, days: number | null = null): Observable<NutrientsOverview> {
-    // The server keeps 31 days for from and to; 90 days is asked for by `days`, which ends today.
-    const params = days === 90 ? new HttpParams().set('scope', 'all').set('days', '90') : new HttpParams().set('scope', 'all').set('from', from).set('to', to);
+  getAll(from: string, to: string): Observable<NutrientsOverview> {
+    const params = new HttpParams().set('scope', 'all').set('from', from).set('to', to);
     return this.http.get<Wire>(`${this.base}/summary`, { params }).pipe(map((response) => mapNutrientsOverview(response ?? {})));
   }
 

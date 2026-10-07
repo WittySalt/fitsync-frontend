@@ -200,7 +200,7 @@ export class NutrientPage {
     }
     this.ordering?.unsubscribe();
     this.orderPeriod = period;
-    this.ordering = this.service.getAll(from, to, period === '90d' ? 90 : null).subscribe({
+    this.ordering = this.service.getAll(from, to).subscribe({
       next: (overview) => this.order.set(tableOrder(overview.nutrients)),
       error: () => this.order.set([])
     });

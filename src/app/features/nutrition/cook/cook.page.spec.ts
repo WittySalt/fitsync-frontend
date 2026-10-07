@@ -1,9 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 
 import { anchorSteps } from '../../../core/guide/guide-testing.spec';
+import { CookFinishedComponent } from './cook-finished.component';
 import { CookPage } from './cook.page';
 import { COOK_SESSION_KEY, CookSessionService } from './cook-session.service';
 
@@ -308,47 +310,58 @@ describe('CookPage', () => {
   describe('recording the cook', () => {
     const recordUrl = '/api/v1/nutrition/recipes/r1/cooks';
 
-    function finishCooking(): void {
+    function finishCooking(cookCount = 0): void {
       setup();
-      load(wire({ cookCount: 0 }));
+      load(wire({ cookCount }));
       spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
       click('app-cook-steps li button', 2);
       click('.forward');
     }
 
-    it('sends the cook with the id made at the start, the servings and the times, then shows the card', () => {
+    const finished = () => fixture.debugElement.query(By.directive(CookFinishedComponent)).componentInstance as CookFinishedComponent;
+
+    it('shows the card at once and sends nothing until the card is left', () => {
       finishCooking();
-      expect(el.querySelector('app-cook-finished')).toBeNull();
-      const request = http.expectOne(recordUrl);
-      expect(request.request.body.clientCookId).toBe(session.data()!.cookId);
-      expect(request.request.body.servings).toBe(2);
-      expect(new Date(request.request.body.startedAt).getTime()).toBeLessThanOrEqual(new Date(request.request.body.finishedAt).getTime());
-      request.flush(null);
-      fixture.detectChanges();
+      http.expectNone(recordUrl);
       expect(el.querySelector('app-cook-finished')).not.toBeNull();
       expect(el.querySelector('app-cook-finished .earned')).not.toBeNull();
     });
 
-    it('tries once more when it fails, with the same id, and still shows the card when it fails twice', () => {
+    it('sends the cook with the id made at the start, the servings, the times and 0 logged when the person skips logging', () => {
       finishCooking();
+      finished().done.emit(0);
+      const request = http.expectOne(recordUrl);
+      expect(request.request.body.clientCookId).toBe(session.data()!.cookId);
+      expect(request.request.body.servings).toBe(2);
+      expect(request.request.body.servingsLogged).toBe(0);
+      expect(new Date(request.request.body.startedAt).getTime()).toBeLessThanOrEqual(new Date(request.request.body.finishedAt).getTime());
+      request.flush({ servingsLeft: 2 });
+    });
+
+    it('sends the servings the card logged', () => {
+      finishCooking();
+      finished().done.emit(1);
+      const request = http.expectOne(recordUrl);
+      expect(request.request.body.servingsLogged).toBe(1);
+      request.flush({ servingsLeft: 1 });
+    });
+
+    it('tries once more when it fails, with the same id, and still goes back to the recipe when it fails twice', () => {
+      finishCooking();
+      finished().done.emit(0);
       http.expectOne(recordUrl).flush('no', { status: 500, statusText: 'Server Error' });
       const again = http.expectOne(recordUrl);
       expect(again.request.body.clientCookId).toBe(session.data()!.cookId);
       again.flush('no', { status: 500, statusText: 'Server Error' });
-      fixture.detectChanges();
-      expect(el.querySelector('app-cook-finished')).not.toBeNull();
+      expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalled();
     });
 
     it('does not offer first time for a recipe cooked before, and sends nothing twice for a second tap', () => {
-      setup();
-      load(wire({ cookCount: 2 }));
-      spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
-      click('app-cook-steps li button', 2);
-      click('.forward');
-      expect((el.querySelector('.forward') as HTMLButtonElement).disabled).toBeTrue();
-      http.expectOne(recordUrl).flush(null);
-      fixture.detectChanges();
+      finishCooking(2);
       expect(el.querySelector('app-cook-finished .earned')).toBeNull();
+      finished().done.emit(0);
+      finished().done.emit(0);
+      http.expectOne(recordUrl).flush({ servingsLeft: 2 });
     });
   });
 
@@ -370,7 +383,6 @@ describe('CookPage', () => {
     click('app-cook-steps li button', 2);
     expect(el.querySelector('app-cook-finished')).toBeNull();
     click('.forward');
-    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
     fixture.detectChanges();
 
     expect(el.querySelector('app-cook-finished')).not.toBeNull();
@@ -527,11 +539,11 @@ describe('CookPage', () => {
     expect(navigate).toHaveBeenCalledWith(jasmine.stringMatching(/^\/nutrition\/recipes\/.+/), { replaceUrl: true });
     click('app-cook-steps li button', 2);
     click('.forward');
-    // Finish cooking records the cook, then opens the finish card; it leaves for the recipe when answered.
+    // Finish cooking opens the finish card; answering it records the cook and leaves for the recipe.
     expect(navigate).toHaveBeenCalledTimes(1);
-    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
     fixture.detectChanges();
     click('app-cook-finished .quiet');
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush({ servingsLeft: 2 });
     expect(navigate).toHaveBeenCalledTimes(2);
   });
 

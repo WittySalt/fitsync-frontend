@@ -552,7 +552,7 @@ describe('DiaryDayComponent', () => {
 
     it('logs one serving into the chosen meal, lowers the count and keeps the sheet open', () => {
       data.getLeftovers.and.returnValue(of([stew(3), pasta()]));
-      data.eatLeftover.and.returnValue(of(stew(2)));
+      data.eatLeftover.and.returnValue(of({ cookId: 'c1', servingsLeft: 2 }));
       const fixture = render();
       openLeftovers(fixture);
       qa<HTMLButtonElement>(fixture, 'app-leftovers-sheet .row')[0].click();
@@ -564,7 +564,7 @@ describe('DiaryDayComponent', () => {
 
     it('drops a row at zero and closes the sheet when the last serving goes', () => {
       data.getLeftovers.and.returnValue(of([pasta()]));
-      data.eatLeftover.and.returnValue(of({ ...pasta(), servingsLeft: 0 }));
+      data.eatLeftover.and.returnValue(of({ cookId: 'c2', servingsLeft: 0 }));
       const fixture = render();
       openLeftovers(fixture);
       qa<HTMLButtonElement>(fixture, 'app-leftovers-sheet .row')[0].click();

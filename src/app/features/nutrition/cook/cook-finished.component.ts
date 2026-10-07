@@ -70,10 +70,10 @@ import { CookLogComponent } from './cook-log.component';
         />
 
         @if (logged()) {
-          <button type="button" class="primary" (click)="done.emit()">Done</button>
+          <button type="button" class="primary" (click)="leave()">Done</button>
         } @else {
           <button type="button" class="primary" [disabled]="busy()" (click)="log()">{{ busy() ? 'Logging' : logLabel() }}</button>
-          <button type="button" class="quiet" [disabled]="busy()" (click)="done.emit()">Not now</button>
+          <button type="button" class="quiet" [disabled]="busy()" (click)="leave()">Not now</button>
         }
       </article>
     </div>
@@ -102,7 +102,8 @@ export class CookFinishedComponent implements OnInit {
   /** Overrides the browser's reduced-motion setting, for tests. */
   readonly reducedMotion = input<boolean | null>(null);
   /** Leave for the recipe page: after Done, or Not now. */
-  readonly done = output<void>();
+  /** Leaving the card, with the servings logged from it (0 when none). */
+  readonly done = output<number>();
 
   protected readonly today = signal<Load<DiarySummary>>(LOADING);
   protected readonly eaten = signal(1);
@@ -185,7 +186,7 @@ export class CookFinishedComponent implements OnInit {
   @HostListener('document:keydown.escape')
   protected leave(): void {
     if (!this.busy()) {
-      this.done.emit();
+      this.done.emit(this.logged() ? this.eaten() : 0);
     }
   }
 

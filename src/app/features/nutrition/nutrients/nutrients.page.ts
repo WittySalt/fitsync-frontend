@@ -184,7 +184,7 @@ export class NutrientsPage {
     this.state.set(LOADING);
     this.details.set({});
     const { from, to } = periodRange(period, this.userTimezone.dateKey());
-    this.loading = this.service.getAll(from, to, period === '90d' ? 90 : null).subscribe({
+    this.loading = this.service.getAll(from, to).subscribe({
       next: (data) => {
         this.state.set({ status: 'ready', data });
         this.restoreScroll(period);

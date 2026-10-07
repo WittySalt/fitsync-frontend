@@ -245,21 +245,36 @@ export class CookPage implements OnInit, OnDestroy {
     const started = data?.startedAt ?? Date.now();
     const now = Date.now();
     this.minutes.set(minutesCooked(started, now));
-    if (!data) {
-      this.finishing.set(true);
+    // The cook is recorded when the card closes, so it can say how many servings were logged.
+    this.finishing.set(true);
+  }
+
+  /** Leaves the Finished card: records the cook with the servings it logged, once more if it fails, then goes back to the recipe. */
+  protected leaveFinished(servingsLogged: number): void {
+    const data = this.session.data();
+    if (this.recording()) {
       return;
     }
-    // The cook is recorded first, once more if it fails; a failure still lets the card show.
+    if (!data) {
+      this.close();
+      return;
+    }
     this.recording.set(true);
     this.recipes
-      .recordCook(this.recipeId, { clientCookId: data.cookId, servings: this.servings(), startedAt: new Date(started), finishedAt: new Date(now) })
+      .recordCook(this.recipeId, {
+        clientCookId: data.cookId,
+        servings: this.servings(),
+        servingsLogged,
+        startedAt: new Date(data.startedAt ?? Date.now()),
+        finishedAt: new Date()
+      })
       .pipe(
         retry(1),
-        catchError(() => of(undefined))
+        catchError(() => of(null))
       )
       .subscribe(() => {
         this.recording.set(false);
-        this.finishing.set(true);
+        this.close();
       });
   }
 

@@ -182,7 +182,7 @@ export class FoodPage {
     toObservable(this.nutrientRange)
       .pipe(
         switchMap(({ days }) =>
-          this.nutrientsApi.getAll(lastDays(days, this.today).from, this.today, days).pipe(catchError(() => of(null)))
+          this.nutrientsApi.getAll(lastDays(days, this.today).from, this.today).pipe(catchError(() => of(null)))
         ),
         takeUntilDestroyed(this.destroyRef)
       )

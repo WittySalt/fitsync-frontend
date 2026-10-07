@@ -235,6 +235,12 @@ describe('progress pages', () => {
     });
   });
 
+  /** The days a nutrients read covered, from its from and to. */
+  const spanOf = (spy: jasmine.Spy): number => {
+    const [from, to] = spy.calls.mostRecent().args as [string, string];
+    return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+  };
+
   function render<T>(type: new (...args: never[]) => T): { fixture: ComponentFixture<T>; el: HTMLElement } {
     const fixture = TestBed.createComponent(type as never) as ComponentFixture<T>;
     fixture.detectChanges();
@@ -523,18 +529,18 @@ describe('progress pages', () => {
     it('takes the page period for the nutrients: 30 days at 4 weeks, 90 at 3 months, 90 with a caption at 1 year', () => {
       nutrientsRead.and.callFake(() => of(overview()));
       const { fixture, el } = render(FoodPage);
-      expect(nutrientsRead.calls.mostRecent().args[2]).toBe(30);
+      expect(spanOf(nutrientsRead)).toBe(30);
       const buttons = el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button');
       buttons[1].click();
       fixture.detectChanges();
       fixture.detectChanges();
-      expect(nutrientsRead.calls.mostRecent().args[2]).toBe(90);
+      expect(spanOf(nutrientsRead)).toBe(90);
       expect(el.querySelector('#nutrients .caption')).toBeNull();
       expect(el.querySelector<HTMLAnchorElement>('#nutrients .side a:last-child')?.getAttribute('href')).toBe('/nutrition/nutrients?range=90');
       buttons[2].click();
       fixture.detectChanges();
       fixture.detectChanges();
-      expect(nutrientsRead.calls.mostRecent().args[2]).toBe(90);
+      expect(spanOf(nutrientsRead)).toBe(90);
       expect(text(el.querySelector('#nutrients .caption'))).toBe('Last 3 months');
     });
 
