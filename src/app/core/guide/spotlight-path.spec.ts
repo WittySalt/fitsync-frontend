@@ -3,11 +3,12 @@ import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, flush, tick
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 
+import { AccountDataService } from '../account-data.service';
 import { FitSyncDataService } from '../fitsync-data.service';
 import { ToastService } from '../toast/toast.service';
 import { GUIDE_PATHS } from './guide-paths';
 import { GuideService } from './guide.service';
-import { signInAs } from './guide-testing.spec';
+import { createdDaysAgo, signInAs } from './guide-testing.spec';
 import { placeCard } from './spotlight.component';
 import { SpotlightDirective } from './spotlight.directive';
 
@@ -57,6 +58,7 @@ describe('The spotlight path', () => {
   let fixture: ComponentFixture<HostComponent>;
   let data: jasmine.SpyObj<FitSyncDataService>;
   let guide: GuideService;
+  let createdAt: string;
 
   const overlay = (): HTMLElement | null => document.body.querySelector('app-spotlight');
   const eyebrow = (): string => overlay()?.querySelector('.eyebrow')?.textContent?.trim() ?? '';
@@ -99,13 +101,20 @@ describe('The spotlight path', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getWorkoutPlans', 'getWorkoutSessionPage', 'hasLoggedMeal', 'getGoals']);
+    createdAt = createdDaysAgo(1);
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getWorkoutPlans', 'getWorkoutSessionPage', 'hasLoggedMeal', 'getGoals', 'getGuideState', 'putGuideState']);
+    data.getGuideState.and.returnValue(of({ state: null, updatedAt: null }));
+    data.putGuideState.and.returnValue(of({ state: {}, updatedAt: null }));
     data.getWorkoutPlans.and.returnValue(of([]));
     data.getWorkoutSessionPage.and.returnValue(of({ sessions: [] }) as never);
     data.hasLoggedMeal.and.returnValue(of(false));
     data.getGoals.and.returnValue(of([]));
     TestBed.configureTestingModule({
-      providers: [provideRouter([{ path: '**', component: BlankComponent }]), { provide: FitSyncDataService, useValue: data }]
+      providers: [
+        provideRouter([{ path: '**', component: BlankComponent }]),
+        { provide: FitSyncDataService, useValue: data },
+        { provide: AccountDataService, useValue: { getCurrentUser: () => of({ profile: { createdAt } }) } }
+      ]
     });
     guide = TestBed.inject(GuideService);
   });
@@ -147,7 +156,7 @@ describe('The spotlight path', () => {
     button('Done')?.click();
 
     expect(overlay()).toBeNull();
-    expect(JSON.parse(localStorage.getItem('fitsync.guide.tour-user.tour-map') ?? '{}').me.seen).toBeTrue();
+    expect(guide.seen('me')).toBeTrue();
     expect(guide.pathRunning()).toBeFalse();
     wrapUp();
   }));
@@ -160,7 +169,7 @@ describe('The spotlight path', () => {
     escape();
     escape();
     expect(overlay()).toBeNull();
-    expect(JSON.parse(localStorage.getItem('fitsync.guide.tour-user.tour-map') ?? '{}').me.seen).toBeTrue();
+    expect(guide.seen('me')).toBeTrue();
     wrapUp();
   }));
 
@@ -237,9 +246,9 @@ describe('The spotlight path', () => {
     wrapUp();
   }));
 
-  it('does not open on its own for an account older than 14 days, but does when the page is opened with ?guide=', fakeAsync(() => {
+  it('does not open on its own for an account made more than 14 days ago, but does when the page is opened with ?guide=', fakeAsync(() => {
     signInAs('tour-user');
-    localStorage.setItem('fitsync.guide.tour-user.first-seen', String(Date.now() - 30 * 24 * 3600 * 1000));
+    createdAt = createdDaysAgo(30);
     void TestBed.inject(Router).navigateByUrl('/me');
     tick();
     mount();
@@ -340,10 +349,10 @@ describe('The spotlight path', () => {
   });
 
   describe('every path', () => {
-    it('has two or three steps, with unique ids and plain copy', () => {
+    it('has two to four steps, with unique ids and plain copy', () => {
       for (const [page, steps] of Object.entries(GUIDE_PATHS)) {
         expect(steps.length).withContext(page).toBeGreaterThanOrEqual(2);
-        expect(steps.length).withContext(page).toBeLessThanOrEqual(3);
+        expect(steps.length).withContext(page).toBeLessThanOrEqual(4);
         expect(new Set(steps.map((step) => step.id)).size).withContext(page).toBe(steps.length);
         for (const step of steps) {
           for (const variant of ['', 'empty']) {

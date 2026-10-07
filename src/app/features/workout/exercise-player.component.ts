@@ -55,6 +55,8 @@ import { restCoachLine, restCoachQuestion } from './rest-coach';
 import { SpeechService } from './speech.service';
 import { StageExercise } from './stage-exercise';
 import { StepCarouselComponent } from './step-carousel.component';
+import { GuideService } from '../../core/guide/guide.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { fullGuideSteps, guideSteps } from './guide-steps';
 import { WorkoutCelebrationComponent, WorkoutCelebrationSummary } from './workout-celebration.component';
 import { SET_DONE_MS, WorkoutLiveService } from './workout-live.service';
@@ -119,6 +121,7 @@ interface UpNext {
     SetEditorComponent,
     ExercisePictureComponent,
     ExerciseGuideComponent,
+    SpotlightDirective,
     StepCarouselComponent
   ],
   templateUrl: './exercise-player.component.html',
@@ -131,6 +134,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly live = inject(WorkoutLiveService);
+  // The path of the player starts by itself only while no session has been completed yet.
+  private readonly firstSession = inject(GuideService).checkFirstSession();
 
   @Input({ required: true }) session: WorkoutSessionDetail | null = null;
   @Input({ required: true }) activePlan: WorkoutPlan | null = null;

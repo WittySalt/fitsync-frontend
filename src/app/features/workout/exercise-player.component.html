@@ -155,6 +155,8 @@
                 </div>
                 <app-step-carousel
                   slot="steps"
+                  appSpotlight="workout-session-player"
+                  spotlightStep="steps"
                   [steps]="currentSubject().steps"
                   [(index)]="stepIndex"
                   [(reading)]="readAloud"
@@ -166,6 +168,8 @@
                 />
                 <div slot="main" class="set-main">
                   <app-player-set-list
+                    appSpotlight="workout-session-player"
+                    spotlightStep="sets"
                     [sets]="currentSets()"
                     [currentSetNumber]="currentSetNumber()"
                     [currentValues]="chosenLine()"

@@ -8,6 +8,7 @@ import { of, throwError } from 'rxjs';
 import { AnalyticsApiService } from '../../core/analytics-api.service';
 import { FitSyncDataService, HomeDashboardData } from '../../core/fitsync-data.service';
 import { signInAs } from '../../core/guide/guide-testing.spec';
+import { GuideService } from '../../core/guide/guide.service';
 import { NutritionSummary } from '../../core/fitsync.models';
 import { DashboardPage } from './dashboard.page';
 import { UserTimezoneService } from '../../core/user-timezone.service';
@@ -171,6 +172,8 @@ describe('DashboardPage', () => {
 
   it('shows the Getting started card inside the brief for a signed-in new account', () => {
     signInAs('home-user');
+    // The guide's state would come from the server; a restart stands in for a loaded one.
+    TestBed.inject(GuideService).restart('home-user');
     fixture.detectChanges();
 
     const card = (fixture.nativeElement as HTMLElement).querySelector('app-coach-brief app-guide-card');

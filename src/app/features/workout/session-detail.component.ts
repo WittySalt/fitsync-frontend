@@ -22,11 +22,10 @@ import {
 import { formatKm } from '../dashboard/brief/brief-duration';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { SessionRecordComponent } from './session-record.component';
 import { WorkoutLiveService } from './workout-live.service';
 import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
-import { SESSION_OPENED } from '../../core/guide/guide-gates';
-import { GuideService } from '../../core/guide/guide.service';
 
 type ExerciseSetEditGroup = FormGroup<{
   reps: FormControl<number | null>;
@@ -56,7 +55,7 @@ const integerOrBlank: ValidatorFn = (control) => {
 
 @Component({
   selector: 'app-session-detail',
-  imports: [ReactiveFormsModule, StatePanelComponent, SessionRecordComponent],
+  imports: [ReactiveFormsModule, StatePanelComponent, SessionRecordComponent, SpotlightDirective],
   templateUrl: './session-detail.component.html',
   styleUrl: './session-detail.component.scss'
 })
@@ -65,7 +64,6 @@ export class SessionDetailComponent implements OnInit, OnChanges {
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   private readonly live = inject(WorkoutLiveService);
-  private readonly guide = inject(GuideService);
 
   @Input() sessionId: string | null = null;
   @Output() closed = new EventEmitter<void>();
@@ -512,8 +510,6 @@ export class SessionDetailComponent implements OnInit, OnChanges {
         this.session.set(session);
         if (!session) {
           this.toast.error('Unable to load session detail.');
-        } else if (session.status === 'COMPLETED') {
-          this.guide.bump(SESSION_OPENED);
         }
         this.loading.set(false);
       },

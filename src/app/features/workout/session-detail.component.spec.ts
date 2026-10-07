@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import { SessionDetailComponent } from './session-detail.component';
 import { WorkoutLiveService } from './workout-live.service';
 
@@ -143,6 +144,17 @@ describe('SessionDetailComponent', () => {
     expect(root.querySelector('.sub')?.textContent).toContain('Cycling');
     expect(root.querySelector('.sub')?.textContent).not.toContain('Sports');
     expect(root.querySelector('app-session-record .stats')?.textContent?.replace(/\s+/g, '')).toContain('Distance24.5km');
+  });
+
+  it('anchors the summary row and More for the finished-session path', () => {
+    dataService.getSession.and.returnValue(of(detail()));
+    const fixture = TestBed.createComponent(SessionDetailComponent);
+    fixture.componentInstance.sessionId = 'session-1';
+    fixture.detectChanges();
+
+    const steps = anchorSteps(fixture.nativeElement as HTMLElement, 'workout-session-detail');
+    expect(steps).toContain('summary');
+    expect(steps).toContain('more');
   });
 
   it('shows no distance for a session without one', () => {

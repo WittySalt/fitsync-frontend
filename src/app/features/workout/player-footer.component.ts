@@ -1,5 +1,7 @@
 import { Component, ElementRef, HostListener, inject, input, output, signal, viewChild } from '@angular/core';
 
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
+
 /**
  * Pause and Finish on the left, and a "More" menu on the right for the two things that are not
  * the next step: leaving out the rest of this exercise, and discarding the workout. The menu is a
@@ -7,6 +9,7 @@ import { Component, ElementRef, HostListener, inject, input, output, signal, vie
  */
 @Component({
   selector: 'app-player-footer',
+  imports: [SpotlightDirective],
   templateUrl: './player-footer.component.html',
   styleUrl: './player-footer.component.scss'
 })

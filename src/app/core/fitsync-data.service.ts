@@ -28,6 +28,7 @@ import {
   ExerciseHistoryEntry,
   ExerciseMetadata,
   ExerciseRecords,
+  GuideStateView,
   ExerciseRecordValue,
   ExerciseSearchOptions,
   FoodCategory,
@@ -1290,6 +1291,16 @@ export class FitSyncDataService {
   getFootprint(since?: string | null): Observable<Footprint> {
     const params = since ? new HttpParams().set('since', since) : undefined;
     return this.http.get<unknown>(`${this.apiBaseUrl}/analytics/me/footprint`, { params }).pipe(map(mapFootprint));
+  }
+
+  /** The guide state saved for the signed-in person; `state` is null until the first save. */
+  getGuideState(): Observable<GuideStateView> {
+    return this.http.get<GuideStateView>(`${this.apiBaseUrl}/users/me/guide`);
+  }
+
+  /** Saves the whole guide state (the server keeps it as it is) and returns the saved view. */
+  putGuideState(state: Record<string, unknown>): Observable<GuideStateView> {
+    return this.http.put<GuideStateView>(`${this.apiBaseUrl}/users/me/guide`, { state });
   }
 
   /** The seventeen badges as paths by theme, with the latest earned and the two closest to earning. */
