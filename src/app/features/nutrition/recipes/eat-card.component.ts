@@ -1,6 +1,7 @@
 import { Component, computed, input, model, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { MEAL_SLOTS } from '../../dashboard/today/today-meals';
 import { Load } from '../diary/diary.models';
 import { whole } from '../diary/diary-figures';
@@ -15,10 +16,10 @@ import { RecipeDetail } from './recipes.models';
  */
 @Component({
   selector: 'app-eat-card',
-  imports: [FitTodayComponent, RouterLink],
+  imports: [FitTodayComponent, RouterLink, SpotlightDirective],
   template: `
     <h3>Eat this</h3>
-    <app-fit-today [state]="fit()" [servings]="servings()" />
+    <app-fit-today appSpotlight="nutrition-recipe" spotlightStep="fit" [state]="fit()" [servings]="servings()" />
     <div class="row">
       <span class="label">Servings</span>
       <span class="stepper">
@@ -43,7 +44,7 @@ import { RecipeDetail } from './recipes.models';
       </div>
     }
     <button class="log" type="button" [disabled]="busy()" (click)="log.emit()">Log {{ label() }} · {{ kcal() }} kcal</button>
-    <button class="cook" type="button" (click)="cook.emit()">
+    <button class="cook" type="button" appSpotlight="nutrition-recipe" spotlightStep="cook" (click)="cook.emit()">
       <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5Z" /></svg>Start cooking
     </button>
     <div class="pair">

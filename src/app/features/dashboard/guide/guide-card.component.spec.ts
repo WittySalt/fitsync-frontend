@@ -2,27 +2,24 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
-import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { Goal } from '../../../core/fitsync.models';
-import { signInAs } from '../../../core/guide/guide-testing.spec';
+import { GuideBackendFake, signInAs } from '../../../core/guide/guide-testing.spec';
+import { GuideService } from '../../../core/guide/guide.service';
 import { GuideCardComponent } from './guide-card.component';
 
 const goal = (goalType: string): Goal => ({ goalType, status: 'ACTIVE' }) as Goal;
 
 describe('GuideCardComponent', () => {
   let fixture: ComponentFixture<GuideCardComponent>;
+  /** The server the guide reads; it lives across a reset of the testing module, like the real one. */
+  let backend: GuideBackendFake;
 
   function render(done: { goals?: Goal[]; plan?: boolean; meal?: boolean; session?: boolean }): HTMLElement {
-    const data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getWorkoutPlans', 'getWorkoutSessionPage', 'hasLoggedMeal']);
-    data.getWorkoutPlans.and.returnValue(of(done.plan ? [{ status: 'ACTIVE' } as never] : []));
-    data.getWorkoutSessionPage.and.returnValue(of({ sessions: done.session ? [{}] : [] }) as never);
-    data.hasLoggedMeal.and.returnValue(of(!!done.meal));
-    TestBed.configureTestingModule({
-      providers: [
-        provideRouter([]),
-        { provide: FitSyncDataService, useValue: data }
-      ]
-    });
+    const data = backend.data as unknown as Record<string, unknown>;
+    data['getWorkoutPlans'] = () => of(done.plan ? [{ status: 'ACTIVE' }] : []);
+    data['getWorkoutSessionPage'] = () => of({ sessions: done.session ? [{}] : [] });
+    data['hasLoggedMeal'] = () => of(!!done.meal);
+    TestBed.configureTestingModule({ providers: [provideRouter([]), ...backend.providers()] });
     signInAs('card-user');
     fixture = TestBed.createComponent(GuideCardComponent);
     fixture.componentRef.setInput('goals', done.goals ?? []);
@@ -33,7 +30,10 @@ describe('GuideCardComponent', () => {
   const hideButton = (el: HTMLElement, label: string): HTMLButtonElement =>
     Array.from(el.querySelectorAll<HTMLButtonElement>('.hide')).find((b) => b.textContent?.trim() === label) as HTMLButtonElement;
 
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    backend = new GuideBackendFake();
+  });
   afterEach(() => localStorage.clear());
 
   it('shows four numbered steps with the first undone one highlighted when nothing is done', () => {
@@ -78,17 +78,18 @@ describe('GuideCardComponent', () => {
   });
 
   it('"Take the tour again" brings every page path back and scrolls to the card', () => {
-    localStorage.setItem('fitsync.guide.card-user.tour.workout', '1');
-    localStorage.setItem('fitsync.guide.card-user.tour-skipped', '1');
+    backend.state = { tourSkipped: true, tourMap: { workout: { seen: true, skippedByData: false, replayedAt: null } } };
     const el = render({});
+    const guide = TestBed.inject(GuideService);
+    expect(guide.spotlightDue('workout')).toBeFalse();
     const scroll = spyOn(fixture.nativeElement as HTMLElement, 'scrollIntoView');
 
     hideButton(el, 'Take the tour again').click();
     fixture.detectChanges();
 
-    expect(localStorage.getItem('fitsync.guide.card-user.tour.workout')).toBeNull();
-    expect(localStorage.getItem('fitsync.guide.card-user.tour-skipped')).toBeNull();
-    expect(localStorage.getItem('fitsync.guide.card-user.restarted')).toBe('1');
+    expect(guide.seen('workout')).toBeFalse();
+    expect(guide.spotlightDue('workout')).toBeTrue();
+    expect(guide.spotlightDue('workout-history')).toBeFalse();
     expect(scroll).toHaveBeenCalled();
     expect(el.querySelector('.tiles')).not.toBeNull();
   });

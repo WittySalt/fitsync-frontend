@@ -6,6 +6,7 @@ import { CoachApiService } from '../../core/coach/coach-api.service';
 import { SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStore } from '../../core/coach/coach.store';
 import { ToastService } from '../../core/toast/toast.service';
+import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import { PlanStudioPage } from './plan-studio.page';
 
 const draft: SessionDraftView = {
@@ -66,6 +67,11 @@ describe('PlanStudioPage', () => {
 
     expect(css).not.toMatch(/amber|peach|orange/i);
     expect(css).toContain('var(--accent-subtle)');
+  });
+
+  it('anchors the request box, the drafted session and Start for the Plan Studio path', () => {
+    setup('a1');
+    expect(anchorSteps(fixture.nativeElement as HTMLElement, 'coach-plan-studio')).toEqual(['request', 'draft', 'start']);
   });
 
   it('lists the drafts and opens the one named in the URL', () => {

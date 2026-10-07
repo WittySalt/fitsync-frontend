@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription, combineLatest, map } from 'rxjs';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { LOADING, Load } from '../diary/diary.models';
@@ -26,7 +27,7 @@ const SWIPE_MIN = 60;
  */
 @Component({
   selector: 'app-nutrient-page',
-  imports: [FoodGlyphComponent, NutrientGuideComponent, NutrientYoursComponent, RouterLink, StatePanelComponent],
+  imports: [FoodGlyphComponent, NutrientGuideComponent, NutrientYoursComponent, RouterLink, SpotlightDirective, StatePanelComponent],
   template: `
     <div class="page-grid nutrient-page" (touchstart)="swipeStart($event)" (touchend)="swipeEnd($event)">
       <div class="nav">
@@ -69,7 +70,7 @@ const SWIPE_MIN = 60;
             <div class="cols">
               <div class="card yours"><app-nutrient-yours [detail]="data" [period]="period()" /></div>
               @if (hasGuide()) {
-                <div class="card"><app-nutrient-guide [detail]="data" /></div>
+                <div class="card" appSpotlight="nutrition-nutrient" spotlightStep="guide"><app-nutrient-guide [detail]="data" /></div>
               }
             </div>
           }

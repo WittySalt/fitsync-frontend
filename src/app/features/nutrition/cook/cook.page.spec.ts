@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 
+import { anchorSteps } from '../../../core/guide/guide-testing.spec';
 import { CookPage } from './cook.page';
 import { COOK_SESSION_KEY, CookSessionService } from './cook-session.service';
 
@@ -102,6 +103,9 @@ describe('CookPage', () => {
     expect(text('app-cook-ingredients .count')).toBe('0 of 3 added');
     expect(el.querySelector('app-cook-timer')).toBeNull();
     expect(session.viewing()).toBeTrue();
+    // The path: the step, the timers and Next / Finish; the "?" sits in this screen's own top bar.
+    expect(anchorSteps(el, 'nutrition-cook')).toEqual(['step', 'timers', 'finish']);
+    expect(el.querySelector('app-cook-topbar app-how-this-works')).not.toBeNull();
   });
 
   it('lists only the ingredients of the step, says so when a step adds nothing, and starts with the full list closed', () => {

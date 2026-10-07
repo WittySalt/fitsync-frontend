@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { map } from 'rxjs';
 
 import { ToastService } from '../../../core/toast/toast.service';
@@ -48,6 +50,7 @@ interface TodayData {
     RecipeReadyComponent,
     RecipeStepsComponent,
     RouterLink,
+    SpotlightDirective,
     ServingHighlightsComponent,
     SimilarRecipesComponent,
     StatePanelComponent
@@ -95,14 +98,14 @@ interface TodayData {
           <div class="main">
             <app-serving-highlights [perServing]="r.perServing" [tags]="r.tags" [fatTarget]="fatTarget()" [servingGrams]="servingGrams()" />
             <app-recipe-coach-row [recipeId]="r.id" />
-            <app-ingredients-card [recipeId]="r.id" [ingredients]="r.ingredients" [recipeServings]="r.servings" [servings]="servings()" />
+            <app-ingredients-card appSpotlight="nutrition-recipe" spotlightStep="ingredients" [recipeId]="r.id" [ingredients]="r.ingredients" [recipeServings]="r.servings" [servings]="servings()" />
             <app-recipe-steps [recipeId]="r.id" [steps]="r.steps" />
           </div>
         </div>
         </div>
         <app-similar-recipes [cards]="similar()" [category]="r.category" />
         <div class="bar">
-          <button class="cook" type="button" (click)="readyOpen.set(true)">Cook</button>
+          <button class="cook" type="button" appSpotlight="nutrition-recipe" spotlightStep="cook" (click)="readyOpen.set(true)">Cook</button>
           <button class="log" type="button" [disabled]="busy()" (click)="log(r)">Log {{ servingsText() }} · {{ kcal(scaled(r.perServing.kcal, servings())) }} kcal</button>
         </div>
         @if (readyOpen()) {

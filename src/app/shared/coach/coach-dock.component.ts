@@ -26,6 +26,7 @@ import { CoachTraceComponent } from './coach-trace.component';
 import { questionsFor } from './insight/reading-questions';
 import { ReadingSegment, readingSegments, roundedNumbers, withoutCitations } from './insight/reading-text';
 import { dateRange } from './insight/slope-chart.geometry';
+import { GuideService } from '../../core/guide/guide.service';
 import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
@@ -384,9 +385,18 @@ interface DockSuggestion {
       }
       .looking-row {
         display: flex;
-        align-items: baseline;
+        align-items: center;
         justify-content: space-between;
         gap: 12px;
+      }
+      /* Below 1200px the dock overlays the page and its scrim covers the top bar, so the dock carries its own "?". */
+      .looking-row app-how-this-works {
+        --guide-button-size: 32px;
+      }
+      @media (min-width: 1200px) {
+        .looking-row app-how-this-works {
+          display: none;
+        }
       }
       .looking {
         margin: 0;
@@ -834,6 +844,7 @@ interface DockSuggestion {
 })
 export class CoachDockComponent {
   protected readonly store = inject(CoachStore);
+  private readonly guide = inject(GuideService);
   protected readonly draft = signal('');
 
   /** True while the shell's sidebar is showing, which carries the coach entry in place of the floating button. */
@@ -864,6 +875,9 @@ export class CoachDockComponent {
       inject(DestroyRef).onDestroy(() => query.removeEventListener?.('change', onChange));
     }
     this.watchVisualViewport();
+    // While the dock is open its own path is the one the "?" opens.
+    effect(() => this.guide.overlay.set(this.store.dockOpen() ? 'coach-dock' : null));
+    inject(DestroyRef).onDestroy(() => this.guide.overlay.set(null));
     // Opening moves focus into the dock; closing gives it back to whatever opened it.
     effect(() => {
       const open = this.store.dockOpen();

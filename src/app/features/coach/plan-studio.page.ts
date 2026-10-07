@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CoachApiService } from '../../core/coach/coach-api.service';
 import { DraftSource, SessionDraftView } from '../../core/coach/coach.models';
 import { CoachStore } from '../../core/coach/coach.store';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { DEFAULT_REJECT_REASON, PlanRejectComponent } from './plan-reject.component';
@@ -31,7 +32,7 @@ export interface DraftCheck {
  */
 @Component({
   selector: 'app-plan-studio-page',
-  imports: [RouterLink, StatePanelComponent, PlanRejectComponent],
+  imports: [RouterLink, StatePanelComponent, PlanRejectComponent, SpotlightDirective],
   templateUrl: './plan-studio.page.html',
   styleUrl: './plan-studio.page.scss'
 })

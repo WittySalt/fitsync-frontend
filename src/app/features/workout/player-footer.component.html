@@ -10,7 +10,7 @@
       </svg>
       <span>{{ paused() ? 'Resume' : 'Pause' }}</span>
     </button>
-    <button type="button" class="quiet" [disabled]="busy()" (click)="finishRequest.emit()">Finish</button>
+    <button type="button" class="quiet" appSpotlight="workout-session-player" spotlightStep="finish" [disabled]="busy()" (click)="finishRequest.emit()">Finish</button>
   </div>
   <div class="more">
     <button

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import { PlayerFooterComponent } from './player-footer.component';
 
 describe('PlayerFooterComponent', () => {
@@ -22,6 +23,10 @@ describe('PlayerFooterComponent', () => {
 
     expect(named('Discard workout')?.classList.contains('danger')).toBeTrue();
     expect(named('Skip this exercise')?.classList.contains('danger')).toBeFalse();
+  });
+
+  it('anchors Finish for the session player path', () => {
+    expect(anchorSteps(root(), 'workout-session-player')).toEqual(['finish']);
   });
 
   it('has Pause and Finish, and no Abort', () => {

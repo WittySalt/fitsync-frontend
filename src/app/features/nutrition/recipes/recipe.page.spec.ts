@@ -9,6 +9,7 @@ import { NutritionDiaryService } from '../diary/nutrition-diary.service';
 import { diaryServiceStub, nutrientRow, spoken, summary } from '../diary/diary-testing.spec';
 import { toIsoDate } from '../diary/diary-time';
 import { RecipeDetail } from './recipes.models';
+import { anchorSteps } from '../../../core/guide/guide-testing.spec';
 import { RecipePage } from './recipe.page';
 import { RecipesService } from './recipes.service';
 import { card, detail, recipesServiceStub } from './recipes-testing.spec';
@@ -64,6 +65,8 @@ describe('RecipePage', () => {
     expect(element.querySelector('app-serving-highlights')).not.toBeNull();
     expect(element.querySelector('app-ingredients-card')).not.toBeNull();
     expect(element.querySelector('app-recipe-steps .credit')?.textContent).toContain('TheMealDB');
+    // The path: the fit line, the two Cook buttons (card and phone bar), the ingredients.
+    expect(anchorSteps(element, 'nutrition-recipe')).toEqual(['fit', 'cook', 'ingredients', 'cook']);
   });
 
   it('says under the title how often it was cooked, and says nothing when it never was', () => {

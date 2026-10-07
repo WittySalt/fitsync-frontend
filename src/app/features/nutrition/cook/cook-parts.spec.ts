@@ -304,6 +304,20 @@ describe('cook mode parts', () => {
     expect(exited).toBe(1);
   });
 
+  it('carries the "?" of the guide at the right end of its bar, since cook mode hides the top bar', () => {
+    const fixture = TestBed.createComponent(CookTopbarComponent);
+    fixture.componentRef.setInput('step', 1);
+    fixture.componentRef.setInput('steps', 3);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const entry = el.querySelector('.tools')?.lastElementChild as HTMLElement;
+
+    expect(entry.tagName.toLowerCase()).toBe('app-how-this-works');
+    (entry.querySelector('.round') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(entry.querySelector('.eyebrow')?.textContent?.trim()).toBe('Cook mode');
+  });
+
   it('shows the banner with a photo, or a cover without one, and hides the awake text when unsupported', () => {
     const fixture = TestBed.createComponent(CookBannerComponent);
     fixture.componentRef.setInput('name', 'Salmon salad');

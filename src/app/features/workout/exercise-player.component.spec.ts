@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { EMPTY, of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
+import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import {
   ExerciseDetail,
   WorkoutExerciseSetLog,
@@ -294,6 +295,10 @@ describe('ExercisePlayerComponent', () => {
     player.detectChanges();
     return player;
   }
+
+  it('anchors the top strip, the step carousel, the set list and Finish for the session player path', () => {
+    expect(anchorSteps(fixture.nativeElement as HTMLElement, 'workout-session-player')).toEqual(['strip', 'steps', 'sets', 'finish']);
+  });
 
   it('keeps every step in order and leaves out a description that only repeats the first step', () => {
     fixture.componentInstance.currentDetail.set(exerciseDetail({

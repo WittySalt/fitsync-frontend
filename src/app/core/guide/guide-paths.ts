@@ -15,6 +15,8 @@ export interface PathStep {
 
 /** The state an anchor can report so its words fit the account: "empty" for no plan or no meals yet. */
 export const VARIANT_EMPTY = 'empty';
+/** The Continue button of the first plan step, whose words differ from the Save button of the review. */
+export const VARIANT_CONTINUE = 'continue';
 
 const fixed = (title: string, text: string) => (): PathCopy => ({ title, text });
 
@@ -90,6 +92,62 @@ export const GUIDE_PATHS: Record<TourPage, readonly PathStep[]> = {
     { id: 'reading', copy: fixed('The reading', 'The coach has read this page.') },
     { id: 'questions', copy: fixed('Questions to start from', 'Start from one of these, or type.') },
     { id: 'composer', copy: fixed('Ask the coach', 'Ask, or ask it to build something.') }
+  ],
+  'workout-session-player': [
+    { id: 'strip', copy: fixed('The session', 'Where you are in the session, and how long it has run.') },
+    { id: 'sets', copy: fixed('Your sets', 'Each set: tap when done, change the weight if it differs.') },
+    { id: 'steps', copy: fixed('How to', 'The steps turn by themselves while a set runs. Tap to hold one.') },
+    { id: 'finish', copy: fixed('Finish', 'End here. The summary and your badges follow.') }
+  ],
+  'workout-live': [
+    { id: 'figures', copy: fixed('The figures', 'Time and estimated calories as you go.') },
+    { id: 'segments', copy: fixed('The segments', 'The planned segments. The current one is lit.') },
+    { id: 'finish', copy: fixed('End the workout', 'Terminate writes the session to History.') }
+  ],
+  'workout-plan-flow': [
+    { id: 'week', copy: fixed('Your week', 'Seven days. Tap a day to change its kind.') },
+    { id: 'day', copy: fixed('A day', 'Drag to change a length, tap a move to swap it.') },
+    {
+      id: 'save',
+      copy: (variant) =>
+        variant === VARIANT_CONTINUE
+          ? { title: 'Review and save', text: 'Continue opens the review. Saving makes this your active plan.' }
+          : { title: 'Save', text: 'Saving makes this your active plan. Today’s session is on Workout.' }
+    }
+  ],
+  'coach-plan-studio': [
+    { id: 'request', copy: fixed('Your request', 'Say what you want to train and what you have.') },
+    { id: 'draft', copy: fixed('The draft', 'A draft from your library and the equipment you own.') },
+    { id: 'start', copy: fixed('Start', 'Nothing is saved until you start it.') }
+  ],
+  'workout-session-detail': [
+    { id: 'summary', copy: fixed('The session', 'The session in a few figures.') },
+    { id: 'sets', copy: fixed('Every set', 'Every set, as you logged it.') },
+    { id: 'more', copy: fixed('Repeat or follow up', 'Repeat it from here, or open an exercise’s own history.') }
+  ],
+  'nutrition-recipe': [
+    { id: 'fit', copy: fixed('How it fits', 'How it fits what is left today.') },
+    { id: 'ingredients', copy: fixed('The ingredients', 'Tick them off as you go; the servings you pick scale the figures.') },
+    { id: 'cook', copy: fixed('Cook', 'Cook opens the Ready sheet, then timers.') }
+  ],
+  'nutrition-cook': [
+    { id: 'step', copy: fixed('The step', 'One step at a time. Tap Next step when you are ready.') },
+    { id: 'timers', copy: fixed('Timers', 'Start a timer from a step, or add your own.') },
+    { id: 'finish', copy: fixed('Finish', 'On the last step, Finish cooking counts the cook and offers to log the meal.') }
+  ],
+  'nutrition-nutrient': [
+    { id: 'sources', copy: fixed('Where it came from', 'Which foods gave you this.') },
+    { id: 'guide', copy: fixed('The guide', 'What it does and where it comes from.') }
+  ],
+  'me-achievements': [
+    { id: 'path', copy: fixed('A path', 'Each badge is a milestone on a path.') },
+    { id: 'badge', copy: fixed('A badge', 'Tap a badge for the sessions or meals behind it.') },
+    { id: 'next', copy: fixed('Next up', 'What is left for the next one.') }
+  ],
+  settings: [
+    { id: 'sections', copy: fixed('Sections', 'Each section of the account has its own tab.') },
+    { id: 'guide', copy: fixed('The guide', 'Show the guide again brings the tour and this card back.') },
+    { id: 'data', copy: fixed('Your data', 'Export or delete your data.') }
   ]
 };
 
@@ -116,7 +174,17 @@ export const SURFACE_LABELS: Record<TourPage, string> = {
   'progress-goal': 'Goal',
   'progress-training': 'Training',
   'progress-food': 'Food',
-  'coach-dock': 'The coach'
+  'coach-dock': 'The coach',
+  'workout-session-player': 'The session',
+  'workout-live': 'The live tracker',
+  'workout-plan-flow': 'Plan builder',
+  'coach-plan-studio': 'Plan Studio',
+  'workout-session-detail': 'A finished session',
+  'nutrition-recipe': 'A recipe',
+  'nutrition-cook': 'Cook mode',
+  'nutrition-nutrient': 'A nutrient',
+  'me-achievements': 'Achievements',
+  settings: 'Settings'
 };
 
 /**
@@ -133,3 +201,31 @@ export const GUIDE_ARRIVALS: Record<string, { page: TourPage; card: GuideStepId 
   'workout-session': { page: 'workout', card: 'session' },
   progress: { page: 'progress', card: null }
 };
+
+/**
+ * The surface of a route, for the pages that publish none of their own (the tabbed Workout and Nutrition pages do, since
+ * the open tab decides). Null for Home, the sign-in pages, onboarding and the admin console, which have no path.
+ */
+export function surfaceForUrl(url: string): TourPage | null {
+  const path = url.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+  const rules: [RegExp, TourPage | null][] = [
+    [/^\/workout\/plans\/(new|[^/]+\/edit)$/, 'workout-plan-flow'],
+    [/^\/workout\/sessions\/[^/]+$/, 'workout-session-detail'],
+    [/^\/workout$/, 'workout'],
+    [/^\/coach\/plan$/, 'coach-plan-studio'],
+    [/^\/nutrition\/recipes\/[^/]+\/cook$/, 'nutrition-cook'],
+    [/^\/nutrition\/recipes\/(new|[^/]+\/edit)$/, null],
+    [/^\/nutrition\/recipes\/[^/]+$/, 'nutrition-recipe'],
+    [/^\/nutrition\/nutrients\/[^/]+$/, 'nutrition-nutrient'],
+    [/^\/nutrition\/nutrients$/, 'nutrition-nutrients'],
+    [/^\/nutrition$/, 'nutrition'],
+    [/^\/progress\/goal$/, 'progress-goal'],
+    [/^\/progress\/food$/, 'progress-food'],
+    [/^\/progress\/training$/, 'progress-training'],
+    [/^\/progress$/, 'progress'],
+    [/^\/me\/achievements$/, 'me-achievements'],
+    [/^\/me$/, 'me'],
+    [/^\/settings$/, 'settings']
+  ];
+  return rules.find(([pattern]) => pattern.test(path))?.[1] ?? null;
+}

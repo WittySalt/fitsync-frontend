@@ -50,6 +50,8 @@
         />
 
         <app-plan-week-strip
+          appSpotlight="workout-plan-flow"
+          spotlightStep="week"
           [days]="store.days()"
           [selected]="store.selectedDay()"
           (pick)="store.select($event)"
@@ -58,6 +60,8 @@
 
         <div class="work">
           <app-plan-day-editor
+            appSpotlight="workout-plan-flow"
+            spotlightStep="day"
             [day]="store.day()"
             [kindsOpen]="store.kindsOpen()"
             [sports]="store.sports()"
@@ -88,7 +92,7 @@
               <p class="problem" role="alert">{{ problem.message }}</p>
             }
           }
-          <button type="button" class="button primary" (click)="store.goReview()">Continue</button>
+          <button type="button" class="button primary" appSpotlight="workout-plan-flow" spotlightStep="save" spotlightVariant="continue" (click)="store.goReview()">Continue</button>
         </footer>
       } @else {
         <app-plan-review-step

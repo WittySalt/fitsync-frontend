@@ -6,13 +6,16 @@
       <h2>{{ live.session()?.name || 'Workout in progress' }}</h2>
       <p>{{ formatLabel(live.session()?.workoutType) }} · free-form tracking</p>
     </div>
-    <button class="button secondary" type="button" (click)="pauseOrResume()">
-      {{ live.paused() ? 'Resume' : 'Pause' }}
-    </button>
+    <div class="tracker-tools">
+      <button class="button secondary" type="button" (click)="pauseOrResume()">
+        {{ live.paused() ? 'Resume' : 'Pause' }}
+      </button>
+      <app-how-this-works surface="workout-live" />
+    </div>
   </header>
 
   @if (timer(); as segmentTimer) {
-    <section class="segments" aria-label="Segments">
+    <section class="segments" aria-label="Segments" appSpotlight="workout-live" spotlightStep="segments">
       <app-segment-strip [rows]="stripRows()" [current]="segmentTimer.current >= 0 ? segmentTimer.current : null"
         [elapsedSeconds]="stripElapsed()" />
       <p class="segment-line">{{ segmentLine() }}</p>
@@ -31,7 +34,7 @@
     </section>
   }
 
-  <div class="timer-panel" aria-live="polite">
+  <div class="timer-panel" aria-live="polite" appSpotlight="workout-live" spotlightStep="figures">
     <span>Elapsed</span>
     <strong>{{ formatElapsed(live.elapsedSeconds()) }}</strong>
     <small>{{ live.paused() ? 'Paused' : 'Running' }}</small>
@@ -80,7 +83,7 @@
       </div>
     } @else {
       <p>Terminate saves workouts of at least 60 seconds. Shorter sessions are cancelled and excluded from metrics.</p>
-      <button class="button secondary danger" type="button" [disabled]="ending()" (click)="confirmingEnd.set(true)">
+      <button class="button secondary danger" type="button" appSpotlight="workout-live" spotlightStep="finish" [disabled]="ending()" (click)="confirmingEnd.set(true)">
         Terminate workout
       </button>
     }

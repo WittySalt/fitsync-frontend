@@ -4,6 +4,8 @@ import { filter } from 'rxjs';
 
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
+import { HowThisWorksComponent } from './core/guide/how-this-works.component';
+import { GuideService } from './core/guide/guide.service';
 import { ThemeService } from './core/theme/theme.service';
 import { CoachStore } from './core/coach/coach.store';
 import { CookBarComponent } from './features/nutrition/cook/cook-bar.component';
@@ -19,6 +21,7 @@ import { ToastOutletComponent } from './shared/toast-outlet.component';
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
+    HowThisWorksComponent,
     ToastOutletComponent,
     CoachDockComponent,
     WorkoutBarComponent,
@@ -35,6 +38,7 @@ export class App implements OnInit {
   protected readonly themeService = inject(ThemeService);
   protected readonly coach = inject(CoachStore);
   private readonly workoutLive = inject(WorkoutLiveService);
+  private readonly guide = inject(GuideService);
 
   protected readonly accountMenuOpen = signal(false);
   protected readonly account = signal<AccountSummary | null>(null);
@@ -132,6 +136,10 @@ export class App implements OnInit {
         }
         this.signedIn = true;
         this.loadActiveWorkoutIfNeeded();
+        // The guide's state comes from the server once after sign-in; no path starts before it has arrived.
+        if (!this.isAdminRoute()) {
+          this.guide.start();
+        }
 
         this.accountDataService.getProfileSummary().subscribe({
           next: (account) => {

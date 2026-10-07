@@ -12,8 +12,8 @@ export interface DataGate {
   kind: 'data';
 }
 
-/** The counter bumped when a completed session is opened. */
-export const SESSION_OPENED = 'session-opened';
+/** History counts as in use from this many completed sessions (the count the Workout page already loads). */
+export const HISTORY_IN_USE_SESSIONS = 3;
 /** The counter bumped when an exercise page is opened. */
 export const EXERCISE_OPENED = 'exercise-opened';
 
@@ -22,20 +22,25 @@ const visits = (page: TourPage): CountGate => ({ kind: 'count', key: `visit.${pa
 /**
  * When the path of a surface is left out because the person already uses it (spec 6):
  * - Plans: an active plan exists and one of its days was edited (data, reported by the Workout page).
- * - History: three completed sessions were opened.
- * - Library: an exercise page was opened.
+ * - History: three completed sessions exist (data, reported by the Workout page).
+ * - Library: an exercise page was opened (a counter in the server state).
  * - Recipes: a cook record exists (data, reported by the Recipes tab).
- * - All nutrients and the Progress pages: the page was opened twice before (this visit is the third).
+ * - All nutrients and the Progress pages: the page was opened twice before (this visit is the third; a counter in the server state).
+ * - Session player: no completed session exists yet (data, reported by the player), so only the very first session starts it.
+ *
+ * Only the session player and the four first-tour pages start on their own (see GuideService.spotlightDue); the other
+ * conditions decide nothing there but stay as the record of when a surface counts as in use.
  */
 export const GUIDE_GATES: Partial<Record<TourPage, CountGate | DataGate>> = {
   'workout-plans': { kind: 'data' },
-  'workout-history': { kind: 'count', key: SESSION_OPENED, min: 3 },
+  'workout-history': { kind: 'data' },
   'workout-library': { kind: 'count', key: EXERCISE_OPENED, min: 1 },
   'nutrition-recipes': { kind: 'data' },
   'nutrition-nutrients': visits('nutrition-nutrients'),
   'progress-goal': visits('progress-goal'),
   'progress-training': visits('progress-training'),
-  'progress-food': visits('progress-food')
+  'progress-food': visits('progress-food'),
+  'workout-session-player': { kind: 'data' }
 };
 
 /** An edit of a plan more than this long after it was made counts as the person changing a day. */

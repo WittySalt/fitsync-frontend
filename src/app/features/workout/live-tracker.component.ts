@@ -2,6 +2,8 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, compu
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ToastService } from '../../core/toast/toast.service';
 import { LiveTrackerGoal } from './live-tracker.models';
 import { SegmentStripComponent } from './plan-flow/segments/segment-strip.component';
@@ -24,7 +26,7 @@ import { WorkoutLiveService } from './workout-live.service';
 
 @Component({
   selector: 'app-live-tracker',
-  imports: [SegmentStripComponent, PlayerRingComponent, WorkoutCelebrationComponent],
+  imports: [SegmentStripComponent, PlayerRingComponent, WorkoutCelebrationComponent, HowThisWorksComponent, SpotlightDirective],
   templateUrl: './live-tracker.component.html',
   styleUrl: './live-tracker.component.scss'
 })

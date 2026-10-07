@@ -1138,3 +1138,11 @@ export interface MonthlyTrainingInsight {
   previousTotals: MonthTotals | null;
   muscles: MonthMuscleInsight[];
 }
+
+/** What the server keeps of the guide for one person: the frontend's own tour state, opaque to the backend. */
+export interface GuideStateView {
+  /** The saved state, or null while nothing has been saved yet. */
+  state: Record<string, unknown> | null;
+  /** When it was last saved (ISO time), or null. */
+  updatedAt: string | null;
+}

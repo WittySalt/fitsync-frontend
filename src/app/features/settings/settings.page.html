@@ -55,7 +55,7 @@
     }
 
     <div class="account-layout">
-      <div class="section-nav" role="tablist" aria-label="Account sections">
+      <div class="section-nav" role="tablist" aria-label="Account sections" appSpotlight="settings" spotlightStep="sections">
         @for (section of sections; track section.id) {
           <button
             type="button"
@@ -192,9 +192,9 @@
             <div class="appearance-row">
               <div class="appearance-copy">
                 <strong>Getting started guide</strong>
-                <p>Bring back the four steps on Home and the first-visit tips on each page.</p>
+                <p>Bring back the four steps on Home and the first tour of Workout, Nutrition, Progress and Me.</p>
               </div>
-              <button type="button" class="button secondary" data-test="show-guide" (click)="showGuideAgain(account.user.userId)">Show the guide again</button>
+              <button type="button" class="button secondary" data-test="show-guide" appSpotlight="settings" spotlightStep="guide" (click)="showGuideAgain(account.user.userId)">Show the guide again</button>
             </div>
           </article>
         </section>
@@ -351,7 +351,7 @@
         }
 
         @if (selectedSection() === 'privacy-data') {
-        <section class="settings-section" id="privacy-data" role="tabpanel" aria-labelledby="settings-tab-privacy-data">
+        <section class="settings-section" id="privacy-data" appSpotlight="settings" spotlightStep="data" role="tabpanel" aria-labelledby="settings-tab-privacy-data">
           <div class="section-heading"><p class="eyebrow">Privacy & Data</p><h2>Privacy and data</h2><p>{{ sections[5].description }}</p></div>
           <article class="sub-card">
             <div class="sub-card-header"><h3>Visibility & sharing</h3></div>

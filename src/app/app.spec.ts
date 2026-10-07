@@ -8,6 +8,7 @@ import { App } from './app';
 import { AccountDataService, AccountSummary } from './core/account-data.service';
 import { AuthService } from './core/auth/auth.service';
 import { CoachStore } from './core/coach/coach.store';
+import { GuideService } from './core/guide/guide.service';
 import { ThemeService } from './core/theme/theme.service';
 import { WorkoutLiveService } from './features/workout/workout-live.service';
 
@@ -275,6 +276,32 @@ describe('App', () => {
 
       expect(live.session()).toBeNull();
       expect(authService.logout).toHaveBeenCalled();
+    });
+  });
+  describe('the "?" of the guide', () => {
+    const entry = (fixture: ComponentFixture<App>): HTMLButtonElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.topbar-actions app-how-this-works .round');
+
+    it('is left of the theme toggle, in the top bar, once the page has a surface with a path', () => {
+      const fixture = TestBed.createComponent(App);
+      fixture.detectChanges();
+      expect(entry(fixture)).toBeNull();
+
+      TestBed.inject(GuideService).publishSurface('progress');
+      fixture.detectChanges();
+
+      const actions = (fixture.nativeElement as HTMLElement).querySelector('.topbar-actions') as HTMLElement;
+      const children = Array.from(actions.children).map((child) => child.tagName.toLowerCase() + (child.classList.contains('theme-toggle') ? '.theme-toggle' : ''));
+      expect(children.slice(0, 2)).toEqual(['app-how-this-works', 'button.theme-toggle']);
+      expect(entry(fixture)?.getAttribute('aria-label')).toBe('How this works');
+      expect(entry(fixture)?.getAttribute('title')).toBe('How this works');
+    });
+
+    it('is not drawn on a page that has no path', () => {
+      const fixture = TestBed.createComponent(App);
+      TestBed.inject(GuideService).publishSurface(null);
+      fixture.detectChanges();
+      expect(entry(fixture)).toBeNull();
     });
   });
 });

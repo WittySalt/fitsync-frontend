@@ -3,6 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { of, throwError } from 'rxjs';
 
+import { anchorSteps } from '../../../core/guide/guide-testing.spec';
 import { NutrientsService } from './nutrients.service';
 import { NutrientsPage } from './nutrients.page';
 import { NutrientPage, swipeTarget } from './nutrient.page';
@@ -56,6 +57,11 @@ describe('NutrientPage', () => {
     }
     expect(guide).toContain('NIH Office of Dietary Supplements');
     expect(guide).toContain('General information, not medical advice.');
+  });
+
+  it('anchors where yours came from and the guide, and has no period switch to point at', async () => {
+    const el = await open();
+    expect(anchorSteps(el, 'nutrition-nutrient')).toEqual(['sources', 'guide']);
   });
 
   it('marks the row of the person in the amounts table', async () => {

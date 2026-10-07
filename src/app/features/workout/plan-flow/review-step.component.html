@@ -76,7 +76,7 @@
 
   <div class="actions">
     <button type="button" class="button secondary" [disabled]="saving()" (click)="back.emit()">Back</button>
-    <button type="button" class="button primary" [disabled]="saving()" (click)="save.emit()">
+    <button type="button" class="button primary" appSpotlight="workout-plan-flow" spotlightStep="save" [disabled]="saving()" (click)="save.emit()">
       {{ saving() ? 'Saving...' : editing() ? 'Save changes' : 'Save plan' }}
     </button>
   </div>

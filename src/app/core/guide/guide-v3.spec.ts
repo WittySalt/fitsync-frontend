@@ -1,21 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 
-import { FitSyncDataService } from '../fitsync-data.service';
 import { GUIDE_GATES, plansInUse } from './guide-gates';
 import { GUIDE_PATHS, SURFACE_LABELS } from './guide-paths';
-import { signInAs } from './guide-testing.spec';
-import { GuideService, TOUR_PAGES, TOUR_SURFACES, TourPage } from './guide.service';
+import { GuideBackendFake, signInAs } from './guide-testing.spec';
+import { GuideService, TOUR_PAGES, TourPage } from './guide.service';
 
-const DAY_MS = 24 * 3600 * 1000;
 const USER = 'user-v3';
-const key = (name: string): string => `fitsync.guide.${USER}.${name}`;
-const stored = (): Record<string, { seen: boolean; skippedByData: boolean; replayedAt: string | null }> =>
-  JSON.parse(localStorage.getItem(key('tour-map')) ?? '{}');
 
-describe('The paths of the second-level surfaces', () => {
-  it('gives every surface three steps with words, a label and no urging', () => {
+describe('The paths of the surfaces', () => {
+  it('gives every surface two to four steps with words, a label and no urging', () => {
     for (const page of TOUR_PAGES) {
-      expect(GUIDE_PATHS[page].length).withContext(page).toBe(3);
+      expect(GUIDE_PATHS[page].length).withContext(page).toBeGreaterThanOrEqual(2);
+      expect(GUIDE_PATHS[page].length).withContext(page).toBeLessThanOrEqual(4);
       expect(SURFACE_LABELS[page]).withContext(page).toBeTruthy();
       for (const step of GUIDE_PATHS[page]) {
         for (const variant of ['', 'empty']) {
@@ -64,68 +60,42 @@ describe('The skip conditions', () => {
 
   it('names a condition for every surface the spec gates, and none for the dock', () => {
     expect(Object.keys(GUIDE_GATES).sort()).toEqual(
-      ['nutrition-nutrients', 'nutrition-recipes', 'progress-food', 'progress-goal', 'progress-training', 'workout-history', 'workout-library', 'workout-plans']
+      ['nutrition-nutrients', 'nutrition-recipes', 'progress-food', 'progress-goal', 'progress-training', 'workout-history', 'workout-library', 'workout-plans', 'workout-session-player']
     );
     expect(GUIDE_GATES['coach-dock']).toBeUndefined();
   });
 });
 
-describe('GuideService in v3', () => {
+describe('GuideService gates', () => {
   let guide: GuideService;
 
   beforeEach(() => {
     localStorage.clear();
-    TestBed.configureTestingModule({ providers: [{ provide: FitSyncDataService, useValue: {} }] });
+    const backend = new GuideBackendFake();
+    TestBed.configureTestingModule({ providers: backend.providers() });
     signInAs(USER);
     guide = TestBed.inject(GuideService);
-    guide.adopt(USER);
+    guide.start();
   });
   afterEach(() => localStorage.clear());
-
-  it('does not hold the new surfaces back for the age of the account', () => {
-    localStorage.setItem(key('first-seen'), String(Date.now() - 90 * DAY_MS));
-    guide.adopt(USER);
-
-    expect(guide.spotlightDue('workout')).toBeFalse();
-    expect(guide.spotlightDue('workout-history')).toBeTrue();
-  });
 
   it('keeps seen, skippedByData and replayedAt per surface in the tour map', () => {
     guide.markSeen('workout-plans');
     guide.markSkippedByData('workout-library');
     guide.markReplayed('coach-dock');
 
-    const map = stored();
+    const map = guide.map();
     expect(map['workout-plans']).toEqual({ seen: true, skippedByData: false, replayedAt: null });
     expect(map['workout-library']).toEqual({ seen: false, skippedByData: true, replayedAt: null });
-    expect(map['coach-dock'].replayedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(guide.spotlightDue('workout-plans')).toBeFalse();
-    expect(guide.spotlightDue('workout-library')).toBeFalse();
-    expect(guide.spotlightDue('coach-dock')).toBeTrue();
+    expect(map['coach-dock']?.replayedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(guide.seen('workout-plans')).toBeTrue();
   });
 
-  it('reads the map back for the same person and folds in the older per-page flag', () => {
-    guide.markSeen('progress-goal');
-    localStorage.setItem(key('tour.me'), '1');
-    guide.adopt(USER);
-
-    expect(guide.seen('progress-goal')).toBeTrue();
-    expect(guide.seen('me')).toBeTrue();
-    expect(guide.seen('progress-food')).toBeFalse();
-  });
-
-  it('shows the surfaces nothing has marked, in the map of every surface', () => {
-    for (const page of TOUR_SURFACES) {
-      expect(guide.spotlightDue(page)).withContext(page).toBeTrue();
-    }
-  });
-
-  it('decides a count condition from what was opened', () => {
+  it('decides History from the completed-session count the Workout page reports, and Library from a counter', () => {
+    expect(guide.gate('workout-history')).toBe('wait');
+    guide.reportUsed('workout-history', false);
     expect(guide.gate('workout-history')).toBe('go');
-    guide.bump('session-opened');
-    guide.bump('session-opened');
-    expect(guide.gate('workout-history')).toBe('go');
-    guide.bump('session-opened');
+    guide.reportUsed('workout-history', true);
     expect(guide.gate('workout-history')).toBe('skip');
 
     expect(guide.gate('workout-library')).toBe('go');
@@ -154,10 +124,10 @@ describe('GuideService in v3', () => {
     expect(guide.gate('coach-dock')).toBe('go');
   });
 
-  it('keeps counters across a reload of the same person', () => {
-    guide.bump('session-opened');
+  it('keeps the counters in the server state across a reload of the same person', () => {
+    guide.bump('exercise-opened');
     guide.adopt(USER);
-    expect(guide.count('session-opened')).toBe(1);
+    expect(guide.count('exercise-opened')).toBe(1);
   });
 
   it('clears seen and skippedByData for every surface on restart, and keeps when each was replayed', () => {
@@ -170,13 +140,10 @@ describe('GuideService in v3', () => {
 
     guide.restart(USER);
 
-    const map = stored();
+    const map = guide.map();
     expect(map['workout-plans']).toEqual({ seen: false, skippedByData: false, replayedAt: jasmine.any(String) as unknown as string });
     expect(map['me']).toBeUndefined();
     expect(map['workout-library']).toBeUndefined();
-    for (const page of TOUR_PAGES) {
-      expect(guide.spotlightDue(page)).withContext(page).toBeTrue();
-    }
     expect(guide.count('exercise-opened')).toBe(0);
     expect(guide.gate('workout-plans')).toBe('wait');
   });

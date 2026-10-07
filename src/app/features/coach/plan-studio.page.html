@@ -10,7 +10,7 @@
 
   <div class="studio-layout">
     <aside class="studio-side" aria-label="Your drafts">
-      <form class="build" (submit)="$event.preventDefault(); build()">
+      <form class="build" appSpotlight="coach-plan-studio" spotlightStep="request" (submit)="$event.preventDefault(); build()">
         <label for="studio-request">What do you want today?</label>
         <textarea
           id="studio-request"
@@ -88,7 +88,7 @@
             }
           </header>
 
-          <ol class="exercises">
+          <ol class="exercises" appSpotlight="coach-plan-studio" spotlightStep="draft">
             @for (exercise of draft.session.exercises; track exercise.exerciseId; let i = $index) {
               <li class="ex">
                 <span class="idx">{{ i + 1 }}</span>
@@ -114,7 +114,7 @@
               @if (rejecting()) {
                 <app-plan-reject (confirm)="reject(draft, $event)" (cancel)="cancelReject()" />
               } @else {
-                <button class="button primary" type="button" [disabled]="accepting()" (click)="accept(draft)">
+                <button class="button primary" type="button" appSpotlight="coach-plan-studio" spotlightStep="start" [disabled]="accepting()" (click)="accept(draft)">
                   {{ accepting() ? 'Starting…' : 'Start this session' }}
                 </button>
                 <button class="button secondary" type="button" [disabled]="accepting()" (click)="startReject()">Not for me</button>

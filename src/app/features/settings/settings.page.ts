@@ -20,6 +20,7 @@ import {
 import { AuthService } from '../../core/auth/auth.service';
 import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
 import { GuideService } from '../../core/guide/guide.service';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ToggleComponent } from '../../shared/toggle.component';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
 
@@ -60,7 +61,7 @@ const DISPLAY_LOCALE = 'en-SG';
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent, ToggleComponent],
+  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent, SpotlightDirective, ToggleComponent],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss'
 })
@@ -671,10 +672,10 @@ export class SettingsPage implements OnInit {
     this.themeService.setTheme(preference);
   }
 
-  /** Clears what the guide remembers, so the Home card and the page tips come back. */
+  /** Resets the guide on the server, so the Home card and the first tour of the four main pages come back. */
   showGuideAgain(userId: string): void {
     this.guide.restart(userId);
-    this.toast.success('The guide is back on Home and on each page.');
+    this.toast.success('The guide is back on Home, and the first tour will play again.');
   }
 
   @HostListener('document:click', ['$event'])

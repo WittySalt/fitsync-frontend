@@ -1,5 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
+import { HowThisWorksComponent } from '../../../core/guide/how-this-works.component';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 
 /**
@@ -8,12 +9,15 @@ import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
  */
 @Component({
   selector: 'app-cook-topbar',
-  imports: [FoodGlyphComponent],
+  imports: [FoodGlyphComponent, HowThisWorksComponent],
   template: `
     <button type="button" class="exit" aria-label="Exit cooking" (click)="exited.emit()">
       <app-food-glyph name="CLOSE" [size]="16" [strokeWidth]="2.4" />Exit
     </button>
-    <span class="count">Step {{ step() }} of {{ steps() }}</span>
+    <span class="tools">
+      <span class="count">Step {{ step() }} of {{ steps() }}</span>
+      <app-how-this-works surface="nutrition-cook" />
+    </span>
   `,
   styleUrl: './cook-topbar.component.scss'
 })
