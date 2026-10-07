@@ -7,8 +7,8 @@ describe('buildCognitoAuthConfig', () => {
       'https://d1z92tpb353lfi.cloudfront.net'
     );
 
-    expect(config.userPoolId).toBe('ap-southeast-1_pHMjP2pf5');
-    expect(config.clientId).toBe('5jd23m7184cunbfgshlh90h0lc');
+    expect(config.userPoolId).toBe('ap-southeast-1_vm11OfhXN');
+    expect(config.clientId).toBe('q489scqc3ki0c2vvr3r5ongao');
     expect(config.domain).toContain('fitsync-staging-437659978621');
     expect(config.redirectUri).toBe('https://d1z92tpb353lfi.cloudfront.net/auth/callback');
     expect(config.postLogoutRedirectUri).toBe('https://d1z92tpb353lfi.cloudfront.net/logout/callback');

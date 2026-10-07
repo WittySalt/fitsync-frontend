@@ -58,8 +58,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  # API origin: proxy /api/* to the backend gateway (:8088). Lets the SPA keep
-  # using same-origin relative /api over HTTPS, exactly like the prod dist.
+  # API origin: proxy /api/* to the backend ALB (:80), which forwards to the gateway.
+  # Lets the SPA keep using same-origin relative /api over HTTPS, like the prod dist.
   dynamic "origin" {
     for_each = var.api_origin_domain == "" ? [] : [1]
     content {
@@ -67,10 +67,12 @@ resource "aws_cloudfront_distribution" "frontend" {
       origin_id   = "ec2-api"
 
       custom_origin_config {
-        http_port              = 8088
+        http_port              = var.api_origin_port
         https_port             = 443
         origin_protocol_policy = "http-only"
         origin_ssl_protocols   = ["TLSv1.2"]
+        # The coach streams its reply; 60 s is CloudFront's ceiling without a quota raise.
+        origin_read_timeout = 60
       }
     }
   }

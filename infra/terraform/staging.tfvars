@@ -12,5 +12,5 @@ env    = "staging"
 # the demo to stop the (tiny) bill.
 enable_cloudfront = true
 
-# Staging backend gateway (EC2 fitsync-staging-app, :8088) for the /api/* origin.
-api_origin_domain = "ec2-52-221-91-77.ap-southeast-1.compute.amazonaws.com"
+# Staging backend ALB (alb_dns_name output of the backend staging stack) for /api/*.
+api_origin_domain = "fitsync-staging-alb-489104795.ap-southeast-1.elb.amazonaws.com"
