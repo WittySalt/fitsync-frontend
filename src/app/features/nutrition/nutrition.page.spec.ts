@@ -43,6 +43,7 @@ describe('NutritionPage', () => {
     diary = diaryServiceStub();
     dataService = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', [
       'getUsualMeals',
+      'getLeftovers',
       'copyMeal',
       'createMealTemplate',
       'getFoodCategories',
@@ -84,6 +85,7 @@ describe('NutritionPage', () => {
       })
     );
     dataService.getUsualMeals.and.returnValue(of([]));
+    dataService.getLeftovers.and.returnValue(of([]));
     dataService.getFoodCategories.and.returnValue(of([]));
     dataService.getRecentFoods.and.returnValue(of([]));
     dataService.getFavoriteFoods.and.returnValue(of([]));

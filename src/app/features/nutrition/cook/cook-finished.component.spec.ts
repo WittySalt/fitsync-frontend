@@ -128,6 +128,23 @@ describe('CookFinishedComponent', () => {
     expect(el(fixture).querySelector('.today.over')).toBeNull();
   });
 
+  it('says how many servings are left after logging fewer than were cooked, and nothing before or when all were eaten', () => {
+    const fixture = render({ servingsCooked: 4 });
+    (fixture.componentInstance as unknown as { eaten: { set(value: number): void } }).eaten.set(1);
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[data-test="left-line"]')).toBeNull();
+    primary(fixture)[0].click();
+    fixture.detectChanges();
+    expect(text(fixture, '[data-test="left-line"]')).toBe('Cooked 4 servings · 3 left');
+  });
+
+  it('has no left line when every cooked serving was logged', () => {
+    const fixture = render({ servingsCooked: 1 });
+    primary(fixture)[0].click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[data-test="left-line"]')).toBeNull();
+  });
+
   it('takes the meal off again with Undo, which uses the existing soft delete, and brings the buttons back', () => {
     const fixture = render({ servingsCooked: 1 });
     primary(fixture)[0].click();

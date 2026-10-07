@@ -5,6 +5,7 @@ import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { CoachStore } from '../../core/coach/coach.store';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 import { AccountDataService } from '../../core/account-data.service';
+import { overview } from '../nutrition/nutrients/nutrients-testing.spec';
 import { NutrientsService } from '../nutrition/nutrients/nutrients.service';
 import { FoodPage } from './food/food.page';
 import { balanceHeadline, changeWord, foodHeroStats, foodSentence, foodVerdict, macroSentence, macroWord, percentAgainst } from './food/food-figures';
@@ -17,7 +18,7 @@ import { mapFoodProgress, mapGoalProgress } from './progress-api.mappers';
 import { FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
 import { ProgressApiService, mergeFood } from './progress-api.service';
 import { isSoFar } from './reviews/review-item.component';
-import { GOAL_WIRE, TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
+import { FOOD_WIRE, GOAL_WIRE, TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
 
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const texts = (el: HTMLElement, selector: string) => Array.from(el.querySelectorAll(selector)).map((node) => text(node));
@@ -204,6 +205,7 @@ describe('food figures', () => {
 describe('progress pages', () => {
   let api: jasmine.SpyObj<ProgressApiService>;
   let coach: { askAboutCard: jasmine.Spy };
+  let nutrientsRead: jasmine.Spy;
   let fragment: string | null;
   let query: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
@@ -211,6 +213,7 @@ describe('progress pages', () => {
     query = new BehaviorSubject(convertToParamMap({}));
     api = progressApi();
     coach = { askAboutCard: jasmine.createSpy('askAboutCard') };
+    nutrientsRead = jasmine.createSpy('getAll').and.callFake(() => throwError(() => new Error('off')));
     fragment = null;
     spyOn(Element.prototype, 'scrollIntoView');
     TestBed.configureTestingModule({
@@ -219,7 +222,7 @@ describe('progress pages', () => {
         { provide: ProgressApiService, useValue: api },
         { provide: CoachStore, useValue: coach },
         { provide: UserTimezoneService, useValue: timezoneStub },
-        { provide: NutrientsService, useValue: { getAll: () => throwError(() => new Error('off')) } },
+        { provide: NutrientsService, useValue: { getAll: nutrientsRead } },
         { provide: AccountDataService, useValue: { getAccountCenter: () => new Observable(), listBodyMetrics: () => new Observable() } },
         { provide: ActivatedRoute, useValue: { queryParamMap: query, snapshot: { get fragment() { return fragment; }, queryParamMap: { get: () => null } } } }
       ]
@@ -231,6 +234,12 @@ describe('progress pages', () => {
       return true;
     });
   });
+
+  /** The days a nutrients read covered, from its from and to. */
+  const spanOf = (spy: jasmine.Spy): number => {
+    const [from, to] = spy.calls.mostRecent().args as [string, string];
+    return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+  };
 
   function render<T>(type: new (...args: never[]) => T): { fixture: ComponentFixture<T>; el: HTMLElement } {
     const fixture = TestBed.createComponent(type as never) as ComponentFixture<T>;
@@ -401,7 +410,7 @@ describe('progress pages', () => {
       expect(texts(el, 'app-detail-section h2')).toEqual(['Highlights', 'Energy', 'Macros', 'Plate', 'Meals', 'Nutrients', 'Habits']);
       expect(texts(el, 'app-contents-rail .item')).toEqual(['Highlights', 'Energy', 'Macros', 'Plate', 'Meals', 'Nutrients', 'Habits']);
       expect(texts(el, 'app-highlights .kicker')).toEqual(['Protein', 'Nutrients']);
-      expect(api.getFood).toHaveBeenCalledOnceWith('2026-09-06', TODAY);
+      expect(api.getFood).toHaveBeenCalledOnceWith('2026-09-06', TODAY, 'week');
     });
 
     it('heads the page with On target when the four weeks sit within 5 % of the calorie goal', () => {
@@ -458,8 +467,124 @@ describe('progress pages', () => {
       buttons[1].click();
       fixture.detectChanges();
       fixture.detectChanges();
-      expect(api.getFood).toHaveBeenCalledWith('2026-07-05', TODAY);
+      expect(api.getFood).toHaveBeenCalledWith('2026-07-05', TODAY, 'month');
       expect(text(el.querySelector('app-detail-head .eyebrow'))).toContain('THE LAST 3 MONTHS');
+    });
+
+    it('reads weeks at 4 weeks and calendar months at 3 months and 1 year', () => {
+      const { fixture, el } = render(FoodPage);
+      const buttons = el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button');
+      expect(api.getFood.calls.mostRecent().args[2]).toBe('week');
+      buttons[1].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(api.getFood.calls.mostRecent().args).toEqual(['2026-07-05', TODAY, 'month']);
+      buttons[2].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(api.getFood.calls.mostRecent().args).toEqual(['2025-10-05', TODAY, 'month']);
+      expect(text(el.querySelector('#energy .weekly strong'))).toBe('The daily balance, month by month');
+      buttons[0].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(api.getFood.calls.mostRecent().args[2]).toBe('week');
+      expect(text(el.querySelector('#energy .weekly strong'))).toBe('The daily balance, week by week');
+    });
+
+    it('draws month points with the current month so far and the months named on the axis', () => {
+      api.getFood.and.callFake((_from: string, _to: string, granularity = 'week') =>
+        of(
+          mergeFood(
+            mapFoodProgress(
+              {
+                ...FOOD_WIRE,
+                energy: {
+                  thisWeek: null,
+                  weeklyBalance: [
+                    { month: '2026-07', balance: -150, daysLogged: 22, current: false },
+                    { month: '2026-08', balance: -90, daysLogged: 25, current: false },
+                    { month: '2026-09', balance: null, daysLogged: 0, current: false },
+                    { month: '2026-10', balance: -279, daysLogged: 3, partial: true }
+                  ]
+                },
+                habits: { loggedDays: 26, loggedDaysPerMonth: [{ month: '2026-08', days: 25 }, { month: '2026-09', days: 0 }] }
+              },
+              granularity as 'week' | 'month'
+            ),
+            null
+          )
+        )
+      );
+      const { fixture, el } = render(FoodPage);
+      el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button')[1].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      const axis = Array.from(el.querySelectorAll('#energy app-week-bars text.axis')).map((node) => (node.textContent ?? '').trim());
+      expect(axis).toContain('Oct');
+      expect(axis).not.toContain('Jul');
+      expect(el.querySelectorAll('#energy app-week-bars rect').length).toBe(3);
+      expect(text(el.querySelector('#energy app-week-bars .key'))).toContain('this month so far');
+      expect(el.querySelectorAll('#habits app-week-bars rect').length).toBe(2);
+    });
+
+    it('lays out all 12 months of a year in every chart even when only two months have data', () => {
+      api.getFood.and.callFake((_from: string, _to: string, granularity = 'week') =>
+        of(
+          mergeFood(
+            mapFoodProgress(
+              {
+                ...FOOD_WIRE,
+                energy: {
+                  thisWeek: null,
+                  weeklyBalance: [
+                    { month: '2026-09', balance: -90, daysLogged: 25, current: false },
+                    { month: '2026-10', balance: -279, daysLogged: 3, partial: true }
+                  ]
+                },
+                macros: {
+                  protein: { firstWeek: 150, thisWeek: 136, target: 140, series: [{ month: '2026-09', value: 150 }, { month: '2026-10', value: 136, partial: true }] },
+                  carbs: null,
+                  fat: null,
+                  summary: []
+                },
+                habits: { loggedDays: 26, loggedDaysPerMonth: [] }
+              },
+              granularity as 'week' | 'month'
+            ),
+            null
+          )
+        )
+      );
+      const { fixture, el } = render(FoodPage);
+      el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button')[2].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(el.querySelectorAll('#energy app-week-bars rect').length).toBe(12);
+      const axis = Array.from(el.querySelectorAll('#energy app-week-bars text.axis')).map((node) => (node.textContent ?? '').trim());
+      expect(axis).toContain('Nov');
+      expect(axis).toContain('Oct');
+      const trend = el.querySelector('#macros app-small-trend');
+      expect(trend?.querySelectorAll('polyline').length).toBe(1);
+      const dates = Array.from(trend?.querySelectorAll('.dates span') ?? []).map((node) => (node.textContent ?? '').trim());
+      expect(dates).toEqual(['Nov', 'Oct']);
+    });
+
+    it('takes the page period for the nutrients: 30 days at 4 weeks, 90 at 3 months, 90 with a caption at 1 year', () => {
+      nutrientsRead.and.callFake(() => of(overview()));
+      const { fixture, el } = render(FoodPage);
+      expect(spanOf(nutrientsRead)).toBe(30);
+      const buttons = el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button');
+      buttons[1].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(spanOf(nutrientsRead)).toBe(90);
+      expect(el.querySelector('#nutrients .caption')).toBeNull();
+      expect(el.querySelector<HTMLAnchorElement>('#nutrients .side a:last-child')?.getAttribute('href')).toBe('/nutrition/nutrients?range=90');
+      buttons[2].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(spanOf(nutrientsRead)).toBe(90);
+      expect(text(el.querySelector('#nutrients .caption'))).toBe('Last 3 months');
     });
 
     it('keeps the head on screen while the next period loads', () => {

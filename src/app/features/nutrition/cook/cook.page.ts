@@ -10,6 +10,7 @@ import { CookAlsoTimingComponent, TimingChip } from './cook-also-timing.componen
 import { CookBannerComponent } from './cook-banner.component';
 import { CookCustomTimersComponent, CustomTimerView, NewTimer } from './cook-custom-timers.component';
 import { clockText } from './cook-format';
+import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { CookFinishedComponent } from './cook-finished.component';
 import { minutesCooked } from './cook-finish-figures';
 import { CookIngredientsComponent } from './cook-ingredients.component';
@@ -54,6 +55,7 @@ export class CookPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly recipes = inject(CookRecipeService);
+  private readonly data = inject(FitSyncDataService);
   protected readonly session = inject(CookSessionService);
   protected readonly wake = new CookWakeLock();
 
@@ -73,6 +75,8 @@ export class CookPage implements OnInit, OnDestroy {
   private resolveLeave: ((value: boolean) => void) | null = null;
   /** Set by Finish cooking, so leaving afterwards ends the session instead of keeping it. */
   private finished = false;
+  /** The recorded cook, which the Finished card patches with the servings it logged. */
+  private cookId: string | null = null;
 
   protected readonly steps = computed(() => this.recipe()?.steps ?? []);
   protected readonly index = computed(() => Math.min(this.session.step(), Math.max(0, this.steps().length - 1)));
@@ -249,17 +253,41 @@ export class CookPage implements OnInit, OnDestroy {
       this.finishing.set(true);
       return;
     }
-    // The cook is recorded first, once more if it fails; a failure still lets the card show.
+    // The cook is recorded now, with every serving left; the card patches the servings it logged when it is left.
     this.recording.set(true);
     this.recipes
       .recordCook(this.recipeId, { clientCookId: data.cookId, servings: this.servings(), startedAt: new Date(started), finishedAt: new Date(now) })
       .pipe(
         retry(1),
-        catchError(() => of(undefined))
+        catchError(() => of(null))
+      )
+      .subscribe((cookId) => {
+        this.cookId = cookId;
+        this.recording.set(false);
+        this.finishing.set(true);
+      });
+  }
+
+  /** Leaves the Finished card: tells the server how many servings were logged (once more if it fails), then goes back to the recipe. */
+  protected leaveFinished(servingsLogged: number): void {
+    if (this.recording()) {
+      return;
+    }
+    const cookId = this.cookId;
+    if (!cookId) {
+      this.close();
+      return;
+    }
+    this.recording.set(true);
+    this.data
+      .patchCookServings(cookId, servingsLogged)
+      .pipe(
+        retry(1),
+        catchError(() => of(null))
       )
       .subscribe(() => {
         this.recording.set(false);
-        this.finishing.set(true);
+        this.close();
       });
   }
 

@@ -1064,6 +1064,18 @@ export interface UsualMealItem {
   categoryCode: string | null;
 }
 
+/** A cook of the last seven days that still has servings to eat (NU-LEFTOVERS). */
+export interface Leftover {
+  cookId: string;
+  recipeId: string;
+  name: string;
+  imageUrl: string | null;
+  /** When the cook was finished, an ISO instant. */
+  cookedAt: string;
+  servingsLeft: number;
+  kcalPerServing: number | null;
+}
+
 /**
  * The meal a person usually has at one kind of meal, from the last two weeks. When no
  * combination came back often enough the source meal and the figures are null and the list of

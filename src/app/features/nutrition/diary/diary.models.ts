@@ -191,7 +191,7 @@ export interface FrequentDrink {
 }
 
 /** Where an Add menu entry leads: the meal builder (search or quick add), the recipes, or the saved meals. */
-export type AddSource = 'recipes' | 'saved' | 'quick';
+export type AddSource = 'recipes' | 'saved' | 'quick' | 'leftovers';
 
 export interface AddRequest {
   /** The meal type the person is adding to. */

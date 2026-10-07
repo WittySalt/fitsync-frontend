@@ -53,7 +53,7 @@ describe('MealPartComponent', () => {
     expect(element.textContent).toContain('High protein');
   });
 
-  it('opens an Add menu with Search foods, From recipes, From saved meals and Quick add', () => {
+  it('opens an Add menu with Search foods, From recipes, From saved meals, Leftovers and Quick add', () => {
     const fixture = render(lunch());
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.add-menu')).toBeNull();
@@ -62,7 +62,7 @@ describe('MealPartComponent', () => {
     fixture.detectChanges();
 
     const entries = Array.from(element.querySelectorAll<HTMLButtonElement>('.add-menu [role="menuitem"]'));
-    expect(entries.map((entry) => entry.textContent?.trim())).toEqual(['Search foods', 'From recipes', 'From saved meals', 'Quick add']);
+    expect(entries.map((entry) => entry.textContent?.trim())).toEqual(['Search foods', 'From recipes', 'From saved meals', 'Leftovers', 'Quick add']);
     expect((element.querySelector('.add') as HTMLButtonElement).getAttribute('aria-expanded')).toBe('true');
   });
 
@@ -80,11 +80,23 @@ describe('MealPartComponent', () => {
       fixture.detectChanges();
     };
 
-    [0, 1, 2, 3].forEach(choose);
+    [0, 1, 2, 3, 4].forEach(choose);
 
     expect(added).toBe(1);
-    expect(sources).toEqual(['recipes', 'saved', 'quick']);
+    expect(sources).toEqual(['recipes', 'saved', 'leftovers', 'quick']);
     expect(element.querySelector('.add-menu')).toBeNull();
+  });
+
+  it('puts the servings left on the Leftovers entry as a badge, and none when nothing is left', () => {
+    const fixture = render(lunch());
+    const element = fixture.nativeElement as HTMLElement;
+    (element.querySelector('.add') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(element.querySelector('.add-menu .badge')).toBeNull();
+
+    fixture.componentRef.setInput('leftoverCount', 4);
+    fixture.detectChanges();
+    expect(element.querySelector('.add-menu .badge')?.textContent?.trim()).toBe('4');
   });
 
   it('opens one menu at a time and closes it on Escape', () => {

@@ -150,6 +150,25 @@ h3 {
     }
   }
 
+  .with-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--text-on-accent);
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+  }
+
   .delete {
     border-top: 1px solid var(--border);
     color: var(--danger);

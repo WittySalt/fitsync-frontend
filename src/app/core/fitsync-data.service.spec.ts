@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { AnalyticsDashboardResponse } from './analytics.models';
 import { DashboardData, FitSyncDataService, ProgressData, normalizeFocusAreas } from './fitsync-data.service';
-import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, UsualMeal } from './fitsync.models';
+import { DayMeal, Exercise, ExerciseDetail, ExerciseMetadata, ExerciseRecords, FoodCategory, FoodDetail, FoodSearchResult, GoalType, ImportResult, LoggedFood, Meal, MealTemplate, NutritionInsightsPage, OnboardingFormValue, OnboardingSeed, ProgressInsight, UpsertGoalRequest, UpsertWorkoutSessionRequest, UserGoal, WeeklyTrainingInsight, WorkoutExport, WorkoutPlan, WorkoutSession, WorkoutSessionDetail, UsualMeal, Leftover } from './fitsync.models';
 import { MonthlyTrainingInsight } from './fitsync.models';
 import { UserTimezoneService } from './user-timezone.service';
 
@@ -906,6 +906,43 @@ describe('FitSyncDataService', () => {
     const request = httpTesting.expectOne('/api/v1/nutrition/meals/m1/copy');
     expect(request.request.body).toEqual({ mealType: 'BREAKFAST', consumedAt: '2026-10-01T23:30:00.000Z' });
     request.flush({});
+  });
+
+  it('reads the leftovers and leaves out a row without a cook id or a count', () => {
+    let result: Leftover[] | undefined;
+    service.getLeftovers().subscribe((value) => (result = value));
+
+    httpTesting.expectOne('/api/v1/nutrition/recipes/cooks/leftovers').flush([
+      { cookId: 'c1', recipeId: 'r1', name: 'Beef stew', imageUrl: null, cookedAt: '2026-10-05T11:00:00Z', servingsLeft: 3, kcalPerServing: 540 },
+      { recipeId: 'r2', name: 'No cook id', servingsLeft: 1 },
+      { cookId: 'c3', servingsLeft: 'many' }
+    ]);
+
+    expect(result).toEqual([{ cookId: 'c1', recipeId: 'r1', name: 'Beef stew', imageUrl: null, cookedAt: '2026-10-05T11:00:00Z', servingsLeft: 3, kcalPerServing: 540 }]);
+  });
+
+  it('patches the servings a cook logged and returns the servings left', () => {
+    let left: number | null | undefined;
+    service.patchCookServings('c 1', 1).subscribe((value) => (left = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/recipes/cooks/c%201');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ servingsLogged: 1 });
+    request.flush({ cookId: 'c 1', servingsLeft: 3 });
+
+    expect(left).toBe(3);
+  });
+
+  it('eats one serving of a leftover and returns the updated row', () => {
+    let result: { cookId: string; servingsLeft: number } | null | undefined;
+    service.eatLeftover('c 1', { mealType: 'DINNER', servings: 1 }).subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/recipes/cooks/c%201/leftover');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ mealType: 'DINNER', servings: 1 });
+    request.flush({ cookId: 'c 1', servingsLeft: 2, meal: { mealId: 'm1' } });
+
+    expect(result?.servingsLeft).toBe(2);
   });
 
   it('fetches the usual meals and maps them defensively', () => {

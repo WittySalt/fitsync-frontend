@@ -6,7 +6,7 @@ import { mapEnergyWeek } from './energy/energy-mappers';
 import { EnergyWeek } from './energy/energy.models';
 import { mapFoodNutrition, mapFoodProgress, mapGoalProgress, mapReviews } from './progress-api.mappers';
 import { dateRangeLabel } from '../../shared/date-label';
-import { FoodNutrition, FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
+import { FoodGranularity, FoodNutrition, FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models';
 
 /**
  * The reads behind the Goal page, the Food page and the weekly reviews. Each sends only `from` and
@@ -24,10 +24,12 @@ export class ProgressApiService {
    * The Food page: analytics' figures and nutrition's, merged here. Analytics carries the page, so
    * its failure fails the read; nutrition's failure only leaves its sections without figures.
    */
-  getFood(from: string, to: string): Observable<FoodProgress> {
+  getFood(from: string, to: string, granularity: FoodGranularity = 'week'): Observable<FoodProgress> {
     const params = period(from, to);
+    // Only analytics knows months; the week answer is asked for exactly as before.
+    const analyticsParams = granularity === 'month' ? params.set('granularity', 'month') : params;
     return forkJoin({
-      analytics: this.http.get<unknown>('/api/v1/analytics/progress/food', { params }).pipe(map(mapFoodProgress)),
+      analytics: this.http.get<unknown>('/api/v1/analytics/progress/food', { params: analyticsParams }).pipe(map((response) => mapFoodProgress(response, granularity))),
       nutrition: this.http.get<unknown>('/api/v1/nutrition/progress/food', { params }).pipe(
         map(mapFoodNutrition),
         catchError(() => of(null))
@@ -60,9 +62,10 @@ export function mergeFood(analytics: Omit<FoodProgress, 'nutrition'>, nutrition:
     ? {
         waterMetDays: nutrition.habits.waterMetDays,
         fibreMetDays: nutrition.habits.fibreMetDays,
-        loggedDays: nutrition.habits.loggedDays ?? analytics.habits.loggedDays
+        loggedDays: nutrition.habits.loggedDays ?? analytics.habits.loggedDays,
+        loggedDaysPerMonth: analytics.habits.loggedDaysPerMonth
       }
-    : { waterMetDays: null, fibreMetDays: null, loggedDays: analytics.habits.loggedDays };
+    : { waterMetDays: null, fibreMetDays: null, loggedDays: analytics.habits.loggedDays, loggedDaysPerMonth: analytics.habits.loggedDaysPerMonth };
   const lowest = nutrition?.lowestNutrients[0];
   const highlights =
     lowest && analytics.highlights.length < 4 && !analytics.highlights.some((h) => h.code === 'LOWEST_NUTRIENT')

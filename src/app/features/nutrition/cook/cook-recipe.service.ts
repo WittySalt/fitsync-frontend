@@ -18,7 +18,7 @@ export class CookRecipeService {
   private readonly http = inject(HttpClient);
 
   /** Records that the recipe was cooked (POST /recipes/{id}/cooks, contract section 9.4). */
-  recordCook(id: string, record: CookRecord): Observable<void> {
+  recordCook(id: string, record: CookRecord): Observable<string | null> {
     return this.http
       .post(`/api/v1/nutrition/recipes/${encodeURIComponent(id)}/cooks`, {
         clientCookId: record.clientCookId,
@@ -26,7 +26,12 @@ export class CookRecipeService {
         startedAt: record.startedAt.toISOString(),
         finishedAt: record.finishedAt.toISOString()
       })
-      .pipe(map(() => undefined));
+      .pipe(
+        map((view) => {
+          const id = (view as Record<string, unknown> | null)?.['cookId'];
+          return typeof id === 'string' && id ? id : null;
+        })
+      );
   }
 
   getRecipe(id: string): Observable<CookRecipe> {

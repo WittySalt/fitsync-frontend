@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-import { AxisPeriod, PlacedLabel, dropColliding, fromFirstData, periodForWeeks, weekLabelMarks } from './chart-axis';
+import { AxisPeriod, PlacedLabel, dropColliding, fromFirstData, monthPointMarks, periodForWeeks, weekLabelMarks } from './chart-axis';
 import { measureWidth } from './measure-width';
 import { formatNumber, signed, textWidth } from './progress-format';
 import { WeekBar } from './progress.models';
@@ -48,9 +48,11 @@ export function weekBarsGeometry(
   signedValues: boolean,
   unit: string,
   width = WIDTH,
-  period?: AxisPeriod
+  period?: AxisPeriod,
+  monthly = false
 ): WeekBarsGeometry | null {
-  const bars = fromFirstData(allBars, (bar) => bar.value !== null);
+  // Months keep every slot of the period, so a year with data in two months still shows twelve.
+  const bars = monthly ? [...allBars] : fromFirstData(allBars, (bar) => bar.value !== null);
   const values = bars.map((b) => b.value).filter((v): v is number => v !== null);
   if (!values.length) {
     return null;
@@ -72,7 +74,9 @@ export function weekBarsGeometry(
   }
   const cxOf = (k: number) => x0 + slot * k + slot / 2;
   const dated = bars.every((bar) => !!bar.weekStart);
-  const labels = dated
+  const labels = dated && monthly
+    ? monthPointMarks(bars.map((bar) => bar.weekStart as string), cxOf)
+    : dated
     ? weekLabelMarks(bars.map((bar) => bar.weekStart as string), cxOf, period ?? periodForWeeks(bars.length))
     : dropColliding(
         bars
@@ -103,7 +107,7 @@ export function weekBarsGeometry(
         cx,
         valueY: value < 0 ? y(value) + 16 : y(value) - 6,
         valueText,
-        showValue: slot >= VALUE_SLOT || k === bars.length - 1,
+        showValue: bar.value !== null && (slot >= VALUE_SLOT || k === bars.length - 1),
         current: bar.current === true
       };
     })
@@ -137,7 +141,7 @@ export function weekBarsGeometry(
         }
       </svg>
       @if (hasCurrent()) {
-        <p class="key"><i class="swatch"></i>The lighter bar is this week so far.</p>
+        <p class="key"><i class="swatch"></i>The lighter bar is this {{ monthly() ? 'month' : 'week' }} so far.</p>
       }
     } @else {
       <p class="none">Not enough data yet</p>
@@ -169,9 +173,11 @@ export class WeekBarsComponent {
   readonly label = input('Each week');
   /** Four weeks, three months or a year; worked out from the number of weeks when not given. */
   readonly period = input<AxisPeriod | null>(null);
+  /** One bar per calendar month: `weekStart` of each bar is the month's first day and the axis names months. */
+  readonly monthly = input(false);
 
   protected readonly width = measureWidth(WIDTH);
-  protected readonly geometry = computed(() => weekBarsGeometry(this.bars(), this.height(), this.signed(), this.unit(), this.width(), this.period() ?? undefined));
+  protected readonly geometry = computed(() => weekBarsGeometry(this.bars(), this.height(), this.signed(), this.unit(), this.width(), this.period() ?? undefined, this.monthly()));
   protected readonly hasCurrent = computed(() => this.bars().some((bar) => bar.current === true && bar.value !== null));
   protected readonly summary = computed(() => {
     const parts = this.bars().map((bar) => `${bar.label} ${bar.valueLabel ?? (bar.value === null ? 'none' : formatNumber(bar.value))}`);

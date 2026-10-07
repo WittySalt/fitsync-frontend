@@ -1,9 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 
 import { anchorSteps } from '../../../core/guide/guide-testing.spec';
+import { CookFinishedComponent } from './cook-finished.component';
 import { CookPage } from './cook.page';
 import { COOK_SESSION_KEY, CookSessionService } from './cook-session.service';
 
@@ -307,29 +309,64 @@ describe('CookPage', () => {
 
   describe('recording the cook', () => {
     const recordUrl = '/api/v1/nutrition/recipes/r1/cooks';
+    const patchUrl = '/api/v1/nutrition/recipes/cooks/ck1';
 
-    function finishCooking(): void {
+    function finishCooking(cookCount = 0): void {
       setup();
-      load(wire({ cookCount: 0 }));
+      load(wire({ cookCount }));
       spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
       click('app-cook-steps li button', 2);
       click('.forward');
     }
 
-    it('sends the cook with the id made at the start, the servings and the times, then shows the card', () => {
+    const finished = () => fixture.debugElement.query(By.directive(CookFinishedComponent)).componentInstance as CookFinishedComponent;
+
+    it('sends the cook at Finish cooking with the id made at the start, the servings and the times, then shows the card', () => {
       finishCooking();
       expect(el.querySelector('app-cook-finished')).toBeNull();
       const request = http.expectOne(recordUrl);
       expect(request.request.body.clientCookId).toBe(session.data()!.cookId);
       expect(request.request.body.servings).toBe(2);
+      expect(request.request.body.servingsLogged).toBeUndefined();
       expect(new Date(request.request.body.startedAt).getTime()).toBeLessThanOrEqual(new Date(request.request.body.finishedAt).getTime());
-      request.flush(null);
+      request.flush({ cookId: 'ck1', servingsLeft: 2 });
       fixture.detectChanges();
       expect(el.querySelector('app-cook-finished')).not.toBeNull();
       expect(el.querySelector('app-cook-finished .earned')).not.toBeNull();
     });
 
-    it('tries once more when it fails, with the same id, and still shows the card when it fails twice', () => {
+    it('patches the servings the card logged when it is left, and goes back to the recipe', () => {
+      finishCooking();
+      http.expectOne(recordUrl).flush({ cookId: 'ck1', servingsLeft: 2 });
+      fixture.detectChanges();
+      const navigate = TestBed.inject(Router).navigateByUrl as jasmine.Spy;
+      finished().done.emit(1);
+      const patch = http.expectOne(patchUrl);
+      expect(patch.request.method).toBe('PATCH');
+      expect(patch.request.body).toEqual({ servingsLogged: 1 });
+      patch.flush({ cookId: 'ck1', servingsLeft: 1 });
+      expect(navigate).toHaveBeenCalled();
+    });
+
+    it('patches 0 when nothing was logged', () => {
+      finishCooking();
+      http.expectOne(recordUrl).flush({ cookId: 'ck1', servingsLeft: 2 });
+      fixture.detectChanges();
+      finished().done.emit(0);
+      expect(http.expectOne(patchUrl).request.body).toEqual({ servingsLogged: 0 });
+    });
+
+    it('tries the patch once more when it fails, and goes back to the recipe either way', () => {
+      finishCooking();
+      http.expectOne(recordUrl).flush({ cookId: 'ck1', servingsLeft: 2 });
+      fixture.detectChanges();
+      finished().done.emit(1);
+      http.expectOne(patchUrl).flush('no', { status: 500, statusText: 'Server Error' });
+      http.expectOne(patchUrl).flush('no', { status: 409, statusText: 'Conflict' });
+      expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalled();
+    });
+
+    it('tries the record once more when it fails, still shows the card, and patches nothing without a cook id', () => {
       finishCooking();
       http.expectOne(recordUrl).flush('no', { status: 500, statusText: 'Server Error' });
       const again = http.expectOne(recordUrl);
@@ -337,16 +374,19 @@ describe('CookPage', () => {
       again.flush('no', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
       expect(el.querySelector('app-cook-finished')).not.toBeNull();
+      finished().done.emit(1);
+      http.expectNone(patchUrl);
+      expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalled();
     });
 
-    it('does not offer first time for a recipe cooked before, and sends nothing twice for a second tap', () => {
+    it('does not offer first time for a recipe cooked before, and disables the button while recording', () => {
       setup();
       load(wire({ cookCount: 2 }));
       spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
       click('app-cook-steps li button', 2);
       click('.forward');
       expect((el.querySelector('.forward') as HTMLButtonElement).disabled).toBeTrue();
-      http.expectOne(recordUrl).flush(null);
+      http.expectOne(recordUrl).flush({ cookId: 'ck1', servingsLeft: 2 });
       fixture.detectChanges();
       expect(el.querySelector('app-cook-finished .earned')).toBeNull();
     });
@@ -370,7 +410,7 @@ describe('CookPage', () => {
     click('app-cook-steps li button', 2);
     expect(el.querySelector('app-cook-finished')).toBeNull();
     click('.forward');
-    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush({ cookId: 'ck1', servingsLeft: 2 });
     fixture.detectChanges();
 
     expect(el.querySelector('app-cook-finished')).not.toBeNull();
@@ -527,11 +567,12 @@ describe('CookPage', () => {
     expect(navigate).toHaveBeenCalledWith(jasmine.stringMatching(/^\/nutrition\/recipes\/.+/), { replaceUrl: true });
     click('app-cook-steps li button', 2);
     click('.forward');
-    // Finish cooking records the cook, then opens the finish card; it leaves for the recipe when answered.
+    // Finish cooking records the cook, then opens the finish card; answering it patches the servings and leaves for the recipe.
     expect(navigate).toHaveBeenCalledTimes(1);
-    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush(null);
+    http.expectOne('/api/v1/nutrition/recipes/r1/cooks').flush({ cookId: 'ck1', servingsLeft: 2 });
     fixture.detectChanges();
     click('app-cook-finished .quiet');
+    http.expectOne('/api/v1/nutrition/recipes/cooks/ck1').flush({ cookId: 'ck1', servingsLeft: 2 });
     expect(navigate).toHaveBeenCalledTimes(2);
   });
 

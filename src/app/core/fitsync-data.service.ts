@@ -103,7 +103,8 @@ import {
   WeeklyLiftChange,
   WeeklyTrainingInsight,
   WeightSeriesPoint,
-  UsualMeal
+  UsualMeal,
+  Leftover
 } from './fitsync.models';
 
 export interface DashboardData {
@@ -855,6 +856,25 @@ interface BackendUsualMeals {
 }
 
 /** A number from the wire, or null when it is missing or not finite. */
+function toLeftover(value: unknown): Leftover | null {
+  const row = (value ?? {}) as Record<string, unknown>;
+  const text = (key: string): string | null => (typeof row[key] === 'string' && (row[key] as string).length > 0 ? (row[key] as string) : null);
+  const cookId = text('cookId');
+  const left = finiteOrNull(row['servingsLeft']);
+  if (!cookId || left === null) {
+    return null;
+  }
+  return {
+    cookId,
+    recipeId: text('recipeId') ?? '',
+    name: text('name') ?? 'A recipe',
+    imageUrl: text('imageUrl'),
+    cookedAt: text('cookedAt') ?? '',
+    servingsLeft: left,
+    kcalPerServing: finiteOrNull(row['kcalPerServing'])
+  };
+}
+
 function finiteOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
@@ -1967,6 +1987,33 @@ export class FitSyncDataService {
     return this.http
       .post(`${this.apiBaseUrl}/nutrition/meals/${mealId}/copy`, body)
       .pipe(map(() => ({ ok: true as const })));
+  }
+
+  /** The cooks of the last seven days with servings left, newest first; rows that cannot be read are left out. */
+  getLeftovers(): Observable<Leftover[]> {
+    return this.http.get<unknown>(`${this.apiBaseUrl}/nutrition/recipes/cooks/leftovers`).pipe(
+      map((response) => (Array.isArray(response) ? response : []).map(toLeftover).filter((row): row is Leftover => row !== null))
+    );
+  }
+
+  /** Tells the server how many servings of a finished cook were logged (0..50); the answer is the servings still left. 404 for another person's cook, 409 after 24 hours. */
+  patchCookServings(cookId: string, servingsLogged: number): Observable<number | null> {
+    return this.http
+      .patch<unknown>(`${this.apiBaseUrl}/nutrition/recipes/cooks/${encodeURIComponent(cookId)}`, { servingsLogged })
+      .pipe(map((view) => finiteOrNull(((view ?? {}) as Record<string, unknown>)['servingsLeft'])));
+  }
+
+  /** Logs `servings` of a leftover into a meal; the answer carries the servings still left (0 at the end). A 409 means none were left. */
+  eatLeftover(cookId: string, request: { mealType: string; servings: number }): Observable<{ cookId: string; servingsLeft: number } | null> {
+    return this.http
+      .post<unknown>(`${this.apiBaseUrl}/nutrition/recipes/cooks/${encodeURIComponent(cookId)}/leftover`, request)
+      .pipe(
+        map((response) => {
+          const row = (response ?? {}) as Record<string, unknown>;
+          const left = finiteOrNull(row['servingsLeft']);
+          return left === null ? null : { cookId: typeof row['cookId'] === 'string' ? row['cookId'] : cookId, servingsLeft: left };
+        })
+      );
   }
 
   /** The meals a person usually has, from the last fourteen days, one entry per meal type. */

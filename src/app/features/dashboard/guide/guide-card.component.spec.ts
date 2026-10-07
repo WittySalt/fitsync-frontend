@@ -69,12 +69,13 @@ describe('GuideCardComponent', () => {
     expect(el.querySelector('.tile.current')?.getAttribute('data-step')).toBe('session');
   });
 
-  it('folds to one line when all four are done', () => {
+  it('renders nothing when all four are done', () => {
     const el = render({ goals: [goal('WORKOUT_FREQUENCY')], plan: true, meal: true, session: true });
 
-    expect(el.querySelector('.tiles')).toBeNull();
-    expect(el.querySelector('.folded-line')?.textContent).toContain("You're set up. The coach takes it from here.");
-    expect(Array.from(el.querySelectorAll('.hide')).map((b) => b.textContent?.trim())).toEqual(['Take the tour again', 'Hide']);
+    expect(el.querySelector('section')).toBeNull();
+    expect(el.querySelector('.folded-line')).toBeNull();
+    expect(el.querySelector('.hide')).toBeNull();
+    expect(el.textContent).not.toContain("You're set up");
   });
 
   it('"Take the tour again" brings every page path back and scrolls to the card', () => {

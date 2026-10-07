@@ -27,12 +27,28 @@ export function parsePeriod(value: string | null | undefined): PeriodKey {
 
 /** The first and last local day of a period ending today, and how many days that is. */
 export function periodRange(key: PeriodKey, today: string): { from: string; to: string; days: number } {
-  const days = PERIODS.find((period) => period.key === key)?.days ?? 7;
+  const days = key === '90d' ? 90 : (PERIODS.find((period) => period.key === key)?.days ?? 7);
   return { from: addDays(today, 1 - days), to: today, days };
 }
 
 export function periodEyebrow(key: PeriodKey): string {
-  return key === 'today' ? 'Today' : `Your last ${key === '7d' ? 7 : 30} days`;
+  return key === 'today' ? 'Today' : `Your last ${key === '7d' ? 7 : key === '30d' ? 30 : 90} days`;
+}
+
+/**
+ * The period of a nutrients page from its query. `?range=30|90` is what Progress writes and wins
+ * over `?period=`; without it the period reads as before.
+ */
+export function periodFromQuery(period: string | null | undefined, range: string | null | undefined): PeriodKey {
+  if (range === '90') {
+    return '90d';
+  }
+  return range === '30' ? '30d' : parsePeriod(period);
+}
+
+/** The query that names a period in a link: `range=90` for 90 days, `period=` for the others. */
+export function periodQuery(key: PeriodKey): Record<string, string> {
+  return key === '90d' ? { range: '90' } : { period: key };
 }
 
 export const GROUP_ORDER: readonly NutrientGroup[] = ['FAT_SOLUBLE', 'WATER_SOLUBLE', 'MAJOR_MINERAL', 'TRACE_MINERAL', 'LIMIT'];

@@ -9,7 +9,7 @@ import { LOADING, Load } from '../diary/diary.models';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { NutrientDetail, NutrientTileData, NutrientsOverview, PeriodKey } from './nutrients.models';
 import { NutrientsService } from './nutrients.service';
-import { PERIODS, parsePeriod, periodRange, reachSummary } from './nutrients-figures';
+import { PERIODS, periodFromQuery, periodQuery, periodRange, reachSummary } from './nutrients-figures';
 import { saveScroll, takeScroll } from './nutrients-scroll';
 import { NutrientHeroComponent } from './nutrient-hero.component';
 import { NutrientSidePanelComponent } from './nutrient-side-panel.component';
@@ -47,8 +47,9 @@ const FAILURE = 'Your nutrients could not load. Please retry.';
           }
         </div>
         <div class="tools">
+          <a class="door" routerLink="/progress/food" [queryParams]="{ period: '3m' }" fragment="nutrients">Last 3 months &rsaquo;</a>
           <div class="segmented periods" role="group" aria-label="Period" appSpotlight="nutrition-nutrients" spotlightStep="period">
-            @for (option of periods; track option.key) {
+            @for (option of periodOptions(); track option.key) {
               <button type="button" [class.active]="period() === option.key" [attr.aria-pressed]="period() === option.key" (click)="setPeriod(option.key)">
                 {{ option.label }}
               </button>
@@ -95,10 +96,11 @@ export class NutrientsPage {
     this.progressBack.back('/nutrition');
   }
 
-  protected readonly periods = PERIODS;
-  protected readonly period = toSignal(this.route.queryParamMap.pipe(map((params) => parsePeriod(params.get('period')))), {
-    initialValue: parsePeriod(this.route.snapshot.queryParamMap.get('period'))
+  protected readonly period = toSignal(this.route.queryParamMap.pipe(map((params) => periodFromQuery(params.get('period'), params.get('range')))), {
+    initialValue: periodFromQuery(this.route.snapshot.queryParamMap.get('period'), this.route.snapshot.queryParamMap.get('range'))
   });
+  /** Today, 7 and 30 days; a 90 day range only appears when Progress opened the page at it. */
+  protected readonly periodOptions = computed(() => (this.period() === '90d' ? [...PERIODS, { key: '90d' as const, label: '90 days', days: 90 }] : PERIODS));
   protected readonly range = computed(() => periodRange(this.period(), this.userTimezone.dateKey()));
 
   protected readonly state = signal<Load<NutrientsOverview>>(LOADING);
@@ -145,7 +147,7 @@ export class NutrientsPage {
 
   protected setPeriod(key: PeriodKey): void {
     if (key !== this.period()) {
-      void this.router.navigate([], { relativeTo: this.route, queryParams: { period: key }, queryParamsHandling: 'merge', replaceUrl: true });
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { ...periodQuery(key), ...(key === '90d' ? { period: null } : { range: null }) }, queryParamsHandling: 'merge', replaceUrl: true });
     }
   }
 
@@ -162,7 +164,7 @@ export class NutrientsPage {
   }
 
   protected open(item: NutrientTileData): void {
-    void this.router.navigate(['/nutrition/nutrients', item.code], { queryParams: { period: this.period() } });
+    void this.router.navigate(['/nutrition/nutrients', item.code], { queryParams: periodQuery(this.period()) });
   }
 
   protected detailOf(code: string): Load<NutrientDetail> {

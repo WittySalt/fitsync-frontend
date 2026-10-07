@@ -1,10 +1,11 @@
 import { Component, DestroyRef, WritableSignal, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, forkJoin, of } from 'rxjs';
 
 import { AccountDataService } from '../../../core/account-data.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
-import { UsualMeal } from '../../../core/fitsync.models';
+import { Leftover, UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog.component';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
@@ -15,6 +16,7 @@ import { loggedMoment } from './diary-water';
 import { AddDrinkDialogComponent } from './add-drink-dialog.component';
 import { BalanceCardComponent } from './balance-card.component';
 import { BudgetCardComponent } from './budget-card.component';
+import { LeftoversSheetComponent } from './leftovers-sheet.component';
 import { DrinkAdd } from './drink-drink-panel.component';
 import { WaterAdd } from './drink-water-panel.component';
 import { MealsCardComponent } from './meals-card.component';
@@ -37,6 +39,7 @@ const DAY_SPAN_HOURS = 16;
     BalanceCardComponent,
     BudgetCardComponent,
     ConfirmDialogComponent,
+    LeftoversSheetComponent,
     MealsCardComponent,
     PlateCardComponent,
     StatePanelComponent,
@@ -53,11 +56,12 @@ const DAY_SPAN_HOURS = 16;
               [meals]="m.data"
               [usual]="usual()"
               [busy]="busy()"
+              [leftoverCount]="leftoverServings()"
               [date]="date()"
               [today]="today()"
               [dismissed]="dismissedDays().has(date())"
               (addMeal)="addMeal.emit($event)"
-              (addFrom)="addFrom.emit($event)"
+              (addFrom)="chooseFrom($event)"
               (logAgain)="logAgain($event)"
               (saveAsMeal)="saveAsMeal($event)"
               (deleteMeal)="confirming.set($event)"
@@ -150,6 +154,17 @@ const DAY_SPAN_HOURS = 16;
         (cancelled)="confirmingFast.set(null)"
       />
     }
+    @if (leftoverSlot(); as slot) {
+      <app-leftovers-sheet
+        [leftovers]="leftovers()"
+        [mealLabel]="slotLabel(slot)"
+        [today]="today()"
+        [busy]="busy()"
+        [error]="leftoverError()"
+        (closed)="leftoverSlot.set(null)"
+        (eat)="eatLeftover($event, slot)"
+      />
+    }
     @if (dialogOpen()) {
       <app-add-drink-dialog [date]="date()" [today]="today()" [busy]="busy()" (closed)="dialogOpen.set(false)" (addWater)="addWater($event)" (addDrink)="addDrink($event)" />
     }
@@ -185,6 +200,11 @@ export class DiaryDayComponent {
   protected readonly nutrients = signal<Load<NutrientSummary>>(LOADING);
   protected readonly weekNutrients = signal<Load<NutrientSummary>>(LOADING);
   protected readonly usual = signal<UsualMeal[]>([]);
+  protected readonly leftovers = signal<Leftover[]>([]);
+  /** The meal the open Leftovers sheet logs into, or null while it is closed. */
+  protected readonly leftoverSlot = signal<string | null>(null);
+  protected readonly leftoverError = signal<string | null>(null);
+  protected readonly leftoverServings = computed(() => this.leftovers().reduce((sum, row) => sum + row.servingsLeft, 0));
   protected readonly frequent = signal<FrequentDrink[]>([]);
   protected readonly waterGoal = signal<number | null>(null);
   protected readonly busy = signal(false);
@@ -245,6 +265,7 @@ export class DiaryDayComponent {
         this.waterGoal.set(goal !== null && goal > 0 ? goal : null);
       });
     this.loadFrequent();
+    this.loadLeftovers();
   }
 
   protected loadSummary(silent = false): void {
@@ -281,6 +302,54 @@ export class DiaryDayComponent {
     this.loadSummary();
     this.loadMeals();
     this.loadWater();
+  }
+
+  private loadLeftovers(): void {
+    this.data
+      .getLeftovers()
+      .pipe(catchError(() => of([] as Leftover[])), takeUntilDestroyed(this.destroyRef))
+      .subscribe((rows) => this.leftovers.set(rows.filter((row) => row.servingsLeft > 0)));
+  }
+
+  /** The Add menu: Leftovers opens its sheet here, every other entry goes on to the page. */
+  protected chooseFrom(request: AddRequest): void {
+    if (request.source === 'leftovers') {
+      this.leftoverError.set(null);
+      this.leftoverSlot.set(request.slot);
+      return;
+    }
+    this.addFrom.emit(request);
+  }
+
+  protected slotLabel(slot: string): string {
+    return slot.charAt(0) + slot.slice(1).toLowerCase();
+  }
+
+  /** One serving of a leftover into the meal; the row's count drops and the sheet closes when none are left. */
+  protected eatLeftover(row: Leftover, slot: string): void {
+    this.busy.set(true);
+    this.leftoverError.set(null);
+    this.data.eatLeftover(row.cookId, { mealType: slot, servings: 1 }).subscribe({
+      next: (updated) => {
+        this.busy.set(false);
+        const left = updated ? updated.servingsLeft : row.servingsLeft - 1;
+        this.leftovers.update((rows) => rows.flatMap((item) => (item.cookId !== row.cookId ? [item] : left > 0 ? [{ ...item, servingsLeft: left }] : [])));
+        this.toast.success(`Logged one serving of ${row.name.toLowerCase()}.`);
+        this.afterMealChange();
+        if (this.leftovers().length === 0) {
+          this.leftoverSlot.set(null);
+        }
+      },
+      error: (failure: unknown) => {
+        this.busy.set(false);
+        if (failure instanceof HttpErrorResponse && failure.status === 409) {
+          this.leftoverError.set('That one has no servings left.');
+          this.loadLeftovers();
+        } else {
+          this.leftoverError.set('That serving was not logged. Please try again.');
+        }
+      }
+    });
   }
 
   private loadFrequent(): void {

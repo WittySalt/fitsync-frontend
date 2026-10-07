@@ -87,10 +87,10 @@ describe('DiaryWeekComponent', () => {
     expect(figures).toEqual(['0 of 5 days logged', '0 kcal today so far']);
   });
 
-  it('links Longer in the head to the four-week food view', () => {
+  it('links Longer in the head to Progress food at three months', () => {
     const link = render().nativeElement.querySelector('.head a.longer') as HTMLAnchorElement;
     expect(link.textContent?.replace(/s+/g, ' ').trim()).toBe('Longer ›');
-    expect(link.getAttribute('href')).toBe('/progress/food');
+    expect(link.getAttribute('href')).toBe('/progress/food?period=3m');
   });
 
   it('shows the range of the week', () => {

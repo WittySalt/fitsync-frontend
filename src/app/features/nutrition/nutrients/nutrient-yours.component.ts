@@ -8,7 +8,7 @@ import { NutrientDayBarsComponent } from './nutrient-day-bars.component';
 import { NutrientSourcesComponent } from './nutrient-sources.component';
 import { NutrientTileComponent } from './nutrient-tile.component';
 
-const SPAN: Record<PeriodKey, string> = { today: 'today', '7d': 'last 7 days', '30d': 'last 30 days' };
+const SPAN: Record<PeriodKey, string> = { today: 'today', '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 days' };
 
 function shortDate(iso: string): string {
   return iso ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(parseIsoDate(iso)) : '';

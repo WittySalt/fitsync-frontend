@@ -69,6 +69,26 @@ describe('NutrientsPage', () => {
     expect(TestBed.inject(Router).url).toBe('/nutrition');
   });
 
+  it('heads the page with a door to the last 3 months on Progress', async () => {
+    const el = await open();
+    const door = el.querySelector<HTMLAnchorElement>('.tools a.door');
+    expect(door?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Last 3 months ›');
+    expect(door?.getAttribute('href')).toBe('/progress/food?period=3m#nutrients');
+  });
+
+  it('follows ?range=90 from Progress with a 90 days button and asks the server for 90 days', async () => {
+    const el = await open('/nutrition/nutrients?range=90');
+    const [from, to] = service.getAll.calls.mostRecent().args;
+    expect((new Date(to).getTime() - new Date(from).getTime()) / 86400000).toBe(89);
+    expect(el.querySelector('.periods button[aria-pressed="true"]')?.textContent?.trim()).toBe('90 days');
+    expect(el.querySelectorAll('.periods button').length).toBe(4);
+  });
+
+  it('keeps All nutrients at 7 days with no 90 days button when it is opened from Nutrition', async () => {
+    const el = await open();
+    expect(el.querySelectorAll('.periods button').length).toBe(3);
+  });
+
   it('opens on 7 days when the URL names no period', async () => {
     const el = await open();
     expect(service.getAll).toHaveBeenCalledTimes(1);

@@ -33,6 +33,9 @@ import { CookLogComponent } from './cook-log.component';
           <div class="titles">
             <h2 id="cook-finished-title">Cooked</h2>
             <span class="name">{{ name() }}</span>
+            @if (leftLine(); as line) {
+              <span class="name" data-test="left-line">{{ line }}</span>
+            }
           </div>
           <div class="facts" role="group" aria-label="Cooking summary">
             <div><strong>{{ minutes() }}</strong>&ngsp;<span>min</span></div>
@@ -67,10 +70,10 @@ import { CookLogComponent } from './cook-log.component';
         />
 
         @if (logged()) {
-          <button type="button" class="primary" (click)="done.emit()">Done</button>
+          <button type="button" class="primary" (click)="leave()">Done</button>
         } @else {
           <button type="button" class="primary" [disabled]="busy()" (click)="log()">{{ busy() ? 'Logging' : logLabel() }}</button>
-          <button type="button" class="quiet" [disabled]="busy()" (click)="done.emit()">Not now</button>
+          <button type="button" class="quiet" [disabled]="busy()" (click)="leave()">Not now</button>
         }
       </article>
     </div>
@@ -99,7 +102,8 @@ export class CookFinishedComponent implements OnInit {
   /** Overrides the browser's reduced-motion setting, for tests. */
   readonly reducedMotion = input<boolean | null>(null);
   /** Leave for the recipe page: after Done, or Not now. */
-  readonly done = output<void>();
+  /** Leaving the card, with the servings logged from it (0 when none). */
+  readonly done = output<number>();
 
   protected readonly today = signal<Load<DiarySummary>>(LOADING);
   protected readonly eaten = signal(1);
@@ -112,6 +116,11 @@ export class CookFinishedComponent implements OnInit {
   protected readonly added = computed(() => {
     const per = this.kcalPerServing();
     return this.logged() && per !== null ? scaled(per, this.eaten()) : null;
+  });
+  /** "Cooked 4 servings · 3 left", once a serving has been logged and some are left to eat later. */
+  protected readonly leftLine = computed(() => {
+    const left = this.servingsCooked() - this.eaten();
+    return this.logged() && left > 0 ? `Cooked ${servingsLabel(this.servingsCooked())} · ${left} left` : '';
   });
   protected readonly logLabel = computed(() => {
     const per = this.kcalPerServing();
@@ -177,7 +186,7 @@ export class CookFinishedComponent implements OnInit {
   @HostListener('document:keydown.escape')
   protected leave(): void {
     if (!this.busy()) {
-      this.done.emit();
+      this.done.emit(this.logged() ? this.eaten() : 0);
     }
   }
 
