@@ -26,7 +26,7 @@ import { FoodGranularity, MacroTrend } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { PERIODS } from '../training/training-period';
 import { shownData, useLoad, usePeriod } from '../training/training-load';
-import { ENERGY_ASK, balanceHeadline, monthSlots, foodHeroStats, foodSentence, foodVerdict, macroAsk, macroSentence } from './food-figures';
+import { ENERGY_ASK, balanceHeadline, monthSlots, foodHeroStats, foodSentence, foodVerdict, macroAsk, macroSentence, highlightsWithOverview } from './food-figures';
 import { FoodMealsSectionComponent } from './food-meals-section.component';
 import { FoodNutrientsSectionComponent } from './food-nutrients-section.component';
 import { FoodPlateSectionComponent } from './food-plate-section.component';
@@ -117,6 +117,11 @@ export class FoodPage {
   readonly loading = computed(() => this.state().status === 'loading');
   readonly failed = computed(() => this.state().status === 'error');
   readonly data = computed(() => shownData(this.state()));
+  /** The highlights with the lowest-nutrient card read from the same data as the petals. */
+  protected readonly highlights = computed(() => {
+    const data = this.data();
+    return data ? highlightsWithOverview(data.highlights, this.nutrients(), this.nutrientRange().days) : [];
+  });
   private readonly scrollToSection = useFragmentScroll(computed(() => this.data() !== null));
 
   readonly days = computed(() => {

@@ -6,6 +6,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { NutrientTileData, NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { FoodNutrition, FoodProgress } from '../progress-api.models';
 import { FoodNutrientsSectionComponent } from './food-nutrients-section.component';
+import { highlightsWithOverview } from './food-figures';
 
 function tile(code: string, displayName: string, share: number | null, groupCode: NutrientTileData['groupCode'] = 'MAJOR_MINERAL'): NutrientTileData {
   return {
@@ -67,5 +68,22 @@ describe('FoodNutrientsSectionComponent', () => {
     fixture.componentRef.setInput('nutrition', NUTRITION);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Calcium 64%');
+  });
+});
+
+describe('highlightsWithOverview', () => {
+  const analyticsCard = { code: 'LOWEST_NUTRIENT', title: 'Calcium is the furthest short, 64% of the daily amount.', series: [], unit: '%', context: 'On average, 8 Sept to 8 Oct' };
+  const other = { code: 'PLATE_SHIFT', title: 'More vegetables.', series: [], unit: '%', context: '' };
+
+  it('replaces the lowest-nutrient card with the figure the petals show', () => {
+    const result = highlightsWithOverview([other, analyticsCard], OVERVIEW, 90);
+    expect(result.map((item) => item.code)).toEqual(['PLATE_SHIFT', 'LOWEST_NUTRIENT']);
+    expect(result[1].title).toBe('Calcium is the furthest short, 67% of the daily amount.');
+    expect(result[1].context).toBe('On average, the last 90 days');
+  });
+
+  it('adds the card when analytics had none and keeps the highlights as they came without the petal read', () => {
+    expect(highlightsWithOverview([other], OVERVIEW, 30).some((item) => item.code === 'LOWEST_NUTRIENT')).toBeTrue();
+    expect(highlightsWithOverview([other, analyticsCard], null, 90)).toEqual([other, analyticsCard]);
   });
 });
