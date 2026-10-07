@@ -921,6 +921,18 @@ describe('FitSyncDataService', () => {
     expect(result).toEqual([{ cookId: 'c1', recipeId: 'r1', name: 'Beef stew', imageUrl: null, cookedAt: '2026-10-05T11:00:00Z', servingsLeft: 3, kcalPerServing: 540 }]);
   });
 
+  it('patches the servings a cook logged and returns the servings left', () => {
+    let left: number | null | undefined;
+    service.patchCookServings('c 1', 1).subscribe((value) => (left = value));
+
+    const request = httpTesting.expectOne('/api/v1/nutrition/recipes/cooks/c%201');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ servingsLogged: 1 });
+    request.flush({ cookId: 'c 1', servingsLeft: 3 });
+
+    expect(left).toBe(3);
+  });
+
   it('eats one serving of a leftover and returns the updated row', () => {
     let result: { cookId: string; servingsLeft: number } | null | undefined;
     service.eatLeftover('c 1', { mealType: 'DINNER', servings: 1 }).subscribe((value) => (result = value));

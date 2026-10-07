@@ -1996,6 +1996,13 @@ export class FitSyncDataService {
     );
   }
 
+  /** Tells the server how many servings of a finished cook were logged (0..50); the answer is the servings still left. 404 for another person's cook, 409 after 24 hours. */
+  patchCookServings(cookId: string, servingsLogged: number): Observable<number | null> {
+    return this.http
+      .patch<unknown>(`${this.apiBaseUrl}/nutrition/recipes/cooks/${encodeURIComponent(cookId)}`, { servingsLogged })
+      .pipe(map((view) => finiteOrNull(((view ?? {}) as Record<string, unknown>)['servingsLeft'])));
+  }
+
   /** Logs `servings` of a leftover into a meal; the answer carries the servings still left (0 at the end). A 409 means none were left. */
   eatLeftover(cookId: string, request: { mealType: string; servings: number }): Observable<{ cookId: string; servingsLeft: number } | null> {
     return this.http
