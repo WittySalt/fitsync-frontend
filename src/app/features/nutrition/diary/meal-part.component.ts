@@ -62,6 +62,12 @@ export function usualNames(meal: UsualMeal): string {
               <button type="button" role="menuitem" (click)="chooseAdd('search')">Search foods</button>
               <button type="button" role="menuitem" (click)="chooseAdd('recipes')">From recipes</button>
               <button type="button" role="menuitem" (click)="chooseAdd('saved')">From saved meals</button>
+              <button type="button" role="menuitem" class="with-badge" (click)="chooseAdd('leftovers')">
+                Leftovers
+                @if (leftoverCount() > 0) {
+                  <span class="badge" [attr.aria-label]="leftoverCount() + ' servings left'">{{ leftoverCount() }}</span>
+                }
+              </button>
               <button type="button" role="menuitem" (click)="chooseAdd('quick')">Quick add</button>
             </div>
           }
@@ -129,6 +135,8 @@ export class MealPartComponent {
   /** The person's usual meal for this part, when they have one. */
   readonly usual = input<UsualMeal | null>(null);
   readonly busy = input(false);
+  /** Servings left from the last week's cooks, shown as a badge on the Leftovers entry. */
+  readonly leftoverCount = input(0);
   /** True for the first meal of the card, which carries the Nutrition spotlight. */
   readonly tourAnchor = input(false);
   /** Search foods, the first entry of the Add menu. */

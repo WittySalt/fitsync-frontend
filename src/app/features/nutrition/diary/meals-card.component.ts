@@ -33,6 +33,7 @@ const USUAL_SLOTS: readonly MealSlot[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
         [tourAnchor]="first"
         [usual]="usualFor(part)"
         [busy]="busy()"
+        [leftoverCount]="leftoverCount()"
         (add)="addMeal.emit(part.slot)"
         (addFrom)="addFrom.emit({ slot: part.slot, source: $event })"
         (logAgain)="logAgain.emit(part)"
@@ -68,6 +69,8 @@ export class MealsCardComponent {
   /** The usual meals from the last two weeks, one per meal type. */
   readonly usual = input<UsualMeal[]>([]);
   readonly busy = input(false);
+  /** Servings left from the last week's cooks, for the badge on each Add menu's Leftovers entry. */
+  readonly leftoverCount = input(0);
   /** The day shown, "YYYY-MM-DD", and today, so that the nothing-logged line never shows on today. */
   readonly date = input('');
   readonly today = input('');

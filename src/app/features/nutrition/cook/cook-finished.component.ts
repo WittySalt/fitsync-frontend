@@ -33,6 +33,9 @@ import { CookLogComponent } from './cook-log.component';
           <div class="titles">
             <h2 id="cook-finished-title">Cooked</h2>
             <span class="name">{{ name() }}</span>
+            @if (leftLine(); as line) {
+              <span class="name" data-test="left-line">{{ line }}</span>
+            }
           </div>
           <div class="facts" role="group" aria-label="Cooking summary">
             <div><strong>{{ minutes() }}</strong>&ngsp;<span>min</span></div>
@@ -112,6 +115,11 @@ export class CookFinishedComponent implements OnInit {
   protected readonly added = computed(() => {
     const per = this.kcalPerServing();
     return this.logged() && per !== null ? scaled(per, this.eaten()) : null;
+  });
+  /** "Cooked 4 servings · 3 left", once a serving has been logged and some are left to eat later. */
+  protected readonly leftLine = computed(() => {
+    const left = this.servingsCooked() - this.eaten();
+    return this.logged() && left > 0 ? `Cooked ${servingsLabel(this.servingsCooked())} · ${left} left` : '';
   });
   protected readonly logLabel = computed(() => {
     const per = this.kcalPerServing();

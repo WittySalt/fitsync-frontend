@@ -1,10 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NEVER, Subject, of, throwError } from 'rxjs';
 
 import { AccountDataService } from '../../../core/account-data.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
-import { Meal, UsualMeal } from '../../../core/fitsync.models';
+import { Leftover, Meal, UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
 import { DiaryDayComponent } from './diary-day.component';
 import { DiarySummary, FrequentDrink, WaterDay } from './diary.models';
@@ -30,8 +31,9 @@ describe('DiaryDayComponent', () => {
 
   beforeEach(() => {
     diary = diaryServiceStub();
-    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getUsualMeals', 'copyMeal', 'createMealTemplate']);
+    data = jasmine.createSpyObj<FitSyncDataService>('FitSyncDataService', ['getUsualMeals', 'copyMeal', 'createMealTemplate', 'getLeftovers', 'eatLeftover']);
     data.getUsualMeals.and.returnValue(of([]));
+    data.getLeftovers.and.returnValue(of([]));
     data.copyMeal.and.returnValue(of({ ok: true }));
     TestBed.configureTestingModule({
       providers: [
@@ -515,6 +517,76 @@ describe('DiaryDayComponent', () => {
       const fixture = render();
       expect(text(q(fixture, 'app-vitamins-card .low-head'))).toContain('Vitamin D');
       expect(text(q(fixture, 'app-vitamins-card .coverage'))).toContain('1 of 4 logged foods');
+    });
+  });
+
+  describe('leftovers', () => {
+    const stew = (left: number): Leftover => ({ cookId: 'c1', recipeId: 'r1', name: 'Beef stew', imageUrl: null, cookedAt: '2026-09-30T11:00:00Z', servingsLeft: left, kcalPerServing: 540 });
+    const pasta = (): Leftover => ({ cookId: 'c2', recipeId: 'r2', name: 'Pasta bake', imageUrl: null, cookedAt: '2026-10-01T18:00:00Z', servingsLeft: 1, kcalPerServing: 610 });
+
+    function openLeftovers(fixture: ComponentFixture<DiaryDayComponent>): void {
+      (qa<HTMLButtonElement>(fixture, '.add')[2] as HTMLButtonElement).click();
+      fixture.detectChanges();
+      qa<HTMLButtonElement>(fixture, '.add-menu [role="menuitem"]').find((button) => button.textContent?.includes('Leftovers'))?.click();
+      fixture.detectChanges();
+    }
+
+    it('shows the servings left as a badge on the Leftovers entry of every Add menu', () => {
+      data.getLeftovers.and.returnValue(of([stew(3), pasta()]));
+      const fixture = render();
+      (qa<HTMLButtonElement>(fixture, '.add')[0] as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(text(q(fixture, '.add-menu .badge'))).toBe('4');
+    });
+
+    it('lists the leftovers with when they were cooked and how many are left', () => {
+      data.getLeftovers.and.returnValue(of([stew(3), pasta()]));
+      const fixture = render();
+      openLeftovers(fixture);
+      expect(text(q(fixture, 'app-leftovers-sheet h2'))).toBe('Leftovers for dinner');
+      expect(qa(fixture, 'app-leftovers-sheet .row').map((row) => text(row as HTMLElement))).toEqual([
+        'Beef stew Cooked Wednesday 3 left 540 kcal a serving',
+        'Pasta bake Cooked yesterday 1 left 610 kcal a serving'
+      ]);
+    });
+
+    it('logs one serving into the chosen meal, lowers the count and keeps the sheet open', () => {
+      data.getLeftovers.and.returnValue(of([stew(3), pasta()]));
+      data.eatLeftover.and.returnValue(of(stew(2)));
+      const fixture = render();
+      openLeftovers(fixture);
+      qa<HTMLButtonElement>(fixture, 'app-leftovers-sheet .row')[0].click();
+      fixture.detectChanges();
+      expect(data.eatLeftover).toHaveBeenCalledOnceWith('c1', { mealType: 'DINNER', servings: 1 });
+      expect(text(qa(fixture, 'app-leftovers-sheet .row')[0] as HTMLElement)).toContain('2 left');
+      expect(diary.getMeals.calls.count()).toBeGreaterThan(1);
+    });
+
+    it('drops a row at zero and closes the sheet when the last serving goes', () => {
+      data.getLeftovers.and.returnValue(of([pasta()]));
+      data.eatLeftover.and.returnValue(of({ ...pasta(), servingsLeft: 0 }));
+      const fixture = render();
+      openLeftovers(fixture);
+      qa<HTMLButtonElement>(fixture, 'app-leftovers-sheet .row')[0].click();
+      fixture.detectChanges();
+      expect(q(fixture, 'app-leftovers-sheet')).toBeNull();
+    });
+
+    it('says so and reloads when the server answers that none are left', () => {
+      data.getLeftovers.and.returnValue(of([stew(1)]));
+      data.eatLeftover.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+      const fixture = render();
+      openLeftovers(fixture);
+      qa<HTMLButtonElement>(fixture, 'app-leftovers-sheet .row')[0].click();
+      fixture.detectChanges();
+      expect(text(q(fixture, 'app-leftovers-sheet .error'))).toBe('That one has no servings left.');
+      expect(data.getLeftovers).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens with a quiet line when nothing is left', () => {
+      const fixture = render();
+      openLeftovers(fixture);
+      expect(text(q(fixture, 'app-leftovers-sheet .none'))).toBe('Nothing is left from the last 7 days.');
     });
   });
 });
