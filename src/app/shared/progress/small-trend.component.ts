@@ -10,6 +10,8 @@ const SIZE = 12;
 
 export interface SmallTrendGeometry {
   line: string;
+  /** The line in runs: a month with no value between two points breaks it. */
+  segments: string[];
   start: { x: number; y: number; text: string };
   end: { x: number; y: number; text: string };
   target: { y: number; x1: number; x2: number; text: string } | null;
@@ -27,7 +29,10 @@ export function smallTrendGeometry(
   endText: string,
   target: number | null,
   targetText: string,
-  width = WIDTH
+  width = WIDTH,
+  /** The slot of each value when the x axis has empty slots (months); evenly spaced values when not given. */
+  positions?: readonly number[],
+  slotCount = values.length
 ): SmallTrendGeometry | null {
   if (values.length < 2) {
     return null;
@@ -38,11 +43,20 @@ export function smallTrendGeometry(
   const lo = Math.min(...scale);
   const hi = Math.max(...scale);
   const top = target === null ? 6 : 18;
-  const x = (i: number) => left + ((width - left - right) * i) / (values.length - 1);
+  const slot = (i: number) => positions?.[i] ?? i;
+  const x = (i: number) => left + ((width - left - right) * slot(i)) / (Math.max(slotCount, 2) - 1);
   const y = (v: number) => height - 6 - ((height - 6 - top) * (v - lo)) / (hi - lo || 1);
   const last = values.length - 1;
+  const runs: string[][] = [];
+  values.forEach((v, i) => {
+    if (i === 0 || slot(i) - slot(i - 1) > 1) {
+      runs.push([]);
+    }
+    runs[runs.length - 1].push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  });
   return {
     line: values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' '),
+    segments: runs.map((run) => run.join(' ')),
     start: { x: x(0), y: y(values[0]), text: startText },
     end: { x: x(last), y: y(values[last]), text: endText },
     target: target === null ? null : { y: y(target), x1: left, x2: width - right, text: targetText }
@@ -66,7 +80,9 @@ export function smallTrendGeometry(
             <line class="target" [attr.x1]="t.x1" [attr.x2]="t.x2" [attr.y1]="t.y" [attr.y2]="t.y"></line>
             <text class="target-text halo" [attr.x]="t.x2 - 2" [attr.y]="t.y - 5" text-anchor="end">{{ t.text }}</text>
           }
-          <polyline class="line" [attr.points]="g.line"></polyline>
+          @for (run of g.segments; track $index) {
+            <polyline class="line" [attr.points]="run"></polyline>
+          }
           <circle class="first" [attr.cx]="g.start.x" [attr.cy]="g.start.y" r="3"></circle>
           <circle class="last" [attr.cx]="g.end.x" [attr.cy]="g.end.y" r="3"></circle>
           <text class="start" [attr.x]="g.start.x - 8" [attr.y]="g.start.y" text-anchor="end" dominant-baseline="central">{{ g.start.text }}</text>
@@ -113,6 +129,8 @@ export class SmallTrendComponent {
   readonly label = input('');
   /** The points are calendar months, named "Sept" under the line rather than by a date. */
   readonly monthly = input(false);
+  /** Every month of the period (first-of-month keys); with it the line keeps a slot for each month and breaks over a month with no value. */
+  readonly slots = input<readonly string[]>([]);
 
   private readonly measured = measureWidth(WIDTH);
   protected readonly drawWidth = computed(() => this.width() ?? this.measured());
@@ -128,14 +146,17 @@ export class SmallTrendComponent {
     const end = this.endText() ?? `${formatNumber(values[values.length - 1], this.digits())}${unit}`;
     const target = this.target();
     const targetText = this.targetText() ?? (target === null ? '' : `target ${formatNumber(target, this.digits())}${unit}`);
-    return smallTrendGeometry(values, this.height(), start, end, target, targetText, this.drawWidth());
+    const slots = this.slots();
+    return smallTrendGeometry(values, this.height(), start, end, target, targetText, this.drawWidth(), slots.length ? this.positions() : undefined, slots.length || values.length);
   });
 
   private named(label: string): string {
     return this.monthly() && isDateKey(label) ? monthName(label) : pointLabel(label);
   }
-  protected readonly firstLabel = computed(() => this.named(this.points()[0]?.label ?? ''));
-  protected readonly lastLabel = computed(() => this.named(this.points().at(-1)?.label ?? ''));
+  /** The slot of each point; a point whose month is not in the slots is left out by the caller, so this never misses. */
+  private readonly positions = computed(() => this.points().map((point) => Math.max(this.slots().indexOf(point.label), 0)));
+  protected readonly firstLabel = computed(() => this.named(this.slots()[0] ?? this.points()[0]?.label ?? ''));
+  protected readonly lastLabel = computed(() => this.named(this.slots().at(-1) ?? this.points().at(-1)?.label ?? ''));
 
   protected readonly summary = computed(() => {
     const g = this.geometry();

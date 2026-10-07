@@ -38,7 +38,7 @@
         @for (tile of macroTiles(); track tile.name) {
           <article class="macro">
             <strong>{{ tile.name }}</strong>
-            <app-small-trend [points]="tile.points" unit="g" [target]="tile.target" [height]="96" [monthly]="monthly()" [label]="tile.name + ' a day'" />
+            <app-small-trend [points]="tile.points" unit="g" [target]="tile.target" [height]="96" [monthly]="monthly()" [slots]="slots()" [label]="tile.name + ' a day'" />
           </article>
         }
       </div>

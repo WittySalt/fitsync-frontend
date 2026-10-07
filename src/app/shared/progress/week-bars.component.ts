@@ -51,7 +51,8 @@ export function weekBarsGeometry(
   period?: AxisPeriod,
   monthly = false
 ): WeekBarsGeometry | null {
-  const bars = fromFirstData(allBars, (bar) => bar.value !== null);
+  // Months keep every slot of the period, so a year with data in two months still shows twelve.
+  const bars = monthly ? [...allBars] : fromFirstData(allBars, (bar) => bar.value !== null);
   const values = bars.map((b) => b.value).filter((v): v is number => v !== null);
   if (!values.length) {
     return null;
@@ -106,7 +107,7 @@ export function weekBarsGeometry(
         cx,
         valueY: value < 0 ? y(value) + 16 : y(value) - 6,
         valueText,
-        showValue: slot >= VALUE_SLOT || k === bars.length - 1,
+        showValue: bar.value !== null && (slot >= VALUE_SLOT || k === bars.length - 1),
         current: bar.current === true
       };
     })

@@ -195,4 +195,30 @@ export function macroAsk(macros: FoodProgress['macros'], granularity: FoodGranul
   return `How are my macros doing against my goals? Each tile is the average of a ${month ? 'month' : 'week'}, on logged days only${since}.`;
 }
 
+/**
+ * The calendar months a month-granularity chart lays out on its x axis: every month that starts
+ * inside the period, which is every full month, and the month the period ends in (so far).
+ */
+export function monthSlots(from: string, to: string): string[] {
+  const slots: string[] = [];
+  let [year, month] = from.split('-').map(Number);
+  const end = to.slice(0, 7);
+  if (Number(from.slice(8, 10)) > 1) {
+    month += 1;
+  }
+  for (;;) {
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (key > end) {
+      break;
+    }
+    slots.push(`${key}-01`);
+    month += 1;
+  }
+  return slots;
+}
+
 export const ENERGY_ASK = 'How is my energy balance worked out? It is what I ate against resting energy × 1.2 plus workouts, on logged days only.';

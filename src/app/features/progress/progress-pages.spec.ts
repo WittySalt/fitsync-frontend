@@ -521,9 +521,52 @@ describe('progress pages', () => {
       fixture.detectChanges();
       const axis = Array.from(el.querySelectorAll('#energy app-week-bars text.axis')).map((node) => (node.textContent ?? '').trim());
       expect(axis).toContain('Oct');
-      expect(axis).toContain('Jul');
+      expect(axis).not.toContain('Jul');
+      expect(el.querySelectorAll('#energy app-week-bars rect').length).toBe(3);
       expect(text(el.querySelector('#energy app-week-bars .key'))).toContain('this month so far');
       expect(el.querySelectorAll('#habits app-week-bars rect').length).toBe(2);
+    });
+
+    it('lays out all 12 months of a year in every chart even when only two months have data', () => {
+      api.getFood.and.callFake((_from: string, _to: string, granularity = 'week') =>
+        of(
+          mergeFood(
+            mapFoodProgress(
+              {
+                ...FOOD_WIRE,
+                energy: {
+                  thisWeek: null,
+                  weeklyBalance: [
+                    { month: '2026-09', balance: -90, daysLogged: 25, current: false },
+                    { month: '2026-10', balance: -279, daysLogged: 3, partial: true }
+                  ]
+                },
+                macros: {
+                  protein: { firstWeek: 150, thisWeek: 136, target: 140, series: [{ month: '2026-09', value: 150 }, { month: '2026-10', value: 136, partial: true }] },
+                  carbs: null,
+                  fat: null,
+                  summary: []
+                },
+                habits: { loggedDays: 26, loggedDaysPerMonth: [] }
+              },
+              granularity as 'week' | 'month'
+            ),
+            null
+          )
+        )
+      );
+      const { fixture, el } = render(FoodPage);
+      el.querySelectorAll<HTMLButtonElement>('app-detail-head app-ink-switch button')[2].click();
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(el.querySelectorAll('#energy app-week-bars rect').length).toBe(12);
+      const axis = Array.from(el.querySelectorAll('#energy app-week-bars text.axis')).map((node) => (node.textContent ?? '').trim());
+      expect(axis).toContain('Nov');
+      expect(axis).toContain('Oct');
+      const trend = el.querySelector('#macros app-small-trend');
+      expect(trend?.querySelectorAll('polyline').length).toBe(1);
+      const dates = Array.from(trend?.querySelectorAll('.dates span') ?? []).map((node) => (node.textContent ?? '').trim());
+      expect(dates).toEqual(['Nov', 'Oct']);
     });
 
     it('takes the page period for the nutrients: 30 days at 4 weeks, 90 at 3 months, 90 with a caption at 1 year', () => {

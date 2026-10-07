@@ -26,7 +26,7 @@ import { FoodGranularity, MacroTrend } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { PERIODS } from '../training/training-period';
 import { shownData, useLoad, usePeriod } from '../training/training-load';
-import { ENERGY_ASK, balanceHeadline, foodHeroStats, foodSentence, foodVerdict, macroAsk, macroSentence } from './food-figures';
+import { ENERGY_ASK, balanceHeadline, monthSlots, foodHeroStats, foodSentence, foodVerdict, macroAsk, macroSentence } from './food-figures';
 import { FoodMealsSectionComponent } from './food-meals-section.component';
 import { FoodNutrientsSectionComponent } from './food-nutrients-section.component';
 import { FoodPlateSectionComponent } from './food-plate-section.component';
@@ -138,14 +138,22 @@ export class FoodPage {
     return data ? foodHeroStats(data, this.days(), this.period.option().before) : [];
   });
   readonly headline = computed(() => balanceHeadline(this.data()?.hero.balancePerDay.value ?? null));
-  readonly balanceBars = computed<WeekBar[]>(() =>
-    (this.data()?.energy.weeklyBalance ?? []).map((week) => ({
-      label: this.granularity() === 'month' ? monthName(week.weekStart) : shortDateLabel(week.weekStart),
+  /** Every month of the period in month mode, so the charts agree about the year; empty in week mode. */
+  protected readonly slots = computed(() => (this.monthly() ? monthSlots(this.period.range().from, this.period.range().to) : []));
+  readonly balanceBars = computed<WeekBar[]>(() => {
+    const weeks = this.data()?.energy.weeklyBalance ?? [];
+    const bar = (week: (typeof weeks)[number]): WeekBar => ({
+      label: this.monthly() ? monthName(week.weekStart) : shortDateLabel(week.weekStart),
       weekStart: week.weekStart,
       value: week.balance === null ? null : Math.round(week.balance),
       current: week.current
-    }))
-  );
+    });
+    if (!this.monthly()) {
+      return weeks.map(bar);
+    }
+    const byMonth = new Map(weeks.map((week) => [week.weekStart, week]));
+    return this.slots().map((key) => (byMonth.has(key) ? bar(byMonth.get(key) as (typeof weeks)[number]) : { label: monthName(key), weekStart: key, value: null }));
+  });
   readonly energyLine = computed(() => {
     const weeks = (this.data()?.energy.weeklyBalance ?? []).filter((week) => week.balance !== null);
     if (!weeks.length) {
@@ -160,7 +168,7 @@ export class FoodPage {
     const macros = this.data()?.macros;
     const tile = (name: string, macro: MacroTrend | null): MacroTile => ({
       name,
-      points: (macro?.series ?? []).map((point) => ({ label: point.weekStart, value: point.value })),
+      points: (macro?.series ?? []).filter((point) => !this.monthly() || this.slots().includes(point.weekStart)).map((point) => ({ label: point.weekStart, value: point.value })),
       target: macro?.target ?? null
     });
     return macros ? [tile('Protein', macros.protein), tile('Carbs', macros.carbs), tile('Fat', macros.fat)] : [];
