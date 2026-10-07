@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output } from '@angular/core';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { PlanDayGlyphComponent } from '../plan-day-glyph.component';
 import { DraftPlan, formatMinutes, PLAN_TYPE_LABELS, PlanType, WEEKDAY_SHORT } from './plan-draft';
 import { currentPlanNote, reviewRow, WeekFigures } from './plan-summary';
@@ -12,7 +13,7 @@ import { observeBand } from './width-band';
  */
 @Component({
   selector: 'app-plan-review-step',
-  imports: [PlanDayGlyphComponent],
+  imports: [PlanDayGlyphComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './review-step.component.html',
   styleUrl: './review-step.component.scss'

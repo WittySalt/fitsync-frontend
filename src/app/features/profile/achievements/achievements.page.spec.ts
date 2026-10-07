@@ -4,6 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { AccountDataService, AccountUserResponse } from '../../../core/account-data.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
+import { anchorSteps } from '../../../core/guide/guide-testing.spec';
 import { BADGES, FOOTPRINT, node } from '../../../core/me-fixtures.spec';
 import { BadgesModel } from '../../../core/me.models';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
@@ -50,6 +51,13 @@ describe('AchievementsPage', () => {
     render();
     expect(clean(root().querySelector('.sub'))).toBe('7 of 17 earned · since 4 Aug');
     expect(root().querySelector('h1')?.textContent).toBe('Achievements');
+  });
+
+  it('anchors every path and every badge that can be opened', () => {
+    render();
+    const steps = anchorSteps(root(), 'me-achievements');
+    expect(steps.filter((step) => step === 'path').length).toBe(6);
+    expect(steps).toContain('badge');
   });
 
   it('draws four theme cards with their counts', () => {

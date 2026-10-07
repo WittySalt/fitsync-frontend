@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { parseIsoDate } from '../diary/diary-time';
 import { NutrientDetail, PeriodKey } from './nutrients.models';
 import { amountWithUnit, groupColour, sharePercent } from './nutrients-figures';
@@ -16,7 +17,7 @@ function shortDate(iso: string): string {
 /** The person's own figures for one nutrient: the tile, the average, each day and where it came from. */
 @Component({
   selector: 'app-nutrient-yours',
-  imports: [NutrientDayBarsComponent, NutrientSourcesComponent, NutrientTileComponent],
+  imports: [NutrientDayBarsComponent, NutrientSourcesComponent, NutrientTileComponent, SpotlightDirective],
   template: `
     <div class="top">
       <app-nutrient-tile class="big" [nutrient]="detail().tile" [interactive]="false" />
@@ -36,7 +37,7 @@ function shortDate(iso: string): string {
         <span class="note">No days to show.</span>
       }
     </section>
-    <section class="part">
+    <section class="part" appSpotlight="nutrition-nutrient" spotlightStep="sources">
       <strong>Where yours came from</strong>
       @if (detail().sources.length > 0) {
         <app-nutrient-sources [sources]="detail().sources" [unit]="detail().tile.unit" />

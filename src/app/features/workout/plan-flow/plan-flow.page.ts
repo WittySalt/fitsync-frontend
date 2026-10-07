@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { ToastService } from '../../../core/toast/toast.service';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { DayEditorComponent } from './day-editor.component';
@@ -26,7 +27,8 @@ import { observeBand } from './width-band';
     WeekStripComponent,
     DayEditorComponent,
     WeekPanelComponent,
-    ReviewStepComponent
+    ReviewStepComponent,
+    SpotlightDirective
   ],
   providers: [PlanFlowStore],
   changeDetection: ChangeDetectionStrategy.OnPush,

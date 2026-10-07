@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 import { BadgeNode, BadgeThemeGroup } from '../../../core/me.models';
 import { BadgeDiscComponent } from '../../../shared/badges/badge-disc.component';
 import { PATH_SLOTS, PathNode, earnedLabel, gapLine, laterLine, lineEarnedSlots, pathNodes } from '../../../shared/badges/badge-model';
@@ -26,7 +27,7 @@ const SLOT_WIDTH = 100 / PATH_SLOTS;
  */
 @Component({
   selector: 'app-theme-card',
-  imports: [BadgeDiscComponent],
+  imports: [BadgeDiscComponent, SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './theme-card.component.html',
   styleUrl: './theme-card.component.scss'

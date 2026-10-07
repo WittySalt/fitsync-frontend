@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, of, retry } from 'rxjs';
+import { SpotlightDirective } from '../../../core/guide/spotlight.directive';
 
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog.component';
 import { CookAddNowComponent } from './cook-add-now.component';
@@ -43,7 +44,8 @@ type Status = 'loading' | 'error' | 'ready';
     CookStepsComponent,
     CookTimerComponent,
     CookTopbarComponent,
-    ConfirmDialogComponent
+    ConfirmDialogComponent,
+    SpotlightDirective
   ],
   templateUrl: './cook.page.html',
   styleUrl: './cook.page.scss'

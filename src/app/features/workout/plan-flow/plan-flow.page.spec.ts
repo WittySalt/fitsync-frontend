@@ -5,6 +5,7 @@ import { of, Subject } from 'rxjs';
 import { ToastService } from '../../../core/toast/toast.service';
 import { DEFAULT_PROFILE, DraftMove, emptyPlan, emptyWeek } from './plan-draft';
 import { PlanFlowApi, PlanFlowContext } from './plan-flow.api';
+import { anchorSteps } from '../../../core/guide/guide-testing.spec';
 import { PlanFlowPage } from './plan-flow.page';
 import { defaultSegments } from './segments/segment-math';
 
@@ -55,7 +56,8 @@ describe('PlanFlowPage', () => {
     api.proposal.and.returnValue(of(null));
     api.coverage.and.returnValue(of(null));
     api.mobilityFlow.and.returnValue(of([]));
-    router = jasmine.createSpyObj<Router>('Router', ['navigate']);
+    // The page carries spotlight anchors, so the path service reads the router's events and address.
+    router = Object.assign(jasmine.createSpyObj<Router>('Router', ['navigate', 'parseUrl']), { events: new Subject<unknown>(), url: '/workout/plans/new' }) as unknown as jasmine.SpyObj<Router>;
     router.navigate.and.resolveTo(true);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
     TestBed.configureTestingModule({
@@ -79,6 +81,9 @@ describe('PlanFlowPage', () => {
     expect(root().querySelector('app-plan-week-panel')).not.toBeNull();
     expect(root().querySelector('.steps .current')?.textContent?.trim()).toBe('1 Build');
     expect(root().querySelector('.summary')?.textContent).toContain('Your profile says 3 days and 45 min.');
+    // The path: the week strip, the day editor and Continue (worded as the way to the review).
+    expect(anchorSteps(root(), 'workout-plan-flow')).toEqual(['week', 'day', 'save']);
+    expect(root().querySelector('.foot .button.primary')?.getAttribute('spotlightvariant')).toBe('continue');
   });
 
   it('arranges the editor and the panel by the page width, wide in two columns and folded under 900', () => {
@@ -131,6 +136,9 @@ describe('PlanFlowPage', () => {
     expect(root().querySelector('h1')?.textContent).toBe('Review and save');
     expect(root().querySelector('.steps .done')?.textContent).toContain('1 Build');
     expect(root().querySelector('app-plan-review-step')).not.toBeNull();
+    // On the review the Save button is the one anchor.
+    expect(anchorSteps(root(), 'workout-plan-flow')).toEqual(['save']);
+    expect(root().querySelector('app-plan-review-step [spotlightstep="save"]')?.textContent).toContain('Save');
     root().querySelectorAll<HTMLButtonElement>('app-plan-review-step .actions button')[0].click();
     fixture.detectChanges();
     expect(root().querySelector('h1')?.textContent).toBe('Build the week');

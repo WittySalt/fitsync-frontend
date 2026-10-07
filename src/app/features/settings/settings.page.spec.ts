@@ -8,6 +8,7 @@ import {
   AccountDataExportPayload
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import { GuideService } from '../../core/guide/guide.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { ToastService } from '../../core/toast/toast.service';
@@ -277,6 +278,14 @@ describe('SettingsPage', () => {
     expect(systemButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('anchors the sections rail and, in Appearance, the guide button for the Settings path', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(anchorSteps(el, 'settings')).toContain('sections');
+    el.querySelector<HTMLButtonElement>('#settings-tab-appearance')?.click();
+    fixture.detectChanges();
+    expect(anchorSteps(el, 'settings')).toContain('guide');
+  });
+
   it('restarts the guide from the Appearance section and says so', () => {
     const guide = TestBed.inject(GuideService);
     spyOn(guide, 'restart');
@@ -288,7 +297,7 @@ describe('SettingsPage', () => {
     row?.click();
 
     expect(guide.restart).toHaveBeenCalledWith('user-1');
-    expect(toast.success).toHaveBeenCalledWith('The guide is back on Home and on each page.');
+    expect(toast.success).toHaveBeenCalledWith('The guide is back on Home, and the first tour will play again.');
   });
 
   it('saves identity fields through the profile endpoint', () => {
