@@ -83,4 +83,4 @@ export interface NutrientDetail {
   guide: NutrientGuide | null;
 }
 
-export type PeriodKey = 'today' | '7d' | '30d';
+export type PeriodKey = 'today' | '7d' | '30d' | '90d';

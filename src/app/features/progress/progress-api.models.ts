@@ -112,7 +112,8 @@ export interface MacroTrend {
   firstWeek: number | null;
   thisWeek: number | null;
   target: number | null;
-  series: { weekStart: string; value: number }[];
+  /** One point per week; in month granularity `weekStart` is the first day of the month and `partial` marks the month so far. */
+  series: { weekStart: string; value: number; partial?: boolean }[];
 }
 
 /** A food group's share of the plate, by calories (analytics stores no grams; drinks are left out). */
@@ -132,7 +133,18 @@ export interface FoodNutrition {
   habits: { loggedDays: number | null; fibreMetDays: number | null; waterMetDays: number | null };
 }
 
+/** Whether the weekly series of the Food read are weeks or calendar months. */
+export type FoodGranularity = 'week' | 'month';
+
+export interface MealShare {
+  mealType: string;
+  sharePct: number;
+  deltaPoints: number | null;
+  kcalPerDay: number | null;
+}
+
 export interface FoodProgress extends PeriodPair {
+  granularity: FoodGranularity;
   currentWeek?: CurrentWeek | null;
   hero: {
     eatenPerDay: Compared<number>;
@@ -143,13 +155,15 @@ export interface FoodProgress extends PeriodPair {
   highlights: Highlight[];
   energy: {
     thisWeek: EnergyWeek | null;
+    /** One point per week, or per calendar month (`weekStart` = the month's first day, `current` = the month so far). */
     weeklyBalance: { weekStart: string; balance: number | null; daysLogged: number; current: boolean }[];
   };
   macros: { protein: MacroTrend | null; carbs: MacroTrend | null; fat: MacroTrend | null; summary: SummaryLine[] };
   plate: { basis: string; current: PlateShare[]; previous: PlateShare[]; changes: { group: string; deltaPoints: number }[] };
-  meals: { share: { mealType: string; sharePct: number; deltaPoints: number | null; kcalPerDay: number | null }[] };
+  /** `previous` is the same list for the period before, null when there is none. */
+  meals: { share: MealShare[]; previous: MealShare[] | null };
   /** Fibre and water come from nutrition and cover its recent window; water is null while no goal is known. */
-  habits: { waterMetDays: number | null; fibreMetDays: number | null; loggedDays: number | null };
+  habits: { waterMetDays: number | null; fibreMetDays: number | null; loggedDays: number | null; loggedDaysPerMonth: { month: string; days: number }[] };
   /** What only nutrition knows; null when that read failed, so its sections say so. */
   nutrition: FoodNutrition | null;
 }

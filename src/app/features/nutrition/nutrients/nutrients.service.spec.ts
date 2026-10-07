@@ -28,6 +28,14 @@ describe('NutrientsService', () => {
     expect(count).toBe(1);
   });
 
+  it('asks for 90 days with days=90 alone, because from and to stop at 31 days', () => {
+    service.getAll('2026-07-05', '2026-10-02', 90).subscribe();
+    const request = http.expectOne((req) => req.url === '/api/v1/nutrition/nutrients/summary');
+    expect(request.request.params.get('days')).toBe('90');
+    expect(request.request.params.has('from')).toBeFalse();
+    request.flush({ daysLogged: 40, nutrients: [] });
+  });
+
   it('reads one nutrient by its encoded code', () => {
     let name = '';
     service.getOne('VIT_D', '2026-10-02', '2026-10-02').subscribe((detail) => (name = detail.tile.displayName));

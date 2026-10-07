@@ -2,12 +2,15 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 
 import { dateRangeLabel } from '../../../shared/date-label';
-import { ProgressCardContext } from '../../../shared/progress/progress.models';
+import { monthName } from '../../../shared/progress/chart-axis';
+import { WeekBarsComponent } from '../../../shared/progress/week-bars.component';
+import { ProgressCardContext, WeekBar } from '../../../shared/progress/progress.models';
 import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { NutrientPetalsComponent } from '../../nutrition/nutrients/nutrient-petals.component';
 import { reachSummary } from '../../nutrition/nutrients/nutrients-figures';
 import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { FoodNutrition, FoodProgress } from '../progress-api.models';
+import { NutrientsRange } from './food-nutrients-range';
 
 /**
  * Nutrients and habits on the Food page (board 19b): the petal chart with the lowest three, and the
@@ -15,7 +18,7 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
  */
 @Component({
   selector: 'app-food-nutrients-section',
-  imports: [DetailSectionComponent, NutrientPetalsComponent, RouterLink],
+  imports: [DetailSectionComponent, NutrientPetalsComponent, RouterLink, WeekBarsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-detail-section name="Nutrients" anchor="nutrients" [sentence]="nutrientLine()" [context]="context()" [ask]="nutrientAsk()">
@@ -31,6 +34,12 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
           </div>
         }
         <div class="side">
+          @if (range().caption) {
+            <span class="caption">{{ range().caption }}</span>
+          }
+          @if (focused(); as one) {
+            <p class="focus"><strong>{{ one.name }}</strong> {{ one.pct }}% of the daily amount over {{ range().days }} days. <a [routerLink]="['/nutrition/nutrients', one.code]" [queryParams]="{ range: range().days }">Open ›</a></p>
+          }
           @if (lowest().length) {
             <span class="heading">The lowest three</span>
             <div class="chips">
@@ -41,12 +50,18 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
           } @else if (!overview()) {
             <p class="quiet">Not enough data yet</p>
           }
-          <a routerLink="/nutrition/nutrients">All nutrients ›</a>
+          <a routerLink="/nutrition/nutrients" [queryParams]="{ range: range().days }">All nutrients ›</a>
         </div>
       </div>
     </app-detail-section>
 
     <app-detail-section name="Habits" anchor="habits" [sentence]="habitLine()" [context]="context()" [ask]="habitAsk()">
+      @if (monthly() && months().length) {
+        <div class="months">
+          <strong class="heading">Days logged each month</strong>
+          <app-week-bars [bars]="months()" [monthly]="true" label="Days logged each month" [height]="150" />
+        </div>
+      }
       <div class="habits">
         @if (habits().waterMetDays !== null) {
           <div class="habit">
@@ -91,6 +106,9 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
     a { font: 600 var(--pg-control) var(--font-sans); color: var(--text-primary); text-decoration: none; width: fit-content; }
     a:hover { text-decoration: underline; text-underline-offset: 4px; }
     .quiet { font-size: var(--pg-chart); }
+    .months { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .caption, .focus { margin: 0; font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
+    .focus strong { color: var(--text-primary); }
     .habits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .habit { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-sunken); border: 1px solid var(--border); font: 400 var(--pg-chart) var(--font-sans); color: var(--text-secondary); }
     .last { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -106,11 +124,26 @@ export class FoodNutrientsSectionComponent {
   readonly nutrition = input<FoodNutrition | null>(null);
   readonly habits = input.required<FoodProgress['habits']>();
   readonly context = input<ProgressCardContext | null>(null);
+  /** The days the petals cover and the caption when that is shorter than the page's period. */
+  readonly range = input<NutrientsRange>({ days: 30, caption: null });
+  /** A nutrient code a door asked for; its share over the range is said above the lowest three. */
+  readonly focus = input<string | null>(null);
+  /** Three months or a year: Habits adds the days logged each month. */
+  readonly monthly = input(false);
+
+  protected readonly months = computed<WeekBar[]>(() =>
+    this.habits().loggedDaysPerMonth.map((item) => ({ label: monthName(item.month), weekStart: item.month, value: item.days, valueLabel: String(item.days) }))
+  );
+  protected readonly focused = computed(() => {
+    const code = this.focus();
+    const item = code ? this.overview()?.nutrients.find((nutrient) => nutrient.code === code) : null;
+    return item && item.share !== null ? { code: item.code, name: item.displayName, pct: Math.round(item.share * 100) } : null;
+  });
 
   /** Nutrients and habits cover nutrition's recent window, the last 31 days of the period at most. */
   protected readonly windowText = computed(() => {
     const window = this.nutrition()?.recentWindow;
-    return window ? dateRangeLabel(window.from, window.to) : 'the last 30 days';
+    return window ? dateRangeLabel(window.from, window.to) : `the last ${this.range().days} days`;
   });
   protected readonly reach = computed(() => {
     const overview = this.overview();

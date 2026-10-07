@@ -3,8 +3,9 @@ import { RouterLink } from '@angular/router';
 
 import { FoodIconComponent } from '../../../shared/food/food-icon.component';
 import { asFoodGroup } from '../../../shared/food/food-groups';
-import { formatNumber, signed } from '../../../shared/progress/progress-format';
-import { ProgressCardContext } from '../../../shared/progress/progress.models';
+import { NO_EARLIER_DATA, formatNumber, signed } from '../../../shared/progress/progress-format';
+import { ProgressCardContext, SummaryLine } from '../../../shared/progress/progress.models';
+import { SummaryLinesComponent } from '../../../shared/progress/summary-lines.component';
 import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { measureWidth } from '../../../shared/progress/measure-width';
 import { FoodNutrition, FoodProgress } from '../progress-api.models';
@@ -34,7 +35,7 @@ function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
  */
 @Component({
   selector: 'app-food-meals-section',
-  imports: [DetailSectionComponent, FoodIconComponent, RouterLink],
+  imports: [DetailSectionComponent, FoodIconComponent, RouterLink, SummaryLinesComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-detail-section name="Meals" anchor="meals" [sentence]="sentence()" [context]="context()" ask="When do I usually eat, and which meal carries most of my calories? The band is where half of my meals fall and the dot is the middle time.">
@@ -64,15 +65,23 @@ function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
       <div class="lower">
         <div class="block">
           <strong class="heading">Share of the day's calories</strong>
-          @for (row of shares(); track row.mealType) {
-            <div class="share">
-              <span>{{ row.name }}</span>
-              <strong>{{ row.pct }}%</strong>
-              <span class="delta">{{ row.delta }}</span>
-              <span class="word">{{ row.word }}</span>
-            </div>
-          } @empty {
-            <span class="quiet">Not enough data yet</span>
+          @if (monthly()) {
+            @if (shares().length) {
+              <app-summary-lines [lines]="lines()" [context]="meals().previous ? '' : noEarlier" />
+            } @else {
+              <span class="quiet">Not enough data yet</span>
+            }
+          } @else {
+            @for (row of shares(); track row.mealType) {
+              <div class="share">
+                <span>{{ row.name }}</span>
+                <strong>{{ row.pct }}%</strong>
+                <span class="delta">{{ row.delta }}</span>
+                <span class="word">{{ row.word }}</span>
+              </div>
+            } @empty {
+              <span class="quiet">Not enough data yet</span>
+            }
           }
         </div>
         <div class="block">
@@ -119,7 +128,10 @@ export class FoodMealsSectionComponent {
   readonly meals = input.required<FoodProgress['meals']>();
   readonly nutrition = input<FoodNutrition | null>(null);
   readonly context = input<ProgressCardContext | null>(null);
+  /** Three months or a year: the shares read as "this period against the one before" lines. */
+  readonly monthly = input(false);
 
+  protected readonly noEarlier = NO_EARLIER_DATA;
   protected readonly labelWidth = LABEL_W;
   protected readonly width = measureWidth(WIDTH);
 
@@ -150,13 +162,36 @@ export class FoodMealsSectionComponent {
   protected readonly clockHeight = computed(() => 16 + this.clock().length * 30 + 18);
   protected readonly clockSummary = computed(() => this.clock().map((row) => `${row.name} usually at ${row.time}`).join(', '));
 
+  /** A meal's change in points: the server's, else worked out from the period before when that came with the answer. */
+  private deltaOf(row: { mealType: string; sharePct: number; deltaPoints: number | null }): number | null {
+    if (row.deltaPoints !== null) {
+      return row.deltaPoints;
+    }
+    const before = this.meals().previous?.find((item) => item.mealType === row.mealType);
+    return before ? row.sharePct - before.sharePct : null;
+  }
+
   protected readonly shares = computed(() =>
-    byMealOrder(this.meals().share).map((row) => ({
-      mealType: row.mealType,
-      name: mealName(row.mealType),
-      pct: formatNumber(row.sharePct),
-      delta: row.deltaPoints === null ? '' : `${signed(row.deltaPoints)} points`,
-      word: row.deltaPoints === null ? '' : Math.abs(row.deltaPoints) < 1 ? 'steady' : row.deltaPoints > 0 ? 'up' : 'down'
+    byMealOrder(this.meals().share).map((row) => {
+      const delta = this.deltaOf(row);
+      return {
+        mealType: row.mealType,
+        name: mealName(row.mealType),
+        pct: formatNumber(row.sharePct),
+        sharePct: row.sharePct,
+        before: this.meals().previous?.find((item) => item.mealType === row.mealType)?.sharePct ?? null,
+        delta: delta === null ? '' : `${signed(delta)} points`,
+        word: delta === null ? '' : Math.abs(delta) < 1 ? 'steady' : delta > 0 ? 'up' : 'down'
+      };
+    })
+  );
+
+  /** Each meal as a two-column line: its share now and, when known, what it was before. */
+  protected readonly lines = computed<SummaryLine[]>(() =>
+    this.shares().map((row) => ({
+      figure: `${row.name} ${row.pct}%`,
+      text: row.before === null ? "of the day's calories" : `of the day's calories, ${formatNumber(row.before)}% before`,
+      trend: row.word
     }))
   );
 

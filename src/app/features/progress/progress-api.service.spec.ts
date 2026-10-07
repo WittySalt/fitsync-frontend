@@ -29,6 +29,17 @@ describe('ProgressApiService', () => {
     expect(result!.hero.weeklyRate).toEqual({ value: -0.41, previous: -0.28 });
   });
 
+  it('asks for months only when the page reads months, and sends nothing else new for weeks', () => {
+    service.getFood('2025-10-06', '2026-10-04', 'month').subscribe();
+    const months = http.expectOne((req) => req.url === '/api/v1/analytics/progress/food');
+    expect(months.request.params.get('granularity')).toBe('month');
+    expect(months.request.params.keys().sort()).toEqual(['from', 'granularity', 'to']);
+    const nutrition = http.expectOne((req) => req.url === '/api/v1/nutrition/progress/food');
+    expect(nutrition.request.params.has('granularity')).toBeFalse();
+    months.flush(FOOD_WIRE);
+    nutrition.flush(NUTRITION_WIRE);
+  });
+
   it('merges the analytics and nutrition halves of the food page', () => {
     let result: FoodProgress | null = null;
     service.getFood('2026-09-04', '2026-10-03').subscribe((food) => (result = food));
@@ -39,7 +50,7 @@ describe('ProgressApiService', () => {
     nutrition.flush(NUTRITION_WIRE);
     expect(result!.hero.daysLogged.value).toBe(26);
     expect(result!.nutrition?.lowestNutrients[0].displayName).toBe('Vitamin D');
-    expect(result!.habits).toEqual({ waterMetDays: null, fibreMetDays: 11, loggedDays: 26 });
+    expect(result!.habits).toEqual({ waterMetDays: null, fibreMetDays: 11, loggedDays: 26, loggedDaysPerMonth: [] });
     const lowest = result!.highlights.find((h) => h.code === 'LOWEST_NUTRIENT')!;
     expect(lowest.title).toBe('Vitamin D is the furthest short, 34% of the daily amount.');
     expect(lowest.context).toContain('3 Sept to 3 Oct');
@@ -129,6 +140,42 @@ describe('progress mappers', () => {
     expect(silent.currentWeek).toBeNull();
     expect(silent.macros.protein?.series.length).toBe(2);
     expect(silent.energy.weeklyBalance.length).toBe(2);
+  });
+
+  it('reads month points, the month so far, a gap month, the period before and logged days a month', () => {
+    const food = mapFoodProgress(
+      {
+        ...FOOD_WIRE,
+        energy: {
+          thisWeek: null,
+          weeklyBalance: [
+            { month: '2026-08', balance: -120, daysLogged: 20, current: false },
+            { month: '2026-09', balance: null, daysLogged: 0, current: false },
+            { month: '2026-10', balance: -279, daysLogged: 3, partial: true }
+          ]
+        },
+        macros: { protein: { firstWeek: 150, thisWeek: 136, target: 140, series: [{ month: '2026-09', value: 150 }, { month: '2026-10-01', value: 136, partial: true }] }, carbs: null, fat: null, summary: [] },
+        meals: { current: [{ mealType: 'DINNER', sharePct: 38 }], previous: [{ mealType: 'DINNER', sharePct: 35 }] },
+        habits: { loggedDays: 26, loggedDaysPerMonth: [{ month: '2026-09', days: 23 }, { month: 'not a month', days: 4 }] }
+      },
+      'month'
+    );
+    expect(food.granularity).toBe('month');
+    expect(food.energy.weeklyBalance).toEqual([
+      { weekStart: '2026-08-01', balance: -120, daysLogged: 20, current: false },
+      { weekStart: '2026-09-01', balance: null, daysLogged: 0, current: false },
+      { weekStart: '2026-10-01', balance: -279, daysLogged: 3, current: true }
+    ]);
+    expect(food.macros.protein?.series).toEqual([{ weekStart: '2026-09-01', value: 150, partial: false }, { weekStart: '2026-10-01', value: 136, partial: true }]);
+    expect(food.meals.share[0].sharePct).toBe(38);
+    expect(food.meals.previous).toEqual([{ mealType: 'DINNER', sharePct: 35, deltaPoints: null, kcalPerDay: null }]);
+    expect(food.habits.loggedDaysPerMonth).toEqual([{ month: '2026-09-01', days: 23 }]);
+    expect(mapFoodProgress(FOOD_WIRE).meals.previous).toBeNull();
+  });
+
+  it('keeps a month series whole even when the weekly rule would cut the current week', () => {
+    const food = mapFoodProgress({ ...FOOD_WIRE, currentWeek: { included: false, daysLogged: 0 }, macros: { protein: { series: [{ month: '2026-10', value: 136, partial: true }] } } }, 'month');
+    expect(food.macros.protein?.series.length).toBe(1);
   });
 
   it('reads the figures of today so far from a review and leaves them out when they are not sent', () => {

@@ -119,6 +119,16 @@ export function weekLabelMarks(weekStarts: readonly string[], xOf: (index: numbe
 }
 
 /**
+ * Labels for a chart with one point per calendar month: each point is named by its month ("Sept",
+ * "Jan 2027" where a year starts) and a label that would touch the one before is dropped, with the
+ * newest point kept first so "so far" is always named, and a January keeps its year.
+ */
+export function monthPointMarks(monthStarts: readonly string[], xOf: (index: number) => number): PlacedLabel[] {
+  const last = monthStarts.length - 1;
+  return dropColliding(monthStarts.map((key, index) => ({ x: xOf(index), text: monthName(key), anchor: 'middle' as const, keep: index === last || parts(key)[1] === 1 })));
+}
+
+/**
  * Labels for a time axis that runs over dates: weekly Mondays up to five weeks, every second Monday
  * up to about three months (month names at month starts), and month starts beyond.
  */

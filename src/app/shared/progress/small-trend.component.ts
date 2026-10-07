@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 import { measureWidth } from './measure-width';
-import { formatNumber, pointLabel, textWidth } from './progress-format';
+import { monthName } from './chart-axis';
+import { formatNumber, isDateKey, pointLabel, textWidth } from './progress-format';
 import { SeriesPoint } from './progress.models';
 
 const WIDTH = 300;
@@ -110,6 +111,8 @@ export class SmallTrendComponent {
   readonly width = input<number | null>(null);
   readonly showDates = input(true);
   readonly label = input('');
+  /** The points are calendar months, named "Sept" under the line rather than by a date. */
+  readonly monthly = input(false);
 
   private readonly measured = measureWidth(WIDTH);
   protected readonly drawWidth = computed(() => this.width() ?? this.measured());
@@ -128,8 +131,11 @@ export class SmallTrendComponent {
     return smallTrendGeometry(values, this.height(), start, end, target, targetText, this.drawWidth());
   });
 
-  protected readonly firstLabel = computed(() => pointLabel(this.points()[0]?.label ?? ''));
-  protected readonly lastLabel = computed(() => pointLabel(this.points().at(-1)?.label ?? ''));
+  private named(label: string): string {
+    return this.monthly() && isDateKey(label) ? monthName(label) : pointLabel(label);
+  }
+  protected readonly firstLabel = computed(() => this.named(this.points()[0]?.label ?? ''));
+  protected readonly lastLabel = computed(() => this.named(this.points().at(-1)?.label ?? ''));
 
   protected readonly summary = computed(() => {
     const g = this.geometry();

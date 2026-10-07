@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { Load } from '../diary/diary.models';
 import { NutrientDetail, NutrientTileData, PeriodKey } from './nutrients.models';
-import { amountOfReference, groupColour, lowerFirst, topSources } from './nutrients-figures';
+import { amountOfReference, groupColour, lowerFirst, periodQuery, topSources } from './nutrients-figures';
 import { NutrientDayBarsComponent } from './nutrient-day-bars.component';
 import { NutrientSourcesComponent } from './nutrient-sources.component';
 import { NutrientTileComponent } from './nutrient-tile.component';
@@ -47,7 +47,7 @@ import { NutrientTileComponent } from './nutrient-tile.component';
         }
       }
     </section>
-    <a class="read" [routerLink]="['/nutrition/nutrients', nutrient().code]" [queryParams]="{ period: period() }">
+    <a class="read" [routerLink]="['/nutrition/nutrients', nutrient().code]" [queryParams]="query()">
       Read about {{ lower() }}
       <app-food-glyph name="ARROW_LEFT" [size]="15" [strokeWidth]="2.4" class="flip" />
     </a>
@@ -58,6 +58,7 @@ export class NutrientSidePanelComponent {
   readonly nutrient = input.required<NutrientTileData>();
   readonly detail = input.required<Load<NutrientDetail>>();
   readonly period = input.required<PeriodKey>();
+  protected readonly query = computed(() => periodQuery(this.period()));
 
   protected readonly colour = computed(() => groupColour(this.nutrient().groupCode));
   protected readonly lower = computed(() => lowerFirst(this.nutrient().displayName));

@@ -27,8 +27,8 @@
         <p class="quiet">Not enough data yet for this week.</p>
       }
       <div class="weekly">
-        <strong>The daily balance, week by week</strong>
-        <app-week-bars [bars]="balanceBars()" [signed]="true" label="Daily balance each week, kcal" [height]="190" />
+        <strong>{{ monthly() ? 'The daily balance, month by month' : 'The daily balance, week by week' }}</strong>
+        <app-week-bars [bars]="balanceBars()" [signed]="true" [monthly]="monthly()" [label]="monthly() ? 'Daily balance each month, kcal' : 'Daily balance each week, kcal'" [height]="190" />
       </div>
     </app-detail-section>
 
@@ -38,15 +38,15 @@
         @for (tile of macroTiles(); track tile.name) {
           <article class="macro">
             <strong>{{ tile.name }}</strong>
-            <app-small-trend [points]="tile.points" unit="g" [target]="tile.target" [height]="96" [label]="tile.name + ' a day'" />
+            <app-small-trend [points]="tile.points" unit="g" [target]="tile.target" [height]="96" [monthly]="monthly()" [label]="tile.name + ' a day'" />
           </article>
         }
       </div>
     </app-detail-section>
 
-    <app-food-plate-section [plate]="food.plate" [nowTitle]="nowTitle()" [beforeTitle]="beforeTitle()" [context]="context()" />
-    <app-food-meals-section [meals]="food.meals" [nutrition]="food.nutrition" [context]="context()" />
-    <app-food-nutrients-section [overview]="nutrients()" [nutrition]="food.nutrition" [habits]="food.habits" [context]="context()" />
+    <app-food-plate-section [plate]="food.plate" [monthly]="monthly()" [nowTitle]="nowTitle()" [beforeTitle]="beforeTitle()" [context]="context()" />
+    <app-food-meals-section [meals]="food.meals" [monthly]="monthly()" [nutrition]="food.nutrition" [context]="context()" />
+    <app-food-nutrients-section [overview]="nutrients()" [range]="nutrientRange()" [focus]="focus()" [monthly]="monthly()" [nutrition]="food.nutrition" [habits]="food.habits" [context]="context()" />
   } @else if (failed()) {
     <app-state-panel title="Your food could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry()" />
   } @else {

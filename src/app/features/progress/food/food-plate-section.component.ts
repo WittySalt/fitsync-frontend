@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 
 import { FoodIconComponent } from '../../../shared/food/food-icon.component';
 import { FOOD_GROUPS, FoodGroup, asFoodGroup, foodGroupInfo, groupForCategory } from '../../../shared/food/food-groups';
-import { formatNumber } from '../../../shared/progress/progress-format';
-import { ProgressCardContext } from '../../../shared/progress/progress.models';
+import { NO_EARLIER_DATA, formatNumber } from '../../../shared/progress/progress-format';
+import { ProgressCardContext, SummaryLine } from '../../../shared/progress/progress.models';
+import { SummaryLinesComponent } from '../../../shared/progress/summary-lines.component';
 import { DetailSectionComponent } from '../../../shared/progress/detail-section.component';
 import { FoodProgress, PlateShare } from '../progress-api.models';
 
@@ -47,7 +48,7 @@ function segments(shares: readonly PlateShare[]): Segment[] {
  */
 @Component({
   selector: 'app-food-plate-section',
-  imports: [DetailSectionComponent, FoodIconComponent],
+  imports: [DetailSectionComponent, FoodIconComponent, SummaryLinesComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-detail-section name="Plate" anchor="plate" [sentence]="sentence()" [context]="context()" [ask]="ask()">
@@ -64,7 +65,12 @@ function segments(shares: readonly PlateShare[]): Segment[] {
             </div>
           }
         </div>
-        @if (changes().length) {
+        @if (monthly()) {
+          <div class="changes">
+            <strong class="heading">This period against the one before</strong>
+            <app-summary-lines [lines]="lines()" [context]="before().length ? '' : noEarlier" />
+          </div>
+        } @else if (changes().length) {
           <div class="changes">
             <strong class="heading">The biggest changes</strong>
             @for (change of changes(); track change.group) {
@@ -115,7 +121,10 @@ export class FoodPlateSectionComponent {
   readonly nowTitle = input('The last 4 weeks');
   readonly beforeTitle = input('The 4 weeks before');
   readonly context = input<ProgressCardContext | null>(null);
+  /** Three months or a year: the comparison reads as summary lines under the two bars. */
+  readonly monthly = input(false);
 
+  protected readonly noEarlier = NO_EARLIER_DATA;
   protected readonly now = computed(() => segments(this.plate().current));
   protected readonly before = computed(() => segments(this.plate().previous));
   private readonly basis = computed(() => (this.plate().basis === 'GRAMS' ? 'weight' : 'calories'));
@@ -147,6 +156,11 @@ export class FoodPlateSectionComponent {
         word: Math.abs(change.delta) < 1 ? 'steady' : change.delta > 0 ? 'up' : 'down'
       }));
   });
+
+  /** The biggest moves between the two bars as two-column lines; the trend word stays in the right column. */
+  protected readonly lines = computed<SummaryLine[]>(() =>
+    this.changes().map((change) => ({ figure: `${change.label} ${change.before}% → ${change.now}%`, text: 'of your plate', trend: change.word }))
+  );
 
   /** The one sentence under the name: the biggest move between the two bars, or what the bar is made of. */
   protected readonly sentence = computed(() => {

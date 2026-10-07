@@ -1,7 +1,8 @@
 import { shortDateLabel } from '../../../shared/date-label';
+import { monthName } from '../../../shared/progress/chart-axis';
 import { NO_EARLIER_DATA, formatNumber, signed } from '../../../shared/progress/progress-format';
 import { HeroStat, SummaryLine } from '../../../shared/progress/progress.models';
-import { FoodProgress, MacroTrend } from '../progress-api.models';
+import { FoodGranularity, FoodProgress, MacroTrend } from '../progress-api.models';
 
 /** Within this share of the period before, a daily figure reads as steady (board 19c: −3% is steady). */
 const STEADY_SHARE = 0.05;
@@ -187,10 +188,11 @@ export function macroSentence(macros: FoodProgress['macros']): string {
 }
 
 /** What Ask puts in the composer for Macros: what each tile shows and how it is averaged. */
-export function macroAsk(macros: FoodProgress['macros']): string {
+export function macroAsk(macros: FoodProgress['macros'], granularity: FoodGranularity = 'week'): string {
   const first = macros.protein?.series[0]?.weekStart;
-  const since = first ? ` from the week of ${shortDateLabel(first)}` : '';
-  return `How are my macros doing against my goals? Each tile is the average of a week, on logged days only${since}.`;
+  const month = granularity === 'month';
+  const since = first ? (month ? ` from ${monthName(first)}` : ` from the week of ${shortDateLabel(first)}`) : '';
+  return `How are my macros doing against my goals? Each tile is the average of a ${month ? 'month' : 'week'}, on logged days only${since}.`;
 }
 
 export const ENERGY_ASK = 'How is my energy balance worked out? It is what I ate against resting energy × 1.2 plus workouts, on logged days only.';

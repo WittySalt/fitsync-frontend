@@ -1,4 +1,4 @@
-import { dropColliding, fromFirstData, periodForWeeks, timeAxisLabels, weekAxisLabels, weekLabelMarks } from './chart-axis';
+import { dropColliding, fromFirstData, monthPointMarks, periodForWeeks, timeAxisLabels, weekAxisLabels, weekLabelMarks } from './chart-axis';
 
 /** Mondays from `first`, one a week. */
 function weeks(first: string, count: number): string[] {
@@ -98,5 +98,24 @@ describe('fromFirstData', () => {
 
   it('keeps a run with no data at all', () => {
     expect(fromFirstData([{ v: null }, { v: null }], (w) => w.v !== null).length).toBe(2);
+  });
+});
+
+describe('monthPointMarks', () => {
+  const months = ['2025-10-01', '2025-11-01', '2025-12-01', '2026-01-01', '2026-02-01', '2026-03-01', '2026-04-01', '2026-05-01', '2026-06-01', '2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01'];
+
+  it('names every month of a year when there is room, and starts the new year with its number', () => {
+    const marks = monthPointMarks(months, (i) => 30 + i * 60);
+    expect(marks.map((m) => m.text)).toEqual(['Oct', 'Nov', 'Dec', 'Jan 2026', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct']);
+  });
+
+  it('never lets two labels touch on a narrow chart and always keeps the newest month', () => {
+    const marks = monthPointMarks(months, (i) => 20 + i * 22);
+    const boxes = marks.map((m) => [m.x - m.text.length * 12 * 0.28, m.x + m.text.length * 12 * 0.28]);
+    for (let k = 1; k < boxes.length; k += 1) {
+      expect(boxes[k][0]).toBeGreaterThanOrEqual(boxes[k - 1][1]);
+    }
+    expect(marks.at(-1)?.text).toBe('Oct');
+    expect(marks.length).toBeLessThan(months.length);
   });
 });

@@ -1,7 +1,8 @@
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, switchMap } from 'rxjs';
+import { nutrientsDays } from './food-nutrients-range';
 
 import { shortDateLabel } from '../../../shared/date-label';
 import { ContentsRailComponent } from '../../../shared/progress/contents-rail.component';
@@ -12,6 +13,7 @@ import { HighlightsComponent } from '../../../shared/progress/highlights.compone
 import { useFragmentScroll } from '../../../shared/progress/fragment-scroll';
 import { InkSwitchComponent } from '../../../shared/progress/ink-switch.component';
 import { lastDays, periodEyebrow } from '../../../shared/progress/progress-format';
+import { monthName } from '../../../shared/progress/chart-axis';
 import { JumpItem, ProgressCardContext, SeriesPoint, WeekBar } from '../../../shared/progress/progress.models';
 import { SmallTrendComponent } from '../../../shared/progress/small-trend.component';
 import { WeekBarsComponent } from '../../../shared/progress/week-bars.component';
@@ -20,7 +22,7 @@ import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { NutrientsService } from '../../nutrition/nutrients/nutrients.service';
 import { EnergyBarsComponent } from '../energy/energy-bars.component';
 import { EnergyDaysComponent } from '../energy/energy-days.component';
-import { MacroTrend } from '../progress-api.models';
+import { FoodGranularity, MacroTrend } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { PERIODS } from '../training/training-period';
 import { shownData, useLoad, usePeriod } from '../training/training-load';
@@ -81,6 +83,9 @@ export class FoodPage {
   private readonly api = inject(ProgressApiService);
   private readonly nutrientsApi = inject(NutrientsService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  /** The nutrient a door on a nutrient page asked for (?nutrient=), shown first in Nutrients. */
+  protected readonly focus = toSignal(this.route.queryParamMap.pipe(map((params) => params.get('nutrient'))), { initialValue: this.route.snapshot.queryParamMap.get('nutrient') });
 
   protected readonly periodOptions = PERIODS.map((option) => ({ value: option.code, label: option.label }));
   protected readonly sections = FOOD_SECTIONS;
@@ -88,6 +93,8 @@ export class FoodPage {
   readonly period = usePeriod();
   readonly today = this.period.today();
   readonly nutrients = signal<NutrientsOverview | null>(null);
+  /** The days the Nutrients section covers: 30 for four weeks, 90 for three months and for a year. */
+  protected readonly nutrientRange = computed(() => nutrientsDays(this.period.code()));
   /** The calorie goal's target, which the head judges the four weeks against; null while unknown or unset. */
   protected readonly calorieTarget = toSignal(
     toObservable(this.period.range).pipe(
@@ -100,7 +107,11 @@ export class FoodPage {
     ),
     { initialValue: null }
   );
-  private readonly read = useLoad(this.period.range, (range) => this.api.getFood(range.from, range.to), 'Food progress could not load.');
+  /** Four weeks reads weeks; three months and a year read calendar months. */
+  readonly granularity = computed<FoodGranularity>(() => (this.period.code() === '4w' ? 'week' : 'month'));
+  protected readonly monthly = computed(() => this.granularity() === 'month');
+  private readonly request = computed(() => ({ ...this.period.range(), granularity: this.granularity() }));
+  private readonly read = useLoad(this.request, (request) => this.api.getFood(request.from, request.to, request.granularity), 'Food progress could not load.');
   protected readonly state = this.read.state;
 
   readonly loading = computed(() => this.state().status === 'loading');
@@ -129,7 +140,7 @@ export class FoodPage {
   readonly headline = computed(() => balanceHeadline(this.data()?.hero.balancePerDay.value ?? null));
   readonly balanceBars = computed<WeekBar[]>(() =>
     (this.data()?.energy.weeklyBalance ?? []).map((week) => ({
-      label: shortDateLabel(week.weekStart),
+      label: this.granularity() === 'month' ? monthName(week.weekStart) : shortDateLabel(week.weekStart),
       weekStart: week.weekStart,
       value: week.balance === null ? null : Math.round(week.balance),
       current: week.current
@@ -141,7 +152,9 @@ export class FoodPage {
       return 'Eaten against what you used, once a few days are logged.';
     }
     const under = weeks.filter((week) => (week.balance ?? 0) < 0).length;
-    return `Under what you used on ${under} of ${weeks.length} weeks, logged days only.`;
+    return this.granularity() === 'month'
+      ? `Under what you used in ${under} of ${weeks.length} months, logged days only.`
+      : `Under what you used on ${under} of ${weeks.length} weeks, logged days only.`;
   });
   readonly macroTiles = computed<MacroTile[]>(() => {
     const macros = this.data()?.macros;
@@ -158,19 +171,19 @@ export class FoodPage {
   });
   protected readonly macroPrompt = computed(() => {
     const data = this.data();
-    return data ? macroAsk(data.macros) : '';
+    return data ? macroAsk(data.macros, this.granularity()) : '';
   });
   /** What the plate section calls the two periods it compares. */
   protected readonly nowTitle = computed(() => `The last ${this.period.option().label}`);
   protected readonly beforeTitle = computed(() => this.period.option().before.replace(/^the/, 'The'));
 
   constructor() {
-    // The nutrient summary keeps 31 days at most, so the petals always show the last 30.
-    const petals = lastDays(30, this.today);
-    this.nutrientsApi
-      .getAll(petals.from, petals.to)
+    // The petals follow the page's period; the server keeps at most 90 days.
+    toObservable(this.nutrientRange)
       .pipe(
-        catchError(() => of(null)),
+        switchMap(({ days }) =>
+          this.nutrientsApi.getAll(lastDays(days, this.today).from, this.today, days).pipe(catchError(() => of(null)))
+        ),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((overview) => this.nutrients.set(overview && overview.daysLogged > 0 ? overview : null));

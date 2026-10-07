@@ -18,7 +18,7 @@ import { whole } from './diary-figures';
     <div class="head">
       <span class="eyebrow">This week</span>
       <span class="range">{{ range() }}</span>
-      <a class="longer" routerLink="/progress/food">Longer &rsaquo;</a>
+      <a class="longer" routerLink="/progress/food" [queryParams]="{ period: '3m' }">Longer &rsaquo;</a>
     </div>
     @if (failed()) {
       <div class="failed" role="alert">

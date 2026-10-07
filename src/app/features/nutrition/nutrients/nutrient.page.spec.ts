@@ -45,6 +45,22 @@ describe('NutrientPage', () => {
     expect((new Date(to).getTime() - new Date(from).getTime()) / 86400000).toBe(29);
   });
 
+  it('offers How this changed to the same nutrient on Progress at 3 months when opened from Nutrition', async () => {
+    const el = await open();
+    const door = el.querySelector<HTMLAnchorElement>('a.door');
+    expect(text(door)).toBe('How this changed ›');
+    expect(door?.getAttribute('href')).toBe('/progress/food?period=3m&nutrient=VIT_D#nutrients');
+  });
+
+  it('follows ?range=90 from Progress without the door, reading 90 days', async () => {
+    const el = await open('/nutrition/nutrients/VIT_D?range=90');
+    expect(el.querySelector('a.door')).toBeNull();
+    const [, from, to] = service.getOne.calls.mostRecent().args;
+    expect((new Date(to).getTime() - new Date(from).getTime()) / 86400000).toBe(89);
+    expect(service.getAll.calls.mostRecent().args[2]).toBe(90);
+    expect(el.querySelector('a.back')?.getAttribute('href')).toContain('range=90');
+  });
+
   it('shows your figures and the guide', async () => {
     const el = await open();
     const yours = text(el.querySelector('app-nutrient-yours'));

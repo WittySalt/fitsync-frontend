@@ -10,7 +10,7 @@ import { LOADING, Load } from '../diary/diary.models';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { NutrientDetail, NutrientTileData, PeriodKey } from './nutrients.models';
 import { NutrientsService } from './nutrients.service';
-import { neighbours, parsePeriod, periodRange, tableOrder } from './nutrients-figures';
+import { neighbours, periodFromQuery, periodQuery, periodRange, tableOrder } from './nutrients-figures';
 import { armScrollRestore } from './nutrients-scroll';
 import { NutrientGuideComponent } from './nutrient-guide.component';
 import { NutrientYoursComponent } from './nutrient-yours.component';
@@ -31,7 +31,7 @@ const SWIPE_MIN = 60;
   template: `
     <div class="page-grid nutrient-page" (touchstart)="swipeStart($event)" (touchend)="swipeEnd($event)">
       <div class="nav">
-        <a class="back" routerLink="/nutrition/nutrients" [queryParams]="{ period: period() }" (click)="goBack($event)" aria-label="Back">
+        <a class="back" routerLink="/nutrition/nutrients" [queryParams]="query()" (click)="goBack($event)" aria-label="Back">
           &larr; Back
         </a>
         <span class="steps">
@@ -39,14 +39,14 @@ const SWIPE_MIN = 60;
             <span class="next-name">{{ following.displayName }} next</span>
           }
           @if (previous(); as before) {
-            <a class="step" [routerLink]="['/nutrition/nutrients', before.code]" [queryParams]="{ period: period() }" replaceUrl [attr.aria-label]="'Previous nutrient, ' + before.displayName">
+            <a class="step" [routerLink]="['/nutrition/nutrients', before.code]" [queryParams]="query()" replaceUrl [attr.aria-label]="'Previous nutrient, ' + before.displayName">
               <app-food-glyph name="ARROW_LEFT" [size]="15" [strokeWidth]="2.4" />
             </a>
           } @else {
             <span class="step off" aria-hidden="true"><app-food-glyph name="ARROW_LEFT" [size]="15" [strokeWidth]="2.4" /></span>
           }
           @if (next(); as following) {
-            <a class="step flip" [routerLink]="['/nutrition/nutrients', following.code]" [queryParams]="{ period: period() }" replaceUrl [attr.aria-label]="'Next nutrient, ' + following.displayName">
+            <a class="step flip" [routerLink]="['/nutrition/nutrients', following.code]" [queryParams]="query()" replaceUrl [attr.aria-label]="'Next nutrient, ' + following.displayName">
               <app-food-glyph name="ARROW_LEFT" [size]="15" [strokeWidth]="2.4" />
             </a>
           } @else {
@@ -67,6 +67,9 @@ const SWIPE_MIN = 60;
         }
         @default {
           @if (detail(); as data) {
+            @if (!fromProgress()) {
+              <a class="door" routerLink="/progress/food" [queryParams]="progressQuery()" fragment="nutrients">How this changed &rsaquo;</a>
+            }
             <div class="cols">
               <div class="card yours"><app-nutrient-yours [detail]="data" [period]="period()" /></div>
               @if (hasGuide()) {
@@ -90,13 +93,24 @@ export class NutrientPage {
 
   private readonly target = toSignal(
     combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(
-      map(([params, query]) => ({ code: params.get('code') ?? '', period: parsePeriod(query.get('period')) }))
+      map(([params, query]) => ({ code: params.get('code') ?? '', period: periodFromQuery(query.get('period'), query.get('range')), fromProgress: query.has('range') }))
     ),
-    { initialValue: { code: this.route.snapshot.paramMap.get('code') ?? '', period: parsePeriod(this.route.snapshot.queryParamMap.get('period')) } }
+    {
+      initialValue: {
+        code: this.route.snapshot.paramMap.get('code') ?? '',
+        period: periodFromQuery(this.route.snapshot.queryParamMap.get('period'), this.route.snapshot.queryParamMap.get('range')),
+        fromProgress: this.route.snapshot.queryParamMap.has('range')
+      }
+    }
   );
 
   protected readonly code = computed(() => this.target().code);
   protected readonly period = computed<PeriodKey>(() => this.target().period);
+  protected readonly query = computed(() => periodQuery(this.period()));
+  /** Opened from Progress (it writes ?range=): the way on is Progress, so there is no door back to it. */
+  protected readonly fromProgress = computed(() => this.target().fromProgress);
+  /** Where "How this changed" goes: this nutrient among the Nutrients of Progress › Food at 3 months. */
+  protected readonly progressQuery = computed(() => ({ period: '3m', nutrient: this.code() }));
 
   protected readonly state = signal<Load<NutrientDetail>>(LOADING);
   protected readonly detail = computed(() => {
@@ -165,7 +179,7 @@ export class NutrientPage {
   }
 
   private go(item: NutrientTileData): void {
-    void this.router.navigate(['/nutrition/nutrients', item.code], { queryParams: { period: this.period() }, replaceUrl: true });
+    void this.router.navigate(['/nutrition/nutrients', item.code], { queryParams: this.query(), replaceUrl: true });
   }
 
   private load(code: string, period: PeriodKey): void {
@@ -186,7 +200,7 @@ export class NutrientPage {
     }
     this.ordering?.unsubscribe();
     this.orderPeriod = period;
-    this.ordering = this.service.getAll(from, to).subscribe({
+    this.ordering = this.service.getAll(from, to, period === '90d' ? 90 : null).subscribe({
       next: (overview) => this.order.set(tableOrder(overview.nutrients)),
       error: () => this.order.set([])
     });

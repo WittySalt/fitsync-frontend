@@ -5,6 +5,7 @@ import { mondayOf } from './training/training-format';
 import {
   BodySeries,
   CurrentWeek,
+  FoodGranularity,
   FoodNutrition,
   FoodProgress,
   GoalProgress,
@@ -12,6 +13,7 @@ import {
   RoadDirection,
   RoadState,
   MacroTrend,
+  MealShare,
   OtherGoal,
   PlateShare,
   ReviewFact,
@@ -185,17 +187,23 @@ export function mapGoalProgress(response: unknown): GoalProgress {
   };
 }
 
-function macro(value: unknown, currentWeek: CurrentWeek | null, to: string | null): MacroTrend | null {
+/** A month as "YYYY-MM" or "YYYY-MM-DD" becomes the key of its first day; anything else is null. */
+export function monthKey(value: string | null): string | null {
+  const match = /^(\d{4}-\d{2})(-\d{2})?$/.exec(value ?? '');
+  return match ? `${match[1]}-01` : null;
+}
+
+function macro(value: unknown, currentWeek: CurrentWeek | null, to: string | null, month = false): MacroTrend | null {
   const wire = obj(value);
   if (!wire) {
     return null;
   }
   const all = list(wire['series'], (item) => {
-    const weekStart = str(item['weekStart']);
+    const weekStart = month ? monthKey(str(item['month']) ?? str(item['weekStart'])) : str(item['weekStart']);
     const point = num(item['value']);
-    return weekStart && point !== null ? { weekStart, value: point } : null;
+    return weekStart && point !== null ? { weekStart, value: point, ...(month ? { partial: bool(item['partial']) } : {}) } : null;
   });
-  const series = endAtLastFullWeek(all, (point) => point.weekStart, currentWeek, to);
+  const series = month ? all : endAtLastFullWeek(all, (point) => point.weekStart, currentWeek, to);
   // A week taken off the end also takes the figure that stood for "this week".
   const cut = series.length < all.length;
   return { firstWeek: num(wire['firstWeek']), thisWeek: cut ? (series.at(-1)?.value ?? null) : num(wire['thisWeek']), target: num(wire['target']), series };
@@ -209,8 +217,29 @@ function plateShares(value: unknown): PlateShare[] {
   });
 }
 
+function mealShares(value: unknown): MealShare[] {
+  return list(value, (item) => {
+    const mealType = str(item['mealType']);
+    const sharePct = num(item['sharePct']);
+    return mealType && sharePct !== null ? { mealType, sharePct, deltaPoints: num(item['deltaPoints']), kcalPerDay: num(item['kcalPerDay']) } : null;
+  });
+}
+
+/** Meals: this period's shares and, when the server sends them, the period before (null when absent or empty). */
+function mapMeals(wire: Record<string, unknown> | null): FoodProgress['meals'] {
+  const share = mealShares(wire?.['share'] ?? wire?.['current']);
+  const before = wire?.['previous'] === undefined || wire['previous'] === null ? [] : mealShares(wire['previous']);
+  return { share, previous: before.length ? before : null };
+}
+
+/** A month series is whole as it comes; a weekly one ends at the last full week when the server says so. */
+function monthOrWeek<T>(month: boolean, points: T[], weekOf: (point: T) => string, currentWeek: CurrentWeek | null, to: string | null): T[] {
+  return month ? points : endAtLastFullWeek(points, weekOf, currentWeek, to);
+}
+
 /** The analytics half of the Food page (contract 2.2), without nutrition's part. */
-export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutrition'> {
+export function mapFoodProgress(response: unknown, granularity: FoodGranularity = 'week'): Omit<FoodProgress, 'nutrition'> {
+  const month = granularity === 'month';
   const wire = obj(response) ?? {};
   const hero = obj(wire['hero']) ?? {};
   const balance = obj(hero['balancePerDay']) ?? {};
@@ -224,6 +253,7 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
   const currentWeek = mapCurrentWeek(wire['currentWeek']);
   const to = period?.to ?? null;
   return {
+    granularity,
     period,
     previous: range(wire['previous']),
     currentWeek,
@@ -236,17 +266,19 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
     highlights: mapHighlights(wire['highlights']),
     energy: {
       thisWeek: thisWeek ? mapEnergyWeek(thisWeek) : null,
-      weeklyBalance: endAtLastFullWeek(
+      weeklyBalance: monthOrWeek(
+        month,
         list(energy['weeklyBalance'], (item) => {
-          const weekStart = str(item['weekStart']);
-          return weekStart ? { weekStart, balance: num(item['balance']), daysLogged: num(item['daysLogged']) ?? 0, current: bool(item['current']) } : null;
+          const weekStart = month ? monthKey(str(item['month']) ?? str(item['weekStart'])) : str(item['weekStart']);
+          const current = bool(item['current']) || (month && bool(item['partial']));
+          return weekStart ? { weekStart, balance: num(item['balance']), daysLogged: num(item['daysLogged']) ?? 0, current } : null;
         }),
         (week) => week.weekStart,
         currentWeek,
         to
       )
     },
-    macros: { protein: macro(macros['protein'], currentWeek, to), carbs: macro(macros['carbs'], currentWeek, to), fat: macro(macros['fat'], currentWeek, to), summary: mapSummaryLines(macros['summary']) },
+    macros: { protein: macro(macros['protein'], currentWeek, to, month), carbs: macro(macros['carbs'], currentWeek, to, month), fat: macro(macros['fat'], currentWeek, to, month), summary: mapSummaryLines(macros['summary']) },
     plate: {
       basis: str(plate['basis']) ?? 'CALORIES',
       current: plateShares(plate['current']),
@@ -257,14 +289,17 @@ export function mapFoodProgress(response: unknown): Omit<FoodProgress, 'nutritio
         return group && delta !== null ? { group, deltaPoints: delta } : null;
       })
     },
-    meals: {
-      share: list(obj(wire['meals'])?.['share'], (item) => {
-        const mealType = str(item['mealType']);
-        const sharePct = num(item['sharePct']);
-        return mealType && sharePct !== null ? { mealType, sharePct, deltaPoints: num(item['deltaPoints']), kcalPerDay: num(item['kcalPerDay']) } : null;
+    meals: mapMeals(obj(wire['meals'])),
+    habits: {
+      waterMetDays: num(habits['waterMetDays']),
+      fibreMetDays: num(habits['fibreMetDays']),
+      loggedDays: num(habits['loggedDays']),
+      loggedDaysPerMonth: list(habits['loggedDaysPerMonth'], (item) => {
+        const key = monthKey(str(item['month']));
+        const days = num(item['days']);
+        return key && days !== null ? { month: key, days } : null;
       })
-    },
-    habits: { waterMetDays: num(habits['waterMetDays']), fibreMetDays: num(habits['fibreMetDays']), loggedDays: num(habits['loggedDays']) }
+    }
   };
 }
 
