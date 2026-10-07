@@ -1,13 +1,5 @@
 @if (guide.cardVisible()) {
-  @if (guide.allDone()) {
-    <section class="guide folded" aria-label="Getting started">
-      <p class="folded-line"><span class="check" aria-hidden="true">&#10003;</span>You're set up. The coach takes it from here.</p>
-      <span class="head-actions">
-        <button type="button" class="hide" (click)="tourAgain()">Take the tour again</button>
-        <button type="button" class="hide" (click)="guide.hideCard()">Hide</button>
-      </span>
-    </section>
-  } @else {
+  @if (!guide.allDone()) {
     <section class="guide" aria-labelledby="guide-title">
       <header class="guide-head">
         <div>
