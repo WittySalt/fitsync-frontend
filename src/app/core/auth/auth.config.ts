@@ -30,9 +30,9 @@ const PROD_POOL: CognitoPool = {
 
 const STAGING_POOL: CognitoPool = {
   region: 'ap-southeast-1',
-  userPoolId: 'ap-southeast-1_pHMjP2pf5',
+  userPoolId: 'ap-southeast-1_vm11OfhXN',
   domain: 'https://fitsync-staging-437659978621.auth.ap-southeast-1.amazoncognito.com',
-  clientId: '5jd23m7184cunbfgshlh90h0lc'
+  clientId: 'q489scqc3ki0c2vvr3r5ongao'
 };
 
 // Hosts served by the staging environment use the staging pool. Everything else
