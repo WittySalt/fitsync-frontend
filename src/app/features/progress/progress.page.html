@@ -8,7 +8,6 @@
       <header class="head">
         <span class="eyebrow">{{ eyebrow() }}</span>
         <div class="head-tools">
-          <app-how-this-works surface="progress" />
           <nav class="periods" aria-label="Period" appSpotlight="progress" spotlightStep="period">
             @for (option of periods; track option.key) {
               <a

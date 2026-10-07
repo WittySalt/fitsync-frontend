@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import { Router } from '@angular/router';
 
 import { HeroStat } from './progress.models';
-import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
 import { TourPage } from '../../core/guide/guide.service';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
@@ -21,7 +20,7 @@ export function cameFromThisApp(state: unknown): boolean {
  */
 @Component({
   selector: 'app-detail-head',
-  imports: [HowThisWorksComponent, SpotlightDirective],
+  imports: [SpotlightDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button type="button" class="back" [appSpotlight]="surface()" spotlightStep="back" (click)="back()">
@@ -30,9 +29,6 @@ export function cameFromThisApp(state: unknown): boolean {
     <div class="line">
       <span class="eyebrow">{{ eyebrow() }}</span>
       <div class="tools">
-        @if (surface(); as page) {
-          <app-how-this-works [surface]="page" />
-        }
         <ng-content select="[headPeriod]" />
       </div>
     </div>

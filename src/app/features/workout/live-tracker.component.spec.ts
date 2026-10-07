@@ -98,6 +98,18 @@ describe('LiveTrackerComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('50% complete');
   }));
 
+  it('carries the "?" of the guide beside Pause, and anchors the figures and the end of the workout', fakeAsync(() => {
+    startTracker({ type: 'MINUTES', target: 2 });
+
+    const entry = fixture.nativeElement.querySelector('.tracker-tools app-how-this-works') as HTMLElement;
+    expect(entry.querySelector('.round')?.getAttribute('aria-label')).toBe('How this works');
+    (entry.querySelector('.round') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(entry.querySelector('.eyebrow')?.textContent?.trim()).toBe('The live tracker');
+    const steps = Array.from(fixture.nativeElement.querySelectorAll('[appspotlight="workout-live"]')).map((anchor) => (anchor as HTMLElement).getAttribute('spotlightstep'));
+    expect(steps).toEqual(['figures', 'finish']);
+  }));
+
   it('shows estimated calories and labels heart rate as mock', fakeAsync(() => {
     startTracker({ type: 'CALORIES', target: 100 });
 

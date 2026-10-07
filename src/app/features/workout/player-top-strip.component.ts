@@ -1,13 +1,17 @@
 import { Component, computed, input, output } from '@angular/core';
 
+import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
+import { SpotlightDirective } from '../../core/guide/spotlight.directive';
+
 /**
  * The one row above the exercise screen: put it away, how far the workout has come (one segment
  * for each exercise), the sets done, and the time. It stays quiet so the exercise has the room.
  */
 @Component({
   selector: 'app-player-top-strip',
+  imports: [HowThisWorksComponent, SpotlightDirective],
   template: `
-    <div class="strip">
+    <div class="strip" appSpotlight="workout-session-player" spotlightStep="strip">
       <button type="button" class="minimise" aria-label="Minimise" (click)="minimise.emit()">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"></path></svg>
       </button>
@@ -18,6 +22,7 @@ import { Component, computed, input, output } from '@angular/core';
       </div>
       <span class="sets">{{ setsDone() }} of {{ setsTotal() }}<span class="word"> sets</span></span>
       <span class="elapsed">{{ clock() }}</span>
+      <app-how-this-works surface="workout-session-player" />
     </div>
   `,
   styleUrl: './player-top-strip.component.scss'

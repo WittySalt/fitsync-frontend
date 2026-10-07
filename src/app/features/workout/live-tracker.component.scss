@@ -25,6 +25,13 @@
   gap: 16px;
 }
 
+.tracker-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
 .tracker-topbar h2,
 .tracker-topbar p,
 .goal-panel p,

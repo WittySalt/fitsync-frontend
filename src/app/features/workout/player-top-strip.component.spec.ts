@@ -34,6 +34,24 @@ describe('PlayerTopStripComponent', () => {
     expect(root().querySelector('[aria-live]')).toBeNull();
   });
 
+  it('carries the "?" of the guide at the right end of the strip, for the session player', () => {
+    const strip = root().querySelector('.strip') as HTMLElement;
+    const entry = strip.lastElementChild as HTMLElement;
+
+    expect(entry.tagName.toLowerCase()).toBe('app-how-this-works');
+    const button = entry.querySelector<HTMLButtonElement>('.round');
+    expect(button?.getAttribute('aria-label')).toBe('How this works');
+    button?.click();
+    fixture.detectChanges();
+    expect(entry.querySelector('.eyebrow')?.textContent?.trim()).toBe('The session');
+  });
+
+  it('is the first anchor of the player path', () => {
+    const strip = root().querySelector('.strip') as HTMLElement;
+    expect(strip.getAttribute('appspotlight')).toBe('workout-session-player');
+    expect(strip.getAttribute('spotlightstep')).toBe('strip');
+  });
+
   it('has a labelled Minimise button that says so', () => {
     const minimised = jasmine.createSpy('minimise');
     fixture.componentInstance.minimise.subscribe(minimised);

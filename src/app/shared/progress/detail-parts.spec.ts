@@ -305,12 +305,15 @@ describe('DetailHeadComponent in the first-run guide', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('offers How this works on a page that has a surface, in the head row', () => {
+  it('carries no guide link of its own, since the "?" is in the top bar, and keeps its Back as an anchor', () => {
     const el = create('progress-goal');
-    expect(text(el.querySelector('.line app-how-this-works'))).toBe('How this works');
+    expect(el.querySelector('app-how-this-works')).toBeNull();
+    expect(el.querySelector('.back')?.getAttribute('spotlightstep')).toBe('back');
   });
 
-  it('has no link on a page without a surface', () => {
-    expect(create(null).querySelector('app-how-this-works')).toBeNull();
+  it('leaves its Back out of the path on a page without a surface', () => {
+    const el = create(null);
+    expect(el.querySelector('app-how-this-works')).toBeNull();
+    expect(el.querySelector('.back')).not.toBeNull();
   });
 });

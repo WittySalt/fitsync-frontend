@@ -32,6 +32,13 @@
   }
 }
 
+.tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  --guide-button-size: 36px;
+}
+
 .count {
   font-size: 12px;
   color: var(--text-secondary);

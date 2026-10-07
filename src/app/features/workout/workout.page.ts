@@ -43,9 +43,8 @@ import { WorkoutLiveService } from './workout-live.service';
 import { WorkoutDataIoComponent } from './workout-data-io.component';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.component';
-import { HowThisWorksComponent } from '../../core/guide/how-this-works.component';
-import { plansInUse } from '../../core/guide/guide-gates';
-import { GuideService, TourPage } from '../../core/guide/guide.service';
+import { HISTORY_IN_USE_SESSIONS, plansInUse } from '../../core/guide/guide-gates';
+import { GuideService, TourPage, publishSurface } from '../../core/guide/guide.service';
 
 
 /** The offer to make an activated plan's weekly session count the user's weekly goal. */
@@ -60,7 +59,7 @@ type HistoryDurationFilter = '' | 'lt30' | '30to60' | 'gt60';
 
 @Component({
   selector: 'app-workout-page',
-  imports: [HowThisWorksComponent, SpotlightDirective,
+  imports: [SpotlightDirective,
     InsightPanelComponent,
     RouterLink,
     PagerComponent,
@@ -114,8 +113,14 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly activePlanLoading = signal(true);
   readonly planMutations = signal<Set<string>>(new Set());
   readonly selectedTab = signal<'overview' | 'plans' | 'history' | 'library'>('overview');
-  /** The surface whose "How this works" the page head offers: the open tab's. */
+  /** The surface the "?" in the top bar opens: the player or the live tracker while one is up, else the open tab's. */
   protected readonly howSurface = computed<TourPage>(() => {
+    if (this.guidedPlayerSession()) {
+      return 'workout-session-player';
+    }
+    if (this.liveTrackerSession()) {
+      return 'workout-live';
+    }
     const tab = this.selectedTab();
     return tab === 'overview' ? 'workout' : tab === 'plans' ? 'workout-plans' : tab === 'history' ? 'workout-history' : 'workout-library';
   });
@@ -211,6 +216,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   });
 
   constructor() {
+    publishSurface(() => this.howSurface(), () => !!this.guidedPlayerSession() || !!this.liveTrackerSession());
     // The bar steps aside while the exercise screen is showing.
     effect(() => this.workoutLive.screenOpen.set(this.screenVisible()));
     this.searchTyped
@@ -784,6 +790,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
   private loadMetrics(): void {
     this.dataService.getWorkoutSessionPage({ status: 'COMPLETED', page: 0, size: 1 }).subscribe((page) => {
       this.completedSessionCount.set(page.total);
+      this.guide.reportUsed('workout-history', page.total >= HISTORY_IN_USE_SESSIONS);
       this.lastCompletedSession.set(page.sessions[0] ?? null);
     });
   }
