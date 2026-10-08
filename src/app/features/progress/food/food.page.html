@@ -11,10 +11,10 @@
     <app-highlights [highlights]="highlights()" [context]="context()" />
 
     <app-detail-section name="Energy" tour="progress-food" anchor="energy" [sentence]="energyLine()" [context]="context()" [ask]="energyAsk">
+      @if (headline(); as h) {
+        <div class="headline"><strong>{{ h.value }}</strong><span>{{ h.words }} {{ h.when }}</span></div>
+      }
       @if (food.energy.thisWeek; as week) {
-        @if (headline(); as h) {
-          <div class="headline"><strong>{{ h.value }}</strong><span>{{ h.words }} this week</span></div>
-        }
         @if (week.status === 'OK') {
           <div class="energy">
             <app-energy-bars [week]="week" />

@@ -26,7 +26,8 @@ import { FoodGranularity, MacroTrend } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { PERIODS } from '../training/training-period';
 import { shownData, useLoad, usePeriod } from '../training/training-load';
-import { ENERGY_ASK, balanceHeadline, monthSlots, foodHeroStats, foodSentence, foodVerdict, macroAsk, macroSentence, highlightsWithOverview } from './food-figures';
+import { useBarsWeek } from '../cards/bars-week';
+import { ENERGY_ASK, barsHeadline, monthSlots, foodHeroStats, foodSentence, foodVerdict, macroAsk, macroSentence, highlightsWithOverview } from './food-figures';
 import { FoodMealsSectionComponent } from './food-meals-section.component';
 import { FoodNutrientsSectionComponent } from './food-nutrients-section.component';
 import { FoodPlateSectionComponent } from './food-plate-section.component';
@@ -143,9 +144,11 @@ export class FoodPage {
   });
   readonly stats = computed(() => {
     const data = this.data();
-    return data ? foodHeroStats(data, this.days(), this.period.option().before) : [];
+    return data ? foodHeroStats(data, this.days(), this.period.option().before, this.barsWeek()) : [];
   });
-  readonly headline = computed(() => balanceHeadline(this.data()?.hero.balancePerDay.value ?? null));
+  /** The week the energy headline reads, the same one the Food card's bars draw. */
+  protected readonly barsWeek = useBarsWeek(this.data, computed(() => this.period.range().to));
+  readonly headline = computed(() => barsHeadline(this.barsWeek()));
   /** Every month of the period in month mode, so the charts agree about the year; empty in week mode. */
   protected readonly slots = computed(() => (this.monthly() ? monthSlots(this.period.range().from, this.period.range().to) : []));
   readonly balanceBars = computed<WeekBar[]>(() => {

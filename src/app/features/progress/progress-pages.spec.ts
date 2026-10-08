@@ -8,7 +8,7 @@ import { AccountDataService } from '../../core/account-data.service';
 import { overview } from '../nutrition/nutrients/nutrients-testing.spec';
 import { NutrientsService } from '../nutrition/nutrients/nutrients.service';
 import { FoodPage } from './food/food.page';
-import { balanceHeadline, changeWord, foodHeroStats, foodSentence, foodVerdict, macroSentence, macroWord, percentAgainst } from './food/food-figures';
+import { balanceHeadline, barsHeadline, changeWord, foodHeroStats, foodSentence, foodVerdict, macroSentence, macroWord, percentAgainst } from './food/food-figures';
 import { clockTime } from './food/food-meals-section.component';
 import { GoalPage } from './goal/goal.page';
 import { bodySentence, daysEarly, goalHeroStats, goalSentence, goalSummaryLines, goalTitle, goalVerdict, paceSentence, rateWord, weightSentence } from './goal/goal-figures';
@@ -19,6 +19,16 @@ import { FoodProgress, GoalProgress, WeeklyReview } from './progress-api.models'
 import { ProgressApiService, mergeFood } from './progress-api.service';
 import { isSoFar } from './reviews/review-item.component';
 import { FOOD_WIRE, GOAL_WIRE, TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
+import { EnergyWeek } from './energy/energy.models';
+
+/** An energy week with eaten minus used equal to the balance given. */
+function energyWeek(weekStart: string, status: EnergyWeek['status'], daysLogged: number, balance: number): EnergyWeek {
+  return {
+    weekStart, weekEnd: weekStart, status, daysLogged, bmrKcal: 1700, bmrEstimated: false, restingFactor: 1.2,
+    average: { eaten: 2200 + balance, resting: 2000, workouts: 200, used: 2200, balance },
+    mealSplit: null, weeklyKgEquivalent: null, days: [], weeks: []
+  };
+}
 
 const text = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const texts = (el: HTMLElement, selector: string) => Array.from(el.querySelectorAll(selector)).map((node) => text(node));
@@ -199,6 +209,17 @@ describe('food figures', () => {
       'Under what you used|279 kcal|a day this week, 180 the week before',
       'Days logged|26 of 30|+2 on the 30 days before'
     ]);
+  });
+
+  it('reads the balance figure from the bars week and names that week', () => {
+    const fallback = { week: energyWeek('2026-09-21', 'OK', 6, 7), label: 'Week of 21 Sept', when: 'in the week of 21 Sept' };
+    const stat = foodHeroStats(foodData(), 30, undefined, fallback)[2];
+    expect(`${stat.label}|${stat.value} ${stat.unit}|${stat.context}`).toBe('Over what you used|7 kcal|a day in the week of 21 Sept');
+    const now = { week: energyWeek('2026-09-28', 'OK', 5, -279), label: 'This week', when: 'this week' };
+    expect(foodHeroStats(foodData(), 30, undefined, now)[2].context).toBe('a day this week, 180 the week before');
+    expect(foodHeroStats(foodData(), 30, undefined, null)[2].value).toBe('–');
+    expect(barsHeadline(fallback)).toEqual({ value: '7', words: 'kcal a day over what you used', when: 'in the week of 21 Sept' });
+    expect(barsHeadline(null)).toBeNull();
   });
 });
 
@@ -411,6 +432,21 @@ describe('progress pages', () => {
       expect(texts(el, 'app-contents-rail .item')).toEqual(['Highlights', 'Energy', 'Macros', 'Plate', 'Meals', 'Nutrients', 'Habits']);
       expect(texts(el, 'app-highlights .kicker')).toEqual(['Protein', 'Nutrients']);
       expect(api.getFood).toHaveBeenCalledOnceWith('2026-09-06', TODAY, 'week');
+    });
+
+    it('names the earlier week in the energy headline and the head figure when nothing was logged this week', () => {
+      api.getFood.and.callFake(() => {
+        const food = foodData();
+        return of({ ...food, hero: { ...food.hero, balancePerDay: { value: 283, daysLogged: 1 } }, energy: { ...food.energy, thisWeek: energyWeek('2026-09-28', 'TOO_FEW_DAYS', 1, 283) } });
+      });
+      api.getEnergyWeek.and.callFake((monday: string) => of(monday === '2026-09-21' ? energyWeek('2026-09-21', 'OK', 6, 7) : null));
+      const { fixture, el } = render(FoodPage);
+      fixture.detectChanges();
+      expect(text(el.querySelector('#energy .headline strong'))).toBe('7');
+      expect(text(el.querySelector('#energy .headline span'))).toBe('kcal a day over what you used in the week of 21 Sept');
+      expect(texts(el, 'app-detail-head dt')[2]).toBe('Over what you used');
+      expect(text(el.querySelector('app-detail-head'))).toContain('a day in the week of 21 Sept');
+      expect(text(el)).not.toContain('283');
     });
 
     it('heads the page with On target when the four weeks sit within 5 % of the calorie goal', () => {

@@ -7,6 +7,7 @@ import { AccountDataService } from '../../../core/account-data.service';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { Leftover, Meal, UsualMeal } from '../../../core/fitsync.models';
 import { ToastService } from '../../../core/toast/toast.service';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { DiaryDayComponent } from './diary-day.component';
 import { DiarySummary, FrequentDrink, WaterDay } from './diary.models';
 import { NutritionDiaryService } from './nutrition-diary.service';
@@ -521,6 +522,10 @@ describe('DiaryDayComponent', () => {
   });
 
   describe('leftovers', () => {
+    // The cook days are read in the profile zone, so the zone is pinned: on a machine east of UTC
+    // the pasta's 18:00 UTC would otherwise fall on today.
+    beforeEach(() => TestBed.inject(UserTimezoneService).setProfileZone('UTC'));
+
     const stew = (left: number): Leftover => ({ cookId: 'c1', recipeId: 'r1', name: 'Beef stew', imageUrl: null, cookedAt: '2026-09-30T11:00:00Z', servingsLeft: left, kcalPerServing: 540 });
     const pasta = (): Leftover => ({ cookId: 'c2', recipeId: 'r2', name: 'Pasta bake', imageUrl: null, cookedAt: '2026-10-01T18:00:00Z', servingsLeft: 1, kcalPerServing: 610 });
 
