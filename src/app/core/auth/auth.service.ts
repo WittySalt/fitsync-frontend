@@ -345,14 +345,15 @@ export class AuthService {
     });
   }
 
-  private bootstrapWithCognitoToken(cognitoAccessToken: string): Observable<void> {
+  /** Trades a Cognito ID token for the application token the backend API accepts. */
+  private bootstrapWithCognitoToken(cognitoIdToken: string): Observable<void> {
     return this.http
       .post<BootstrapAuthResponse>(
         '/api/v1/auth/bootstrap',
         {},
         {
           headers: new HttpHeaders({
-            Authorization: `Bearer ${cognitoAccessToken}`
+            Authorization: `Bearer ${cognitoIdToken}`
           })
         }
       )
@@ -375,6 +376,7 @@ export class AuthService {
   private storeBootstrapToken(auth: BootstrapAuthResponse): void {
     localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, auth.accessToken);
     this.tokenRole.set(roleFromAccessToken(auth.accessToken));
+    // A token without a readable `exp` claim is treated as valid for two hours.
     localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(this.jwtExpiresAt(auth.accessToken) ?? Date.now() + 2 * 60 * 60 * 1000));
   }
 

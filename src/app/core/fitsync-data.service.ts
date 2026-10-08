@@ -85,7 +85,6 @@ import {
   WorkoutExport,
   WorkoutExerciseLogInput,
   WorkoutExerciseSetInput,
-  PlanDayKind,
   WorkoutPlan,
   WorkoutPlanDay,
   WorkoutPlanRequest,
@@ -855,13 +854,13 @@ interface BackendUsualMeals {
   }[];
 }
 
-/** A number from the wire, or null when it is missing or not finite. */
+/** One leftover row from the wire, or null when it has no cook id or no servings count. */
 function toLeftover(value: unknown): Leftover | null {
   const row = (value ?? {}) as Record<string, unknown>;
   const text = (key: string): string | null => (typeof row[key] === 'string' && (row[key] as string).length > 0 ? (row[key] as string) : null);
   const cookId = text('cookId');
-  const left = finiteOrNull(row['servingsLeft']);
-  if (!cookId || left === null) {
+  const servingsLeft = finiteOrNull(row['servingsLeft']);
+  if (!cookId || servingsLeft === null) {
     return null;
   }
   return {
@@ -870,11 +869,12 @@ function toLeftover(value: unknown): Leftover | null {
     name: text('name') ?? 'A recipe',
     imageUrl: text('imageUrl'),
     cookedAt: text('cookedAt') ?? '',
-    servingsLeft: left,
+    servingsLeft,
     kcalPerServing: finiteOrNull(row['kcalPerServing'])
   };
 }
 
+/** A number from the wire, or null when it is missing or not finite. */
 function finiteOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
@@ -915,7 +915,7 @@ export class FitSyncDataService {
         workout: analytics.workout,
         latestWorkout: this.mapWorkoutSession(latestWorkout, { completedOnly: true }),
         latestMeal: this.mapMeal(latestMeal),
-        latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
+        latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body),
         goals: dedupeGoalsByLatestEvaluation(goalProgress.goals.map((goal) => this.mapAnalyticsGoalProgress(goal)))
       })),
       catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
@@ -933,7 +933,7 @@ export class FitSyncDataService {
       map(({ analytics, goalProgress, user }) => ({
         profile: { ...this.mapProfile(user.profile), focusAreas: normalizeFocusAreas(user.preferences?.training?.focusAreas) },
         workout: analytics.workout,
-        latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body, analytics.generatedAt),
+        latestBodyMetric: this.mapAnalyticsBodyMetric(analytics.body),
         goals: dedupeGoalsByLatestEvaluation(goalProgress.goals.map((goal) => this.mapAnalyticsGoalProgress(goal)))
       })),
       catchError(() => throwError(() => new Error('Unable to load dashboard data. Please retry.')))
@@ -1018,7 +1018,7 @@ export class FitSyncDataService {
   /** Starts a plan's next session. When the row for today knows which plan day it is starting
    *  (for example, a day carried over from earlier in the week), it passes that day's id and the
    *  zone travels in the X-Timezone header, so the backend starts that specific day rather than guessing from today's
-   *  date. Both are optional so every existing caller, which starts "today's" day, is unaffected. */
+   *  date. Without the option the backend starts today's day. */
   startWorkoutPlan(planId: string, options?: { planDayId?: string | null }): Observable<WorkoutSessionDetail> {
     let params = new HttpParams();
     if (options?.planDayId) {
@@ -1134,32 +1134,33 @@ export class FitSyncDataService {
   }
 
   getWorkoutSessionPage(query: number | WorkoutSessionQuery = 10): Observable<WorkoutSessionPage> {
-    const q: WorkoutSessionQuery = typeof query === 'number' ? { size: query } : query;
-    const requestedPage = Math.max(0, q.page ?? 0);
+    const filters: WorkoutSessionQuery = typeof query === 'number' ? { size: query } : query;
+    const requestedPage = Math.max(0, filters.page ?? 0);
     let params = new HttpParams()
-      .set('size', String(this.safeWorkoutSessionPageSize(q.size ?? 10)))
+      .set('size', String(this.safeWorkoutSessionPageSize(filters.size ?? 10)))
       .set('page', String(requestedPage));
-    const name = q.q?.trim().slice(0, 80);
+    // The server matches at most 80 characters of the name.
+    const name = filters.q?.trim().slice(0, 80);
     if (name) {
       params = params.set('q', name);
     }
-    if (q.status) {
-      params = params.set('status', q.status);
+    if (filters.status) {
+      params = params.set('status', filters.status);
     }
-    if (q.workoutType) {
-      params = params.set('workoutType', q.workoutType);
+    if (filters.workoutType) {
+      params = params.set('workoutType', filters.workoutType);
     }
-    if (q.minDurationMinutes != null) {
-      params = params.set('minDurationMinutes', String(q.minDurationMinutes));
+    if (filters.minDurationMinutes != null) {
+      params = params.set('minDurationMinutes', String(filters.minDurationMinutes));
     }
-    if (q.maxDurationMinutes != null) {
-      params = params.set('maxDurationMinutes', String(q.maxDurationMinutes));
+    if (filters.maxDurationMinutes != null) {
+      params = params.set('maxDurationMinutes', String(filters.maxDurationMinutes));
     }
-    if (q.from) {
-      params = params.set('from', q.from);
+    if (filters.from) {
+      params = params.set('from', filters.from);
     }
-    if (q.to) {
-      params = params.set('to', q.to);
+    if (filters.to) {
+      params = params.set('to', filters.to);
     }
     return this.http
       .get<PageResponse<Partial<WorkoutSession>>>(`${this.apiBaseUrl}/workouts/sessions`, { params })
@@ -1752,6 +1753,7 @@ export class FitSyncDataService {
   hasLoggedMeal(): Observable<boolean> {
     const now = new Date();
     const from = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    // A day past now, so a meal logged ahead of time (dinner planned at lunch) also counts.
     const to = new Date(now.getTime() + 24 * 3600 * 1000);
     const params = new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
     return this.http
@@ -1760,7 +1762,7 @@ export class FitSyncDataService {
   }
 
   /**
-   * Every meal logged on the device-local calendar day of `day` in the user's zone, with macros and foods. Unlike
+   * Every meal logged on the calendar day of `day` in the profile's zone, with macros and foods. Unlike
    * getTodayMeals it lets a failure through, because the Today card shows a retry for it, and it
    * runs to the end of the day so a meal logged ahead of time is not dropped.
    */
@@ -2010,8 +2012,8 @@ export class FitSyncDataService {
       .pipe(
         map((response) => {
           const row = (response ?? {}) as Record<string, unknown>;
-          const left = finiteOrNull(row['servingsLeft']);
-          return left === null ? null : { cookId: typeof row['cookId'] === 'string' ? row['cookId'] : cookId, servingsLeft: left };
+          const servingsLeft = finiteOrNull(row['servingsLeft']);
+          return servingsLeft === null ? null : { cookId: typeof row['cookId'] === 'string' ? row['cookId'] : cookId, servingsLeft };
         })
       );
   }
@@ -2171,10 +2173,6 @@ export class FitSyncDataService {
     }).pipe(map(() => ({ ok: true as const })));
   }
 
-  simulateLoadError(): Observable<never> {
-    return throwError(() => new Error('Unable to load FitSync data. Please retry.'));
-  }
-
   private mapProfile(profile?: BackendUserProfile | null): UserProfile {
     return {
       displayName: profile?.displayName ?? 'FitSync User',
@@ -2221,6 +2219,7 @@ export class FitSyncDataService {
     return Math.round((value / 2.20462) * 10) / 10;
   }
 
+  /** "HH:mm" from the form as the "HH:mm:ss" local time the backend stores. */
   private toBackendLocalTime(value: string | null | undefined): string | null {
     return value ? `${value.slice(0, 5)}:00` : null;
   }
@@ -2742,7 +2741,7 @@ export class FitSyncDataService {
    * measurement date at all. The card is headed "Latest body metric", so that was simply the wrong
    * date; the backend now sends `measuredOn`.
    */
-  private mapAnalyticsBodyMetric(body: AnalyticsDashboardBody, generatedAt: string): BodyMetric | null {
+  private mapAnalyticsBodyMetric(body: AnalyticsDashboardBody): BodyMetric | null {
     if (body.latestWeightKg == null && body.bmi == null && body.latestBodyFatRate == null) {
       return null;
     }
@@ -2767,6 +2766,7 @@ export class FitSyncDataService {
       targetCarbsGrams: null,
       totalFatGrams: 0,
       targetFatGrams: null,
+      // The snapshot has no meal count, so 1 only marks that something was logged today.
       mealCount: nutrition.todayCaloriesConsumed == null && nutrition.todayProteinGrams == null ? 0 : 1,
       totalFiberGrams: null,
       totalSugarGrams: null,
@@ -2977,8 +2977,8 @@ export class FitSyncDataService {
       categoryName: food.categoryName ?? null,
       scope: food.scope ?? 'CATALOG',
       calories: food.calories ?? 0,
-      // Search results carry calories + basis only; macros require the food detail
-      // endpoint, so leave protein at 0 until the user picks a detailed/recent food.
+      // Search results may leave protein out (the other macros need the food detail endpoint);
+      // a missing value reads 0 until the user picks a detailed or recent food.
       proteinGrams: food.proteinGrams ?? 0,
       basisUnit: food.basisLabel ?? food.basisUnit ?? 'serving',
       basisLabel: food.basisLabel ?? food.basisUnit ?? 'serving',

@@ -68,7 +68,8 @@ export const COGNITO_AUTH_CONFIG: CognitoAuthConfig = buildCognitoAuthConfig(
 //
 // To go live: register the IdPs + callback URLs on the pool, implement the
 // callback token exchange (AuthService.completeCallback), then flip this to
-// true. `beginSocialSignIn` below already builds the correct authorize URL.
+// true. `buildSocialAuthorizeUrl` below already builds the correct authorize URL,
+// and AuthService.beginSocialSignIn redirects to it.
 // ---------------------------------------------------------------------------
 export const SOCIAL_SIGN_IN_ENABLED = false;
 

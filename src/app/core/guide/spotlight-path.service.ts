@@ -181,8 +181,8 @@ export class SpotlightPathService {
   /** Brings the anchor into view, waits for the scroll to settle, then runs `then`. */
   private reveal(anchor: SpotlightAnchor, then: () => void): void {
     const element = anchor.element;
-    const r = element.getBoundingClientRect();
-    const inView = r.top >= 0 && r.bottom <= window.innerHeight;
+    const rect = element.getBoundingClientRect();
+    const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
     if (inView || !element.scrollIntoView) {
       then();
       return;
@@ -207,6 +207,7 @@ export class SpotlightPathService {
         });
       }
     };
+    // Not every browser fires scrollend, so the step shows after 400 ms whatever happens.
     const timer = window.setTimeout(finish, 400);
     window.addEventListener('scrollend', finish, true);
     this.scrollCancel = (): void => {
@@ -251,8 +252,8 @@ export class SpotlightPathService {
   }
 
   private measure(): { top: number; left: number; width: number; height: number } {
-    const r = this.currentAnchor()?.element.getBoundingClientRect();
-    return r ? { top: r.top, left: r.left, width: r.width, height: r.height } : { top: 0, left: 0, width: 0, height: 0 };
+    const rect = this.currentAnchor()?.element.getBoundingClientRect();
+    return rect ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height } : { top: 0, left: 0, width: 0, height: 0 };
   }
 
   private place(): void {

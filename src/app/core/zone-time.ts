@@ -51,6 +51,7 @@ function offsetMs(instant: Date, timezone: string): number {
   }).formatToParts(instant);
   const part = (type: string): number => Number(parts.find((entry) => entry.type === type)?.value ?? 0);
   const wall = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'));
+  // The formatted wall clock has no milliseconds, so the instant is cut to whole seconds as well.
   return wall - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
@@ -59,6 +60,8 @@ export function startOfDayInZone(dayKey: string, timezone: string): Date {
   const zone = profileTimezone(timezone);
   const [year, month, day] = dayKey.split('-').map(Number);
   const guess = Date.UTC(year, month - 1, day);
+  // The offset at UTC midnight can differ from the offset at local midnight when a DST change
+  // falls in between, so the offset is read a second time at the first estimate.
   const first = guess - offsetMs(new Date(guess), zone);
   return new Date(guess - offsetMs(new Date(first), zone));
 }

@@ -92,6 +92,7 @@ export class ThemeService {
       return;
     }
 
+    // Older Safari only has the deprecated addListener on MediaQueryList.
     this.colorSchemeQuery?.addListener?.(listener);
   }
 
