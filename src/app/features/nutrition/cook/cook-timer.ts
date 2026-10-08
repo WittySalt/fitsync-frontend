@@ -50,10 +50,6 @@ export function createTimer(def: CookTimerDef): TimerState {
   };
 }
 
-export function stageCount(state: TimerState): 1 | 2 {
-  return state.eachSide ? 2 : 1;
-}
-
 /** Starts the first stage from idle, or the second side from the turn. */
 export function startStage(state: TimerState, now: number): TimerState {
   if (state.phase !== 'idle' && state.phase !== 'turn') {
@@ -135,8 +131,8 @@ export function remainingSeconds(state: TimerState, now: number): number {
 
 /** How full the segments are, from 0 to 1: one for a single stage, two for each side. */
 export function segmentFills(state: TimerState, now: number): number[] {
-  const own = state.totalMs > 0 ? 1 - remainingMs(state, now) / state.totalMs : 0;
-  const stage = Math.min(1, Math.max(0, own));
+  const rawFill = state.totalMs > 0 ? 1 - remainingMs(state, now) / state.totalMs : 0;
+  const stageFill = Math.min(1, Math.max(0, rawFill));
   let first = 0;
   let second = 0;
   if (state.phase === 'turn') {
@@ -146,10 +142,10 @@ export function segmentFills(state: TimerState, now: number): number[] {
     second = 1;
   } else if (state.phase === 'running' || state.phase === 'paused') {
     if (state.stage === 0) {
-      first = stage;
+      first = stageFill;
     } else {
       first = 1;
-      second = stage;
+      second = stageFill;
     }
   }
   return state.eachSide ? [first, second] : [state.phase === 'done' ? 1 : first];

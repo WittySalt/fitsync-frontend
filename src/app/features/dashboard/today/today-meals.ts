@@ -1,4 +1,6 @@
 import { DayMeal, DayMealItem, UsualMeal } from '../../../core/fitsync.models';
+import { browserTimezone, dateKeyInZone, startOfDayInZone } from '../../../core/zone-time';
+import { minutesOfDay } from '../brief/brief-time';
 
 export type MealSlot = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
 
@@ -109,11 +111,11 @@ export function usualCombination(usual: UsualMeal[], slot: MealSlot): UsualMeal 
 }
 
 /**
- * The slot whose usual window holds the current time and that has no meal logged today, or null.
- * Snack has no window and is never due by itself.
+ * The slot whose usual window holds the current time on the zone's clock (the profile's) and that
+ * has no meal logged today, or null. Snack has no window and is never due by itself.
  */
-export function dueMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = []): MealSlot | null {
-  const minutes = now.getHours() * 60 + now.getMinutes();
+export function dueMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = [], timezone: string = browserTimezone()): MealSlot | null {
+  const minutes = minutesOfDay(now, timezone);
   const logged = new Set(meals.map((meal) => slotForMealType(meal.mealType)));
   const due = MEAL_SLOTS.find((definition) => {
     const usualMinutes = slotUsualMinutes(usual, definition.key);
@@ -133,7 +135,7 @@ export function dueMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = []
  * usual window holds the current time, otherwise breakfast. Snack has no window and is never
  * opened by the card itself.
  */
-export function defaultMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = []): MealSlot {
+export function defaultMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] = [], timezone: string = browserTimezone()): MealSlot {
   let latest: DayMeal | null = null;
   let latestTime = Number.NEGATIVE_INFINITY;
   for (const meal of meals) {
@@ -148,24 +150,31 @@ export function defaultMealSlot(meals: DayMeal[], now: Date, usual: UsualMeal[] 
   if (latest !== null) {
     return slotForMealType(latest.mealType);
   }
-  return dueMealSlot(meals, now, usual) ?? 'BREAKFAST';
+  return dueMealSlot(meals, now, usual, timezone) ?? 'BREAKFAST';
 }
 
-/** True when the usual time of the day, "HH:mm", is still to come at the given moment. */
-export function usualTimeAhead(time: string | null | undefined, now: Date): boolean {
+/** True when the usual time of the day, "HH:mm", is still to come at the given moment on the zone's clock. */
+export function usualTimeAhead(time: string | null | undefined, now: Date, timezone: string = browserTimezone()): boolean {
   const minutes = clockMinutes(time);
-  return minutes !== null && minutes > now.getHours() * 60 + now.getMinutes();
+  return minutes !== null && minutes > minutesOfDay(now, timezone);
 }
 
-/** The given "HH:mm" on the calendar day of `now`, in the local zone, or null for a bad time. */
-export function todayAt(time: string | null | undefined, now: Date): Date | null {
+/** The given "HH:mm" on the calendar day of `now`, both in the zone (the profile's), or null for a bad time. */
+export function todayAt(time: string | null | undefined, now: Date, timezone: string = browserTimezone()): Date | null {
   const minutes = clockMinutes(time);
   if (minutes === null) {
     return null;
   }
-  const moment = new Date(now);
-  moment.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return moment;
+  const guess = new Date(startOfDayInZone(dateKeyInZone(now, timezone), timezone).getTime() + minutes * 60_000);
+  // On a day the clocks change, the wall clock is off by the change once it has passed, so the
+  // difference is taken back (kept within half a day, as it can wrap past midnight).
+  let drift = minutesOfDay(guess, timezone) - minutes;
+  if (drift > 720) {
+    drift -= 1440;
+  } else if (drift < -720) {
+    drift += 1440;
+  }
+  return new Date(guess.getTime() - drift * 60_000);
 }
 
 /** True when a meal of the slot was logged for a moment that has not come yet. */

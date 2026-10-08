@@ -11,8 +11,8 @@ import { MAX_MINUTES, MIN_MINUTES } from './cook-duration';
   selector: 'app-cook-retime',
   imports: [CookDurationComponent],
   template: `
-    <app-cook-duration [(minutes)]="value" [(valid)]="ok" [reset]="reset()" (submitted)="apply()" />
-    <button type="button" class="set" [disabled]="!ok()" (click)="apply()">Set time</button>
+    <app-cook-duration [(minutes)]="chosenMinutes" [(valid)]="valid" [reset]="reset()" (submitted)="apply()" />
+    <button type="button" class="set" [disabled]="!valid()" (click)="apply()">Set time</button>
   `,
   styles: [
     `
@@ -64,16 +64,16 @@ export class CookRetimeComponent implements OnInit {
   readonly reset = input<number | null>(null);
   readonly applied = output<number>();
 
-  protected readonly value = signal(MIN_MINUTES);
-  protected readonly ok = signal(true);
+  protected readonly chosenMinutes = signal(MIN_MINUTES);
+  protected readonly valid = signal(true);
 
   ngOnInit(): void {
-    this.value.set(Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, this.minutes())));
+    this.chosenMinutes.set(Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, this.minutes())));
   }
 
   protected apply(): void {
-    if (this.ok()) {
-      this.applied.emit(this.value());
+    if (this.valid()) {
+      this.applied.emit(this.chosenMinutes());
     }
   }
 }

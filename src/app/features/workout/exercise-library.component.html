@@ -248,7 +248,7 @@
                 <progress max="100" [value]="editUploadProgress() ?? 0"></progress>
               }
             }
-            @if (libraryView() !== 'create' && editVideoError()) {
+            @if (editVideoError()) {
               <p class="field-error">{{ editVideoError() }}</p>
             }
             }

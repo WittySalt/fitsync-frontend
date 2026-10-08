@@ -75,28 +75,30 @@ export function deriveRoad(goal: GoalProgress, today: string): GoalRoad | null {
   if (target === null || now === null) {
     return null;
   }
-  const first = goal.weight.daily[0] ?? (goal.weight.weekly[0] ? { date: goal.weight.weekly[0].weekStart, kg: goal.weight.weekly[0].avgKg } : null);
-  const startKg = first?.kg ?? now;
-  const startDate = first?.date ?? null;
-  const by = goal.goal?.byDate ?? null;
+  const firstWeighIn = goal.weight.daily[0] ?? (goal.weight.weekly[0] ? { date: goal.weight.weekly[0].weekStart, kg: goal.weight.weekly[0].avgKg } : null);
+  const startKg = firstWeighIn?.kg ?? now;
+  const startDate = firstWeighIn?.date ?? null;
+  const byDate = goal.goal?.byDate ?? null;
   const projected = goal.hero.projectedDate.value;
   const rate = goal.hero.weeklyRate.value;
+  // A target within a kilo of the start is a weight to keep rather than one to reach.
   const direction = Math.abs(target - startKg) <= 1 ? 'KEEP' : target < startKg ? 'LOSE' : 'GAIN';
   const reached = direction === 'LOSE' ? now <= target : direction === 'GAIN' ? now >= target : false;
 
   let state: RoadState;
   if (reached) {
     state = 'REACHED';
-  } else if (by && today > by) {
+  } else if (byDate && today > byDate) {
     state = 'DATE_PASSED';
   } else if (rate !== null && Math.abs(rate) < 0.05) {
+    // Under 0.05 kg a week either way the weight is not moving.
     state = 'STALLED';
   } else if (!projected) {
     state = 'NO_PROJECTION';
-  } else if (!by) {
+  } else if (!byDate) {
     state = 'ON_COURSE';
   } else {
-    const early = daysBetween(projected, by);
+    const early = daysBetween(projected, byDate);
     state = early >= 7 ? 'AHEAD' : early <= -7 ? 'BEHIND' : 'ON_COURSE';
   }
 
@@ -110,10 +112,10 @@ export function deriveRoad(goal: GoalProgress, today: string): GoalRoad | null {
     nowKg: now,
     nowDate: goal.weight.daily.at(-1)?.date ?? null,
     targetKg: target,
-    targetDate: by,
+    targetDate: byDate,
     distanceKg: round1(Math.abs(target - now)),
     fractionWeight: reached ? 1 : total === 0 ? 0 : clamp01(Math.abs(now - startKg) / total),
-    fractionTime: startDate && by && daysBetween(startDate, by) > 0 ? clamp01(daysBetween(startDate, today) / daysBetween(startDate, by)) : 0,
+    fractionTime: startDate && byDate && daysBetween(startDate, byDate) > 0 ? clamp01(daysBetween(startDate, today) / daysBetween(startDate, byDate)) : 0,
     projectedDate: projected,
     ticks: direction === 'KEEP' ? [] : wholeKilos(startKg, target).map((kg) => ({ kg, crossedOn: null, projectedOn: null })),
     keep: direction === 'KEEP' ? { bandKg: 1, weeks: keepWeeks } : null,
@@ -123,13 +125,14 @@ export function deriveRoad(goal: GoalProgress, today: string): GoalRoad | null {
 
 /** Every whole kilo between the start and the target, from the start side. */
 export function wholeKilos(startKg: number, targetKg: number): number[] {
+  // The epsilon lets a weight a float error away from a whole kilo (69.9999999999) still count that kilo.
   const low = Math.ceil(Math.min(startKg, targetKg) - 1e-9);
   const high = Math.floor(Math.max(startKg, targetKg) + 1e-9);
-  const list: number[] = [];
+  const kilos: number[] = [];
   for (let kg = low; kg <= high; kg += 1) {
-    list.push(kg);
+    kilos.push(kg);
   }
-  return targetKg < startKg ? list.reverse() : list;
+  return targetKg < startKg ? kilos.reverse() : kilos;
 }
 
 // ---------------------------------------------------------------- the lead goal
@@ -217,6 +220,7 @@ export function reachedOn(road: GoalRoad): string | null {
   return last?.crossedOn ?? road.nowDate;
 }
 
+/** The first weigh-in of the latest run that stayed within 0.3 kg of the current weight, so the weight reads as unchanged since then. */
 export function stalledSince(goal: GoalProgress, road: GoalRoad): string | null {
   const daily = goal.weight.daily;
   for (let index = daily.length - 1; index >= 0; index -= 1) {
@@ -229,27 +233,26 @@ export function stalledSince(goal: GoalProgress, road: GoalRoad): string | null 
 
 /** The weight road's headline and caption for each state (spec 1.4). */
 export function roadHeadline(goal: GoalProgress, road: GoalRoad): CardHeadline {
-  const date = (key: string | null): string => day(key);
   const target = `${formatNumber(road.targetKg, road.targetKg % 1 ? 1 : 0)} kg`;
   const early = road.projectedDate && road.targetDate ? daysBetween(road.projectedDate, road.targetDate) : null;
   const base = { figure: `${formatNumber(road.distanceKg, 1)} kg`, tail: `to ${target}` };
   switch (road.state) {
     case 'AHEAD':
-      return { ...base, caption: `On course for ${date(road.projectedDate)}${early === null ? '' : `, ${earlyWords(early)}`}` };
+      return { ...base, caption: `On course for ${day(road.projectedDate)}${early === null ? '' : `, ${earlyWords(early)}`}` };
     case 'ON_COURSE':
-      return { ...base, caption: road.projectedDate ? `On course for ${date(road.projectedDate)}` : 'On course' };
+      return { ...base, caption: road.projectedDate ? `On course for ${day(road.projectedDate)}` : 'On course' };
     case 'BEHIND':
-      return { ...base, caption: `At this pace ${date(road.projectedDate)}${early === null ? '' : `, ${earlyWords(early)}`}` };
+      return { ...base, caption: `At this pace ${day(road.projectedDate)}${early === null ? '' : `, ${earlyWords(early)}`}` };
     case 'REACHED': {
       const on = reachedOn(road);
       const days = on && road.targetDate ? daysBetween(on, road.targetDate) : null;
-      return { figure: target, tail: 'reached', caption: on ? `On ${date(on)}${days === null ? '' : `, ${earlyWords(days)}`}` : '' };
+      return { figure: target, tail: 'reached', caption: on ? `On ${day(on)}${days === null ? '' : `, ${earlyWords(days)}`}` : '' };
     }
     case 'DATE_PASSED':
-      return { ...base, caption: `Your date was ${date(road.targetDate)}.${road.projectedDate ? ` ${date(road.projectedDate)} at this pace` : ''}` };
+      return { ...base, caption: `Your date was ${day(road.targetDate)}.${road.projectedDate ? ` ${day(road.projectedDate)} at this pace` : ''}` };
     case 'STALLED': {
       const since = stalledSince(goal, road);
-      return { ...base, caption: since ? `No change since ${date(since)}` : 'No change lately' };
+      return { ...base, caption: since ? `No change since ${day(since)}` : 'No change lately' };
     }
     default:
       return { ...base, caption: 'A date appears after a few more weigh-ins' };
@@ -466,6 +469,7 @@ export interface KeepGeometry {
 const KEEP_TOP = 56;
 
 export function keepGeometry(road: GoalRoad, width: number, height = PICTURE_HEIGHT): KeepGeometry {
+  // The bottom 50 px hold the date row.
   const bottom = height - 50;
   const weeks = road.keep?.weeks ?? [];
   const band = road.keep?.bandKg ?? 1;
@@ -475,6 +479,7 @@ export function keepGeometry(road: GoalRoad, width: number, height = PICTURE_HEI
   const y = (kg: number): number => bottom - ((kg - lo) / (hi - lo)) * (bottom - KEEP_TOP);
   const x0 = START_PAD;
   const x1 = Math.max(x0 + 40, width - END_PAD);
+  // The line stops short of the bullseye at x1.
   const lastX = Math.max(x0, x1 - 44);
   const points = weeks.map((week, index) => ({
     x: weeks.length > 1 ? x0 + (index / (weeks.length - 1)) * (lastX - x0) : x0,
@@ -509,12 +514,14 @@ export interface StripGeometry {
   lastDate: string;
 }
 
-const STRIP_ROW = 20;
+/** Dots in a row of the strip. */
+const STRIP_PER_ROW = 20;
+/** Room kept at the right of the strip for the bullseye and its labels. */
 const STRIP_RIGHT = 96;
 
 export function stripGeometry(items: { date: string; state: 'MET' | 'MISSED' | 'NOT_LOGGED' }[], width: number): StripGeometry {
-  const perRow = Math.min(STRIP_ROW, Math.max(1, items.length));
-  const rows = Math.max(1, Math.ceil(items.length / STRIP_ROW));
+  const perRow = Math.min(STRIP_PER_ROW, Math.max(1, items.length));
+  const rows = Math.max(1, Math.ceil(items.length / STRIP_PER_ROW));
   const pitch = Math.max(8, Math.min(30, Math.floor((width - STRIP_RIGHT) / perRow)));
   const dot = Math.min(24, pitch - 4);
   return {
@@ -522,8 +529,8 @@ export function stripGeometry(items: { date: string; state: 'MET' | 'MISSED' | '
     dot,
     perRow,
     cells: items.map((item, index) => ({
-      x: (index % STRIP_ROW) * pitch + pitch / 2,
-      y: Math.floor(index / STRIP_ROW) * pitch + pitch / 2,
+      x: (index % STRIP_PER_ROW) * pitch + pitch / 2,
+      y: Math.floor(index / STRIP_PER_ROW) * pitch + pitch / 2,
       state: item.state,
       date: item.date
     })),

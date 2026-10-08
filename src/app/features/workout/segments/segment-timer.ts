@@ -69,6 +69,7 @@ export function startTimer(segments: readonly WorkoutSessionSegment[], elapsed: 
     .filter((segment) => segment.status !== 'PENDING')
     .reduce((sum, segment) => sum + (segment.actualSeconds ?? 0), 0);
   const startOffset = current < 0 ? elapsed : Math.min(settled, elapsed);
+  // The running segment began `startOffset` seconds into the session, so its start is backdated by the time spent since.
   if (current >= 0 && !ordered[current].startedAt) {
     ordered[current].startedAt = new Date(now.getTime() - Math.max(0, elapsed - startOffset) * 1000).toISOString();
   }
@@ -150,6 +151,7 @@ export function addMinute(timer: SegmentTimer): SegmentTimer {
   return { ...timer, segments };
 }
 
+/** "12:40". Rounds up, so a countdown shows 0:01 until the last second is over. */
 export function clock(seconds: number): string {
   const whole = Math.max(0, Math.ceil(seconds));
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;

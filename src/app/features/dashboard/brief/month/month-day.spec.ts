@@ -76,6 +76,16 @@ describe('day lines', () => {
       expect(lines({ food: null, day, sessions, exercises: [] })).toEqual(['Two sessions, 1 h 25 min. Strength and cardio.']);
     });
 
+    it('lower-cases every kind after the first when three kinds are listed', () => {
+      const day: MonthDayInsight = { ...STRENGTH_DAY, sessions: 3, minutes: 85 };
+      const sessions = [
+        { startedAt: '', kind: 'STRENGTH' as const },
+        { startedAt: '', kind: 'CARDIO' as const },
+        { startedAt: '', kind: 'MOBILITY' as const }
+      ];
+      expect(lines({ food: null, day, sessions, exercises: [] })).toEqual(['Three sessions, 1 h 25 min. Strength, cardio and mobility.']);
+    });
+
     it('says both when two sessions are of one kind and leaves the note out when no kind is known', () => {
       const day: MonthDayInsight = { ...STRENGTH_DAY, sessions: 2, minutes: 85 };
       const same = [

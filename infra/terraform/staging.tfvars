@@ -8,7 +8,7 @@ env    = "staging"
 
 # CloudFront stands up the HTTPS SPA distribution for the staging demo. It is
 # required for Cognito hosted login (Cognito only accepts HTTPS callback URLs)
-# and proxies /api/* to the staging backend gateway. `terraform destroy` after
+# and proxies /api/* to the staging backend ALB. `terraform destroy` after
 # the demo to stop the (tiny) bill.
 enable_cloudfront = true
 

@@ -242,7 +242,7 @@ export class RecipeEditorPage {
     this.loadDetails(this.rows());
   }
 
-  /** The figures per 100 g come in after the rows are on screen, for the live card once something changes. */
+  /** The figures per basis amount come in after the rows are on screen, for the live card once something changes. */
   private loadDetails(rows: readonly EditorRow[]): void {
     const wanted = rows.filter((row) => row.foodCatalogItemId !== '');
     if (wanted.length) {

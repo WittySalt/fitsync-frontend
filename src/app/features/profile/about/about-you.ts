@@ -40,7 +40,7 @@ function trainingPart(inputs: AboutInputs): string {
   return `${count} ${noun} a week`;
 }
 
-function number(value: number): string {
+function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(value);
 }
 
@@ -55,15 +55,16 @@ function goalPart(inputs: AboutInputs): string {
   }
   const by = goal.targetDate ? ` by ${dayMonth(goal.targetDate)}` : '';
   if (goal.type === 'WEIGHT') {
-    const target = `${number(goal.targetValue)} kg`;
-    const now = inputs.weightKg;
-    if (now === null || !Number.isFinite(now)) {
+    const target = `${formatNumber(goal.targetValue)} kg`;
+    const currentKg = inputs.weightKg;
+    if (currentKg === null || !Number.isFinite(currentKg)) {
       return `weight target ${target}${by}`;
     }
-    if (Math.abs(now - goal.targetValue) < 0.05) {
+    // Within 0.05 kg the target is already reached, so the goal reads as keeping it.
+    if (Math.abs(currentKg - goal.targetValue) < 0.05) {
       return `keep weight at ${target}`;
     }
-    return `${now > goal.targetValue ? 'lose' : 'gain'} weight to ${target}${by}`;
+    return `${currentKg > goal.targetValue ? 'lose' : 'gain'} weight to ${target}${by}`;
   }
   return '';
 }
@@ -117,6 +118,7 @@ export function focusedGroups(focusAreas: readonly string[]): string[] {
 
 /** The figure's input: each focused group at a hard-set count the figure draws in green. */
 export function focusSets(focusAreas: readonly string[]): Record<string, number> {
+  // 15 sits inside the figure's usual 10 to 20 range, which it shades green.
   return Object.fromEntries(focusedGroups(focusAreas).map((group) => [group, 15]));
 }
 

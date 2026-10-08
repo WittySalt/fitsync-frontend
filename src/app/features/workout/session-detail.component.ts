@@ -19,13 +19,12 @@ import {
   WorkoutExerciseSetLog,
   WorkoutSessionDetail
 } from '../../core/fitsync.models';
-import { formatKm } from '../dashboard/brief/brief-duration';
 import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { SessionRecordComponent } from './session-record.component';
 import { WorkoutLiveService } from './workout-live.service';
-import { caloriesLabel, deriveDurationMinutes, sessionDurationLabel } from './workout-session.util';
+import { deriveDurationMinutes } from './workout-session.util';
 
 type ExerciseSetEditGroup = FormGroup<{
   reps: FormControl<number | null>;
@@ -402,25 +401,6 @@ export class SessionDetailComponent implements OnInit, OnChanges {
       minute: '2-digit',
       hour12: false
     }).format(date);
-  }
-
-  formatNumber(value: number | null | undefined, unit = ''): string {
-    if (value == null) {
-      return '-';
-    }
-    return `${value}${unit}`;
-  }
-
-  formatDuration(session: WorkoutSessionDetail): string {
-    return sessionDurationLabel(session);
-  }
-
-  formatDistance(km: number | null | undefined): string {
-    return formatKm(km);
-  }
-
-  formatCalories(value: number | null | undefined): string {
-    return caloriesLabel(value);
   }
 
   canEditExercises(session: WorkoutSessionDetail | null = this.session()): boolean {

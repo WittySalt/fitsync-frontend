@@ -1293,6 +1293,18 @@ describe('ExercisePlayerComponent', () => {
         expect(more.getAttribute('aria-expanded')).toBe('false');
       });
 
+      it('does not skip the exercise while a timed set is still being recorded', () => {
+        const player = mountStrength();
+        live.recording.set(true);
+        player.detectChanges();
+
+        player.componentInstance.skipCurrentExercise();
+        player.detectChanges();
+
+        expect(dataService.upsertSessionSet).not.toHaveBeenCalled();
+        expect(player.componentInstance.currentExerciseIndex()).toBe(0);
+      });
+
       it('shows the rest with the next set of the same exercise and a line of fact from the coach', fakeAsync(() => {
         const player = mountStrength();
 

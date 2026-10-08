@@ -28,6 +28,7 @@ import { defaultSegments, resizeTotal, segmentTotal } from './segments/segment-m
 
 export type FlowStatus = 'loading' | 'ready' | 'error';
 
+/** Titles the flow itself gives a day. Changing the kind replaces one of these; any other title was typed and stays. */
 const DEFAULT_TITLES = new Set(['', 'Easy run', 'Mobility flow', 'Strength', 'Cardio', 'Mobility', 'Full body A', 'Full body B', 'Full body C', 'Upper', 'Lower', 'Full']);
 
 /** The state of one pass through the plan flow. Provided by the flow page, so it ends with the page. */
@@ -65,6 +66,7 @@ export class PlanFlowStore {
   readonly sports = computed(() => this.context()?.sports ?? []);
 
   constructor() {
+    // Coverage follows the draft, debounced. After one failed answer it is not asked again for the rest of the visit.
     toObservable(computed(() => ({ plan: this.plan(), profile: this.profile(), ready: this.status() === 'ready' && !this.coverageFailed() })))
       .pipe(
         debounceTime(500),
@@ -186,7 +188,8 @@ export class PlanFlowStore {
       this.kindsOpen.set(kind === 'REST');
       return;
     }
-    const typed = !DEFAULT_TITLES.has(current.title.trim()) && current.kind !== 'SPORT';
+    // A sport day's title is the sport's name, so it never counts as typed.
+    const titleTyped = !DEFAULT_TITLES.has(current.title.trim()) && current.kind !== 'SPORT';
     const minutes = current.minutes && current.minutes > 0 ? current.minutes : this.defaultMinutes(kind);
     const fresh: DraftDay = { ...emptyDay(dayOfWeek), planDayId: current.planDayId, kind, minutes: kind === 'REST' ? null : minutes };
     if (kind === 'REST') {
@@ -194,7 +197,7 @@ export class PlanFlowStore {
       this.kindsOpen.set(true);
       return;
     }
-    fresh.title = typed ? current.title : this.defaultTitle(kind);
+    fresh.title = titleTyped ? current.title : this.defaultTitle(kind);
     if (kind === 'CARDIO' || kind === 'SPORT') {
       fresh.segments = kind === 'SPORT' ? sportSegments(minutes) : defaultSegments(minutes);
       fresh.effort = 'MODERATE';
@@ -225,10 +228,6 @@ export class PlanFlowStore {
 
   private defaultTitle(kind: FlowKind): string {
     return kind === 'CARDIO' ? 'Easy run' : kind === 'MOBILITY' ? 'Mobility flow' : kind === 'STRENGTH' ? 'Strength' : '';
-  }
-
-  setEffort(dayOfWeek: number, effort: DraftDay['effort']): void {
-    this.updateDay(dayOfWeek, { effort });
   }
 
   /** The inline form of the profile card: saves the five fields, and proposes the week again only while it is untouched. */
@@ -300,7 +299,7 @@ export class PlanFlowStore {
     this.dirty.set(true);
   }
 
-  /** Saves the plan. Emits the saved plan's id; fails with a message on the store. */
+  /** Saves the plan and calls `onSaved` with its id. A problem or a failed save is left as a message on the store. */
   save(onSaved: (planId: string) => void): void {
     const message = reviewProblem(this.plan()) ?? (firstDayProblem(this.plan())?.message ?? null);
     this.reviewMessage.set(message);

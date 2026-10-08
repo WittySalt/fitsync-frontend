@@ -1366,6 +1366,20 @@ describe('FitSyncDataService', () => {
     request.flush([]);
   });
 
+  it('asks for the daily summary of the day an instant falls on in the profile zone', () => {
+    const userTimezone = TestBed.inject(UserTimezoneService);
+    // 11:30 UTC on 2 October is 00:30 on the 3rd in Auckland and 04:30 on the 2nd in Los Angeles.
+    const instant = new Date('2026-10-02T11:30:00Z');
+
+    userTimezone.setProfileZone('Pacific/Auckland');
+    service.getDailyNutritionSummary(instant).subscribe();
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/summary/daily' && req.params.get('date') === '2026-10-03').flush({});
+
+    userTimezone.setProfileZone('America/Los_Angeles');
+    service.loadDailyNutritionSummary(instant).subscribe();
+    httpTesting.expectOne((req) => req.url === '/api/v1/nutrition/summary/daily' && req.params.get('date') === '2026-10-02').flush({});
+  });
+
   it('lets a failed day-meals request through so the card can offer a retry', () => {
     let failed = false;
     service.getMealsForDay().subscribe({ error: () => (failed = true) });

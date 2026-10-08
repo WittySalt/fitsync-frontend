@@ -5,6 +5,8 @@ import { hostWidth } from './host-width';
 
 /** The gap the figure leaves between its front and back views. */
 const VIEW_GAP = 18;
+/** A view is this many times as tall as it is wide. */
+const VIEW_ASPECT = 2.2;
 
 /** The gap and the width of the scale (swatch, gap and its labels) beside the BACK figure. */
 const SCALE_GAP = 16;
@@ -12,7 +14,7 @@ const SCALE_WIDTH = 96;
 
 /** The tallest view whose pair, the gap and the scale together fit in `width` px. */
 export function fittingHeight(width: number): number {
-  return Math.floor(((width - SCALE_GAP - SCALE_WIDTH - VIEW_GAP) / 2) * 2.2);
+  return Math.floor(((width - SCALE_GAP - SCALE_WIDTH - VIEW_GAP) / 2) * VIEW_ASPECT);
 }
 
 /** The FRONT and BACK labels under the views, with the gap above them. */
@@ -28,7 +30,7 @@ const BLOCK_MAX = 260;
  */
 export function figureHeight(width: number, blockHeight: number | null = null): number {
   if (blockHeight === null || blockHeight <= 0) {
-    return Math.min(200, Math.max(140, Math.round(((width - VIEW_GAP) / 2) * 2.2)));
+    return Math.min(200, Math.max(140, Math.round(((width - VIEW_GAP) / 2) * VIEW_ASPECT)));
   }
   return Math.max(BLOCK_MIN, Math.min(BLOCK_MAX, blockHeight)) - LABEL_ROOM;
 }

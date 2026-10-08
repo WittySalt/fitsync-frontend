@@ -45,7 +45,6 @@ export class EventsPage {
   private readonly api = inject(AdminApiService);
   private readonly loads = new Map<OutboxService, Subscription>();
 
-  protected readonly skeletonRows = [1, 2, 3, 4];
   protected readonly services: ServiceRow[] = [
     { service: 'auth', name: 'Accounts', publish: new AdminAction() },
     { service: 'users', name: 'Profiles and goals', publish: new AdminAction() },

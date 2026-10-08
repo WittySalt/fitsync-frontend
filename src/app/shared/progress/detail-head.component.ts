@@ -87,7 +87,7 @@ export class DetailHeadComponent {
   readonly stats = input<readonly HeroStat[]>([]);
   readonly fallback = input('/progress');
   readonly backLabel = input('Progress');
-  /** The page's surface in the first-run guide; it gives the page a "How this works" link and its Back an anchor. */
+  /** The page's surface in the first-run guide; it anchors the guide's step on Back. */
   readonly surface = input<TourPage | null>(null);
 
   back(): void {

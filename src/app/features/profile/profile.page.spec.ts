@@ -1,6 +1,6 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, flush } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { config, of, throwError } from 'rxjs';
 
 import { AccountDataService, AccountUserResponse } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -274,6 +274,40 @@ describe('ProfilePage', () => {
       'First meal logged First meal logged (how)'
     ]);
   });
+
+  it('still writes the usual meals and the usual start time when the injuries fail', () => {
+    data.getInjuryAreas.and.returnValue(throwError(() => new Error('down')));
+    const el = render();
+
+    expect(el.querySelectorAll('app-day-line .dot').length).toBe(2);
+    expect(el.querySelector('app-day-line .training')).toBeTruthy();
+    expect(Array.from(el.querySelectorAll('app-about-you .chip')).map((chip) => clean(chip))).not.toContain('Lower back');
+  });
+
+  it('keeps what is shown, quietly, when the reads after a saved sheet fail', fakeAsync(() => {
+    const unhandled = jasmine.createSpy('onUnhandledError');
+    const before = config.onUnhandledError;
+    config.onUnhandledError = unhandled;
+    try {
+      const fixture = TestBed.createComponent(ProfilePage);
+      fixture.detectChanges();
+      account.getCurrentUser.and.returnValue(throwError(() => new Error('down')));
+      data.getInjuryAreas.and.returnValue(throwError(() => new Error('down')));
+      data.getGoals.and.returnValue(throwError(() => new Error('down')));
+
+      fixture.componentInstance['aboutSaved']();
+      flush();
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(el.querySelector('h1')?.textContent).toBe('Ruixian');
+      expect(Array.from(el.querySelectorAll('app-about-you .chip')).map((chip) => clean(chip))).toContain('Lower back');
+      expect(el.querySelectorAll('app-targets-card .row').length).toBe(2);
+    } finally {
+      config.onUnhandledError = before;
+    }
+  }));
 
   it('shows a panel with Try again when the profile cannot be loaded, and reloads from it', () => {
     account.getCurrentUser.and.returnValue(throwError(() => new Error('down')));

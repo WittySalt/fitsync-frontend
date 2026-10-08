@@ -15,6 +15,7 @@ import {
   NutrientReferenceRange,
   normalizeReferenceRange,
   formatDeletionDate,
+  toActivityLevel,
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -114,6 +115,7 @@ export class SettingsPage implements OnInit {
     { value: 'VERY_ACTIVE', label: 'Very active' },
     { value: 'ATHLETE', label: 'Athlete' }
   ];
+  // The numeric values are the backend's dictionary codes; labelFor maps the same codes back to words.
   readonly unitOptions = this.options([
     ['100001', 'Metric'],
     ['100002', 'Imperial']
@@ -323,14 +325,14 @@ export class SettingsPage implements OnInit {
 
   /** The one quiet line about the grace period, with the date once the backend has fixed it. */
   deletionGraceLine(status: AccountDeletionStatus): string {
-    const date = formatDeletionDate(status.scheduledFor);
+    const date = formatDeletionDate(status.scheduledFor, this.accountTimezone());
     return date
       ? `Your account is closed at once and your data is removed on ${date}.`
       : 'Your account is closed at once and your data is removed after 30 days.';
   }
 
   deletionScheduledLine(status: AccountDeletionStatus): string {
-    const date = formatDeletionDate(status.scheduledFor);
+    const date = formatDeletionDate(status.scheduledFor, this.accountTimezone());
     return date ? `This account is scheduled for deletion on ${date}.` : 'This account is scheduled for deletion.';
   }
 
@@ -338,13 +340,15 @@ export class SettingsPage implements OnInit {
     if (!value) {
       return 'Not set';
     }
-    const date = new Date(`${value}T00:00:00`);
+    // A calendar date such as a birth date belongs to no zone, so it is read and shown at UTC
+    // midnight and stays the same date whatever the device's or the account's zone.
+    const date = new Date(`${value}T00:00:00Z`);
     if (Number.isNaN(date.getTime())) {
       return 'Not set';
     }
     return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
       dateStyle: 'medium',
-      timeZone: this.accountTimezone()
+      timeZone: 'UTC'
     }).format(date);
   }
 
@@ -709,7 +713,7 @@ export class SettingsPage implements OnInit {
       profileTimezone: profile.timezone ?? '',
       appTimezone: preferences.app.timezone ?? ''
     });
-    this.activityForm.patchValue({ activityLevel: profile.activityLevel ?? '' });
+    this.activityForm.patchValue({ activityLevel: toActivityLevel(profile.activityLevel) ?? '' });
     this.formattingForm.patchValue({
       preferredUnits: preferences.app.preferredUnits,
       language: preferences.app.language
@@ -857,6 +861,7 @@ export class SettingsPage implements OnInit {
     });
   }
 
+  // The backend stores times as HH:mm:ss and a time input works in HH:mm.
   private toTimeInput(value: string | null | undefined): string {
     return value ? value.slice(0, 5) : '';
   }

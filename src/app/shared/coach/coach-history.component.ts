@@ -65,15 +65,15 @@ const GROUP_ORDER: HistoryGroup[] = ['Today', 'This week', 'Earlier'];
                       <span>{{ row.when }}</span>
                     </span>
                   </button>
-                  <button type="button" class="more" [attr.aria-label]="'More for ' + (row.thread.title || 'this conversation')" [attr.aria-expanded]="menu() === row.thread.threadId" (click)="toggleMenu(row.thread.threadId)">&#8943;</button>
-                  @if (menu() === row.thread.threadId) {
+                  <button type="button" class="more" [attr.aria-label]="'More for ' + (row.thread.title || 'this conversation')" [attr.aria-expanded]="openMenuId() === row.thread.threadId" (click)="toggleMenu(row.thread.threadId)">&#8943;</button>
+                  @if (openMenuId() === row.thread.threadId) {
                     <div class="menu">
-                      @if (confirming() === row.thread.threadId) {
+                      @if (confirmingId() === row.thread.threadId) {
                         <span>Archive this conversation? It leaves this list.</span>
                         <button type="button" class="confirm" (click)="archive(row.thread.threadId)">Archive</button>
                         <button type="button" class="quiet" (click)="toggleMenu(null)">Cancel</button>
                       } @else {
-                        <button type="button" class="quiet" (click)="confirming.set(row.thread.threadId)">Archive</button>
+                        <button type="button" class="quiet" (click)="confirmingId.set(row.thread.threadId)">Archive</button>
                       }
                     </div>
                   }
@@ -276,11 +276,11 @@ const GROUP_ORDER: HistoryGroup[] = ['Today', 'This week', 'Earlier'];
 export class CoachHistoryComponent {
   protected readonly store = inject(CoachStore);
   private readonly injector = inject(Injector);
-  private readonly back = viewChild<ElementRef<HTMLButtonElement>>('back');
+  private readonly backButton = viewChild<ElementRef<HTMLButtonElement>>('back');
 
   /** The conversation whose overflow is open, and the one waiting on its archive confirm. */
-  protected readonly menu = signal<string | null>(null);
-  protected readonly confirming = signal<string | null>(null);
+  protected readonly openMenuId = signal<string | null>(null);
+  protected readonly confirmingId = signal<string | null>(null);
 
   protected readonly groups = computed(() => {
     const now = new Date();
@@ -296,12 +296,12 @@ export class CoachHistoryComponent {
 
   constructor() {
     // Opening the list moves focus into it, as opening the dock moves focus into the dock.
-    afterNextRender(() => this.back()?.nativeElement.focus(), { injector: this.injector });
+    afterNextRender(() => this.backButton()?.nativeElement.focus(), { injector: this.injector });
   }
 
   protected toggleMenu(id: string | null): void {
-    this.confirming.set(null);
-    this.menu.set(id === null || this.menu() === id ? null : id);
+    this.confirmingId.set(null);
+    this.openMenuId.set(id === null || this.openMenuId() === id ? null : id);
   }
 
   protected archive(id: string): void {

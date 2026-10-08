@@ -11,7 +11,7 @@ import { hostWidth } from './host-width';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <svg [attr.width]="width()" [attr.height]="height()" [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="label()">
-      @if (g(); as k) {
+      @if (geometry(); as k) {
         <rect class="lane" x="0" [attr.y]="k.laneTop" [attr.width]="width()" [attr.height]="k.laneBottom - k.laneTop" rx="8"></rect>
         <rect class="road" [attr.x]="k.x0" [attr.y]="k.targetY - 5" [attr.width]="k.x1 - k.x0" height="10" rx="5"></rect>
         <polyline class="line" [attr.points]="k.line"></polyline>
@@ -54,7 +54,7 @@ export class KeepChartComponent {
   protected readonly width = hostWidth(560);
   /** The lane, the line and the date row need about this much; the box is the drawing's own height. */
   protected readonly height = signal(190).asReadonly();
-  protected readonly g = computed(() => (this.road().keep ? keepGeometry(this.road(), this.width(), this.height()) : null));
+  protected readonly geometry = computed(() => (this.road().keep ? keepGeometry(this.road(), this.width(), this.height()) : null));
   protected readonly share = computed(() => keepShare(this.road()));
   protected readonly target = computed(() => `${formatNumber(this.road().targetKg, this.road().targetKg % 1 ? 1 : 0)} kg`);
 }

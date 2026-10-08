@@ -65,8 +65,8 @@ export class ProgressPage {
 
   protected readonly today = inject(UserTimezoneService).dateKey();
   protected readonly periods = PERIODS;
-  private readonly code = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((params) => params.get('period'))), { initialValue: null });
-  protected readonly period = computed(() => periodOf(this.code()));
+  private readonly periodCode = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((params) => params.get('period'))), { initialValue: null });
+  protected readonly period = computed(() => periodOf(this.periodCode()));
 
   protected readonly eyebrow = computed(() => eyebrowText(this.period(), this.today));
   /** The days Training reads and every Ask sends. */
@@ -86,7 +86,7 @@ export class ProgressPage {
 
   // The coach's reading of the page: the sentence under the verdict and the lines between the cards.
   protected readonly reading = signal<CoachReading | null>(null);
-  private attempts = 0;
+  private readingAttempts = 0;
   private readingRead: Subscription | null = null;
 
   // This week so far and the earlier weeks.
@@ -95,7 +95,7 @@ export class ProgressPage {
   protected readonly reviewsFailed = signal(false);
   protected readonly sheetOpen = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('weeks') === 'earlier');
   private reviewsRead: Subscription | null = null;
-  private current = signal<WeeklyReview | null>(null);
+  private readonly currentReview = signal<WeeklyReview | null>(null);
 
   // Where the reader is.
   protected readonly active = signal<SectionId>('goal');
@@ -111,7 +111,7 @@ export class ProgressPage {
   });
   /** The target of the calorie goal, which the Food card reads its energy line against. */
   protected readonly calorieTarget = computed(() => this.goal()?.otherGoals.find((item) => item.type === 'CALORIES')?.target ?? null);
-  protected readonly chips = computed(() => weekChips(this.current()));
+  protected readonly chips = computed(() => weekChips(this.currentReview()));
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -153,6 +153,7 @@ export class ProgressPage {
     });
   }
 
+  /** While the coach is still writing, the reading is asked for again every few seconds, a few times at most. */
   private loadReading(): void {
     this.readingRead?.unsubscribe();
     this.readingRead = this.coachApi
@@ -166,10 +167,10 @@ export class ProgressPage {
   }
 
   private acceptReading(reading: CoachReading): void {
-    this.attempts += 1;
+    this.readingAttempts += 1;
     this.reading.set(reading);
     this.coach.offerReading(reading.status === 'READY' && reading.reading && reading.facts.length ? reading : null);
-    if (reading.status === 'WRITING' && this.attempts < READING_POLL_LIMIT) {
+    if (reading.status === 'WRITING' && this.readingAttempts < READING_POLL_LIMIT) {
       this.readingRead?.unsubscribe();
       this.readingRead = timer(READING_POLL_MS).subscribe(() => this.loadReading());
     }
@@ -182,7 +183,7 @@ export class ProgressPage {
     this.reviewsRead = this.api.getReviews(8).subscribe({
       next: (reviews) => {
         this.reviews.set(reviews);
-        this.current.set(reviews.find((review) => review.current) ?? reviews[0] ?? null);
+        this.currentReview.set(reviews.find((review) => review.current) ?? reviews[0] ?? null);
         this.reviewsLoading.set(false);
       },
       error: () => {
@@ -195,11 +196,12 @@ export class ProgressPage {
   /** Smooth scroll to a card, with no smoothing when the reader asked for less motion. */
   protected scrollTo(id: SectionId): void {
     const target = this.document.getElementById(`progress-${id}`);
-    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+    const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
     this.active.set(id);
   }
 
+  /** Four weeks is the default, so its link drops `?period=` rather than writing it. */
   protected queryFor(key: string): { period: string | null } {
     return { period: key === '4w' ? null : key };
   }

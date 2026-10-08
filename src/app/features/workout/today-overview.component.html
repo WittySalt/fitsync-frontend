@@ -1,6 +1,6 @@
 <section class="today-overview" [class.has-focus]="focusTarget()">
-  @let c = card();
-  <article class="today-card" [attr.aria-label]="c.ariaLabel">
+  @let todayCard = card();
+  <article class="today-card" [attr.aria-label]="todayCard.ariaLabel">
     <div class="card-main">
       <header class="card-head">
         <span class="kind-tile" aria-hidden="true">
@@ -21,20 +21,20 @@
           </svg>
         </span>
         <div class="card-titles">
-          <span class="eyebrow">{{ c.eyebrow }}</span>
-          <h2>{{ c.title }}</h2>
+          <span class="eyebrow">{{ todayCard.eyebrow }}</span>
+          <h2>{{ todayCard.title }}</h2>
         </div>
       </header>
 
-      @if (c.chips.length) {
-        <p class="info" aria-label="Session summary">{{ c.chips.join(' \u00b7 ') }}</p>
+      @if (todayCard.chips.length) {
+        <p class="info" aria-label="Session summary">{{ todayCard.chips.join(' \u00b7 ') }}</p>
       }
 
       @if (focus(); as f) {
         <app-today-focus class="focus-strip" appSpotlight="workout" spotlightStep="focus" variant="strip" [model]="f" />
       }
 
-      @if (c.habit; as habit) {
+      @if (todayCard.habit; as habit) {
         <app-habit-day-start
           [today]="habit"
           [activePlan]="activePlan()"
@@ -44,9 +44,9 @@
         />
       }
 
-      @if (c.rows.length) {
+      @if (todayCard.rows.length) {
         <ul class="moves">
-          @for (exercise of c.rows; track exerciseKey(exercise); let index = $index) {
+          @for (exercise of todayCard.rows; track exerciseKey(exercise); let index = $index) {
             <li>
               <button
                 class="move"
@@ -63,13 +63,13 @@
             </li>
           }
         </ul>
-        @if (c.moreCount > 0) {
-          <p class="more">and {{ c.moreCount }} more</p>
+        @if (todayCard.moreCount > 0) {
+          <p class="more">and {{ todayCard.moreCount }} more</p>
         }
       }
 
-      @if (c.body) {
-        <p class="lede">{{ c.body }}</p>
+      @if (todayCard.body) {
+        <p class="lede">{{ todayCard.body }}</p>
       }
 
       @if (focus()?.cardBlock; as block) {
@@ -78,9 +78,9 @@
     </div>
 
     <div class="card-foot">
-      @if (c.primary || c.secondary) {
+      @if (todayCard.primary || todayCard.secondary) {
         <div class="actions">
-          @if (c.primary; as primary) {
+          @if (todayCard.primary; as primary) {
             <button
               class="action-primary"
               appSpotlight="workout"
@@ -93,7 +93,7 @@
               {{ buttonLabel(primary) }}
             </button>
           }
-          @if (c.secondary; as secondary) {
+          @if (todayCard.secondary; as secondary) {
             <button class="action-secondary" type="button" [disabled]="isDisabled(secondary)" (click)="run(secondary.action)">
               {{ buttonLabel(secondary) }}
             </button>
@@ -121,7 +121,7 @@
     <app-today-focus class="focus-side" appSpotlight="workout" spotlightStep="focus" variant="side" [model]="focus()" [loading]="focusLoading()" [range]="focusRange()" />
   }
 
-  @if (c.showTemplates) {
+  @if (todayCard.showTemplates) {
     <app-plan-templates (planActivated)="templateActivated.emit($event)" />
   }
 

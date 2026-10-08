@@ -216,8 +216,9 @@ export class TodayRowComponent {
    *  sessions are read, and only for the "done today" row. */
   readonly todayDay = input<DayInsight | null>(null);
   readonly nextTraining = input<NextTraining | null>(null);
-  /** True in the evening and at night. A row whose button would start a fresh session hides then,
-   *  same as the row it replaces; a row that only reports what already happened does not. */
+  /** Set by the brief at night only (not the whole evening). A row whose button would start a
+   *  fresh session hides then, same as the row it replaces; a row that only reports what already
+   *  happened does not. */
   readonly afterDark = input(false);
   readonly starting = input(false);
   readonly startError = input<string | null>(null);
@@ -244,8 +245,8 @@ export class TodayRowComponent {
   }
 
   onLinkClick(event?: Event): void {
-    // The link's href is a plain fallback for a user without JavaScript; the SPA always handles
-    // the click itself and works out the exact destination (a plans-tab query param or not).
+    // The href only keeps this a real link (e.g. for opening in a new tab); a plain click is
+    // handled here, and the parent works out the exact destination (a plans-tab query param or not).
     event?.preventDefault();
     const link = this.view().link;
     if (link === 'browsePlans') {

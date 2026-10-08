@@ -43,6 +43,7 @@ const HEADINGS: Record<string, string> = {
   meals: 'Usual meals'
 };
 
+// The chips work with names and the stored record with codes, so this looks a name up by value; an unknown name is sent as it is.
 function codeOf(table: Record<string, string>, name: string): string {
   return Object.entries(table).find(([, value]) => value === name)?.[0] ?? name;
 }

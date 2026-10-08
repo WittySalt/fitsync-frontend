@@ -81,8 +81,8 @@ export function monthImageSpan(insight: MonthlyTrainingInsight): string {
   return start === end ? `${start} ${name} ${year}` : `${start} to ${end} ${name} ${year}`;
 }
 
-/** The first observation that is neither about weight nor about food. Neither belongs in a picture
- *  that is meant to be shared. */
+/** The first observation that is not about weight, which does not belong in a picture that is
+ *  meant to be shared. */
 export function pickImageObservation(observations: readonly MonthObservation[]): MonthObservation | null {
   return observations.find((observation) => observation.id !== 'weight') ?? null;
 }

@@ -69,7 +69,7 @@ export interface CoachThreadDetail {
   turns: CoachTurn[];
 }
 
-/** Which page a question is asked from, and optionally which reading it is about. */
+/** Which page a question is asked from. */
 export type CoachSurfaceCode = 'HOME' | 'WORKOUT' | 'NUTRITION' | 'PROGRESS' | 'PROFILE';
 
 /** The kinds of Progress card a question can be asked from (contract section 4.1). */
@@ -201,7 +201,7 @@ export function tierLabel(tier: number | null | undefined): string {
   }
 }
 
-/** Which page a reading belongs to. Only the Workout page has one so far. */
+/** Which page a reading belongs to. */
 export type ReadingSurface = 'WORKOUT' | 'NUTRITION' | 'PROGRESS';
 
 /**

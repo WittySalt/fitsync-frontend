@@ -37,7 +37,7 @@ export function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-function flag(value: unknown): boolean | null {
+function optionalBoolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
 
@@ -212,11 +212,11 @@ export function mapRangeDay(raw: Wire): RangeDay {
     logged: raw['logged'] === true,
     totalCalories: num(raw['totalCalories']) ?? 0,
     targetCalories: num(raw['targetCalories']),
-    fiberMet: flag(raw['fiberMet']),
-    potassiumMet: flag(raw['potassiumMet']),
-    sugarWithin: flag(raw['sugarWithin']),
-    saturatedFatWithin: flag(raw['saturatedFatWithin']),
-    sodiumWithin: flag(raw['sodiumWithin'])
+    fiberMet: optionalBoolean(raw['fiberMet']),
+    potassiumMet: optionalBoolean(raw['potassiumMet']),
+    sugarWithin: optionalBoolean(raw['sugarWithin']),
+    saturatedFatWithin: optionalBoolean(raw['saturatedFatWithin']),
+    sodiumWithin: optionalBoolean(raw['sodiumWithin'])
   };
 }
 

@@ -13,9 +13,9 @@ function kindOf(workoutType: string): FlowKind {
   return workoutType.toUpperCase() === 'MOBILITY' ? 'MOBILITY' : 'STRENGTH';
 }
 
-/** Weekday numbers for a template repeated N times, with a rest day between lifts. */
+/** Weekday numbers for a template repeated N times (one to three), with a rest day between lifts. */
 export function templateWeekdays(count: number): number[] {
-  return [1, 4, 6, 2, 5].slice(0, Math.max(1, Math.min(count, 3)));
+  return [1, 4, 6].slice(0, Math.max(1, Math.min(count, 3)));
 }
 
 /**

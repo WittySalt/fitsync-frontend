@@ -9,7 +9,7 @@ import { whole } from './diary-figures';
 /**
  * The head of the Nutrition page in one card, like the Workout page's: the seven days of this week
  * filled by calories over target, the days logged and today's kcal so far. A day opens in the Diary,
- * and Longer goes to the four-week view on Progress.
+ * and Longer goes to the three-month view on Progress.
  */
 @Component({
   selector: 'app-diary-week',

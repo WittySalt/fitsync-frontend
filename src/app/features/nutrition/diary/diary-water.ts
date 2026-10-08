@@ -60,6 +60,7 @@ export function timelineMarks(day: WaterDay): TimelineMark[] {
     }
     const hours = date.getHours() + date.getMinutes() / 60;
     const left = Math.min(Math.max(((hours - DAY_START_HOUR) / DAY_SPAN_HOURS) * 100, 0), 100);
+    // An 8 px dot grows 1 px for every 100 ml, up to 22 px.
     return { key, left, size: Math.min(8 + ml / 100, 22), kind, label: `${name}, ${ml} ml at ${clockText(date)}` };
   };
   return [
@@ -70,6 +71,7 @@ export function timelineMarks(day: WaterDay): TimelineMark[] {
 
 /** The moment an add should be logged at: now for today, otherwise the chosen clock time on that day. */
 export function loggedMoment(date: string, clock: string, today: string, now: Date): Date {
+  // A past day with no time chosen is logged at midday, well clear of either end of that day.
   return date === today && !clock ? now : atClock(date, clock || '12:00');
 }
 
@@ -111,6 +113,7 @@ export function drinkPreview(detail: DrinkDetail, amountMl: number): DrinkPrevie
   }
   const scale = amountMl / basis;
   const alcoholPer100 = detail.alcoholGrams === null ? 0 : (detail.alcoholGrams / basis) * 100;
+  // Up to 0.5 g per 100 is a trace, as in an alcohol-free beer, and does not stop a drink counting as water.
   const hasAlcohol = alcoholPer100 > 0.5;
   const counts = detail.countsTowardWater && !hasAlcohol && detail.waterGrams !== null;
   return {

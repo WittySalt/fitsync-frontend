@@ -58,6 +58,7 @@ export class ProfileCardComponent {
     }
     const has = current[field].includes(value);
     let next = has ? current[field].filter((item) => item !== value) : [...current[field], value];
+    // "None" excludes the rest: picking it clears the list, and picking anything else drops it.
     if (field === 'equipment') {
       next = value === 'NONE' && !has ? ['NONE'] : next.filter((item) => item !== 'NONE' || value === 'NONE');
     }

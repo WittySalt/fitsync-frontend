@@ -20,7 +20,8 @@ export interface BriefObservation {
   note: string;
   /** The muscle group this observation is about, so the row can draw that muscle's own icon.
    *  Set for the rested (first group of the chosen set, backend order) and streak (that group)
-   *  rules; null for the best single and week-so-far, which are not about any one muscle group. */
+   *  rules; null for today's kind, the best single and week-so-far, which are not about any one
+   *  muscle group. */
   muscle: MuscleGroupCode | null;
   /** The day kind this observation illustrates, drawn with the day-kind glyph set instead of a
    *  muscle glyph. Set only for the observation that follows today's kind; null everywhere else. */

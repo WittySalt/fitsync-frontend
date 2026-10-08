@@ -1,3 +1,4 @@
+import { browserTimezone, dateKeyInZone } from '../../../core/zone-time';
 import { FoodGroup, groupColour } from '../../../shared/food/food-groups';
 import { DiarySummary, NutrientSummary } from '../diary/diary.models';
 import { PerServing, RecipeCard, RecipeDetail, RecipeIngredient, RecipeNutrient, SavedMealItem } from './recipes.models';
@@ -283,6 +284,7 @@ export function cookFigures(recipe: Pick<RecipeDetail, 'steps'>): CookFigures {
   let timers = 0;
   let timerSeconds = 0;
   for (const step of recipe.steps) {
+    // Only a step's first timer counts: cook mode runs one found timer per step.
     const timer = step.timers[0];
     if (timer) {
       timers += 1;
@@ -312,15 +314,23 @@ const DAY_MS = 86_400_000;
 /**
  * When a recipe was last cooked (or logged, with verb Logged), in words: "Cooked today", "Cooked yesterday", "Cooked Tuesday" within
  * the last week, "Cooked last week" for the week before, then "Cooked 28 Sept". Days are the person's
- * calendar days. Something that is not a date gives an empty string.
+ * calendar days in the given zone (the profile's). Something that is not a date gives an empty string.
  */
-export function cookedWhen(iso: string | null, now: Date = new Date(), verb: 'Cooked' | 'Logged' = 'Cooked'): string {
+export function cookedWhen(
+  iso: string | null,
+  now: Date = new Date(),
+  verb: 'Cooked' | 'Logged' = 'Cooked',
+  timezone: string = browserTimezone()
+): string {
   const moment = iso ? new Date(iso) : null;
   if (!moment || Number.isNaN(moment.getTime())) {
     return '';
   }
-  const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
-  const ago = Math.round((day(now) - day(moment)) / DAY_MS);
+  // Each calendar day in the zone as UTC midnight, so the gap is a whole number of days and the
+  // weekday and date are read with the UTC getters.
+  const day = (value: Date) => new Date(`${dateKeyInZone(value, timezone)}T00:00:00Z`);
+  const cooked = day(moment);
+  const ago = Math.round((day(now).getTime() - cooked.getTime()) / DAY_MS);
   if (ago <= 0) {
     return `${verb} today`;
   }
@@ -328,25 +338,25 @@ export function cookedWhen(iso: string | null, now: Date = new Date(), verb: 'Co
     return `${verb} yesterday`;
   }
   if (ago < 7) {
-    return `${verb} ${WEEKDAYS[moment.getDay()]}`;
+    return `${verb} ${WEEKDAYS[cooked.getUTCDay()]}`;
   }
   if (ago < 14) {
     return `${verb} last week`;
   }
-  return `${verb} ${moment.getDate()} ${MONTHS[moment.getMonth()]}`;
+  return `${verb} ${cooked.getUTCDate()} ${MONTHS[cooked.getUTCMonth()]}`;
 }
 
 /**
  * The line under a recipe's title once it has been cooked: "Cooked 3 times · last on Tuesday". Days
- * are the person's calendar days and read like Cooked recently ("today", "yesterday", a weekday, "last
+ * are the person's calendar days in the given zone and read like Cooked recently ("today", "yesterday", a weekday, "last
  * week", then a date). Nothing for a recipe never cooked.
  */
-export function cookedLine(count: number, lastCookedAt: string | null, now: Date = new Date()): string {
+export function cookedLine(count: number, lastCookedAt: string | null, now: Date = new Date(), timezone: string = browserTimezone()): string {
   if (count <= 0) {
     return '';
   }
   const head = `Cooked ${count} ${count === 1 ? 'time' : 'times'}`;
-  const when = cookedWhen(lastCookedAt, now).replace(/^Cooked /, '');
+  const when = cookedWhen(lastCookedAt, now, 'Cooked', timezone).replace(/^Cooked /, '');
   if (!when) {
     return head;
   }

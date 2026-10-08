@@ -79,8 +79,8 @@ export class SpotlightComponent {
 
   /** The cut-out: the anchor with a little air around it. */
   protected readonly cut = computed<SpotRect>(() => {
-    const r = this.rect();
-    return { top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 };
+    const anchor = this.rect();
+    return { top: anchor.top - PAD, left: anchor.left - PAD, width: anchor.width + PAD * 2, height: anchor.height + PAD * 2 };
   });
 
   /** The card goes under the anchor, or above it when there is no room below, and stays inside the viewport. */

@@ -42,6 +42,7 @@ function calorieLine({ food, calorieTarget, days }: FoodReadingInput): ReadingLi
     return reading(`${whole(eaten)} kcal a day${tail}`, 'logged');
   }
   const ratio = eaten / calorieTarget;
+  // Within 5% of the target either way reads as on target.
   const word = Math.abs(ratio - 1) <= 0.05 ? 'on target' : ratio > 1 ? 'over' : 'under';
   return reading(`${whole(eaten)} kcal a day on a ${whole(calorieTarget)} target${tail}`, word, word === 'under');
 }
@@ -66,6 +67,7 @@ function proteinLine({ food, earlierWords }: FoodReadingInput): ReadingLine | nu
   return reading(diff === 0 ? `${head}, on the ${whole(target)} g target` : `${head}, ${whole(diff)} g over the ${whole(target)} g target`, 'met');
 }
 
+/** A nutrient under 80% of its daily amount counts as clearly short. */
 const SHORT_BELOW = 0.8;
 
 function nutrientLine({ food, nutrients }: FoodReadingInput): ReadingLine | null {
@@ -107,15 +109,15 @@ const TRACK_WORDS: Partial<Record<GoalRoad['state'], { word: string; amber?: boo
 };
 
 function weightLine(goal: GoalProgress, road: GoalRoad, span: Span): ReadingLine {
-  const period = goal.hero.changeKg;
+  const periodChange = goal.hero.changeKg;
   const sinceStart = road.nowKg - road.startKg;
   const now = formatNumber(road.nowKg, 1);
   const since = Math.abs(sinceStart) < 0.05 ? '' : `${formatNumber(Math.abs(sinceStart), 1)} kg since the start`;
   let text: string;
-  if (period === null) {
+  if (periodChange === null) {
     text = since ? `${now} kg, ${sinceStart < 0 ? 'down' : 'up'} ${since}` : `${now} kg`;
   } else {
-    const moved = Math.abs(period) < 0.05 ? `unchanged in ${span.words}` : `${period < 0 ? 'down' : 'up'} ${formatNumber(Math.abs(period), 1)} kg in ${span.words}`;
+    const moved = Math.abs(periodChange) < 0.05 ? `unchanged in ${span.words}` : `${periodChange < 0 ? 'down' : 'up'} ${formatNumber(Math.abs(periodChange), 1)} kg in ${span.words}`;
     text = `${now} kg, ${moved}${since ? ` and ${since}` : ''}`;
   }
   const word = TRACK_WORDS[road.state] ?? { word: 'on track' };
@@ -130,6 +132,7 @@ function paceLine(goal: GoalProgress, road: GoalRoad): ReadingLine | null {
   }
   const size = Math.abs(rate);
   const gain = road.direction === 'GAIN';
+  // The healthy band runs from `low` to 0.5 kg a week; within 0.05 kg of zero the rate is not a reversal.
   const low = gain ? 0.2 : 0.25;
   const wrong = gain ? rate < -0.05 : rate > 0.05;
   const figure = `${formatNumber(size, 2)} kg a week`;
@@ -152,9 +155,10 @@ function bodyChange(series: { start: number | null; end: number | null; series: 
 }
 
 function bodyLine(goal: GoalProgress, road: GoalRoad, weighIns: { logged: number; days: number } | null): ReadingLine | null {
-  const weight = goal.hero.changeKg ?? road.nowKg - road.startKg;
-  const falling = weight < -0.05;
-  const fell = formatNumber(Math.abs(weight), 1);
+  const weightChange = goal.hero.changeKg ?? road.nowKg - road.startKg;
+  const falling = weightChange < -0.05;
+  const fell = formatNumber(Math.abs(weightChange), 1);
+  // `flat` is the change under which a measurement reads as unchanged.
   const candidates = [
     { name: 'Waist', unit: 'cm', change: bodyChange(goal.body.waist), flat: 0.3 },
     { name: 'Body fat', unit: 'points', change: bodyChange(goal.body.bodyFat), flat: 0.2 }

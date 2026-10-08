@@ -36,6 +36,7 @@ const SEGMENT_KINDS: readonly SegmentKind[] = ['WARMUP', 'STEADY', 'WORK', 'EASY
 
 export function mapFlowKind(value: unknown): FlowKind {
   const kind = text(value).toUpperCase();
+  // The flow has no HIIT kind: a HIIT day is a cardio day whose shape carries the intervals.
   if (kind === 'CARDIO' || kind === 'HIIT') {
     return 'CARDIO';
   }
@@ -93,6 +94,7 @@ function mapDay(rawDay: Raw): DraftDay | null {
   }
   const kind = mapFlowKind(rawDay['kind']);
   const entries = list(rawDay['entries']).map(record).filter((entry): entry is Raw => entry !== null);
+  // A day saved before entries existed lists its moves under `exercises`; they are read only when `entries` is empty.
   const legacy = list(rawDay['exercises']).map(record).filter((entry): entry is Raw => entry !== null);
   const moves = (entries.length ? entries.filter((entry) => text(entry['entryType'], 'SET') !== 'SEGMENT') : legacy).map(mapMove);
   const segments = entries
@@ -103,6 +105,7 @@ function mapDay(rawDay: Raw): DraftDay | null {
   const place = text(rawDay['location']).toUpperCase() as CardioPlace;
   const targetKind = text(rawDay['targetKind']).toUpperCase();
   const withSegments = kind === 'CARDIO' || kind === 'SPORT';
+  // A cardio or sport day saved without segments gets the default shape for its minutes, so the strip has something to draw.
   return {
     ...emptyDay(dayOfWeek),
     planDayId: text(rawDay['planDayId']) || null,
@@ -132,6 +135,7 @@ export function mapDays(rawDays: unknown): DraftDay[] {
   return week;
 }
 
+/** Stored workout types the flow can show as a plan type. MIXED is saved as CUSTOM, which is not mapped back. */
 const PLAN_TYPES: Record<string, PlanType> = { STRENGTH: 'STRENGTH', CARDIO: 'CARDIO', MOBILITY: 'MOBILITY' };
 
 /** A saved plan, as the edit flow opens it. Null when the answer is not a plan. */
@@ -143,6 +147,7 @@ export function draftFromRaw(rawPlan: unknown): DraftPlan | null {
   const days = mapDays(raw['days']);
   const derived = derivePlanType(days);
   const stored = PLAN_TYPES[text(raw['workoutType']).toUpperCase()];
+  // The type follows the days; only a week with no training day falls back to what was stored.
   return {
     planId: text(raw['planId']) || null,
     name: text(raw['name']),

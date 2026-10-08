@@ -141,6 +141,8 @@ export function weightProjection(insight: ProgressInsight): WeightProjectionChar
   const projectedKey = daysAhead === null ? null : insight.projectedDate;
   const capped = daysAhead !== null && daysAhead > CAP_DAYS;
 
+  // A capped projection gets as much room ahead as the history behind (at least 30 days), so the
+  // series is not squeezed against the left edge by a goal months away.
   let endDay = latest.day;
   if (daysAhead !== null) {
     endDay = capped ? latest.day + Math.max(latest.day - first.day, CAPPED_MIN_AHEAD_DAYS) : latest.day + daysAhead;
@@ -156,12 +158,14 @@ export function weightProjection(insight: ProgressInsight): WeightProjectionChar
 
   const latestX = xFor(latest.day);
   const latestY = yFor(latest.weightKg);
+  // Near the right edge the weight label would run off the drawing, so it goes to the point's left.
   const labelBeside = latestX > WEIGHT_PLOT_RIGHT - 70;
   const latestText = `${formatKg(latest.weightKg)} kg`;
   const goalY = goal === null ? null : yFor(goal);
 
   let projection: WeightProjectionChart['projection'] = null;
   if (daysAhead !== null && goalY !== null) {
+    // The share of the way to the goal that fits in the drawing; 1 when not capped.
     const reach = (endDay - latest.day) / daysAhead;
     const endY = capped ? round(latestY + (goalY - latestY) * reach) : goalY;
     projection = {

@@ -30,7 +30,7 @@ export function sportHistoryLine(habit: HabitActivity | undefined): string {
   return `${habit.label} on ${days[habit.dayOfWeek - 1]}, ${weeks} weeks in a row`;
 }
 
-/** The sport day's card: the activity as a grid of tiles, the effort expected and what history says. */
+/** The sport day's card: the activity as a grid of tiles, the shape of the session, the effort expected and what history says. */
 @Component({
   selector: 'app-plan-sport-card',
   imports: [EffortChipsComponent, PlanShapeComponent],
@@ -83,11 +83,11 @@ export class SportCardComponent {
   protected choose(sport: SportActivityOption): void {
     const day = this.day();
     const labels = this.options().map((option) => option.label);
-    const typed = day.title.trim() !== '' && !labels.includes(day.title.trim());
+    const titleTyped = day.title.trim() !== '' && !labels.includes(day.title.trim());
     const effort = (['EASY', 'MODERATE', 'HARD'] as EffortLevel[]).find((level) => level === sport.effort?.toUpperCase());
     this.patch.emit({
       sportActivity: sport.code,
-      title: typed ? day.title : sport.label,
+      title: titleTyped ? day.title : sport.label,
       effort: day.effort ?? effort ?? 'MODERATE'
     });
   }

@@ -116,6 +116,7 @@ export class AvatarUploaderComponent {
     throw new Error('Cropped avatar is still larger than 2 MB. Choose a simpler image.');
   }
 
+  // Drawing into a square canvas does not distort, because the cropper is held to an aspect ratio of 1.
   private async resizePng(blob: Blob, size: number): Promise<Blob> {
     if (typeof createImageBitmap !== 'function') {
       return blob;

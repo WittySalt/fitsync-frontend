@@ -14,7 +14,7 @@ export interface StripItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <svg [attr.width]="width()" [attr.height]="height()" [attr.viewBox]="'0 0 ' + width() + ' ' + height()" role="img" [attr.aria-label]="label()">
-      @if (g(); as s) {
+      @if (geometry(); as s) {
         <g [attr.transform]="'translate(0 ' + top() + ')'">
           @for (cell of s.cells; track cell.date) {
             <circle [class]="'dot ' + cell.state" [attr.cx]="cell.x" [attr.cy]="cell.y" [attr.r]="s.dot / 2"></circle>
@@ -49,16 +49,16 @@ export class StripChartComponent {
   readonly label = input('');
 
   protected readonly width = hostWidth(560);
-  /** The rows, the date line under them and room for the bullseye's two labels; never more than four rows. */
+  /** The rows, the date line under them and room for the bullseye's two labels. */
   protected readonly height = computed(() => {
-    const s = this.g();
+    const s = this.geometry();
     return Math.max(96, s.rows * s.pitch + 28);
   });
-  protected readonly g = computed(() => stripGeometry([...this.items()], this.width()));
+  protected readonly geometry = computed(() => stripGeometry([...this.items()], this.width()));
   protected readonly bullX = computed(() => this.width() - 40);
-  /** The strip is centred in the 240 px box: its rows and the date line under them. */
+  /** The strip, its rows and the date line under them, centred in the drawing's height and at least 8 px down. */
   protected readonly top = computed(() => {
-    const s = this.g();
+    const s = this.geometry();
     return Math.max(8, Math.round((this.height() - (s.rows * s.pitch + 20)) / 2));
   });
 }

@@ -124,7 +124,7 @@ export class RecipeListComponent {
   private readonly toast = inject(ToastService);
   private readonly place = inject(RecipesLibraryState);
   private readonly injector = inject(Injector);
-  private first = true;
+  private firstScopeRun = true;
   // Where to scroll to once the list a person came back to has its cards.
   private pendingScroll = 0;
 
@@ -151,7 +151,7 @@ export class RecipeListComponent {
   /** The diet chips already cover Vegan and Vegetarian, so those two are left out of the categories. */
   protected readonly shownCategories = computed(() => this.categories().filter((name) => !DIET_CATEGORIES.has(name.toLowerCase())));
   protected readonly state = signal<Load<RecipePageOf<RecipeCard>>>(LOADING);
-  /** Fits today stands in for A to Z when the server sends no fit, so the control never shows a sort that did not happen. */
+  /** A to Z stands in for Fits today when the server sends no fit, so the control never shows a sort that did not happen. */
   protected readonly shownSort = computed<RecipeSort>(() => (this.sort() === 'fit' && !this.fitOffered() ? 'name' : this.sort()));
   protected readonly line = computed(() => {
     const state = this.state();
@@ -166,6 +166,7 @@ export class RecipeListComponent {
   protected readonly isLibrary = computed(() => this.scope() === 'library');
   protected readonly filtered = computed(() => !!this.q() || this.category() !== null || this.diet() !== null || this.saved() || this.highProtein());
 
+  // Bumped by Retry so the request changes and the same query is fetched again.
   private readonly nonce = signal(0);
   private readonly typing = new Subject<string>();
   private readonly request = computed<ListRequest>(() => ({
@@ -213,8 +214,8 @@ export class RecipeListComponent {
     effect(() => {
       const scope = this.scope();
       untracked(() => {
-        const back = this.first ? this.place.take(scope) : null;
-        this.first = false;
+        const back = this.firstScopeRun ? this.place.take(scope) : null;
+        this.firstScopeRun = false;
         if (back) {
           this.restore(back);
         } else {

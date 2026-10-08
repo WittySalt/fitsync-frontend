@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { FoodSearchResult } from '../../../core/fitsync.models';
@@ -87,6 +87,25 @@ describe('IngredientPickerComponent', () => {
     fixture.detectChanges();
 
     expect(el(fixture).querySelector('.note')?.textContent).toContain('No foods match');
+  }));
+
+  it('shows the empty note when a search fails and keeps searching on the next query', fakeAsync(() => {
+    data.searchFoods.and.returnValues(throwError(() => new Error('offline')), of([oats]));
+    const fixture = render();
+
+    type(fixture, 'oats');
+    tick(300);
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('.note')?.textContent).toContain('No foods match');
+    expect(el(fixture).querySelector('li')).toBeNull();
+
+    type(fixture, 'rolled oats');
+    tick(300);
+    fixture.detectChanges();
+
+    expect(data.searchFoods).toHaveBeenCalledTimes(2);
+    expect(data.searchFoods.calls.mostRecent().args[0]).toBe('rolled oats');
+    expect(el(fixture).querySelector('li .name')?.textContent).toBe('Rolled oats');
   }));
 
   it('does not search for blank text and drops old results', fakeAsync(() => {

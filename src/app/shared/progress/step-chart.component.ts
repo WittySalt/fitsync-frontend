@@ -42,12 +42,13 @@ export function stepGeometry(
     return null;
   }
   const top = 8;
+  // The bottom 24 units hold the date labels.
   const bottom = height - 24;
   const last = points[points.length - 1].value;
   const hi = Math.max(max ?? 0, last, 1);
   const x1 = width - textWidth(formatTotal(last), SIZE, true) - 16;
   const x = (date: string) => X0 + ((x1 - X0) * Math.min(Math.max(daysBetween(from, date), 0), span)) / span;
-  const y = (v: number) => bottom - ((bottom - top) * v) / hi;
+  const y = (value: number) => bottom - ((bottom - top) * value) / hi;
   let path = `M${X0} ${y(0).toFixed(1)}`;
   for (const point of points) {
     path += ` H${x(point.date).toFixed(1)} V${y(point.value).toFixed(1)}`;

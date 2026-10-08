@@ -90,7 +90,7 @@ export class SegmentListComponent {
     if (to < 0 || to >= this.segments().length) {
       return;
     }
-    this.emit(moveSegment(this.segments(), index, index + by));
+    this.emit(moveSegment(this.segments(), index, to));
   }
 
   protected handleKey(event: KeyboardEvent, index: number): void {

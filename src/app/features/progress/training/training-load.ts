@@ -21,13 +21,14 @@ export function shownData<T>(state: Load<T>): T | null {
 export function usePeriod() {
   const route = inject(ActivatedRoute);
   const router = inject(Router);
-  const zone = inject(UserTimezoneService);
+  const timezone = inject(UserTimezoneService);
   const query = toSignal(route.queryParamMap.pipe(map((params) => params.get('period'))), { initialValue: route.snapshot.queryParamMap.get('period') });
   const code = computed<PeriodCode>(() => periodOption(query()).code);
-  const today = computed(() => zone.dateKey());
+  const today = computed(() => timezone.dateKey());
   const range = computed(() => periodRange(code(), today()));
   const option = computed(() => periodOption(code()));
   const select = (next: PeriodCode): void => {
+    // Four weeks is the default, so it leaves `?period=` out of the address.
     void router.navigate([], { relativeTo: route, queryParams: { period: next === '4w' ? null : next }, queryParamsHandling: 'merge', replaceUrl: true });
   };
   return { code, today, range, option, select };

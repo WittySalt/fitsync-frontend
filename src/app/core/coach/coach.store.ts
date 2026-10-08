@@ -368,7 +368,7 @@ export class CoachStore {
         this.pendingQuestion.set(null);
         this.liveSteps.set([]);
         this.status.set('idle');
-        this.drafts.update((list) => [draft, ...list.filter((d) => d.artifactId !== draft.artifactId)]);
+        this.drafts.update((list) => [draft, ...list.filter((existing) => existing.artifactId !== draft.artifactId)]);
       },
       error: (failure: { status?: number; error?: { message?: string } }) => {
         const limit = limitFromError(failure);
@@ -404,10 +404,10 @@ export class CoachStore {
     return this.api.acceptSessionDraft(artifactId).pipe(
       tap((accepted) => {
         this.drafts.update((list) =>
-          list.map((d) =>
-            d.artifactId === artifactId
-              ? { ...d, status: accepted.status, planId: accepted.planId, sessionId: accepted.sessionId }
-              : d
+          list.map((existing) =>
+            existing.artifactId === artifactId
+              ? { ...existing, status: accepted.status, planId: accepted.planId, sessionId: accepted.sessionId }
+              : existing
           )
         );
         // The card offered the draft; once it is accepted there is nothing left for it to offer.
@@ -422,7 +422,7 @@ export class CoachStore {
   rejectDraft(artifactId: string, reason?: string): Observable<SessionDraftView> {
     return this.api.rejectSessionDraft(artifactId, reason).pipe(
       tap((rejected) => {
-        this.drafts.update((list) => list.map((d) => (d.artifactId === artifactId ? rejected : d)));
+        this.drafts.update((list) => list.map((existing) => (existing.artifactId === artifactId ? rejected : existing)));
         if (this.latestDraft()?.artifactId === artifactId) {
           this.latestDraft.set(null);
           this.draftRequest.set(null);
@@ -507,7 +507,7 @@ export class CoachStore {
     this.liveSteps.update((steps) => {
       if (event.kind === 'TOOL_FINISHED') {
         // Close the matching open step rather than appending a second row for the same tool.
-        const index = steps.findIndex((s) => s.tool === event.tool && s.kind === 'TOOL_STARTED');
+        const index = steps.findIndex((step) => step.tool === event.tool && step.kind === 'TOOL_STARTED');
         if (index >= 0) {
           const next = steps.slice();
           next[index] = { tool: event.tool, kind: 'TOOL_FINISHED', summary: event.summary, latencyMs: event.latencyMs };
@@ -556,6 +556,7 @@ export class CoachStore {
   private settle(tier: number): void {
     this.pendingQuestion.set(null);
     this.liveSteps.set([]);
+    // Tier -1 means the AI tier was switched off and the answer came from the fallback.
     this.status.set(tier === -1 ? 'unavailable' : 'idle');
   }
 
@@ -582,9 +583,10 @@ function newTurnId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.floor(Math.random() * 16);
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  // A version 4 layout: `y` takes the variant bits 10xx, so it is one of 8, 9, a or b.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (placeholder) => {
+    const nibble = Math.floor(Math.random() * 16);
+    return (placeholder === 'x' ? nibble : (nibble & 0x3) | 0x8).toString(16);
   });
 }
 

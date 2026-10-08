@@ -318,6 +318,24 @@ describe('SettingsPage', () => {
     }));
   });
 
+  it('shows a birth date as the same calendar date whatever the account zone', () => {
+    const component = fixture.componentInstance;
+    const withZone = (timezone: string) =>
+      component.data.set({
+        ...accountData,
+        user: {
+          ...accountData.user,
+          preferences: { ...accountData.user.preferences, app: { ...accountData.user.preferences.app, timezone } }
+        }
+      });
+
+    // Far behind and far ahead of UTC, so device midnight read in the account zone would move the day.
+    withZone('America/Los_Angeles');
+    expect(component.displayDate('1995-04-12')).toBe('12 Apr 1995');
+    withZone('Pacific/Kiritimati');
+    expect(component.displayDate('1995-04-12')).toBe('12 Apr 1995');
+  });
+
   it('uses row-level settings edit affordances without duplicate section header edit buttons', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 

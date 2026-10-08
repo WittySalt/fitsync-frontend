@@ -1,6 +1,6 @@
 import { Component, inject, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, debounceTime, distinctUntilChanged, map, of, switchMap, tap } from 'rxjs';
+import { Subject, catchError, debounceTime, distinctUntilChanged, map, of, switchMap, tap } from 'rxjs';
 
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { FoodSearchResult } from '../../../core/fitsync.models';
@@ -66,7 +66,11 @@ export class IngredientPickerComponent {
         debounceTime(DEBOUNCE_MS),
         distinctUntilChanged(),
         tap((value) => this.searching.set(value.length > 0)),
-        switchMap((value) => (value ? this.data.searchFoods(value, { size: RESULT_COUNT }) : of([] as FoodSearchResult[]))),
+        switchMap((value) =>
+          value
+            ? this.data.searchFoods(value, { size: RESULT_COUNT }).pipe(catchError(() => of([] as FoodSearchResult[])))
+            : of([] as FoodSearchResult[])
+        ),
         takeUntilDestroyed()
       )
       .subscribe((foods) => {

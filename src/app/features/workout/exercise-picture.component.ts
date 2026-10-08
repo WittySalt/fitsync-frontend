@@ -81,6 +81,7 @@ export class ExercisePictureComponent implements OnDestroy {
       const url = this.url();
       const alt = this.alt();
       untracked(() => {
+        // The frames of one exercise share its alt text, so a new alt is what marks a new exercise.
         if (this.shownUrl && url && url !== this.shownUrl && alt !== this.shownAlt) {
           this.before.set(this.shownUrl);
           this.clearTimer();

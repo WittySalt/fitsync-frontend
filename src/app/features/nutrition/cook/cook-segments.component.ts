@@ -4,8 +4,8 @@ import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 
 /**
  * The bar of a timer: one segment, or two for "each side" with a dot where the turn is. A finished
- * segment gets a tick in its label, and while a stage has just ended the bar steps back to 30% and
- * a light runs along the segment that filled to the turn dot.
+ * segment gets a tick in its label, and while a stage has just ended the bar fades to 30% opacity
+ * and back, and a light runs along the segment that just filled.
  */
 @Component({
   selector: 'app-cook-segments',

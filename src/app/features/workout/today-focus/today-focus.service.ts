@@ -5,6 +5,7 @@ import { ExerciseHistoryEntry, NextTraining, WeeklyTrainingInsight, WorkoutSessi
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { FocusFacts, FocusTarget, MoveFacts, addDays } from './today-focus';
 
+/** Enough completed sessions for a sport day's last four weekly dots and its month line. */
 const HISTORY_DAYS = 60;
 const NO_SESSIONS: WorkoutSession[] = [];
 

@@ -31,15 +31,16 @@ function byDate(days: readonly CalendarDay[]): Map<string, CalendarDay> {
   return map;
 }
 
+/** The first day of every month the period touches. */
 function months(from: string, to: string): string[] {
-  const list: string[] = [];
+  const firstDays: string[] = [];
   let month = `${from.slice(0, 7)}-01`;
   while (month <= to) {
-    list.push(month);
-    const [year, m] = month.split('-').map(Number);
-    month = m === 12 ? `${year + 1}-01-01` : `${year}-${String(m + 1).padStart(2, '0')}-01`;
+    firstDays.push(month);
+    const [year, monthNumber] = month.split('-').map(Number);
+    month = monthNumber === 12 ? `${year + 1}-01-01` : `${year}-${String(monthNumber + 1).padStart(2, '0')}-01`;
   }
-  return list;
+  return firstDays;
 }
 
 export function pageCount(from: string, to: string): number {
@@ -63,9 +64,10 @@ export function calendarPage(from: string, to: string, days: readonly CalendarDa
     title = rangeLabel(from, to);
   } else {
     const month = months(from, to)[index];
-    const next = addDays(addDays(month, 32).slice(0, 8) + '01', -1);
+    // 32 days on always lands in the next month; its first day less one is this month's last.
+    const monthEnd = addDays(addDays(month, 32).slice(0, 8) + '01', -1);
     first = month;
-    last = next;
+    last = monthEnd;
     title = monthLabel(month);
   }
   const start = mondayOf(first);

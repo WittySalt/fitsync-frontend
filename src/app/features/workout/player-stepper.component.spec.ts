@@ -58,6 +58,12 @@ describe('PlayerStepperComponent', () => {
     expect(shown()).toBe('1:00');
   });
 
+  it('rounds the whole time before splitting it, so a fraction never shows sixty seconds', () => {
+    mount({ label: 'Time', format: 'clock', value: 119.6 });
+
+    expect(shown()).toBe('2:00');
+  });
+
   it('stops at its limits and disables the button there', () => {
     mount({ label: 'Reps', value: 1, min: 1, max: 2 });
 

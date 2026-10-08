@@ -143,7 +143,8 @@ export class MonthViewState implements OnDestroy {
     );
 
     // The weigh-ins add the marks and the weight line of the observations, so a failed request leaves
-    // those out and nothing else.
+    // those out and nothing else. The range reaches a day past each end of the month's UTC span, so
+    // no zone offset can drop a weigh-in; each one is then placed by its date in the person's zone.
     const from = new Date(Date.parse(`${month}-01T00:00:00Z`) - DAY_MS).toISOString();
     const to = new Date(Date.parse(`${month}-${String(daysInMonth(month)).padStart(2, '0')}T00:00:00Z`) + 2 * DAY_MS).toISOString();
     this.requests.push(

@@ -48,6 +48,7 @@ export class SetEditorComponent implements OnInit {
   protected hasReps = true;
   protected hasWeight = false;
   protected timed = false;
+  /** What the steppers do not show is saved as it was, so a correction never clears it. */
   private kept: EditedSet = { reps: null, weightKg: null, durationSeconds: null };
 
   ngOnInit(): void {

@@ -7,9 +7,9 @@ import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 
 /**
  * One section of a Progress detail page: its name and one sentence that says what the picture shows
- * on the left, the Ask pill at the right of the same row, then the picture. A hairline marks its top; the first section of a page sets
- * `--section-rule` to transparent and `--section-pad-top` to 0. What the old subtitles and the
- * sentences under the charts used to say goes into `ask`, the text Ask puts in the composer.
+ * on the left, the Ask pill at the right of the same row, then the picture. A hairline marks its
+ * top; the detail layout sets `--section-rule` to transparent on the first section of a page and
+ * trims its `--section-pad-top`. Longer explanations go into `ask`, the text Ask puts in the composer.
  */
 @Component({
   selector: 'app-detail-section',

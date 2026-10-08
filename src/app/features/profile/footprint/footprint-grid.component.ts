@@ -22,22 +22,22 @@ const LABEL_BAND = 14;
         @for (month of grid().months; track month.column) {
           <text class="month" [attr.x]="month.column * pitch" y="9">{{ month.label }}</text>
         }
-        @for (column of grid().columns; track column.monday; let c = $index) {
-          @for (cell of column.cells; track cell.date; let r = $index) {
+        @for (column of grid().columns; track column.monday; let week = $index) {
+          @for (cell of column.cells; track cell.date; let weekday = $index) {
             <rect
               [attr.class]="'cell ' + cell.state"
-              [attr.x]="c * pitch"
-              [attr.y]="labelBand + r * pitch"
+              [attr.x]="week * pitch"
+              [attr.y]="labelBand + weekday * pitch"
               [attr.width]="size"
               [attr.height]="size"
               rx="2.5"
               [attr.data-date]="cell.date"
             ></rect>
             @if (cell.state === 'both') {
-              <circle class="dot" [attr.cx]="c * pitch + size / 2" [attr.cy]="labelBand + r * pitch + size / 2" r="1.3"></circle>
+              <circle class="dot" [attr.cx]="week * pitch + size / 2" [attr.cy]="labelBand + weekday * pitch + size / 2" r="1.3"></circle>
             }
             @if (cell.today) {
-              <rect class="today" [attr.x]="c * pitch - 1" [attr.y]="labelBand + r * pitch - 1" [attr.width]="size + 2" [attr.height]="size + 2" rx="3.5"></rect>
+              <rect class="today" [attr.x]="week * pitch - 1" [attr.y]="labelBand + weekday * pitch - 1" [attr.width]="size + 2" [attr.height]="size + 2" rx="3.5"></rect>
             }
           }
         }

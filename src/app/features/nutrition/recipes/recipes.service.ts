@@ -152,9 +152,11 @@ export class RecipesService {
   /** The meals logged in the last days (today included), newest first, with their foods, to start a recipe from one. */
   recentMeals(days = 14): Observable<DiaryMeal[]> {
     const zone = this.userTimezone.zone();
-    const first = new Date(`${this.userTimezone.dateKey()}T00:00:00Z`);
-    first.setUTCDate(first.getUTCDate() - (days - 1));
-    const from = startOfDayInZone(first.toISOString().slice(0, 10), zone);
+    // Count the days back on the calendar date of the person's zone (as UTC so no DST shift creeps in),
+    // then take the start of that date in their zone.
+    const firstDay = new Date(`${this.userTimezone.dateKey()}T00:00:00Z`);
+    firstDay.setUTCDate(firstDay.getUTCDate() - (days - 1));
+    const from = startOfDayInZone(firstDay.toISOString().slice(0, 10), zone);
     const params = new HttpParams().set('from', from.toISOString()).set('to', new Date().toISOString());
     return this.http.get<Wire[]>(`${this.base}/meals`, { params }).pipe(
       map((meals) =>
@@ -202,6 +204,7 @@ export class RecipesService {
       servings: draft.servings,
       ingredients: draft.ingredients.map((row) => ({
         foodCatalogItemId: row.foodCatalogItemId,
+        // The amount travels as grams; the editor has no separate quantity, so it is always 1.
         quantity: 1,
         grams: row.grams,
         displayText: row.displayText.slice(0, 200)

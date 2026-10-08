@@ -21,6 +21,7 @@ export const USUAL_RANGE = { low: 10, high: 20 } as const;
 
 export function heatLevel(sets: number, range: { low: number; high: number } = USUAL_RANGE): HeatLevel {
   const value = Number.isFinite(sets) ? sets : 0;
+  // The "under" floor stays at 6 whatever range is passed; only the usual band moves.
   if (value < 6) {
     return 'under';
   }

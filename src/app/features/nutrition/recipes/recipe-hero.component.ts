@@ -1,5 +1,6 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { RecipeCoverComponent } from './recipe-cover.component';
 import { cardTags, cookedLine, heading, topGroupsOf } from './recipes-figures';
 import { RecipeDetail } from './recipes.models';
@@ -29,10 +30,14 @@ import { RecipeDetail } from './recipes.models';
   styleUrl: './recipe-hero.component.scss'
 })
 export class RecipeHeroComponent {
+  private readonly userTimezone = inject(UserTimezoneService);
+
   readonly recipe = input.required<RecipeDetail>();
 
   protected readonly groups = computed(() => topGroupsOf(this.recipe()));
   protected readonly eyebrow = computed(() => heading(this.recipe()));
   protected readonly tags = computed(() => cardTags(this.recipe()));
-  protected readonly cooked = computed(() => cookedLine(this.recipe().cookCount, this.recipe().lastCookedAt));
+  protected readonly cooked = computed(() =>
+    cookedLine(this.recipe().cookCount, this.recipe().lastCookedAt, new Date(), this.userTimezone.zone())
+  );
 }

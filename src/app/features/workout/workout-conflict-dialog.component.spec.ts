@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { WorkoutSessionDetail } from '../../core/fitsync.models';
@@ -159,5 +159,18 @@ describe('WorkoutConflictDialogComponent', () => {
     expect(toast.error).toHaveBeenCalledWith('Unable to start this workout. Please retry.');
     expect(root.querySelector('dialog')).not.toBeNull();
     expect(choice('End it and start this one')?.disabled).toBeFalse();
+  });
+
+  it('frees the buttons when the repeated start is refused again and completes with nothing', async () => {
+    spyOn(live, 'endAndStart').and.returnValue(EMPTY);
+    await open();
+
+    choice('End it and start this one')?.click();
+    fixture.detectChanges();
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(choice('End it and start this one')?.disabled).toBeFalse();
+    expect(choice('Resume it')?.disabled).toBeFalse();
+    expect(choice('Cancel')?.disabled).toBeFalse();
   });
 });

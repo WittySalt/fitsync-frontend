@@ -1,3 +1,5 @@
+import { ActivityLevel } from '../../core/account-data.service';
+
 export type PrimaryGoal = 'LOSE_FAT' | 'BUILD_MUSCLE' | 'MAINTAIN' | 'IMPROVE_FITNESS';
 
 export interface ProjectionInput {
@@ -7,7 +9,7 @@ export interface ProjectionInput {
   targetWeightKg: number | null;
   weeklyPaceKg: number | null;
   weeklyWorkoutDays: number | null;
-  activityLevel: string | null;
+  activityLevel: ActivityLevel | null;
   startDate: Date;
 }
 
@@ -23,12 +25,12 @@ export interface GoalProjection {
   warnings: string[];
 }
 
-const ACTIVITY_FACTORS: Record<string, number> = {
+const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   SEDENTARY: 1.25,
   LIGHTLY_ACTIVE: 1.35,
   MODERATELY_ACTIVE: 1.45,
   VERY_ACTIVE: 1.5625,
-  EXTRA_ACTIVE: 1.7
+  ATHLETE: 1.7
 };
 
 export function shouldShowTargetAndPace(primaryGoal: PrimaryGoal): boolean {
@@ -94,7 +96,10 @@ function estimateCalories(input: ProjectionInput): number | null {
     return null;
   }
 
-  const activityFactor = ACTIVITY_FACTORS[input.activityLevel ?? ''] ?? ACTIVITY_FACTORS['MODERATELY_ACTIVE'];
+  // A seeded profile can carry a code this table does not know, so anything unmatched counts as moderately active.
+  const activityFactor =
+    (input.activityLevel && ACTIVITY_FACTORS[input.activityLevel]) || ACTIVITY_FACTORS.MODERATELY_ACTIVE;
+  // A rough resting estimate of 22 kcal per kg of body weight, scaled by how active the person is.
   const maintenanceCalories = Math.round(input.currentWeightKg * 22 * activityFactor);
 
   if (!shouldShowTargetAndPace(input.primaryGoal)) {
@@ -102,9 +107,11 @@ function estimateCalories(input: ProjectionInput): number | null {
   }
 
   const weeklyPaceKg = input.weeklyPaceKg ?? 0;
+  // About 7700 kcal per kg of body weight, spread over the seven days of the week.
   const dailyEnergyDelta = Math.round((weeklyPaceKg * 7700) / 7);
   const signedDelta = input.primaryGoal === 'LOSE_FAT' ? -dailyEnergyDelta : dailyEnergyDelta;
 
+  // 1200 kcal is the floor, so a fast pace never suggests a very low intake.
   return Math.max(1200, maintenanceCalories + signedDelta);
 }
 
@@ -112,6 +119,7 @@ function estimateMacros(dailyCalories: number, currentWeightKg: number): Pick<
   GoalProjection,
   'proteinGrams' | 'carbsGrams' | 'fatGrams'
 > {
+  // 1.8 g of protein per kg, fat at a quarter of the energy, and carbohydrate takes the rest (4 kcal/g protein and carbohydrate, 9 kcal/g fat).
   const proteinGrams = Math.round(currentWeightKg * 1.8);
   const fatGrams = Math.round((dailyCalories * 0.25) / 9);
   const remainingCalories = Math.max(0, dailyCalories - proteinGrams * 4 - fatGrams * 9);

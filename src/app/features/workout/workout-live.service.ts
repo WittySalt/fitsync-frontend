@@ -35,6 +35,7 @@ export interface PendingStart {
 export const STILL_RUNNING_NOTICE =
   'Still running. It saves itself three hours after your last set, and you can edit it afterwards.';
 
+/** A workout ended before this is cancelled instead of completed, so it never counts in any total. */
 const MIN_SAVED_SECONDS = 60;
 
 const RUN_KEY_PREFIX = 'fitsync.workout.run.';
@@ -710,9 +711,9 @@ export class WorkoutLiveService {
   }
 
   setSession(session: WorkoutSessionDetail): void {
-    const other = this.session()?.sessionId !== session.sessionId;
+    const isOtherSession = this.session()?.sessionId !== session.sessionId;
     this.session.set(session);
-    if (other) {
+    if (isOtherSession) {
       this.restoreRun(session);
     }
   }
@@ -970,6 +971,8 @@ export class WorkoutLiveService {
       this.removeStoredRun(sessionId);
       return;
     }
+    // A set that was paused when the page went away brings the workout back paused, its clock
+    // stopped at the moment of the pause rather than at the reload.
     if (run.pausedAtMs !== null) {
       this.accumulatedMs = this.startedAtMs > 0 ? Math.max(0, run.pausedAtMs - this.startedAtMs) : 0;
       this.paused.set(true);
@@ -1056,6 +1059,6 @@ export function formatElapsedClock(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
-  const rest = String(total % 60).padStart(2, '0');
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
+  const secondsText = String(total % 60).padStart(2, '0');
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${secondsText}` : `${minutes}:${secondsText}`;
 }

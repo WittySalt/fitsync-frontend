@@ -63,4 +63,19 @@ describe('onboarding goal projection', () => {
     expect(projection.projectedDate).toBeNull();
     expect(projection.dailyCalories).toBe(2475);
   });
+
+  it('scales the athlete activity level by 1.7', () => {
+    const projection = calculateGoalProjection({
+      primaryGoal: 'MAINTAIN',
+      heightCm: 170,
+      currentWeightKg: 72,
+      targetWeightKg: null,
+      weeklyPaceKg: null,
+      weeklyWorkoutDays: 6,
+      activityLevel: 'ATHLETE',
+      startDate: new Date('2026-06-18T00:00:00Z')
+    });
+
+    expect(projection.dailyCalories).toBe(Math.round(72 * 22 * 1.7));
+  });
 });

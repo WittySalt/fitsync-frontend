@@ -107,12 +107,15 @@ export interface LogGeometry {
   height: number;
 }
 
+/** The column of week dates at the left. */
 const LABEL_COLUMN = 48;
+/** The row of weekday initials at the top. */
 const HEAD = 24;
 
 /** Four week rows, Monday to Sunday, the last row holding `to`; sized to the width it is drawn at. */
 export function logGeometry(to: string, days: readonly CalendarDay[], width: number): LogGeometry {
-  const first = mondayOf(addDays(to, -21));
+  // Three weeks back lands in the first of the four rows.
+  const firstMonday = mondayOf(addDays(to, -21));
   const pitch = Math.max(20, Math.floor((width - LABEL_COLUMN) / 7));
   const byDate = new Map<string, CalendarDay>();
   for (const day of days) {
@@ -122,7 +125,7 @@ export function logGeometry(to: string, days: readonly CalendarDay[], width: num
   const cells: LogCell[] = [];
   const weeks: { label: string; y: number }[] = [];
   for (let row = 0; row < 4; row += 1) {
-    const monday = addDays(first, row * 7);
+    const monday = addDays(firstMonday, row * 7);
     const y = HEAD + row * pitch + pitch / 2;
     weeks.push({ label: shortDate(monday), y });
     for (let column = 0; column < 7; column += 1) {

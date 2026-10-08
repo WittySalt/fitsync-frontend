@@ -11,6 +11,8 @@ import {
   MetricSource
 } from '../../core/account-data.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { UserTimezoneService } from '../../core/user-timezone.service';
+import { dateKeyInZone, instantFromWallTime, wallTimeInZone } from '../../core/zone-time';
 import { PagerComponent } from '../../shared/pager.component';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 
@@ -42,6 +44,7 @@ export class BodyPage implements OnInit {
   private readonly accountDataService = inject(AccountDataService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly toast = inject(ToastService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   /** When rendered inside another page (e.g. the Progress hub) the page header is suppressed. */
   readonly embedded = input(false);
@@ -131,6 +134,7 @@ export class BodyPage implements OnInit {
 
   readonly bmiRingDashArray = computed(() => {
     const bmi = this.bmiValue();
+    // The ring is full at a BMI of 40; the circle uses pathLength 100, so the dash pair is a percent.
     const value = bmi == null ? 0 : Math.min(Math.max(bmi / 40, 0), 1) * 100;
     return `${value} ${100 - value}`;
   });
@@ -263,7 +267,7 @@ export class BodyPage implements OnInit {
       armCm: toFormNumber(metric.armCm),
       thighCm: toFormNumber(metric.thighCm),
       calfCm: toFormNumber(metric.calfCm),
-      measuredAt: toDateTimeInput(metric.measuredAt),
+      measuredAt: toDateTimeInput(metric.measuredAt, this.userTimezone.zone()),
       source: metric.source ?? 'MANUAL',
       note: metric.note ?? ''
     });
@@ -358,14 +362,6 @@ export class BodyPage implements OnInit {
     this.page.set(0);
   }
 
-  previousPage(): void {
-    this.page.set(Math.max(0, this.currentPage() - 1));
-  }
-
-  nextPage(): void {
-    this.page.set(Math.min(this.totalPages() - 1, this.currentPage() + 1));
-  }
-
   goToPage(page: number): void {
     this.page.set(Math.min(this.totalPages() - 1, Math.max(0, page)));
   }
@@ -388,7 +384,8 @@ export class BodyPage implements OnInit {
     }
     return new Intl.DateTimeFormat('en-SG', {
       dateStyle: 'medium',
-      timeStyle: 'short'
+      timeStyle: 'short',
+      timeZone: this.userTimezone.zone()
     }).format(new Date(value));
   }
 
@@ -398,7 +395,8 @@ export class BodyPage implements OnInit {
     }
     return new Intl.DateTimeFormat('en-SG', {
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: this.userTimezone.zone()
     }).format(new Date(value));
   }
 
@@ -423,8 +421,6 @@ export class BodyPage implements OnInit {
   metricValue(metric: AccountBodyMetric, key: BodyChartMetric): number | null {
     return metric[key];
   }
-
-  protected readonly Math = Math;
 
   private bodyMetricRequest(): CreateBodyMetricRequest | null {
     const value = this.bodyForm.getRawValue();
@@ -451,7 +447,8 @@ export class BodyPage implements OnInit {
       armCm: toNullableNumber(value.armCm),
       thighCm: toNullableNumber(value.thighCm),
       calfCm: toNullableNumber(value.calfCm),
-      measuredAt: new Date(value.measuredAt).toISOString(),
+      // The input holds wall time in the profile zone, the same zone it was filled in.
+      measuredAt: instantFromWallTime(value.measuredAt, this.userTimezone.zone()).toISOString(),
       source: value.source as MetricSource,
       note: nullableText(value.note)
     };
@@ -468,7 +465,7 @@ export class BodyPage implements OnInit {
       armCm: '',
       thighCm: '',
       calfCm: '',
-      measuredAt: toDateTimeInput(null),
+      measuredAt: toDateTimeInput(null, this.userTimezone.zone()),
       source: 'MANUAL',
       note: ''
     });
@@ -533,6 +530,7 @@ export class BodyPage implements OnInit {
     const range = max - min || 1;
     return values
       .map((value, index) => {
+        // Fits the template's 180 x 58 viewBox, keeping the line between y 8 and y 52.
         const x = (index / Math.max(values.length - 1, 1)) * 180;
         const y = 52 - ((value - min) / range) * 44;
         return `${round(x, 1)},${round(y, 1)}`;
@@ -540,8 +538,10 @@ export class BodyPage implements OnInit {
       .join(' ');
   }
 
+  // The calendar day in the profile zone, the same days the person picks in the date filters.
   private isoDay(value: string | null | undefined): string {
-    return value ? new Date(value).toISOString().slice(0, 10) : '';
+    const instant = value ? new Date(value) : null;
+    return instant && !Number.isNaN(instant.getTime()) ? dateKeyInZone(instant, this.userTimezone.zone()) : '';
   }
 
   private formatNumber(value: number): string {
@@ -562,10 +562,9 @@ function toFormNumber(value: number | null | undefined): string {
   return value == null ? '' : String(value);
 }
 
-function toDateTimeInput(value: string | null | undefined): string {
-  const date = value ? new Date(value) : new Date();
-  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 16);
+/** A datetime-local input takes wall time, shown here in the profile zone like every other time. */
+function toDateTimeInput(value: string | null | undefined, timezone: string): string {
+  return wallTimeInZone(value ? new Date(value) : new Date(), timezone);
 }
 
 function round(value: number, digits: number): number {

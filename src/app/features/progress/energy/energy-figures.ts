@@ -6,7 +6,7 @@ const MINUS = '−';
 
 const group = (value: number): string => Math.round(value).toLocaleString('en-GB');
 
-/** A kcal figure with its sign, such as "-438" or "+12". */
+/** A kcal figure with its sign, such as "−438" or "+12". */
 export function signedKcal(value: number): string {
   const rounded = Math.round(value);
   return rounded === 0 ? '0' : `${rounded < 0 ? MINUS : '+'}${group(Math.abs(rounded))}`;
@@ -240,6 +240,7 @@ export function usedOf(day: EnergyDay, week: EnergyWeek): number {
 
 export function dayColumns(week: EnergyWeek): DayColumns {
   const peak = Math.max(0, ...week.days.map((day) => Math.max(usedOf(day, week), day.eaten ?? 0)));
+  // The scale tops out at the next 500 kcal over the busiest day, and never under 2,000.
   const top = Math.max(2000, Math.ceil(peak / 500) * 500);
   const grid: DayColumns['grid'] = [];
   for (let kcal = 1000; kcal <= top; kcal += 1000) {

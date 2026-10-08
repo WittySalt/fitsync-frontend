@@ -14,7 +14,6 @@ import { ProgressCardContext } from './progress.models';
   selector: 'app-section-card',
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // A click anywhere opens the card's page; the chevron link is the way in for the keyboard.
   host: { '(click)': 'openFromCard($event)' },
   template: `
     <article class="card" [class.linked]="!!link()" [class.ringed]="ringed()" [class.bare]="bare()">

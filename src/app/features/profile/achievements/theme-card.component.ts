@@ -38,7 +38,6 @@ export class ThemeCardComponent {
   readonly pace = input<number | null>(null);
   readonly opened = output<OpenedNode>();
 
-  protected readonly slots = PATH_SLOTS;
   protected readonly count = computed(() => {
     const nodes = this.theme().paths.flatMap((path) => path.nodes);
     return `${nodes.filter((node) => node.earnedOn !== null).length} of ${nodes.length}`;
@@ -70,7 +69,6 @@ export class ThemeCardComponent {
   }
 
   protected aria(entry: PathNode & { sub: string }): string {
-    const state = entry.state === 'earned' ? 'earned' : entry.state === 'next' ? 'next' : 'later';
-    return `${entry.node.name}, ${state}${entry.sub ? `, ${entry.sub}` : ''}`;
+    return `${entry.node.name}, ${entry.state}${entry.sub ? `, ${entry.sub}` : ''}`;
   }
 }

@@ -223,6 +223,7 @@ export function petalGeometry(shares: readonly { code: string; symbol: string; s
   const fixed = (value: number): string => value.toFixed(1);
 
   const petals = shares.map((item, index): Petal => {
+    // Starts at twelve o'clock; each petal leaves 8% of its slice clear on both sides so neighbours never touch.
     const start = -Math.PI / 2 + index * step + step * 0.08;
     const end = start + step * 0.84;
     const capped = item.share === null ? 0 : Math.min(Math.max(item.share, 0), PETAL_CAP);

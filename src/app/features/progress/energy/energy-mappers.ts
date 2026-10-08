@@ -89,6 +89,7 @@ export function mapEnergyWeek(raw: Wire): EnergyWeek | null {
     daysLogged,
     bmrKcal: bmr,
     bmrEstimated: raw['bmrEstimated'] === true,
+    // 1.2 is the sedentary multiplier on BMR; it stands in when the server sends no factor.
     restingFactor: num(raw['restingFactor']) ?? 1.2,
     average: mapAverage(raw['average']),
     mealSplit: mapSplit(raw['mealSplit']),

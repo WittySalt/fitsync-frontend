@@ -151,6 +151,7 @@ export class ExerciseLibraryComponent implements OnInit {
     return exercise.images?.[0]?.url ?? exercise.animationUrl ?? null;
   });
 
+  /** Newest first; an entry with an unreadable date sorts as the oldest. */
   readonly sortedHistory = computed(() =>
     [...this.exerciseHistory()].sort((a, b) => {
       const left = new Date(a.completedAt || a.startedAt).getTime();
@@ -159,6 +160,7 @@ export class ExerciseLibraryComponent implements OnInit {
     })
   );
 
+  /** One point per session: the heaviest set of that session, oldest session first. */
   readonly historyTrend = computed<HistoryTrend>(() => {
     const points = new Map<string, { label: string; time: number; value: number }>();
 
@@ -172,6 +174,7 @@ export class ExerciseLibraryComponent implements OnInit {
         return;
       }
 
+      // Entries without a session id are grouped by session name and date instead.
       const key = entry.sessionId || `${entry.sessionName}-${dateValue}`;
       const existing = points.get(key);
       if (!existing || entry.weightKg > existing.value) {
@@ -272,11 +275,15 @@ export class ExerciseLibraryComponent implements OnInit {
       equipment: exercise.equipment,
       difficulty: exercise.difficulty,
       videoMode: 'url',
+      // An uploaded video's file URL would fail the YouTube/Vimeo check on save, so only an embed URL is prefilled.
       videoUrl: exercise.videoUrl && isAllowedEmbedVideoUrl(exercise.videoUrl) ? exercise.videoUrl : ''
     });
     this.editVideoFile.set(null);
     this.editUploadProgress.set(null);
     this.editVideoError.set('');
+    this.editImageFile.set(null);
+    this.editImageUploadProgress.set(null);
+    this.editImageError.set('');
   }
 
   setLibraryView(view: 'browse' | 'create'): void {
@@ -462,6 +469,7 @@ export class ExerciseLibraryComponent implements OnInit {
       history: this.dataService.getExerciseHistory(exercise.exerciseId)
     }).subscribe({
       next: ({ detail, records, history }) => {
+        // Another exercise was opened while this one loaded; its response must not overwrite the newer one.
         if (this.selectedExercise()?.exerciseId !== exercise.exerciseId) {
           return;
         }
@@ -549,6 +557,7 @@ export class ExerciseLibraryComponent implements OnInit {
     this.loading.set(true);
     this.dataService.searchExercisesPage(this.searchOptions()).subscribe({
       next: (result) => {
+        // The page asked for no longer exists (e.g. the last item of the last page was archived): load the last page.
         if (result.totalPages > 0 && result.page >= result.totalPages) {
           this.page.set(result.totalPages - 1);
           this.loadExercises();
@@ -666,6 +675,7 @@ export class ExerciseLibraryComponent implements OnInit {
       .filter((segment) => segment.length > 0)
       .join('_')
       .toUpperCase();
+    // A short time-based suffix keeps the code unique when another exercise's name slugs to the same text.
     const suffix = Date.now().toString(36).slice(-4).toUpperCase();
     return `CUSTOM_${slug || 'EXERCISE'}_${suffix}`;
   }
@@ -789,6 +799,14 @@ export class ExerciseLibraryComponent implements OnInit {
     const progressSignal = target === 'create' ? this.createImageUploadProgress : this.editImageUploadProgress;
     const errorSignal = target === 'create' ? this.createImageError : this.editImageError;
     progressSignal.set(0);
+    const fail = () => {
+      errorSignal.set('Unable to upload photo. Please retry.');
+      this.toast.error('Unable to upload exercise photo. Please retry.');
+      this.saving.set(false);
+    };
+    // onSuccess owns the saving flag (it may chain another upload). A response without the
+    // updated exercise means the upload can't be confirmed, so it is reported as a failure.
+    let handedOff = false;
     this.dataService.uploadExerciseImage(exerciseId, file).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress) {
@@ -798,13 +816,15 @@ export class ExerciseLibraryComponent implements OnInit {
         }
         if (event.type === HttpEventType.Response && event.body) {
           progressSignal.set(100);
+          handedOff = true;
           onSuccess(event.body);
         }
       },
-      error: () => {
-        errorSignal.set('Unable to upload photo. Please retry.');
-        this.toast.error('Unable to upload exercise photo. Please retry.');
-        this.saving.set(false);
+      error: fail,
+      complete: () => {
+        if (!handedOff) {
+          fail();
+        }
       }
     });
   }
@@ -818,6 +838,14 @@ export class ExerciseLibraryComponent implements OnInit {
     const progressSignal = target === 'create' ? this.createUploadProgress : this.editUploadProgress;
     const errorSignal = target === 'create' ? this.createVideoError : this.editVideoError;
     progressSignal.set(0);
+    const fail = () => {
+      errorSignal.set('Unable to upload video. Please retry.');
+      this.toast.error('Unable to upload exercise video. Please retry.');
+      this.saving.set(false);
+    };
+    // onSuccess owns the saving flag. A response without the updated exercise means the
+    // upload can't be confirmed, so it is reported as a failure.
+    let handedOff = false;
     this.dataService.uploadExerciseVideo(exerciseId, file).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress) {
@@ -828,14 +856,16 @@ export class ExerciseLibraryComponent implements OnInit {
         if (event.type === HttpEventType.Response) {
           progressSignal.set(100);
           if (event.body) {
+            handedOff = true;
             onSuccess(event.body);
           }
         }
       },
-      error: () => {
-        errorSignal.set('Unable to upload video. Please retry.');
-        this.toast.error('Unable to upload exercise video. Please retry.');
-        this.saving.set(false);
+      error: fail,
+      complete: () => {
+        if (!handedOff) {
+          fail();
+        }
       }
     });
   }

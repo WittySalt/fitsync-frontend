@@ -156,6 +156,24 @@ describe('LiveTrackerComponent', () => {
     endWorkout();
 
     expect(toast.error).toHaveBeenCalledWith('Unable to finish workout. Please retry.');
+    expect(fixture.componentInstance.ending()).toBeFalse();
+  }));
+
+  it('lets the user retry finishing after a failed finish', fakeAsync(() => {
+    dataService.completeSession.and.returnValues(throwError(() => new Error('boom')), of(detail({ status: 'COMPLETED' })));
+    const completed = jasmine.createSpy('completed');
+    fixture.componentInstance.completed.subscribe(completed);
+    startTracker();
+
+    tick(60_000);
+    endWorkout();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.ending()).toBeFalse();
+    fixture.componentInstance.terminate();
+
+    expect(dataService.completeSession).toHaveBeenCalledTimes(2);
+    expect(completed).toHaveBeenCalled();
   }));
 
   it('asks inline before ending, and Keep going leaves the workout running', fakeAsync(() => {

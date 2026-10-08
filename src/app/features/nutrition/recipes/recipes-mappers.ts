@@ -68,6 +68,7 @@ export function mapFit(value: unknown): RecipeFit | null {
     return null;
   }
   const raw = value as Wire;
+  // Sent as a display name or as an object holding one.
   const nutrient = raw['lowestNutrient'];
   const lowest = typeof nutrient === 'object' && nutrient !== null ? text((nutrient as Wire)['displayName']) : text(nutrient);
   return {

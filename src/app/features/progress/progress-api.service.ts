@@ -67,6 +67,7 @@ export function mergeFood(analytics: Omit<FoodProgress, 'nutrition'>, nutrition:
       }
     : { waterMetDays: null, fibreMetDays: null, loggedDays: analytics.habits.loggedDays, loggedDaysPerMonth: analytics.habits.loggedDaysPerMonth };
   const lowest = nutrition?.lowestNutrients[0];
+  // Highlights hold four at most, so the nutrient card joins only when there is room and analytics sent none.
   const highlights =
     lowest && analytics.highlights.length < 4 && !analytics.highlights.some((h) => h.code === 'LOWEST_NUTRIENT')
       ? [

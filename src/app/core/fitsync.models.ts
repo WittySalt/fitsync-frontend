@@ -1,3 +1,5 @@
+import type { ActivityLevel } from './account-data.service';
+
 export interface UserProfile {
   displayName: string;
   firstName: string;
@@ -5,7 +7,7 @@ export interface UserProfile {
   gender?: string;
   birthDate?: string;
   heightCm: number;
-  activityLevel: string;
+  activityLevel: ActivityLevel | 'NOT_SET';
   timezone: string;
   onboardingCompleted: boolean;
   /** The focus areas chosen at setup, as onboarding names them (UPPER, LOWER, CORE and so on).
@@ -27,7 +29,7 @@ export interface OnboardingFormValue {
   targetWeightKg: number | null;
   targetWeightLb: number | null;
   weeklyPaceKg: number | null;
-  activityLevel: string;
+  activityLevel: ActivityLevel;
   weeklyWorkoutDays: number | null;
   fitnessLevel: string;
   trainingLocation: string;

@@ -7,6 +7,7 @@ import {
   AccountDataService
 } from '../../core/account-data.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { BodyPage } from './body.page';
 
 describe('BodyPage', () => {
@@ -188,6 +189,20 @@ describe('BodyPage', () => {
     expect(component.pageSize()).toBe(5);
   });
 
+  it('filters by the calendar day of a measurement in the profile zone, not its UTC day', () => {
+    const component = fixture.componentInstance;
+    // 12:30 UTC on 17 June is 00:30 on the 18th in Auckland and 05:30 on the 17th in Los Angeles.
+    component.metrics.set([{ ...latestMetric, measuredAt: '2026-06-17T12:30:00Z' }]);
+    component.updateDateFrom('2026-06-18');
+    component.updateDateTo('2026-06-18');
+
+    TestBed.inject(UserTimezoneService).setProfileZone('Pacific/Auckland');
+    expect(component.filteredMetrics().length).toBe(1);
+
+    TestBed.inject(UserTimezoneService).setProfileZone('America/Los_Angeles');
+    expect(component.filteredMetrics().length).toBe(0);
+  });
+
   it('jumps to a page of the measurement history inside the range', () => {
     const component = fixture.componentInstance;
 
@@ -222,6 +237,19 @@ describe('BodyPage', () => {
     }));
     expect(accountDataService.replaceBodyMetric).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith('Measurement saved.');
+  });
+
+  it('fills and reads the measured-at input as wall time in the profile zone', () => {
+    const component = fixture.componentInstance;
+    TestBed.inject(UserTimezoneService).setProfileZone('Pacific/Auckland');
+
+    component.editMetric({ ...latestMetric, measuredAt: '2026-06-18T20:15:00Z' });
+    expect(component.bodyForm.controls.measuredAt.value).toBe('2026-06-19T08:15');
+
+    component.saveBody();
+    expect(accountDataService.replaceBodyMetric).toHaveBeenCalledWith('metric-2', jasmine.objectContaining({
+      measuredAt: '2026-06-18T20:15:00.000Z'
+    }));
   });
 
   it('replaces an existing measurement when editing a history row', () => {

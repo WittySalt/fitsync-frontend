@@ -37,12 +37,14 @@ function daysAgo(iso: string | null, now: Date): { days: number; then: Date } | 
  */
 export function historyGroup(iso: string | null, now: Date = new Date()): HistoryGroup {
   const ago = daysAgo(iso, now);
+  // A time ahead of the device clock (clock skew) is treated as today.
   if (!ago || ago.days < 0) {
     return ago ? 'Today' : 'Earlier';
   }
   if (ago.days === 0) {
     return 'Today';
   }
+  // getDay() counts from Sunday; this counts days back to Monday, so Monday is 0 and Sunday 6.
   const sinceMonday = (now.getDay() + 6) % 7;
   return ago.days <= sinceMonday ? 'This week' : 'Earlier';
 }

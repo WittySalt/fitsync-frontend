@@ -2,7 +2,6 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AccountDataService, AccountProfile, AccountSummary } from '../../core/account-data.service';
-import { ToastService } from '../../core/toast/toast.service';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { AvatarUploaderComponent } from './avatar-uploader.component';
 
@@ -15,7 +14,6 @@ import { AvatarUploaderComponent } from './avatar-uploader.component';
 export class AvatarUploadPage implements OnInit {
   private readonly accountData = inject(AccountDataService);
   private readonly router = inject(Router);
-  private readonly toast = inject(ToastService);
 
   readonly summary = signal<AccountSummary | null>(null);
   readonly loading = signal(true);
@@ -40,8 +38,8 @@ export class AvatarUploadPage implements OnInit {
     });
   }
 
+  /** The uploader has already said the photo was updated, so the page only takes the person back. */
   async handleUploaded(_profile: AccountProfile): Promise<void> {
-    this.toast.success('Profile photo updated.');
     await this.router.navigate(['/settings']);
   }
 

@@ -150,5 +150,4 @@ export class HighlightsComponent {
         };
       })
   );
-
 }

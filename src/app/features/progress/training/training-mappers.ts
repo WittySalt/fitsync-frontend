@@ -66,6 +66,7 @@ function trend(value: unknown): Trend {
   return value === 'UP' || value === 'DOWN' ? value : 'STEADY';
 }
 
+/** Activity keys read "KIND:name", so the kind is what comes before the colon; anything unknown is strength. */
 export function kindOf(value: unknown): TrainingKind {
   const raw = text(value).toUpperCase().split(':')[0];
   return (TRAINING_KINDS as string[]).includes(raw) ? (raw as TrainingKind) : 'STRENGTH';
@@ -198,7 +199,7 @@ function mapLift(value: unknown): Lift | null {
   if (!name) {
     return null;
   }
-  const weight = num(wire['bodyWeightKg']);
+  const bodyWeight = num(wire['bodyWeightKg']);
   return {
     exerciseId: text(wire['exerciseId']),
     name,
@@ -206,7 +207,8 @@ function mapLift(value: unknown): Lift | null {
     bestSet: bestSet(wire['bestSet']),
     changePct: num(wire['changePct']),
     relative: relative(wire['relative']),
-    bodyWeightKg: weight !== null && weight >= 30 && weight <= 300 ? weight : null,
+    // The same 30 to 300 kg the body-weight header accepts.
+    bodyWeightKg: bodyWeight !== null && bodyWeight >= 30 && bodyWeight <= 300 ? bodyWeight : null,
     bestBefore: num(wire['bestBefore'] ?? wire['previousBest'])
   };
 }

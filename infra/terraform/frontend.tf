@@ -87,6 +87,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     for_each = var.api_origin_domain == "" ? [] : [1]
     content {
       domain_name = var.api_origin_domain
+      # The id dates from when /api went straight to the EC2 gateway; it is only a label,
+      # kept as is so the live distribution is not rewritten for a rename.
       origin_id   = "ec2-api"
 
       custom_origin_config {

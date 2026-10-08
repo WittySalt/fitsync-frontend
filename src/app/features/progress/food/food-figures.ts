@@ -1,7 +1,7 @@
 import { shortDateLabel } from '../../../shared/date-label';
 import { monthName } from '../../../shared/progress/chart-axis';
 import { NO_EARLIER_DATA, formatNumber, signed } from '../../../shared/progress/progress-format';
-import { HeroStat, Highlight, SummaryLine } from '../../../shared/progress/progress.models';
+import { HeroStat, Highlight } from '../../../shared/progress/progress.models';
 import { reachSummary } from '../../nutrition/nutrients/nutrients-figures';
 import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { FoodGranularity, FoodProgress, MacroTrend } from '../progress-api.models';
@@ -49,41 +49,6 @@ export function balanceHeadline(balance: number | null): { value: string; words:
   }
   const value = formatNumber(Math.abs(Math.round(balance)));
   return { value, words: balance <= 0 ? 'kcal a day under what you used' : 'kcal a day over what you used' };
-}
-
-/** The Food card's three lines (board 19c): calories a day, the protein drift and the lowest nutrient. */
-export function foodSummaryLines(food: FoodProgress, days: number): SummaryLine[] {
-  const lines: SummaryLine[] = [];
-  const eaten = food.hero.eatenPerDay;
-  const logged = food.hero.daysLogged.value;
-  if (eaten.value !== null) {
-    lines.push({
-      figure: `${formatNumber(eaten.value)} kcal`,
-      text: logged === null ? 'a day' : `a day, ${logged} of ${days} days logged`,
-      trend: changeWord(eaten.value, eaten.previous)
-    });
-  }
-  const protein = food.macros.protein;
-  const first = protein?.firstWeek ?? protein?.series[0]?.value ?? null;
-  const last = protein?.thisWeek ?? protein?.series.at(-1)?.value ?? null;
-  if (first !== null && last !== null) {
-    const since = protein?.series[0]?.weekStart;
-    lines.push({
-      figure: `Protein ${formatNumber(first)} → ${formatNumber(last)} g`,
-      text: since ? `a day since ${shortDateLabel(since)}` : 'a day',
-      trend: macroWord(protein)
-    });
-  }
-  const lowest = food.nutrition?.lowestNutrients[0];
-  if (lowest) {
-    lines.push({ figure: `${lowest.displayName} ${Math.round(lowest.share * 100)}%,`, text: 'the furthest short', trend: 'low' });
-  }
-  return lines;
-}
-
-export function foodSummaryContext(food: FoodProgress, days: number): string {
-  const previous = food.hero.eatenPerDay.previous;
-  return previous === null ? '' : `${formatNumber(previous)} kcal a day in the ${days} days before`;
 }
 
 /** The Food page's four figures (board 19b). `before` names the period before: "the 4 weeks before". */
@@ -142,8 +107,8 @@ export interface FoodVerdict {
 const LOGGED_ENOUGH = 0.7;
 
 /**
- * The page's answer: logging gaps first (a balance over few days says little), then the four weeks
- * of eating against the calorie target: "On target." within 5 % of it, "Under target." or "Over
+ * The page's answer: logging gaps first (a balance over few days says little), then the period's
+ * eating against the calorie target: "On target." within 5 % of it, "Under target." or "Over
  * target." beyond. Without a target it falls back to the balance against what you use. Nothing
  * logged at all reads as "Start logging.".
  */
@@ -167,7 +132,7 @@ export function foodVerdict(food: FoodProgress, days: number, calorieTarget: num
   return balance <= 0 ? { text: 'Under what you use.', tone: 'good' } : { text: 'Over what you use.', tone: 'ink' };
 }
 
-/** The sentence under the verdict: the four weeks' eating and logging, never today's partial day. */
+/** The sentence under the verdict: the period's eating and logging, never today's partial day. */
 export function foodSentence(food: FoodProgress, days: number): string {
   const { eatenPerDay, daysLogged } = food.hero;
   if (eatenPerDay.value === null) {
@@ -253,5 +218,6 @@ export function highlightsWithOverview(highlights: Highlight[], overview: Nutrie
   if (index >= 0) {
     return highlights.map((item, i) => (i === index ? card : item));
   }
+  // Highlights hold four at most; with no lowest-nutrient card to replace, the new one joins only when there is room.
   return rest.length < 4 ? [...rest, card] : rest;
 }

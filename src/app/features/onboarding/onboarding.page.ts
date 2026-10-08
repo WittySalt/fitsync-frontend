@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
+import { ActivityLevel } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
@@ -190,7 +191,7 @@ export class OnboardingPage implements OnInit {
     targetWeightKg: [null as number | null],
     targetWeightLb: [null as number | null],
     weeklyPaceKg: [0.5 as number | null],
-    activityLevel: ['MODERATELY_ACTIVE', Validators.required],
+    activityLevel: ['MODERATELY_ACTIVE' as ActivityLevel, Validators.required],
     weeklyWorkoutDays: [4 as number | null, [weeklyDaysValidator]],
     fitnessLevel: ['INTERMEDIATE', Validators.required],
     trainingLocation: ['MIXED', Validators.required],
@@ -353,10 +354,6 @@ export class OnboardingPage implements OnInit {
     void this.router.navigateByUrl('/dashboard');
   }
 
-  hasPrimaryGoal(): boolean {
-    return this.form.controls.primaryGoal.value !== null;
-  }
-
   preferredUnits(): PreferredUnits {
     return this.form.controls.preferredUnits.value ?? 'METRIC';
   }
@@ -447,6 +444,7 @@ export class OnboardingPage implements OnInit {
     this.parqAcknowledgedAt = checked ? new Date().toISOString() : null;
   }
 
+  // Any flagged injury area counts as a health flag too, so it also needs the acknowledgement.
   hasParqRisk(): boolean {
     return (
       this.form.controls.parqHeartCondition.value ||
@@ -526,6 +524,7 @@ export class OnboardingPage implements OnInit {
     const isMetric = this.preferredUnits() === 'METRIC';
     const needsTarget = this.showsTargetAndPace();
 
+    // The pound limits (44 to 772 lb) are the same 20 to 350 kg as the metric ones.
     this.setValidators(this.form.controls.heightCm, isMetric ? [Validators.required, Validators.min(80), Validators.max(240)] : []);
     this.setValidators(this.form.controls.heightFt, isMetric ? [] : [Validators.required, Validators.min(3), Validators.max(8)]);
     this.setValidators(this.form.controls.heightIn, isMetric ? [] : [Validators.required, Validators.min(0), Validators.max(11)]);

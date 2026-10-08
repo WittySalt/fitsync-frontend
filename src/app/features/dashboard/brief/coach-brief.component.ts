@@ -98,9 +98,8 @@ export class CoachBriefComponent implements OnInit {
   // quietly drawing the sessions-only version as if it were the whole story.
   readonly insightFailed = signal(false);
 
-  // The week strip is built from the insight's day-kinds `days` once the backend sends them; until
-  // then it falls back to the sessions-only week it always knew how to build, so an insight
-  // response without these fields draws exactly as it did before this feature existed.
+  // The week strip is built from the insight's day-kinds `days` when the backend sends them, and
+  // otherwise from the sessions alone (also the case while the insight is missing or failed).
   readonly week = computed<BriefDay[]>(() => {
     const days = this.insight()?.days;
     if (days) {
@@ -109,8 +108,8 @@ export class CoachBriefComponent implements OnInit {
     return buildWeek(this.sessions(), this.now(), this.timezone());
   });
 
-  // Today's own reading from the weekly insight, when the backend has it. Null keeps every row
-  // and headline input at its pre-existing fallback.
+  // Today's own reading from the weekly insight, when the backend has it. Null puts every row
+  // and headline input on its sessions-only fallback.
   readonly todayInsight = computed<TodayInsight | null>(() => this.insight()?.today ?? null);
 
   // Today's matching entry in `days`, used only to read what was actually done today (its own
@@ -229,8 +228,8 @@ export class CoachBriefComponent implements OnInit {
     }
     // A day that has not happened yet and carries no schedule is left out, because calling it
     // rest would be untrue; a planned later day is named, since the plan is real even though the
-    // day is not.
-    // A day that nothing is known about is left out, as it has no caption on the strip either.
+    // day is not. A past day that nothing is known about is left out too, as it has no caption on
+    // the strip either.
     const parts = days
       .filter((day) => (day.state !== 'upcoming' || day.planned) && !(day.state === 'rest' && day.kind === 'OPEN'))
       .map((day) => this.dayAriaFragment(day));
@@ -242,8 +241,8 @@ export class CoachBriefComponent implements OnInit {
     return target != null && target > 0 && this.completed() >= target;
   });
 
-  // The row for today replaces the plan-only next-session row once the insight carries `today`;
-  // until then, the page looks and behaves exactly as it did before this feature existed.
+  // The row for today replaces the plan-only next-session row whenever the insight carries
+  // `today`; the next-session row is the fallback for an insight without it.
   // A person with no plan and an open day is offered three first sessions in place of the row that
   // only said to pick a plan. Without enough starter templates the row stays as the fallback.
   readonly showFirstSessions = computed(() => {
@@ -260,8 +259,8 @@ export class CoachBriefComponent implements OnInit {
   });
   readonly showTodayRow = computed(() => this.todayInsight() !== null);
   readonly showNextSession = computed(() => this.todayInsight() === null && this.activePlan() !== null && this.period() !== 'NIGHT');
-  // The row for today hides its own start-button rows on the same rule the row it replaces used
-  // (night only, not the whole evening); a row with no start button ignores this entirely.
+  // The row for today hides its start button on the same rule as the next-session row (night
+  // only, not the whole evening); a row with no start button ignores this entirely.
   readonly hideTodayRowStartButton = computed(() => this.period() === 'NIGHT');
 
   readonly nextSessionMeta = computed(() => {
@@ -371,8 +370,8 @@ export class CoachBriefComponent implements OnInit {
   }
 
   /** Starts a session from the row for today, which knows which plan day it is starting (its own
-   *  day, or one carried over from earlier in the week) and passes that on; the legacy
-   *  startSession() above is untouched, since it is only ever reached without that information. */
+   *  day, or one carried over from earlier in the week) and passes that on. startSession() above
+   *  serves the next-session row, which has no plan day to pass. */
   startTodayRow(planDayId: string | null): void {
     const plan = this.activePlan();
     if (!plan?.planId || this.starting()) {

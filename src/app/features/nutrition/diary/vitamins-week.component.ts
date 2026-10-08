@@ -6,6 +6,7 @@ import { coverageLine, noVitaminData } from './vitamins-today';
 import { WeekCell, WeekRow, patternLine, weekNote, weekRange, weekRows } from './vitamins-week';
 
 const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+// The legend swatches, from the faint floor cellOpacity gives an empty day up to a full day.
 const SCALE = [0.18, 0.4, 0.62, 0.84, 1];
 
 /**

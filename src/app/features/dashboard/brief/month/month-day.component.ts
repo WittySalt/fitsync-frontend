@@ -86,6 +86,8 @@ export class MonthDayComponent {
 
     if (day && isTrainingDayKind(day.kind) && day.sessions >= 1) {
       this.sessionsLoad.set('loading');
+      // A day either side of the UTC date, so no zone offset can push one of the day's sessions
+      // out of the request; the list is then narrowed to the date in the profile's zone.
       const from = new Date(Date.parse(`${date}T00:00:00Z`) - DAY_MS).toISOString();
       const to = new Date(Date.parse(`${date}T00:00:00Z`) + 2 * DAY_MS).toISOString();
       this.requests.push(
@@ -118,9 +120,10 @@ export class MonthDayComponent {
     const reference = this.state.referenceDate();
     if (!reference || date <= reference) {
       this.foodLoad.set('loading');
-      const [year, month, dayOfMonth] = date.split('-').map(Number);
+      // The summary is asked for by the day's key itself, so the date sent is the picked date
+      // whatever the device's or the profile's zone.
       this.requests.push(
-        this.data.getDailyNutritionSummary(new Date(year, month - 1, dayOfMonth)).subscribe({
+        this.data.getDailyNutritionSummary(date).subscribe({
           next: (summary) => {
             this.food.set(summary);
             this.foodLoad.set('done');

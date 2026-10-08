@@ -3,8 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { CoachCardContext } from '../../../../core/coach/coach.models';
 import { DetailSectionComponent } from '../../../../shared/progress';
 import { TrainingLoad } from '../training.models';
-import { addDays } from '../training-format';
-import { grouped } from '../training-format';
+import { addDays, grouped } from '../training-format';
 import { formPosition } from './chart-geometry';
 import { LoadChartComponent } from './load-chart.component';
 

@@ -36,6 +36,7 @@ export class LogoutCallbackPage implements OnInit {
 
   ngOnInit(): void {
     this.authService.completeLogout();
+    // A short pause so the signed-out message can be read before the login page replaces it.
     setTimeout(() => this.router.navigateByUrl('/auth/login'), 1200);
   }
 }

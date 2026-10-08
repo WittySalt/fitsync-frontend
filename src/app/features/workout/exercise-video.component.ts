@@ -113,6 +113,7 @@ export class ExerciseVideoComponent {
 
   @Input() set videoUrl(value: string | null | undefined) {
     this.videoUrlValue.set(value?.trim() || null);
+    // A new video starts as its preview again; the embed loads only after a tap.
     this.activated.set(false);
   }
   @Input() title = 'Exercise video';

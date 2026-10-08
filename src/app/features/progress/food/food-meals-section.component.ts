@@ -12,9 +12,11 @@ import { FoodNutrition, FoodProgress } from '../progress-api.models';
 
 const MEAL_NAMES: Record<string, string> = { BREAKFAST: 'Breakfast', LUNCH: 'Lunch', DINNER: 'Dinner', SNACK: 'Snack' };
 const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+/** The column of meal names at the left of the clock. */
 const LABEL_W = 84;
 const WIDTH = 600;
 
+/** A minute of the day as "08:15", to the nearest five minutes. */
 export function clockTime(minutes: number): string {
   const rounded = Math.round(minutes / 5) * 5;
   return `${String(Math.floor(rounded / 60) % 24).padStart(2, '0')}:${String(rounded % 60).padStart(2, '0')}`;
@@ -24,6 +26,7 @@ function mealName(type: string): string {
   return MEAL_NAMES[type] ?? type.charAt(0) + type.slice(1).toLowerCase();
 }
 
+/** Breakfast to snack; a meal type outside the list (index -1) wraps to 8 and sorts last. */
 function byMealOrder<T extends { mealType: string }>(rows: readonly T[]): T[] {
   return [...rows].sort((a, b) => (MEAL_ORDER.indexOf(a.mealType) + 9) % 9 - ((MEAL_ORDER.indexOf(b.mealType) + 9) % 9));
 }
@@ -145,12 +148,13 @@ export class FoodMealsSectionComponent {
 
   protected readonly clock = computed(() => {
     const x = (minutes: number) => LABEL_W + ((this.width() - LABEL_W) * Math.min(Math.max(minutes, 0), 1440)) / 1440;
-    return byMealOrder(this.nutrition()?.mealTimes ?? []).map((row, k) => {
+    return byMealOrder(this.nutrition()?.mealTimes ?? []).map((row, index) => {
       const mid = x(row.medianMinuteOfDay);
+      // From 20:00 the time label sits left of its dot so it stays inside the chart.
       const late = row.medianMinuteOfDay >= 1200;
       return {
         name: mealName(row.mealType),
-        y: 16 + k * 30 + 15,
+        y: 16 + index * 30 + 15,
         x: mid,
         time: clockTime(row.medianMinuteOfDay),
         textX: late ? mid - 10 : mid + 10,
@@ -178,7 +182,6 @@ export class FoodMealsSectionComponent {
         mealType: row.mealType,
         name: mealName(row.mealType),
         pct: formatNumber(row.sharePct),
-        sharePct: row.sharePct,
         before: this.meals().previous?.find((item) => item.mealType === row.mealType)?.sharePct ?? null,
         delta: delta === null ? '' : `${signed(delta)} points`,
         word: delta === null ? '' : Math.abs(delta) < 1 ? 'steady' : delta > 0 ? 'up' : 'down'

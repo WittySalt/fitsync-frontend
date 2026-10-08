@@ -6,12 +6,11 @@ import { finalize } from 'rxjs/operators';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { SportActivityOption, WorkoutSessionFormValue } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
-import { LiveTrackerGoal, LiveTrackerStartEvent } from './live-tracker.models';
+import { LiveTrackerGoal, LiveTrackerGoalType, LiveTrackerStartEvent } from './live-tracker.models';
 import { freeTimerSegments } from './segments/segment-timer';
 import { WorkoutLiveService } from './workout-live.service';
 
 type StartMode = 'FREE' | 'GOAL';
-type GoalType = 'MINUTES' | 'CALORIES';
 
 const CUSTOM_NAME = 'Custom…';
 const SPORTS_TYPE = 'SPORTS';
@@ -60,7 +59,7 @@ export class LiveStartCardComponent {
       name: [this.namePresets[0] as string, [Validators.required, Validators.maxLength(120)]],
       customName: ['', [Validators.maxLength(120)]],
       workoutType: ['STRENGTH', Validators.required],
-      goalType: ['MINUTES' as GoalType, Validators.required],
+      goalType: ['MINUTES' as LiveTrackerGoalType, Validators.required],
       targetMinutes: [30, [Validators.min(1), Validators.max(600)]],
       targetCalories: [300, [Validators.min(1), Validators.max(5000)]]
     },
@@ -120,11 +119,6 @@ export class LiveStartCardComponent {
   openFree(): void {
     this.pastWorkoutOpen.set(false);
     this.freeOpen.set(true);
-  }
-
-  togglePastWorkout(): void {
-    this.freeOpen.set(false);
-    this.pastWorkoutOpen.update((open) => !open);
   }
 
   /** The Today card's foot link: opens the form, and leaves it open when pressed twice. */

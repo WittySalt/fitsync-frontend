@@ -46,7 +46,6 @@ import { InsightPanelComponent } from '../../shared/coach/insight/insight-panel.
 import { HISTORY_IN_USE_SESSIONS, plansInUse } from '../../core/guide/guide-gates';
 import { GuideService, TourPage, publishSurface } from '../../core/guide/guide.service';
 
-
 /** The offer to make an activated plan's weekly session count the user's weekly goal. */
 interface WeeklyGoalOffer {
   sessions: number;
@@ -97,7 +96,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   readonly sessions = signal<WorkoutSession[]>([]);
   readonly historyTotal = signal(0);
   readonly historyTotalPages = signal(1);
-  readonly historyLoading = signal(false);
   readonly completedSessionCount = signal(0);
   readonly lastCompletedSession = signal<WorkoutSession | null>(null);
   readonly activePlan = signal<WorkoutPlan | null>(null);
@@ -239,8 +237,7 @@ export class WorkoutPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // Another surface can land here on a specific tab. Plan Studio does, after accepting a
-    // draft: the session it started is in History, which is also where this page goes itself
-    // after starting a plan.
+    // draft: the session it started is in History.
     const tab = this.route.snapshot.queryParamMap.get('tab');
     if (tab === 'overview' || tab === 'plans' || tab === 'history' || tab === 'library') {
       this.selectedTab.set(tab);
@@ -334,10 +331,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   setFilterDateTo(value: string): void {
     this.filterDateTo.set(value);
     this.reloadHistoryFromFirstPage();
-  }
-
-  prevHistoryPage(): void {
-    this.goToHistoryPage(this.page() - 1);
   }
 
   nextHistoryPage(): void {
@@ -772,7 +765,6 @@ export class WorkoutPage implements OnInit, OnDestroy {
   }
 
   private loadHistory(): void {
-    this.historyLoading.set(true);
     this.dataService.getWorkoutSessionPage(this.historyQuery()).subscribe({
       next: (page) => {
         this.sessions.set(page.sessions);
@@ -781,9 +773,9 @@ export class WorkoutPage implements OnInit, OnDestroy {
         if (page.page !== this.page()) {
           this.page.set(page.page);
         }
-        this.historyLoading.set(false);
       },
-      error: () => this.historyLoading.set(false)
+      // A failed page keeps the rows already shown.
+      error: () => undefined
     });
   }
 

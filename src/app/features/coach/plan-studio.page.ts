@@ -157,6 +157,7 @@ export class PlanStudioPage implements OnInit {
 
   /** Sets the draft aside with the reason given, or the default when it was cleared. */
   reject(draft: SessionDraftView, reason: string): void {
+    // 500 matches the reason field's maxlength in PlanRejectComponent.
     const text = reason.trim().slice(0, 500) || DEFAULT_REJECT_REASON;
     this.store.rejectDraft(draft.artifactId, text).subscribe({
       next: (rejected) => {

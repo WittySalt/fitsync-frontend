@@ -250,6 +250,8 @@ describe('MonthPanelComponent', () => {
       fixture.detectChanges();
       expect(text('.head .since')).toEqual(['Nothing logged in September yet.']);
       expect(text('app-month-day .headline')).toEqual(['2,037 kcal and 158 g of protein.']);
+      // The picked day's key itself, so no zone can move the summary to a neighbouring day.
+      expect(data.getDailyNutritionSummary).toHaveBeenCalledWith('2026-09-20');
     });
   });
 

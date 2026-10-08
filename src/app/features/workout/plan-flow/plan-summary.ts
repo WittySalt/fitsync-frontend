@@ -1,6 +1,6 @@
 import { formatPace } from './cardio-text';
 import { weekMinutes } from './plan-coverage';
-import { DraftDay, DraftPlan, formatMinutes, PlanProfile, PlanType } from './plan-draft';
+import { DraftDay, formatMinutes, PlanProfile, PlanType } from './plan-draft';
 
 export interface WeekFigures {
   trainingDays: number;
@@ -175,8 +175,4 @@ export function reviewRows(days: readonly DraftDay[]): ReviewRow[] {
 /** The line shown when another plan is current. */
 export function currentPlanNote(currentName: string | null): string {
   return currentName ? `Your current plan is ${currentName}; switching archives nothing.` : '';
-}
-
-export function planHasName(plan: DraftPlan): boolean {
-  return plan.name.trim().length > 0;
 }

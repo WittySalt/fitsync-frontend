@@ -39,6 +39,7 @@ export type EffortLevel = 'EASY' | 'MODERATE' | 'HARD';
 
 export const EFFORT_VALUES: Record<EffortLevel, number> = { EASY: 3, MODERATE: 6, HARD: 8 };
 
+/** Reads a stored effort number back as the nearest chip, so a value other than 3, 6 or 8 still shows one. */
 export function effortFromValue(value: number | null | undefined): EffortLevel | null {
   if (value === null || value === undefined) {
     return null;
@@ -155,14 +156,6 @@ export function emptyPlan(): DraftPlan {
 
 export function isTraining(day: DraftDay): boolean {
   return day.kind !== 'REST';
-}
-
-export function hasSegments(kind: FlowKind): boolean {
-  return kind === 'CARDIO' || kind === 'SPORT';
-}
-
-export function hasMoveList(kind: FlowKind): boolean {
-  return kind === 'STRENGTH' || kind === 'MOBILITY';
 }
 
 /** "45 min", "1 h 30 min", "2 h". */

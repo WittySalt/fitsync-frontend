@@ -79,6 +79,7 @@ interface MacroTile {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FoodPage {
+  // Kept for its side effect: marks the page visited for the guide.
   private readonly visit = markVisit('progress-food');
   private readonly api = inject(ProgressApiService);
   private readonly nutrientsApi = inject(NutrientsService);
@@ -95,7 +96,7 @@ export class FoodPage {
   readonly nutrients = signal<NutrientsOverview | null>(null);
   /** The days the Nutrients section covers: 30 for four weeks, 90 for three months and for a year. */
   protected readonly nutrientRange = computed(() => nutrientsDays(this.period.code()));
-  /** The calorie goal's target, which the head judges the four weeks against; null while unknown or unset. */
+  /** The calorie goal's target, which the head judges the period against; null while unknown or unset. */
   protected readonly calorieTarget = toSignal(
     toObservable(this.period.range).pipe(
       switchMap(({ from, to }) =>
@@ -122,10 +123,12 @@ export class FoodPage {
     const data = this.data();
     return data ? highlightsWithOverview(data.highlights, this.nutrients(), this.nutrientRange().days) : [];
   });
+  // Kept for its side effect: scrolls to the address's #fragment once the data is in.
   private readonly scrollToSection = useFragmentScroll(computed(() => this.data() !== null));
 
   readonly days = computed(() => {
     const { from, to } = this.period.range();
+    // Date-only strings parse as UTC midnight, so no daylight-saving shift creeps into the count.
     return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
   });
   readonly context = computed<ProgressCardContext>(() => ({ kind: 'FOOD', ...this.period.range() }));

@@ -117,11 +117,11 @@ export function parseGuideState(raw: unknown): GuideState | null {
     for (const page of TOUR_PAGES) {
       const entry = (stored as Record<string, unknown>)[page];
       if (entry && typeof entry === 'object') {
-        const e = entry as Partial<TourEntry>;
+        const storedEntry = entry as Partial<TourEntry>;
         state.tourMap[page] = {
-          seen: e.seen === true,
-          skippedByData: e.skippedByData === true,
-          replayedAt: typeof e.replayedAt === 'string' ? e.replayedAt : null
+          seen: storedEntry.seen === true,
+          skippedByData: storedEntry.skippedByData === true,
+          replayedAt: typeof storedEntry.replayedAt === 'string' ? storedEntry.replayedAt : null
         };
       }
     }
@@ -381,8 +381,8 @@ export class GuideService {
         return;
       }
       this.stopFollowing();
-      const number = GUIDE_STEP_IDS.indexOf(step) + 1;
-      this.toast.success(`Step ${number} done.`, FOLLOW_TOAST_MS, {
+      const stepNumber = GUIDE_STEP_IDS.indexOf(step) + 1;
+      this.toast.success(`Step ${stepNumber} done.`, FOLLOW_TOAST_MS, {
         label: 'Back to Home ›',
         run: () => void this.router.navigateByUrl('/dashboard')
       });
@@ -648,8 +648,8 @@ export class GuideService {
         legacy.tourMap[page] = { ...NEW_ENTRY, ...(legacyMap[page] ?? {}), seen: true };
       }
     }
-    const any = legacy.cardHidden || legacy.tourSkipped || legacy.restarted || Object.keys(legacy.tourMap).length > 0 || Object.keys(legacy.counters).length > 0;
-    return any ? parseGuideState(legacy) : null;
+    const hasLegacyState = legacy.cardHidden || legacy.tourSkipped || legacy.restarted || Object.keys(legacy.tourMap).length > 0 || Object.keys(legacy.counters).length > 0;
+    return hasLegacyState ? parseGuideState(legacy) : null;
   }
 
   private writeCache(): void {

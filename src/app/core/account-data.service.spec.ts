@@ -15,7 +15,8 @@ import {
   SecurityOverview,
   formatDeletionDate,
   initialsFor,
-  normalizeReferenceRange
+  normalizeReferenceRange,
+  toActivityLevel
 } from './account-data.service';
 
 describe('AccountDataService', () => {
@@ -278,6 +279,19 @@ describe('AccountDataService', () => {
     expect(formatDeletionDate('2026-10-31T12:00:00Z')).toBe('31 Oct 2026');
     expect(formatDeletionDate(null)).toBe('');
     expect(formatDeletionDate('not a date')).toBe('');
+  });
+
+  it('writes the deletion date in the given zone, which can be a different day than UTC', () => {
+    expect(formatDeletionDate('2026-10-31T12:30:00Z', 'Pacific/Auckland')).toBe('1 Nov 2026');
+    expect(formatDeletionDate('2026-10-31T12:30:00Z', 'America/Los_Angeles')).toBe('31 Oct 2026');
+  });
+
+  it('reads a stored activity level as a known code, mapping the old EXTRA_ACTIVE to ATHLETE', () => {
+    expect(toActivityLevel('VERY_ACTIVE')).toBe('VERY_ACTIVE');
+    expect(toActivityLevel('ATHLETE')).toBe('ATHLETE');
+    expect(toActivityLevel('EXTRA_ACTIVE')).toBe('ATHLETE');
+    expect(toActivityLevel('NOT_SET')).toBeNull();
+    expect(toActivityLevel(null)).toBeNull();
   });
 
   it('combines account center requests and derives summary fallbacks', () => {

@@ -10,8 +10,8 @@ import { ReorderComponent } from './reorder.component';
  * The steps of the recipe being written, one box each, with the same handle as the ingredients to
  * reorder them. The Move up and Move down buttons sit inside the row being edited and nowhere else,
  * so a closed row stays handle, number, text, remove. When the text of a step names a time next to a
- * cooking word, a line says a timer was
- * found, so the person knows cook mode will offer it; the server works out the same on save.
+ * cooking word, a line says a timer was found, so the person knows cook mode will offer it; the
+ * server works out the same on save.
  */
 @Component({
   selector: 'app-editor-steps',

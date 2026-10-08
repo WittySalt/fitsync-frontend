@@ -39,6 +39,7 @@ export class TodayFocusComponent {
     }
   }
 
+  /** All the seconds of the bar. A part over a third of it is drawn as the main one. */
   protected total(model: FocusModel): number {
     return model.bar?.parts.reduce((sum, part) => sum + part.seconds, 0) ?? 0;
   }

@@ -67,6 +67,7 @@ export function titleFromText(stepText: string): string {
   }
   const head = sentence.slice(0, 60);
   const comma = head.lastIndexOf(',');
+  // A comma this early would leave a title too short to tell the steps apart; cut at a space instead.
   if (comma >= 20) {
     return head.slice(0, comma);
   }

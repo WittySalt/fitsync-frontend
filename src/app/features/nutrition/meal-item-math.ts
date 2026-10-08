@@ -54,6 +54,7 @@ function basisAmount(detail: FoodDetail): number | null {
     return null;
   }
   const unit = normalizeUnit(detail.basisUnit);
+  // Servings are measured in grams or millilitres, so a kg or l basis is brought to that scale.
   if (unit === 'kg' || unit === 'l') {
     return amount * 1000;
   }
@@ -83,6 +84,7 @@ function servingAmountForBasis(detail: FoodDetail, serving: FoodServing): number
     return serving.quantity;
   }
 
+  // Nothing to convert by: one serving is taken as one basis amount.
   return basisAmount(detail);
 }
 
@@ -107,7 +109,6 @@ export function roundDecimal(value: number, digits = 1): number {
   const scale = 10 ** digits;
   return Math.round(value * scale) / scale;
 }
-
 
 /** The select value of the entry that lets a person type grams instead of picking a serving. */
 export const CUSTOM_SERVING_KEY = '__custom_grams__';
@@ -172,6 +173,7 @@ export function calculateVolumeItem(detail: FoodDetail, ml: number): VolumeChoic
   const measured = detail.servings
     .map((serving) => ({ serving, per: servingMillilitres(serving) }))
     .filter((entry): entry is { serving: FoodServing; per: number } => entry.per !== null);
+  // Within half a millilitre counts as the same volume, so float noise in a serving still matches.
   const exact = measured.find((entry) => Math.abs(entry.per - ml) < 0.5);
   const smallest = [...measured].sort((a, b) => a.per - b.per)[0];
   const pick = exact ?? smallest;

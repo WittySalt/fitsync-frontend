@@ -10,8 +10,8 @@ export interface ReadingQuestion {
 
 const BUILD_QUESTION: ReadingQuestion = { text: 'Build a session for today', makesDraft: true };
 
-/** Nouns that read awkwardly with a bare "s"; every other group noun is left as it is. */
-const IRREGULAR_PLURALS: Record<string, string> = {
+/** Group nouns that need an "s" in a sentence ("my legs"); every other noun ("back", "core") is left as it is. */
+const PLURAL_GROUPS: Record<string, string> = {
   leg: 'legs',
   arm: 'arms',
   shoulder: 'shoulders',
@@ -28,10 +28,10 @@ function muscleGroupFrom(label: string): string | null {
     return null;
   }
   const noun = match[1];
-  return IRREGULAR_PLURALS[noun] ?? noun;
+  return PLURAL_GROUPS[noun] ?? noun;
 }
 
-/** The first whole number in a piece of text, thousands separators allowed, or null. */
+/** The first number in a piece of text, thousands separators and a decimal part allowed, or null. */
 function firstNumber(text: string): number | null {
   const match = /\d[\d,]*(?:\.\d+)?/.exec(text);
   return match ? Number(match[0].replace(/,/g, '')) : null;
@@ -108,9 +108,10 @@ function goalDateQuestion(facts: ReadingFact[]): ReadingQuestion | null {
  * The follow-up questions offered under a pinned reading.
  *
  * Pure and model-free, so a reading can offer questions the moment it is pinned rather than after a
- * round trip. Up to three candidates come from the reading's own facts, tried in a fixed order; the
- * build question is always available on the workout surface and is kept even when it would be a
- * fourth, because it is the one question the user can act on without asking the coach anything.
+ * round trip. The candidates come from the reading's own facts, tried in a fixed order, and at most
+ * three are offered. On the workout surface the build question always takes the last place (after
+ * at most two candidates), because it is the one question the user can act on without asking the
+ * coach anything.
  */
 export function questionsFor(reading: CoachReading): ReadingQuestion[] {
   const candidates = [

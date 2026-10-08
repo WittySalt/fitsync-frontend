@@ -18,8 +18,8 @@ export function startedAgoLabel(startedAt: string, now = Date.now()): string {
   if (minutes < 60) {
     return `${minutes} min ago`;
   }
-  const rest = minutes % 60;
-  return rest ? `${Math.floor(minutes / 60)} h ${rest} min ago` : `${Math.floor(minutes / 60)} h ago`;
+  const leftoverMinutes = minutes % 60;
+  return leftoverMinutes ? `${Math.floor(minutes / 60)} h ${leftoverMinutes} min ago` : `${Math.floor(minutes / 60)} h ago`;
 }
 
 /**
@@ -101,7 +101,9 @@ export class WorkoutConflictDialogComponent {
       error: () => {
         this.toast.error('Unable to start this workout. Please retry.');
         this.busy.set(false);
-      }
+      },
+      // The repeated start can be refused again and complete with no value; free the buttons then too.
+      complete: () => this.busy.set(false)
     });
   }
 }

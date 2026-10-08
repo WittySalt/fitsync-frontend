@@ -54,8 +54,8 @@ export class DotStripComponent {
   protected readonly last = computed(() => pointLabel(this.days().at(-1)?.date ?? ''));
   protected readonly summary = computed(() => {
     const days = this.days();
-    const met = days.filter((d) => d.state === 'MET').length;
-    const logged = days.filter((d) => d.state === 'MET' || d.state === 'MISSED').length;
+    const met = days.filter((day) => day.state === 'MET').length;
+    const logged = days.filter((day) => day.state === 'MET' || day.state === 'MISSED').length;
     return `${this.metWord()} on ${met} of ${logged} logged days, ${this.first()} to ${this.last()}`;
   });
 

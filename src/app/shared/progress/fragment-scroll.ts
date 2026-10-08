@@ -8,13 +8,13 @@ import { ActivatedRoute } from '@angular/router';
 export function useFragmentScroll(ready: Signal<boolean>): void {
   const route = inject(ActivatedRoute);
   const injector = inject(Injector);
-  let done = false;
+  let scrolled = false;
   effect(() => {
     const fragment = route.snapshot.fragment;
-    if (!ready() || done || !fragment) {
+    if (!ready() || scrolled || !fragment) {
       return;
     }
-    done = true;
+    scrolled = true;
     afterNextRender(() => document.getElementById(fragment)?.scrollIntoView({ block: 'start' }), { injector });
   });
 }

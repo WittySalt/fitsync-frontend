@@ -124,6 +124,7 @@ export function buildSaveRequest(plan: DraftPlan, profile: PlanProfile): PlanSav
     workoutType: WORKOUT_TYPE[plan.planType],
     difficulty: DIFFICULTIES.includes(level) ? level : 'BEGINNER',
     estimatedDurationMinutes: average,
+    // Left empty: the moves travel in the days' entries.
     exercises: [],
     days
   };

@@ -123,7 +123,7 @@ export function activitySentence(data: ActivityProgress, code: PeriodCode): stri
 })
 export class ActivityPage {
   private readonly api = inject(TrainingApiService);
-  private readonly zone = inject(UserTimezoneService);
+  private readonly timezone = inject(UserTimezoneService);
   protected readonly period = usePeriod();
   protected readonly key = toSignal(inject(ActivatedRoute).paramMap.pipe(map((params) => params.get('key') ?? '')), { initialValue: '' });
   private readonly request = computed(() => (this.key() ? { key: this.key(), ...this.period.range() } : null));
@@ -174,7 +174,7 @@ export class ActivityPage {
   protected readonly sessionsLine = computed(() => `${plural(this.data()?.sessions.length ?? 0, 'session')}, newest first. Each opens its page from Workout History.`);
   protected readonly questions = computed(() => (this.data() ? activityQuestions(this.data()!.kind, this.data()!.name) : []));
   protected readonly rows = computed(() => {
-    const zone = this.zone.zone();
+    const zone = this.timezone.zone();
     return [...(this.data()?.sessions ?? [])]
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
       .map((session) => {

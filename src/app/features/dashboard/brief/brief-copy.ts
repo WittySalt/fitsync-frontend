@@ -46,17 +46,16 @@ export interface BriefHeadlineInput {
   completed: number;
   target: number | null;
   daysLeftInWeek: number;
-  /** A session was completed today. Undefined behaves as false, so every existing caller still
-   *  compiles and gets the pre-existing copy. */
+  /** A session was completed today. Undefined behaves as false. */
   completedToday?: boolean;
-  /** Today is a rest day. Nothing sets this yet; a later change wires it up from the day-kind data. */
+  /** Today is a rest day. Undefined behaves as false. */
   restToday?: boolean;
   trainedYesterday?: boolean;
   /** Whole days since the most recent completed session. Null when unknown or when there has
    *  never been one. */
   daysSinceLastSession?: number | null;
-  /** Consecutive weeks, ending with the current or the last full week, that met the goal. Nothing
-   *  sets this yet; a later change wires it up from streak data. */
+  /** Consecutive weeks, ending with the current or the last full week, that met the goal. No caller
+   *  sets this yet, so the running-streak sentence is currently never added. */
   weeksAtGoal?: number | null;
   /** The time of day the person usually trains, as "HH:mm". Null or absent when none is known. */
   usualStartTime?: string | null;
@@ -125,9 +124,9 @@ function headlineLines(args: {
   return [`${capitalize(numberWord(completed))} ${plural('session', completed)}`, 'this week.'];
 }
 
-/** Builds the greeting sentence that follows the salutation prefix. A met-or-exceeded goal keeps
- *  the time-of-day sentence the coach already used, except the evening one, which used to suggest
- *  a bonus session tonight and has been softened to simply hand the evening back. */
+/** Builds the greeting sentence that follows the salutation prefix. Once the goal is met or
+ *  exceeded the sentence depends on the time of day; the evening one deliberately hands the
+ *  evening back rather than suggesting a bonus session tonight. */
 function buildGreeting(args: {
   prefix: string;
   period: DayPeriod;

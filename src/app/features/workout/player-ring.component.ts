@@ -93,6 +93,8 @@ export class PlayerRingComponent {
    */
   protected readonly fit = computed(() => {
     const pair = this.pair();
+    // Width in digit widths: the "/ target" part is drawn at about 0.55 of the size, and a colon,
+    // dot or space is about half a digit wide.
     const width = pair
       ? pair.count.length + 0.55 * (pair.target.length + 2)
       : Array.from(this.centre()).reduce((sum, char) => sum + (/[:.\s]/.test(char) ? 0.5 : 1), 0);

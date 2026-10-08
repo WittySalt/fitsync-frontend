@@ -92,12 +92,12 @@ describe('AvatarUploadPage', () => {
     expect(uploader.initials).toBe('AT');
   });
 
-  it('navigates back to settings after upload succeeds', () => {
+  it('navigates back to settings after upload succeeds, leaving the one toast to the uploader', () => {
     const uploader = fixture.debugElement.query(By.directive(AvatarUploaderStubComponent)).componentInstance as AvatarUploaderStubComponent;
 
     uploader.uploaded.emit(uploadedProfile);
 
-    expect(toast.success).toHaveBeenCalledWith('Profile photo updated.');
+    expect(toast.success).not.toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/settings']);
   });
 
