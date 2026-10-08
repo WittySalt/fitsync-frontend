@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
+import { ActivityLevel } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
@@ -190,7 +191,7 @@ export class OnboardingPage implements OnInit {
     targetWeightKg: [null as number | null],
     targetWeightLb: [null as number | null],
     weeklyPaceKg: [0.5 as number | null],
-    activityLevel: ['MODERATELY_ACTIVE', Validators.required],
+    activityLevel: ['MODERATELY_ACTIVE' as ActivityLevel, Validators.required],
     weeklyWorkoutDays: [4 as number | null, [weeklyDaysValidator]],
     fitnessLevel: ['INTERMEDIATE', Validators.required],
     trainingLocation: ['MIXED', Validators.required],

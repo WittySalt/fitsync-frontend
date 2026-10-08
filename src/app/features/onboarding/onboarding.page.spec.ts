@@ -397,6 +397,26 @@ describe('OnboardingPage', () => {
     );
   });
 
+  it('offers the Athlete activity level with the code settings uses, and sends it', () => {
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    component.selectPrimaryGoal('LOSE_FAT');
+    component.currentStep.set(1);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const options = Array.from(
+      element.querySelectorAll<HTMLOptionElement>('select[formControlName="activityLevel"] option')
+    ).map((option) => [option.value, option.textContent?.trim()]);
+    expect(options).toContain(['ATHLETE', 'Athlete']);
+    expect(options.map(([value]) => value)).not.toContain('EXTRA_ACTIVE');
+
+    fillValidOnboarding(component);
+    component.form.controls.activityLevel.setValue('ATHLETE');
+    component.submit();
+
+    expect(dataService.saveOnboarding).toHaveBeenCalledWith(jasmine.objectContaining({ activityLevel: 'ATHLETE' }));
+  });
+
   it('asks for the You fields, weight included, before leaving step two', () => {
     component.selectPrimaryGoal('LOSE_FAT');
     component.currentStep.set(1);
