@@ -131,6 +131,7 @@ export class BodyPage implements OnInit {
 
   readonly bmiRingDashArray = computed(() => {
     const bmi = this.bmiValue();
+    // The ring is full at a BMI of 40; the circle uses pathLength 100, so the dash pair is a percent.
     const value = bmi == null ? 0 : Math.min(Math.max(bmi / 40, 0), 1) * 100;
     return `${value} ${100 - value}`;
   });
@@ -358,14 +359,6 @@ export class BodyPage implements OnInit {
     this.page.set(0);
   }
 
-  previousPage(): void {
-    this.page.set(Math.max(0, this.currentPage() - 1));
-  }
-
-  nextPage(): void {
-    this.page.set(Math.min(this.totalPages() - 1, this.currentPage() + 1));
-  }
-
   goToPage(page: number): void {
     this.page.set(Math.min(this.totalPages() - 1, Math.max(0, page)));
   }
@@ -423,8 +416,6 @@ export class BodyPage implements OnInit {
   metricValue(metric: AccountBodyMetric, key: BodyChartMetric): number | null {
     return metric[key];
   }
-
-  protected readonly Math = Math;
 
   private bodyMetricRequest(): CreateBodyMetricRequest | null {
     const value = this.bodyForm.getRawValue();
@@ -533,6 +524,7 @@ export class BodyPage implements OnInit {
     const range = max - min || 1;
     return values
       .map((value, index) => {
+        // Fits the template's 180 x 58 viewBox, keeping the line between y 8 and y 52.
         const x = (index / Math.max(values.length - 1, 1)) * 180;
         const y = 52 - ((value - min) / range) * 44;
         return `${round(x, 1)},${round(y, 1)}`;
@@ -540,6 +532,7 @@ export class BodyPage implements OnInit {
       .join(' ');
   }
 
+  // The UTC calendar day, which the date filters compare against.
   private isoDay(value: string | null | undefined): string {
     return value ? new Date(value).toISOString().slice(0, 10) : '';
   }
@@ -564,6 +557,7 @@ function toFormNumber(value: number | null | undefined): string {
 
 function toDateTimeInput(value: string | null | undefined): string {
   const date = value ? new Date(value) : new Date();
+  // A datetime-local input wants local wall time, so shift by the offset before taking the ISO text.
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return offsetDate.toISOString().slice(0, 16);
 }

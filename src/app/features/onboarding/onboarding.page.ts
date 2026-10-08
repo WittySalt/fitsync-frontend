@@ -353,10 +353,6 @@ export class OnboardingPage implements OnInit {
     void this.router.navigateByUrl('/dashboard');
   }
 
-  hasPrimaryGoal(): boolean {
-    return this.form.controls.primaryGoal.value !== null;
-  }
-
   preferredUnits(): PreferredUnits {
     return this.form.controls.preferredUnits.value ?? 'METRIC';
   }
@@ -447,6 +443,7 @@ export class OnboardingPage implements OnInit {
     this.parqAcknowledgedAt = checked ? new Date().toISOString() : null;
   }
 
+  // Any flagged injury area counts as a health flag too, so it also needs the acknowledgement.
   hasParqRisk(): boolean {
     return (
       this.form.controls.parqHeartCondition.value ||
@@ -526,6 +523,7 @@ export class OnboardingPage implements OnInit {
     const isMetric = this.preferredUnits() === 'METRIC';
     const needsTarget = this.showsTargetAndPace();
 
+    // The pound limits (44 to 772 lb) are the same 20 to 350 kg as the metric ones.
     this.setValidators(this.form.controls.heightCm, isMetric ? [Validators.required, Validators.min(80), Validators.max(240)] : []);
     this.setValidators(this.form.controls.heightFt, isMetric ? [] : [Validators.required, Validators.min(3), Validators.max(8)]);
     this.setValidators(this.form.controls.heightIn, isMetric ? [] : [Validators.required, Validators.min(0), Validators.max(11)]);

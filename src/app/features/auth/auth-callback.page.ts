@@ -38,6 +38,7 @@ export class AuthCallbackPage implements OnInit {
 
   readonly error = signal<string | null>(null);
 
+  // The hosted sign-in page is retired, so the service always fails here and the page shows the way back to sign in.
   ngOnInit(): void {
     this.authService.completeCallback('', '').subscribe({
       next: () => this.router.navigateByUrl('/dashboard'),

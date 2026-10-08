@@ -114,6 +114,7 @@ export class SettingsPage implements OnInit {
     { value: 'VERY_ACTIVE', label: 'Very active' },
     { value: 'ATHLETE', label: 'Athlete' }
   ];
+  // The numeric values are the backend's dictionary codes; labelFor maps the same codes back to words.
   readonly unitOptions = this.options([
     ['100001', 'Metric'],
     ['100002', 'Imperial']
@@ -857,6 +858,7 @@ export class SettingsPage implements OnInit {
     });
   }
 
+  // The backend stores times as HH:mm:ss and a time input works in HH:mm.
   private toTimeInput(value: string | null | undefined): string {
     return value ? value.slice(0, 5) : '';
   }

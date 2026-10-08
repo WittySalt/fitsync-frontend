@@ -149,6 +149,7 @@ export class UserDataPage {
     );
   }
 
+  // The goal reconcile runs for every account, not the found one, so its result is kept.
   private forgetUser(): void {
     this.lookup.set({ kind: 'idle' });
     this.dashboard.reset();

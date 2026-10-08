@@ -38,6 +38,7 @@ export class AchievementsCardComponent {
   protected readonly nextUp = computed(() =>
     (this.badges()?.nextUp ?? []).map((node) => ({ node, line: nextUpLine(node, this.today(), this.pace()) }))
   );
+  // 17 is the size of the badge catalogue, shown until the real total arrives.
   protected readonly allLabel = computed(() => `All ${this.badges()?.total ?? 17}`);
 
   protected earned(node: BadgeNode): string {

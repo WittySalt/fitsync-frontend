@@ -113,11 +113,13 @@ export function formatGrams(value: number): string {
 
 /** "24 Nov 2026": always with the year, in the same short-month style as the rest of the app. */
 export function formatDate(key: string | null): string {
+  // A 1970 reference year never matches, so the label always carries the year.
   return shortDateLabel(key, new Date(0));
 }
 
 /** "71.2 kg" or "157 lb", in the units the person chose. */
 export function formatWeight(kg: number, units: 'METRIC' | 'IMPERIAL'): string {
+  // 2.20462 lb per kg.
   const value = units === 'IMPERIAL' ? kg * 2.20462 : kg;
   return `${trimmed(value)} ${units === 'IMPERIAL' ? 'lb' : 'kg'}`;
 }

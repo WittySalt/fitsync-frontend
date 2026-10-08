@@ -39,6 +39,7 @@ export class BadgeSheetComponent {
   protected readonly door = computed(() => doorFor(this.theme() || this.node().theme, this.state()));
   protected readonly count = computed(() => {
     const { current, target, unit } = this.node().progress;
+    // A unit such as a bodyweight ratio reads oddly after the numbers, so it is left out.
     return target > 0 ? `${Math.round(current * 100) / 100} of ${target}${unit && !/body|ratio/i.test(unit) ? ` ${unit}` : ''}` : '';
   });
 }
