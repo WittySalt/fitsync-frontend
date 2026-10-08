@@ -138,9 +138,8 @@ export function buildWeek(sessions: WorkoutSession[], now: Date, timezone: strin
   });
 }
 
-/** Builds the week strip straight from the weekly insight's seven `days`, once the day-kinds
- *  backend fields are present. This replaces buildWeek() for that request; buildWeek() itself is
- *  unchanged and stays as the fallback for as long as the insight has no `days`. */
+/** Builds the week strip straight from the weekly insight's seven `days`, when the backend sends
+ *  them. buildWeek() remains the fallback for an insight that has no `days`. */
 export function buildWeekFromInsight(days: DayInsight[], todayKey: string): BriefDay[] {
   return days.map((day) => {
     const isToday = day.date === todayKey;

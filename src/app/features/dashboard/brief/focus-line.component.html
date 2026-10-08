@@ -1,5 +1,6 @@
 @if (line(); as focus) {
   <div class="focus-line">
+    <!-- Badges only while the sentence names the groups (at most three); a longer list is counted. -->
     @if (focus.groups.length <= 3) {
       <span class="focus-badges" aria-hidden="true">
         @for (code of focus.groups; track code) {

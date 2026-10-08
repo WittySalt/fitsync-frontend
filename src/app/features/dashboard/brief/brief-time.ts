@@ -35,14 +35,14 @@ export function minutesOfDay(now: Date, timezone: string): number {
 
 export function dayPeriodFor(now: Date, timezone: string): DayPeriod {
   const { hour, minute } = localHourMinute(now, timezone);
-  const minutesOfDay = hour * 60 + minute;
-  if (minutesOfDay >= 5 * 60 && minutesOfDay < 12 * 60) {
+  const minutes = hour * 60 + minute;
+  if (minutes >= 5 * 60 && minutes < 12 * 60) {
     return 'MORNING';
   }
-  if (minutesOfDay >= 12 * 60 && minutesOfDay < 17 * 60) {
+  if (minutes >= 12 * 60 && minutes < 17 * 60) {
     return 'AFTERNOON';
   }
-  if (minutesOfDay >= 17 * 60 && minutesOfDay < 22 * 60) {
+  if (minutes >= 17 * 60 && minutes < 22 * 60) {
     return 'EVENING';
   }
   return 'NIGHT';

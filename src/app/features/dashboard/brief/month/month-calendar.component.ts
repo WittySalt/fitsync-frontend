@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, output, signal, untracked } from '@angular/core';
 
 import { DayKind } from '../../../../core/fitsync.models';
-import { isTrainingDayKind } from '../day-kind-icons';
-import { DAY_KIND_GLYPHS } from '../day-kind-icons';
+import { DAY_KIND_GLYPHS, isTrainingDayKind } from '../day-kind-icons';
 import { GlyphShape } from '../muscle-icons';
 import { MonthLegendComponent } from './month-legend.component';
 import { WEEKDAY_INITIALS, buildMonthGrid, daysInMonth, monthTitle, weekdayIndex } from './month-grid';
@@ -10,8 +9,8 @@ import { MonthViewState } from './month-view.state';
 
 /**
  * The month's calendar: a header of weekday initials, one button for each date, and the legend.
- * It reads the month from the shared view state and only reports which date was chosen, so the
- * panel beside it, which a later change fills, can react without the calendar knowing.
+ * It reads the month from the shared view state and only reports which date was chosen (to that
+ * state, and through daySelected), so the panel beside it can react without the calendar knowing.
  */
 @Component({
   selector: 'app-month-calendar',

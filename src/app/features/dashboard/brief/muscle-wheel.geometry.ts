@@ -118,6 +118,7 @@ export function wheelShapes<T extends WheelSectorInput>(sectors: T[]): WheelSect
     const centreAngle = offset + index * span;
     const fromAngle = centreAngle - span / 2 + SECTOR_PADDING_DEGREES;
     const toAngle = centreAngle + span / 2 - SECTOR_PADDING_DEGREES;
+    // A group trained more often than there are rings simply fills them all.
     const filled = Math.min(Math.max(Math.trunc(sector.sessions), 0), WHEEL_LEVELS);
 
     const cells: WheelCell[] = [];

@@ -52,7 +52,7 @@ const BOWL: GlyphShape[] = [
   { tag: 'path', d: 'M12 4v3' }
 ];
 
-const number = (value: number): string => Math.round(value).toLocaleString('en-US');
+const wholeNumber = (value: number): string => Math.round(value).toLocaleString('en-US');
 
 /** The time of an instant in the given timezone as HH:mm, or an empty string when it is unknown. */
 export function clockTime(instant: string, timezone: string): string {
@@ -84,7 +84,7 @@ export function exerciseSentence(names: readonly string[]): string {
       continue;
     }
     seen.add(name.toLowerCase());
-    const lowered = name.replace(/[A-Za-z]+/g, (word) => (word.length > 1 && word === word.toUpperCase() ? word : word.toLowerCase()));
+    const lowered = name.replace(/[A-Za-z]+/g, (token) => (token.length > 1 && token === token.toUpperCase() ? token : token.toLowerCase()));
     const next = [...kept, lowered];
     const list = next.length === 1 ? next[0] : `${next.slice(0, -1).join(', ')} and ${next[next.length - 1]}`;
     const candidate = `${capital(list)}.`;
@@ -162,8 +162,8 @@ function foodRow(input: DayInput): RowItem | null {
   const meals = `${capital(word(food.mealCount))} ${plural(food.mealCount, 'meal', 'meals')}`;
   return {
     id: 'food',
-    headline: `${number(food.totalCalories)} kcal and ${number(food.totalProteinGrams)} g of protein.`,
-    note: inside ? `${meals}, inside the ${number(budget)} kcal budget.` : `${meals}.`,
+    headline: `${wholeNumber(food.totalCalories)} kcal and ${wholeNumber(food.totalProteinGrams)} g of protein.`,
+    note: inside ? `${meals}, inside the ${wholeNumber(budget)} kcal budget.` : `${meals}.`,
     glyph: BOWL
   };
 }
