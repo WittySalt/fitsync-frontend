@@ -113,6 +113,16 @@ describe('the Food coach line', () => {
     expect(foodCoachLine(food(earlier), null, TODAY)).toBe('Protein is 4 g a day under the target in the week of 21 Sept.');
   });
 
+  it('reads the protein gap from the week the bars draw when they fall back to an earlier week', () => {
+    const drifting = (wire: typeof FOOD_WIRE) => ({
+      ...wire,
+      meals: { share: [] },
+      macros: { ...wire.macros, protein: { ...wire.macros.protein, thisWeek: 138, series: [{ weekStart: '2026-09-21', value: 120 }, { weekStart: '2026-09-28', value: 138 }] } }
+    });
+    const week21 = { ...bars(7, 'in the week of 21 Sept', 6), week: { ...bars(7).week, weekStart: '2026-09-21', weekEnd: '2026-09-27' } };
+    expect(foodCoachLine(food(drifting), week21, '2026-10-09')).toBe('Protein is 20 g a day under the target in the week of 21 Sept.');
+  });
+
   it('reports the balance under what was used, with the logged days', () => {
     expect(foodCoachLine(food(noProtein), bars(-279), TODAY)).toBe('You ate 279 kcal a day under what you used this week, on 5 logged days.');
   });

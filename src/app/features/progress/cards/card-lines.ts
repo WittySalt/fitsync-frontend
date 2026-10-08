@@ -1,7 +1,7 @@
 import { BriefObservation } from '../../dashboard/brief/brief-observations';
 import { daysBetween, formatNumber } from '../../../shared/progress/progress-format';
 import { FoodProgress, GoalProgress } from '../progress-api.models';
-import { macroWhen } from './card-readings';
+import { proteinReading } from './card-readings';
 import { BarsWeek, barsBalance } from './energy-fallback';
 import { day, figureOf, habitCounts, leadOf, monthName, movingAway, plural, reachedOn, roadOf, stalledSince } from './goal-road';
 
@@ -91,16 +91,17 @@ function mealName(type: string): string {
 
 /**
  * Food: protein under its target first, then the energy balance, then the first highlight. The
- * balance is read from the week the card's bars draw, so the line, the headline and the bars all
- * give one figure and name the same week. Without that week there is no balance sentence.
+ * balance, and the protein when the series holds that week, are read from the week the card's bars
+ * draw, so the line, the headline and the bars all give one figure and name the same week. Without that week there is no balance sentence.
  */
 export function foodCoachLine(food: FoodProgress, bars: BarsWeek | null, today?: string): string {
   const protein = food.macros.protein;
-  if (protein && protein.target !== null && protein.thisWeek !== null) {
-    const gap = Math.round(protein.target - protein.thisWeek);
+  const read = proteinReading(food, bars, today);
+  if (protein && protein.target !== null && read) {
+    const gap = Math.round(protein.target - read.value);
     if (gap > 0) {
       const largest = [...food.meals.share].sort((a, b) => b.sharePct - a.sharePct)[0];
-      return `Protein is ${formatNumber(gap)} g a day under the target ${macroWhen(protein, food, today)}.${largest ? ` ${mealName(largest.mealType)} carries most of it.` : ''}`;
+      return `Protein is ${formatNumber(gap)} g a day under the target ${read.when}.${largest ? ` ${mealName(largest.mealType)} carries most of it.` : ''}`;
     }
   }
   const balance = barsBalance(bars);

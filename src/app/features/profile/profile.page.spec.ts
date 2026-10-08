@@ -101,6 +101,18 @@ describe('ProfilePage', () => {
     expect(order.filter((tag) => tag !== 'div')).toEqual(['app-identity-card', 'app-about-you', 'app-targets-card', 'app-achievements-card', 'section.settings']);
   });
 
+  it('asks for the footprint from the day the account was created in the profile zone, and shows that day when the footprint fails', () => {
+    const base = user();
+    // 22:00 UTC on 10 Aug is 06:00 on 11 Aug in Singapore.
+    account.getCurrentUser.and.returnValue(of(user({ profile: { ...base.profile, createdAt: '2026-08-10T22:00:00Z' } })));
+    data.getFootprint.and.returnValue(throwError(() => new Error('down')));
+
+    const el = render();
+
+    expect(data.getFootprint).toHaveBeenCalledWith('2026-08-11');
+    expect(el.querySelector('.member')?.textContent).toBe('Member since 11 Aug 2026 · Singapore');
+  });
+
   it('shows the identity card with the member line and the lifetime numbers', () => {
     const el = render();
 

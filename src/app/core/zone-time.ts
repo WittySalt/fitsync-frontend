@@ -37,6 +37,23 @@ export function dateKeyInZone(instant: Date, timezone: string): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
+/**
+ * The calendar day a stored value falls on in the zone, as YYYY-MM-DD. A plain date is already a day
+ * and stays as it is. A value with a time is an instant, so its day is read in the zone; a time with
+ * no offset is taken as UTC, the way the server writes instants. Empty when the value is not a date.
+ */
+export function dateKeyOf(value: string | null | undefined, timezone: string): string {
+  const text = (value ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) {
+    return '';
+  }
+  const instant = new Date(/(Z|[+-]\d{2}:?\d{2})$/i.test(text) ? text : `${text}Z`);
+  return Number.isNaN(instant.getTime()) ? '' : dateKeyInZone(instant, timezone);
+}
+
 /** How far the zone's wall clock is ahead of UTC at an instant, in milliseconds. */
 function offsetMs(instant: Date, timezone: string): number {
   const parts = new Intl.DateTimeFormat('en-US', {
