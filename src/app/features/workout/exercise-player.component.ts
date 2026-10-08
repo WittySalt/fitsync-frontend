@@ -70,6 +70,15 @@ type PlayerStage = 'set' | 'countdown' | 'timed' | 'counting' | 'done' | 'rest';
 /** What "+5 sec" adds to a running set. */
 const EXTRA_SECONDS = 5;
 
+/** What "+15 sec" adds to a rest; the label of the button in the rest screen says the same. */
+const EXTRA_REST_SECONDS = 15;
+
+/** How long each frame of a multi-frame movement picture shows before the next. */
+const MEDIA_FRAME_MS = 900;
+
+/** How long the "rest over" cue stays on screen. */
+const REST_CUE_MS = 800;
+
 /** The values chosen during a rest for the set that follows it, carried into that set. */
 interface CarriedValues {
   exerciseLogId: string;
@@ -134,7 +143,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly live = inject(WorkoutLiveService);
-  // The path of the player starts by itself only while no session has been completed yet.
+  // Called for its side effect only (it returns nothing): asks once whether a session was ever completed,
+  // because the guided path of the player starts by itself only before the first one.
   private readonly firstSession = inject(GuideService).checkFirstSession();
 
   @Input({ required: true }) session: WorkoutSessionDetail | null = null;
@@ -195,7 +205,8 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   private readonly activePlanRevision = signal(0);
   private readonly detailCache = new Map<string, ExerciseDetail | null>();
   private readonly detailPending = new Set<string>();
-  private currentMediaExerciseId = '';
+  /** The exercise whose frames are on screen, so the frame index and failed frames reset only when it changes. */
+  private shownMediaIdentity = '';
   private guideOpener: HTMLElement | null = null;
 
   readonly orderedLogs = computed(() =>
@@ -471,6 +482,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   });
   readonly restShare = computed(() => {
     const remaining = this.restRemainingSeconds();
+    // "+15 sec" moves the end of the rest but not its total, so the remaining time can exceed the total.
     return remaining > 0 ? Math.min(1, remaining / Math.max(this.restTotalSeconds(), remaining)) : 0;
   });
   readonly restKicker = computed(() => {
@@ -530,7 +542,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   private readonly detailEffect = effect(() => {
     const exerciseId = this.currentExerciseId();
-    this.resetMediaForExercise(this.currentMediaIdentity() ?? '');
+    this.resetMediaForExercise(this.currentMediaIdentity());
     this.loadExerciseDetail(exerciseId);
   });
 
@@ -811,15 +823,6 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.startGuidedSet();
   }
 
-  /** The primary button of the set screen: it starts the set, and completes it once it is running. */
-  onPrimary(): void {
-    if (this.setActive()) {
-      this.completeCurrentSet();
-      return;
-    }
-    this.startSet();
-  }
-
   /** The set starts running in the live service, which keeps its clock whether or not this screen is open. */
   startGuidedSet(): void {
     const session = this.live.session();
@@ -898,7 +901,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
 
   addRestSeconds(): void {
     if (this.restRemainingSeconds() > 0) {
-      this.live.extendRest(15);
+      this.live.extendRest(EXTRA_REST_SECONDS);
     }
   }
 
@@ -1093,15 +1096,15 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     };
   }
 
-  /** The instructions in order, every one of them. The catalogue often repeats the first step as
-   *  the description; the step stays in its place and the description is left out instead. */
+  /** The instructions in order by step number, every one of them; steps without a number go last. */
   private instructionsOf(detail: ExerciseDetail | null) {
     return [...(detail?.instructions ?? [])].sort(
       (a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER)
     );
   }
 
-  /** The description, unless it only repeats one of the steps. */
+  /** The description, unless it only repeats one of the steps (the catalogue often repeats the first
+   *  step as the description); the step stays in its place and the description is left out instead. */
   private descriptionOf(detail: ExerciseDetail | null, instructions: { text?: string | null }[]): string {
     const description = detail?.description?.trim() ?? '';
     const same = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim() === description.replace(/\s+/g, ' ');
@@ -1328,11 +1331,11 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     return fallbackFrame ? [fallbackFrame] : [];
   }
 
-  private resetMediaForExercise(exerciseId = ''): void {
-    if (this.currentMediaExerciseId === exerciseId) {
+  private resetMediaForExercise(identity = ''): void {
+    if (this.shownMediaIdentity === identity) {
       return;
     }
-    this.currentMediaExerciseId = exerciseId;
+    this.shownMediaIdentity = identity;
     this.mediaFrameIndex.set(0);
     this.failedFrameUrls.set(new Set());
     this.clearMediaTimer();
@@ -1363,7 +1366,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
         return;
       }
       this.mediaFrameIndex.update((index) => index + 1);
-    }, 900);
+    }, MEDIA_FRAME_MS);
   }
 
   private clearMediaTimer(): void {
@@ -1382,7 +1385,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
     this.restCueTimerId = setTimeout(() => {
       this.restCompleteCue.set(false);
       this.restCueTimerId = null;
-    }, 800);
+    }, REST_CUE_MS);
   }
 
   private showWorkoutCelebration(

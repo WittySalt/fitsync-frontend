@@ -37,6 +37,7 @@ export class ExerciseGuideComponent implements OnDestroy {
 
   constructor() {
     afterNextRender(() => this.backButton()?.nativeElement.focus());
+    // Speaks the step at readIndex whenever reading starts or moves on; each step's end advances readIndex.
     effect(() => {
       const reading = this.reading();
       const text = this.steps()[this.readIndex()] ?? '';
