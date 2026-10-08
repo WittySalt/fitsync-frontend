@@ -58,7 +58,11 @@ export class PlanStudioPage implements OnInit {
 
   ngOnInit(): void {
     this.store.loadDrafts();
-    const artifactId = this.route.snapshot.queryParamMap.get('draft');
+    const params = this.route.snapshot.queryParamMap;
+    if (params.get('coach') === 'open') {
+      this.store.open();
+    }
+    const artifactId = params.get('draft');
     if (artifactId) {
       this.open(artifactId);
     } else if (this.store.latestDraft()) {

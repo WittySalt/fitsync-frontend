@@ -39,10 +39,33 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
 }
 
 # ── CloudFront for the SPA (flagged: slow to deploy) ─────────────────────────
+# A client-routed path (no file extension, e.g. /workout or /coach/plan) is served
+# index.html so Angular's router takes it; real files and /api/* pass through untouched.
+resource "aws_cloudfront_function" "spa_fallback" {
+  count   = var.enable_cloudfront ? 1 : 0
+  name    = "${local.name}-spa-fallback"
+  runtime = "cloudfront-js-2.0"
+  comment = "Serve index.html for client-routed paths"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      var last = request.uri.split('/').pop();
+      if (last.indexOf('.') === -1) {
+        request.uri = '/index.html';
+      }
+      return request;
+    }
+  EOT
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   count   = var.enable_cloudfront ? 1 : 0
   enabled = true
   comment = "${local.name}-frontend"
+
+  # Custom hostname (domain.tf). The *.cloudfront.net hostname keeps working too.
+  aliases = local.use_custom_domain ? [var.custom_domain] : []
 
   default_root_object = "index.html"
 
@@ -89,6 +112,13 @@ resource "aws_cloudfront_distribution" "frontend" {
       query_string = false
       cookies { forward = "none" }
     }
+
+    # SPA fallback on the S3 behaviour only. Distribution-wide custom_error_response rules
+    # also rewrote the API's 403/404 into 200 + index.html, so the app never saw them.
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_fallback[0].arn
+    }
   }
 
   # /api/* → gateway, pass-through. Use the same AWS managed policies as the prod
@@ -108,24 +138,17 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  # SPA fallback: serve index.html for client-routed paths.
-  custom_error_response {
-    error_code         = 403
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
-  custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
-
   restrictions {
     geo_restriction { restriction_type = "none" }
   }
 
+  # With a custom domain: the validated us-east-1 ACM cert over SNI. Without one:
+  # the default *.cloudfront.net certificate.
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = local.use_custom_domain ? null : true
+    acm_certificate_arn            = local.use_custom_domain ? aws_acm_certificate_validation.frontend[0].certificate_arn : null
+    ssl_support_method             = local.use_custom_domain ? "sni-only" : null
+    minimum_protocol_version       = local.use_custom_domain ? "TLSv1.2_2021" : null
   }
 
   tags = { Name = "${local.name}-frontend" }

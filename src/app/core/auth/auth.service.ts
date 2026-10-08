@@ -269,7 +269,13 @@ export class AuthService {
       Username: email.trim()
     }).pipe(
       map(() => undefined),
-      catchError((error: HttpErrorResponse | Error) => throwError(() => new Error(this.authErrorMessage(error))))
+      // An unknown email is answered like a known one, so the reset form never tells anyone
+      // which emails have an account.
+      catchError((error: HttpErrorResponse | Error) =>
+        this.cognitoErrorCode(error) === 'UserNotFoundException'
+          ? of(undefined)
+          : throwError(() => new Error(this.authErrorMessage(error)))
+      )
     );
   }
 
@@ -427,6 +433,14 @@ export class AuthService {
     return error.message || 'Authentication failed. Please try again.';
   }
 
+  private cognitoErrorCode(error: HttpErrorResponse | Error): string | undefined {
+    if (!(error instanceof HttpErrorResponse)) {
+      return undefined;
+    }
+    const body = error.error as { __type?: string } | string | null;
+    return typeof body === 'string' ? undefined : body?.__type?.split('#').pop();
+  }
+
   private cognitoErrorMessage(error: HttpErrorResponse): string | null {
     const body = error.error as { message?: string; __type?: string } | string | null;
     if (typeof body === 'string') {
@@ -456,9 +470,6 @@ export class AuthService {
     }
     if (code === 'LimitExceededException') {
       return 'Too many attempts. Please wait a moment and try again.';
-    }
-    if (code === 'UserNotFoundException') {
-      return 'If that email has an account, a reset code is on its way.';
     }
 
     return message ?? null;

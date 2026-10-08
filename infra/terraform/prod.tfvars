@@ -7,3 +7,6 @@
 region            = "ap-southeast-1"
 env               = "prod"
 enable_cloudfront = true
+
+# No custom domain from this stack: prod is hand-built (see above). Leave empty.
+custom_domain = ""

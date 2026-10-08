@@ -235,7 +235,7 @@ export class LoginPage implements OnInit, OnDestroy {
       next: () => {
         this.resetConfirmForm.controls.email.setValue(email);
         this.mode.set('reset-confirm');
-        this.notice.set('We sent a reset code to your email.');
+        this.notice.set('If that email has an account, a reset code is on its way.');
       },
       error: (error: Error) => this.fail(error),
       complete: () => this.loading.set(null)

@@ -45,3 +45,21 @@ variable "api_origin_domain" {
   type        = string
   default     = ""
 }
+
+# Custom hostname for the SPA, e.g. staging.fitsyncapp.click. Empty = none: no
+# certificate, no DNS records, and the distribution keeps the default
+# *.cloudfront.net certificate. The *.cloudfront.net hostname keeps working
+# either way. Needs enable_cloudfront = true.
+variable "custom_domain" {
+  description = "Custom hostname for the SPA distribution (empty = none)"
+  type        = string
+  default     = ""
+}
+
+# Public hosted zone that holds custom_domain. The zone is created and owned by
+# the BACKEND bootstrap Terraform; this stack only looks it up and adds records.
+variable "hosted_zone_name" {
+  description = "Route 53 public hosted zone containing custom_domain (owned by backend bootstrap)"
+  type        = string
+  default     = "fitsyncapp.click"
+}
