@@ -1,6 +1,7 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import {
   AccountCenterData,
@@ -589,6 +590,7 @@ describe('SettingsPage', () => {
       passwordConfirmationRequired: false
     }));
 
+    component.data.set({ ...accountData, accountDeletion: { ...accountData.accountDeletion, passwordConfirmationRequired: false } });
     component.deletionForm.patchValue({ confirmationText: 'DELETE', currentPassword: '' });
     component.requestAccountDeletion();
 
@@ -608,9 +610,153 @@ describe('SettingsPage', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     const submit = element.querySelector<HTMLButtonElement>('.danger-zone button.danger');
-    expect(element.querySelector('.danger-zone')?.textContent).toContain('Your account is closed at once and your data is removed after 30 days.');
+    expect(element.querySelector('.danger-zone')?.textContent).toContain(
+      'Your account is scheduled for deletion and you are signed out. Sign in again within 30 days to cancel. After that, your data is removed.'
+    );
     expect(submit?.textContent?.trim()).toBe('Delete my account');
     expect(element.querySelector('.danger-zone')?.textContent).not.toContain('Submit deletion request');
+  });
+
+  describe('delete account form', () => {
+    function openDeleteForm(): HTMLElement {
+      fixture.componentInstance.selectedSection.set('privacy-data');
+      fixture.componentInstance.startEdit('delete');
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function type(element: HTMLElement, selector: string, value: string): void {
+      const input = element.querySelector<HTMLInputElement>(selector)!;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    }
+
+    function submitButton(element: HTMLElement): HTMLButtonElement {
+      return element.querySelector<HTMLButtonElement>('.danger-zone form button.danger')!;
+    }
+
+    it('names the word to type in the label and links the input to its hint', () => {
+      const element = openDeleteForm();
+      const input = element.querySelector<HTMLInputElement>('#delete-confirmation')!;
+
+      expect(input.closest('label')?.textContent).toContain('Type DELETE to confirm');
+      expect(input.getAttribute('aria-describedby')).toBe('delete-confirmation-hint');
+      expect(element.querySelector('#delete-confirmation-hint')?.textContent).toContain('Use capital letters.');
+      expect(element.querySelector<HTMLInputElement>('#delete-password')?.closest('label')?.textContent).toContain('Current password');
+    });
+
+    it('keeps the delete button disabled until the text and the password are there', () => {
+      const element = openDeleteForm();
+      expect(submitButton(element).disabled).toBeTrue();
+
+      type(element, '#delete-confirmation', 'DELET');
+      type(element, '#delete-password', 'password123');
+      expect(submitButton(element).disabled).toBeTrue();
+
+      type(element, '#delete-confirmation', ' DELETE ');
+      expect(submitButton(element).disabled).toBeFalse();
+
+      type(element, '#delete-password', '');
+      expect(submitButton(element).disabled).toBeTrue();
+    });
+
+    it('does not accept a lowercase delete, because the server compares it exactly', () => {
+      const element = openDeleteForm();
+      type(element, '#delete-password', 'password123');
+      type(element, '#delete-confirmation', 'delete');
+
+      expect(submitButton(element).disabled).toBeTrue();
+      fixture.componentInstance.requestAccountDeletion();
+      expect(accountDataService.requestAccountDeletion).not.toHaveBeenCalled();
+    });
+
+    it('hides the password field and does not ask for it when the account has none', () => {
+      fixture.componentInstance.data.set({
+        ...accountData,
+        accountDeletion: { ...accountData.accountDeletion, passwordConfirmationRequired: false }
+      });
+      const element = openDeleteForm();
+
+      expect(element.querySelector('#delete-password')).toBeNull();
+      type(element, '#delete-confirmation', 'DELETE');
+      expect(submitButton(element).disabled).toBeFalse();
+    });
+
+    it('shows a loading label and keeps the button disabled while the request runs', () => {
+      const pending = new Subject<never>();
+      accountDataService.requestAccountDeletion.and.returnValue(pending);
+      const element = openDeleteForm();
+      type(element, '#delete-confirmation', 'DELETE');
+      type(element, '#delete-password', 'password123');
+
+      submitButton(element).click();
+      fixture.detectChanges();
+
+      expect(submitButton(element).textContent?.trim()).toBe('Deleting...');
+      expect(submitButton(element).disabled).toBeTrue();
+      expect(element.querySelector('.danger-zone form')?.getAttribute('aria-busy')).toBe('true');
+      expect(accountDataService.requestAccountDeletion).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the reason the server gave when it refuses the request', () => {
+      accountDataService.requestAccountDeletion.and.returnValue(throwError(() => new HttpErrorResponse({
+        status: 401,
+        error: { status: 401, error: 'Unauthorized', message: 'Current password is invalid', details: [] }
+      })));
+      const element = openDeleteForm();
+      type(element, '#delete-confirmation', 'DELETE');
+      type(element, '#delete-password', 'wrong-password');
+
+      submitButton(element).click();
+      fixture.detectChanges();
+
+      const alert = element.querySelector('.danger-zone form [role="alert"]');
+      expect(alert?.textContent?.trim()).toBe('Current password is invalid');
+      expect(toast.error).toHaveBeenCalledWith('Current password is invalid');
+      expect(submitButton(element).textContent?.trim()).toBe('Delete my account');
+      expect(submitButton(element).disabled).toBeFalse();
+      expect(authService.completeLogout).not.toHaveBeenCalled();
+    });
+
+    it('reads a ProblemDetail detail and falls back to a plain line when there is no reason', () => {
+      accountDataService.requestAccountDeletion.and.returnValue(throwError(() => new HttpErrorResponse({
+        status: 400,
+        error: { title: 'Bad Request', detail: 'Confirmation text must be DELETE' }
+      })));
+      const element = openDeleteForm();
+      type(element, '#delete-confirmation', 'DELETE');
+      type(element, '#delete-password', 'password123');
+      submitButton(element).click();
+      fixture.detectChanges();
+      expect(element.querySelector('[role="alert"]')?.textContent?.trim()).toBe('Confirmation text must be DELETE');
+
+      accountDataService.requestAccountDeletion.and.returnValue(throwError(() => new HttpErrorResponse({ status: 502, error: '' })));
+      submitButton(element).click();
+      fixture.detectChanges();
+      expect(element.querySelector('[role="alert"]')?.textContent?.trim()).toBe('Your account was not deleted. Try again.');
+    });
+
+    it('signs out and goes to the sign-in page when the request succeeds', () => {
+      const element = openDeleteForm();
+      type(element, '#delete-confirmation', 'DELETE');
+      type(element, '#delete-password', 'password123');
+
+      submitButton(element).click();
+
+      expect(accountDataService.requestAccountDeletion).toHaveBeenCalledWith('DELETE', 'password123');
+      expect(authService.completeLogout).toHaveBeenCalled();
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/login');
+    });
+
+    it('clears the typed text when the form is cancelled', () => {
+      const element = openDeleteForm();
+      type(element, '#delete-confirmation', 'DELETE');
+
+      fixture.componentInstance.cancelEdit();
+
+      expect(fixture.componentInstance.deletionForm.getRawValue().confirmationText).toBe('');
+    });
   });
 
   it('shows the scheduled date and a sign-out button instead of the form when a deletion is pending', () => {
@@ -762,10 +908,10 @@ describe('SettingsPage', () => {
     expect(component.sectionErrors().privacy).toBe('download failed');
 
     accountDataService.requestAccountDeletion.and.returnValue(throwError(() => new Error('delete failed')));
-    component.deletionForm.patchValue({ confirmationText: 'DELETE', currentPassword: '' });
+    component.deletionForm.patchValue({ confirmationText: 'DELETE', currentPassword: 'password123' });
     component.requestAccountDeletion();
 
-    expect(component.sectionErrors().delete).toBe('delete failed');
+    expect(component.sectionErrors().delete).toBe('Your account was not deleted. Try again.');
     expect(component.saving()).toBeNull();
   });
 
