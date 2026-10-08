@@ -12,7 +12,7 @@ import {
 } from '../../core/account-data.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { UserTimezoneService } from '../../core/user-timezone.service';
-import { dateKeyInZone } from '../../core/zone-time';
+import { dateKeyInZone, instantFromWallTime, wallTimeInZone } from '../../core/zone-time';
 import { PagerComponent } from '../../shared/pager.component';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 
@@ -267,7 +267,7 @@ export class BodyPage implements OnInit {
       armCm: toFormNumber(metric.armCm),
       thighCm: toFormNumber(metric.thighCm),
       calfCm: toFormNumber(metric.calfCm),
-      measuredAt: toDateTimeInput(metric.measuredAt),
+      measuredAt: toDateTimeInput(metric.measuredAt, this.userTimezone.zone()),
       source: metric.source ?? 'MANUAL',
       note: metric.note ?? ''
     });
@@ -384,7 +384,8 @@ export class BodyPage implements OnInit {
     }
     return new Intl.DateTimeFormat('en-SG', {
       dateStyle: 'medium',
-      timeStyle: 'short'
+      timeStyle: 'short',
+      timeZone: this.userTimezone.zone()
     }).format(new Date(value));
   }
 
@@ -394,7 +395,8 @@ export class BodyPage implements OnInit {
     }
     return new Intl.DateTimeFormat('en-SG', {
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: this.userTimezone.zone()
     }).format(new Date(value));
   }
 
@@ -445,7 +447,8 @@ export class BodyPage implements OnInit {
       armCm: toNullableNumber(value.armCm),
       thighCm: toNullableNumber(value.thighCm),
       calfCm: toNullableNumber(value.calfCm),
-      measuredAt: new Date(value.measuredAt).toISOString(),
+      // The input holds wall time in the profile zone, the same zone it was filled in.
+      measuredAt: instantFromWallTime(value.measuredAt, this.userTimezone.zone()).toISOString(),
       source: value.source as MetricSource,
       note: nullableText(value.note)
     };
@@ -462,7 +465,7 @@ export class BodyPage implements OnInit {
       armCm: '',
       thighCm: '',
       calfCm: '',
-      measuredAt: toDateTimeInput(null),
+      measuredAt: toDateTimeInput(null, this.userTimezone.zone()),
       source: 'MANUAL',
       note: ''
     });
@@ -559,11 +562,9 @@ function toFormNumber(value: number | null | undefined): string {
   return value == null ? '' : String(value);
 }
 
-function toDateTimeInput(value: string | null | undefined): string {
-  const date = value ? new Date(value) : new Date();
-  // A datetime-local input wants local wall time, so shift by the offset before taking the ISO text.
-  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 16);
+/** A datetime-local input takes wall time, shown here in the profile zone like every other time. */
+function toDateTimeInput(value: string | null | undefined, timezone: string): string {
+  return wallTimeInZone(value ? new Date(value) : new Date(), timezone);
 }
 
 function round(value: number, digits: number): number {

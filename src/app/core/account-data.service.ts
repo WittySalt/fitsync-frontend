@@ -4,8 +4,22 @@ import { Observable, forkJoin, map, shareReplay, tap } from 'rxjs';
 
 import { AuthService } from './auth/auth.service';
 import { UserTimezoneService } from './user-timezone.service';
+import { profileTimezone } from './zone-time';
 
 export type ActivityLevel = 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'ATHLETE';
+
+const ACTIVITY_LEVELS: readonly ActivityLevel[] = ['SEDENTARY', 'LIGHTLY_ACTIVE', 'MODERATELY_ACTIVE', 'VERY_ACTIVE', 'ATHLETE'];
+
+/**
+ * A stored activity level as one of the known codes, or null. Older onboarding saved the top level
+ * as EXTRA_ACTIVE, which is the same level as ATHLETE.
+ */
+export function toActivityLevel(value: string | null | undefined): ActivityLevel | null {
+  if (value === 'EXTRA_ACTIVE') {
+    return 'ATHLETE';
+  }
+  return ACTIVITY_LEVELS.find((level) => level === value) ?? null;
+}
 export type Gender = 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY';
 export type MetricSource = 'MANUAL' | 'DEVICE' | 'IMPORTED';
 export type GoalType = 'WEIGHT' | 'CALORIES' | 'PROTEIN' | 'CARBS' | 'FAT' | 'WORKOUT_FREQUENCY' | 'STEPS';
@@ -400,14 +414,19 @@ function withScheduledFor(status: AccountDeletionStatus): AccountDeletionStatus 
   return { ...status, scheduledFor: status.scheduledFor ?? null };
 }
 
-/** "31 Oct 2026" for an instant, in the browser's timezone, or an empty string when it is not a date. */
-export function formatDeletionDate(instant: string | null | undefined): string {
+/**
+ * "31 Oct 2026" for an instant, in the given zone (the profile's; the browser's when none is passed),
+ * or an empty string when it is not a date.
+ */
+export function formatDeletionDate(instant: string | null | undefined, timezone?: string): string {
   const date = instant ? new Date(instant) : null;
   if (!date || Number.isNaN(date.getTime())) {
     return '';
   }
   // en-GB's short September is "Sept" on current ICU data but has differed between versions.
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date).replace(/\bSep\b/, 'Sept');
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: profileTimezone(timezone) })
+    .format(date)
+    .replace(/\bSep\b/, 'Sept');
 }
 
 export function initialsFor(displayName: string): string {

@@ -239,6 +239,19 @@ describe('BodyPage', () => {
     expect(toast.success).toHaveBeenCalledWith('Measurement saved.');
   });
 
+  it('fills and reads the measured-at input as wall time in the profile zone', () => {
+    const component = fixture.componentInstance;
+    TestBed.inject(UserTimezoneService).setProfileZone('Pacific/Auckland');
+
+    component.editMetric({ ...latestMetric, measuredAt: '2026-06-18T20:15:00Z' });
+    expect(component.bodyForm.controls.measuredAt.value).toBe('2026-06-19T08:15');
+
+    component.saveBody();
+    expect(accountDataService.replaceBodyMetric).toHaveBeenCalledWith('metric-2', jasmine.objectContaining({
+      measuredAt: '2026-06-18T20:15:00.000Z'
+    }));
+  });
+
   it('replaces an existing measurement when editing a history row', () => {
     const component = fixture.componentInstance;
 

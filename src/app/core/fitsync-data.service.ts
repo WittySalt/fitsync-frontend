@@ -5,7 +5,7 @@ import { UserTimezoneService } from './user-timezone.service';
 import { dayBoundsInZone, profileTimezone } from './zone-time';
 
 import { AnalyticsApiService } from './analytics-api.service';
-import { AccountDataService } from './account-data.service';
+import { AccountDataService, toActivityLevel } from './account-data.service';
 import { mapBadges, mapFootprint } from './me-mappers';
 import { BadgesModel, Footprint } from './me.models';
 import { mapRecipeSuggestions } from '../features/nutrition/recipes/recipes-mappers';
@@ -2182,7 +2182,7 @@ export class FitSyncDataService {
       gender: profile?.gender ?? undefined,
       birthDate: profile?.birthDate ?? undefined,
       heightCm: profile?.heightCm ?? 0,
-      activityLevel: profile?.activityLevel ?? 'NOT_SET',
+      activityLevel: toActivityLevel(profile?.activityLevel) ?? 'NOT_SET',
       timezone: profileTimezone(profile?.timezone),
       onboardingCompleted: profile?.onboardingCompleted ?? false
     };
@@ -2277,8 +2277,9 @@ export class FitSyncDataService {
     if (profile?.heightCm) {
       value.heightCm = profile.heightCm;
     }
-    if (profile?.activityLevel) {
-      value.activityLevel = profile.activityLevel;
+    const activityLevel = toActivityLevel(profile?.activityLevel);
+    if (activityLevel) {
+      value.activityLevel = activityLevel;
     }
     if (latestBodyMetric?.weightKg) {
       value.currentWeightKg = latestBodyMetric.weightKg;

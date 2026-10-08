@@ -72,3 +72,20 @@ export function dayBoundsInZone(dayKey: string, timezone: string): { from: Date;
   const next = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
   return { from: startOfDayInZone(dayKey, timezone), to: new Date(startOfDayInZone(next, timezone).getTime() - 1) };
 }
+
+/** An instant as the zone's wall clock, "YYYY-MM-DDTHH:mm", the text a datetime-local input takes. */
+export function wallTimeInZone(instant: Date, timezone: string): string {
+  return new Date(instant.getTime() + offsetMs(instant, profileTimezone(timezone))).toISOString().slice(0, 16);
+}
+
+/** The instant a wall-clock time ("YYYY-MM-DDTHH:mm", as a datetime-local input gives it) means in the zone. */
+export function instantFromWallTime(wallTime: string, timezone: string): Date {
+  const zone = profileTimezone(timezone);
+  const guess = Date.parse(`${wallTime}Z`);
+  if (Number.isNaN(guess)) {
+    return new Date(Number.NaN);
+  }
+  // Same two-step read as startOfDayInZone, so a time just after a DST change gets its own offset.
+  const first = guess - offsetMs(new Date(guess), zone);
+  return new Date(guess - offsetMs(new Date(first), zone));
+}

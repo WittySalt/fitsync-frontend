@@ -15,6 +15,7 @@ import {
   NutrientReferenceRange,
   normalizeReferenceRange,
   formatDeletionDate,
+  toActivityLevel,
   initialsFor
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -324,14 +325,14 @@ export class SettingsPage implements OnInit {
 
   /** The one quiet line about the grace period, with the date once the backend has fixed it. */
   deletionGraceLine(status: AccountDeletionStatus): string {
-    const date = formatDeletionDate(status.scheduledFor);
+    const date = formatDeletionDate(status.scheduledFor, this.accountTimezone());
     return date
       ? `Your account is closed at once and your data is removed on ${date}.`
       : 'Your account is closed at once and your data is removed after 30 days.';
   }
 
   deletionScheduledLine(status: AccountDeletionStatus): string {
-    const date = formatDeletionDate(status.scheduledFor);
+    const date = formatDeletionDate(status.scheduledFor, this.accountTimezone());
     return date ? `This account is scheduled for deletion on ${date}.` : 'This account is scheduled for deletion.';
   }
 
@@ -712,7 +713,7 @@ export class SettingsPage implements OnInit {
       profileTimezone: profile.timezone ?? '',
       appTimezone: preferences.app.timezone ?? ''
     });
-    this.activityForm.patchValue({ activityLevel: profile.activityLevel ?? '' });
+    this.activityForm.patchValue({ activityLevel: toActivityLevel(profile.activityLevel) ?? '' });
     this.formattingForm.patchValue({
       preferredUnits: preferences.app.preferredUnits,
       language: preferences.app.language

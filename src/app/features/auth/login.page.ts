@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { formatDeletionDate } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SocialProvider } from '../../core/auth/auth.config';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 
 type AuthMode = 'signin' | 'signup' | 'confirm' | 'reset' | 'reset-confirm';
 type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend' | 'reset' | 'reset-confirm' | 'keep';
@@ -22,6 +23,7 @@ type BrandQuote = {
 export class LoginPage implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly userTimezone = inject(UserTimezoneService);
   private readonly quoteIntervalMs = 5000;
   private quoteTimer: ReturnType<typeof setInterval> | null = null;
   private readonly prefersReducedMotion =
@@ -37,7 +39,7 @@ export class LoginPage implements OnInit, OnDestroy {
   readonly socialSignInEnabled = this.authService.socialSignInEnabled;
   readonly pendingDeletion = this.authService.pendingDeletion;
   readonly canKeepAccount = this.authService.canCancelAccountDeletion;
-  readonly deletionDate = computed(() => formatDeletionDate(this.pendingDeletion()?.scheduledFor));
+  readonly deletionDate = computed(() => formatDeletionDate(this.pendingDeletion()?.scheduledFor, this.userTimezone.zone()));
   private readonly deletionHeading = viewChild<ElementRef<HTMLElement>>('deletionHeading');
 
   constructor() {
