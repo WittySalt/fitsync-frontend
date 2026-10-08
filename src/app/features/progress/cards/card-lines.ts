@@ -1,7 +1,9 @@
 import { BriefObservation } from '../../dashboard/brief/brief-observations';
 import { daysBetween, formatNumber } from '../../../shared/progress/progress-format';
 import { FoodProgress, GoalProgress } from '../progress-api.models';
-import { day, figureOf, leadOf, monthName, plural, reachedOn, roadOf, stalledSince } from './goal-road';
+import { macroWhen } from './card-readings';
+import { BarsWeek, barsBalance } from './energy-fallback';
+import { day, figureOf, habitCounts, leadOf, monthName, movingAway, plural, reachedOn, roadOf, stalledSince } from './goal-road';
 
 /**
  * The coach line inside each card. Every sentence is built by rule from the card's own data, so it
@@ -26,8 +28,13 @@ export function goalCoachLine(goal: GoalProgress, today: string): string {
   const lead = leadOf(goal);
   if (lead.kind === 'HABIT') {
     const item = lead.goal;
-    const logged = item.loggedDays ?? 0;
-    return logged > 0 && item.target !== null ? `${item.metDays ?? 0} of ${logged} logged ${item.type === 'WORKOUT_FREQUENCY' ? 'weeks' : 'days'} reached ${figureOf(item) || item.target}.` : SET_ASIDE;
+    const { logged, met } = habitCounts(item);
+    if (logged === 0) {
+      // The goal is set but nothing is logged; the card's own empty state says what fills it.
+      return '';
+    }
+    const unit = item.type === 'WORKOUT_FREQUENCY' ? 'week' : 'day';
+    return item.target !== null ? `${met} of ${logged} logged ${logged === 1 ? unit : `${unit}s`} reached ${figureOf(item) || item.target}.` : SET_ASIDE;
   }
   const road = lead.kind === 'WEIGHT' ? roadOf(goal, today) : null;
   if (!road) {
@@ -50,12 +57,16 @@ export function goalCoachLine(goal: GoalProgress, today: string): string {
     }
     case 'BEHIND': {
       const left = road.targetDate ? daysBetween(today, road.targetDate) : 0;
+      // A trend moving away from the target is not "slower"; it is said as it is.
+      const past = movingAway(road, goal.hero.weeklyRate.value)
+        ? `Over the last 28 days the weight moved away from ${formatNumber(road.targetKg, road.targetKg % 1 ? 1 : 0)} kg`
+        : 'The last 28 days were slower than the plan needs';
       if (!road.targetDate || left <= 0) {
-        return 'The last 28 days were slower than the plan needs.';
+        return `${past}.`;
       }
       // The kilos still to go spread over the weeks left: kg a week.
       const needed = road.distanceKg / (left / 7);
-      return `The last 28 days were slower than the plan needs; ${day(road.targetDate)} needs ${formatNumber(needed, 2)} kg a week from here.`;
+      return `${past}; ${day(road.targetDate)} needs ${formatNumber(needed, 2)} kg a week from here.`;
     }
     case 'STALLED': {
       const since = stalledSince(goal, road);
@@ -78,24 +89,28 @@ function mealName(type: string): string {
   return lower === 'snack' ? 'Snacks' : lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
-/** Food: protein under its target first, then the energy balance, then the first highlight. */
-export function foodCoachLine(food: FoodProgress): string {
+/**
+ * Food: protein under its target first, then the energy balance, then the first highlight. The
+ * balance is read from the week the card's bars draw, so the line, the headline and the bars all
+ * give one figure and name the same week. Without that week there is no balance sentence.
+ */
+export function foodCoachLine(food: FoodProgress, bars: BarsWeek | null, today?: string): string {
   const protein = food.macros.protein;
   if (protein && protein.target !== null && protein.thisWeek !== null) {
     const gap = Math.round(protein.target - protein.thisWeek);
     if (gap > 0) {
       const largest = [...food.meals.share].sort((a, b) => b.sharePct - a.sharePct)[0];
-      return `Protein is ${formatNumber(gap)} g a day under the target this week.${largest ? ` ${mealName(largest.mealType)} carries most of it.` : ''}`;
+      return `Protein is ${formatNumber(gap)} g a day under the target ${macroWhen(protein, food, today)}.${largest ? ` ${mealName(largest.mealType)} carries most of it.` : ''}`;
     }
   }
-  const balance = food.hero.balancePerDay;
-  if (balance.value !== null && Math.round(balance.value) !== 0) {
-    const kcal = formatNumber(Math.abs(Math.round(balance.value)));
-    if (balance.value < 0) {
-      const days = balance.daysLogged;
-      return `You ate ${kcal} kcal a day under what you used this week${days ? `, on ${plural(days, 'logged day')}` : ''}.`;
+  const balance = barsBalance(bars);
+  if (bars && balance !== null && Math.round(balance) !== 0) {
+    const kcal = formatNumber(Math.abs(Math.round(balance)));
+    if (balance < 0) {
+      const days = bars.week.daysLogged;
+      return `You ate ${kcal} kcal a day under what you used ${bars.when}${days ? `, on ${plural(days, 'logged day')}` : ''}.`;
     }
-    return `You ate ${kcal} kcal a day over what you used this week.`;
+    return `You ate ${kcal} kcal a day over what you used ${bars.when}.`;
   }
   return food.highlights[0]?.title ?? '';
 }

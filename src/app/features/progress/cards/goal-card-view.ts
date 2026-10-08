@@ -7,9 +7,13 @@ import {
   CardHeadline,
   PictureNote,
   alsoPills,
+  habitCounts,
+  habitEmptyHeadline,
+  habitEmptyText,
   habitHeadline,
   habitItems,
   habitShare,
+  habitShareLine,
   habitTarget,
   keepHeadline,
   keepShare,
@@ -21,7 +25,7 @@ import {
 import { ReadingLine, goalReadingLines } from './card-readings';
 import { StripItem } from './strip-chart.component';
 
-export type GoalPicture = 'ROAD' | 'KEEP' | 'HABIT' | 'EMPTY';
+export type GoalPicture = 'ROAD' | 'KEEP' | 'HABIT' | 'NO_DATA' | 'EMPTY';
 
 /** Everything the Goal card draws, worked out from the response so the template only places it. */
 export interface GoalView {
@@ -37,6 +41,8 @@ export interface GoalView {
   pills: AlsoPill[];
   /** What a screen reader hears for the picture. */
   label: string;
+  /** The sentence shown in place of the picture when a goal has nothing logged yet. */
+  empty: string;
 }
 
 const EMPTY_HEADLINE: CardHeadline = { figure: 'No goal yet', tail: '', caption: 'Set one in Me' };
@@ -46,12 +52,17 @@ function weighIns(goal: GoalProgress, today: string, days: number): { logged: nu
   return logged > 0 ? { logged, days } : null;
 }
 
+function habitLines(goal: OtherGoal): ReadingLine[] {
+  const line = habitShareLine(goal);
+  return line ? [{ ...line, trend: '' }] : [];
+}
+
 export function goalCardView(goal: GoalProgress, today: string, span: Span = FOUR_WEEKS): GoalView {
   const lead = leadOf(goal);
   const road = roadOf(goal, today);
   const lines = goalReadingLines(goal, road, span, weighIns(goal, today, span.days));
   const pills = alsoPills(goal, lead);
-  const none = { habit: null, strip: [], stripTarget: '', stripShare: '', note: null, road: null };
+  const none = { habit: null, strip: [], stripTarget: '', stripShare: '', note: null, road: null, empty: '' };
 
   if (lead.kind === 'WEIGHT' && road) {
     if (road.direction === 'KEEP' && road.keep) {
@@ -67,7 +78,7 @@ export function goalCardView(goal: GoalProgress, today: string, span: Span = FOU
       };
     }
     const headline = roadHeadline(goal, road);
-    const note = roadNote(road);
+    const note = roadNote(road, goal.hero.weeklyRate.value);
     return {
       ...none,
       picture: 'ROAD',
@@ -79,6 +90,12 @@ export function goalCardView(goal: GoalProgress, today: string, span: Span = FOU
       label: `${headline.figure} ${headline.tail}. ${headline.caption}. ${formatNumber(Math.round(road.fractionWeight * 100))}% of the way.`
     };
   }
+  if (lead.kind === 'HABIT' && habitCounts(lead.goal).logged === 0) {
+    // Nothing logged yet: the goal is named, nothing is counted, and the picture says what fills it.
+    const headline = habitEmptyHeadline(lead.goal);
+    const empty = habitEmptyText(lead.goal);
+    return { ...none, picture: 'NO_DATA', headline, habit: lead.goal, lines: [], pills, label: empty, empty };
+  }
   if (lead.kind === 'HABIT') {
     const headline = habitHeadline(lead.goal);
     return {
@@ -89,7 +106,7 @@ export function goalCardView(goal: GoalProgress, today: string, span: Span = FOU
       strip: habitItems(lead.goal),
       stripTarget: habitTarget(lead.goal),
       stripShare: habitShare(lead.goal),
-      lines: lines.length ? lines : [{ figure: habitShare(lead.goal), text: 'of the logged days met the target', trend: '' }],
+      lines: lines.length ? lines : habitLines(lead.goal),
       pills,
       label: `${headline.figure} ${headline.tail}. ${headline.caption}.`
     };

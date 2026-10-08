@@ -19,7 +19,8 @@ import { GoalProgress, GoalRoad } from './progress-api.models';
 import { ProgressApiService } from './progress-api.service';
 import { progressTabRedirect } from './progress-redirect.guard';
 import { READING_POLL_MS, ProgressPage, stickyHeaderHeight } from './progress.page';
-import { TODAY, goalData, progressApi, timezoneStub } from './progress-testing.spec';
+import { EnergyWeek } from './energy/energy.models';
+import { TODAY, foodData, goalData, progressApi, timezoneStub } from './progress-testing.spec';
 import { TrainingApiService } from './training/training-api.service';
 import { trainingFixture } from './training/training-fixture.spec';
 
@@ -280,7 +281,7 @@ describe('ProgressPage', () => {
       expect(svg).toContain('68 kg');
       expect(svg).toContain('54% of the way');
       expect(text(card.querySelector('.note'))).toBe('25 Nov at this pace, 16 days before your date.');
-      expect(Array.from(card.querySelectorAll('.pill')).map((pill) => text(pill))).toEqual(['Protein · 19 of 26 days', 'Workouts · 2 of 4 weeks']);
+      expect(Array.from(card.querySelectorAll('.pill')).map((pill) => text(pill))).toEqual(['Protein · 19 of 26 days', 'Workouts · 1 of 2 weeks']);
     });
 
     it('builds its drawing at the pixel width of its box so its text is never scaled', async () => {
@@ -342,7 +343,18 @@ describe('ProgressPage', () => {
   });
 
   describe('the Food card', () => {
+    /** An energy week with eaten minus used equal to the balance given. */
+    const energyWeek = (weekStart: string, status: EnergyWeek['status'], daysLogged: number, balance: number): EnergyWeek => ({
+      weekStart, weekEnd: weekStart, status, daysLogged, bmrKcal: 1700, bmrEstimated: false, restingFactor: 1.2,
+      average: { eaten: 2200 + balance, resting: 2000, workouts: 200, used: 2200, balance },
+      mealSplit: null, weeklyKgEquivalent: null, days: [], weeks: []
+    });
+
     it('shows the balance as the headline and the three lines, and opens the Food page', async () => {
+      api.getFood.and.callFake(() => of((() => {
+        const food = foodData();
+        return { ...food, energy: { ...food.energy, thisWeek: energyWeek('2026-09-28', 'OK', 5, -279) } };
+      })()));
       await open();
       const card = el.querySelector('app-food-card')!;
       expect(text(card.querySelector('.figure'))).toBe('279 kcal');
@@ -354,6 +366,30 @@ describe('ProgressPage', () => {
       ]);
       expect(Array.from(card.querySelectorAll('app-summary-list .trend')).map((word) => text(word))).toEqual(['logged', 'under', '1 short']);
       expect(card.querySelector('a.open')?.getAttribute('href')).toBe('/progress/food');
+    });
+
+    it('names the earlier week everywhere when nothing was logged this week, with one figure for the gap', async () => {
+      api.getFood.and.callFake(() => of((() => {
+        const food = foodData();
+        const protein = { ...food.macros.protein!, thisWeek: 180, series: [{ weekStart: '2026-08-10', value: 150 }, { weekStart: '2026-09-21', value: 180 }] };
+        return {
+          ...food,
+          hero: { ...food.hero, balancePerDay: { value: 283, daysLogged: 1 } },
+          energy: { ...food.energy, thisWeek: energyWeek('2026-09-28', 'TOO_FEW_DAYS', 1, 283) },
+          macros: { ...food.macros, protein }
+        };
+      })()));
+      api.getEnergyWeek.and.callFake((monday: string) => of(monday === '2026-09-21' ? energyWeek('2026-09-21', 'OK', 6, 7) : null));
+      await open();
+      TestBed.tick();
+      fixture.detectChanges();
+      const card = el.querySelector('app-food-card')!;
+      expect(text(card.querySelector('.figure'))).toBe('7 kcal');
+      expect(text(card.querySelector('.caption'))).toBe('A day over what you used in the week of 21 Sept');
+      expect(text(card.querySelector('.bars-label'))).toBe('Week of 21 Sept');
+      expect(card.querySelector('app-energy-pair svg')?.getAttribute('aria-label')).toContain('7 kcal over what you used');
+      expect(text(card.querySelector('app-summary-list'))).toContain('Protein 180 g a day in the week of 21 Sept');
+      expect(text(card)).not.toContain('283');
     });
 
     it('asks the coach about food', async () => {

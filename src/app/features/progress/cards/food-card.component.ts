@@ -16,20 +16,24 @@ import { FoodProgress } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { foodCoachLine } from './card-lines';
 import { foodReadingLines } from './card-readings';
-import { barsWeek } from './energy-fallback';
+import { BarsWeek, barsBalance, barsWeek } from './energy-fallback';
 import { EnergyPairComponent } from './energy-pair.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
 
-/** The headline of the Food card: "279 kcal" and "A day under what you used this week". */
-export function foodHeadline(balance: number | null): { figure: string; caption: string } | null {
-  if (balance === null) {
+/**
+ * The headline of the Food card: "279 kcal" and "A day under what you used this week". It reads the
+ * week the bars draw, so the big number is the bars' own gap and the caption names that week.
+ */
+export function foodHeadline(bars: BarsWeek | null): { figure: string; caption: string } | null {
+  const balance = barsBalance(bars);
+  if (!bars || balance === null) {
     return null;
   }
   const rounded = Math.round(balance);
   return {
     figure: `${formatNumber(Math.abs(rounded))} kcal`,
-    caption: rounded === 0 ? 'A day matching what you used this week' : `A day ${rounded < 0 ? 'under' : 'over'} what you used this week`
+    caption: rounded === 0 ? `A day matching what you used ${bars.when}` : `A day ${rounded < 0 ? 'under' : 'over'} what you used ${bars.when}`
   };
 }
 
@@ -94,14 +98,14 @@ export class FoodCardComponent {
     const state = this.state();
     return state.status === 'ready' ? state.food : null;
   });
-  protected readonly headline = computed(() => foodHeadline(this.food()?.hero.balancePerDay.value ?? null));
+  protected readonly headline = computed(() => foodHeadline(this.week()));
   protected readonly coachLine = computed(() => {
     const food = this.food();
-    return food && hasFood(food) ? foodCoachLine(food) : '';
+    return food && hasFood(food) ? foodCoachLine(food, this.week(), this.period().to) : '';
   });
   protected readonly lines = computed(() => {
     const food = this.food();
-    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()) }) : [];
+    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()), today: this.period().to }) : [];
   });
   protected readonly enough = computed(() => {
     const food = this.food();

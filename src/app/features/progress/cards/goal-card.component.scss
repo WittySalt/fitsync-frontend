@@ -79,3 +79,9 @@
 .head-skeleton {
   height: 56px;
 }
+
+.empty {
+  margin: 0;
+  font-size: var(--pg-text);
+  color: var(--text-secondary);
+}
