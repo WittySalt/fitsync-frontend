@@ -43,6 +43,7 @@ export function fullGuideSteps(detail: Pick<ExerciseDetail, 'shortSteps' | 'inst
   const full = [...(detail.instructions ?? [])]
     .sort((a, b) => (a.stepNumber ?? Number.MAX_SAFE_INTEGER) - (b.stepNumber ?? Number.MAX_SAFE_INTEGER))
     .map((step) => (step.text ?? '').replace(/\s+/g, ' ').trim())
+    // Only a short "repeat" step is dropped: a long one usually carries a cue beyond the repeat.
     .filter((text) => text.length > 0 && !(isRepeatStep(text) && text.split(' ').length <= 12));
   return full.length ? full : guideSteps(detail);
 }

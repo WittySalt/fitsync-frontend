@@ -170,12 +170,12 @@ export class TodayOverviewComponent {
 
   readonly glyph = computed<GlyphShape[]>(() => DAY_KIND_GLYPHS[this.card().kind]);
 
-  /** The footer's second line: when and how long, or nothing when the session has neither. */
   /** "Cardio · Treadmill": the kind, then the name, written the same way everywhere. */
   lastTitle(session: WorkoutSession): string {
     return lastTitle(session);
   }
 
+  /** The footer's second line: when and how long, or nothing when the session has neither. */
   readonly lastSessionDetail = computed(() => {
     const session = this.latestSession();
     if (!session) {
@@ -292,8 +292,8 @@ export class TodayOverviewComponent {
     if (!plan || !today || today.source === 'IN_PROGRESS' || today.source === 'DONE') {
       return null;
     }
-    const rest = today.kind === 'REST' || today.kind === 'OPEN';
-    if (rest && today.carriedOver.length > 0) {
+    const restOrOpen = today.kind === 'REST' || today.kind === 'OPEN';
+    if (restOrOpen && today.carriedOver.length > 0) {
       const first = today.carriedOver[0];
       const kind = focusKindOf(first.kind);
       return kind ? { kind, title: first.title, label: first.title, minutes: first.estimatedMinutes, moves: this.dayExercises(first.planDayId), today: today.date } : null;
@@ -301,7 +301,7 @@ export class TodayOverviewComponent {
     if (today.kind === 'REST') {
       return { kind: 'rest', title: 'Rest day', label: 'Rest', minutes: null, moves: [], today: today.date };
     }
-    const kind = rest || (today.source === 'HABIT' && !today.planDayId) ? null : focusKindOf(today.kind);
+    const kind = restOrOpen || (today.source === 'HABIT' && !today.planDayId) ? null : focusKindOf(today.kind);
     return kind ? { kind, title: today.title || today.label, label: today.label, minutes: today.estimatedMinutes, moves: this.dayExercises(today.planDayId), today: today.date } : null;
   }
 

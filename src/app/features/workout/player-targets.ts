@@ -9,10 +9,10 @@ export interface SetTarget {
   restSeconds: number | null;
 }
 
-/** One set of an exercise as the player sees it: the target, and what was logged against it. */
 /** One set as a dot in the folded set list beside the name while a set runs. */
 export type SetDot = 'done' | 'skipped' | 'current' | 'open';
 
+/** One set of an exercise as the player sees it: the target, and what was logged against it. */
 export interface PlayerSet {
   setNumber: number;
   target: SetTarget | null;
@@ -114,10 +114,6 @@ function isSkipped(row: WorkoutExerciseSetLog): boolean {
   return row.status === 'SKIPPED';
 }
 
-/**
- * A set that is still to do: neither done nor skipped. The server answers a skipped set with
- * logged false, so "not logged" alone would take a skipped set for the next one.
- */
 /** Seconds a rep takes when a plan sets no tempo: 4 for mobility, 2.5 for cardio and sport, 3 otherwise. */
 export function defaultTempoSeconds(exerciseType: string | null | undefined): number {
   switch (exerciseType) {
@@ -141,6 +137,10 @@ export function resolveTempoSeconds(
   return typeof own === 'number' && Number.isFinite(own) && own > 0 ? own : defaultTempoSeconds(exerciseType);
 }
 
+/**
+ * A set that is still to do: neither done nor skipped. The server answers a skipped set with
+ * logged false, so "not logged" alone would take a skipped set for the next one.
+ */
 export function isOpenSet(row: Pick<WorkoutExerciseSetLog, 'logged' | 'status'>): boolean {
   return !row.logged && row.status !== 'SKIPPED';
 }
@@ -181,14 +181,6 @@ export function resolveExerciseSets(
     }));
   }
   return [{ setNumber: 1, target: null, logged: null, skipped: false }];
-}
-
-export function totalSetCount(sets: PlayerSet[][]): number {
-  return sets.reduce((sum, list) => sum + list.length, 0);
-}
-
-export function loggedSetCount(logs: LogLike[]): number {
-  return logs.reduce((sum, log) => sum + log.sets.filter((set) => set.logged).length, 0);
 }
 
 /** 45 sec, 30 min, 1 h 5 min. */

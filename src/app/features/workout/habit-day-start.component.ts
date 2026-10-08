@@ -190,7 +190,7 @@ export class HabitDayStartComponent {
   }
 
   private loadSports(preselectLabel: string): void {
-    const select = (sports: SportActivityOption[]) => {
+    const preselect = (sports: SportActivityOption[]) => {
       const wanted = preselectLabel.trim().toLowerCase();
       const match = wanted ? sports.find((sport) => sport.label.toLowerCase() === wanted) : undefined;
       if (match && !this.sportCode()) {
@@ -198,7 +198,7 @@ export class HabitDayStartComponent {
       }
     };
     if (this.sports().length) {
-      select(this.sports());
+      preselect(this.sports());
       return;
     }
     this.sportsFailed.set(false);
@@ -206,7 +206,7 @@ export class HabitDayStartComponent {
       const sports = metadata?.sportActivities ?? [];
       this.sports.set(sports);
       this.sportsFailed.set(sports.length === 0);
-      select(sports);
+      preselect(sports);
     });
   }
 
