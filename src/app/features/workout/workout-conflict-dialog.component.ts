@@ -101,7 +101,9 @@ export class WorkoutConflictDialogComponent {
       error: () => {
         this.toast.error('Unable to start this workout. Please retry.');
         this.busy.set(false);
-      }
+      },
+      // The repeated start can be refused again and complete with no value; free the buttons then too.
+      complete: () => this.busy.set(false)
     });
   }
 }

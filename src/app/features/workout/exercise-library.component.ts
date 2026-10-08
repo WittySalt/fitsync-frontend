@@ -281,6 +281,9 @@ export class ExerciseLibraryComponent implements OnInit {
     this.editVideoFile.set(null);
     this.editUploadProgress.set(null);
     this.editVideoError.set('');
+    this.editImageFile.set(null);
+    this.editImageUploadProgress.set(null);
+    this.editImageError.set('');
   }
 
   setLibraryView(view: 'browse' | 'create'): void {
@@ -796,6 +799,8 @@ export class ExerciseLibraryComponent implements OnInit {
     const progressSignal = target === 'create' ? this.createImageUploadProgress : this.editImageUploadProgress;
     const errorSignal = target === 'create' ? this.createImageError : this.editImageError;
     progressSignal.set(0);
+    // onSuccess owns the saving flag (it may chain another upload); without a body it never runs, so clear it here.
+    let handedOff = false;
     this.dataService.uploadExerciseImage(exerciseId, file).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress) {
@@ -805,6 +810,7 @@ export class ExerciseLibraryComponent implements OnInit {
         }
         if (event.type === HttpEventType.Response && event.body) {
           progressSignal.set(100);
+          handedOff = true;
           onSuccess(event.body);
         }
       },
@@ -812,6 +818,11 @@ export class ExerciseLibraryComponent implements OnInit {
         errorSignal.set('Unable to upload photo. Please retry.');
         this.toast.error('Unable to upload exercise photo. Please retry.');
         this.saving.set(false);
+      },
+      complete: () => {
+        if (!handedOff) {
+          this.saving.set(false);
+        }
       }
     });
   }
@@ -825,6 +836,8 @@ export class ExerciseLibraryComponent implements OnInit {
     const progressSignal = target === 'create' ? this.createUploadProgress : this.editUploadProgress;
     const errorSignal = target === 'create' ? this.createVideoError : this.editVideoError;
     progressSignal.set(0);
+    // onSuccess owns the saving flag; without a body it never runs, so clear it here.
+    let handedOff = false;
     this.dataService.uploadExerciseVideo(exerciseId, file).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress) {
@@ -835,6 +848,7 @@ export class ExerciseLibraryComponent implements OnInit {
         if (event.type === HttpEventType.Response) {
           progressSignal.set(100);
           if (event.body) {
+            handedOff = true;
             onSuccess(event.body);
           }
         }
@@ -843,6 +857,11 @@ export class ExerciseLibraryComponent implements OnInit {
         errorSignal.set('Unable to upload video. Please retry.');
         this.toast.error('Unable to upload exercise video. Please retry.');
         this.saving.set(false);
+      },
+      complete: () => {
+        if (!handedOff) {
+          this.saving.set(false);
+        }
       }
     });
   }

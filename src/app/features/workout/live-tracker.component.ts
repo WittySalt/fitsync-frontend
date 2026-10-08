@@ -203,7 +203,10 @@ export class LiveTrackerComponent implements OnChanges {
         }
         this.completed.emit(session);
       },
-      error: () => this.toast.error('Unable to finish workout. Please retry.'),
+      error: () => {
+        this.ending.set(false);
+        this.toast.error('Unable to finish workout. Please retry.');
+      },
       complete: () => this.ending.set(false)
     });
   }
