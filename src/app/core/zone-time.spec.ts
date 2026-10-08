@@ -1,6 +1,7 @@
 import {
   browserTimezone,
   dateKeyInZone,
+  dateKeyOf,
   dayBoundsInZone,
   instantFromWallTime,
   profileTimezone,
@@ -58,5 +59,20 @@ describe('zone-time', () => {
     for (const zone of ['Pacific/Auckland', 'America/Los_Angeles', 'Asia/Singapore']) {
       expect(wallTimeInZone(instantFromWallTime('2026-03-08T07:45', zone), zone)).toBe('2026-03-08T07:45');
     }
+  });
+
+  it('reads the calendar day of a stored date or instant in the zone', () => {
+    // 22:00 UTC on 10 Aug is 06:00 on 11 Aug in Singapore.
+    expect(dateKeyOf('2026-08-10T22:00:00Z', 'Asia/Singapore')).toBe('2026-08-11');
+    expect(dateKeyOf('2026-08-10T22:00:00.123456Z', 'America/Los_Angeles')).toBe('2026-08-10');
+    expect(dateKeyOf('2026-08-10T22:00:00+08:00', 'UTC')).toBe('2026-08-10');
+    // A time with no offset is a server instant written in UTC.
+    expect(dateKeyOf('2026-08-10T22:00:00', 'Asia/Singapore')).toBe('2026-08-11');
+    // A plain date is already a calendar day and stays as it is in every zone.
+    expect(dateKeyOf('2026-08-10', 'Asia/Singapore')).toBe('2026-08-10');
+    expect(dateKeyOf('2026-08-10', 'Pacific/Auckland')).toBe('2026-08-10');
+    expect(dateKeyOf('', 'Asia/Singapore')).toBe('');
+    expect(dateKeyOf(null, 'Asia/Singapore')).toBe('');
+    expect(dateKeyOf('soon', 'Asia/Singapore')).toBe('');
   });
 });

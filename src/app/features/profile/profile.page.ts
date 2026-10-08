@@ -7,6 +7,7 @@ import { FitSyncDataService, normalizeFocusAreas } from '../../core/fitsync-data
 import { UserGoal } from '../../core/fitsync.models';
 import { BadgesModel, Footprint } from '../../core/me.models';
 import { UserTimezoneService } from '../../core/user-timezone.service';
+import { dateKeyOf } from '../../core/zone-time';
 import { StatePanelComponent } from '../../shared/state-panel.component';
 import { AboutData, AboutField, AboutGoal } from './about/about-you';
 import { AboutSheetComponent } from './about/about-sheet.component';
@@ -58,7 +59,8 @@ export const SETTINGS_ROWS: readonly SettingsRow[] = [
 export class ProfilePage implements OnInit {
   private readonly account = inject(AccountDataService);
   private readonly data = inject(FitSyncDataService);
-  protected readonly today = inject(UserTimezoneService).dateKey();
+  private readonly userTimezone = inject(UserTimezoneService);
+  protected readonly today = this.userTimezone.dateKey();
 
   protected readonly settingsRows = SETTINGS_ROWS;
 
@@ -151,11 +153,14 @@ export class ProfilePage implements OnInit {
     this.loadBadges();
   }
 
-  /** The grid starts on the Monday of the week the account was created, so the join date is passed along. */
+  /**
+   * The grid starts on the Monday of the week the account was created, so the join date is passed along,
+   * as the day it fell on in the person's zone rather than the UTC day.
+   */
   protected loadFootprint(): void {
     this.footprintLoading.set(true);
     this.footprintFailed.set(false);
-    const since = this.user()?.profile?.createdAt?.slice(0, 10) ?? null;
+    const since = dateKeyOf(this.user()?.profile?.createdAt, this.userTimezone.zone()) || null;
     this.data.getFootprint(since).subscribe({
       next: (footprint) => {
         this.footprint.set(footprint);

@@ -4,6 +4,7 @@ import { NutrientTileData } from '../../nutrition/nutrients/nutrients.models';
 import { parseLocalDate, shortDateLabel } from '../../../shared/date-label';
 import { thisMonday } from '../energy/energy-figures';
 import { FoodProgress, GoalProgress, GoalRoad, MacroTrend } from '../progress-api.models';
+import { BarsWeek } from './energy-fallback';
 import { FOUR_WEEKS, Span, monthName } from './goal-road';
 
 /**
@@ -34,6 +35,8 @@ export interface FoodReadingInput {
   /** Today as YYYY-MM-DD, which tells this week from an earlier one. Defaults to the end of the
    *  food period. */
   today?: string;
+  /** The week the card's bars draw, so the protein line reads the same week. */
+  bars?: BarsWeek | null;
 }
 
 /**
@@ -54,6 +57,36 @@ export function macroWhen(macro: MacroTrend, food: FoodProgress, today?: string)
   return last.weekStart >= monday ? 'this week' : `in the week of ${shortDateLabel(last.weekStart, parseLocalDate(day))}`;
 }
 
+/** A bars week that is one Monday-to-Sunday week, not the average of several. */
+function isSingleWeek(bars: BarsWeek): boolean {
+  const start = Date.parse(`${bars.week.weekStart}T00:00:00Z`);
+  const end = Date.parse(`${bars.week.weekEnd}T00:00:00Z`);
+  return Number.isFinite(start) && end - start === 6 * 86_400_000;
+}
+
+/**
+ * The protein figure a Food card sentence gives, with the words for its week. When this week has
+ * too few logged days and the bars fall back to one earlier week that the weekly series holds, the
+ * figure is that week's, named as the bars name it, so the card reads one week everywhere. Otherwise
+ * it is the server's latest week with food, and `macroWhen` names that week by its date whenever it
+ * is not this week.
+ */
+export function proteinReading(food: FoodProgress, bars: BarsWeek | null | undefined, today?: string): { value: number; when: string } | null {
+  const protein = food.macros.protein;
+  if (!protein || protein.thisWeek === null) {
+    return null;
+  }
+  const day = today ?? food.period?.to ?? null;
+  // Only a fallback week is realigned; when the bars draw this week the server figure is that week.
+  if (bars && day && food.granularity === 'week' && isSingleWeek(bars) && bars.week.weekStart < thisMonday(day)) {
+    const same = protein.series.find((point) => point.weekStart === bars.week.weekStart);
+    if (same) {
+      return { value: same.value, when: bars.when };
+    }
+  }
+  return { value: protein.thisWeek, when: macroWhen(protein, food, today) };
+}
+
 function calorieLine({ food, calorieTarget, days }: FoodReadingInput): ReadingLine | null {
   const eaten = food.hero.eatenPerDay.value;
   if (eaten === null) {
@@ -70,13 +103,14 @@ function calorieLine({ food, calorieTarget, days }: FoodReadingInput): ReadingLi
   return reading(`${whole(eaten)} kcal a day on a ${whole(calorieTarget)} target${tail}`, word, word === 'under');
 }
 
-function proteinLine({ food, earlierWords, today }: FoodReadingInput): ReadingLine | null {
+function proteinLine({ food, earlierWords, today, bars }: FoodReadingInput): ReadingLine | null {
   const protein = food.macros.protein;
-  const now = protein?.thisWeek ?? null;
-  if (!protein || now === null) {
+  const read = proteinReading(food, bars, today);
+  if (!protein || !read) {
     return null;
   }
-  const head = `Protein ${whole(now)} g a day ${macroWhen(protein, food, today)}`;
+  const now = read.value;
+  const head = `Protein ${whole(now)} g a day ${read.when}`;
   const target = protein.target;
   if (target === null) {
     return reading(head, 'no target');

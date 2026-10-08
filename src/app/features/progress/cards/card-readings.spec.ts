@@ -3,6 +3,7 @@ import { mapFoodNutrition, mapFoodProgress, mapGoalProgress } from '../progress-
 import { FoodProgress, GoalProgress, GoalRoad } from '../progress-api.models';
 import { FOOD_WIRE, GOAL_WIRE, NUTRITION_WIRE, TODAY } from '../progress-testing.spec';
 import { foodReadingLines, goalReadingLines } from './card-readings';
+import { BarsWeek } from './energy-fallback';
 import { goalCardView } from './goal-card-view';
 import { lossRoad } from './goal-road.spec';
 
@@ -113,6 +114,37 @@ describe('the Food card readings', () => {
     const earlier = food((wire) => ({ ...wire, macros: { ...wire.macros, protein: { ...wire.macros.protein, series: [{ weekStart: '2026-08-10', value: 150 }, { weekStart: '2026-09-21', value: 180 }], thisWeek: 180 } } }));
     expect(read({ food: earlier, today: '2026-10-09' })[1]).toBe('Protein 180 g a day in the week of 21 Sept, 40 g over the 140 g target | met');
     expect(read({ food: earlier, today: '2026-09-23' })[1]).toContain('Protein 180 g a day this week');
+  });
+
+  describe('when the bars fall back to an earlier week', () => {
+    /** The drifting account: 21 Sept has the full week the bars draw, 28 Sept only a day or two of food. */
+    const drifting = (series = [{ weekStart: '2026-08-10', value: 150 }, { weekStart: '2026-09-21', value: 170 }, { weekStart: '2026-09-28', value: 180 }]) =>
+      food((wire) => ({ ...wire, macros: { ...wire.macros, protein: { ...wire.macros.protein, firstWeek: 150, thisWeek: 180, series } } }));
+    const bars = (weekStart: string, weekEnd: string, label: string, when: string): BarsWeek => ({
+      label,
+      when,
+      week: { weekStart, weekEnd, status: 'OK', daysLogged: 5, bmrKcal: 1700, bmrEstimated: false, restingFactor: 1.2, average: null, mealSplit: null, weeklyKgEquivalent: null, days: [], weeks: [] }
+    });
+    const week21 = bars('2026-09-21', '2026-09-27', 'Week of 21 Sept', 'in the week of 21 Sept');
+
+    it('reads the protein of the week the bars draw and names that week', () => {
+      expect(read({ food: drifting(), today: '2026-10-09', bars: week21 })[1]).toBe('Protein 170 g a day in the week of 21 Sept, 30 g over the 140 g target | met');
+    });
+
+    it('keeps the last week with food, named by its own date, when the bars week has no protein figure', () => {
+      const without = drifting([{ weekStart: '2026-08-10', value: 150 }, { weekStart: '2026-09-28', value: 180 }]);
+      expect(read({ food: without, today: '2026-10-09', bars: week21 })[1]).toContain('Protein 180 g a day in the week of 28 Sept');
+    });
+
+    it('keeps the last week with food when the bars draw an average of several weeks', () => {
+      const average = bars('2026-09-07', '2026-10-04', '4-week average', 'on average over the four weeks before this one');
+      expect(read({ food: drifting(), today: '2026-10-09', bars: average })[1]).toContain('Protein 180 g a day in the week of 28 Sept');
+    });
+
+    it('reads as before when the bars draw this week', () => {
+      const thisWeek = bars('2026-09-28', '2026-10-04', 'This week', 'this week');
+      expect(read({ bars: thisWeek })[1]).toBe('Protein 136 g a day this week, 4 g under the 140 g target and down from 150 g a month ago | under (amber)');
+    });
   });
 
   it('judges the nutrients: all met, one short, two short, and the closest when none is under 80%', () => {

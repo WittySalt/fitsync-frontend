@@ -104,7 +104,7 @@ export class FoodCardComponent {
   });
   protected readonly lines = computed(() => {
     const food = this.food();
-    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()), today: this.period().to }) : [];
+    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()), today: this.period().to, bars: this.week() }) : [];
   });
   protected readonly enough = computed(() => {
     const food = this.food();

@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Footprint } from '../../../core/me.models';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { dateKeyOf } from '../../../core/zone-time';
 import { shortDate } from '../../../shared/coach/insight/slope-chart.geometry';
 import { FootprintGridComponent } from '../footprint/footprint-grid.component';
 
@@ -13,9 +15,13 @@ export function initialsOf(name: string | null | undefined): string {
   return ((parts[0][0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1][0] ?? '') : '')).toUpperCase();
 }
 
-/** "Member since 4 Aug 2026 · Singapore"; either part is left out when it is not known. */
-export function memberLine(since: string, place: string | null | undefined): string {
-  const date = /^\d{4}-\d{2}-\d{2}/.test(since) ? `Member since ${shortDate(since.slice(0, 10))} ${since.slice(0, 4)}` : '';
+/**
+ * "Member since 4 Aug 2026 · Singapore"; either part is left out when it is not known. An instant is
+ * shown as the day it fell on in the person's zone, so an evening sign-up in UTC is not a day early.
+ */
+export function memberLine(since: string, place: string | null | undefined, timezone: string): string {
+  const day = dateKeyOf(since, timezone);
+  const date = day ? `Member since ${shortDate(day)} ${day.slice(0, 4)}` : '';
   return [date, (place ?? '').trim()].filter(Boolean).join(' · ');
 }
 
@@ -44,8 +50,10 @@ export class IdentityCardComponent {
   readonly today = input.required<string>();
   readonly retry = output<void>();
 
+  private readonly userTimezone = inject(UserTimezoneService);
+
   protected readonly initials = computed(() => initialsOf(this.name()));
-  protected readonly member = computed(() => memberLine(this.footprint()?.memberSince || this.createdAt() || '', this.place()));
+  protected readonly member = computed(() => memberLine(this.footprint()?.memberSince || this.createdAt() || '', this.place(), this.userTimezone.zone()));
   protected readonly totals = computed(() => this.footprint()?.totals ?? null);
   protected readonly started = computed(() => {
     const totals = this.totals();
