@@ -730,7 +730,7 @@ describe('ExerciseLibraryComponent', () => {
     expect(component.editImageError()).toBe('');
   });
 
-  it('clears saving when an edit video or photo upload answers with an empty body', () => {
+  it('reports an edit video or photo upload answered with an empty body as a failure', () => {
     const customExercise = exercise({ custom: true });
     dataService.uploadExerciseVideo.and.returnValue(of(new HttpResponse<Exercise>({ body: null })));
     dataService.uploadExerciseImage.and.returnValue(of(new HttpResponse<Exercise>({ body: null })));
@@ -743,11 +743,35 @@ describe('ExerciseLibraryComponent', () => {
     component.uploadEditingVideo();
     expect(dataService.uploadExerciseVideo).toHaveBeenCalled();
     expect(component.saving()).toBeFalse();
+    expect(component.editVideoError()).toBe('Unable to upload video. Please retry.');
+    expect(toast.error).toHaveBeenCalledWith('Unable to upload exercise video. Please retry.');
 
     component.editImageFile.set(new File(['image'], 'demo.webp', { type: 'image/webp' }));
     component.uploadEditingImage();
     expect(dataService.uploadExerciseImage).toHaveBeenCalled();
     expect(component.saving()).toBeFalse();
+    expect(component.editImageError()).toBe('Unable to upload photo. Please retry.');
+    expect(toast.error).toHaveBeenCalledWith('Unable to upload exercise photo. Please retry.');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('reports a create photo upload answered with an empty body as a failure and does not finish the create', () => {
+    dataService.uploadExerciseImage.and.returnValue(of(new HttpResponse<Exercise>({ body: null })));
+    const fixture = TestBed.createComponent(ExerciseLibraryComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.saving.set(true);
+    (component as unknown as { uploadCreateMedia(id: string, image: File, video: File): void }).uploadCreateMedia(
+      'created-1',
+      new File(['image'], 'demo.webp', { type: 'image/webp' }),
+      new File(['video'], 'demo.mp4', { type: 'video/mp4' })
+    );
+
+    expect(dataService.uploadExerciseVideo).not.toHaveBeenCalled();
+    expect(component.saving()).toBeFalse();
+    expect(component.createImageError()).toBe('Unable to upload photo. Please retry.');
+    expect(toast.success).not.toHaveBeenCalledWith('Exercise created.');
   });
 
   it('keeps saving while a create photo upload hands off to the video upload', () => {

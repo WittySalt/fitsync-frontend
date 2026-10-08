@@ -799,7 +799,13 @@ export class ExerciseLibraryComponent implements OnInit {
     const progressSignal = target === 'create' ? this.createImageUploadProgress : this.editImageUploadProgress;
     const errorSignal = target === 'create' ? this.createImageError : this.editImageError;
     progressSignal.set(0);
-    // onSuccess owns the saving flag (it may chain another upload); without a body it never runs, so clear it here.
+    const fail = () => {
+      errorSignal.set('Unable to upload photo. Please retry.');
+      this.toast.error('Unable to upload exercise photo. Please retry.');
+      this.saving.set(false);
+    };
+    // onSuccess owns the saving flag (it may chain another upload). A response without the
+    // updated exercise means the upload can't be confirmed, so it is reported as a failure.
     let handedOff = false;
     this.dataService.uploadExerciseImage(exerciseId, file).subscribe({
       next: (event) => {
@@ -814,14 +820,10 @@ export class ExerciseLibraryComponent implements OnInit {
           onSuccess(event.body);
         }
       },
-      error: () => {
-        errorSignal.set('Unable to upload photo. Please retry.');
-        this.toast.error('Unable to upload exercise photo. Please retry.');
-        this.saving.set(false);
-      },
+      error: fail,
       complete: () => {
         if (!handedOff) {
-          this.saving.set(false);
+          fail();
         }
       }
     });
@@ -836,7 +838,13 @@ export class ExerciseLibraryComponent implements OnInit {
     const progressSignal = target === 'create' ? this.createUploadProgress : this.editUploadProgress;
     const errorSignal = target === 'create' ? this.createVideoError : this.editVideoError;
     progressSignal.set(0);
-    // onSuccess owns the saving flag; without a body it never runs, so clear it here.
+    const fail = () => {
+      errorSignal.set('Unable to upload video. Please retry.');
+      this.toast.error('Unable to upload exercise video. Please retry.');
+      this.saving.set(false);
+    };
+    // onSuccess owns the saving flag. A response without the updated exercise means the
+    // upload can't be confirmed, so it is reported as a failure.
     let handedOff = false;
     this.dataService.uploadExerciseVideo(exerciseId, file).subscribe({
       next: (event) => {
@@ -853,14 +861,10 @@ export class ExerciseLibraryComponent implements OnInit {
           }
         }
       },
-      error: () => {
-        errorSignal.set('Unable to upload video. Please retry.');
-        this.toast.error('Unable to upload exercise video. Please retry.');
-        this.saving.set(false);
-      },
+      error: fail,
       complete: () => {
         if (!handedOff) {
-          this.saving.set(false);
+          fail();
         }
       }
     });
