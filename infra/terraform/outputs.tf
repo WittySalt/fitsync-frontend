@@ -17,3 +17,8 @@ output "cloudfront_distribution_id" {
   description = "CloudFront distribution id for cache invalidation (null unless enabled)"
   value       = var.enable_cloudfront ? aws_cloudfront_distribution.frontend[0].id : null
 }
+
+output "custom_domain_url" {
+  description = "HTTPS URL on the custom domain (null unless custom_domain is set)"
+  value       = local.use_custom_domain ? "https://${var.custom_domain}" : null
+}

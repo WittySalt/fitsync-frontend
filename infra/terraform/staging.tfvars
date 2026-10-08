@@ -14,3 +14,8 @@ enable_cloudfront = true
 
 # Staging backend ALB (alb_dns_name output of the backend staging stack) for /api/*.
 api_origin_domain = "fitsync-staging-alb-489104795.ap-southeast-1.elb.amazonaws.com"
+
+# Custom hostname: ACM cert (us-east-1) + DNS validation + A/AAAA aliases in the
+# fitsyncapp.click zone (zone owned by the backend bootstrap Terraform). The old
+# d1z92tpb353lfi.cloudfront.net hostname keeps working.
+custom_domain = "staging.fitsyncapp.click"
