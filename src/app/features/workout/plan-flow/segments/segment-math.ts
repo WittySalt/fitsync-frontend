@@ -2,9 +2,10 @@ import { StripRow } from '../../segments/segment-timer';
 import { DraftSegment, SEGMENT_LABELS, SegmentKind } from '../plan-draft';
 
 /**
- * The arithmetic of the cardio segment strip. A day's shape is a list of segments; Work and Easy
- * that share a round count form one interval block on the strip. Every operation keeps the total
- * of the day fixed, which is why dragging a boundary only ever trades minutes between neighbours.
+ * The arithmetic of the cardio segment strip. A day's shape is a list of segments; two neighbours
+ * that share a round count (usually Work and Easy) form one interval block on the strip. Every
+ * operation but `resizeTotal` keeps the total of the day fixed, which is why dragging a boundary only
+ * ever trades minutes between neighbours.
  */
 
 /** One bar of the strip: a single segment, or a Work and Easy pair that repeats. */
@@ -84,6 +85,7 @@ export function intervalRounds(segments: readonly DraftSegment[]): number | null
   return toBlocks(segments).find((block) => block.kind === 'INTERVALS')?.rounds ?? null;
 }
 
+/** The fewest minutes a block can shrink to: an interval block keeps at least one minute of Work in every round. */
 function minimumOf(block: SegmentBlock): number {
   return block.kind === 'INTERVALS' ? (block.rounds ?? 1) * (1 + (block.easy ?? 1)) : MIN_BLOCK_MINUTES;
 }
@@ -121,6 +123,7 @@ export function dragBoundary(segments: readonly DraftSegment[], boundary: number
   if (!left || !right || !Number.isFinite(delta)) {
     return [...segments];
   }
+  // The least common multiple of the two steps, so both blocks change by whole minutes per round.
   const step = (stepOf(left) * stepOf(right)) / gcd(stepOf(left), stepOf(right));
   const growRoom = Math.floor((right.minutes - minimumOf(right)) / step) * step;
   const shrinkRoom = Math.floor((left.minutes - minimumOf(left)) / step) * step;
@@ -175,6 +178,7 @@ export function setIntervals(segments: readonly DraftSegment[], on: boolean, rou
   }
   const total = steady.minutes;
   let count = Math.max(1, Math.min(rounds, MAX_ROUNDS, Math.floor(total / 2)));
+  // With no neighbour to take the leftover minutes, the round count has to divide the total exactly.
   const hasNeighbour = segments.length > 1;
   while (!hasNeighbour && count > 1 && total % count !== 0) {
     count -= 1;
@@ -199,6 +203,7 @@ export function setRounds(segments: readonly DraftSegment[], rounds: number): Dr
   }
   const total = group.minutes;
   let count = Math.max(1, Math.min(Math.round(rounds), MAX_ROUNDS, Math.floor(total / 2)));
+  // With no neighbour to take the leftover minutes, the round count has to divide the total exactly.
   const hasNeighbour = segments.length > 2;
   while (!hasNeighbour && count > 1 && total % count !== 0) {
     count -= 1;
@@ -232,6 +237,7 @@ export function resizeTotal(segments: readonly DraftSegment[], newTotal: number)
     return [...segments];
   }
   const next = [...segments];
+  // Steady takes the change first, then the cool-down, the warm-up and any other single row. Repeating rows never do.
   const order = (item: DraftSegment): number => {
     const rank: Partial<Record<SegmentKind, number>> = { STEADY: 0, COOLDOWN: 1, WARMUP: 2 };
     return item.rounds ? 3 : (rank[item.kind] ?? 3);

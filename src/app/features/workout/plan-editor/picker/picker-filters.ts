@@ -74,7 +74,7 @@ export function searchOptionsFor(filters: PickerFilters, page: number, size = PI
   };
 }
 
-/** Merges the pages of several single-equipment queries into one list, by name, without repeats. */
+/** Merges the pages of several single-equipment queries into one list, without repeats (by id, else code). */
 export function mergeExercises(lists: readonly (readonly Exercise[])[]): Exercise[] {
   const seen = new Set<string>();
   const merged: Exercise[] = [];

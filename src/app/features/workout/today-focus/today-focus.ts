@@ -26,7 +26,7 @@ export interface FocusTarget {
   today: string;
 }
 
-/** The muscle groups of one move and the best of its last session. */
+/** The muscle groups of one move and its logged history. */
 export interface MoveFacts {
   exerciseId: string;
   primary: string[];
@@ -107,6 +107,7 @@ export function sportGroups(label: string): string[] {
   return SPORT_GROUPS.find((entry) => entry.words.some((word) => name.includes(word)))?.groups ?? FALLBACK_SPORT_GROUPS;
 }
 
+/** A date key as UTC midnight, so day arithmetic and weekdays never shift with the local zone or daylight saving. */
 function utc(key: string): Date {
   return new Date(`${key}T00:00:00Z`);
 }
@@ -125,6 +126,7 @@ export function addDays(key: string, days: number): string {
 export function dayLabel(key: string): string {
   const date = utc(key);
   const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date);
+  // getUTCDay counts from Sunday; the + 6 shifts it so Monday is 0.
   return `${SHORT_NAMES[(date.getUTCDay() + 6) % 7]} ${day}`;
 }
 
@@ -296,8 +298,8 @@ function weekRows(insight: WeeklyTrainingInsight | null, today: string): NonNull
 function sportBlock(target: FocusTarget, facts: FocusFacts, zoneKey: (value: string) => string): FocusCardBlock {
   const weekday = weekdayName(target.today);
   const name = target.label.toLowerCase();
-  const same = facts.history.filter((session) => (session.sportLabel ?? session.name ?? '').toLowerCase().includes(name));
-  const playedOn = new Set(same.map((session) => dateOf(session, zoneKey)));
+  const sameSport = facts.history.filter((session) => (session.sportLabel ?? session.name ?? '').toLowerCase().includes(name));
+  const playedOn = new Set(sameSport.map((session) => dateOf(session, zoneKey)));
   const dots = [4, 3, 2, 1].map((back) => {
     const date = addDays(target.today, -7 * back);
     return { label: dayLabel(date).replace(/^\w+ /, ''), state: playedOn.has(date) ? ('played' as const) : ('missed' as const) };
@@ -305,7 +307,7 @@ function sportBlock(target: FocusTarget, facts: FocusFacts, zoneKey: (value: str
   const month = target.today.slice(0, 7);
   const thisMonth = facts.history.filter((session) => dateOf(session, zoneKey).startsWith(month));
   const minutes = thisMonth.reduce((sum, session) => sum + (session.durationMinutes ?? 0), 0);
-  const typical = same.find((session) => session.durationMinutes)?.durationMinutes ?? target.minutes;
+  const typical = sameSport.find((session) => session.durationMinutes)?.durationMinutes ?? target.minutes;
   return {
     kind: 'sport',
     usual: ['Usually ' + weekday + 's', typical ? formatDuration(typical) : '', 'counts as cardio'].filter(Boolean).join(' · '),
@@ -367,19 +369,20 @@ export function buildFocus(target: FocusTarget, facts: FocusFacts, zoneKey: (val
   }
   if (target.kind === 'sport') {
     const groups = sportGroups(target.label);
+    // The same small count for every group: the figure only marks which groups a sport uses, drawn light.
     const sets = Object.fromEntries(groups.map((group) => [group, 4]));
     const name = target.label.toLowerCase();
     const last = facts.history.find((session) => (session.sportLabel ?? session.name ?? '').toLowerCase().includes(name));
     const yesterday = addDays(target.today, -1);
-    const before = facts.history.find((session) => dateOf(session, zoneKey) === yesterday);
+    const yesterdaySession = facts.history.find((session) => dateOf(session, zoneKey) === yesterday);
     const rows: FocusRow[] = [];
     if (last) {
       const when = dayLabel(dateOf(last, zoneKey));
       const effort = last.perceivedExertion ? ` · effort ${last.perceivedExertion} of 10` : '';
       rows.push({ mark: '1', text: `Last time ${when} · ${formatDuration(last.durationMinutes)}${effort}` });
     }
-    if (before) {
-      rows.push({ mark: String(rows.length + 1), text: `Yesterday: ${before.name}, ${formatDuration(before.durationMinutes)}` });
+    if (yesterdaySession) {
+      rows.push({ mark: String(rows.length + 1), text: `Yesterday: ${yesterdaySession.name}, ${formatDuration(yesterdaySession.durationMinutes)}` });
     }
     return {
       ...base,

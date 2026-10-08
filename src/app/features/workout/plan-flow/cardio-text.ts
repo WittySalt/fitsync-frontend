@@ -17,7 +17,7 @@ export function formatPace(minutesPerKm: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function trim(value: number): string {
+function twoDecimals(value: number): string {
   return String(Math.round(value * 100) / 100);
 }
 
@@ -32,12 +32,12 @@ export function lastCardioLine(last: CardioHistory | null): string {
     : when.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const parts: string[] = [];
   if (last.distanceKm && last.minutes) {
-    parts.push(`${trim(last.distanceKm)} km in ${last.minutes} min`);
+    parts.push(`${twoDecimals(last.distanceKm)} km in ${last.minutes} min`);
     parts.push(`${formatPace(last.minutes / last.distanceKm)} a km`);
   } else if (last.minutes) {
     parts.push(`${last.minutes} min`);
   } else if (last.distanceKm) {
-    parts.push(`${trim(last.distanceKm)} km`);
+    parts.push(`${twoDecimals(last.distanceKm)} km`);
   }
   if (date) {
     parts.push(date);
@@ -45,7 +45,10 @@ export function lastCardioLine(last: CardioHistory | null): string {
   return parts.length ? `Last run: ${parts.join(', ')}` : 'No runs logged yet';
 }
 
-/** The other two targets worked out from the chosen one and the day's minutes: "about 5 km at this pace". */
+/**
+ * What the chosen target means over the day's minutes: a pace gives the distance ("About 5 km at this
+ * pace"), a distance gives the pace. A minutes target needs no hint.
+ */
 export function targetHint(day: Pick<DraftDay, 'targetKind' | 'targetValue' | 'minutes'>): string {
   const value = day.targetValue;
   const minutes = day.minutes;
@@ -53,7 +56,7 @@ export function targetHint(day: Pick<DraftDay, 'targetKind' | 'targetValue' | 'm
     return '';
   }
   if (day.targetKind === 'PACE') {
-    return `About ${trim(minutes / value)} km at this pace`;
+    return `About ${twoDecimals(minutes / value)} km at this pace`;
   }
   if (day.targetKind === 'DISTANCE') {
     return `About ${formatPace(minutes / value)} a km over ${minutes} min`;

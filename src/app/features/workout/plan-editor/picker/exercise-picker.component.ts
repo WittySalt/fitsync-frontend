@@ -61,9 +61,12 @@ export class ExercisePickerComponent {
 
   protected readonly muscleChips = MUSCLE_CHIPS;
   protected readonly levelChips = LEVEL_CHIPS;
+  // Every group gets the same count (8 reads as the "low" heat level), so the figure is evenly tinted and
+  // works only as a muscle chooser here, not as a chart.
   protected readonly allGroups = Object.fromEntries(MUSCLE_GROUPS.map((group) => [group, 8]));
 
   readonly ready = signal(false);
+  /** From 768 px of viewport the picker is a dialog with the muscle figure; below it is a bottom sheet. */
   readonly wide = signal(typeof window !== 'undefined' && window.innerWidth >= 768);
   readonly q = signal('');
   readonly muscle = signal<string | null>(null);

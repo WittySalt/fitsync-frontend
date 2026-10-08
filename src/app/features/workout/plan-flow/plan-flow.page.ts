@@ -13,7 +13,6 @@ import { WeekPanelComponent } from './week-panel.component';
 import { WeekStripComponent } from './week-strip.component';
 import { observeBand } from './width-band';
 
-
 /**
  * The plan flow: step 1 builds the week with the week itself as the navigation, step 2 reviews
  * and saves. One page for a new plan (`/workout/plans/new`) and for editing a saved one

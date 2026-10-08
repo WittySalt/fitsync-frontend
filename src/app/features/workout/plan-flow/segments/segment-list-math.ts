@@ -24,7 +24,7 @@ export function hiitSegments(): DraftSegment[] {
   return [segment('WARMUP', 5), { ...segment('WORK', 1), rounds: 8 }, { ...segment('EASY', 2), rounds: 8 }, segment('COOLDOWN', 5)];
 }
 
-/** Warm-up 10, play for the rest, cool-down 5; a short day is one play stretch. */
+/** Warm-up 10, play for the rest, cool-down 5; under 18 minutes (less than 3 of play) it is one play stretch. */
 export function sportSegments(total: number): DraftSegment[] {
   const minutes = Math.max(1, Math.round(total));
   if (minutes < 18) {
@@ -105,8 +105,9 @@ export function moveSegment(segments: readonly DraftSegment[], from: number, to:
 }
 
 /**
- * Makes a row and the next one repeat. On the last row there is no next one, so an Easy row of
- * two minutes is added to pair with. A row that is already half of a pair is left as it is.
+ * Makes a row and the next one repeat. When there is no free next row (the last row, or one whose
+ * next row is already in a pair), an Easy row of two minutes is added to pair with. A row that is
+ * already half of a pair is left as it is.
  */
 export function repeatRow(segments: readonly DraftSegment[], index: number, rounds = DEFAULT_PAIR_ROUNDS, play = false): DraftSegment[] {
   if (!segments[index] || pairRoles(segments)[index] !== null) {
