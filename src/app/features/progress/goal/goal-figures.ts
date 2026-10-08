@@ -83,11 +83,6 @@ export function goalSummaryLines(goal: GoalProgress): SummaryLine[] {
   return lines;
 }
 
-export function goalSummaryContext(goal: GoalProgress): string {
-  const previous = goal.hero.weeklyRate.previous;
-  return previous === null ? '' : `Was ${signed(previous, 2)} kg a week in the 4 weeks before`;
-}
-
 /**
  * The Goal page's four figures (board 19a). A figure the server did not send shows a dash, and a
  * figure with nothing earlier to compare with says so instead of showing a change.
@@ -203,9 +198,8 @@ export function weightSentence(goal: GoalProgress): string {
 
 /** The one sentence under Body: how far the waist and the body fat moved over the same weeks. */
 export function bodySentence(body: GoalProgress['body']): string {
-  const change = (series: BodySeries | null): number | null => bodyChange(series);
-  const waist = change(body.waist);
-  const fat = change(body.bodyFat);
+  const waist = bodyChange(body.waist);
+  const fat = bodyChange(body.bodyFat);
   const parts: string[] = [];
   if (waist !== null) {
     parts.push(`Waist ${waist < 0 ? 'fell' : 'rose'} ${formatNumber(Math.abs(waist), 1)} cm`);

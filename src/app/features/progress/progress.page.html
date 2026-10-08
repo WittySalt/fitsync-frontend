@@ -44,6 +44,7 @@
     </div>
 
     <div id="progress-training" class="section">
+      <!-- A one-item @for tracked by the range: the card below and the Food card are built anew whenever the period changes. -->
       @for (key of [range().from + range().to]; track key) {
         <app-training-card [from]="range().from" [to]="range().to" [periodWords]="period().trained" />
       }

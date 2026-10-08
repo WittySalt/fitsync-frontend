@@ -56,7 +56,7 @@ function against(value: number | null, previous: number | null, kind: 'count' | 
 
 export function heroTiles(progress: TrainingProgress): HeroStat[] {
   const hero = progress.hero;
-  const value = (number: number | null, format: (value: number) => string): string => (number === null ? '–' : format(number));
+  const value = (figure: number | null, format: (value: number) => string): string => (figure === null ? '–' : format(figure));
   const records = hero.records.exercises.slice(0, 3).map((name) => name.toLowerCase()).join(', ');
   return [
     { label: 'Sessions', value: value(hero.sessions.value, String), context: against(hero.sessions.value, hero.sessions.previous, 'count') },
@@ -141,6 +141,7 @@ export function trainingSentence(progress: TrainingProgress, code: PeriodCode): 
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TrainingPage {
+  // Kept for its side effect: marks the page visited for the guide.
   private readonly visit = markVisit('progress-training');
   private readonly api = inject(TrainingApiService);
   protected readonly period = usePeriod();
@@ -152,6 +153,7 @@ export class TrainingPage {
   protected readonly unitValue = unitValue;
   protected readonly eyebrow = computed(() => periodEyebrow('Training', this.period.code(), this.period.range().from, this.period.range().to));
   protected readonly data = computed(() => shownData(this.state()));
+  // Kept for its side effect: scrolls to the address's #fragment once the data is in.
   private readonly scrollToSection = useFragmentScroll(computed(() => this.data() !== null));
   protected readonly verdict = computed(() => {
     const data = this.data();

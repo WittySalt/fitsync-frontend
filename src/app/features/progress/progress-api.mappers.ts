@@ -199,6 +199,7 @@ function macro(value: unknown, currentWeek: CurrentWeek | null, to: string | nul
     return null;
   }
   const all = list(wire['series'], (item) => {
+    // In month mode `weekStart` holds the first day of the month, so the charts read both modes alike.
     const weekStart = month ? monthKey(str(item['month']) ?? str(item['weekStart'])) : str(item['weekStart']);
     const point = num(item['value']);
     return weekStart && point !== null ? { weekStart, value: point, ...(month ? { partial: bool(item['partial']) } : {}) } : null;
@@ -227,9 +228,10 @@ function mealShares(value: unknown): MealShare[] {
 
 /** Meals: this period's shares and, when the server sends them, the period before (null when absent or empty). */
 function mapMeals(wire: Record<string, unknown> | null): FoodProgress['meals'] {
+  // This period's list comes as `share`, or as `current` where the answer uses that name.
   const share = mealShares(wire?.['share'] ?? wire?.['current']);
-  const before = wire?.['previous'] === undefined || wire['previous'] === null ? [] : mealShares(wire['previous']);
-  return { share, previous: before.length ? before : null };
+  const previous = wire?.['previous'] === undefined || wire['previous'] === null ? [] : mealShares(wire['previous']);
+  return { share, previous: previous.length ? previous : null };
 }
 
 /** A month series is whole as it comes; a weekly one ends at the last full week when the server says so. */

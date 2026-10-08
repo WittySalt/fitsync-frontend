@@ -39,9 +39,9 @@ export function barsWeek(current: EnergyWeek | null, earlier: readonly (EnergyWe
   if (current && current.status === 'OK') {
     return { week: current, label: 'This week' };
   }
-  const full = earlier.find((week): week is EnergyWeek => week !== null && week.status === 'OK');
-  if (full) {
-    return { week: full, label: `Week of ${shortDateLabel(full.weekStart, reference)}` };
+  const fullWeek = earlier.find((week): week is EnergyWeek => week !== null && week.status === 'OK');
+  if (fullWeek) {
+    return { week: fullWeek, label: `Week of ${shortDateLabel(fullWeek.weekStart, reference)}` };
   }
   const logged = earlier.filter((week): week is EnergyWeek => week !== null && week.status !== 'NO_PROFILE' && week.daysLogged > 0 && week.average !== null);
   if (logged.length === 0) {
@@ -49,11 +49,12 @@ export function barsWeek(current: EnergyWeek | null, earlier: readonly (EnergyWe
   }
   const average = weighted(logged, FIELDS, (week) => week.average as EnergyAverage as Record<Field, number | null>) as EnergyAverage;
   const hasSplit = logged.every((week) => week.mealSplit !== null);
-  const first = logged[logged.length - 1];
+  // `earlier` runs newest first, so the last logged week is the oldest and starts the average.
+  const oldest = logged[logged.length - 1];
   return {
     week: {
-      ...first,
-      weekStart: first.weekStart,
+      ...oldest,
+      weekStart: oldest.weekStart,
       weekEnd: logged[0].weekEnd,
       status: 'OK',
       daysLogged: logged.reduce((total, week) => total + week.daysLogged, 0),

@@ -118,6 +118,7 @@ export function exerciseSentence(data: ExerciseProgress): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExercisePage {
+  // Kept for its side effect: counts the exercise page as opened for the guide.
   private readonly opened = inject(GuideService).bump(EXERCISE_OPENED);
   private readonly api = inject(TrainingApiService);
   protected readonly period = usePeriod();
@@ -146,8 +147,8 @@ export class ExercisePage {
   protected readonly points = computed(() => this.data()?.series[this.series()] ?? []);
   protected readonly seriesLine = computed(() => {
     const points = this.points();
-    const best = points.filter((point) => point.isRecord).length;
-    return points.length >= 2 ? `${plural(points.length, 'session')} in this period, ${plural(best, 'record')}, each point the best of its session.` : 'Each point is the best of a session.';
+    const records = points.filter((point) => point.isRecord).length;
+    return points.length >= 2 ? `${plural(points.length, 'session')} in this period, ${plural(records, 'record')}, each point the best of its session.` : 'Each point is the best of a session.';
   });
   protected readonly historyLine = computed(() => `${plural(this.data()?.history.length ?? 0, 'session')} with sets, newest first.`);
   protected readonly card = computed<CoachCardContext | null>(() => (this.exerciseId() ? { kind: 'EXERCISE', id: this.exerciseId(), ...this.period.range() } : null));

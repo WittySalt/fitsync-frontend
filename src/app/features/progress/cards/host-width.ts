@@ -20,28 +20,3 @@ export function hostWidth(fallback = 480): Signal<number> {
   });
   return computed(() => (measured() > 0 ? measured() : fallback));
 }
-
-/** Width and height of the host, kept current; the height is what the box around a picture gives it. */
-export function hostSize(fallbackWidth = 480, fallbackHeight = 240): { width: Signal<number>; height: Signal<number> } {
-  const element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  const destroyRef = inject(DestroyRef);
-  const width = signal(0);
-  const height = signal(0);
-  afterNextRender(() => {
-    const read = (): void => {
-      width.set(Math.floor(element.clientWidth));
-      height.set(Math.floor(element.clientHeight));
-    };
-    read();
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-    const observer = new ResizeObserver(read);
-    observer.observe(element);
-    destroyRef.onDestroy(() => observer.disconnect());
-  });
-  return {
-    width: computed(() => (width() > 0 ? width() : fallbackWidth)),
-    height: computed(() => (height() > 0 ? height() : fallbackHeight))
-  };
-}

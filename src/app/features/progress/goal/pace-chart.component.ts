@@ -39,19 +39,20 @@ export function paceGeometry(allWeeks: readonly PaceWeek[], height: number, widt
   const bottom = height - 26;
   const right = Math.max(...values.map((v) => textWidth(`${signed(v)} kg`, 12, true)), 40) + 18;
   const x1 = width - right;
-  const x = (k: number) => X0 + ((x1 - X0) * (k + 1)) / weeks.length;
-  const y = (v: number) => top + ((bottom - top) * (hi - v)) / (hi - lo || 1);
+  // Week 0 sits one step right of the axis, which holds the shared zero start.
+  const x = (index: number) => X0 + ((x1 - X0) * (index + 1)) / weeks.length;
+  const y = (kg: number) => top + ((bottom - top) * (hi - kg)) / (hi - lo || 1);
   const ticks: PaceGeometry['ticks'] = [];
   for (let v = hi; v >= lo; v -= 1) {
     ticks.push({ y: y(v), text: v === 0 ? '0' : `${signed(v, 0)} kg`, zero: v === 0 });
   }
   const series = (pick: (w: PaceWeek) => number | null) => {
-    const points = weeks.map((w, k) => ({ k, v: pick(w) })).filter((p): p is { k: number; v: number } => p.v !== null);
+    const points = weeks.map((w, index) => ({ index, kg: pick(w) })).filter((p): p is { index: number; kg: number } => p.kg !== null);
     const last = points.at(-1);
     return {
-      line: [`${X0},${y(0).toFixed(1)}`, ...points.map((p) => `${x(p.k).toFixed(1)},${y(p.v).toFixed(1)}`)].join(' '),
-      dots: points.map((p) => ({ x: x(p.k), y: y(p.v) })),
-      end: last ? { y: y(last.v), text: `${signed(last.v)} kg` } : null
+      line: [`${X0},${y(0).toFixed(1)}`, ...points.map((p) => `${x(p.index).toFixed(1)},${y(p.kg).toFixed(1)}`)].join(' '),
+      dots: points.map((p) => ({ x: x(p.index), y: y(p.kg) })),
+      end: last ? { y: y(last.kg), text: `${signed(last.kg)} kg` } : null
     };
   };
   return {

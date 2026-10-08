@@ -41,6 +41,7 @@ export function goalCoachLine(goal: GoalProgress, today: string): string {
   switch (road.state) {
     case 'AHEAD':
     case 'ON_COURSE': {
+      // A derived road has no crossing dates, so the whole kilos moved stand in for the crossed ticks.
       const crossed = road.ticks.filter((tick) => tick.crossedOn !== null).length || Math.floor(Math.abs(road.nowKg - road.startKg));
       const next = road.ticks.find((tick) => tick.crossedOn === null && tick.projectedOn !== null);
       const done = crossed > 0 ? `${crossed} ${crossed === 1 ? 'kilo' : 'kilos'} ${road.direction === 'GAIN' ? 'up' : 'down'}${road.startDate ? ` since ${monthName(road.startDate)}` : ''}.` : '';
@@ -52,6 +53,7 @@ export function goalCoachLine(goal: GoalProgress, today: string): string {
       if (!road.targetDate || left <= 0) {
         return 'The last 28 days were slower than the plan needs.';
       }
+      // The kilos still to go spread over the weeks left: kg a week.
       const needed = road.distanceKg / (left / 7);
       return `The last 28 days were slower than the plan needs; ${day(road.targetDate)} needs ${formatNumber(needed, 2)} kg a week from here.`;
     }

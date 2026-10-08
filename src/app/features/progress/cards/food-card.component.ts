@@ -65,9 +65,10 @@ export class FoodCardComponent {
   readonly calorieTarget = input<number | null>(null);
 
   private readonly attempt = signal(0);
-  private readonly key = computed(() => ({ ...this.period(), attempt: this.attempt() }));
+  /** The attempt is part of the request, so a retry reads the same period again. */
+  private readonly request = computed(() => ({ ...this.period(), attempt: this.attempt() }));
   protected readonly state = toSignal(
-    toObservable(this.key).pipe(
+    toObservable(this.request).pipe(
       switchMap(({ from, to }) =>
         this.api.getFood(from, to).pipe(
           map((food): FoodState => ({ status: 'ready', food })),

@@ -56,6 +56,7 @@ export function weightChartGeometry(
 ): WeightChartGeometry | null {
   const inWindow = (date: string) => since === null || date >= since;
   const daily = weight.daily.filter((d) => inWindow(d.date));
+  // A weekly average is drawn at its Thursday, the middle of its week.
   const weeks = weight.weekly.map((w) => ({ date: shiftDay(w.weekStart, 3), kg: w.avgKg })).filter((w) => inWindow(w.date));
   const line = weeks.length >= 2 ? weeks : daily.map((d) => ({ date: d.date, kg: d.kg }));
   if (line.length < 2) {
@@ -74,6 +75,7 @@ export function weightChartGeometry(
   const d0 = dates.reduce((a, b) => (a < b ? a : b));
   const d1 = dates.reduce((a, b) => (a > b ? a : b));
   const kgs = [...line.map((p) => p.kg), ...daily.map((d) => d.kg), ...projection.map((p) => p.kg), ...(target === null ? [] : [target])];
+  // Grid lines every kilo, or every two when the weights span more than 6 kg.
   const step = Math.max(...kgs) - Math.min(...kgs) > 6 ? 2 : 1;
   let lo = Math.floor((Math.min(...kgs) - 0.5) / step) * step;
   const hi = Math.ceil((Math.max(...kgs) + 0.5) / step) * step;

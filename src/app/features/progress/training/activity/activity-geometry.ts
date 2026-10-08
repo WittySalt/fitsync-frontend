@@ -32,26 +32,27 @@ export function sessionChart(sessions: readonly ActivitySession[], width = 520, 
   if (!rows.length) {
     return null;
   }
-  const x0 = axisGutter([`${niceTop(Math.max(...rows.map((row) => row.minutes)), 30)} min`]);
+  const top = niceTop(Math.max(...rows.map((row) => row.minutes)), 30);
+  const x0 = axisGutter([`${top} min`]);
   const slot = (width - x0) / rows.length;
   const bandTop = 24;
   const bandBottom = 64;
   const barTop = 82;
   const barBottom = height - 26;
   const efforts = rows.map((row) => row.effort).filter((value): value is number => value !== null);
-  const lowEffort = Math.max(0, Math.min(4, ...efforts) - 0);
+  // The effort band spans at least five points of the 1 to 10 scale, from 4 or lower.
+  const lowEffort = Math.max(0, Math.min(4, ...efforts));
   const highEffort = Math.min(10, Math.max(lowEffort + 5, ...efforts));
-  const top = niceTop(Math.max(...rows.map((row) => row.minutes)), 30);
-  const ey = (effort: number): number => bandBottom - ((bandBottom - bandTop) * (effort - lowEffort)) / (highEffort - lowEffort || 1);
-  const my = (minutes: number): number => barBottom - ((barBottom - barTop) * minutes) / top;
-  const grid = [0, top / 3, (top * 2) / 3, top].map((value, index, all) => ({ y: r1(my(value)), label: index === all.length - 1 ? `${Math.round(value)} min` : String(Math.round(value)) }));
+  const effortY = (effort: number): number => bandBottom - ((bandBottom - bandTop) * (effort - lowEffort)) / (highEffort - lowEffort || 1);
+  const minutesY = (minutes: number): number => barBottom - ((barBottom - barTop) * minutes) / top;
+  const grid = [0, top / 3, (top * 2) / 3, top].map((value, index, all) => ({ y: r1(minutesY(value)), label: index === all.length - 1 ? `${Math.round(value)} min` : String(Math.round(value)) }));
   const columns = rows.map((row, index) => {
     const cx = x0 + slot * index + slot / 2;
     const barWidth = Math.min(36, slot * 0.56);
     return {
-      bar: { x: r1(cx - barWidth / 2), y: r1(my(row.minutes)), width: r1(barWidth), height: r1(my(0) - my(row.minutes)) },
-      minutes: { x: r1(cx), y: r1(my(row.minutes) + 14), text: String(Math.round(row.minutes)), anchor: 'middle' as const },
-      effort: row.effort === null ? null : { x: r1(cx), y: r1(ey(row.effort)), text: String(Math.round(row.effort)), estimated: row.estimatedEffort }
+      bar: { x: r1(cx - barWidth / 2), y: r1(minutesY(row.minutes)), width: r1(barWidth), height: r1(minutesY(0) - minutesY(row.minutes)) },
+      minutes: { x: r1(cx), y: r1(minutesY(row.minutes) + 14), text: String(Math.round(row.minutes)), anchor: 'middle' as const },
+      effort: row.effort === null ? null : { x: r1(cx), y: r1(effortY(row.effort)), text: String(Math.round(row.effort)), estimated: row.estimatedEffort }
     };
   });
   const effortLine = columns
@@ -101,6 +102,7 @@ export function busiestSlot(entries: readonly { weekday: number; hour: number; c
       }
     });
   });
+  // TypeScript cannot see the assignment inside the callbacks and narrows `best` to null, hence the cast.
   const found = best as { day: number; slot: number; count: number } | null;
   return found ? { day: WEEKDAYS[found.day], hour: GRID_HOURS[found.slot] } : null;
 }

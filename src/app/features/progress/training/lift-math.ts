@@ -66,9 +66,9 @@ export function ladderPosition(lift: Lift): LadderPosition | null {
   if (ratio === null || !Number.isFinite(ratio) || ratio <= 0) {
     return null;
   }
-  const computed = levelIndex(ratio, rungs);
-  const index = lift.relative ? LEVELS.indexOf(lift.relative.level) : computed;
-  const level = LEVELS[index] ?? LEVELS[computed];
+  const computedIndex = levelIndex(ratio, rungs);
+  const index = lift.relative ? LEVELS.indexOf(lift.relative.level) : computedIndex;
+  const level = LEVELS[index] ?? LEVELS[computedIndex];
   const levelAt = LEVELS.indexOf(level);
   const nextLevel = lift.relative ? lift.relative.nextLevel : (LEVELS[levelAt + 1] ?? null);
   const nextAtKg =

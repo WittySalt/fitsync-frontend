@@ -45,7 +45,7 @@ interface BodyTile {
         }
       </div>
       <div class="actions">
-        <button type="button" class="link" [attr.aria-expanded]="recording()" (click)="openMeasurements()">Record a measurement ›</button>
+        <button type="button" class="link" [attr.aria-expanded]="recording()" (click)="openRecorder()">Record a measurement ›</button>
         <button type="button" class="link" [attr.aria-expanded]="measurementsOpen()" (click)="toggleMeasurements()">
           {{ measurementsOpen() ? 'Fewer ›' : 'All measurements ›' }}
         </button>
@@ -97,7 +97,7 @@ export class GoalBodySectionComponent {
     ];
   });
 
-  openMeasurements(): void {
+  openRecorder(): void {
     this.recording.set(true);
     afterNextRender(() => this.recorderRef()?.nativeElement.scrollIntoView({ block: 'start' }), { injector: this.injector });
   }

@@ -5,17 +5,15 @@ import { catchError, of } from 'rxjs';
 import { FitSyncDataService } from '../../../core/fitsync-data.service';
 import { UserTimezoneService } from '../../../core/user-timezone.service';
 import { dailyObservations } from '../../dashboard/brief/brief-observations';
-
 import { DAY_KIND_GLYPHS } from '../../dashboard/brief/day-kind-icons';
 import { HEAT_KEY } from '../../../shared/charts/muscle-figure/muscle-figure';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
 import { StatePanelComponent } from '../../../shared/state-panel.component';
 import { TrainingApiService } from '../training/training-api.service';
 import { useLoad } from '../training/training-load';
-import { FitFigureComponent } from './fit-figure.component';
+import { FitFigureComponent, fittingHeight } from './fit-figure.component';
 import { trainingCoachLine } from './card-lines';
 import { ObserveHeightDirective, ObserveWidthDirective } from './observe-height.directive';
-import { fittingHeight } from './fit-figure.component';
 import { LogStripComponent } from './log-strip.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
@@ -91,7 +89,10 @@ export class TrainingCardComponent {
     const width = this.rowWidth();
     return width > 0 && width < 760;
   });
-  /** The tallest a view may be so that the figures, the gap and the scale never overflow the card. */
+  /**
+   * The tallest a view may be so that the figures, the gap and the scale never overflow the card.
+   * Side by side, the figures get what is left after the 300 px strip column and the 48 px column gap.
+   */
   protected readonly figureCap = computed(() => {
     const width = this.rowWidth();
     return width === 0 ? null : fittingHeight(this.stacked() ? width : width - 300 - 48);

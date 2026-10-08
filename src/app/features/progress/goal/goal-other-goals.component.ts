@@ -26,14 +26,14 @@ export function isCurrentWeek(weekStart: string, today: string): boolean {
 }
 
 /**
- * One dot for each day from `from` to `to`, the days the server did not report as not logged, so a
- * strip covers exactly the window its section names whatever the server sent.
+ * One dot for each day from `from` to `to`, a day the server did not report reading as not logged,
+ * so a strip covers exactly the window its section names whatever the server sent.
  */
 export function windowDays(days: readonly DotDay[], from: string, to: string): DotDay[] {
   const known = new Map(days.map((day) => [day.date, day.state]));
   const count = Math.max(daysBetween(from, to), 0) + 1;
-  return Array.from({ length: count }, (_, k) => {
-    const date = shiftDay(from, k);
+  return Array.from({ length: count }, (_, offset) => {
+    const date = shiftDay(from, offset);
     return { date, state: known.get(date) ?? 'NOT_LOGGED' };
   });
 }
@@ -131,6 +131,7 @@ export class GoalOtherGoalsComponent {
       const weekly = goal.type === 'WORKOUT_FREQUENCY';
       const target = goal.target === null ? '' : `${formatNumber(goal.target)}${goal.unit && !weekly ? ' ' + goal.unit : ''}`;
       const rule = AT_LEAST.has(goal.type) ? 'at least' : 'within 10%';
+      // Week labels in the year of the first week leave the year off.
       const reference = new Date(Number((goal.weeks[0]?.weekStart ?? '2026').slice(0, 4)), 0, 1);
       const weeks = goal.weeks.map((week) => ({
         weekStart: week.weekStart,

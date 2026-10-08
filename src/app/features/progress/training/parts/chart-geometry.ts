@@ -35,7 +35,7 @@ export function axisGutter(labels: readonly string[]): number {
 
 // ---------------------------------------------------------------- minute scales
 
-/** A top for minute charts that lands on whole half hours: 5 h, 2.5 h. */
+/** A top for minute charts that lands on a whole hour, never under one hour. */
 export function minutesTop(max: number): number {
   return Math.max(60, Math.ceil(max / 60) * 60);
 }
@@ -194,7 +194,7 @@ export function loadChart(load: TrainingLoad, today: string, width = 640, height
   const slot = (width - x0) / weeks.length;
   const y = (value: number): number => plotTop + (plotBottom - plotTop) * (1 - value / top);
   const grid = gridValues.map((value) => ({ y: r1(y(value)), label: grouped(value) }));
-  const index = new Map(weeks.map((week, at) => [week.weekStart, at]));
+  const columnOf = new Map(weeks.map((week, at) => [week.weekStart, at]));
   const barWidth = Math.min(36, slot * 0.56);
   const columns = weeks.map((week, at) => {
     const x = x0 + slot * at + (slot - barWidth) / 2;
@@ -206,15 +206,16 @@ export function loadChart(load: TrainingLoad, today: string, width = 640, height
       if (!value) {
         continue;
       }
-      const h = ((plotBottom - plotTop) * Math.min(value, top)) / top;
-      base -= h;
-      bars.push({ kind, x: r1(x), y: r1(base), width: r1(barWidth), height: r1(Math.max(1, h - 1.5)) });
+      const barHeight = ((plotBottom - plotTop) * Math.min(value, top)) / top;
+      base -= barHeight;
+      // 1.5 px off each segment leaves a hairline between the stacked kinds.
+      bars.push({ kind, x: r1(x), y: r1(base), width: r1(barWidth), height: r1(Math.max(1, barHeight - 1.5)) });
     }
     return { weekStart: week.weekStart, bars, current, total: week.total, estimated: week.estimated };
   });
   const centre = (at: number): number => x0 + slot * at + slot / 2;
   const line = (points: readonly WeekValue[]): string =>
-    polyline(points.map((point) => ({ x: centre(index.get(point.weekStart) ?? 0), y: y(Math.min(point.value, top)) })));
+    polyline(points.map((point) => ({ x: centre(columnOf.get(point.weekStart) ?? 0), y: y(Math.min(point.value, top)) })));
   const labels: TextMark[] = weekLabelMarks(
     weeks.map((week) => week.weekStart),
     centre

@@ -67,6 +67,7 @@ export const GOAL_SECTIONS: readonly JumpItem[] = [
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GoalPage {
+  // Kept for its side effect: marks the page visited for the guide.
   private readonly visit = markVisit('progress-goal');
   private readonly api = inject(ProgressApiService);
   private readonly route = inject(ActivatedRoute);
@@ -92,6 +93,7 @@ export class GoalPage {
   readonly weightWindow = computed(() => lastDays(WEIGHT_RANGES.find((r) => r.key === this.range())!.days, this.today));
   readonly context = computed<ProgressCardContext>(() => ({ kind: 'GOAL', ...this.period.range() }));
   readonly eyebrow = computed(() => periodEyebrow('Goal', this.period.code(), this.period.range().from, this.period.range().to));
+  /** How the period is named: [in the head's figures, in the sentence under the verdict]. */
   private readonly span = computed(() => ({ '4w': ['4 weeks', 'four weeks'], '3m': ['3 months', 'three months'], '1y': ['the year', 'the year'] })[this.period.code()]);
   readonly verdict = computed(() => {
     const data = this.data();

@@ -7,6 +7,7 @@ export interface WatchHandlers {
 
 type ObserverFactory = (callback: IntersectionObserverCallback, options: IntersectionObserverInit) => Pick<IntersectionObserver, 'observe' | 'disconnect'>;
 
+/** The reading line, as a share of the window height from its top: a section whose top has passed it is being read. */
 const READING_LINE = 0.35;
 
 /**
@@ -26,13 +27,13 @@ export function watchSections(
   const view = root.defaultView;
   const line = (): number => (view?.innerHeight ?? 800) * READING_LINE;
 
-  const reading = make(
+  const sectionObserver = make(
     () => handlers.onSection(currentSection(sections.map((item) => ({ id: item.id, top: item.element.getBoundingClientRect().top })), line())),
     { threshold: [0, 0.25, 0.5, 0.75, 1] }
   );
-  sections.forEach((item) => reading.observe(item.element));
+  sections.forEach((item) => sectionObserver.observe(item.element));
 
-  const out = make(
+  const answerObserver = make(
     (entries) => {
       const entry = entries[entries.length - 1];
       if (entry) {
@@ -42,10 +43,10 @@ export function watchSections(
     { threshold: [0] }
   );
   if (answer) {
-    out.observe(answer);
+    answerObserver.observe(answer);
   }
   return () => {
-    reading.disconnect();
-    out.disconnect();
+    sectionObserver.disconnect();
+    answerObserver.disconnect();
   };
 }

@@ -5,6 +5,7 @@ export const MINUS = '−';
 
 const DAY_MS = 86_400_000;
 
+/** A date key as UTC midnight, so day arithmetic never meets a daylight-saving shift. */
 function parse(iso: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
   if (!match) {
