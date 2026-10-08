@@ -27,6 +27,7 @@ export function addDays(iso: string, days: number): string {
 /** The seven dates of the week that holds `iso`, Monday first. */
 export function weekOf(iso: string): string[] {
   const date = parseIsoDate(iso);
+  // getDay() counts from Sunday as 0; this shifts it so Monday is 0.
   const sinceMonday = (date.getDay() + 6) % 7;
   const monday = addDays(iso, -sinceMonday);
   return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
@@ -75,11 +76,9 @@ export function clockText(value: string | Date | null | undefined): string {
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short' });
 
-const WEEKDAY_LONG = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
-
 /** "Tuesday", for the day line of a past day with nothing logged. */
 export function weekdayName(iso: string): string {
-  return WEEKDAY_LONG.format(parseIsoDate(iso));
+  return WEEKDAY.format(parseIsoDate(iso));
 }
 
 /** "Friday 2 Oct". */

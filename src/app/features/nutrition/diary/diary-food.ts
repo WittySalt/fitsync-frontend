@@ -28,6 +28,7 @@ export function foodTags(item: DiaryItem): FoodTag[] {
   }
   const per100 = (value: number | null): number | null => (value === null ? null : (value / grams) * 100);
   const tags: FoodTag[] = [];
+  // Protein gives 4 kcal a gram. The 3 g floor keeps a near-empty food, like black coffee, from reading as high protein.
   const proteinEnergy = item.calories > 0 ? (item.proteinGrams * 4) / item.calories : 0;
   const fibre = per100(item.fiberGrams);
   if (proteinEnergy >= HIGH_PROTEIN_ENERGY_SHARE && item.proteinGrams >= 3) {
@@ -109,7 +110,10 @@ export function mealParts(meals: readonly DiaryMeal[]): MealPart[] {
   return parts;
 }
 
-/** Shares of the energy in protein, carbs and fat (4, 4 and 9 kcal a gram), for the thin split bar. */
+/**
+ * The energy in protein, carbs and fat in kcal (4, 4 and 9 kcal a gram), which the thin split bar
+ * uses as flex weights, so the figures need not add up to one. Null when there is no energy at all.
+ */
 export function macroSplit(protein: number, carbs: number, fat: number): { protein: number; carbs: number; fat: number } | null {
   const energy = { protein: protein * 4, carbs: carbs * 4, fat: fat * 9 };
   const total = energy.protein + energy.carbs + energy.fat;

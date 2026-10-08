@@ -50,10 +50,10 @@ const DAY_SPAN_HOURS = 16;
     <div class="layout">
       <div class="column main">
         <div class="slot c-meals">
-          @let m = meals();
-          @if (m.status === 'ready') {
+          @let mealsState = meals();
+          @if (mealsState.status === 'ready') {
             <app-meals-card
-              [meals]="m.data"
+              [meals]="mealsState.data"
               [usual]="usual()"
               [busy]="busy()"
               [leftoverCount]="leftoverServings()"
@@ -71,17 +71,17 @@ const DAY_SPAN_HOURS = 16;
               (ateUnlogged)="ateUnlogged()"
               (deleteFast)="confirmingFast.set($event)"
             />
-          } @else if (m.status === 'error') {
-            <app-state-panel title="Meals unavailable" [message]="m.message" actionLabel="Retry" [error]="true" (action)="loadMeals()" />
+          } @else if (mealsState.status === 'error') {
+            <app-state-panel title="Meals unavailable" [message]="mealsState.message" actionLabel="Retry" [error]="true" (action)="loadMeals()" />
           } @else {
             <div class="skeleton tall" aria-busy="true"></div>
           }
         </div>
         <div class="slot c-water">
-          @let w = water();
-          @if (w.status === 'ready') {
+          @let waterState = water();
+          @if (waterState.status === 'ready') {
             <app-water-card
-              [day]="w.data"
+              [day]="waterState.data"
               [goal]="waterGoal()"
               [frequent]="frequent()"
               [nowPercent]="nowPercent()"
@@ -91,39 +91,39 @@ const DAY_SPAN_HOURS = 16;
               (quickDrink)="quickDrink($event)"
               (another)="dialogOpen.set(true)"
             />
-          } @else if (w.status === 'error') {
-            <app-state-panel title="Water unavailable" [message]="w.message" actionLabel="Retry" [error]="true" (action)="loadWater()" />
+          } @else if (waterState.status === 'error') {
+            <app-state-panel title="Water unavailable" [message]="waterState.message" actionLabel="Retry" [error]="true" (action)="loadWater()" />
           } @else {
             <div class="skeleton" aria-busy="true"></div>
           }
         </div>
         <div class="slot c-plate">
-          @let p = meals();
-          @if (p.status === 'ready') {
+          @let plateState = meals();
+          @if (plateState.status === 'ready') {
             <app-plate-card [items]="items()" [isToday]="isToday()" />
-          } @else if (p.status === 'loading') {
+          } @else if (plateState.status === 'loading') {
             <div class="skeleton tall" aria-busy="true"></div>
           }
         </div>
       </div>
       <div class="column side">
         <div class="slot c-budget">
-          @let s = summary();
-          @if (s.status === 'ready') {
-            <app-budget-card [summary]="s.data" [label]="isToday() ? 'Today' : label()" />
-          } @else if (s.status === 'error') {
-            <app-state-panel title="Summary unavailable" [message]="s.message" actionLabel="Retry" [error]="true" (action)="loadSummary()" />
+          @let summaryState = summary();
+          @if (summaryState.status === 'ready') {
+            <app-budget-card [summary]="summaryState.data" [label]="isToday() ? 'Today' : label()" />
+          } @else if (summaryState.status === 'error') {
+            <app-state-panel title="Summary unavailable" [message]="summaryState.message" actionLabel="Retry" [error]="true" (action)="loadSummary()" />
           } @else {
             <div class="skeleton" aria-busy="true"></div>
           }
         </div>
         <div class="slot c-balance">
-          @let b = summary();
-          @if (b.status === 'ready') {
-            @if (b.data.balance || b.data.proteinByMeal) {
-              <app-balance-card [entries]="b.data.balance ?? []" [proteinByMeal]="b.data.proteinByMeal" [days]="days()" [dates]="dates()" [today]="today()" />
+          @let balanceState = summary();
+          @if (balanceState.status === 'ready') {
+            @if (balanceState.data.balance || balanceState.data.proteinByMeal) {
+              <app-balance-card [entries]="balanceState.data.balance ?? []" [proteinByMeal]="balanceState.data.proteinByMeal" [days]="days()" [dates]="dates()" [today]="today()" />
             }
-          } @else if (b.status === 'loading') {
+          } @else if (balanceState.status === 'loading') {
             <div class="skeleton tall" aria-busy="true"></div>
           }
         </div>
@@ -458,6 +458,7 @@ export class DiaryDayComponent {
     }
     this.busy.set(true);
     forkJoin(
+      // Copied onto today, the server stamps each meal now; a past day gets the usual time on that day.
       copyable.map((meal) =>
         this.data.copyMeal(meal.sourceMealId as string, meal.mealType, this.isToday() ? undefined : loggedMoment(this.date(), meal.usualTime ?? '', this.today(), new Date()).toISOString())
       )

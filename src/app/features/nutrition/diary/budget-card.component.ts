@@ -12,6 +12,7 @@ interface MacroRow {
 }
 
 const RING_SIZE = 104;
+// Inset by 8 so the 11-wide stroke, centred on the radius, stays inside the square.
 const RING_RADIUS = RING_SIZE / 2 - 8;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 

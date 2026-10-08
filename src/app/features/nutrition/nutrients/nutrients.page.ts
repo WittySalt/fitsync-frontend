@@ -217,6 +217,7 @@ export class NutrientsPage {
     this.restored = true;
     const y = takeScroll(period);
     if (y !== null) {
+      // Waits a tick so the table that just loaded is drawn and the page is tall enough to scroll to y.
       setTimeout(() => window.scrollTo({ top: y }), 0);
     }
   }

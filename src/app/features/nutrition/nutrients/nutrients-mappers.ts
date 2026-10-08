@@ -54,6 +54,7 @@ export function mapNutrientTile(raw: Wire): NutrientTileData | null {
     displayName: name,
     unit: text(raw['unit']) ?? '',
     groupCode,
+    // A tile needs a short symbol; without one from the server the name's first two letters stand in.
     symbol: text(raw['symbol']) ?? name.slice(0, 2),
     atomicNumber: num(raw['atomicNumber']),
     averageAmount: average,
@@ -146,9 +147,9 @@ export function mapNutrientDetail(raw: Wire): NutrientDetail | null {
     days: num(raw['days']) ?? 0,
     daysLogged: num(raw['daysLogged']) ?? 0,
     referenceLabel: text(raw['referenceLabel']),
-    sources: list(raw['sources']).map(mapSource).filter((s): s is NutrientSource => s !== null),
-    amounts: list(raw['amounts']).map(mapAmount).filter((a): a is AgeBandAmount => a !== null),
-    richest: list(raw['richest']).map(mapRich).filter((r): r is RichFood => r !== null),
+    sources: list(raw['sources']).map(mapSource).filter((source): source is NutrientSource => source !== null),
+    amounts: list(raw['amounts']).map(mapAmount).filter((amount): amount is AgeBandAmount => amount !== null),
+    richest: list(raw['richest']).map(mapRich).filter((food): food is RichFood => food !== null),
     guide: mapNutrientGuide(raw['guide'])
   };
 }

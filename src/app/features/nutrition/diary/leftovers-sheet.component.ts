@@ -13,6 +13,7 @@ export function cookedWhen(cookedAt: string, today: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
     return 'Cooked recently';
   }
+  // Rounded, so a day that is 23 or 25 hours long around a clock change still counts as one.
   const gap = Math.round((parseIsoDate(today).getTime() - parseIsoDate(day).getTime()) / 86_400_000);
   return gap <= 0 ? 'Cooked today' : gap === 1 ? 'Cooked yesterday' : `Cooked ${WEEKDAY.format(parseIsoDate(day))}`;
 }

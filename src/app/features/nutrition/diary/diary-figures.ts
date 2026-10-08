@@ -82,6 +82,7 @@ export function balanceRow(entry: BalanceEntry): BalanceRowView {
     unknown: false,
     value: amountText(amount, entry.unit),
     reference: limit ? `${amountText(entry.reference, entry.unit)} limit` : `${amountText(entry.reference, entry.unit)} a day`,
+    // The bar of a passed limit is full at the amount eaten, so the limit sits at 1 / share of it.
     marker: limit && entry.over && share > 0 ? 100 / share : null,
     metText: !limit && entry.met ? `met · ${Math.round(share * 100)}%` : '',
     source: sourceLine(entry)
@@ -111,6 +112,7 @@ export interface ProteinChart {
 export function proteinChart(view: ProteinByMealView): ProteinChart {
   const byType = new Map<string, number>(view.meals.map((meal: MealProtein) => [meal.mealType, meal.grams]));
   const rows = MEAL_ORDER.map((type) => ({ type, grams: byType.get(type) ?? 0 }));
+  // The chart is at least 60 g tall and leaves a quarter of headroom above the band, so the band never touches the top.
   const top = Math.max(60, view.highGrams * 1.25, ...rows.map((row) => row.grams));
   return {
     bars: rows.map((row) => ({

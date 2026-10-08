@@ -80,6 +80,7 @@ export function defaultMealType(now: Date): string {
   if (hour >= 17 && hour < 22) {
     return 'DINNER';
   }
+  // The afternoon gap (15:00 to 17:00) and the late night are snack time.
   return 'SNACK';
 }
 
@@ -753,6 +754,7 @@ export class MealBuilderComponent implements OnInit {
     const elapsedMs = now.getTime() - loggedAt.getTime();
     const minuteMs = 60_000;
     const hourMs = 60 * minuteMs;
+    // Checked before the relative hours, so a meal late last evening reads "Yesterday 21:40", not "3h ago".
     if (this.isYesterday(loggedAt, now)) {
       return `Yesterday ${this.formatClock(loggedAt)}`;
     }
@@ -807,6 +809,7 @@ export class MealBuilderComponent implements OnInit {
     return Math.min(100, Math.max(0, Math.round((value / target) * 100)));
   }
 
+  /** A negative dash offset starts the meal's arc where the day's logged arc ends. */
   ringMealOffset(metric: RingMetric): number {
     return -this.ringSegment(metric.current, metric.target);
   }
@@ -847,6 +850,7 @@ export class MealBuilderComponent implements OnInit {
       .searchDrinks('water')
       .pipe(
         switchMap((options) => {
+          // Prefer the food named plain "Water" over other drinks that only count toward water.
           const water = options.find((option) => /^water\b/i.test(option.name)) ?? options.find((option) => option.countsTowardWater);
           return water ? this.diary.getDrinkDetail(water.foodId) : of(null);
         }),
@@ -937,11 +941,12 @@ export class MealBuilderComponent implements OnInit {
     );
   }
 
-  /** The category and photo of the food behind a row, when a search or the favorites showed it. */
+  /** Whether the detail head can show its brand logo: there is one, and it has not failed to load. */
   protected detailLogoOk(url: string | null | undefined): boolean {
     return !!url && url !== this.detailLogoFailed();
   }
 
+  /** The category and photo of the food behind a row, when a search or the favorites showed it. */
   face(item: MealItemDraft): FoodFace | null {
     const foodId = item.foodCatalogItemId ?? item.customFoodId;
     return foodId ? (this.faces().get(foodId) ?? null) : null;
@@ -1027,6 +1032,7 @@ export class MealBuilderComponent implements OnInit {
     }
   }
 
+  /** Rows of the same food and serving merge into one; a food with no id is matched by its name. */
   private itemMergeKey(item: Pick<MealItemDraft, 'foodCatalogItemId' | 'customFoodId' | 'foodServingId' | 'foodName' | 'snapshotServingLabel'>): string {
     return [
       item.customFoodId || item.foodCatalogItemId || item.foodName.toLowerCase(),

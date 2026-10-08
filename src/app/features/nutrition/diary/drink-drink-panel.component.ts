@@ -27,7 +27,7 @@ interface PreviewPart {
   muted: boolean;
 }
 
-/** "Orange juice" as "orange juice" in a sentence, leaving a name that starts with a capitalised word pair alone. */
+/** "Orange juice" as "orange juice" in a sentence, leaving a name that opens with capitals, such as "IPA", alone. */
 export function inSentence(name: string): string {
   return /^[A-Z][a-z]/.test(name) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
 }
@@ -137,6 +137,7 @@ export class DrinkDrinkPanelComponent implements OnInit {
   protected readonly typed = signal('');
   protected readonly clock = signal('');
   private readonly queries = new Subject<string>();
+  // Starts as the Small size, to match sizeLabel.
   private readonly sizeMl = signal<number | null>(250);
 
   protected readonly amountMl = computed(() => {
