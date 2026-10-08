@@ -33,7 +33,8 @@ export class PlayerStepperComponent {
   protected readonly shown = computed(() => {
     const value = this.value();
     if (this.format() === 'clock') {
-      return `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, '0')}`;
+      const seconds = Math.round(value);
+      return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     }
     return String(Math.round(value * 100) / 100);
   });

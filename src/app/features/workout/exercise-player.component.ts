@@ -781,7 +781,7 @@ export class ExercisePlayerComponent implements OnChanges, OnDestroy {
   skipCurrentExercise(): void {
     const session = this.live.session();
     const log = this.currentLog();
-    if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.savingSet()) {
+    if (!session?.sessionId || !log?.exerciseLogId || !this.live.canWrite() || this.saving()) {
       return;
     }
     const sessionId = session.sessionId;

@@ -116,7 +116,9 @@ function kindsSentence(sessions: readonly DaySession[]): string {
   if (distinct.length === 1) {
     return `${kinds.length === 2 ? 'Both' : 'All'} ${distinct[0].toLowerCase()}.`;
   }
-  return `${distinct.slice(0, -1).join(', ')} and ${distinct[distinct.length - 1].toLowerCase()}.`;
+  const [first, ...rest] = distinct;
+  const after = rest.map((name) => name.toLowerCase());
+  return `${[first, ...after.slice(0, -1)].join(', ')} and ${after[after.length - 1]}.`;
 }
 
 function trainingRow(input: DayInput): RowItem | null {
