@@ -388,17 +388,24 @@
               <div class="editor-actions"><button class="button secondary" type="button" (click)="logout()">Sign out</button></div>
             } @else {
               <p class="settings-help">{{ deletionGraceLine(account.accountDeletion) }}</p>
-              @if (sectionErrors().delete; as message) { <p class="section-error">{{ message }}</p> }
               <div class="field-row readonly"><span>Deletion status</span><strong>{{ labelFor(account.accountDeletion.status) }}{{ account.accountDeletion.requestedAt ? ' - ' + displayDateTime(account.accountDeletion.requestedAt) : '' }}</strong><em>{{ account.accountDeletion.passwordConfirmationRequired ? 'Password required' : 'Confirmation required' }}</em></div>
-              <p class="settings-help danger-help">Requesting deletion starts the FitSync account deletion flow. Until backend cascade is enabled, export your account data first.</p>
+              <p class="settings-help danger-help">Export your data first if you want to keep a copy.</p>
               @if (editPanel() !== 'delete') {
                 <button class="field-row single-row danger-action" type="button" (click)="startEdit('delete')"><span>Delete account</span><strong>Request account deletion</strong><em>Open</em></button>
               }
               @if (editPanel() === 'delete') {
-                <form class="settings-editor single" [formGroup]="deletionForm" (ngSubmit)="requestAccountDeletion()">
-                  <label>Confirmation text<input formControlName="confirmationText" /></label>
-                  <label>Current password<input type="password" formControlName="currentPassword" /></label>
-                  <div class="editor-actions"><button class="button danger" type="submit" [disabled]="saving() === 'delete'">Delete my account</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+                <form class="settings-editor single" [formGroup]="deletionForm" (ngSubmit)="requestAccountDeletion()" [attr.aria-busy]="saving() === 'delete'">
+                  <label for="delete-confirmation">Type {{ deletionConfirmationWord }} to confirm
+                    <input id="delete-confirmation" formControlName="confirmationText" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="delete-confirmation-hint" />
+                  </label>
+                  <p id="delete-confirmation-hint" class="settings-help">Use capital letters.</p>
+                  @if (account.accountDeletion.passwordConfirmationRequired) {
+                    <label for="delete-password">Current password
+                      <input id="delete-password" type="password" formControlName="currentPassword" autocomplete="current-password" />
+                    </label>
+                  }
+                  @if (sectionErrors().delete; as message) { <p class="section-error" role="alert">{{ message }}</p> }
+                  <div class="editor-actions"><button class="button danger" type="submit" [disabled]="!canRequestDeletion(account.accountDeletion)">{{ saving() === 'delete' ? 'Deleting...' : 'Delete my account' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
                 </form>
               }
             }

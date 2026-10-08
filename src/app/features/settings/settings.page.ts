@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -24,6 +25,11 @@ import { GuideService } from '../../core/guide/guide.service';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ToggleComponent } from '../../shared/toggle.component';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
+
+// auth-service accepts a deletion request only when the trimmed confirmation text equals this word exactly,
+// and keeps the account for fitsync.account-deletion.grace-days (30 by default) before removing the data.
+const DELETION_CONFIRMATION_WORD = 'DELETE';
+const DELETION_GRACE_DAYS = 30;
 
 type EditablePanel =
   | 'identity'
@@ -251,9 +257,11 @@ export class SettingsPage implements OnInit {
   });
 
   readonly deletionForm = this.fb.group({
-    confirmationText: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(120)]],
+    confirmationText: ['', [Validators.required, Validators.maxLength(120)]],
     currentPassword: ['', [Validators.maxLength(120)]]
   });
+
+  readonly deletionConfirmationWord = DELETION_CONFIRMATION_WORD;
 
   ngOnInit(): void {
     // A link such as /settings?section=preferences opens that section.
@@ -326,9 +334,21 @@ export class SettingsPage implements OnInit {
   /** The one quiet line about the grace period, with the date once the backend has fixed it. */
   deletionGraceLine(status: AccountDeletionStatus): string {
     const date = formatDeletionDate(status.scheduledFor, this.accountTimezone());
-    return date
-      ? `Your account is closed at once and your data is removed on ${date}.`
-      : 'Your account is closed at once and your data is removed after 30 days.';
+    const cancel = date
+      ? `Sign in again before ${date} to cancel.`
+      : `Sign in again within ${DELETION_GRACE_DAYS} days to cancel.`;
+    return `Your account is scheduled for deletion and you are signed out. ${cancel} After that, your data is removed.`;
+  }
+
+  /**
+   * Whether the delete button can be pressed: the text matches what auth-service accepts (DELETE in capitals,
+   * spaces around it ignored), a password is typed when the account needs one, and no request is running.
+   */
+  canRequestDeletion(status: AccountDeletionStatus): boolean {
+    const value = this.deletionForm.getRawValue();
+    return this.saving() !== 'delete'
+      && value.confirmationText.trim() === DELETION_CONFIRMATION_WORD
+      && (!status.passwordConfirmationRequired || value.currentPassword.length > 0);
   }
 
   deletionScheduledLine(status: AccountDeletionStatus): string {
@@ -495,6 +515,7 @@ export class SettingsPage implements OnInit {
     if (data) {
       this.patchForms(data);
     }
+    this.deletionForm.reset();
     this.editPanel.set(null);
   }
 
@@ -630,7 +651,7 @@ export class SettingsPage implements OnInit {
 
   requestAccountDeletion(): void {
     const data = this.data();
-    if (!data || this.deletionForm.invalid) {
+    if (!data || this.deletionForm.invalid || !this.canRequestDeletion(data.accountDeletion)) {
       this.deletionForm.markAllAsTouched();
       return;
     }
@@ -650,7 +671,7 @@ export class SettingsPage implements OnInit {
         this.authService.completeLogout();
         void this.router.navigateByUrl('/auth/login');
       },
-      error: (error: Error) => this.handleSaveError('delete', error)
+      error: (error: unknown) => this.handleSaveError('delete', new Error(deletionErrorMessage(error)))
     });
   }
 
@@ -879,6 +900,27 @@ export class SettingsPage implements OnInit {
       || this.data()?.user.profile.timezone
       || 'Asia/Singapore';
   }
+}
+
+/**
+ * The reason auth-service gave for refusing a deletion request, such as "Confirmation text must be DELETE" or
+ * "Current password is invalid". Its errors carry the reason in `message`; `detail` is read too for a
+ * ProblemDetail body. Anything else falls back to a plain line.
+ */
+function deletionErrorMessage(error: unknown): string {
+  if (error instanceof HttpErrorResponse) {
+    if (error.status === 0) {
+      return 'FitSync could not be reached. Your account was not deleted.';
+    }
+    const body = (error.error ?? null) as { detail?: unknown; message?: unknown } | null;
+    const reason = [body?.detail, body?.message].find(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0
+    );
+    if (reason) {
+      return reason;
+    }
+  }
+  return 'Your account was not deleted. Try again.';
 }
 
 function nullableText(value: string): string | null {
