@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catchError, forkJoin, of } from 'rxjs';
+import { EMPTY, catchError, forkJoin, of } from 'rxjs';
 
 import { AccountDataService, AccountUserResponse } from '../../core/account-data.service';
 import { FitSyncDataService, normalizeFocusAreas } from '../../core/fitsync-data.service';
@@ -121,11 +121,11 @@ export class ProfilePage implements OnInit {
     this.sheet.set(field);
   }
 
-  /** A sheet saved: the person, the injuries and the targets are read again. */
+  /** A sheet saved: the person, the injuries and the targets are read again. A failed read keeps what is shown. */
   protected aboutSaved(): void {
     this.sheet.set(null);
-    this.account.getCurrentUser().subscribe((user) => this.user.set(user));
-    this.data.getInjuryAreas().subscribe((injuries) => this.injuries.set(injuries));
+    this.account.getCurrentUser().pipe(catchError(() => EMPTY)).subscribe((user) => this.user.set(user));
+    this.data.getInjuryAreas().pipe(catchError(() => EMPTY)).subscribe((injuries) => this.injuries.set(injuries));
     this.loadGoals();
   }
 
@@ -189,7 +189,7 @@ export class ProfilePage implements OnInit {
     forkJoin({
       meals: this.data.getUsualMeals().pipe(catchError(() => of([]))),
       insight: this.data.getWeeklyTrainingInsight().pipe(catchError(() => of(null))),
-      injuries: this.data.getInjuryAreas()
+      injuries: this.data.getInjuryAreas().pipe(catchError(() => of([] as string[])))
     }).subscribe(({ meals, insight, injuries }) => {
       this.injuries.set(injuries);
       this.usualMeals.set(
@@ -202,6 +202,6 @@ export class ProfilePage implements OnInit {
   }
 
   protected loadGoals(): void {
-    this.data.getGoals().subscribe((goals) => this.goals.set(goals));
+    this.data.getGoals().pipe(catchError(() => EMPTY)).subscribe((goals) => this.goals.set(goals));
   }
 }
