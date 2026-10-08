@@ -8,4 +8,4 @@ alternative_names = ["www.fitsyncapp.click"]
 # Phase gate. false = certificate only (phase 1). Change to true for phase 2,
 # after attach-prod-domain.ps1 -Apply has put the aliases on the distribution,
 # and keep it true from then on: setting it back to false deletes the DNS records.
-create_alias_records = false
+create_alias_records = true
