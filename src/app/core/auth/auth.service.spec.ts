@@ -360,6 +360,34 @@ describe('AuthService', () => {
     request.flush({});
   });
 
+  it('answers a reset request for an unknown email like a known one', (done) => {
+    service.forgotPassword('nobody@example.com').subscribe({
+      next: () => done(),
+      error: done.fail
+    });
+
+    httpMock
+      .expectOne(COGNITO_AUTH_CONFIG.apiEndpoint)
+      .flush(
+        { __type: 'com.amazonaws.cognito#UserNotFoundException', message: 'Username/client id combination not found.' },
+        { status: 400, statusText: 'Bad Request' }
+      );
+  });
+
+  it('still reports other reset failures', (done) => {
+    service.forgotPassword('sam@example.com').subscribe({
+      next: () => done.fail('expected an error'),
+      error: (error: Error) => {
+        expect(error.message).toBe('Too many attempts. Please wait a moment and try again.');
+        done();
+      }
+    });
+
+    httpMock
+      .expectOne(COGNITO_AUTH_CONFIG.apiEndpoint)
+      .flush({ __type: 'LimitExceededException', message: 'Attempt limit exceeded' }, { status: 400, statusText: 'Bad Request' });
+  });
+
   it('confirms a Cognito password reset with the code and new password', (done) => {
     service.confirmForgotPassword(' sam@example.com ', ' 123456 ', 'NewPassword1').subscribe({
       next: () => done(),

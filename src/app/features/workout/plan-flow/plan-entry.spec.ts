@@ -18,7 +18,7 @@ describe('the ways into a plan', () => {
   });
 
   it('sends the coach row to Plan Studio', () => {
-    expect(entryTarget('coach')).toEqual({ commands: ['/coach/plan'] });
+    expect(entryTarget('coach')).toEqual({ commands: ['/coach/plan'], queryParams: { coach: 'open' } });
   });
 
   it('opens a saved plan at its edit address', () => {

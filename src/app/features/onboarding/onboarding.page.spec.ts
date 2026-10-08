@@ -510,7 +510,7 @@ describe('OnboardingPage', () => {
     expect(navigate).toHaveBeenCalledWith(['/workout/plans/new'], { queryParams: { template: 'full-body-beginner' } });
 
     component.handleEntryChosen(entryTarget('coach'));
-    expect(navigate).toHaveBeenCalledWith(['/coach/plan'], { queryParams: undefined });
+    expect(navigate).toHaveBeenCalledWith(['/coach/plan'], { queryParams: { coach: 'open' } });
   });
 
   it('still lands on the dashboard when the person skips the first plan', () => {
