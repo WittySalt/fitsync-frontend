@@ -31,6 +31,33 @@ describe('buildCognitoAuthConfig', () => {
     expect(config.redirectUri).toBe('https://fitsyncapp.click/auth/callback');
   });
 
+  it('uses the prod Cognito pool on www.fitsyncapp.click', () => {
+    const config = buildCognitoAuthConfig('www.fitsyncapp.click', 'https://www.fitsyncapp.click');
+
+    expect(config.userPoolId).toBe('ap-southeast-1_myVyuOmPD');
+    expect(config.clientId).toBe('4mvse0cgmkplgocfg827uolvad');
+    expect(config.domain).toContain('myvyuompd');
+    expect(config.redirectUri).toBe('https://www.fitsyncapp.click/auth/callback');
+    expect(config.postLogoutRedirectUri).toBe('https://www.fitsyncapp.click/logout/callback');
+  });
+
+  it('gives the apex, www and prod CloudFront hosts the same prod pool and client', () => {
+    const hosts = ['fitsyncapp.click', 'www.fitsyncapp.click', 'd26vi6hikexzev.cloudfront.net'];
+    const pools = hosts.map(host => {
+      const config = buildCognitoAuthConfig(host, `https://${host}`);
+      return `${config.userPoolId}|${config.clientId}|${config.domain}`;
+    });
+
+    expect(new Set(pools).size).toBe(1);
+    expect(pools[0]).toContain('ap-southeast-1_myVyuOmPD');
+  });
+
+  it('does not treat look-alike hosts of the prod domain as staging', () => {
+    const config = buildCognitoAuthConfig('staging.fitsyncapp.click.evil.test', 'https://staging.fitsyncapp.click.evil.test');
+
+    expect(config.userPoolId).toBe('ap-southeast-1_myVyuOmPD');
+  });
+
   it('falls back to the prod Cognito pool on any other host', () => {
     const config = buildCognitoAuthConfig('d26vi6hikexzev.cloudfront.net', 'https://d26vi6hikexzev.cloudfront.net');
 
