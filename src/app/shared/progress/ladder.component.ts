@@ -47,17 +47,18 @@ export function ladderGeometry(ratio: number, rungs: readonly LadderRung[], widt
   }
   const x0 = 6;
   const x1 = width - 6;
+  // Headroom past the last rung, or past the lift itself when it is beyond it, so neither sits on the edge.
   const top = Math.max(rungs[rungs.length - 1].ratio * 1.12, ratio * 1.05);
-  const x = (r: number) => x0 + ((x1 - x0) * Math.min(r, top)) / top;
-  const mx = x(ratio);
+  const x = (value: number) => x0 + ((x1 - x0) * Math.min(value, top)) / top;
+  const markerX = x(ratio);
   const markerText = `${formatNumber(ratio, 2)} × body weight`;
   const room = textWidth(markerText, 12, true) / 2 + 4;
   // A level name that would touch the one before it is left out; its ratio stays.
   const named = dropColliding(rungs.map((rung) => ({ x: x(rung.ratio), text: rung.label, anchor: 'middle' as const })));
   return {
-    rungs: rungs.map((rung) => ({ x: x(rung.ratio), ratioText: `${formatNumber(rung.ratio, 2)}×`, label: rung.label, showLabel: named.some((n) => n.x === x(rung.ratio)) })),
-    marker: { x: mx, text: markerText, anchor: mx < room ? 'start' : mx > width - room ? 'end' : 'middle' },
-    fill: mx - x0,
+    rungs: rungs.map((rung) => ({ x: x(rung.ratio), ratioText: `${formatNumber(rung.ratio, 2)}×`, label: rung.label, showLabel: named.some((kept) => kept.x === x(rung.ratio)) })),
+    marker: { x: markerX, text: markerText, anchor: markerX < room ? 'start' : markerX > width - room ? 'end' : 'middle' },
+    fill: markerX - x0,
     x0,
     x1
   };

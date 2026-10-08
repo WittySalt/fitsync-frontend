@@ -135,6 +135,7 @@ export function monthPointMarks(monthStarts: readonly string[], xOf: (index: num
 export function timeAxisLabels(from: string, to: string, xOf: (key: string) => number): PlacedLabel[] {
   const span = Math.round((utc(to) - utc(from)) / DAY);
   const labels: PlacedLabel[] = [];
+  // Label every Monday, every second one, or (0) none, leaving a long span to the month names below.
   const every = span <= 35 ? 1 : span <= 110 ? 2 : 0;
   if (every) {
     // Mondays, counted back from the last one so the newest week is always named.

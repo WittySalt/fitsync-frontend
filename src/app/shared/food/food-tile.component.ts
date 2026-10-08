@@ -4,9 +4,9 @@ import { FoodIconComponent } from './food-icon.component';
 import { FoodGroup, groupForCategory } from './food-groups';
 
 /**
- * The leading tile of a food row: the photo when the food has one, then the brand logo, otherwise the icon of its food
- * group in the group's colour, and the plate and fork on the neutral colour when it has no group.
- * Between the two sits the brand logo, which falls back to the icon when it fails to load.
+ * The leading tile of a food row: the photo when the food has one, then the brand logo, otherwise the
+ * icon of its food group in the group's colour (the plate and fork on the neutral colour when it has
+ * no group). A logo that fails to load falls back to the icon.
  */
 @Component({
   selector: 'app-food-tile',

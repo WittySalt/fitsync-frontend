@@ -41,6 +41,7 @@ export class MuscleFigureComponent {
 
   readonly groupSelected = output<string>();
 
+  // The width keeps the 100 by 220 viewBox's aspect ratio.
   protected readonly width = computed(() => Math.round((Math.max(140, this.height()) * 100) / 220));
   protected readonly drawHeight = computed(() => Math.max(140, this.height()));
 

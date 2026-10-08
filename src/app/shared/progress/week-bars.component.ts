@@ -31,8 +31,7 @@ export interface WeekBarsGeometry {
 export function niceStep(span: number): number {
   const rough = span / 3 || 1;
   const power = 10 ** Math.floor(Math.log10(rough));
-  const step = [1, 2, 5, 10].map((m) => m * power).find((s) => s >= rough) ?? 10 * power;
-  return step;
+  return [1, 2, 5, 10].map((m) => m * power).find((s) => s >= rough) ?? 10 * power;
 }
 
 /**
@@ -81,6 +80,7 @@ export function weekBarsGeometry(
     : dropColliding(
         bars
           .map((bar, k) => ({ x: cxOf(k), text: bar.label, anchor: 'middle' as const }))
+          // Past six bars only every second one is named, counted back so the last bar always is.
           .filter((_, k) => bars.length <= 6 || k % 2 === (bars.length - 1) % 2)
       );
   return {

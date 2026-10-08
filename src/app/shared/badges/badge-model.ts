@@ -33,6 +33,7 @@ export function pathNodes(path: BadgePath): PathNode[] {
       nextTaken = true;
       return { node, slot, state: 'next' as const };
     }
+    // Set here too, so a started node after an unstarted one cannot become "next" later in the path.
     nextTaken = true;
     return { node, slot, state: 'later' as const };
   });
@@ -150,6 +151,7 @@ function isRatio(node: BadgeNode): boolean {
 /** What is left, in the badge's own unit, as a number the page can print. */
 export function remaining(node: BadgeNode): number {
   const left = Math.max(node.progress.target - node.progress.current, 0);
+  // The epsilon keeps float noise (3.0000000001 left) from rounding up to one more than is due.
   return isRatio(node) ? Math.round(left * 100) / 100 : Math.ceil(left - 1e-9);
 }
 
@@ -163,6 +165,7 @@ export function daysToLog(left: number, today: string): string {
   if (!DATE_KEY.test(today) || left < 1 || left > MAX_NAMED_DAYS) {
     return '';
   }
+  // Tomorrow is offset 1, so the first named weekday is two days on.
   const days = ['tomorrow', ...Array.from({ length: left - 1 }, (_, index) => weekdayAfter(today, index + 2))];
   return days.length === 1 ? days[0] : `${days.slice(0, -1).join(', ')} and ${days[days.length - 1]}`;
 }
@@ -252,6 +255,7 @@ export function weekCells(weekStart: string, days: readonly FootprintDay[]): Wee
     return [];
   }
   const trained = new Set(days.filter((entry) => entry.trained).map((entry) => entry.date));
+  // Stepping in UTC keeps every step exactly one day, with no daylight-saving shift.
   const base = new Date(`${weekStart}T00:00:00Z`);
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(base.getTime() + index * 86_400_000);

@@ -49,8 +49,9 @@ interface DockSuggestion {
 /**
  * The coach, docked to the right edge and always mounted.
  *
- * Docked rather than floating, because a bubble covers the thing being discussed. No scrim, so
- * the page stays readable and the user can see the card they are asking about. It never opens
+ * Docked rather than floating, because a bubble covers the thing being discussed. No scrim on wide
+ * screens, so the page stays readable and the user can see the card they are asking about; only
+ * between 861 and 1199 px, where the dock overlays the page, does a scrim sit behind it. It never opens
  * itself: the launcher and Ctrl/Cmd+K are the only ways in, and Escape or the close button the
  * ways out.
  *
@@ -582,11 +583,6 @@ interface DockSuggestion {
         vertical-align: 2px;
         font-variant-numeric: tabular-nums;
       }
-      .empty {
-        margin: 0;
-        font-size: var(--text-sm);
-        color: var(--text-muted);
-      }
       .thread {
         display: flex;
         flex-direction: column;
@@ -920,19 +916,19 @@ export class CoachDockComponent {
 
   /** Tracks the visual viewport, which shrinks when a phone's keyboard opens while the layout viewport does not. */
   private watchVisualViewport(): void {
-    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
-    if (!vv) {
+    const visual = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!visual) {
       return;
     }
     const update = (): void => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      this.viewport.set(inset > KEYBOARD_MIN_INSET ? { height: Math.round(vv.height), inset: Math.round(inset) } : null);
+      const inset = Math.max(0, window.innerHeight - visual.height - visual.offsetTop);
+      this.viewport.set(inset > KEYBOARD_MIN_INSET ? { height: Math.round(visual.height), inset: Math.round(inset) } : null);
     };
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
+    visual.addEventListener('resize', update);
+    visual.addEventListener('scroll', update);
     inject(DestroyRef).onDestroy(() => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
+      visual.removeEventListener('resize', update);
+      visual.removeEventListener('scroll', update);
     });
   }
 
@@ -982,8 +978,7 @@ export class CoachDockComponent {
       return;
     }
     // A request to build something takes the drafting path, which has a validator and a fallback
-    // and produces an artifact, rather than the chat loop, which produces a sentence. The match is
-    // deliberately literal: an assessor can read it, and a misjudged request still gets an answer.
+    // and produces an artifact, rather than the chat loop, which produces a sentence.
     if (isBuildRequest(text)) {
       this.store.buildSession(text);
     } else {
@@ -993,8 +988,8 @@ export class CoachDockComponent {
   }
 
   /**
-   * The one list of questions, at most three: those that follow from the pinned reading when there
-   * is one, otherwise the page's own.
+   * The one list of questions, at most three: those for the pinned card when there is one, then
+   * those that follow from the pinned reading, otherwise the page's own.
    */
   protected readonly suggestions = computed<DockSuggestion[]>(() => {
     const card = this.store.pinnedCard();
@@ -1036,7 +1031,7 @@ export class CoachDockComponent {
     return CARD_LABELS[card.kind] ?? 'Card';
   }
 
-  /** The pinned card's headline, or a fallback for a reading that is facts only. */
+  /** The reading's headline, or a fallback for a reading that is facts only. */
   protected pinnedHeadline(reading: CoachReading): string {
     return reading.reading?.headline || 'Your measured facts';
   }

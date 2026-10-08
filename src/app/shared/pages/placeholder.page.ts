@@ -83,12 +83,12 @@ import { filter } from 'rxjs';
 export class PlaceholderPage {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
-  private readonly data = inject(ActivatedRoute).snapshot.data;
+  private readonly routeData = inject(ActivatedRoute).snapshot.data;
   private readonly titleRef = viewChild<ElementRef<HTMLElement>>('title');
 
-  protected readonly missing = this.data['placeholder'] === 'missing';
-  protected readonly heading = String(this.data['heading'] ?? 'This area is on its way.');
-  protected readonly line = String(this.data['line'] ?? 'It is not ready yet.');
+  protected readonly missing = this.routeData['placeholder'] === 'missing';
+  protected readonly heading = String(this.routeData['heading'] ?? 'This area is on its way.');
+  protected readonly line = String(this.routeData['line'] ?? 'It is not ready yet.');
   protected readonly canGoBack = typeof history !== 'undefined' && history.length > 1;
   protected readonly path = signal(PlaceholderPage.pathOf(this.router.url));
 

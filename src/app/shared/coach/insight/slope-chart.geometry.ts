@@ -135,6 +135,7 @@ export function slopeChart(lifts: LiftProgress[]): SlopeChart | null {
 
   const fromYs = shown.map((lift) => yFor(lift.fromKg));
   const toYs = shown.map((lift) => yFor(lift.toKg));
+  // A label's y is its baseline, so 4 units below the point centres 12px text on it.
   const fromLabels = spreadLabels(fromYs.map((y) => y + 4));
   const toLabels = spreadLabels(toYs.map((y) => y + 4));
 

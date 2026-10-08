@@ -71,7 +71,7 @@ export class ContentsRailComponent {
     if (!this.frame) {
       this.frame = requestAnimationFrame(() => {
         this.frame = 0;
-        this.read(this.ids);
+        this.updateCurrent(this.ids);
       });
     }
   };
@@ -96,18 +96,18 @@ export class ContentsRailComponent {
 
   go(event: Event, id: string): void {
     event.preventDefault();
-    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.getElementById(id)?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+    const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
     this.current.set(id);
   }
 
-  private read(ids: readonly string[]): void {
+  private updateCurrent(ids: readonly string[]): void {
     const found = ids
       .map((id) => ({ id, element: document.getElementById(id) }))
       .filter((entry): entry is { id: string; element: HTMLElement } => entry.element !== null)
       .map((entry) => ({ id: entry.id, rect: entry.element.getBoundingClientRect() }));
     const tops = found.map((entry) => ({ id: entry.id, top: entry.rect.top }));
-    // The foot of the page: the last section ends inside the window and the page has scrolled.
+    // The foot of the page: the last section ends inside the window (2 px of slack for rounding) and the page has scrolled.
     const atEnd = window.scrollY > 0 && found.length > 0 && found[found.length - 1].rect.bottom <= window.innerHeight + 2;
     this.current.set(currentSection(tops, CURRENT_LINE, atEnd));
   }
@@ -116,7 +116,7 @@ export class ContentsRailComponent {
     this.observer?.disconnect();
     this.observer = null;
     this.ids = ids;
-    this.read(ids);
+    this.updateCurrent(ids);
     // Only the foot of the page needs the scroll itself; every other change comes from the observer.
     window.removeEventListener('scroll', this.onScroll);
     window.addEventListener('scroll', this.onScroll, { passive: true });
@@ -125,7 +125,7 @@ export class ContentsRailComponent {
     }
     // A band one pixel tall at the current line: the section that crosses it is the current one.
     const below = Math.max(window.innerHeight - CURRENT_LINE - 1, 0);
-    this.observer = new IntersectionObserver(() => this.read(ids), { rootMargin: `-${CURRENT_LINE}px 0px -${below}px 0px`, threshold: [0, 1] });
+    this.observer = new IntersectionObserver(() => this.updateCurrent(ids), { rootMargin: `-${CURRENT_LINE}px 0px -${below}px 0px`, threshold: [0, 1] });
     for (const id of ids) {
       const element = document.getElementById(id);
       if (element) {

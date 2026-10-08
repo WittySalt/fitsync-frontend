@@ -79,7 +79,7 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
   private attempts = 0;
   private request: Subscription | null = null;
   private chartRequest: Subscription | null = null;
-  private wait: Subscription | null = null;
+  private pollTimer: Subscription | null = null;
   // The reading counts as read once it has been on screen unfolded. It is recorded when the user
   // folds it or leaves the page, so that it stays open for the whole of the first visit.
   private shownUnfolded = false;
@@ -230,8 +230,8 @@ export class InsightPanelComponent implements OnInit, OnDestroy {
     }
 
     if (stillWriting && this.attempts < READING_POLL_LIMIT) {
-      this.wait?.unsubscribe();
-      this.wait = timer(READING_POLL_MS)
+      this.pollTimer?.unsubscribe();
+      this.pollTimer = timer(READING_POLL_MS)
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(() => this.load());
     }
