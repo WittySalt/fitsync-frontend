@@ -279,7 +279,7 @@ describe('LoginPage', () => {
     expect(authService.forgotPassword).toHaveBeenCalledWith('user@example.com');
     expect(component.mode()).toBe('reset-confirm');
     expect(component.resetConfirmForm.controls.email.value).toBe('user@example.com');
-    expect(component.notice()).toBe('We sent a reset code to your email.');
+    expect(component.notice()).toBe('If that email has an account, a reset code is on its way.');
 
     authService.forgotPassword.and.returnValue(throwError(() => new Error('Reset request failed.')));
     component.requestPasswordReset();

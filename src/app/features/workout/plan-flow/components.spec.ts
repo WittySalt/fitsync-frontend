@@ -186,7 +186,7 @@ describe('PlanEntrySheetComponent', () => {
     const { root } = render();
     expect(Array.from(root.querySelectorAll('.row strong')).map((row) => row.textContent)).toEqual([
       'Start from a template',
-      'Ask the coach to draft it',
+      'Plan it with the coach',
       'Build my own'
     ]);
     expect(root.querySelector('.ask')?.textContent).toContain('Ask');

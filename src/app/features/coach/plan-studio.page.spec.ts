@@ -35,7 +35,7 @@ describe('PlanStudioPage', () => {
   let toast: jasmine.SpyObj<ToastService>;
   let router: Router;
 
-  function setup(queryDraft: string | null): void {
+  function setup(queryDraft: string | null, extraParams: Record<string, string> = {}): void {
     api = jasmine.createSpyObj<CoachApiService>('CoachApiService', [
       'listSessionDrafts',
       'getSessionDraft',
@@ -53,7 +53,7 @@ describe('PlanStudioPage', () => {
         provideRouter([]),
         { provide: CoachApiService, useValue: api },
         { provide: ToastService, useValue: toast },
-        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(queryDraft ? { draft: queryDraft } : {}) } } }
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ ...(queryDraft ? { draft: queryDraft } : {}), ...extraParams }) } } }
       ]
     });
     router = TestBed.inject(Router);
@@ -72,6 +72,18 @@ describe('PlanStudioPage', () => {
   it('anchors the request box, the drafted session and Start for the Plan Studio path', () => {
     setup('a1');
     expect(anchorSteps(fixture.nativeElement as HTMLElement, 'coach-plan-studio')).toEqual(['request', 'draft', 'start']);
+  });
+
+  it('opens the coach dock when it arrives from the new-plan sheet', () => {
+    setup(null, { coach: 'open' });
+
+    expect(TestBed.inject(CoachStore).dockOpen()).toBeTrue();
+  });
+
+  it('leaves the coach dock closed on a plain visit', () => {
+    setup(null);
+
+    expect(TestBed.inject(CoachStore).dockOpen()).toBeFalse();
   });
 
   it('lists the drafts and opens the one named in the URL', () => {

@@ -12,7 +12,8 @@ export const PLAN_STUDIO_PATH = '/coach/plan';
 /** Where each entry row goes. The new-plan sheet and the onboarding hand-off both use this, so they cannot drift apart. */
 export function entryTarget(choice: PlanEntryChoice, templateId: string | null = null): EntryTarget {
   if (choice === 'coach') {
-    return { commands: [PLAN_STUDIO_PATH] };
+    // Plan Studio opens the dock when it sees this, so the coach is there to talk to on arrival.
+    return { commands: [PLAN_STUDIO_PATH], queryParams: { coach: 'open' } };
   }
   if (choice === 'template' && templateId) {
     return { commands: [NEW_PLAN_PATH], queryParams: { template: templateId } };
