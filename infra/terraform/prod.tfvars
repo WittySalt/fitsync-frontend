@@ -9,4 +9,5 @@ env               = "prod"
 enable_cloudfront = true
 
 # No custom domain from this stack: prod is hand-built (see above). Leave empty.
+# The prod domain (fitsyncapp.click, www) lives in ../terraform-prod-domain.
 custom_domain = ""

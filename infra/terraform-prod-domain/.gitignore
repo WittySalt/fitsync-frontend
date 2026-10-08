@@ -1,0 +1,5 @@
+# Local Terraform working files and the attach script's config snapshots
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+backups/

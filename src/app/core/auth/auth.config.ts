@@ -35,14 +35,25 @@ const STAGING_POOL: CognitoPool = {
   clientId: 'q489scqc3ki0c2vvr3r5ongao'
 };
 
+// Hosts served by the prod distribution: the apex and www custom domains and the
+// distribution's own CloudFront name, which keeps working. They are listed so a
+// prod host can never be routed to the staging pool, whatever STAGING_HOSTS holds.
+const PROD_HOSTS = new Set<string>(['fitsyncapp.click', 'www.fitsyncapp.click', 'd26vi6hikexzev.cloudfront.net']);
+
 // Hosts served by the staging environment use the staging pool: the custom domain
-// and the staging distribution's own CloudFront name, which keeps working. Everything
-// else (the prod CloudFront distribution, a future prod domain, localhost dev) falls
-// back to the prod pool.
+// and the staging distribution's own CloudFront name, which keeps working. Every
+// other host (localhost dev included) falls back to the prod pool.
 const STAGING_HOSTS = new Set<string>(['staging.fitsyncapp.click', 'd1z92tpb353lfi.cloudfront.net']);
 
+function poolForHost(hostname: string): CognitoPool {
+  if (PROD_HOSTS.has(hostname)) {
+    return PROD_POOL;
+  }
+  return STAGING_HOSTS.has(hostname) ? STAGING_POOL : PROD_POOL;
+}
+
 export function buildCognitoAuthConfig(hostname: string, origin: string): CognitoAuthConfig {
-  const pool = STAGING_HOSTS.has(hostname) ? STAGING_POOL : PROD_POOL;
+  const pool = poolForHost(hostname);
   return {
     region: pool.region,
     userPoolId: pool.userPoolId,
