@@ -1792,13 +1792,14 @@ export class FitSyncDataService {
 
   /** The day's totals, or an empty summary when the request fails. Callers that must tell "no
    *  food yet" from "could not load" use loadDailyNutritionSummary instead. */
-  getDailyNutritionSummary(date = new Date()): Observable<NutritionSummary> {
+  getDailyNutritionSummary(date: Date | string = new Date()): Observable<NutritionSummary> {
     return this.loadDailyNutritionSummary(date).pipe(catchError(() => of(this.emptyNutritionSummary())));
   }
 
-  /** The day's totals for a date or a YYYY-MM-DD key. A failed request is passed on as an error. */
+  /** The day's totals for a YYYY-MM-DD key, or for the day an instant falls on in the profile zone.
+   *  A failed request is passed on as an error. */
   loadDailyNutritionSummary(date: Date | string = new Date()): Observable<NutritionSummary> {
-    const params = new HttpParams().set('date', typeof date === 'string' ? date : this.toDateParam(date));
+    const params = new HttpParams().set('date', typeof date === 'string' ? date : this.userTimezone.dateKey(date));
     return this.http
       .get<BackendDailyNutritionSummary>(`${this.apiBaseUrl}/nutrition/summary/daily`, { params })
       .pipe(map((summary) => this.mapDailyNutritionSummary(summary)));
@@ -2224,12 +2225,6 @@ export class FitSyncDataService {
     return value ? `${value.slice(0, 5)}:00` : null;
   }
 
-  private toDateParam(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
 
   // FE-12.1: prefill onboarding for returning users + normalize backend numeric enum codes.
   private mapOnboardingSeed(user: BackendCurrentUser): OnboardingSeed {

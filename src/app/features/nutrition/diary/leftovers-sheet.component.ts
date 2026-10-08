@@ -1,18 +1,22 @@
 import { Component, ElementRef, HostListener, Injector, afterNextRender, computed, inject, input, output, viewChild } from '@angular/core';
 
 import { Leftover } from '../../../core/fitsync.models';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
+import { dateKeyInZone } from '../../../core/zone-time';
 import { FoodGlyphComponent } from '../../../shared/food/food-glyph.component';
 import { whole } from './diary-figures';
 import { parseIsoDate } from './diary-time';
 
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
 
-/** "Cooked today", "Cooked yesterday" or "Cooked Friday", from the cook's instant and today's date key. */
-export function cookedWhen(cookedAt: string, today: string): string {
-  const day = cookedAt.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+/** "Cooked today", "Cooked yesterday" or "Cooked Friday", from the cook's instant and today's date
+ *  key, both read as calendar days in the profile zone. */
+export function cookedWhen(cookedAt: string, today: string, timezone: string): string {
+  const instant = new Date(cookedAt);
+  if (Number.isNaN(instant.getTime())) {
     return 'Cooked recently';
   }
+  const day = dateKeyInZone(instant, timezone);
   // Rounded, so a day that is 23 or 25 hours long around a clock change still counts as one.
   const gap = Math.round((parseIsoDate(today).getTime() - parseIsoDate(day).getTime()) / 86_400_000);
   return gap <= 0 ? 'Cooked today' : gap === 1 ? 'Cooked yesterday' : `Cooked ${WEEKDAY.format(parseIsoDate(day))}`;
@@ -65,6 +69,8 @@ export function cookedWhen(cookedAt: string, today: string): string {
   styleUrl: './leftovers-sheet.component.scss'
 })
 export class LeftoversSheetComponent {
+  private readonly userTimezone = inject(UserTimezoneService);
+
   readonly leftovers = input.required<readonly Leftover[]>();
   /** The meal one serving goes into, "Dinner". */
   readonly mealLabel = input.required<string>();
@@ -75,7 +81,7 @@ export class LeftoversSheetComponent {
   readonly eat = output<Leftover>();
 
   protected readonly rows = computed(() =>
-    this.leftovers().map((row) => ({ ...row, when: cookedWhen(row.cookedAt, this.today()), kcal: row.kcalPerServing === null ? '' : whole(row.kcalPerServing) }))
+    this.leftovers().map((row) => ({ ...row, when: cookedWhen(row.cookedAt, this.today(), this.userTimezone.zone()), kcal: row.kcalPerServing === null ? '' : whole(row.kcalPerServing) }))
   );
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
 

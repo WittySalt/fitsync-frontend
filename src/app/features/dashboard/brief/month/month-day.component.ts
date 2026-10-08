@@ -120,11 +120,10 @@ export class MonthDayComponent {
     const reference = this.state.referenceDate();
     if (!reference || date <= reference) {
       this.foodLoad.set('loading');
-      // The summary is asked for by a local Date built from the key's parts, so the date the
-      // service formats is the picked date whatever the device's zone.
-      const [year, month, dayOfMonth] = date.split('-').map(Number);
+      // The summary is asked for by the day's key itself, so the date sent is the picked date
+      // whatever the device's or the profile's zone.
       this.requests.push(
-        this.data.getDailyNutritionSummary(new Date(year, month - 1, dayOfMonth)).subscribe({
+        this.data.getDailyNutritionSummary(date).subscribe({
           next: (summary) => {
             this.food.set(summary);
             this.foodLoad.set('done');

@@ -339,13 +339,15 @@ export class SettingsPage implements OnInit {
     if (!value) {
       return 'Not set';
     }
-    const date = new Date(`${value}T00:00:00`);
+    // A calendar date such as a birth date belongs to no zone, so it is read and shown at UTC
+    // midnight and stays the same date whatever the device's or the account's zone.
+    const date = new Date(`${value}T00:00:00Z`);
     if (Number.isNaN(date.getTime())) {
       return 'Not set';
     }
     return new Intl.DateTimeFormat(DISPLAY_LOCALE, {
       dateStyle: 'medium',
-      timeZone: this.accountTimezone()
+      timeZone: 'UTC'
     }).format(date);
   }
 

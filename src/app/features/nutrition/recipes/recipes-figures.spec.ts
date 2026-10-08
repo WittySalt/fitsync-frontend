@@ -302,6 +302,23 @@ describe('ticks', () => {
     expect(cookedWhen('not a date', now)).toBe('');
   });
 
+  it('counts the days of a cook in the profile zone, not the device zone', () => {
+    // 09:00 UTC on Saturday 3 October is 22:00 that day in Auckland and 02:00 that day in Los Angeles.
+    const now = new Date('2026-10-03T09:00:00Z');
+    // 11:30 UTC on 2 October is 00:30 on the 3rd in Auckland and 04:30 on the 2nd in Los Angeles.
+    const cooked = '2026-10-02T11:30:00Z';
+    expect(cookedWhen(cooked, now, 'Cooked', 'Pacific/Auckland')).toBe('Cooked today');
+    expect(cookedWhen(cooked, now, 'Cooked', 'America/Los_Angeles')).toBe('Cooked yesterday');
+    // 11:30 UTC on 29 September is Wednesday the 30th in Auckland and Tuesday the 29th in Los Angeles.
+    expect(cookedWhen('2026-09-29T11:30:00Z', now, 'Cooked', 'Pacific/Auckland')).toBe('Cooked Wednesday');
+    expect(cookedWhen('2026-09-29T11:30:00Z', now, 'Cooked', 'America/Los_Angeles')).toBe('Cooked Tuesday');
+    // 12:30 UTC on 15 September (before New Zealand's clocks go forward) is the 16th in Auckland and the 15th in Los Angeles.
+    expect(cookedWhen('2026-09-15T12:30:00Z', now, 'Cooked', 'Pacific/Auckland')).toBe('Cooked 16 Sept');
+    expect(cookedWhen('2026-09-15T12:30:00Z', now, 'Cooked', 'America/Los_Angeles')).toBe('Cooked 15 Sept');
+    expect(cookedLine(2, cooked, now, 'Pacific/Auckland')).toBe('Cooked 2 times · last today');
+    expect(cookedLine(2, cooked, now, 'America/Los_Angeles')).toBe('Cooked 2 times · last yesterday');
+  });
+
   it('says how often a recipe was cooked and when last, and nothing for one never cooked', () => {
     const now = new Date(2026, 9, 3, 9, 0);
     const at = (month: number, day: number) => new Date(2026, month, day, 20).toISOString();

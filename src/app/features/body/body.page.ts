@@ -11,6 +11,8 @@ import {
   MetricSource
 } from '../../core/account-data.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { UserTimezoneService } from '../../core/user-timezone.service';
+import { dateKeyInZone } from '../../core/zone-time';
 import { PagerComponent } from '../../shared/pager.component';
 import { FsChartComponent, FsChartSeries } from '../../shared/fs-chart.component';
 
@@ -42,6 +44,7 @@ export class BodyPage implements OnInit {
   private readonly accountDataService = inject(AccountDataService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly toast = inject(ToastService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   /** When rendered inside another page (e.g. the Progress hub) the page header is suppressed. */
   readonly embedded = input(false);
@@ -532,9 +535,10 @@ export class BodyPage implements OnInit {
       .join(' ');
   }
 
-  // The UTC calendar day, which the date filters compare against.
+  // The calendar day in the profile zone, the same days the person picks in the date filters.
   private isoDay(value: string | null | undefined): string {
-    return value ? new Date(value).toISOString().slice(0, 10) : '';
+    const instant = value ? new Date(value) : null;
+    return instant && !Number.isNaN(instant.getTime()) ? dateKeyInZone(instant, this.userTimezone.zone()) : '';
   }
 
   private formatNumber(value: number): string {

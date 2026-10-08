@@ -7,6 +7,7 @@ import { cookedWhen } from './recipes-figures';
 import { RecipeCard } from './recipes.models';
 import { RecipesService } from './recipes.service';
 import { GuideService } from '../../../core/guide/guide.service';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 
 const SHOWN = 6;
 
@@ -44,6 +45,7 @@ const SHOWN = 6;
 export class CookedRecentlyComponent {
   private readonly service = inject(RecipesService);
   private readonly guide = inject(GuideService);
+  private readonly userTimezone = inject(UserTimezoneService);
 
   protected readonly items = signal<RecipeCard[]>([]);
 
@@ -62,6 +64,6 @@ export class CookedRecentlyComponent {
   }
 
   protected when(card: RecipeCard): string {
-    return cookedWhen(card.lastCookedAt, new Date(), card.lastActivity === 'LOGGED' ? 'Logged' : 'Cooked');
+    return cookedWhen(card.lastCookedAt, new Date(), card.lastActivity === 'LOGGED' ? 'Logged' : 'Cooked', this.userTimezone.zone());
   }
 }

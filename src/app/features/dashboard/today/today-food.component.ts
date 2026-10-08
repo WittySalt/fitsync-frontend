@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, input, output, signal, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output, signal, viewChildren } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { DayMeal, NutritionSummary, UsualMeal } from '../../../core/fitsync.models';
+import { UserTimezoneService } from '../../../core/user-timezone.service';
 import {
   budgetFigure,
   defaultMealSlot,
@@ -37,6 +38,8 @@ export interface UsualMealLog {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TodayFoodComponent {
+  private readonly userTimezone = inject(UserTimezoneService);
+
   readonly nutrition = input.required<NutritionSummary>();
   readonly meals = input.required<DayMeal[]>();
   readonly now = input.required<Date>();
@@ -53,12 +56,12 @@ export class TodayFoodComponent {
   private readonly picked = signal<MealSlot | null>(null);
 
   readonly summaries = computed(() => summariseSlots(this.meals()));
-  readonly selected = computed<MealSlot>(() => this.picked() ?? defaultMealSlot(this.meals(), this.now(), this.usual()));
+  readonly selected = computed<MealSlot>(() => this.picked() ?? defaultMealSlot(this.meals(), this.now(), this.usual(), this.userTimezone.zone()));
   readonly selectedDefinition = computed(() => MEAL_SLOTS.find((slot) => slot.key === this.selected()) ?? MEAL_SLOTS[0]);
   readonly current = computed(() => this.summaries()[this.selected()]);
 
   // The meal to eat now keeps its dot whichever slot the person opens.
-  readonly dueSlot = computed(() => dueMealSlot(this.meals(), this.now(), this.usual()));
+  readonly dueSlot = computed(() => dueMealSlot(this.meals(), this.now(), this.usual(), this.userTimezone.zone()));
   readonly combination = computed(() => usualCombination(this.usual(), this.selected()));
   readonly usualFigure = computed(() => {
     const combination = this.combination();
@@ -76,7 +79,7 @@ export class TodayFoodComponent {
   });
   readonly usualTime = computed(() => slotUsualTime(this.usual(), this.selected()));
   // A usual time that has passed cannot be logged for, so the quiet action is left out.
-  readonly usualTimeIsAhead = computed(() => usualTimeAhead(this.usualTime(), this.now()));
+  readonly usualTimeIsAhead = computed(() => usualTimeAhead(this.usualTime(), this.now(), this.userTimezone.zone()));
   readonly ahead = computed(() => loggedAhead(this.meals(), this.selected(), this.now()));
 
   readonly caloriesTarget = computed(() => this.nutrition().targetCalories);
@@ -126,7 +129,7 @@ export class TodayFoodComponent {
   }
 
   logAtUsualTime(): void {
-    const moment = todayAt(this.usualTime(), this.now());
+    const moment = todayAt(this.usualTime(), this.now(), this.userTimezone.zone());
     if (moment !== null) {
       this.request(moment);
     }

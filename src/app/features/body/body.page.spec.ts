@@ -7,6 +7,7 @@ import {
   AccountDataService
 } from '../../core/account-data.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { UserTimezoneService } from '../../core/user-timezone.service';
 import { BodyPage } from './body.page';
 
 describe('BodyPage', () => {
@@ -186,6 +187,20 @@ describe('BodyPage', () => {
     component.setPageSize(5);
 
     expect(component.pageSize()).toBe(5);
+  });
+
+  it('filters by the calendar day of a measurement in the profile zone, not its UTC day', () => {
+    const component = fixture.componentInstance;
+    // 12:30 UTC on 17 June is 00:30 on the 18th in Auckland and 05:30 on the 17th in Los Angeles.
+    component.metrics.set([{ ...latestMetric, measuredAt: '2026-06-17T12:30:00Z' }]);
+    component.updateDateFrom('2026-06-18');
+    component.updateDateTo('2026-06-18');
+
+    TestBed.inject(UserTimezoneService).setProfileZone('Pacific/Auckland');
+    expect(component.filteredMetrics().length).toBe(1);
+
+    TestBed.inject(UserTimezoneService).setProfileZone('America/Los_Angeles');
+    expect(component.filteredMetrics().length).toBe(0);
   });
 
   it('jumps to a page of the measurement history inside the range', () => {

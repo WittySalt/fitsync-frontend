@@ -266,6 +266,33 @@ describe('usual times', () => {
     expect(todayAt('bad', at(15, 12))).toBeNull();
   });
 
+  it('reads the time of day on the profile zone clock, not the device clock', () => {
+    // 19:30 UTC on 30 September is 08:30 on 1 October in Auckland and 12:30 on 30 September in Los Angeles.
+    const now = new Date('2026-09-30T19:30:00Z');
+    expect(dueMealSlot([], now, [], 'Pacific/Auckland')).toBe('BREAKFAST');
+    expect(dueMealSlot([], now, [], 'America/Los_Angeles')).toBe('LUNCH');
+    expect(defaultMealSlot([], now, [], 'Pacific/Auckland')).toBe('BREAKFAST');
+    expect(defaultMealSlot([], now, [], 'America/Los_Angeles')).toBe('LUNCH');
+    expect(usualTimeAhead('12:00', now, 'Pacific/Auckland')).toBeTrue();
+    expect(usualTimeAhead('12:00', now, 'America/Los_Angeles')).toBeFalse();
+  });
+
+  it('builds today at the usual time on the profile zone day', () => {
+    // 11:30 UTC on 30 September is 00:30 on 1 October in Auckland and 04:30 on 30 September in Los Angeles.
+    const now = new Date('2026-09-30T11:30:00Z');
+    // 07:30 in Auckland (UTC+13) on 1 October, and 07:30 in Los Angeles (UTC-7) on 30 September.
+    expect(todayAt('07:30', now, 'Pacific/Auckland')?.toISOString()).toBe('2026-09-30T18:30:00.000Z');
+    expect(todayAt('07:30', now, 'America/Los_Angeles')?.toISOString()).toBe('2026-09-30T14:30:00.000Z');
+  });
+
+  it('builds today at the usual time on a day the clocks go forward', () => {
+    // New Zealand goes from 02:00 to 03:00 on 27 September 2026, so 07:30 is at UTC+13 that day.
+    const now = new Date('2026-09-27T00:00:00Z');
+    expect(todayAt('07:30', now, 'Pacific/Auckland')?.toISOString()).toBe('2026-09-26T18:30:00.000Z');
+    // 01:30 is still before the change, at UTC+12.
+    expect(todayAt('01:30', now, 'Pacific/Auckland')?.toISOString()).toBe('2026-09-26T13:30:00.000Z');
+  });
+
   it('finds a meal logged for a moment that has not come', () => {
     const ahead = [meal('LUNCH', 12, 500, { consumedAt: at(12, 30).toISOString() })];
 
