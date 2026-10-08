@@ -283,6 +283,7 @@ export function cookFigures(recipe: Pick<RecipeDetail, 'steps'>): CookFigures {
   let timers = 0;
   let timerSeconds = 0;
   for (const step of recipe.steps) {
+    // Only a step's first timer counts: cook mode runs one found timer per step.
     const timer = step.timers[0];
     if (timer) {
       timers += 1;
@@ -320,6 +321,7 @@ export function cookedWhen(iso: string | null, now: Date = new Date(), verb: 'Co
     return '';
   }
   const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  // Rounded, because a day across a daylight saving change is an hour longer or shorter.
   const ago = Math.round((day(now) - day(moment)) / DAY_MS);
   if (ago <= 0) {
     return `${verb} today`;

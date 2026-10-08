@@ -9,6 +9,7 @@ import { kcalText, pastTarget, ringShare } from './cook-finish-figures';
 
 export const RING_MS = 800;
 const SIZE = 64;
+// Inset from the edge so the ring's stroke (8px in the stylesheet) is not clipped.
 const RADIUS = SIZE / 2 - 6;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -135,16 +136,16 @@ export class CookLogComponent implements OnDestroy {
 
   constructor() {
     effect(() => {
-      const target = this.final();
+      const total = this.final();
       const added = this.added();
       untracked(() => {
         // The day as it stood is drawn straight away; only logging or undoing a meal runs the ring.
         if (added !== this.lastAdded) {
           this.lastAdded = added;
-          this.run(target);
+          this.run(total);
         } else {
           this.stop();
-          this.shown.set(target);
+          this.shown.set(total);
         }
       });
     });
@@ -163,18 +164,20 @@ export class CookLogComponent implements OnDestroy {
     this.changing.set(false);
   }
 
-  private run(target: number): void {
+  /** Runs the shown calories from where they are to `to`, easing out. */
+  private run(to: number): void {
     this.stop();
     const from = this.shown();
-    if (this.reducedMotion() || from === target || typeof requestAnimationFrame === 'undefined') {
-      this.shown.set(target);
+    if (this.reducedMotion() || from === to || typeof requestAnimationFrame === 'undefined') {
+      this.shown.set(to);
       return;
     }
     const began = performance.now();
     const tick = (now: number) => {
       const progress = Math.min(1, (now - began) / RING_MS);
+      // Ease-out cubic: fast at first, settling on the new figure.
       const eased = 1 - Math.pow(1 - progress, 3);
-      this.shown.set(from + (target - from) * eased);
+      this.shown.set(from + (to - from) * eased);
       this.frame = progress < 1 ? requestAnimationFrame(tick) : null;
     };
     this.frame = requestAnimationFrame(tick);

@@ -63,7 +63,7 @@ export interface RecipeTimer {
   phrase: string;
 }
 
-/** A step. The cook mode fields (section 8) arrive from a newer backend, so they are optional. */
+/** A step. The cook mode fields (section 8) come from a newer backend; the mapper fills them in when they are missing. */
 export interface RecipeStep {
   stepNumber: number;
   text: string;

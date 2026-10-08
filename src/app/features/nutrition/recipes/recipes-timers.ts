@@ -28,7 +28,7 @@ const NUMBER = '(\\d+(?:\\.\\d+)?)';
 const UNIT = '(hours?|hrs?|minutes?|mins?|seconds?|secs?)';
 const DURATION = new RegExp(`${NUMBER}(?:\\s*(?:-|\\u2013|to)\\s*${NUMBER})?\\s*${UNIT}\\b(?:\\s*(?:and\\s*)?${NUMBER}\\s*(?:minutes?|mins?)\\b)?`, 'gi');
 
-function factor(unit: string): number {
+function secondsPerUnit(unit: string): number {
   const first = unit.charAt(0).toLowerCase();
   return first === 'h' ? 3600 : first === 'm' ? 60 : 1;
 }
@@ -57,10 +57,11 @@ function locate(text: string): { timer: FoundTimer; sentence: string; phraseAt: 
     }
     DURATION.lastIndex = 0;
     for (const match of sentence.matchAll(DURATION)) {
-      const unit = factor(match[3]);
+      const perUnit = secondsPerUnit(match[3]);
+      // The trailing minutes of "1 hour 15 mins".
       const extra = match[4] ? Number(match[4]) * 60 : 0;
-      const low = Number(match[1]) * unit + extra;
-      const high = match[2] ? Number(match[2]) * unit + extra : null;
+      const low = Number(match[1]) * perUnit + extra;
+      const high = match[2] ? Number(match[2]) * perUnit + extra : null;
       if (low < MIN_TIMER_SECONDS || low > MAX_TIMER_SECONDS) {
         continue;
       }

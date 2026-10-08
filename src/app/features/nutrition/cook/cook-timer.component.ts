@@ -43,8 +43,8 @@ export class CookTimerComponent implements OnDestroy {
   protected readonly editing = signal(false);
   protected readonly celebrating = signal(false);
   protected readonly locked = signal(false);
-  private previous: TimerPhase | null = null;
-  private lastKey: number | null = null;
+  private previousPhase: TimerPhase | null = null;
+  private lastStepKey: number | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
   private readonly reducedMotion = typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
@@ -98,15 +98,15 @@ export class CookTimerComponent implements OnDestroy {
       const key = this.stepKey();
       const phase = this.phase();
       untracked(() => {
-        if (key !== this.lastKey) {
-          this.lastKey = key;
+        if (key !== this.lastStepKey) {
+          this.lastStepKey = key;
           this.stopCelebrating();
-        } else if (this.previous === 'running' && (phase === 'turn' || phase === 'done')) {
+        } else if (this.previousPhase === 'running' && (phase === 'turn' || phase === 'done')) {
           this.celebrate();
         } else if (phase === 'running' || phase === 'paused' || phase === 'idle') {
           this.stopCelebrating();
         }
-        this.previous = phase;
+        this.previousPhase = phase;
       });
     });
   }

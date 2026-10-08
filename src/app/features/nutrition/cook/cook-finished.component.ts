@@ -101,8 +101,7 @@ export class CookFinishedComponent implements OnInit {
   readonly firstCook = input(false);
   /** Overrides the browser's reduced-motion setting, for tests. */
   readonly reducedMotion = input<boolean | null>(null);
-  /** Leave for the recipe page: after Done, or Not now. */
-  /** Leaving the card, with the servings logged from it (0 when none). */
+  /** Leaving the card (Done or Not now), with the servings logged from it (0 when none). */
   readonly done = output<number>();
 
   protected readonly today = signal<Load<DiarySummary>>(LOADING);
