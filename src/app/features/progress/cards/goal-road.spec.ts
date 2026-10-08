@@ -5,6 +5,7 @@ import { goalCardView } from './goal-card-view';
 import {
   alsoPills,
   deriveRoad,
+  habitCounts,
   keepGeometry,
   keepHeadline,
   leadOf,
@@ -210,6 +211,65 @@ describe('the headline and the caption of each state', () => {
     expect(roadNote(lossRoad()).link).toBeUndefined();
     expect(roadNote(lossRoad()).text).toBe('25 Nov at this pace, 16 days before your date.');
     expect(roadNote(lossRoad({ state: 'BEHIND', projectedDate: '2027-01-03' })).text).toBe('3 Jan at this pace, 23 days after your date.');
+  });
+
+  it('never says "0 days after" when there is no projected date', () => {
+    const away = lossRoad({ state: 'BEHIND', projectedDate: null });
+    expect(roadNote(away, 0.3).text).toBe('At this pace the goal is not reached. The trend is moving away from 68 kg.');
+    expect(roadNote(away, null).text).toBe('No date is drawn at this pace yet.');
+    expect(roadNote(lossRoad({ state: 'AHEAD', projectedDate: null }), -0.4).text).toBe('No date is drawn at this pace yet.');
+    expect(roadNote(lossRoad({ state: 'ON_COURSE', projectedDate: null }), null).text).toBe('On course for your date.');
+    expect(roadNote(lossRoad({ state: 'ON_COURSE', projectedDate: null }), 0.3).text).toContain('moving away from 68 kg');
+    const gaining = lossRoad({ direction: 'GAIN', state: 'BEHIND', startKg: 60, nowKg: 61, targetKg: 65, projectedDate: null });
+    expect(roadNote(gaining, -0.2).text).toBe('At this pace the goal is not reached. The trend is moving away from 65 kg.');
+  });
+
+  it('reads ahead, on time and late, and leaves out the gap when there is no date to compare with', () => {
+    expect(roadNote(lossRoad({ state: 'AHEAD' })).text).toBe('25 Nov at this pace, 16 days before your date.');
+    expect(roadNote(lossRoad({ state: 'ON_COURSE', projectedDate: '2026-12-11' })).text).toBe('11 Dec at this pace, close to your date.');
+    expect(roadNote(lossRoad({ state: 'BEHIND', projectedDate: '2026-12-12' })).text).toBe('12 Dec at this pace, 1 day after your date.');
+    expect(roadNote(lossRoad({ state: 'AHEAD', targetDate: null })).text).toBe('25 Nov at this pace.');
+    expect(roadNote(lossRoad({ state: 'BEHIND', targetDate: null })).text).toBe('25 Nov at this pace.');
+    expect(roadNote(lossRoad({ state: 'NO_PROJECTION', projectedDate: null })).text).toBe('Log a few more weigh-ins and a date appears.');
+  });
+
+  it('captions a road with no projected date by the way the weight is going', () => {
+    const away = lossRoad({ state: 'BEHIND', projectedDate: null });
+    const rising = { ...goalWith(away), hero: { ...goalWith(away).hero, weeklyRate: { value: 0.3, previous: 0.1 } } };
+    expect(roadHeadline(rising, away).caption).toBe('Moving away from 68 kg lately');
+    const flat = { ...goalWith(away), hero: { ...goalWith(away).hero, weeklyRate: { value: null, previous: null } } };
+    expect(roadHeadline(flat, away).caption).toBe('No date at this pace yet');
+    expect(goalCardView(rising, TODAY).note?.text).toBe('At this pace the goal is not reached. The trend is moving away from 68 kg.');
+  });
+});
+
+describe('a workout goal on the Goal card', () => {
+  const withWorkouts = (weeks: { weekStart: string; value: number; target: number }[], days: { date: string; state: string }[] = []) =>
+    mapGoalProgress({ otherGoals: [{ type: 'WORKOUT_FREQUENCY', target: 4, unit: 'sessions/week', metDays: 0, loggedDays: 4, days, weeks }] });
+  const mondays = ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28'];
+
+  it('shows an honest empty state when no week holds a session', () => {
+    const view = goalCardView(withWorkouts(mondays.map((weekStart) => ({ weekStart, value: 0, target: 4 }))), TODAY);
+    expect(view.picture).toBe('NO_DATA');
+    expect(view.empty).toBe('Not enough data yet. Log a workout and this card counts your weeks.');
+    expect(view.headline).toEqual({ figure: '4 workouts', tail: 'a week', caption: 'Nothing logged yet' });
+    expect(view.lines).toEqual([]);
+  });
+
+  it('counts only the weeks with sessions when there is some history', () => {
+    const goal = withWorkouts([
+      { weekStart: '2026-09-07', value: 0, target: 4 },
+      { weekStart: '2026-09-14', value: 2, target: 4 },
+      { weekStart: '2026-09-21', value: 5, target: 4 },
+      { weekStart: '2026-09-28', value: 1, target: 4 }
+    ], [{ date: '2026-10-03', state: 'NOT_LOGGED' }]);
+    // The week of 28 Sept is still under way and below the target, so it does not count yet.
+    expect(habitCounts(goal.otherGoals[0])).toEqual({ logged: 2, met: 1 });
+    const view = goalCardView(goal, TODAY);
+    expect(view.picture).toBe('HABIT');
+    expect(view.headline).toEqual({ figure: '1 of 2 weeks', tail: 'at 4 workouts a week', caption: 'Workouts logged in 2 of the last 4 weeks' });
+    expect(view.lines[0].figure).toBe('50%');
+    expect(view.lines[0].text).toBe('of the logged weeks met the target');
   });
 });
 

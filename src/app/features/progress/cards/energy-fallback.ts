@@ -5,6 +5,15 @@ import { EnergyAverage, EnergyWeek, MealSplit } from '../energy/energy.models';
 export interface BarsWeek {
   week: EnergyWeek;
   label: string;
+  /** The same week as words that end a sentence: "this week", "in the week of 21 Sept". */
+  when: string;
+}
+
+/** Eaten minus used a day for the week the bars draw, the figure the bars' own gap line shows.
+ *  Null when either side is missing. */
+export function barsBalance(bars: BarsWeek | null): number | null {
+  const average = bars?.week.average ?? null;
+  return average && average.eaten !== null && average.used !== null ? average.eaten - average.used : null;
 }
 
 type Field = 'eaten' | 'resting' | 'workouts' | 'used' | 'balance';
@@ -37,11 +46,12 @@ function weighted<T extends string>(weeks: readonly EnergyWeek[], keys: readonly
  */
 export function barsWeek(current: EnergyWeek | null, earlier: readonly (EnergyWeek | null)[], reference: Date = new Date()): BarsWeek | null {
   if (current && current.status === 'OK') {
-    return { week: current, label: 'This week' };
+    return { week: current, label: 'This week', when: 'this week' };
   }
   const fullWeek = earlier.find((week): week is EnergyWeek => week !== null && week.status === 'OK');
   if (fullWeek) {
-    return { week: fullWeek, label: `Week of ${shortDateLabel(fullWeek.weekStart, reference)}` };
+    const named = shortDateLabel(fullWeek.weekStart, reference);
+    return { week: fullWeek, label: `Week of ${named}`, when: `in the week of ${named}` };
   }
   const logged = earlier.filter((week): week is EnergyWeek => week !== null && week.status !== 'NO_PROFILE' && week.daysLogged > 0 && week.average !== null);
   if (logged.length === 0) {
@@ -63,6 +73,7 @@ export function barsWeek(current: EnergyWeek | null, earlier: readonly (EnergyWe
       days: [],
       weeks: []
     },
-    label: '4-week average'
+    label: '4-week average',
+    when: 'on average over the four weeks before this one'
   };
 }

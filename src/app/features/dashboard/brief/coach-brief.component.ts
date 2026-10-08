@@ -164,7 +164,10 @@ export class CoachBriefComponent implements OnInit {
       daysSinceLastSession: this.daysSinceLastSession(),
       usualStartTime: this.insight()?.usualStartTime ?? null,
       nowMinutes: minutesOfDay(this.now(), this.timezone()),
-      todayOpen: this.todayOpen()
+      todayOpen: this.todayOpen(),
+      plannedLaterDays: this.week()
+        .filter((day) => day.state === 'upcoming' && day.planned)
+        .map((day) => day.weekday)
     })
   );
 

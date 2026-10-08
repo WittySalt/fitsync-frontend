@@ -1,4 +1,5 @@
 import { briefHeadline, numberWord, quickQuestions } from './brief-copy';
+import { dayPeriodFor, periodLabel } from './brief-time';
 
 describe('numberWord', () => {
   it('spells out zero through twelve', () => {
@@ -172,11 +173,45 @@ describe('briefHeadline — greeting: goal met or exceeded', () => {
     );
   });
 
-  it('uses the night sentence about tomorrow starting fresh', () => {
+  it('says tomorrow starts fresh only on Sunday night, the last day of the week', () => {
     const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1 });
     expect(result.greeting).toBe(
-      'Good evening, Ruixian. Your goal of four sessions is met, and tomorrow starts a fresh page.'
+      'Hi, Ruixian. Your goal of four sessions is met, and tomorrow starts a fresh page.'
     );
+  });
+
+  it('leaves the rest of the week to the person on a Friday night with nothing planned', () => {
+    const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 3 });
+    expect(result.greeting).toBe(
+      'Hi, Ruixian. Your goal of four sessions is met, and the rest of the week is yours.'
+    );
+    expect(result.greeting).not.toContain('tomorrow');
+  });
+
+  it('names one planned day still ahead on a Friday night', () => {
+    const result = briefHeadline({
+      period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 3, plannedLaterDays: ['Sat']
+    });
+    expect(result.greeting).toBe(
+      'Hi, Ruixian. Your goal of four sessions is met, and a session is still planned for Saturday.'
+    );
+  });
+
+  it('names several planned days still ahead', () => {
+    const result = briefHeadline({
+      period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 5,
+      plannedLaterDays: ['Thu', 'Sat', 'Sun']
+    });
+    expect(result.greeting).toBe(
+      'Hi, Ruixian. Your goal of four sessions is met, and sessions are still planned for Thursday, Saturday and Sunday.'
+    );
+  });
+
+  it('ignores planned days on Sunday, when the week ends tonight', () => {
+    const result = briefHeadline({
+      period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1, plannedLaterDays: []
+    });
+    expect(result.greeting).toContain('tomorrow starts a fresh page');
   });
 
   it('uses singular "session" when the target is one', () => {
@@ -189,7 +224,7 @@ describe('briefHeadline — greeting: goal met or exceeded', () => {
       period: 'NIGHT', firstName: 'Ruixian', completed: 4, target: 4, daysLeftInWeek: 1, weeksAtGoal: 3
     });
     expect(result.greeting).toBe(
-      'Good evening, Ruixian. Your goal of four sessions is met, and tomorrow starts a fresh page. ' +
+      'Hi, Ruixian. Your goal of four sessions is met, and tomorrow starts a fresh page. ' +
       'That is three weeks running at four.'
     );
   });
@@ -207,10 +242,47 @@ describe('briefHeadline — greeting: goal met or exceeded', () => {
   });
 });
 
+describe('briefHeadline — salutation follows the time chip', () => {
+  const at = (hour: number, minute: number) => dayPeriodFor(new Date(Date.UTC(2026, 9, 9, hour, minute)), 'UTC');
+
+  it('says Hi at 01:52, which the chip calls Night', () => {
+    const period = at(1, 52);
+    expect(periodLabel(period)).toBe('Night');
+    expect(briefHeadline({ period, firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 3 }).greeting)
+      .toMatch(/^Hi, Ruixian\. /);
+  });
+
+  it('says Hi at 23:30, which the chip calls Night', () => {
+    const period = at(23, 30);
+    expect(periodLabel(period)).toBe('Night');
+    expect(briefHeadline({ period, firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 3 }).greeting)
+      .toMatch(/^Hi, Ruixian\. /);
+  });
+
+  it('says Good morning at 06:00, which the chip calls Morning', () => {
+    const period = at(6, 0);
+    expect(periodLabel(period)).toBe('Morning');
+    expect(briefHeadline({ period, firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 3 }).greeting)
+      .toMatch(/^Good morning, Ruixian\. /);
+  });
+
+  it('says Good evening at 21:00, which the chip calls Evening', () => {
+    const period = at(21, 0);
+    expect(periodLabel(period)).toBe('Evening');
+    expect(briefHeadline({ period, firstName: 'Ruixian', completed: 1, target: 4, daysLeftInWeek: 3 }).greeting)
+      .toMatch(/^Good evening, Ruixian\. /);
+  });
+
+  it('drops the name cleanly at night', () => {
+    expect(briefHeadline({ period: 'NIGHT', firstName: ' ', completed: 0, target: 4, daysLeftInWeek: 7 }).greeting)
+      .toMatch(/^Hi\. /);
+  });
+});
+
 describe('briefHeadline — greeting: zero completed with a target', () => {
   it('names the open week and the goal', () => {
     const result = briefHeadline({ period: 'NIGHT', firstName: 'Ruixian', completed: 0, target: 4, daysLeftInWeek: 7 });
-    expect(result.greeting).toBe('Good evening, Ruixian. The week is open, and your goal is four sessions.');
+    expect(result.greeting).toBe('Hi, Ruixian. The week is open, and your goal is four sessions.');
   });
 });
 

@@ -25,6 +25,9 @@
     } @else if (failed()) {
       <app-state-panel title="Your goal could not be loaded" message="Nothing is lost. Try again in a moment." actionLabel="Try again" [error]="true" (action)="retry.emit()" />
     } @else if (view(); as v) {
+      @if (v.picture === 'NO_DATA') {
+        <p class="empty">{{ v.empty }}</p>
+      } @else {
       <div class="box">
         @switch (v.picture) {
           @case ('ROAD') {
@@ -41,6 +44,7 @@
           }
         }
       </div>
+      }
       @if (v.note; as note) {
         <p class="note">
           {{ note.text }}

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { catchError, forkJoin, map, of, startWith, switchMap } from 'rxjs';
+import { catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { formatNumber, lastDays } from '../../../shared/progress/progress-format';
 import { ProgressCardContext } from '../../../shared/progress/progress.models';
@@ -9,27 +9,30 @@ import { NutrientPetalsComponent } from '../../nutrition/nutrients/nutrient-peta
 import { reachSummary } from '../../nutrition/nutrients/nutrients-figures';
 import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { NutrientsService } from '../../nutrition/nutrients/nutrients.service';
-import { shiftWeek, thisMonday } from '../energy/energy-figures';
-import { EnergyWeek } from '../energy/energy.models';
 import { hasFood } from '../food/food-figures';
 import { FoodProgress } from '../progress-api.models';
 import { ProgressApiService } from '../progress-api.service';
 import { foodCoachLine } from './card-lines';
 import { foodReadingLines } from './card-readings';
-import { barsWeek } from './energy-fallback';
+import { useBarsWeek } from './bars-week';
+import { BarsWeek, barsBalance } from './energy-fallback';
 import { EnergyPairComponent } from './energy-pair.component';
 import { ProgressCardComponent } from './progress-card.component';
 import { SummaryListComponent } from './summary-list.component';
 
-/** The headline of the Food card: "279 kcal" and "A day under what you used this week". */
-export function foodHeadline(balance: number | null): { figure: string; caption: string } | null {
-  if (balance === null) {
+/**
+ * The headline of the Food card: "279 kcal" and "A day under what you used this week". It reads the
+ * week the bars draw, so the big number is the bars' own gap and the caption names that week.
+ */
+export function foodHeadline(bars: BarsWeek | null): { figure: string; caption: string } | null {
+  const balance = barsBalance(bars);
+  if (!bars || balance === null) {
     return null;
   }
   const rounded = Math.round(balance);
   return {
     figure: `${formatNumber(Math.abs(rounded))} kcal`,
-    caption: rounded === 0 ? 'A day matching what you used this week' : `A day ${rounded < 0 ? 'under' : 'over'} what you used this week`
+    caption: rounded === 0 ? `A day matching what you used ${bars.when}` : `A day ${rounded < 0 ? 'under' : 'over'} what you used ${bars.when}`
   };
 }
 
@@ -94,39 +97,21 @@ export class FoodCardComponent {
     const state = this.state();
     return state.status === 'ready' ? state.food : null;
   });
-  protected readonly headline = computed(() => foodHeadline(this.food()?.hero.balancePerDay.value ?? null));
+  protected readonly headline = computed(() => foodHeadline(this.week()));
   protected readonly coachLine = computed(() => {
     const food = this.food();
-    return food && hasFood(food) ? foodCoachLine(food) : '';
+    return food && hasFood(food) ? foodCoachLine(food, this.week(), this.period().to) : '';
   });
   protected readonly lines = computed(() => {
     const food = this.food();
-    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()) }) : [];
+    return food ? foodReadingLines({ food, nutrients: this.nutrients()?.nutrients ?? null, calorieTarget: this.calorieTarget(), days: this.days(), earlierWords: earlierWords(this.days()), today: this.period().to }) : [];
   });
   protected readonly enough = computed(() => {
     const food = this.food();
     return food ? hasFood(food) : false;
   });
-  /** The Mondays of the four weeks before the one that holds today, newest first; read only when this week is too young to draw. */
-  private readonly earlierMondays = computed(
-    () => {
-      const food = this.food();
-      if (!food || food.energy.thisWeek?.status === 'OK') {
-        return [] as string[];
-      }
-      const monday = thisMonday(this.period().to);
-      return [1, 2, 3, 4].map((back) => shiftWeek(monday, -back));
-    },
-    { equal: (a, b) => a.join() === b.join() }
-  );
-  private readonly earlierWeeks = toSignal(
-    toObservable(this.earlierMondays).pipe(
-      switchMap((mondays) => (mondays.length ? forkJoin(mondays.map((monday) => this.api.getEnergyWeek(monday))) : of([] as (EnergyWeek | null)[])))
-    ),
-    { initialValue: [] as (EnergyWeek | null)[] }
-  );
   /** The week the bars draw: this week, else the last full week, else the average of the weeks before. */
-  protected readonly week = computed(() => barsWeek(this.food()?.energy.thisWeek ?? null, this.earlierWeeks()));
+  protected readonly week = useBarsWeek(this.food, computed(() => this.period().to));
   protected readonly overview = computed(() => {
     const overview = this.nutrients();
     return overview && overview.daysLogged > 0 && reachSummary(overview.nutrients).total > 0 ? overview : null;

@@ -5,6 +5,7 @@ import { HeroStat, Highlight } from '../../../shared/progress/progress.models';
 import { reachSummary } from '../../nutrition/nutrients/nutrients-figures';
 import { NutrientsOverview } from '../../nutrition/nutrients/nutrients.models';
 import { FoodGranularity, FoodProgress, MacroTrend } from '../progress-api.models';
+import { BarsWeek, barsBalance } from '../cards/energy-fallback';
 
 /** Within this share of the period before, a daily figure reads as steady (board 19c: −3% is steady). */
 const STEADY_SHARE = 0.05;
@@ -51,11 +52,24 @@ export function balanceHeadline(balance: number | null): { value: string; words:
   return { value, words: balance <= 0 ? 'kcal a day under what you used' : 'kcal a day over what you used' };
 }
 
+/**
+ * The Food page's energy headline, read from the same week as the Food card's bars, so the page
+ * and the card give one figure and name one week: "279", "kcal a day under what you used", "this
+ * week" or "in the week of 21 Sept".
+ */
+export function barsHeadline(bars: BarsWeek | null): { value: string; words: string; when: string } | null {
+  const headline = balanceHeadline(barsBalance(bars));
+  return headline && bars ? { ...headline, when: bars.when } : null;
+}
+
 /** The Food page's four figures (board 19b). `before` names the period before: "the 4 weeks before". */
-export function foodHeroStats(food: FoodProgress, days: number, before = `the ${days} days before`): HeroStat[] {
+export function foodHeroStats(food: FoodProgress, days: number, before = `the ${days} days before`, bars?: BarsWeek | null): HeroStat[] {
   const { hero } = food;
-  const balance = hero.balancePerDay.value;
-  const previousBalance = food.energy.weeklyBalance.filter((week) => !week.current).at(-1)?.balance ?? null;
+  // With the bars week given, the balance is that week's, named by it; the week before is only
+  // compared with when the figure is this week's.
+  const balance = bars === undefined ? hero.balancePerDay.value : barsBalance(bars);
+  const when = bars === undefined ? 'this week' : (bars?.when ?? 'this week');
+  const previousBalance = when === 'this week' ? (food.energy.weeklyBalance.filter((week) => !week.current).at(-1)?.balance ?? null) : null;
   return [
     {
       label: 'Eaten a day',
@@ -77,8 +91,8 @@ export function foodHeroStats(food: FoodProgress, days: number, before = `the ${
         balance === null
           ? ''
           : previousBalance === null
-            ? 'a day this week'
-            : `a day this week, ${formatNumber(Math.abs(Math.round(previousBalance)))} the week before`
+            ? `a day ${when}`
+            : `a day ${when}, ${formatNumber(Math.abs(Math.round(previousBalance)))} the week before`
     },
     {
       label: 'Days logged',

@@ -1,8 +1,10 @@
 import { SummaryLine } from '../../../shared/progress/progress.models';
 import { formatNumber } from '../../../shared/progress/progress-format';
 import { NutrientTileData } from '../../nutrition/nutrients/nutrients.models';
-import { FoodProgress, GoalProgress, GoalRoad } from '../progress-api.models';
-import { FOUR_WEEKS, Span } from './goal-road';
+import { parseLocalDate, shortDateLabel } from '../../../shared/date-label';
+import { thisMonday } from '../energy/energy-figures';
+import { FoodProgress, GoalProgress, GoalRoad, MacroTrend } from '../progress-api.models';
+import { FOUR_WEEKS, Span, monthName } from './goal-road';
 
 /**
  * The three summary lines of the Goal and Food cards (spec 1.4). Each reads "figure, its relation to
@@ -29,6 +31,27 @@ export interface FoodReadingInput {
   days: number;
   /** How long ago the earlier protein figure is: "a month ago", "3 months ago". */
   earlierWords: string;
+  /** Today as YYYY-MM-DD, which tells this week from an earlier one. Defaults to the end of the
+   *  food period. */
+  today?: string;
+}
+
+/**
+ * Which week a macro's latest figure stands for, as words that end a sentence. The figure is the
+ * last week of the series that had food logged, which is not always the week that holds today, so
+ * a week with nothing logged yet never reads as "this week".
+ */
+export function macroWhen(macro: MacroTrend, food: FoodProgress, today?: string): string {
+  const last = macro.series.at(-1);
+  const day = today ?? food.period?.to ?? null;
+  if (!last || !day) {
+    return 'this week';
+  }
+  if (food.granularity === 'month') {
+    return last.partial || last.weekStart.slice(0, 7) === day.slice(0, 7) ? 'this month' : `in ${monthName(last.weekStart)}`;
+  }
+  const monday = thisMonday(day);
+  return last.weekStart >= monday ? 'this week' : `in the week of ${shortDateLabel(last.weekStart, parseLocalDate(day))}`;
 }
 
 function calorieLine({ food, calorieTarget, days }: FoodReadingInput): ReadingLine | null {
@@ -47,13 +70,13 @@ function calorieLine({ food, calorieTarget, days }: FoodReadingInput): ReadingLi
   return reading(`${whole(eaten)} kcal a day on a ${whole(calorieTarget)} target${tail}`, word, word === 'under');
 }
 
-function proteinLine({ food, earlierWords }: FoodReadingInput): ReadingLine | null {
+function proteinLine({ food, earlierWords, today }: FoodReadingInput): ReadingLine | null {
   const protein = food.macros.protein;
   const now = protein?.thisWeek ?? null;
   if (!protein || now === null) {
     return null;
   }
-  const head = `Protein ${whole(now)} g a day this week`;
+  const head = `Protein ${whole(now)} g a day ${macroWhen(protein, food, today)}`;
   const target = protein.target;
   if (target === null) {
     return reading(head, 'no target');

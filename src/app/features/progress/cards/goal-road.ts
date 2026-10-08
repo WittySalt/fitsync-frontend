@@ -139,6 +139,8 @@ export function wholeKilos(startKg: number, targetKg: number): number[] {
 
 export const HABIT_ORDER = ['CALORIES', 'PROTEIN', 'WORKOUT_FREQUENCY', 'CARBS', 'FAT'] as const;
 
+const weekly = (goal: OtherGoal): boolean => goal.type === 'WORKOUT_FREQUENCY';
+
 const NAMES: Record<string, string> = { CALORIES: 'Calories', PROTEIN: 'Protein', CARBS: 'Carbs', FAT: 'Fat', WORKOUT_FREQUENCY: 'Workouts', WEIGHT: 'Weight', STEPS: 'Steps' };
 
 export function goalName(type: string): string {
@@ -147,8 +149,42 @@ export function goalName(type: string): string {
 
 export type Lead = { kind: 'WEIGHT' } | { kind: 'HABIT'; goal: OtherGoal } | { kind: 'NONE' };
 
+/** The last day of the goal's strip that is not in the future, which stands for today. */
+function lastKnownDay(goal: OtherGoal): string | null {
+  const known = goal.days.filter((day) => day.state !== 'FUTURE');
+  return known.at(-1)?.date ?? null;
+}
+
+/**
+ * How many days or weeks of a habit goal were logged, and how many of them met it. A workout goal
+ * counts only the weeks that actually hold a session: a week counts once it is over, or as soon as
+ * it meets the target, the same rule the server uses. The server's own week count includes empty
+ * weeks, so it is not used for the workout goal.
+ */
+export function habitCounts(goal: OtherGoal): { logged: number; met: number } {
+  if (weekly(goal) && goal.weeks.length) {
+    const today = lastKnownDay(goal);
+    let logged = 0;
+    let met = 0;
+    for (const week of goal.weeks) {
+      if (week.value <= 0 || (today !== null && week.weekStart > today)) {
+        continue;
+      }
+      const reached = week.target !== null && week.target > 0 && week.value >= week.target;
+      const finished = today === null || daysBetween(week.weekStart, today) > 6;
+      if (finished || reached) {
+        logged += 1;
+        met += reached ? 1 : 0;
+      }
+    }
+    return { logged, met };
+  }
+  const logged = goal.loggedDays ?? goal.days.filter((day) => day.state !== 'NOT_LOGGED' && day.state !== 'FUTURE').length;
+  return { logged, met: goal.metDays ?? 0 };
+}
+
 function logged(goal: OtherGoal): number {
-  return goal.loggedDays ?? goal.days.filter((day) => day.state !== 'NOT_LOGGED' && day.state !== 'FUTURE').length;
+  return habitCounts(goal).logged;
 }
 
 /** WEIGHT when active; else the habit goal with most logged days, ties by the fixed order. STEPS never leads. */
@@ -181,7 +217,6 @@ export function habitTarget(goal: OtherGoal): string {
   return goal.type === 'WORKOUT_FREQUENCY' ? `${formatNumber(goal.target ?? 0)}` : figureOf(goal);
 }
 
-const weekly = (goal: OtherGoal): boolean => goal.type === 'WORKOUT_FREQUENCY';
 
 export interface AlsoPill {
   name: string;
@@ -195,7 +230,7 @@ export function alsoPills(goal: GoalProgress, lead: Lead): AlsoPill[] {
     .map((item) => {
       const count = logged(item);
       const unit = weekly(item) ? 'weeks' : 'days';
-      return { name: goalName(item.type), figure: count > 0 ? `${item.metDays ?? 0} of ${count} ${unit}` : 'nothing logged yet' };
+      return { name: goalName(item.type), figure: count > 0 ? `${habitCounts(item).met} of ${count} ${unit}` : 'nothing logged yet' };
     });
 }
 
@@ -231,16 +266,42 @@ export function stalledSince(goal: GoalProgress, road: GoalRoad): string | null 
   return daily[0]?.date ?? goal.period?.from ?? null;
 }
 
+/** The target as the card writes it: "68 kg", "68.5 kg". */
+function targetWords(road: GoalRoad): string {
+  return `${formatNumber(road.targetKg, road.targetKg % 1 ? 1 : 0)} kg`;
+}
+
+/**
+ * True when the weight trend points away from the target, so no date can be projected. The server
+ * then sends no projected date; the weekly rate, when known, says which way the weight is going.
+ */
+export function movingAway(road: GoalRoad, weeklyRate: number | null): boolean {
+  if (road.direction === 'KEEP' || road.projectedDate || weeklyRate === null || Math.abs(weeklyRate) < 0.05) {
+    return false;
+  }
+  return road.direction === 'LOSE' ? weeklyRate > 0 : weeklyRate < 0;
+}
+
+/** The states that speak of a projected date, which have nothing to name when there is none. */
+const PACE_STATES: readonly RoadState[] = ['AHEAD', 'ON_COURSE', 'BEHIND'];
+
 /** The weight road's headline and caption for each state (spec 1.4). */
 export function roadHeadline(goal: GoalProgress, road: GoalRoad): CardHeadline {
-  const target = `${formatNumber(road.targetKg, road.targetKg % 1 ? 1 : 0)} kg`;
+  const target = targetWords(road);
   const early = road.projectedDate && road.targetDate ? daysBetween(road.projectedDate, road.targetDate) : null;
   const base = { figure: `${formatNumber(road.distanceKg, 1)} kg`, tail: `to ${target}` };
+  if (PACE_STATES.includes(road.state) && !road.projectedDate) {
+    // Without a projected date there is no day to name, so the caption says which way the weight is going instead.
+    if (movingAway(road, goal.hero.weeklyRate.value)) {
+      return { ...base, caption: `Moving away from ${target} lately` };
+    }
+    return { ...base, caption: road.state === 'ON_COURSE' ? 'On course' : 'No date at this pace yet' };
+  }
   switch (road.state) {
     case 'AHEAD':
       return { ...base, caption: `On course for ${day(road.projectedDate)}${early === null ? '' : `, ${earlyWords(early)}`}` };
     case 'ON_COURSE':
-      return { ...base, caption: road.projectedDate ? `On course for ${day(road.projectedDate)}` : 'On course' };
+      return { ...base, caption: `On course for ${day(road.projectedDate)}` };
     case 'BEHIND':
       return { ...base, caption: `At this pace ${day(road.projectedDate)}${early === null ? '' : `, ${earlyWords(early)}`}` };
     case 'REACHED': {
@@ -264,17 +325,27 @@ export interface PictureNote {
   link?: { label: string; href: string; fragment?: string };
 }
 
-/** The one caption line under the road. */
-export function roadNote(road: GoalRoad): PictureNote {
+/**
+ * The one caption line under the road. A date is named only when there is one: a trend moving away
+ * from the target says so plainly, and a road with no projection says no date is drawn yet, so the
+ * line never reads "0 days after your date".
+ */
+export function roadNote(road: GoalRoad, weeklyRate: number | null = null): PictureNote {
   const date = day(road.projectedDate);
   const gap = road.projectedDate && road.targetDate ? daysBetween(road.projectedDate, road.targetDate) : null;
+  if (PACE_STATES.includes(road.state) && !road.projectedDate) {
+    if (movingAway(road, weeklyRate)) {
+      return { text: `At this pace the goal is not reached. The trend is moving away from ${targetWords(road)}.` };
+    }
+    return { text: road.state === 'ON_COURSE' ? 'On course for your date.' : 'No date is drawn at this pace yet.' };
+  }
   switch (road.state) {
     case 'AHEAD':
-      return { text: `${date} at this pace, ${plural(gap ?? 0, 'day')} before your date.` };
+      return { text: gap === null ? `${date} at this pace.` : `${date} at this pace, ${plural(gap, 'day')} before your date.` };
     case 'ON_COURSE':
-      return { text: road.projectedDate ? `${date} at this pace, close to your date.` : 'On course for your date.' };
+      return { text: road.targetDate ? `${date} at this pace, close to your date.` : `${date} at this pace.` };
     case 'BEHIND':
-      return { text: `${date} at this pace, ${plural(Math.abs(gap ?? 0), 'day')} after your date.` };
+      return { text: gap === null ? `${date} at this pace.` : `${date} at this pace, ${plural(Math.abs(gap), 'day')} after your date.` };
     case 'REACHED':
       return { text: 'You are there.', link: { label: 'Set a new goal in Me ›', href: '/me', fragment: 'goal-lifecycle' } };
     case 'DATE_PASSED':
@@ -308,21 +379,49 @@ export function habitItems(goal: OtherGoal): { date: string; state: 'MET' | 'MIS
 }
 
 export function habitHeadline(goal: OtherGoal): CardHeadline {
-  const items = habitItems(goal);
-  const count = logged(goal);
-  const unit = weekly(goal) ? 'weeks' : 'days';
+  const { logged: count, met } = habitCounts(goal);
   const tail = weekly(goal) ? `at ${habitTarget(goal)} workouts a week` : `at ${figureOf(goal)} ${HABIT_WORDS[goal.type] ?? ''}`.trim();
+  if (weekly(goal)) {
+    const today = lastKnownDay(goal);
+    const started = goal.weeks.filter((week) => today === null || week.weekStart <= today).length;
+    return {
+      figure: `${met} of ${plural(count, 'week')}`,
+      tail,
+      caption: `Workouts logged in ${count} of the last ${plural(started, 'week')}`
+    };
+  }
+  const items = habitItems(goal);
   return {
-    figure: `${goal.metDays ?? 0} of ${count} ${unit}`,
+    figure: `${met} of ${plural(count, 'day')}`,
     tail,
-    caption: `Logged ${count} of the last ${items.length} ${unit}`
+    caption: `Logged ${count} of the last ${plural(items.length, 'day')}`
   };
+}
+
+/** The headline of a habit goal with nothing logged yet: the goal itself, and no counts. */
+export function habitEmptyHeadline(goal: OtherGoal): CardHeadline {
+  return weekly(goal)
+    ? { figure: `${habitTarget(goal)} workouts`, tail: 'a week', caption: 'Nothing logged yet' }
+    : { figure: figureOf(goal), tail: `${HABIT_WORDS[goal.type] ?? ''} a day`.trim(), caption: 'Nothing logged yet' };
+}
+
+/** The empty-state sentence of the Goal card, in the words the Training and Food cards use. */
+export function habitEmptyText(goal: OtherGoal): string {
+  return weekly(goal)
+    ? 'Not enough data yet. Log a workout and this card counts your weeks.'
+    : 'Not enough data yet. Log what you eat for a few days and this card fills in.';
 }
 
 /** The share a bullseye reports under it: "88% of weeks", "84% of days". */
 export function habitShare(goal: OtherGoal): string {
-  const count = logged(goal);
-  return count === 0 ? '' : `${Math.round(((goal.metDays ?? 0) / count) * 100)}% of ${weekly(goal) ? 'weeks' : 'days'}`;
+  const { logged: count, met } = habitCounts(goal);
+  return count === 0 ? '' : `${Math.round((met / count) * 100)}% of ${weekly(goal) ? 'weeks' : 'days'}`;
+}
+
+/** The plain line under a habit goal when no other line applies: "50% of the logged weeks met the target". */
+export function habitShareLine(goal: OtherGoal): { figure: string; text: string } | null {
+  const { logged: count, met } = habitCounts(goal);
+  return count === 0 ? null : { figure: `${Math.round((met / count) * 100)}%`, text: `of the logged ${weekly(goal) ? 'weeks' : 'days'} met the target` };
 }
 
 export function keepShare(road: GoalRoad): string {

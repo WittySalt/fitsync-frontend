@@ -109,6 +109,12 @@ describe('the Food card readings', () => {
     expect(protein({ target: null })).toBe('Protein 136 g a day this week | no target');
   });
 
+  it('names the week of the protein figure when no food was logged this week', () => {
+    const earlier = food((wire) => ({ ...wire, macros: { ...wire.macros, protein: { ...wire.macros.protein, series: [{ weekStart: '2026-08-10', value: 150 }, { weekStart: '2026-09-21', value: 180 }], thisWeek: 180 } } }));
+    expect(read({ food: earlier, today: '2026-10-09' })[1]).toBe('Protein 180 g a day in the week of 21 Sept, 40 g over the 140 g target | met');
+    expect(read({ food: earlier, today: '2026-09-23' })[1]).toContain('Protein 180 g a day this week');
+  });
+
   it('judges the nutrients: all met, one short, two short, and the closest when none is under 80%', () => {
     const nutrients = (shares: number[]) => shares.map((share, index) => tile(['Iron', 'Zinc', 'Vitamin D', 'Calcium', 'Fibre'][index], share));
     expect(read({ nutrients: nutrients([1, 1.2, 1]) })[2]).toBe('All 3 nutrients met over the last 30 days | met');

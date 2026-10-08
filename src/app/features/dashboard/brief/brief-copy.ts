@@ -23,15 +23,56 @@ function plural(word: string, count: number): string {
   return count === 1 ? word : `${word}s`;
 }
 
+/** The salutation follows the same day period as the time chip (dayPeriodFor in brief-time), so
+ *  the chip and the greeting can never disagree. Night runs from 22:00 to 05:00, where "Good
+ *  evening" would be wrong after midnight and "Good night" reads as a goodbye, so it is a plain
+ *  "Hi". */
 function salutationFor(period: DayPeriod): string {
   switch (period) {
     case 'MORNING':
       return 'Good morning';
     case 'AFTERNOON':
       return 'Good afternoon';
-    default:
+    case 'EVENING':
       return 'Good evening';
+    default:
+      return 'Hi';
   }
+}
+
+const FULL_WEEKDAYS: Record<string, string> = {
+  Mon: 'Monday',
+  Tue: 'Tuesday',
+  Wed: 'Wednesday',
+  Thu: 'Thursday',
+  Fri: 'Friday',
+  Sat: 'Saturday',
+  Sun: 'Sunday'
+};
+
+/** "Saturday", "Saturday and Sunday", "Thursday, Saturday and Sunday". */
+function joinDays(days: string[]): string {
+  const names = days.map((day) => FULL_WEEKDAYS[day] ?? day);
+  if (names.length <= 1) {
+    return names.join('');
+  }
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** Closes the night sentence once the goal is met. The week starts on Monday, so only on Sunday
+ *  (the last day) does tomorrow start a new one. On other nights the sentence names any planned
+ *  day still ahead, as a plain fact, or otherwise leaves the rest of the week to the person. */
+function nightClosing(daysLeftInWeek: number, plannedLaterDays: string[]): string {
+  if (daysLeftInWeek <= 1) {
+    return 'tomorrow starts a fresh page';
+  }
+  if (plannedLaterDays.length === 1) {
+    return `a session is still planned for ${joinDays(plannedLaterDays)}`;
+  }
+  if (plannedLaterDays.length > 1) {
+    return `sessions are still planned for ${joinDays(plannedLaterDays)}`;
+  }
+  return 'the rest of the week is yours';
 }
 
 /** "Good morning, Alice." or, with no name, "Good morning." — never a dangling comma. */
@@ -64,6 +105,9 @@ export interface BriefHeadlineInput {
   /** Today's session is still ahead: it is not under way and not done. The greeting adds the usual
    *  time only when this is true. */
   todayOpen?: boolean;
+  /** Short weekday labels ("Sat") of the days after today, within this Monday-to-Sunday week, that
+   *  have a training session planned. Absent behaves as none. */
+  plannedLaterDays?: string[];
 }
 
 export interface BriefHeadline {
@@ -135,8 +179,9 @@ function buildGreeting(args: {
   daysLeftInWeek: number;
   targetMet: boolean;
   weeksAtGoal: number | null;
+  plannedLaterDays: string[];
 }): string {
-  const { prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal } = args;
+  const { prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal, plannedLaterDays } = args;
 
   if (target == null) {
     return `${prefix} Here is your week so far.`;
@@ -151,7 +196,7 @@ function buildGreeting(args: {
     } else if (period === 'EVENING') {
       sentence = `Your goal of ${targetWord} ${plural('session', target)} is met, and the evening is yours.`;
     } else {
-      sentence = `Your goal of ${targetWord} ${plural('session', target)} is met, and tomorrow starts a fresh page.`;
+      sentence = `Your goal of ${targetWord} ${plural('session', target)} is met, and ${nightClosing(daysLeftInWeek, plannedLaterDays)}.`;
     }
     let greeting = `${prefix} ${sentence}`;
     if (weeksAtGoal != null && weeksAtGoal >= 2) {
@@ -187,7 +232,10 @@ export function briefHeadline(input: BriefHeadlineInput): BriefHeadline {
   const prefix = salutationPrefix(period, firstName);
 
   const lines = headlineLines({ completed, target, completedToday, restToday, trainedYesterday, daysSinceLastSession });
-  let greeting = buildGreeting({ prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal });
+  const plannedLaterDays = input.plannedLaterDays ?? [];
+  let greeting = buildGreeting({
+    prefix, period, completed, target, daysLeftInWeek, targetMet, weeksAtGoal, plannedLaterDays
+  });
 
   // The usual time is mentioned only while there is a session to come and plenty of day before it.
   const sessionOpen = (input.todayOpen ?? false) && !completedToday && !restToday && !targetMet;
