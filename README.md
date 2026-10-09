@@ -97,12 +97,14 @@ CI/CD runs on GitHub Actions only.
 - **CI** (`.github/workflows/ci.yml`) runs on pull requests and on pushes to
   `main`/`develop`: gitleaks secret scan, typecheck, unit tests with coverage,
   and the production build.
-- **CD** (`.github/workflows/cd.yml`) is started by hand. It can apply the
-  staging infrastructure, deploy the build to the staging bucket, or deploy it
-  to production. It does nothing until the AWS repository variables are set.
-  It deploys only `main` commits whose CI push run passed, and production only
-  takes a commit that was deployed to staging first (break-glass needs a
-  written reason).
+- **CD** (`.github/workflows/cd.yml`) is started by hand. It builds the SPA
+  once, deploys it to staging and smoke-tests the live staging site (the main
+  bundle check blocks, the deep link and API health checks only warn) and, when
+  `deploy_prod` is ticked, promotes the same artifact to production, whose smoke
+  test only warns. CD changes no infrastructure; an operator plans and applies
+  the Terraform for both environments. It does nothing until the AWS
+  repository variables are set. It deploys only `main` commits whose CI push run
+  passed (break-glass past staging needs a written reason).
 
 [`.github/CICD-VARIABLES.md`](.github/CICD-VARIABLES.md) lists the variables.
 [`infra/terraform/RUNBOOK.md`](infra/terraform/RUNBOOK.md) covers the
