@@ -3,7 +3,6 @@ import { Router, provideRouter } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 
-import { AccountDataService, AccountPreferences } from '../../core/account-data.service';
 import { OnboardingSeed } from '../../core/fitsync.models';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { ToastService } from '../../core/toast/toast.service';
@@ -55,7 +54,6 @@ describe('OnboardingPage', () => {
   let fixture: ComponentFixture<OnboardingPage>;
   let component: OnboardingPage;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
-  let accountData: jasmine.SpyObj<AccountDataService>;
   let toast: jasmine.SpyObj<ToastService>;
   let router: Router;
 
@@ -64,15 +62,12 @@ describe('OnboardingPage', () => {
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
     dataService.getOnboardingSeed.and.returnValue(of(emptySeed()));
     dataService.saveOnboarding.and.returnValue(of({ ok: true }));
-    accountData = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['setHealthDataConsent']);
-    accountData.setHealthDataConsent.and.returnValue(of({} as AccountPreferences));
 
     await TestBed.configureTestingModule({
       imports: [OnboardingPage],
       providers: [
         provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
-        { provide: AccountDataService, useValue: accountData },
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
@@ -656,6 +651,8 @@ describe('OnboardingPage', () => {
       expect(consentBox()!.checked).toBeFalse();
       expect(component.form.controls.healthDataConsent.value).toBeFalse();
       expect(element.textContent).toContain('are health data');
+      expect(element.querySelector('.consent-card')?.textContent?.replace(/\s+/g, ' '))
+        .toContain('are processed by Amazon Bedrock and may be processed outside Singapore');
       const link = element.querySelector<HTMLAnchorElement>('.consent-card a');
       expect(link?.getAttribute('href')).toBe('/privacy');
       // The readiness questions come only after the consent.
@@ -687,28 +684,27 @@ describe('OnboardingPage', () => {
       component.submit();
 
       expect(dataService.saveOnboarding).not.toHaveBeenCalled();
-      expect(accountData.setHealthDataConsent).not.toHaveBeenCalled();
       expect(component.error()).toContain('Please fix');
     });
 
-    it('records the consent on the server after the onboarding is saved', () => {
+    it('sends the consent with the onboarding in one save', () => {
       spyOn(router, 'navigateByUrl').and.resolveTo(true);
       fillValidOnboarding(component);
 
       component.submit();
 
-      expect(dataService.saveOnboarding).toHaveBeenCalled();
-      expect(accountData.setHealthDataConsent).toHaveBeenCalledOnceWith(true);
+      expect(dataService.saveOnboarding).toHaveBeenCalledTimes(1);
+      expect(dataService.saveOnboarding.calls.mostRecent().args[0].healthDataConsent).toBeTrue();
       expect(component.entryOpen()).toBeTrue();
     });
 
-    it('reports a failure to record the consent and keeps the form ready for retry', () => {
-      accountData.setHealthDataConsent.and.returnValue(throwError(() => new Error('Consent not saved')));
+    it('reports a failed save and keeps the form ready for retry', () => {
+      dataService.saveOnboarding.and.returnValue(throwError(() => new Error('Onboarding not saved')));
       fillValidOnboarding(component);
 
       component.submit();
 
-      expect(component.error()).toBe('Consent not saved');
+      expect(component.error()).toBe('Onboarding not saved');
       expect(component.entryOpen()).toBeFalse();
       expect(component.submitting()).toBeFalse();
     });

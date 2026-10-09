@@ -109,8 +109,9 @@
         because your targets and plans are worked out from this data.
       </p>
       <p>
-        You can withdraw your consent at any time in Settings, under Privacy and data. Withdrawing does not delete
-        the data you have already saved. To have it erased, delete your account as described below.
+        You can withdraw your consent at any time in Settings, under Privacy and data. Withdrawing consent stops the
+        coach from using your health answers: it no longer leaves out exercises for the injury areas you chose. Your
+        logs stay, and deleting your account erases everything, as described below.
       </p>
     </section>
 
@@ -119,18 +120,28 @@
       <p>
         Your data is stored by AWS in its Asia Pacific (Singapore) region. The database and the media files are
         encrypted at rest, and all traffic between your browser and FitSync uses HTTPS. The app's pages are
-        delivered through Amazon CloudFront, which serves them from locations close to you around the world.
+        delivered through Amazon CloudFront, which serves them from locations close to you around the world. The
+        one exception to processing in Singapore is the AI coach, described in the next section.
       </p>
     </section>
 
     <section id="coach">
       <h2>The AI coach</h2>
       <p>
-        When the coach writes a reply, a page reading or a plan draft, FitSync builds a prompt from facts it has
-        worked out from your own data, such as how many sessions you trained this week or how your intake compares
-        with your targets. That prompt is sent to Amazon Bedrock, which runs the AI model. Bedrock uses cross-region
-        inference, so a prompt may be processed in an AWS region outside Singapore. Your health readiness answers
-        are never included in a prompt.
+        When the coach writes a reply, a page reading or a plan draft, FitSync builds a prompt from your question and
+        from facts it has worked out from your own data, such as your weight, the meals you logged, how many sessions
+        you trained this week or how your intake compares with your targets. That prompt is sent to Amazon Bedrock,
+        which runs the AI model.
+      </p>
+      <p>
+        The questions you ask the coach and the data it reads are processed by Amazon Bedrock and may be processed
+        outside Singapore. FitSync uses Bedrock's global cross-region inference, which can send a prompt to an AWS
+        region in another country to answer it.
+      </p>
+      <p>
+        Your health readiness answers are never included in a prompt. While you consent to health data, the coach
+        uses the injury areas you chose to leave matching exercises out of its plan drafts. After you withdraw
+        consent it no longer receives them.
       </p>
     </section>
 
@@ -163,8 +174,9 @@
       <ul class="rights-list">
         <li>
           <strong>Access and export.</strong> You can request an archive of your data in Settings, under Privacy and
-          data, and download it as a file. The archive holds your account, profile, preferences, goals and body
-          metric history. To get a copy of anything else, contact us.
+          data, and download it as one JSON file. The file holds your account, profile, preferences, goals, body
+          metric history and readiness answers, your meals, foods and recipes, your workout plans and sessions, and
+          your coach conversations and the drafts and readings the coach wrote.
         </li>
         <li>
           <strong>Correction.</strong> You can edit your profile, preferences, readiness answers, goals and body

@@ -41,6 +41,7 @@ const baseOnboarding: OnboardingFormValue = {
   injuryAreas: [],
   parqAcknowledged: false,
   parqAcknowledgedAt: null,
+  healthDataConsent: true,
   dietaryPattern: 'NONE',
   calorieTrackingMode: 'FLEXIBLE',
   targetCalories: 2417,
@@ -305,6 +306,7 @@ describe('FitSyncDataService', () => {
     expect(request.request.body.equipmentInventory).toEqual(['DUMBBELLS', 'BANDS']);
     expect(request.request.body.focusAreas).toEqual(['FULL_BODY', 'CORE']);
     expect(request.request.body.healthReadiness).toBeUndefined();
+    expect(request.request.body.healthDataConsent).toBeTrue();
     expect(typeof request.request.body.timezone).toBe('string');
     request.flush({});
   });

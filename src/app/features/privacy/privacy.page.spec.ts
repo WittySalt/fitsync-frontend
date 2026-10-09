@@ -65,11 +65,16 @@ describe('PrivacyPage', () => {
     });
 
     it('states the facts the system works by', () => {
-      const text = element.textContent ?? '';
+      const text = (element.textContent ?? '').replace(/\s+/g, ' ');
 
       expect(text).toContain('Asia Pacific (Singapore) region');
       expect(text).toContain('Amazon Bedrock');
       expect(text).toContain('outside Singapore');
+      expect(text).toContain('The questions you ask the coach and the data it reads are processed by Amazon Bedrock and may be processed outside Singapore.');
+      expect(text).toContain('Withdrawing consent stops the coach from using your health answers');
+      expect(text).toContain('deleting your account erases everything');
+      expect(text).toContain('download it as one JSON file');
+      expect(text).toContain('your coach conversations');
       expect(text).toContain('Email notifications are opt-in');
       expect(text).toContain('30 days');
       expect(text).toContain('Database backups are kept for 7 days');

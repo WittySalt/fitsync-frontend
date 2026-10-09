@@ -47,6 +47,8 @@ export interface OnboardingFormValue {
   injuryAreas: string[];
   parqAcknowledged: boolean;
   parqAcknowledgedAt: string | null;
+  /** The explicit consent to process the health answers, recorded by the server with the onboarding. */
+  healthDataConsent: boolean;
   dietaryPattern: string;
   calorieTrackingMode: string;
   targetCalories: number | null;

@@ -360,8 +360,9 @@
             <div class="sub-card-header"><h3 id="health-consent-heading">Health data consent</h3></div>
             <p class="settings-help">
               Your readiness answers and body data are health data. With your consent, FitSync uses them to work out
-              your daily targets and to personalise your plans and coaching.
-              <a routerLink="/privacy">Read the privacy notice</a>.
+              your daily targets and to personalise your plans and coaching. Questions you ask the coach and the data
+              it reads, such as your weight and meals, are processed by Amazon Bedrock and may be processed outside
+              Singapore. <a routerLink="/privacy">Read the privacy notice</a>.
             </p>
             <div class="field-row readonly"><span>Consent</span><strong>{{ healthConsentLine(account.user.preferences.app) }}</strong><em>{{ account.user.preferences.app.dataSharingConsent ? 'On' : 'Off' }}</em></div>
             @if (sectionErrors().consent; as message) { <p class="section-error" role="alert">{{ message }}</p> }
@@ -372,9 +373,8 @@
                 <div class="consent-panel" role="group" aria-labelledby="withdraw-consent-title">
                   <p id="withdraw-consent-title" class="settings-help danger-help">What withdrawing does</p>
                   <p class="settings-help">
-                    Your withdrawal is recorded on your account straight away. It does not delete anything: the
-                    readiness answers and body entries you have saved stay until you delete them or your account.
-                    To have them erased, delete your account below. You can give consent again here at any time.
+                    Withdrawing consent stops the coach from using your health answers. Your logs stay, and
+                    deleting your account erases everything. You can give consent again here at any time.
                   </p>
                   <div class="editor-actions">
                     <button class="button danger" type="button" [disabled]="saving() === 'consent'" (click)="saveHealthDataConsent(false)">{{ saving() === 'consent' ? 'Withdrawing...' : 'Withdraw consent' }}</button>
@@ -392,7 +392,9 @@
           <article class="sub-card">
             <h3>Download archive</h3>
             <div class="field-row readonly"><span>Latest export</span><strong>{{ account.latestDataExport ? labelFor(account.latestDataExport.status) + ' - ' + displayDateTime(account.latestDataExport.requestedAt) : 'No export requested' }}</strong><em>{{ account.latestDataExport?.downloadAvailable ? 'Ready' : 'Status' }}</em></div>
-            <div class="action-row"><button class="button secondary" type="button" [disabled]="saving() === 'privacy'" (click)="requestDataExport()">Request archive</button><button class="button secondary" type="button" [disabled]="!account.latestDataExport?.downloadAvailable || saving() === 'privacy'" (click)="downloadDataExport()">Download</button></div>
+            <p class="settings-help">The download is one JSON file with your account, nutrition, workout and coach data.</p>
+            @if (sectionErrors().export; as message) { <p class="section-error" role="alert">{{ message }}</p> }
+            <div class="action-row"><button class="button secondary" type="button" [disabled]="saving() === 'privacy' || saving() === 'export'" (click)="requestDataExport()">Request archive</button><button class="button secondary" type="button" [disabled]="!account.latestDataExport?.downloadAvailable || saving() === 'privacy' || saving() === 'export'" [attr.aria-busy]="saving() === 'export'" (click)="downloadDataExport()">{{ saving() === 'export' ? 'Preparing...' : 'Download' }}</button></div>
           </article>
           <article class="sub-card">
             <h3>Data sources</h3>

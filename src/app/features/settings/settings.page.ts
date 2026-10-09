@@ -49,6 +49,7 @@ type EditablePanel =
   | 'notifications'
   | 'privacy'
   | 'consent'
+  | 'export'
   | 'recovery'
   | 'delete';
 
@@ -707,11 +708,25 @@ export class SettingsPage implements OnInit {
     if (!exportRequestId) {
       return;
     }
-    this.saving.set('privacy');
-    this.accountDataService.downloadDataExport(exportRequestId).subscribe({
-      next: () => this.finishSave('privacy', 'Data archive downloaded by the API.'),
-      error: (error: Error) => this.handleSaveError('privacy', error)
+    this.saving.set('export');
+    this.accountDataService.downloadFullDataExport(exportRequestId).subscribe({
+      next: (archive) => {
+        this.saveJsonFile(`fitsync-export-${archive.exportedAt.slice(0, 10)}.json`, archive);
+        this.finishSave('export', 'Your data was downloaded.');
+      },
+      error: (error: Error) => this.handleSaveError('export', error)
     });
+  }
+
+  /** Hands the browser one JSON file to save. */
+  protected saveJsonFile(fileName: string, content: unknown): void {
+    const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   requestAccountDeletion(): void {

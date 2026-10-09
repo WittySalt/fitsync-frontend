@@ -1,9 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { switchMap } from 'rxjs';
 
-import { AccountDataService, ActivityLevel } from '../../core/account-data.service';
+import { ActivityLevel } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
@@ -108,7 +107,6 @@ interface ChoiceOption {
 export class OnboardingPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly dataService = inject(FitSyncDataService);
-  private readonly accountData = inject(AccountDataService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -339,11 +337,8 @@ export class OnboardingPage implements OnInit {
     this.error.set(null);
     this.success.set(null);
 
-    // The server saves onboarding with consent off, so the consent is recorded right after it. A failure
-    // here shows the error and Save tries both calls again.
-    this.dataService.saveOnboarding(this.toOnboardingValue()).pipe(
-      switchMap(() => this.accountData.setHealthDataConsent(true))
-    ).subscribe({
+    // The consent travels with the onboarding, so the server records it in the same save.
+    this.dataService.saveOnboarding(this.toOnboardingValue()).subscribe({
       next: () => {
         this.toast.success('Your plan is ready.');
         this.submitting.set(false);
@@ -774,6 +769,7 @@ export class OnboardingPage implements OnInit {
       injuryAreas: raw.injuryAreas ?? [],
       parqAcknowledged: raw.parqAcknowledged ?? false,
       parqAcknowledgedAt: this.parqAcknowledgedAt,
+      healthDataConsent: raw.healthDataConsent === true,
       dietaryPattern: raw.dietaryPattern ?? 'NONE',
       calorieTrackingMode: raw.calorieTrackingMode ?? 'FLEXIBLE',
       targetCalories: raw.targetCalories,
