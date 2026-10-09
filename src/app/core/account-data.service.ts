@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, shareReplay, tap } from 'rxjs';
+import { Observable, forkJoin, map, shareReplay, switchMap, tap } from 'rxjs';
 
 import { AuthService } from './auth/auth.service';
 import { UserTimezoneService } from './user-timezone.service';
@@ -65,7 +65,12 @@ export interface AppPreferences {
   language: string;
   timezone: string | null;
   privacyLevel: string;
+  /** Explicit consent to the processing of health data (readiness answers and body data). */
   dataSharingConsent: boolean;
+  /**
+   * When that consent was given. user-service does not send it yet; the page shows it once it does.
+   */
+  healthDataConsentAt?: string | null;
 }
 
 export interface TrainingPreferences {
@@ -307,6 +312,19 @@ export class AccountDataService {
     return this.http
       .put<AccountPreferences>(`${this.apiBaseUrl}/users/me/preferences`, withReferenceRange(preferences))
       .pipe(map(withReferenceRange));
+  }
+
+  /**
+   * Records the explicit consent to health data, or its withdrawal, on the stored app preferences. The
+   * preferences are read fresh first, so only the consent changes.
+   */
+  setHealthDataConsent(given: boolean): Observable<AccountPreferences> {
+    this.invalidateCurrentUser();
+    return this.getCurrentUser().pipe(
+      switchMap((user) =>
+        this.updatePreferences({ ...user.preferences, app: { ...user.preferences.app, dataSharingConsent: given } })
+      )
+    );
   }
 
   createBodyMetric(request: CreateBodyMetricRequest): Observable<AccountBodyMetric> {

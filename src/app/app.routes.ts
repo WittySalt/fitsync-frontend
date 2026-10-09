@@ -13,6 +13,12 @@ export const routes: Routes = [
   { path: 'auth/callback', component: AuthCallbackPage, title: 'FitSync Auth Callback' },
   { path: 'logout/callback', component: LogoutCallbackPage, title: 'FitSync Signed Out' },
   {
+    // Public on purpose: the privacy notice has to be readable before sign-up and without an account.
+    path: 'privacy',
+    loadComponent: () => import('./features/privacy/privacy.page').then((module) => module.PrivacyPage),
+    title: 'FitSync Privacy notice'
+  },
+  {
     path: 'dashboard',
     loadComponent: () => import('./features/dashboard/dashboard.page').then((module) => module.DashboardPage),
     canActivate: [authGuard],

@@ -48,6 +48,22 @@ describe('AccountDataService', () => {
     expect(saved?.nutrition.nutrientReferenceRange).toBe('BLENDED');
   });
 
+  it('records health data consent on fresh preferences, changing nothing else', () => {
+    const stored = preferencesFixture();
+    let saved: AccountPreferences | undefined;
+    service.setHealthDataConsent(true).subscribe((value) => { saved = value; });
+
+    httpTesting.expectOne('/api/v1/users/me').flush(userFixture({ preferences: stored }));
+    const request = httpTesting.expectOne('/api/v1/users/me/preferences');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body.app).toEqual({ ...stored.app, dataSharingConsent: true });
+    expect(request.request.body.training).toEqual(stored.training);
+    expect(request.request.body.notifications).toEqual(stored.notifications);
+    request.flush(request.request.body);
+
+    expect(saved?.app.dataSharingConsent).toBeTrue();
+  });
+
   it('normalizes unknown reference range values to PROFILE', () => {
     expect(normalizeReferenceRange(undefined)).toBe('PROFILE');
     expect(normalizeReferenceRange('MALE')).toBe('MALE');

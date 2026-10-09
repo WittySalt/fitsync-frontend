@@ -350,11 +350,43 @@
             @if (editPanel() === 'privacy') {
               <form class="settings-editor single" [formGroup]="privacyForm" (ngSubmit)="savePreferences('privacy')">
                 <label>Profile visibility<select formControlName="privacyLevel">@for (option of privacyOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
-                <label class="toggle-row"><input type="checkbox" formControlName="dataSharingConsent" /> Health data sharing</label>
                 <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'privacy'">Save privacy</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
               </form>
             } @else {
-              <div class="field-list"><button class="field-row" type="button" (click)="startEdit('privacy')"><span>Profile visibility</span><strong>{{ labelFor(account.user.preferences.app.privacyLevel) }}</strong><em>Edit</em></button><button class="field-row" type="button" (click)="startEdit('privacy')"><span>Health data sharing</span><strong>{{ account.user.preferences.app.dataSharingConsent ? 'On' : 'Off' }}</strong><em>Edit</em></button></div>
+              <div class="field-list"><button class="field-row" type="button" (click)="startEdit('privacy')"><span>Profile visibility</span><strong>{{ labelFor(account.user.preferences.app.privacyLevel) }}</strong><em>Edit</em></button></div>
+            }
+          </article>
+          <article class="sub-card health-consent" aria-labelledby="health-consent-heading">
+            <div class="sub-card-header"><h3 id="health-consent-heading">Health data consent</h3></div>
+            <p class="settings-help">
+              Your readiness answers and body data are health data. With your consent, FitSync uses them to work out
+              your daily targets and to personalise your plans and coaching.
+              <a routerLink="/privacy">Read the privacy notice</a>.
+            </p>
+            <div class="field-row readonly"><span>Consent</span><strong>{{ healthConsentLine(account.user.preferences.app) }}</strong><em>{{ account.user.preferences.app.dataSharingConsent ? 'On' : 'Off' }}</em></div>
+            @if (sectionErrors().consent; as message) { <p class="section-error" role="alert">{{ message }}</p> }
+            @if (account.user.preferences.app.dataSharingConsent) {
+              @if (editPanel() !== 'consent') {
+                <button class="field-row single-row danger-action" type="button" (click)="startEdit('consent')"><span>Withdraw consent</span><strong>Stop consenting to health data</strong><em>Open</em></button>
+              } @else {
+                <div class="consent-panel" role="group" aria-labelledby="withdraw-consent-title">
+                  <p id="withdraw-consent-title" class="settings-help danger-help">What withdrawing does</p>
+                  <p class="settings-help">
+                    Your withdrawal is recorded on your account straight away. It does not delete anything: the
+                    readiness answers and body entries you have saved stay until you delete them or your account.
+                    To have them erased, delete your account below. You can give consent again here at any time.
+                  </p>
+                  <div class="editor-actions">
+                    <button class="button danger" type="button" [disabled]="saving() === 'consent'" (click)="saveHealthDataConsent(false)">{{ saving() === 'consent' ? 'Withdrawing...' : 'Withdraw consent' }}</button>
+                    <button class="button secondary" type="button" (click)="cancelEdit()">Keep consent</button>
+                  </div>
+                </div>
+              }
+            } @else {
+              <form class="settings-editor single" [formGroup]="consentForm" (ngSubmit)="saveHealthDataConsent(true)">
+                <label class="toggle-row"><input type="checkbox" formControlName="agree" /> I consent to FitSync processing my health data for these purposes.</label>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="consentForm.invalid || saving() === 'consent'">{{ saving() === 'consent' ? 'Saving...' : 'Give consent' }}</button></div>
+              </form>
             }
           </article>
           <article class="sub-card">

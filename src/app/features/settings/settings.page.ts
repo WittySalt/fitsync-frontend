@@ -12,6 +12,7 @@ import {
   AccountDeletionStatus,
   AccountPreferences,
   AccountProfile,
+  AppPreferences,
   NotificationPreferences,
   NutrientReferenceRange,
   normalizeReferenceRange,
@@ -47,6 +48,7 @@ type EditablePanel =
   | 'nutrition'
   | 'notifications'
   | 'privacy'
+  | 'consent'
   | 'recovery'
   | 'delete';
 
@@ -105,7 +107,7 @@ export class SettingsPage implements OnInit {
     { id: 'preferences', label: 'Preferences', description: 'Formatting, training defaults, and nutrition tracking.' },
     { id: 'security', label: 'Security', description: 'Password state, recovery email, and your devices.' },
     { id: 'notifications', label: 'Notifications', description: 'Channels, reminders, reports, and quiet hours.' },
-    { id: 'privacy-data', label: 'Privacy & Data', description: 'Visibility, sharing, exports, and account deletion.' }
+    { id: 'privacy-data', label: 'Privacy & Data', description: 'Visibility, health data consent, exports, and account deletion.' }
   ];
   readonly themeOptions: { value: ThemePreference; label: string }[] = [
     { value: 'light', label: 'Light' },
@@ -254,8 +256,12 @@ export class SettingsPage implements OnInit {
   });
 
   readonly privacyForm = this.fb.group({
-    privacyLevel: ['120001'],
-    dataSharingConsent: [false]
+    privacyLevel: ['120001']
+  });
+
+  /** Giving consent again takes a tick that is never pre-set. */
+  readonly consentForm = this.fb.group({
+    agree: [false, Validators.requiredTrue]
   });
 
   readonly recoveryForm = this.fb.group({
@@ -530,6 +536,7 @@ export class SettingsPage implements OnInit {
       this.patchForms(data);
     }
     this.deletionForm.reset();
+    this.consentForm.reset();
     this.editPanel.set(null);
   }
 
@@ -539,6 +546,42 @@ export class SettingsPage implements OnInit {
   /** Why the birth date in the identity form is refused, or null when it is fine or empty. */
   birthDateError(): string | null {
     return birthDateErrorMessage(this.identityForm.controls.birthDate.errors);
+  }
+
+  /** The consent state in words, with the date when the server sends it. */
+  healthConsentLine(app: AppPreferences): string {
+    if (!app.dataSharingConsent) {
+      return 'Not given';
+    }
+    return app.healthDataConsentAt ? `Given on ${this.displayDateTime(app.healthDataConsentAt)}` : 'Given';
+  }
+
+  /**
+   * Gives or withdraws the explicit consent to health data. Withdrawing is reached only through the open
+   * panel that explains its effect, and giving needs the tick in that panel.
+   */
+  saveHealthDataConsent(given: boolean): void {
+    const data = this.data();
+    if (!data || this.saving() === 'consent') {
+      return;
+    }
+    if (given && this.consentForm.invalid) {
+      this.consentForm.markAllAsTouched();
+      return;
+    }
+    const preferences: AccountPreferences = {
+      ...data.user.preferences,
+      app: { ...data.user.preferences.app, dataSharingConsent: given }
+    };
+    this.saving.set('consent');
+    this.accountDataService.updatePreferences(preferences).subscribe({
+      next: (updatedPreferences) => {
+        this.setData({ ...data, user: { ...data.user, preferences: updatedPreferences } });
+        this.consentForm.reset();
+        this.finishSave('consent', given ? 'Consent recorded.' : 'Consent withdrawn.');
+      },
+      error: (error: Error) => this.handleSaveError('consent', error)
+    });
   }
 
   saveIdentity(): void {
@@ -791,8 +834,7 @@ export class SettingsPage implements OnInit {
       quietHoursEnd: this.toTimeInput(preferences.notifications.quietHoursEnd)
     });
     this.privacyForm.patchValue({
-      privacyLevel: preferences.app.privacyLevel,
-      dataSharingConsent: preferences.app.dataSharingConsent
+      privacyLevel: preferences.app.privacyLevel
     });
     this.recoveryForm.patchValue({
       email: data.security.recoveryEmail ?? data.auth.email ?? '',

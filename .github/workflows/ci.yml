@@ -1,8 +1,6 @@
 # CI: lint, test, build.
 # Runs on pull requests and pushes to main/develop. Secret detection runs here via
-# gitleaks. SAST is via SonarCloud (the build's Sonar step) — GitHub CodeQL code
-# scanning needs a public repo or GitHub Advanced Security, neither of which this
-# private repo has, so it is intentionally not wired up here.
+# gitleaks, and static analysis (SAST) runs here via Semgrep in the sast job.
 name: CI
 
 on:
@@ -29,6 +27,48 @@ jobs:
       - name: Mark workspace as safe for git
         run: git config --global --add safe.directory '*'
       - run: gitleaks detect --source . --verbose --redact
+
+  sast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: semgrep/semgrep:1.178.0
+    steps:
+      - uses: actions/checkout@v4
+      # The container runs as root; let git list the differently-owned checkout, so
+      # Semgrep scans the tracked files only.
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      # Every severity goes into the reports. p/typescript already carries the Angular
+      # rules (typescript.angular.*); the registry has no separate Angular pack.
+      - name: Semgrep scan
+        run: >-
+          semgrep scan
+          --config p/javascript
+          --config p/typescript
+          --config p/owasp-top-ten
+          --config p/secrets
+          --metrics=off
+          --json --output semgrep.json
+          --sarif-output=semgrep.sarif
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: semgrep-report
+          path: |
+            semgrep.json
+            semgrep.sarif
+          retention-days: 30
+          if-no-files-found: warn
+      # Only ERROR findings fail the job. WARNING and INFO findings stay in the report.
+      - name: Fail on ERROR findings
+        run: |
+          jq -r '.results[] | select(.extra.severity == "ERROR") | "\(.path):\(.start.line) \(.check_id)"' semgrep.json
+          errors=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' semgrep.json)
+          echo "Semgrep ERROR findings: $errors"
+          test "$errors" -eq 0
 
   typecheck:
     runs-on: ubuntu-latest

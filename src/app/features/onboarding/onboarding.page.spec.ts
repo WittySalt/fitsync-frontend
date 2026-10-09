@@ -3,6 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 
+import { AccountDataService, AccountPreferences } from '../../core/account-data.service';
 import { OnboardingSeed } from '../../core/fitsync.models';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { ToastService } from '../../core/toast/toast.service';
@@ -39,6 +40,7 @@ function fillValidOnboarding(component: OnboardingPage): void {
     intensityPreference: 'MODERATE',
     equipmentInventory: ['DUMBBELLS'],
     focusAreas: ['FULL_BODY'],
+    healthDataConsent: true,
     injuryAreas: [],
     dietaryPattern: 'NONE',
     calorieTrackingMode: 'STRICT',
@@ -53,6 +55,7 @@ describe('OnboardingPage', () => {
   let fixture: ComponentFixture<OnboardingPage>;
   let component: OnboardingPage;
   let dataService: jasmine.SpyObj<FitSyncDataService>;
+  let accountData: jasmine.SpyObj<AccountDataService>;
   let toast: jasmine.SpyObj<ToastService>;
   let router: Router;
 
@@ -61,12 +64,15 @@ describe('OnboardingPage', () => {
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error']);
     dataService.getOnboardingSeed.and.returnValue(of(emptySeed()));
     dataService.saveOnboarding.and.returnValue(of({ ok: true }));
+    accountData = jasmine.createSpyObj<AccountDataService>('AccountDataService', ['setHealthDataConsent']);
+    accountData.setHealthDataConsent.and.returnValue(of({} as AccountPreferences));
 
     await TestBed.configureTestingModule({
       imports: [OnboardingPage],
       providers: [
         provideRouter([]),
         { provide: FitSyncDataService, useValue: dataService },
+        { provide: AccountDataService, useValue: accountData },
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
@@ -175,6 +181,7 @@ describe('OnboardingPage', () => {
 
   it('requires PAR-Q disclaimer acknowledgement when a readiness risk is selected', () => {
     component.currentStep.set(3);
+    component.form.controls.healthDataConsent.setValue(true);
     component.form.controls.parqHeartCondition.setValue(true);
 
     component.nextStep();
@@ -632,6 +639,78 @@ describe('OnboardingPage', () => {
 
       expect(component.error()).toBe('You need to be 16 or older to use FitSync.');
       expect(toast.error).toHaveBeenCalledWith('You need to be 16 or older to use FitSync.');
+    });
+  });
+
+  describe('health data consent', () => {
+    function consentBox(): HTMLInputElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[formControlName="healthDataConsent"]');
+    }
+
+    it('asks for consent first on the health step, unticked, with a link to the privacy notice', () => {
+      component.currentStep.set(3);
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(consentBox()).not.toBeNull();
+      expect(consentBox()!.checked).toBeFalse();
+      expect(component.form.controls.healthDataConsent.value).toBeFalse();
+      expect(element.textContent).toContain('are health data');
+      const link = element.querySelector<HTMLAnchorElement>('.consent-card a');
+      expect(link?.getAttribute('href')).toBe('/privacy');
+      // The readiness questions come only after the consent.
+      expect(element.querySelector('[aria-label="Health readiness questions"]')).toBeNull();
+
+      consentBox()!.click();
+      fixture.detectChanges();
+
+      expect(component.form.controls.healthDataConsent.value).toBeTrue();
+      expect(element.querySelector('[aria-label="Health readiness questions"]')).not.toBeNull();
+    });
+
+    it('does not leave the health step without consent', () => {
+      component.currentStep.set(3);
+
+      component.nextStep();
+      expect(component.currentStep()).toBe(3);
+      expect(component.isInvalid('healthDataConsent')).toBeTrue();
+
+      component.form.controls.healthDataConsent.setValue(true);
+      component.nextStep();
+      expect(component.currentStep()).toBe(4);
+    });
+
+    it('cannot complete onboarding without consent', () => {
+      fillValidOnboarding(component);
+      component.form.controls.healthDataConsent.setValue(false);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).not.toHaveBeenCalled();
+      expect(accountData.setHealthDataConsent).not.toHaveBeenCalled();
+      expect(component.error()).toContain('Please fix');
+    });
+
+    it('records the consent on the server after the onboarding is saved', () => {
+      spyOn(router, 'navigateByUrl').and.resolveTo(true);
+      fillValidOnboarding(component);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).toHaveBeenCalled();
+      expect(accountData.setHealthDataConsent).toHaveBeenCalledOnceWith(true);
+      expect(component.entryOpen()).toBeTrue();
+    });
+
+    it('reports a failure to record the consent and keeps the form ready for retry', () => {
+      accountData.setHealthDataConsent.and.returnValue(throwError(() => new Error('Consent not saved')));
+      fillValidOnboarding(component);
+
+      component.submit();
+
+      expect(component.error()).toBe('Consent not saved');
+      expect(component.entryOpen()).toBeFalse();
+      expect(component.submitting()).toBeFalse();
     });
   });
 

@@ -165,6 +165,35 @@
   color: var(--accent-text);
 }
 
+.consent-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  background: var(--surface-tint);
+  padding: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  a {
+    color: var(--accent-text);
+    font-weight: var(--fw-semibold);
+  }
+}
+
+.consent-row {
+  font-weight: var(--fw-semibold);
+}
+
 .disclaimer-row {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);

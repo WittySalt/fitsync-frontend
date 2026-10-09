@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs';
 
-import { ActivityLevel } from '../../core/account-data.service';
+import { AccountDataService, ActivityLevel } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
@@ -72,6 +73,7 @@ type ControlName =
   | 'parqOtherReason'
   | 'injuryAreas'
   | 'parqAcknowledged'
+  | 'healthDataConsent'
   | 'dietaryPattern'
   | 'calorieTrackingMode'
   | 'targetCalories'
@@ -95,6 +97,7 @@ interface ChoiceOption {
   selector: 'app-onboarding-page',
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     PlanEntrySheetComponent,
     OnboardingExplainCardComponent,
     OnboardingStepLineComponent
@@ -105,6 +108,7 @@ interface ChoiceOption {
 export class OnboardingPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly dataService = inject(FitSyncDataService);
+  private readonly accountData = inject(AccountDataService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -206,6 +210,8 @@ export class OnboardingPage implements OnInit {
     intensityPreference: ['MODERATE', Validators.required],
     equipmentInventory: [[] as string[], [maxSelected(8)]],
     focusAreas: [['FULL_BODY'] as string[], [maxSelected(6)]],
+    // Explicit consent to the processing of health data. Never pre-ticked; onboarding cannot finish without it.
+    healthDataConsent: [false, Validators.requiredTrue],
     parqHeartCondition: [false],
     parqChestPainActivity: [false],
     parqDizziness: [false],
@@ -333,7 +339,11 @@ export class OnboardingPage implements OnInit {
     this.error.set(null);
     this.success.set(null);
 
-    this.dataService.saveOnboarding(this.toOnboardingValue()).subscribe({
+    // The server saves onboarding with consent off, so the consent is recorded right after it. A failure
+    // here shows the error and Save tries both calls again.
+    this.dataService.saveOnboarding(this.toOnboardingValue()).pipe(
+      switchMap(() => this.accountData.setHealthDataConsent(true))
+    ).subscribe({
       next: () => {
         this.toast.success('Your plan is ready.');
         this.submitting.set(false);
@@ -660,6 +670,7 @@ export class OnboardingPage implements OnInit {
 
   private isHealthStepValid(): boolean {
     return (
+      this.form.controls.healthDataConsent.valid &&
       this.form.controls.injuryAreas.valid &&
       (!this.hasParqRisk() || this.form.controls.parqAcknowledged.value === true)
     );
@@ -710,6 +721,7 @@ export class OnboardingPage implements OnInit {
         'focusAreas'
       ],
       [
+        'healthDataConsent',
         'parqHeartCondition',
         'parqChestPainActivity',
         'parqDizziness',

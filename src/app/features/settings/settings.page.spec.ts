@@ -600,11 +600,12 @@ describe('SettingsPage', () => {
 
     component.formattingForm.patchValue({ preferredUnits: '100002', language: '110002' });
     component.savePreferences('formatting');
-    component.privacyForm.patchValue({ privacyLevel: '120003', dataSharingConsent: true });
+    component.privacyForm.patchValue({ privacyLevel: '120003' });
     component.savePreferences('privacy');
 
+    // Saving visibility keeps the stored consent as it is; consent has its own card.
     expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
-      app: jasmine.objectContaining({ privacyLevel: '120003', dataSharingConsent: true })
+      app: jasmine.objectContaining({ privacyLevel: '120003', dataSharingConsent: false })
     }));
 
     component.data.set({
@@ -690,6 +691,127 @@ describe('SettingsPage', () => {
     expect(fixture.componentInstance.deletionGraceLine(status)).toBe(
       'Your account is scheduled for deletion and you are signed out. Sign in again within 30 days to cancel. After that, your data is removed.'
     );
+  });
+
+  describe('health data consent', () => {
+    function withConsent(given: boolean, consentedAt?: string): void {
+      const preferences = {
+        ...accountData.user.preferences,
+        app: { ...accountData.user.preferences.app, dataSharingConsent: given, healthDataConsentAt: consentedAt ?? null }
+      };
+      fixture.componentInstance.data.set({ ...accountData, user: { ...accountData.user, preferences } });
+    }
+
+    function openPrivacy(): HTMLElement {
+      fixture.componentInstance.selectedSection.set('privacy-data');
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function consentState(element: HTMLElement): string {
+      return element.querySelector('.health-consent .field-row.readonly strong')?.textContent?.trim() ?? '';
+    }
+
+    it('shows the consent state and links to the privacy notice', () => {
+      withConsent(true);
+      const element = openPrivacy();
+
+      expect(consentState(element)).toBe('Given');
+      expect(element.querySelector<HTMLAnchorElement>('.health-consent a')?.getAttribute('href')).toBe('/privacy');
+      expect(element.textContent).not.toContain('Health data sharing');
+    });
+
+    it('shows when consent was given once the server sends the time', () => {
+      withConsent(true, '2026-10-09T02:30:00Z');
+      const element = openPrivacy();
+
+      expect(consentState(element)).toContain('Given on');
+      expect(consentState(element)).toContain('2026');
+    });
+
+    it('explains the effect in the page and withdraws only from the red button, with no native dialog', () => {
+      const confirmSpy = spyOn(window, 'confirm');
+      withConsent(true);
+      const withdrawn = {
+        ...accountData.user.preferences,
+        app: { ...accountData.user.preferences.app, dataSharingConsent: false }
+      };
+      accountDataService.updatePreferences.and.returnValue(of(withdrawn));
+      const element = openPrivacy();
+
+      element.querySelector<HTMLButtonElement>('.health-consent .danger-action')!.click();
+      fixture.detectChanges();
+      expect(element.querySelector('.consent-panel')?.textContent).toContain('does not delete anything');
+      expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
+
+      const withdraw = element.querySelector<HTMLButtonElement>('.consent-panel button.danger')!;
+      expect(withdraw.textContent?.trim()).toBe('Withdraw consent');
+      withdraw.click();
+      fixture.detectChanges();
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(accountDataService.updatePreferences).toHaveBeenCalledOnceWith(jasmine.objectContaining({
+        app: jasmine.objectContaining({ dataSharingConsent: false, privacyLevel: '120001' })
+      }));
+      expect(toast.success).toHaveBeenCalledWith('Consent withdrawn.');
+      expect(consentState(element)).toBe('Not given');
+    });
+
+    it('keeps consent when the panel is closed', () => {
+      withConsent(true);
+      const element = openPrivacy();
+
+      element.querySelector<HTMLButtonElement>('.health-consent .danger-action')!.click();
+      fixture.detectChanges();
+      Array.from(element.querySelectorAll<HTMLButtonElement>('.consent-panel button'))
+        .find((button) => button.textContent?.trim() === 'Keep consent')!
+        .click();
+      fixture.detectChanges();
+
+      expect(element.querySelector('.consent-panel')).toBeNull();
+      expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
+    });
+
+    it('shows a failed withdrawal and leaves the consent in place', () => {
+      withConsent(true);
+      accountDataService.updatePreferences.and.returnValue(throwError(() => new Error('Could not save')));
+      const element = openPrivacy();
+
+      fixture.componentInstance.startEdit('consent');
+      fixture.detectChanges();
+      element.querySelector<HTMLButtonElement>('.consent-panel button.danger')!.click();
+      fixture.detectChanges();
+
+      expect(element.querySelector('.health-consent .section-error')?.textContent).toContain('Could not save');
+      expect(consentState(element)).toBe('Given');
+    });
+
+    it('gives consent again only after an unticked box is ticked', () => {
+      withConsent(false);
+      const given = {
+        ...accountData.user.preferences,
+        app: { ...accountData.user.preferences.app, dataSharingConsent: true }
+      };
+      accountDataService.updatePreferences.and.returnValue(of(given));
+      const element = openPrivacy();
+      const box = element.querySelector<HTMLInputElement>('.health-consent input[type="checkbox"]')!;
+      const submit = element.querySelector<HTMLButtonElement>('.health-consent button[type="submit"]')!;
+
+      expect(consentState(element)).toBe('Not given');
+      expect(box.checked).toBeFalse();
+      expect(submit.disabled).toBeTrue();
+
+      box.click();
+      fixture.detectChanges();
+      expect(submit.disabled).toBeFalse();
+      submit.click();
+      fixture.detectChanges();
+
+      expect(accountDataService.updatePreferences).toHaveBeenCalledOnceWith(jasmine.objectContaining({
+        app: jasmine.objectContaining({ dataSharingConsent: true })
+      }));
+      expect(consentState(element)).toBe('Given');
+    });
   });
 
   describe('delete account form', () => {

@@ -73,6 +73,17 @@ describe('App', () => {
     expect(navLabels).toEqual(['Home', 'Workout', 'Nutrition', 'Progress', 'Me']);
   });
 
+  it('shows the privacy notice without the member shell and without asking for a session', () => {
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/privacy');
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.app-shell')).toBeNull();
+    expect(authService.ensureSession).not.toHaveBeenCalled();
+  });
+
   it('marks the shell while the coach dock is open and lifts the mark when it closes', () => {
     const fixture = TestBed.createComponent(App);
     const shell = (): HTMLElement | null => (fixture.nativeElement as HTMLElement).querySelector('.app-shell');

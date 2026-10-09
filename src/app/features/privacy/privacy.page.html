@@ -1,0 +1,221 @@
+<main class="privacy-page">
+  <header class="privacy-top">
+    <a class="brand" routerLink="/dashboard" aria-label="FitSync home">
+      <span class="brand-mark" aria-hidden="true">FS</span>
+      <strong>FitSync</strong>
+    </a>
+    <a class="back-link" routerLink="/dashboard">Back to FitSync</a>
+  </header>
+
+  <article class="privacy-card" aria-labelledby="privacy-title">
+    <header class="privacy-heading">
+      <p class="eyebrow">Privacy notice</p>
+      <h1 id="privacy-title">How FitSync handles your data</h1>
+      <p class="updated">Last updated {{ lastUpdated }}</p>
+      <p>
+        This page explains what FitSync collects, why it needs it, where it is kept and what you can do about it.
+        It describes how the app works today.
+      </p>
+    </header>
+
+    <nav class="contents" aria-label="On this page">
+      <ol>
+        <li><a href="/privacy#who" (click)="jump($event, 'who')">Who processes your data</a></li>
+        <li><a href="/privacy#what" (click)="jump($event, 'what')">What we collect and why</a></li>
+        <li><a href="/privacy#consent" (click)="jump($event, 'consent')">Health data and your consent</a></li>
+        <li><a href="/privacy#where" (click)="jump($event, 'where')">Where your data is stored</a></li>
+        <li><a href="/privacy#coach" (click)="jump($event, 'coach')">The AI coach</a></li>
+        <li><a href="/privacy#email" (click)="jump($event, 'email')">Emails</a></li>
+        <li><a href="/privacy#retention" (click)="jump($event, 'retention')">How long we keep it</a></li>
+        <li><a href="/privacy#rights" (click)="jump($event, 'rights')">Your rights</a></li>
+        <li><a href="/privacy#others" (click)="jump($event, 'others')">Other services the app uses</a></li>
+        <li><a href="/privacy#contact" (click)="jump($event, 'contact')">Contact</a></li>
+      </ol>
+    </nav>
+
+    <section id="who">
+      <h2>Who processes your data</h2>
+      <p>
+        FitSync is a fitness and diet app built and run by the FitSync team as a software engineering capstone
+        project. The team decides what data the app collects and how it is used. Amazon Web Services (AWS) hosts
+        the app and processes the data on the team's behalf, and it also provides sign-in (Amazon Cognito), email
+        delivery (Amazon SES) and the AI model behind the coach (Amazon Bedrock).
+      </p>
+    </section>
+
+    <section id="what">
+      <h2>What we collect and why</h2>
+      <dl class="data-list">
+        <div>
+          <dt>Account</dt>
+          <dd>
+            Your email address, your role and a record of each device you are signed in on. We use them to sign you
+            in, to keep your account secure and to let you see and sign out your devices in Settings. Amazon Cognito
+            holds your password; FitSync never sees it.
+          </dd>
+        </div>
+        <div>
+          <dt>Profile</dt>
+          <dd>
+            Your display name, birth date, sex, height, activity level, time zone and, if you add one, a profile
+            photo. Your age, sex, height and weight are used to estimate how much energy you need each day.
+          </dd>
+        </div>
+        <div>
+          <dt>Health readiness answers</dt>
+          <dd>
+            Your yes or no answers to six screening questions, such as whether you have a heart condition, any
+            injury areas you choose and the time you acknowledged that FitSync is not medical advice. We use them to
+            keep your training safe. Exercises that load an injured area are left out of the plans the coach drafts.
+          </dd>
+        </div>
+        <div>
+          <dt>Body metrics and goals</dt>
+          <dd>
+            Your weight, body fat and body measurements over time, and the targets you set. They drive your daily
+            calorie and macro targets and the charts on the Progress pages.
+          </dd>
+        </div>
+        <div>
+          <dt>Meals</dt>
+          <dd>
+            The meals, foods, recipes and water you log. We use them to total your day against your targets and to
+            show trends over time.
+          </dd>
+        </div>
+        <div>
+          <dt>Training</dt>
+          <dd>
+            Your workout plans, sessions, sets and records. We use them to plan your week, to track progress and
+            personal records, and to award achievements.
+          </dd>
+        </div>
+        <div>
+          <dt>Coach conversations</dt>
+          <dd>
+            The messages you send the coach, its replies, the page readings it writes and the plan drafts it makes.
+            They are stored so the coach can answer in context and you can see what it said.
+          </dd>
+        </div>
+      </dl>
+      <p>We do not sell your data, and we do not use it for advertising.</p>
+    </section>
+
+    <section id="consent">
+      <h2>Health data and your consent</h2>
+      <p>
+        Your readiness answers and your body data are health data. FitSync asks for your explicit consent before it
+        saves them, during setup, and records your answer on your account. Setup cannot be finished without that consent,
+        because your targets and plans are worked out from this data.
+      </p>
+      <p>
+        You can withdraw your consent at any time in Settings, under Privacy and data. Withdrawing does not delete
+        the data you have already saved. To have it erased, delete your account as described below.
+      </p>
+    </section>
+
+    <section id="where">
+      <h2>Where your data is stored</h2>
+      <p>
+        Your data is stored by AWS in its Asia Pacific (Singapore) region. The database and the media files are
+        encrypted at rest, and all traffic between your browser and FitSync uses HTTPS. The app's pages are
+        delivered through Amazon CloudFront, which serves them from locations close to you around the world.
+      </p>
+    </section>
+
+    <section id="coach">
+      <h2>The AI coach</h2>
+      <p>
+        When the coach writes a reply, a page reading or a plan draft, FitSync builds a prompt from facts it has
+        worked out from your own data, such as how many sessions you trained this week or how your intake compares
+        with your targets. That prompt is sent to Amazon Bedrock, which runs the AI model. Bedrock uses cross-region
+        inference, so a prompt may be processed in an AWS region outside Singapore. Your health readiness answers
+        are never included in a prompt.
+      </p>
+    </section>
+
+    <section id="email">
+      <h2>Emails</h2>
+      <p>
+        Email notifications are opt-in. They are off for every new account, and each kind of email has its own
+        switch in Settings, under Notifications. Every email says why you received it. The one email sent whatever
+        your settings are is the notice that confirms a request to delete your account, because it is a security
+        notice. Emails are delivered by Amazon SES in Singapore.
+      </p>
+    </section>
+
+    <section id="retention">
+      <h2>How long we keep it</h2>
+      <p>
+        We keep your data for as long as you have an account. When you ask to delete your account, FitSync signs you
+        out on every device and refuses new sign-ins. You have 30 days to change your mind by signing in again.
+        After those 30 days your account and its data are erased.
+      </p>
+      <p>
+        Database backups are kept for 7 days, so erased data can remain in a backup for up to 7 more days before it
+        is gone for good. When you delete a single meal, recipe or workout, it is hidden from you and erased
+        together with your account.
+      </p>
+    </section>
+
+    <section id="rights">
+      <h2>Your rights</h2>
+      <ul class="rights-list">
+        <li>
+          <strong>Access and export.</strong> You can request an archive of your data in Settings, under Privacy and
+          data, and download it as a file. The archive holds your account, profile, preferences, goals and body
+          metric history. To get a copy of anything else, contact us.
+        </li>
+        <li>
+          <strong>Correction.</strong> You can edit your profile, preferences, readiness answers, goals and body
+          entries at any time in the app.
+        </li>
+        <li>
+          <strong>Deletion.</strong> You can delete your account in Settings, under Privacy and data. You can undo
+          the request by signing in within 30 days.
+        </li>
+        <li>
+          <strong>Withdrawing consent.</strong> You can withdraw your consent to health data in Settings, and turn
+          off any email at any time.
+        </li>
+      </ul>
+      <p>If you have a question or a request these controls do not cover, write to us at the address below.</p>
+    </section>
+
+    <section id="others">
+      <h2>Other services the app uses</h2>
+      <p>None of the services below receives your account, health or activity data.</p>
+      <ul class="others-list">
+        <li>
+          Food data comes in part from
+          <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">Open Food Facts</a>,
+          available under the
+          <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">Open Database License (ODbL)</a>,
+          and from the USDA FoodData Central dataset. This data is copied into FitSync, so looking up a food does not
+          contact either service.
+        </li>
+        <li>
+          Recipe photos are loaded from TheMealDB, so your browser connects to themealdb.com and shares your IP
+          address with it when a photo is shown.
+        </li>
+        <li>
+          Food brand logos are loaded from Google's favicon service. When a logo is shown, your browser sends your IP
+          address and the brand's web address to Google.
+        </li>
+        <li>
+          The app's fonts come from Google Fonts, and some exercises play a video from YouTube, in its
+          privacy-enhanced mode, or from Vimeo. Your browser contacts these services when it loads them.
+        </li>
+      </ul>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>
+        For any question about your data or this notice, email
+        <a [href]="'mailto:' + contactEmail">{{ contactEmail }}</a>.
+        If this notice changes, we will update this page and the date at the top.
+      </p>
+    </section>
+  </article>
+</main>

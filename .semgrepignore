@@ -1,0 +1,7 @@
+# Paths Semgrep skips. This file replaces Semgrep's built-in defaults, so the usual
+# generated and vendored folders are listed here too.
+node_modules/
+dist/
+coverage/
+.angular/
+*.min.js
