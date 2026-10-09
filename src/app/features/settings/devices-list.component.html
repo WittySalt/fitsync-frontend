@@ -1,0 +1,84 @@
+<article class="sub-card devices-card" aria-labelledby="devices-heading">
+  <div class="sub-card-header">
+    <h3 id="devices-heading">Your devices</h3>
+  </div>
+
+  @switch (state()) {
+    @case ('unavailable') {
+      <p class="devices-note">Device list is not available yet.</p>
+    }
+    @case ('loading') {
+      <div class="devices-loading" role="status" aria-busy="true" aria-label="Loading your devices">
+        <span class="skeleton-row"></span>
+        <span class="skeleton-row"></span>
+      </div>
+    }
+    @case ('error') {
+      <div class="devices-error" role="alert">
+        <p>Your devices could not be loaded.</p>
+        <button class="button secondary" type="button" (click)="load()">Try again</button>
+      </div>
+    }
+    @case ('ready') {
+      <ul class="device-list">
+        @for (session of sessions(); track session.sessionId) {
+          <li class="device-row" [class.current]="session.current">
+            <div class="device-copy">
+              <div class="device-title">
+                <strong>{{ session.deviceLabel || 'Unknown device' }}</strong>
+                @if (session.current) {
+                  <span class="this-device">This device</span>
+                }
+              </div>
+              <div class="device-meta">
+                <span>{{ activityLine(session) }}</span>
+                @if (signedInLine(session); as signedIn) {
+                  <span>{{ signedIn }}</span>
+                }
+              </div>
+            </div>
+            @if (!session.current) {
+              <button
+                class="sign-out-link danger-text"
+                type="button"
+                [disabled]="revoking() !== null"
+                [attr.aria-label]="'Sign out ' + (session.deviceLabel || 'this unknown device')"
+                (click)="revoke(session)"
+              >
+                {{ revoking() === session.sessionId ? 'Signing out...' : 'Sign out' }}
+              </button>
+            }
+          </li>
+        }
+      </ul>
+
+      @if (otherSessions().length === 0) {
+        <p class="devices-note">Only this device is signed in.</p>
+      } @else if (confirmingOthers()) {
+        <div class="confirm-row" role="group" aria-labelledby="confirm-others-question">
+          <p id="confirm-others-question">Sign out of every other device?</p>
+          <div class="confirm-actions">
+            <button
+              #confirmOthers
+              class="button danger-solid"
+              type="button"
+              [disabled]="revoking() !== null"
+              (click)="revokeOthers()"
+            >
+              {{ revoking() === 'others' ? 'Signing out...' : 'Sign out' }}
+            </button>
+            <button class="button secondary" type="button" [disabled]="revoking() !== null" (click)="confirmingOthers.set(false)">
+              Cancel
+            </button>
+          </div>
+        </div>
+      } @else {
+        <div class="others-action">
+          <button class="button secondary danger-text" type="button" [disabled]="revoking() !== null" (click)="confirmingOthers.set(true)">
+            Sign out of all other devices
+          </button>
+        </div>
+      }
+    }
+  }
+</article>

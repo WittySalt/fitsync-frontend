@@ -302,16 +302,7 @@
               }
             }
           </article>
-          <article class="sub-card">
-            <h3>Active sessions</h3>
-            <div class="field-list">
-              @for (session of account.sessions; track session.sessionId) {
-                <div class="field-row readonly"><span>{{ session.deviceLabel || 'Current device' }}</span><strong>{{ session.ipAddress || 'IP unavailable' }} - expires {{ displayDateTime(session.expiresAt) }}</strong><em>{{ session.revocable ? 'Revocable' : 'Read only' }}</em></div>
-              } @empty {
-                <div class="field-row readonly"><span>Sessions</span><strong>{{ account.security.sessionTrackingAvailable ? account.security.sessionCount + ' session(s)' : 'Session tracking unavailable' }}</strong><em>Read only</em></div>
-              }
-            </div>
-          </article>
+          <app-devices-list />
         </section>
         }
 

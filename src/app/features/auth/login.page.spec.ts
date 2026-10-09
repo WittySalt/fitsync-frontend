@@ -1,7 +1,7 @@
 import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { NEVER, of, throwError } from 'rxjs';
 
 import { AuthService, PendingDeletion } from '../../core/auth/auth.service';
@@ -408,5 +408,44 @@ describe('LoginPage', () => {
 
     expect(component.error()).toBe('Reset failed.');
     expect(component.loading()).toBeNull();
+  });
+});
+
+describe('LoginPage after a device lost its session', () => {
+  async function renderWith(signedOut: string | null): Promise<HTMLElement> {
+    const authService = jasmine.createSpyObj<AuthService>('AuthService', ['signIn', 'dismissPendingDeletion'], {
+      socialSignInEnabled: false,
+      pendingDeletion: signal<PendingDeletion | null>(null),
+      canCancelAccountDeletion: signal(false)
+    });
+    await TestBed.configureTestingModule({
+      imports: [LoginPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: authService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap(signedOut ? { signedOut } : {}) } }
+        }
+      ]
+    }).compileComponents();
+    const fixture = TestBed.createComponent(LoginPage);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('says the device was signed out when the session was revoked', async () => {
+    const element = await renderWith('revoked');
+    expect(element.querySelector('.form-alert.notice')?.textContent?.trim()).toBe('You were signed out on this device.');
+  });
+
+  it('says the session ended when it expired', async () => {
+    const element = await renderWith('expired');
+    expect(element.querySelector('.form-alert.notice')?.textContent?.trim()).toBe('Your session ended. Sign in again.');
+  });
+
+  it('shows nothing for an unknown reason', async () => {
+    const element = await renderWith('<b>hello</b>');
+    expect(element.querySelector('.form-alert.notice')).toBeNull();
   });
 });

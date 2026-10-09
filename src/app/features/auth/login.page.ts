@@ -1,11 +1,18 @@
 import { Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { formatDeletionDate } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SocialProvider } from '../../core/auth/auth.config';
 import { UserTimezoneService } from '../../core/user-timezone.service';
+
+// The sign-in page shows one of these after a device lost its session. Only these fixed lines can
+// appear, whatever the query string holds.
+const SIGNED_OUT_NOTICES: Readonly<Record<string, string>> = {
+  revoked: 'You were signed out on this device.',
+  expired: 'Your session ended. Sign in again.'
+};
 
 type AuthMode = 'signin' | 'signup' | 'confirm' | 'reset' | 'reset-confirm';
 type AuthAction = 'signin' | 'signup' | 'confirm' | 'resend' | 'reset' | 'reset-confirm' | 'keep';
@@ -23,6 +30,7 @@ type BrandQuote = {
 export class LoginPage implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly userTimezone = inject(UserTimezoneService);
   private readonly quoteIntervalMs = 5000;
   private quoteTimer: ReturnType<typeof setInterval> | null = null;
@@ -104,6 +112,10 @@ export class LoginPage implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    const signedOut = this.route.snapshot.queryParamMap.get('signedOut');
+    if (signedOut && Object.prototype.hasOwnProperty.call(SIGNED_OUT_NOTICES, signedOut)) {
+      this.notice.set(SIGNED_OUT_NOTICES[signedOut]);
+    }
     this.pickFact();
     this.startQuoteRotation();
   }

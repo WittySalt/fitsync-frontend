@@ -1,6 +1,20 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { EMPTY, catchError, finalize, map, Observable, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from '@angular/core';
+import {
+  EMPTY,
+  catchError,
+  defer,
+  finalize,
+  map,
+  Observable,
+  of,
+  shareReplay,
+  Subscription,
+  switchMap,
+  tap,
+  throwError,
+  timeout
+} from 'rxjs';
 
 import {
   AUTH_STORAGE_KEYS,
@@ -9,6 +23,7 @@ import {
   SOCIAL_SIGN_IN_ENABLED,
   SocialProvider
 } from './auth.config';
+import { currentDeviceLabel } from './device-label';
 import { normalizeRole, roleFromAccessToken, UserRole } from './jwt-role';
 
 interface CognitoAttribute {
@@ -28,10 +43,89 @@ interface InitiateAuthResponse {
   ChallengeName?: string;
 }
 
-interface BootstrapAuthResponse {
+/** The token fields that bootstrap and refresh share. An older backend sends the access token only. */
+interface SessionTokens {
   accessToken: string;
+  refreshToken?: string | null;
+  accessTokenExpiresAt?: string | null;
+  sessionId?: string | null;
+}
+
+interface BootstrapAuthResponse extends SessionTokens {
   tokenType: string;
 }
+
+export const AUTH_REFRESH_URL = '/api/v1/auth/refresh';
+export const AUTH_LOGOUT_URL = '/api/v1/auth/logout';
+export const SESSION_REVOKED_CODE = 'SESSION_REVOKED';
+export const SESSION_EXPIRED_CODE = 'SESSION_EXPIRED';
+
+/** Why this device lost its session, which decides the line the sign-in page shows. */
+export type SessionEndReason = 'revoked' | 'expired';
+
+/** Raised to callers of a refresh that ended the session, after the tokens were cleared. */
+export class SessionEndedError extends Error {
+  constructor(readonly reason: SessionEndReason) {
+    super(reason === 'revoked' ? 'This device was signed out.' : 'The session ended.');
+    this.name = 'SessionEndedError';
+  }
+}
+
+/** The `code` of a standard ApiError body, or null when the response has none. */
+export function apiErrorCode(error: unknown): string | null {
+  if (!(error instanceof HttpErrorResponse)) {
+    return null;
+  }
+  const body = error.error as { code?: unknown } | null;
+  return typeof body?.code === 'string' ? body.code : null;
+}
+
+/**
+ * Runs a token refresh while no other tab of this browser runs one. Tabs share the stored
+ * refresh token, which rotates on every use, so two tabs must not spend the same one.
+ * Without the Web Locks API the refresh runs straight away.
+ */
+export type RefreshLock = <T>(work: () => Observable<T>) => Observable<T>;
+
+const REFRESH_LOCK_NAME = 'fitsync.auth.refresh';
+
+export const webLocksRefreshLock: RefreshLock = <T>(work: () => Observable<T>): Observable<T> => {
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  if (!locks) {
+    return defer(work);
+  }
+  return new Observable<T>((subscriber) => {
+    let inner: Subscription | undefined;
+    locks
+      .request(
+        REFRESH_LOCK_NAME,
+        () =>
+          new Promise<void>((release) => {
+            if (subscriber.closed) {
+              release();
+              return;
+            }
+            inner = defer(work)
+              .pipe(finalize(() => release()))
+              .subscribe(subscriber);
+          })
+      )
+      .catch((error: unknown) => subscriber.error(error));
+    return () => inner?.unsubscribe();
+  });
+};
+
+export const AUTH_REFRESH_LOCK = new InjectionToken<RefreshLock>('AUTH_REFRESH_LOCK', {
+  providedIn: 'root',
+  factory: () => webLocksRefreshLock
+});
+
+// The access token is refreshed this long before it expires.
+const REFRESH_LEAD_MS = 60_000;
+const REFRESH_TIMEOUT_MS = 15_000;
+const LOGOUT_TIMEOUT_MS = 3_000;
+// A token whose expiry cannot be read is treated as valid for two hours, as before refresh existed.
+const FALLBACK_TOKEN_LIFETIME_MS = 2 * 60 * 60 * 1000;
 
 /** An account whose deletion is scheduled. The date is null when the backend did not send one. */
 export interface PendingDeletion {
@@ -55,8 +149,13 @@ function deletionPendingFrom(error: HttpErrorResponse | Error): PendingDeletion 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly refreshLock = inject(AUTH_REFRESH_LOCK);
   private readonly config = COGNITO_AUTH_CONFIG;
   private sessionBootstrap$?: Observable<boolean>;
+  private refreshInFlight$?: Observable<string>;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  // Several failing calls can learn at once that the session is gone. Only the first one acts.
+  private sessionEnding = false;
   // The Cognito tokens of an account that was refused a session because its deletion is pending.
   // They stay in memory only, so that the person can keep the account without signing in again.
   private pendingDeletionTokens: CognitoTokenSet | null = null;
@@ -80,6 +179,12 @@ export class AuthService {
 
   /** Whether federated Google/Apple sign-in is wired up (see AUTH-SOCIAL-SIGNIN.md). */
   readonly socialSignInEnabled = SOCIAL_SIGN_IN_ENABLED;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.cancelRefreshTimer());
+    // A reload keeps the stored tokens, so the refresh is planned again.
+    this.scheduleRefresh();
+  }
 
   /**
    * Redirect into the Cognito Hosted UI for a federated provider. No-op while
@@ -108,9 +213,24 @@ export class AuthService {
     return this.isAuthenticated() ? localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) : null;
   }
 
+  /**
+   * Whether this session can be refreshed. An older backend sends no refresh token, and then the
+   * app keeps its earlier behaviour: no refresh, and a new bootstrap once the token has expired.
+   */
+  hasRefreshToken(): boolean {
+    return Boolean(localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken));
+  }
+
   ensureSession(): Observable<boolean> {
     if (this.isAuthenticated()) {
       return of(true);
+    }
+
+    if (this.hasRefreshToken()) {
+      return this.refreshAccessToken(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).pipe(
+        map(() => true),
+        catchError(() => of(false))
+      );
     }
 
     const cognitoIdToken = localStorage.getItem(AUTH_STORAGE_KEYS.cognitoIdToken);
@@ -321,9 +441,56 @@ export class AuthService {
     return throwError(() => new Error('Hosted UI callback is no longer used. Please sign in from the FitSync login page.'));
   }
 
-  logout(): void {
+  /**
+   * Returns a fresh access token. Concurrent callers share one refresh call. `staleAccessToken` is
+   * the token the caller holds: when storage already has a different, valid one, because this or
+   * another tab refreshed in the meantime, that one is used and no call is made.
+   *
+   * A refresh refused with 401 ends the session: the tokens are cleared, the person is sent to the
+   * sign-in page, and the observable fails with SessionEndedError. Other failures keep the tokens.
+   */
+  refreshAccessToken(staleAccessToken: string | null): Observable<string> {
+    this.refreshInFlight$ ??= this.refreshLock(() => this.rotateTokens(staleAccessToken)).pipe(
+      finalize(() => {
+        this.refreshInFlight$ = undefined;
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.refreshInFlight$;
+  }
+
+  /** Clears the session of a device that was signed out or whose session ended, and opens the sign-in page. */
+  endSession(reason: SessionEndReason): void {
+    if (this.sessionEnding) {
+      return;
+    }
+    this.sessionEnding = true;
     this.clearSession();
-    window.location.assign('/auth/login');
+    this.navigateToLogin(reason);
+  }
+
+  /** Revokes this device's session on the server when it can, then signs out here as before. */
+  logout(): void {
+    const accessToken = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
+    const finish = (): void => {
+      this.clearSession();
+      this.navigateToLogin();
+    };
+    if (!accessToken) {
+      finish();
+      return;
+    }
+    // The header is set here so the interceptor neither refreshes nor retries this call.
+    // Any failure is ignored: the local sign-out happens whatever the server says.
+    this.http
+      .post<void>(AUTH_LOGOUT_URL, null, { headers: new HttpHeaders({ Authorization: `Bearer ${accessToken}` }) })
+      .pipe(timeout(LOGOUT_TIMEOUT_MS), finalize(finish))
+      .subscribe({ error: () => undefined });
+  }
+
+  /** Opens the sign-in page with a full reload, which also drops every cache held in memory. */
+  navigateToLogin(reason?: SessionEndReason): void {
+    window.location.assign(reason ? `/auth/login?signedOut=${reason}` : '/auth/login');
   }
 
   completeLogout(): void {
@@ -359,12 +526,13 @@ export class AuthService {
         {},
         {
           headers: new HttpHeaders({
-            Authorization: `Bearer ${cognitoIdToken}`
+            Authorization: `Bearer ${cognitoIdToken}`,
+            'X-Device-Label': currentDeviceLabel()
           })
         }
       )
       .pipe(
-        tap((auth) => this.storeBootstrapToken(auth)),
+        tap((auth) => this.storeSessionTokens(auth)),
         map(() => undefined)
       );
   }
@@ -379,15 +547,106 @@ export class AuthService {
     }
   }
 
-  private storeBootstrapToken(auth: BootstrapAuthResponse): void {
-    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, auth.accessToken);
-    this.tokenRole.set(roleFromAccessToken(auth.accessToken));
-    // A token without a readable `exp` claim is treated as valid for two hours.
-    localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(this.jwtExpiresAt(auth.accessToken) ?? Date.now() + 2 * 60 * 60 * 1000));
+  /**
+   * Spends the stored refresh token, unless storage already holds a different valid access token.
+   * After a refused refresh it looks at storage once more, because another tab may have rotated
+   * the refresh token while this call was on its way.
+   */
+  private rotateTokens(staleAccessToken: string | null): Observable<string> {
+    const storedAccessToken = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
+    if (storedAccessToken && storedAccessToken !== staleAccessToken && this.isAuthenticated()) {
+      this.adoptStoredTokens(storedAccessToken);
+      return of(storedAccessToken);
+    }
+
+    const refreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken);
+    if (!refreshToken) {
+      return throwError(() => new Error('This session cannot be refreshed.'));
+    }
+
+    return this.http.post<SessionTokens>(AUTH_REFRESH_URL, { refreshToken }).pipe(
+      timeout(REFRESH_TIMEOUT_MS),
+      map((tokens) => {
+        if (!tokens?.accessToken) {
+          throw new Error('The refresh response had no access token.');
+        }
+        this.storeSessionTokens(tokens);
+        return tokens.accessToken;
+      }),
+      catchError((error: unknown) => {
+        const rotatedRefreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken);
+        const currentAccessToken = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
+        if (rotatedRefreshToken && rotatedRefreshToken !== refreshToken && currentAccessToken && this.isAuthenticated()) {
+          this.adoptStoredTokens(currentAccessToken);
+          return of(currentAccessToken);
+        }
+        if (error instanceof HttpErrorResponse && error.status === 401) {
+          const reason: SessionEndReason = apiErrorCode(error) === SESSION_REVOKED_CODE ? 'revoked' : 'expired';
+          this.endSession(reason);
+          return throwError(() => new SessionEndedError(reason));
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** Takes up tokens another tab stored, so this tab's role and refresh timer follow them. */
+  private adoptStoredTokens(accessToken: string): void {
+    this.tokenRole.set(roleFromAccessToken(accessToken));
+    this.scheduleRefresh();
+  }
+
+  private storeSessionTokens(tokens: SessionTokens): void {
+    this.sessionEnding = false;
+    localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, tokens.accessToken);
+    this.tokenRole.set(roleFromAccessToken(tokens.accessToken));
+    if (tokens.refreshToken) {
+      localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, tokens.refreshToken);
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+    }
+    const expiresAt =
+      this.instantMillis(tokens.accessTokenExpiresAt) ??
+      this.jwtExpiresAt(tokens.accessToken) ??
+      Date.now() + FALLBACK_TOKEN_LIFETIME_MS;
+    localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(expiresAt));
+    this.scheduleRefresh();
+  }
+
+  /** Plans a refresh shortly before the stored access token expires. Nothing is planned without a refresh token. */
+  private scheduleRefresh(): void {
+    this.cancelRefreshTimer();
+    const accessToken = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
+    const expiresAt = Number(localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt) ?? 0);
+    if (!accessToken || !expiresAt || !this.hasRefreshToken()) {
+      return;
+    }
+    const delay = Math.max(expiresAt - Date.now() - REFRESH_LEAD_MS, 0);
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      // A failure is left to the next request, which refreshes on its own or meets a 401.
+      this.refreshAccessToken(accessToken).subscribe({ error: () => undefined });
+    }, delay);
+  }
+
+  private cancelRefreshTimer(): void {
+    if (this.refreshTimer !== null) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private instantMillis(instant: string | null | undefined): number | null {
+    if (!instant) {
+      return null;
+    }
+    const millis = Date.parse(instant);
+    return Number.isNaN(millis) ? null : millis;
   }
 
   private clearSession(): void {
     this.sessionBootstrap$ = undefined;
+    this.cancelRefreshTimer();
     this.userRole.set(null);
     this.clearLocalAccessToken();
     localStorage.removeItem(AUTH_STORAGE_KEYS.cognitoAccessToken);

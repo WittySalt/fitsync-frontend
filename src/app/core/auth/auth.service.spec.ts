@@ -270,7 +270,6 @@ describe('AuthService', () => {
   it('clears expired local tokens when no Cognito session exists', (done) => {
     localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, 'expired-local-token');
     localStorage.setItem(AUTH_STORAGE_KEYS.idToken, 'expired-id-token');
-    localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, 'expired-refresh-token');
     localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, String(Date.now() - 60_000));
 
     service.ensureSession().subscribe({
