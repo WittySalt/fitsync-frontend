@@ -1,0 +1,4 @@
+# Keep LF on every OS. With core.autocrlf=true a Windows checkout would turn the
+# CloudFront function heredoc into CRLF, and plan would rewrite the live function.
+*.tf     text eol=lf
+*.tfvars text eol=lf
