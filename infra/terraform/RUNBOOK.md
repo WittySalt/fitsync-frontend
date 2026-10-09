@@ -12,12 +12,16 @@ the backend repo's `infra/terraform/`. Separate state ⇒ separate blast radius.
 
 ## Normal use (staging)
 
+Staging frontend infrastructure is applied by an operator from their own
+machine, plan then apply, the same way as prod. CD does not run Terraform.
+
 ```bash
 cd infra/terraform
 terraform init
 terraform workspace select staging || terraform workspace new staging
-terraform plan  -var-file=staging.tfvars
-terraform apply -var-file=staging.tfvars
+terraform plan  -var-file=staging.tfvars -out=staging.tfplan
+# read the plan; stop on any destroy or replacement you did not expect
+terraform apply staging.tfplan
 # … demo …
 terraform destroy -var-file=staging.tfvars   # stop the bill (CloudFront esp.)
 ```
@@ -25,21 +29,22 @@ terraform destroy -var-file=staging.tfvars   # stop the bill (CloudFront esp.)
 `enable_cloudfront=false` keeps it to the (near-free) S3 bucket; flip to `true`
 for the full SPA distribution.
 
-### Through the CD workflow
+### What the CD workflow does
 
-The CD workflow (Actions → CD → Run workflow on `main`) can run the same apply
-with `action: infra_staging`. With `action: deploy` it builds the SPA once,
-deploys it to staging and smoke-tests the staging site; ticking `deploy_prod`
-then promotes that same artifact to production in the same run. Every action
-first passes `ci-gate`: the commit must be on `main` with a successful CI push
-run. Production is skipped unless staging passed its smoke test in that run, or
+CD (Actions → CD → Run workflow on `main`) has no infrastructure action for
+either environment. It builds the SPA once, deploys it to staging and
+smoke-tests the staging site; ticking `deploy_prod` then promotes that same
+artifact to production in the same run. Every run first passes `ci-gate`: the
+commit must be on `main` with a successful CI push run. Production is skipped
+unless the staging deploy and its blocking smoke test passed in that run, or
 `skip_staging` is ticked with a `skip_reason`, which is recorded in the run
 summary. The full rules are in
 [`.github/CICD-VARIABLES.md`](../../.github/CICD-VARIABLES.md).
 
-CD has no prod infrastructure action. The prod workspace is planned and applied
-by hand (see "Prod" below). The production deploy only syncs the build to the
-prod bucket and invalidates the distribution; it reads `S3_BUCKET_PROD`
+Both deploys only sync the build to the bucket and invalidate the distribution,
+so the CD role needs no Terraform, state or CloudFront configuration rights
+(the exact list is under "IAM for CD" in `CICD-VARIABLES.md`). The prod deploy
+reads `S3_BUCKET_PROD`
 (`fitsync-frontend-prod`) and `CLOUDFRONT_DISTRIBUTION_ID` (`E1APOLMHRQOW5Y`),
 which stay the same after prod is adopted into Terraform.
 
@@ -160,9 +165,8 @@ stop and do not apply.
 
 #### Before you start
 
-- Run this by hand from your machine, not through CD. Merging the PR first is
-  safe: CD's `infra_staging` then only applies the staging move, and nothing
-  touches prod until you apply the `prod` workspace.
+- Run this by hand from your machine; CD runs no Terraform. Merging the PR
+  first is safe: nothing touches prod until you apply the `prod` workspace.
 - Credentials for account 437659978621 with S3, CloudFront, ACM (us-east-1) and
   Route 53 rights.
 - Save the live distribution config, for the record and for the rollback:

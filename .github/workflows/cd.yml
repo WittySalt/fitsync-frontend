@@ -1,50 +1,54 @@
-# CD: frontend infra (Terraform) + build the SPA once, deploy it to staging,
-# smoke-test it, then promote the same files to production.
+# CD: build the SPA once, deploy it to staging and smoke-test it, then promote
+# the same files to production.
 #
 # DORMANT BY DEFAULT. Gated on the `AWS_ROLE_ARN` repository variable — while it
 # is empty the whole workflow is skipped and the repo stays green. AWS auth uses
-# GitHub OIDC; the IAM role (fitsync-frontend-deploy) must trust:
+# GitHub OIDC; the role in AWS_ROLE_ARN must trust:
 #   Provider : token.actions.githubusercontent.com
 #   Audience : sts.amazonaws.com
-#   Subject  : repo:WittySalt/fitsync-frontend:*
+#   Subject  : repo:WittySalt/fitsync-frontend:ref:refs/heads/main and
+#              repo:WittySalt/fitsync-frontend:environment:{staging,production}
+# The deploy needs only s3:ListBucket on the two SPA buckets, s3:PutObject,
+# s3:DeleteObject and s3:GetObject on their objects, and
+# cloudfront:CreateInvalidation / cloudfront:GetInvalidation on the two
+# distributions (see .github/CICD-VARIABLES.md).
 #
 # Trigger. CD runs only when someone starts it (Actions → CD → Run workflow) on
 # main. The manual run is the approval: required reviewers on Environments need a
-# paid plan for a private repository.
+# paid plan for a private repository. CD changes no infrastructure; the staging
+# and prod Terraform workspaces are planned and applied by an operator
+# (infra/terraform/RUNBOOK.md).
 #
-# Flow for action `deploy` (the same shape as the backend CD):
-#   ci-gate → build → deploy-staging → smoke-staging → deploy-production
-#   - ci-gate (read only) stops the run unless it is on main and the CI workflow
-#     (ci.yml) succeeded on a push for exactly this commit.
+# Flow:
+#   ci-gate → build → deploy-staging → deploy-production
+#   - ci-gate (read only) stops the run unless it is on main, the CI workflow
+#     (ci.yml) succeeded on a push for exactly this commit, and the inputs fit
+#     together.
 #   - build runs `npm run build` once and uploads dist as the artifact
 #     spa-<sha>, recording its file count and a sha256 of a sorted manifest.
 #     One build fits both environments because the app picks its Cognito pool
 #     from the hostname at runtime (src/app/core/auth/auth.config.ts) and calls a
 #     same-origin /api.
-#   - deploy-staging syncs that artifact to the staging bucket and invalidates
-#     the staging distribution; smoke-staging then checks the live site serves
-#     this build's main bundle, a deep link and /api/v1/health.
-#   - deploy-production runs only when deploy_prod is ticked and smoke-staging
+#   - deploy-staging verifies the artifact, syncs it to the staging bucket,
+#     invalidates the staging distribution and smoke-tests staging in gate mode:
+#     `/` must name this build's main-*.js and that bundle must return 200
+#     within 180 s, or the job fails and production is not deployed. The deep
+#     link /progress and /api/v1/health only warn.
+#   - deploy-production runs only when deploy_prod is ticked and deploy-staging
 #     succeeded in this same run. It downloads the same artifact, refuses it if
 #     the checksum differs from the one build recorded, syncs it to the prod
-#     bucket, invalidates and smoke-tests prod.
+#     bucket, invalidates and smoke-tests prod in warn mode (every check only
+#     warns; the files are already live, so failing the job would undo nothing).
 # Break-glass: tick deploy_prod and skip_staging and give a skip_reason. Staging
 # is then skipped and the reason is written to the run summary. ci-gate always
 # applies.
 name: CD
 run-name: >-
-  CD ${{ inputs.action }}${{ inputs.action == 'deploy' && inputs.deploy_prod && (inputs.skip_staging && ' → production (break-glass, staging skipped)' || ' → staging → production') || (inputs.action == 'deploy' && ' → staging' || '') }} @ ${{ github.sha }}
+  CD deploy${{ inputs.deploy_prod && (inputs.skip_staging && ' → production (break-glass, staging skipped)' || ' → staging → production') || ' → staging' }} @ ${{ github.sha }}
 
 on:
   workflow_dispatch:
     inputs:
-      action:
-        description: "What to run"
-        type: choice
-        default: deploy
-        options:
-          - deploy          # build once, deploy to staging + smoke test (and production if deploy_prod)
-          - infra_staging   # terraform apply the staging S3 bucket + CloudFront
       deploy_prod:
         description: "Promote the same build to production once staging passes its smoke test in this run"
         type: boolean
@@ -69,7 +73,6 @@ permissions: {}
 env:
   # The commit this run builds and deploys (the head of main when the run started).
   RELEASE_SHA: ${{ github.sha }}
-  TF_VERSION: "1.15.7"
   AWS_REGION: ${{ vars.AWS_REGION }}
   DIST_DIR: dist/fitsync-frontend/browser
   STAGING_URL: ${{ vars.STAGING_SITE_URL || 'https://staging.fitsyncapp.click' }}
@@ -99,15 +102,11 @@ jobs:
 
       - name: Check the inputs fit together
         env:
-          ACTION: ${{ inputs.action }}
           DEPLOY_PROD: ${{ inputs.deploy_prod }}
           SKIP_STAGING: ${{ inputs.skip_staging }}
           SKIP_REASON: ${{ inputs.skip_reason }}
         run: |
           set -euo pipefail
-          if [ "$ACTION" != "deploy" ] && { [ "$DEPLOY_PROD" = "true" ] || [ "$SKIP_STAGING" = "true" ]; }; then
-            echo "deploy_prod and skip_staging only apply to action deploy, not $ACTION."; exit 1
-          fi
           if [ "$SKIP_STAGING" = "true" ]; then
             if [ "$DEPLOY_PROD" != "true" ]; then
               echo "skip_staging is break-glass for production; tick deploy_prod too, or untick skip_staging."; exit 1
@@ -117,49 +116,11 @@ jobs:
               echo "skip_staging is ticked but skip_reason is empty; give a reason to skip staging."; exit 1
             fi
           fi
-          echo "Inputs OK: action=$ACTION deploy_prod=$DEPLOY_PROD skip_staging=$SKIP_STAGING."
-
-  infra-staging:
-    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'infra_staging' }}
-    needs: [ci-gate]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write   # AWS OIDC
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RELEASE_SHA }}
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-      - name: terraform apply (staging)
-        working-directory: infra/terraform
-        run: |
-          terraform init
-          terraform workspace select staging || terraform workspace new staging
-          terraform apply -auto-approve -var-file=staging.tfvars
-      - name: Record the run in the job summary
-        if: ${{ always() }}
-        env:
-          ACTION: ${{ inputs.action }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          {
-            echo "### CD $ACTION (staging infrastructure)"
-            echo ""
-            echo "- Commit: \`$RELEASE_SHA\`"
-            echo "- Started by: $GITHUB_ACTOR"
-            echo "- Result: $JOB_STATUS"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Inputs OK: deploy_prod=$DEPLOY_PROD skip_staging=$SKIP_STAGING."
 
   # ── build: one SPA build per commit, shared by staging and production ───────
   build:
-    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy' }}
+    if: ${{ vars.AWS_ROLE_ARN != '' }}
     needs: [ci-gate]
     runs-on: ubuntu-latest
     permissions:
@@ -209,9 +170,11 @@ jobs:
             echo "- Result: $JOB_STATUS"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # ── deploy-staging: sync the artifact to the staging bucket ─────────────────
+  # ── deploy-staging: sync the artifact to staging, then smoke-test it ────────
+  # The smoke test runs in gate mode: if staging does not serve this build's
+  # main bundle within 180 s the job fails, and production is not deployed.
   deploy-staging:
-    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy' && !inputs.skip_staging }}
+    if: ${{ vars.AWS_ROLE_ARN != '' && !inputs.skip_staging }}
     needs: [build]
     runs-on: ubuntu-latest
     environment: staging
@@ -256,6 +219,10 @@ jobs:
           else
             echo "CLOUDFRONT_DISTRIBUTION_ID_STAGING not set; skipping invalidation."
           fi
+      # Blocking: / names this build's main-*.js and that bundle returns 200.
+      # Warning only: the /progress deep link and /api/v1/health.
+      - name: Smoke-test staging (gate)
+        run: bash .github/scripts/smoke-spa.sh gate "$STAGING_URL" "$DIST_DIR" 180
       - name: Record the release in the job summary
         if: ${{ always() }}
         env:
@@ -269,49 +236,21 @@ jobs:
             echo "- Commit: \`$RELEASE_SHA\`"
             echo "- Started by: $GITHUB_ACTOR"
             echo "- Artifact: \`$ARTIFACT\` (sha256 \`$SHA256\`)"
-            echo "- Result: $JOB_STATUS"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  # ── smoke-staging: the live staging site serves this build ──────────────────
-  smoke-staging:
-    if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy' && !inputs.skip_staging }}
-    needs: [build, deploy-staging]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RELEASE_SHA }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build.outputs.artifact }}
-          path: ${{ env.DIST_DIR }}
-      - name: Smoke-test staging
-        run: bash .github/scripts/smoke-spa.sh "$STAGING_URL" "$DIST_DIR" 180
-      - name: Record the smoke test in the job summary
-        if: ${{ always() }}
-        env:
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          {
-            echo "### CD smoke test (staging)"
-            echo ""
-            echo "- Commit: \`$RELEASE_SHA\`"
             echo "- Site: $STAGING_URL"
             echo "- Result: $JOB_STATUS"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ── deploy-production: promote the same artifact ────────────────────────────
-  # Runs when deploy_prod is ticked and staging passed its smoke test in this run,
-  # or on break-glass (skip_staging with a reason; ci-gate has already checked it).
+  # Runs when deploy_prod is ticked and deploy-staging (which ends with the gate
+  # smoke test) succeeded in this run, or on break-glass (skip_staging with a
+  # reason; ci-gate has already checked it). Its smoke test only warns.
   deploy-production:
     if: >-
-      ${{ !cancelled() && vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy' && inputs.deploy_prod
+      ${{ !cancelled() && vars.AWS_ROLE_ARN != '' && inputs.deploy_prod
       && needs.build.result == 'success'
-      && (needs.smoke-staging.result == 'success'
+      && (needs.deploy-staging.result == 'success'
           || (inputs.skip_staging && inputs.skip_reason != '')) }}
-    needs: [build, smoke-staging]
+    needs: [build, deploy-staging]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -319,7 +258,7 @@ jobs:
       contents: read
     steps:
       - name: Record break-glass deploy
-        if: ${{ needs.smoke-staging.result != 'success' }}
+        if: ${{ needs.deploy-staging.result != 'success' }}
         env:
           REASON: ${{ inputs.skip_reason }}
         run: |
@@ -369,15 +308,17 @@ jobs:
           else
             echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
           fi
-      - name: Smoke-test production
-        run: bash .github/scripts/smoke-spa.sh "$PROD_URL" "$DIST_DIR" 180
+      # Warning only: every check. The files are already live, so a failed check
+      # is reported in the summary instead of failing the job.
+      - name: Smoke-test production (warn)
+        run: bash .github/scripts/smoke-spa.sh warn "$PROD_URL" "$DIST_DIR" 180
       - name: Record the release in the job summary
         if: ${{ always() }}
         env:
           JOB_STATUS: ${{ job.status }}
           ARTIFACT: ${{ needs.build.outputs.artifact }}
           SHA256: ${{ needs.build.outputs.sha256 }}
-          STAGING_RESULT: ${{ needs.smoke-staging.result }}
+          STAGING_RESULT: ${{ needs.deploy-staging.result }}
         run: |
           {
             echo "### CD deploy (production)"
@@ -385,7 +326,7 @@ jobs:
             echo "- Commit: \`$RELEASE_SHA\`"
             echo "- Started by: $GITHUB_ACTOR"
             echo "- Artifact: \`$ARTIFACT\` (sha256 \`$SHA256\`)"
-            echo "- Staging smoke test in this run: $STAGING_RESULT"
+            echo "- Staging deploy and smoke test in this run: $STAGING_RESULT"
             echo "- Site: $PROD_URL"
             echo "- Result: $JOB_STATUS"
           } >> "$GITHUB_STEP_SUMMARY"
