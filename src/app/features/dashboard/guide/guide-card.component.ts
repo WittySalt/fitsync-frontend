@@ -40,7 +40,9 @@ export class GuideCardComponent {
     GUIDE_STEPS.map((step, index) => ({
       ...step,
       number: index + 1,
-      done: this.guide.steps()[step.id],
+      done: this.guide.steps()[step.id] === true,
+      // The step could not be read: it shows neither the check nor the highlight.
+      unknown: this.guide.steps()[step.id] === null,
       current: this.guide.nextStep() === step.id
     }))
   );

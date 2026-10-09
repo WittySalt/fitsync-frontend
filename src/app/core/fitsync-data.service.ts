@@ -1748,17 +1748,15 @@ export class FitSyncDataService {
       );
   }
 
-  /** Whether any meal was logged in the last 30 days. The Getting started guide uses it for its meal step, and
-   *  a failed request is an error here, never a "no". */
+  /**
+   * Whether the account has ever logged a meal. It asks for the latest meal only, one row the service reads by index,
+   * instead of a month of meals; the service answers an empty body when there is none. The Getting started guide uses
+   * it for its meal step, and a failed request is an error here, never a "no".
+   */
   hasLoggedMeal(): Observable<boolean> {
-    const now = new Date();
-    const from = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-    // A day past now, so a meal logged ahead of time (dinner planned at lunch) also counts.
-    const to = new Date(now.getTime() + 24 * 3600 * 1000);
-    const params = new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
     return this.http
-      .get<unknown[]>(`${this.apiBaseUrl}/nutrition/meals`, { params })
-      .pipe(map((meals) => (meals ?? []).length > 0));
+      .get<{ mealId?: string | null } | null>(`${this.apiBaseUrl}/nutrition/meals/latest`)
+      .pipe(map((meal) => typeof meal?.mealId === 'string' && meal.mealId.length > 0));
   }
 
   /**

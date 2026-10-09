@@ -1,9 +1,9 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { Subject, of, throwError } from 'rxjs';
+import { Subject, defer, of, throwError } from 'rxjs';
 
 import { FitSyncDataService } from '../fitsync-data.service';
 import { GuideBackendFake, createdDaysAgo, signInAs } from './guide-testing.spec';
-import { GUIDE_SAVE_DEBOUNCE_MS, GuideService, TOUR_ACCOUNT_AGE_DAYS } from './guide.service';
+import { GUIDE_SAVE_DEBOUNCE_MS, GuideService, MEAL_RETRY_DELAY_MS, TOUR_ACCOUNT_AGE_DAYS } from './guide.service';
 
 const USER = 'user-guide-1';
 const cacheKey = `fitsync.guide.${USER}.state`;
@@ -11,9 +11,10 @@ const cacheKey = `fitsync.guide.${USER}.state`;
 describe('GuideService', () => {
   let guide: GuideService;
   let backend: GuideBackendFake;
+  let mealCalls = 0;
 
   function setup(
-    answers: { plan?: boolean; session?: boolean; meal?: boolean | 'fail' } = {},
+    answers: { plan?: boolean; session?: boolean; meal?: boolean | 'fail' | 'fail-once' } = {},
     configure?: (fake: GuideBackendFake) => void
   ): void {
     backend = new GuideBackendFake();
@@ -21,7 +22,14 @@ describe('GuideService', () => {
     const data = backend.data as unknown as Record<string, unknown>;
     data['getWorkoutPlans'] = () => of(answers.plan ? [{ status: 'ACTIVE' }] : []);
     data['getWorkoutSessionPage'] = () => of({ sessions: answers.session ? [{}] : [] });
-    data['hasLoggedMeal'] = () => (answers.meal === 'fail' ? throwError(() => new Error('down')) : of(answers.meal === true));
+    mealCalls = 0;
+    // Like an HTTP request, each subscription asks again, so a retry is a second request.
+    data['hasLoggedMeal'] = () =>
+      defer(() => {
+        mealCalls++;
+        const fails = answers.meal === 'fail' || (answers.meal === 'fail-once' && mealCalls === 1);
+        return fails ? throwError(() => new Error('503')) : of(answers.meal === true || answers.meal === 'fail-once');
+      });
     TestBed.configureTestingModule({ providers: backend.providers() });
     signInAs(USER);
     guide = TestBed.inject(GuideService);
@@ -62,10 +70,45 @@ describe('GuideService', () => {
       expect(guide.nextStep()).toBe('targets');
     });
 
-    it('leaves a step open when its request fails', () => {
+    it('asks once more when the meal check fails and keeps the step unknown, not open, when it fails again', fakeAsync(() => {
       setup({ meal: 'fail' });
+      guide.load([{ goalType: 'WEIGHT', status: 'ACTIVE' }]);
+      expect(guide.loaded()).toBeFalse();
+
+      tick(MEAL_RETRY_DELAY_MS);
+
+      expect(mealCalls).toBe(2);
+      expect(guide.loaded()).toBeTrue();
+      expect(guide.steps().meal).toBeNull();
+      expect(guide.doneCount()).toBe(1);
+      expect(guide.nextStep()).toBe('plan');
+      expect(guide.allDone()).toBeFalse();
+    }));
+
+    it('ticks the meal step when the second try answers', fakeAsync(() => {
+      setup({ meal: 'fail-once' });
       guide.load([]);
-      expect(guide.steps().meal).toBeFalse();
+      tick(MEAL_RETRY_DELAY_MS);
+
+      expect(mealCalls).toBe(2);
+      expect(guide.steps().meal).toBeTrue();
+    }));
+
+    it('does not pass over an unknown meal step as the next one', fakeAsync(() => {
+      setup({ plan: true, session: true, meal: 'fail' });
+      guide.load([{ goalType: 'WEIGHT', status: 'ACTIVE' }]);
+      tick(MEAL_RETRY_DELAY_MS);
+
+      expect(guide.nextStep()).toBeNull();
+      expect(guide.allDone()).toBeFalse();
+    }));
+
+    it('leaves a plan step open when its request fails', () => {
+      setup({ meal: true });
+      (backend.data as unknown as Record<string, unknown>)['getWorkoutPlans'] = () => throwError(() => new Error('down'));
+      guide.load([]);
+      expect(guide.steps().plan).toBeFalse();
+      expect(guide.steps().meal).toBeTrue();
       expect(guide.loaded()).toBeTrue();
     });
 

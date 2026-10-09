@@ -13,7 +13,7 @@
       </header>
       <ol class="tiles">
         @for (step of steps(); track step.id) {
-          <li class="tile" [class.current]="step.current" [class.done]="step.done" [attr.data-step]="step.id">
+          <li class="tile" [class.current]="step.current" [class.done]="step.done" [class.unknown]="step.unknown" [attr.data-step]="step.id">
             <span class="disc" [class.filled]="step.done" aria-hidden="true">
               @if (step.done) {
                 &#10003;
