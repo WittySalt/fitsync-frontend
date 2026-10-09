@@ -156,6 +156,8 @@ export class AuthService {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   // Several failing calls can learn at once that the session is gone. Only the first one acts.
   private sessionEnding = false;
+  // Set while logout() runs, so a refused refresh leaves the sign-out to logout itself.
+  private loggingOut = false;
   // The Cognito tokens of an account that was refused a session because its deletion is pending.
   // They stay in memory only, so that the person can keep the account without signing in again.
   private pendingDeletionTokens: CognitoTokenSet | null = null;
@@ -461,7 +463,7 @@ export class AuthService {
 
   /** Clears the session of a device that was signed out or whose session ended, and opens the sign-in page. */
   endSession(reason: SessionEndReason): void {
-    if (this.sessionEnding) {
+    if (this.sessionEnding || this.loggingOut) {
       return;
     }
     this.sessionEnding = true;
@@ -472,7 +474,15 @@ export class AuthService {
   /** Revokes this device's session on the server when it can, then signs out here as before. */
   logout(): void {
     const accessToken = localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
+    let finished = false;
     const finish = (): void => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      // A refresh that answers after this point is not stored, so the sign-out cannot be undone.
+      this.sessionEnding = true;
+      this.loggingOut = false;
       this.clearSession();
       this.navigateToLogin();
     };
@@ -480,11 +490,24 @@ export class AuthService {
       finish();
       return;
     }
+    // A token that has expired, or is about to, is refreshed first so the server really revokes
+    // the session. A refused refresh does not open sign-in with a message, because this is a
+    // sign-out the person asked for.
+    this.loggingOut = true;
+    const expiresAt = Number(localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt) ?? 0);
+    const needsRefresh = this.hasRefreshToken() && expiresAt - Date.now() < REFRESH_LEAD_MS;
+    const token$ = needsRefresh ? this.refreshAccessToken(accessToken) : of(accessToken);
     // The header is set here so the interceptor neither refreshes nor retries this call.
-    // Any failure is ignored: the local sign-out happens whatever the server says.
-    this.http
-      .post<void>(AUTH_LOGOUT_URL, null, { headers: new HttpHeaders({ Authorization: `Bearer ${accessToken}` }) })
-      .pipe(timeout(LOGOUT_TIMEOUT_MS), finalize(finish))
+    // The cap covers the refresh and the call together. Any failure is ignored: the local
+    // sign-out happens whatever the server says.
+    token$
+      .pipe(
+        switchMap((token) =>
+          this.http.post<void>(AUTH_LOGOUT_URL, null, { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) })
+        ),
+        timeout(LOGOUT_TIMEOUT_MS),
+        finalize(finish)
+      )
       .subscribe({ error: () => undefined });
   }
 
@@ -569,6 +592,10 @@ export class AuthService {
       map((tokens) => {
         if (!tokens?.accessToken) {
           throw new Error('The refresh response had no access token.');
+        }
+        if (this.sessionEnding) {
+          // The session ended or was signed out while this call was on its way.
+          throw new SessionEndedError('expired');
         }
         this.storeSessionTokens(tokens);
         return tokens.accessToken;

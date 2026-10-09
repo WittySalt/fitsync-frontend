@@ -36,14 +36,26 @@
     </div>
   </form>
 
-  <div class="security-action-list">
-    <div>
-      <strong>Sign out everywhere</strong>
-      <p>Invalidate this Cognito session across all devices and return to sign-in.</p>
+  @if (showSignOutEverywhere) {
+    <div class="security-action-list">
+      <div>
+        <strong>Sign out everywhere</strong>
+        <p>This signs you out on every device, including this one.</p>
+      </div>
+      @if (confirmingSignOut()) {
+        <div class="confirm-row" role="group" aria-labelledby="confirm-sign-out-question">
+          <p id="confirm-sign-out-question">Sign out everywhere, including this device?</p>
+          <div class="confirm-actions">
+            <button #confirmSignOut class="button danger-solid" type="button" [disabled]="signingOut()" (click)="signOutEverywhere()">
+              {{ signingOut() ? 'Signing out...' : 'Sign out everywhere' }}
+            </button>
+            <button class="button secondary" type="button" [disabled]="signingOut()" (click)="confirmingSignOut.set(false)">Cancel</button>
+          </div>
+        </div>
+      } @else {
+        <button class="button secondary danger-text" type="button" (click)="confirmingSignOut.set(true)">Sign out everywhere</button>
+      }
     </div>
-    <button class="button secondary" type="button" [disabled]="signingOut()" (click)="signOutEverywhere()">
-      {{ signingOut() ? 'Signing out...' : 'Sign out of all devices' }}
-    </button>
-  </div>
+  }
 
 </article>

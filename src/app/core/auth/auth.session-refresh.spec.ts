@@ -327,6 +327,87 @@ describe('AuthService session refresh', () => {
       expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
     });
 
+    it('refreshes an expired token first so the server revokes the session', () => {
+      storeSession('expired-access', 'refresh-1', -1000);
+
+      service.logout();
+      const refresh = httpMock.expectOne(AUTH_REFRESH_URL);
+      httpMock.expectNone(AUTH_LOGOUT_URL);
+      flushRefresh(refresh, 'fresh-access', 'refresh-2');
+
+      const logout = httpMock.expectOne(AUTH_LOGOUT_URL);
+      expect(logout.request.headers.get('Authorization')).toBe('Bearer fresh-access');
+      logout.flush(null, { status: 204, statusText: 'No Content' });
+
+      expect(navigateToLogin).toHaveBeenCalledOnceWith();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken)).toBeNull();
+    });
+
+    it('refreshes a token that expires within a minute before logging out', () => {
+      storeSession('soon-access', 'refresh-1', 30_000);
+
+      service.logout();
+      flushRefresh(httpMock.expectOne(AUTH_REFRESH_URL), 'fresh-access', 'refresh-2');
+      const logout = httpMock.expectOne(AUTH_LOGOUT_URL);
+      expect(logout.request.headers.get('Authorization')).toBe('Bearer fresh-access');
+      logout.flush(null, { status: 204, statusText: 'No Content' });
+      expect(navigateToLogin).toHaveBeenCalledOnceWith();
+    });
+
+    it('shares the refresh already in flight instead of starting a second one', () => {
+      storeSession('expired-access', 'refresh-1', -1000);
+
+      service.refreshAccessToken('expired-access').subscribe();
+      service.logout();
+
+      flushRefresh(httpMock.expectOne(AUTH_REFRESH_URL), 'fresh-access', 'refresh-2');
+      httpMock.expectOne(AUTH_LOGOUT_URL).flush(null, { status: 204, statusText: 'No Content' });
+      expect(navigateToLogin).toHaveBeenCalledOnceWith();
+    });
+
+    it('signs out without the session-ended message when the refresh is refused', () => {
+      storeSession('expired-access', 'refresh-1', -1000);
+
+      service.logout();
+      unauthorized(httpMock.expectOne(AUTH_REFRESH_URL), 'SESSION_EXPIRED');
+
+      httpMock.expectNone(AUTH_LOGOUT_URL);
+      expect(navigateToLogin).toHaveBeenCalledOnceWith();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+    });
+
+    it('signs out after three seconds when the refresh does not answer, and ignores its late answer', fakeAsync(() => {
+      storeSession('expired-access', 'refresh-1', -1000);
+
+      service.logout();
+      const refresh = httpMock.expectOne(AUTH_REFRESH_URL);
+      tick(2999);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+      tick(1);
+
+      expect(navigateToLogin).toHaveBeenCalledOnceWith();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+
+      flushRefresh(refresh, 'late-access', 'refresh-2');
+      httpMock.expectNone(AUTH_LOGOUT_URL);
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken)).toBeNull();
+    }));
+
+    it('caps the refresh and the logout call together at three seconds', fakeAsync(() => {
+      storeSession('expired-access', 'refresh-1', -1000);
+
+      service.logout();
+      tick(2000);
+      flushRefresh(httpMock.expectOne(AUTH_REFRESH_URL), 'fresh-access', 'refresh-2');
+      httpMock.expectOne(AUTH_LOGOUT_URL);
+      tick(1000);
+
+      expect(navigateToLogin).toHaveBeenCalledOnceWith();
+      expect(localStorage.getItem(AUTH_STORAGE_KEYS.accessToken)).toBeNull();
+    }));
+
     it('signs out locally without a call when there is no token', () => {
       service.logout();
 
@@ -354,7 +435,11 @@ describe('webLocksRefreshLock', () => {
       })
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Lock grants are asynchronous, so wait for the first holder instead of a fixed delay.
+    for (let attempt = 0; attempt < 200 && order.length === 0; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 30));
     expect(order).toEqual(['first started']);
 
     firstGate.next('first');
