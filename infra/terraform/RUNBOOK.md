@@ -277,6 +277,124 @@ Do not run `terraform destroy` in either place as a rollback: in the prod
 workspace it deletes the live site, in the old root it deletes the certificate
 and the DNS records.
 
+## Security headers (CloudFront response headers policies)
+
+S3 cannot set security headers on the objects it serves, so CloudFront adds them
+at the edge. `security_headers.tf` defines two response headers policies, one for
+the default (SPA) behaviour and one for `/api/*`, and both environments use the
+same code. The only per-environment value is `csp_media_origin`, the backend's
+media bucket. They were added for the OWASP ZAP baseline scan of staging (CD run
+37928291759), which reported a missing CSP, missing anti-clickjacking protection
+and a Google Fonts stylesheet without SRI as Medium, and the other headers below
+as Low.
+
+### SPA behaviour (`<env>-spa-security-headers`)
+
+| Header | Value | Why |
+|---|---|---|
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Browsers keep using HTTPS for a year, on every subdomain. `preload` is off on purpose, because joining the browser preload list commits the whole `fitsyncapp.click` domain to HTTPS for months and is slow to undo. It can be turned on once the domain has been stable on HTTPS for a while. |
+| `X-Frame-Options` | `DENY` | No site may frame the app, which stops clickjacking. Older browsers read this header and newer ones read `frame-ancestors` in the CSP. |
+| `X-Content-Type-Options` | `nosniff` | The browser trusts the `Content-Type` that S3 sends and never guesses a script type. |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Other sites (YouTube, Google's favicon service, TheMealDB) see only the origin and never the app path. |
+| `Content-Security-Policy` | see below | Limits where scripts, styles, images, frames and requests may come from. |
+| `Permissions-Policy` | camera, microphone, geolocation, payment, usb, serial, hid, midi, magnetometer, display-capture, xr-spatial-tracking and browsing-topics off; `screen-wake-lock=(self)` | The app uses none of the disabled features. Cook mode keeps the screen awake, so the wake lock stays on for the app itself. Fullscreen, autoplay, encrypted-media, picture-in-picture, web-share, accelerometer and gyroscope keep the browser default, because the exercise video iframe hands them to YouTube or Vimeo through its `allow` attribute and a header value would cancel that. |
+| `Cross-Origin-Opener-Policy` | `same-origin` | A page that the app opens, or that opens the app, gets no handle to the app's window. The app opens no pop-ups, and social sign-in, once it is turned on, is a full-page redirect. |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Other sites cannot embed the app's own files. |
+| `Server` | removed | S3 answers with `Server: AmazonS3`, which ZAP reports as server information. |
+
+This is the Content-Security-Policy as the staging plan shows it. Prod has
+`https://fitsync-media.s3.ap-southeast-1.amazonaws.com` as its media origin.
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.google.com https://*.gstatic.com https://www.themealdb.com https://img.youtube.com https://vumbnail.com https://fitsync-staging-media-437659978621.s3.ap-southeast-1.amazonaws.com; media-src 'self' https://fitsync-staging-media-437659978621.s3.ap-southeast-1.amazonaws.com; connect-src 'self' https://cognito-idp.ap-southeast-1.amazonaws.com; frame-src https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+```
+
+| Directive | Allows | Because |
+|---|---|---|
+| `script-src` | `'self'` only | The production build has no inline scripts, no inline event handlers and no `eval`. `angular.json` turns off critical-CSS inlining, which would otherwise add `onload="this.media='all'"` to the stylesheet link, and the Google Fonts link in `src/index.html` is a plain stylesheet link for the same reason. |
+| `style-src` | `'self' 'unsafe-inline'` and `fonts.googleapis.com` | Angular adds component styles as `<style>` elements, and the build inlines the Google Fonts CSS into `index.html`. Inline styles cannot run code, and a nonce would need `index.html` to be rendered per request, which S3 cannot do. `fonts.googleapis.com` only matters if a build could not inline the font CSS. |
+| `font-src` | `fonts.gstatic.com` | The Fraunces and Inter font files. |
+| `img-src` | `data:`, `blob:`, `www.google.com`, `*.gstatic.com`, `www.themealdb.com`, `img.youtube.com`, `vumbnail.com` and the media bucket | The CSS mask icons are `data:` URLs, and the avatar cropper previews through `blob:` and `data:` URLs. Brand logos come from `www.google.com/s2/favicons`, which redirects to one of `t0` to `t3.gstatic.com`. Recipe photos come from TheMealDB, video thumbnails from YouTube and vumbnail, and exercise images and avatars from the media bucket. |
+| `media-src` | the media bucket | Exercise videos uploaded as files. |
+| `connect-src` | `'self'` and `cognito-idp.ap-southeast-1.amazonaws.com` | Every API call and the coach's streamed answer go to same-origin `/api`. Sign-in, sign-up and password changes call Cognito directly. The hosted Cognito domain is only reached by a full-page redirect, which CSP does not govern. |
+| `frame-src` | `www.youtube-nocookie.com` and `player.vimeo.com` | The exercise video player. |
+| `object-src`, `base-uri`, `form-action`, `frame-ancestors` | `'none'`, `'self'`, `'self'`, `'none'` | No plugins, no `<base>` hijacking, forms post only to the app, and no site may frame it. |
+| `upgrade-insecure-requests` | | An `http://` image or video URL stored in the data is fetched over HTTPS instead of being blocked as mixed content. |
+
+When the app starts loading from a new host, add the host here and in
+`security_headers.tf` in the same change, or the browser will block it.
+
+### `/api/*` behaviour (`<env>-api-security-headers`)
+
+API responses are JSON and the coach's event stream, and a browser never renders
+them as a page. They get HSTS and `nosniff` with `override = true`, because those
+two must hold for every response on the domain. `X-Frame-Options: DENY`, the same
+`Referrer-Policy`, `Cross-Origin-Resource-Policy: same-origin` and the CSP
+`default-src 'none'; frame-ancestors 'none'` are added with `override = false`, so
+a header that the gateway sets itself is kept. The SPA's CSP is not used here,
+because it describes what a page may load and an API response loads nothing.
+Response headers policies do not buffer the response, so the streamed coach
+answer is not affected.
+
+### Subresource Integrity
+
+The production build sets `subresourceIntegrity: true`, so every script, module
+preload and stylesheet in `index.html` carries an `integrity="sha384-..."`
+attribute and `crossorigin="anonymous"`. CloudFront compression does not affect
+this, because the browser checks the hash after it has decoded the gzip or Brotli
+body, so the hash of the file in S3 still matches. Prod compresses and staging
+does not, and both work. The Google Fonts CSS that ZAP reported without SRI is
+now inlined into `index.html` at build time (`optimization.fonts.inline`), so no
+cross-origin stylesheet is left to check. The inlining fetches from Google during
+`ng build`, so the build needs network access, which the CI runners have.
+
+### Accepted risks
+
+1. **No `Cross-Origin-Embedder-Policy`.** `require-corp` would block every
+   cross-origin image and frame that does not send `Cross-Origin-Resource-Policy`
+   or CORS headers, which covers the Google favicons, the TheMealDB photos, the
+   YouTube and vumbnail thumbnails and the YouTube and Vimeo players.
+   `credentialless` would still break the iframes. COEP only matters for
+   cross-origin isolation (`SharedArrayBuffer` and high-resolution timers), which
+   the app does not use, so ZAP's Low finding on COEP stays open.
+2. **`style-src 'unsafe-inline'`.** The reason is given above. Inline styles
+   cannot execute script, and `script-src` stays strict.
+3. **Lazy-loaded chunks carry no SRI.** Browsers have no integrity attribute for
+   a dynamic `import()`. The chunks come from the same origin as `index.html`,
+   whose scripts are checked.
+4. **Exercise videos on other hosts.** An exercise video given as a direct file
+   URL plays only from the media bucket. YouTube and Vimeo links use the iframe
+   and keep working.
+5. **`img-src https://*.gstatic.com`.** The favicon service answers from one of
+   several `gstatic.com` hosts, so the wildcard allows images from Google's
+   static content domain. It applies to images only.
+
+### Rolling it out
+
+```bash
+terraform workspace select staging
+terraform plan -var-file=staging.tfvars -out=staging.tfplan
+#   expect: 2 to add (the two policies), 1 to change (the distribution), 0 to destroy
+terraform apply staging.tfplan
+```
+
+Then run CD on `main` so that staging gets the build with SRI, and check the
+headers.
+
+```powershell
+curl.exe -sI https://staging.fitsyncapp.click/
+curl.exe -sI https://staging.fitsyncapp.click/api/v1/auth/me
+```
+
+Click through staging with the browser console open and look for `Refused to`
+messages. Sign in, open the dashboard, search for a branded food so the logos
+load, open the recipe list with its photos, open an exercise with images and a
+YouTube video, ask the coach something so an answer streams, and upload an
+avatar. Re-run the ZAP baseline after that. Prod takes the same plan with
+`prod.tfvars` once staging is clean. If the CSP blocks something in prod,
+removing the `response_headers_policy_id` lines and applying takes the headers
+off again in one distribution deploy.
+
 ## History: one-time split out of the backend state (done, June 2026)
 
 > Kept for reference only. This ran once, when the frontend resources moved out of

@@ -46,3 +46,6 @@ adopt = {
     "www.fitsyncapp.click" = "_6fc2078ac07d00df49eb45b07f2439c7.www.fitsyncapp.click"
   }
 }
+
+# Media bucket allowed in the CSP's img-src and media-src (backend media_public_base_url).
+csp_media_origin = "https://fitsync-media.s3.ap-southeast-1.amazonaws.com"

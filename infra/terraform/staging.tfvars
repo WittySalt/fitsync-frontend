@@ -19,3 +19,6 @@ api_origin_domain = "fitsync-staging-alb-489104795.ap-southeast-1.elb.amazonaws.
 # fitsyncapp.click zone (zone owned by the backend bootstrap Terraform). The old
 # d1z92tpb353lfi.cloudfront.net hostname keeps working.
 custom_domain = "staging.fitsyncapp.click"
+
+# Media bucket allowed in the CSP's img-src and media-src (backend media_public_base_url).
+csp_media_origin = "https://fitsync-staging-media-437659978621.s3.ap-southeast-1.amazonaws.com"

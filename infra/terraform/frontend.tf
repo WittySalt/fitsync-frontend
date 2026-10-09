@@ -176,6 +176,9 @@ resource "aws_cloudfront_distribution" "frontend" {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.spa_fallback[0].arn
     }
+
+    # CSP, HSTS, frame and sniffing protection (security_headers.tf).
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.spa[0].id
   }
 
   # /api/* → gateway, pass-through. Use the same AWS managed policies as the prod
@@ -192,6 +195,8 @@ resource "aws_cloudfront_distribution" "frontend" {
       cached_methods           = ["GET", "HEAD"]
       cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
       origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # Managed-AllViewer
+      # HSTS and nosniff on API responses too (security_headers.tf).
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.api[0].id
     }
   }
 

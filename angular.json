@@ -49,7 +49,16 @@
                   "maximumError": "10kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              // The CloudFront CSP allows script-src 'self' only, so the build must not emit inline
+              // event handlers: critical-CSS inlining adds onload="this.media='all'" and is turned off.
+              // Google Fonts CSS is inlined at build time, so no cross-origin stylesheet needs SRI.
+              "optimization": {
+                "scripts": true,
+                "styles": { "minify": true, "inlineCritical": false },
+                "fonts": { "inline": true }
+              },
+              "subresourceIntegrity": true
             },
             "development": {
               "optimization": false,
