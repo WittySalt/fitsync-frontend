@@ -26,6 +26,16 @@ terraform destroy -var-file=staging.tfvars   # stop the bill (CloudFront esp.)
 `enable_cloudfront=false` keeps it to the (near-free) S3 bucket; flip to `true`
 for the full SPA distribution.
 
+### Through the CD workflow
+
+The CD workflow (Actions → CD → Run workflow on `main`) can run the same apply
+with `action: infra_staging`, and it deploys the SPA with `deploy_staging` and
+`deploy_production`. Every action first passes `ci-gate`: the commit must be on
+`main` with a successful CI push run. `deploy_production` also requires an earlier
+successful `deploy_staging` run for the same commit, unless `skip_staging` is
+ticked with a `skip_reason`, which is recorded in the run summary. The full rules
+are in [`.github/CICD-VARIABLES.md`](../../.github/CICD-VARIABLES.md).
+
 ## Custom domain (staging.fitsyncapp.click)
 
 Staging is served at **https://staging.fitsyncapp.click**. The old
@@ -113,7 +123,8 @@ is free to issue.
      -H "Origin: https://fitsyncapp.click" -H "Access-Control-Request-Method: POST"
    ```
    Expect `Access-Control-Allow-Origin: https://fitsyncapp.click`, not `text/html`.
-2. **Frontend.** Merge this repo's PR and deploy the SPA to prod. `auth.config.ts`
+2. **Frontend.** Merge this repo's PR and deploy the SPA to prod (CD
+   `deploy_staging`, then `deploy_production` on the same commit). `auth.config.ts`
    lists the apex, `www` and the CloudFront name in `PROD_HOSTS`, so all three use
    the prod Cognito pool. Sign-in is direct `InitiateAuth`, so no callback URL is
    added on the pool.

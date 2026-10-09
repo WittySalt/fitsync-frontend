@@ -100,6 +100,9 @@ CI/CD runs on GitHub Actions only.
 - **CD** (`.github/workflows/cd.yml`) is started by hand. It can apply the
   staging infrastructure, deploy the build to the staging bucket, or deploy it
   to production. It does nothing until the AWS repository variables are set.
+  It deploys only `main` commits whose CI push run passed, and production only
+  takes a commit that was deployed to staging first (break-glass needs a
+  written reason).
 
 [`.github/CICD-VARIABLES.md`](.github/CICD-VARIABLES.md) lists the variables.
 [`infra/terraform/RUNBOOK.md`](infra/terraform/RUNBOOK.md) covers the
