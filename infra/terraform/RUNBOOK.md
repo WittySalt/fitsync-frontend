@@ -90,18 +90,6 @@ The `/api/*` behaviour (CachingDisabled, AllViewer, ALB on port 80, 60 s read
 timeout) and the `<env>-spa-fallback` viewer-request function are the same in
 both. Neither environment has custom error responses or access logging.
 
-Both also route the exact path **`/actuator/health`** to the same API origin
-(CachingDisabled, AllViewer, GET/HEAD only), so health checks through the custom
-domain, such as the k6 stress and ZAP jobs on `https://staging.fitsyncapp.click`,
-reach the gateway instead of getting the SPA's `index.html` with 200. Only that
-path is routed: every other `/actuator/*` path still falls through to the SPA,
-so the rest of the actuator stays private. Check after an apply:
-
-```powershell
-curl.exe -s https://staging.fitsyncapp.click/actuator/health    # {"status":"UP"...}, not HTML
-curl.exe -sI https://staging.fitsyncapp.click/actuator/info     # SPA index.html, not the gateway
-```
-
 **Never `terraform destroy` the prod workspace.** It would delete the live site,
 and a new distribution gets a new `*.cloudfront.net` name. (Staging is destroyed
 after demos, so the code cannot carry `prevent_destroy`.)
@@ -136,7 +124,7 @@ Plan: 13 to import, 1 to add, 6 to change, 0 to destroy.
 |---|---|---|
 | bucket, public access block, bucket policy, OAC, 4 alias records | import, no change | live values match the code |
 | `aws_s3_bucket.frontend` | import + tags | adds the default tags (the bucket has none); `force_destroy = false` is state only |
-| `aws_cloudfront_distribution.frontend[0]` | import + tags + one new behaviour | adds the default tags and the `/actuator/health` behaviour (see above); the existing origins, behaviours, aliases and certificate show no diff. The update redeploys the distribution (5-15 min) with no downtime |
+| `aws_cloudfront_distribution.frontend[0]` | import + tags | tags only; the provider tags the distribution without an `UpdateDistribution`, so nothing redeploys |
 | `aws_cloudfront_function.spa_fallback[0]` | import + `publish = true` | republishes the same code (DEVELOPMENT and LIVE are identical) |
 | `aws_acm_certificate.frontend[0]` | import + tags | tag `Component` changes from `frontend-domain` to `frontend` |
 | 2 certificate validation records | import + `allow_overwrite = true` | state only; the record values do not change |
