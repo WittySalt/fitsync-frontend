@@ -103,6 +103,25 @@ describe('AdminSendEmailComponent', () => {
     expect(buttons()[0].disabled).toBeFalse();
   });
 
+  it('draws all three as disabled when the user has email notifications off, with the reason beside each', () => {
+    const off = { available: false, reason: 'NOTIFICATIONS_OFF', message: 'This user has email notifications off.' };
+    api.getEmailAvailability.and.returnValue(of(availability({ TRAINING_REMINDER: off, GOAL_REACHED: off, WEEKLY_REPORT: off })));
+    create();
+
+    buttons().forEach((button, index) => {
+      expect(button.disabled).toBeTrue();
+      expect(button.hasAttribute('disabled')).toBeTrue();
+      expect(getComputedStyle(button).cursor).toBe('not-allowed');
+      expect(text(row(index).querySelector('.reason'))).toBe('This user has email notifications off.');
+    });
+  });
+
+  it('keeps the pointer cursor on a button that can be pressed', () => {
+    create();
+
+    expect(getComputedStyle(buttons()[0]).cursor).toBe('pointer');
+  });
+
   it('shows Sending... on the pressed button and disables all three while it waits', () => {
     const request = new Subject<EmailSendResult>();
     api.sendEmail.and.returnValue(request);

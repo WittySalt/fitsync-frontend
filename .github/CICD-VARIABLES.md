@@ -13,6 +13,29 @@ GitHub Actions is the only CI/CD for this repo (the old GitLab CI/CD has been re
 
 Set under **Settings → Secrets and variables → Actions**.
 
+## Release gates
+
+Every CD job waits for the read-only `ci-gate` job, which follows the same rules
+as the backend CD:
+
+1. The run must be on `main`; any other ref is refused.
+2. The CI workflow (`ci.yml`) must have succeeded on a push for exactly the commit
+   being deployed. If CI is still running, wait for it and start CD again.
+3. `deploy_production` also needs the same commit on staging first: an earlier CD
+   run on `main` for that commit must have a `deploy-staging` job that succeeded.
+   The gate reads the jobs of past CD runs through the Actions API, so the normal
+   order is `deploy_staging`, check staging, then `deploy_production` on the same
+   commit. The job name `deploy-staging` is part of this check and must not be
+   renamed.
+
+The only way past rule 3 is break-glass: tick `skip_staging` and fill in
+`skip_reason`. An empty reason fails the run. The reason, the commit and who
+started the run are written to the run summary. Rules 1 and 2 always apply.
+
+Each run is titled `CD <action> @ <sha>`, and every deploy writes the action, the
+commit and the result to its job summary. The gate needs only `actions: read`;
+the deploy jobs keep `id-token: write` for OIDC and `contents: read`.
+
 ## Repository variables
 
 | Variable | Notes |

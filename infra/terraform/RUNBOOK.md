@@ -25,6 +25,26 @@ terraform destroy -var-file=staging.tfvars   # stop the bill (CloudFront esp.)
 `enable_cloudfront=false` keeps it to the (near-free) S3 bucket; flip to `true`
 for the full SPA distribution.
 
+### Through the CD workflow
+
+The CD workflow (Actions → CD → Run workflow on `main`) can run the same apply
+with `action: infra_staging`, and it deploys the SPA with `deploy_staging` and
+`deploy_production`. Every action first passes `ci-gate`: the commit must be on
+`main` with a successful CI push run. `deploy_production` also requires an earlier
+successful `deploy_staging` run for the same commit, unless `skip_staging` is
+ticked with a `skip_reason`, which is recorded in the run summary. The full rules
+are in [`.github/CICD-VARIABLES.md`](../../.github/CICD-VARIABLES.md).
+
+CD has no prod infrastructure action. The prod workspace is planned and applied
+by hand (see "Prod" below). `deploy_production` only syncs the build to the prod
+bucket and invalidates the distribution; it reads `S3_BUCKET_PROD`
+(`fitsync-frontend-prod`) and `CLOUDFRONT_DISTRIBUTION_ID` (`E1APOLMHRQOW5Y`),
+which stay the same after prod is adopted into Terraform.
+
+The `.tf` and `.tfvars` files are kept LF by `.gitattributes`. With
+`core.autocrlf=true`, a Windows checkout would otherwise turn the CloudFront
+function's heredoc into CRLF, and plan would then rewrite the live function.
+
 ## Custom domain (staging.fitsyncapp.click)
 
 Staging is served at **https://staging.fitsyncapp.click**. The old
@@ -138,6 +158,9 @@ stop and do not apply.
 
 #### Before you start
 
+- Run this by hand from your machine, not through CD. Merging the PR first is
+  safe: CD's `infra_staging` then only applies the staging move, and nothing
+  touches prod until you apply the `prod` workspace.
 - Credentials for account 437659978621 with S3, CloudFront, ACM (us-east-1) and
   Route 53 rights.
 - Save the live distribution config, for the record and for the rollback:

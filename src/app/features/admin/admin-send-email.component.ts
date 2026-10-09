@@ -100,6 +100,8 @@ interface Row {
     </ul>
   `,
   styles: `
+    @use './admin-button' as button;
+
     :host {
       display: flex;
       flex-direction: column;
@@ -134,39 +136,11 @@ interface Row {
 
     .send,
     .retry {
-      min-height: 44px;
-      padding: 0 16px;
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      color: var(--text-primary);
-      background: var(--surface);
-      font-size: 14px;
-      font-weight: var(--fw-semibold);
-      cursor: pointer;
+      @include button.outline-button;
     }
 
     .retry {
       flex: none;
-    }
-
-    .send:hover:not(:disabled),
-    .retry:hover:not(:disabled) {
-      background: var(--surface-sunken);
-    }
-
-    .send:focus-visible,
-    .retry:focus-visible {
-      outline: 0;
-      box-shadow: var(--shadow-focus);
-    }
-
-    .send:disabled {
-      color: var(--text-secondary);
-      cursor: default;
-    }
-
-    .send[aria-busy='true'] {
-      cursor: progress;
     }
 
     .reason,
