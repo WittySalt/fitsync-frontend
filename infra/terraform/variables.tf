@@ -151,3 +151,17 @@ variable "adopt" {
   })
   default = null
 }
+
+# ── Content-Security-Policy (security_headers.tf) ────────────────────────────
+# The backend's media bucket (its media_public_base_url output): exercise images,
+# exercise videos and avatars. The only CSP source that differs per environment.
+variable "csp_media_origin" {
+  description = "Origin of the media bucket allowed in img-src and media-src, e.g. https://<bucket>.s3.<region>.amazonaws.com (empty = none)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.csp_media_origin == "" || can(regex("^https://[a-z0-9.-]+$", var.csp_media_origin))
+    error_message = "csp_media_origin must be an https origin with no path, e.g. https://fitsync-media.s3.ap-southeast-1.amazonaws.com."
+  }
+}
