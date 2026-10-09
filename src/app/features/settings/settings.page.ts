@@ -331,9 +331,16 @@ export class SettingsPage implements OnInit {
     }).format(date);
   }
 
-  /** The one quiet line about the grace period, with the date once the backend has fixed it. */
+  /**
+   * The one quiet line about the grace period. Before a request it says what deleting will do; once a deletion
+   * is pending (the status says so or the backend has fixed a date) it says the account is scheduled.
+   */
   deletionGraceLine(status: AccountDeletionStatus): string {
     const date = formatDeletionDate(status.scheduledFor, this.accountTimezone());
+    if (!date && status.status !== 'REQUESTED') {
+      return `Deleting your account signs you out and schedules your data for removal in ${DELETION_GRACE_DAYS} days. `
+        + 'Signing in again within that time cancels it.';
+    }
     const cancel = date
       ? `Sign in again before ${date} to cancel.`
       : `Sign in again within ${DELETION_GRACE_DAYS} days to cancel.`;

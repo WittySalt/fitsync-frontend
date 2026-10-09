@@ -8,6 +8,7 @@ import { AdminActionStatusComponent } from './admin-action-status.component';
 import { UserTimezoneService } from '../../core/user-timezone.service';
 import { AdminApiService, AdminUser, RebuildResult } from './admin-api.service';
 import { AdminConfirmButtonComponent } from './admin-confirm-button.component';
+import { AdminSendEmailComponent } from './admin-send-email.component';
 import { EMAIL_MAX_LENGTH, formatClock, isDateKeyUpTo, looksLikeEmail, titleCase } from './admin-format';
 
 type LookupState =
@@ -38,7 +39,7 @@ interface Field {
 
 @Component({
   selector: 'app-admin-user-data-page',
-  imports: [AdminConfirmButtonComponent, AdminActionStatusComponent],
+  imports: [AdminConfirmButtonComponent, AdminActionStatusComponent, AdminSendEmailComponent],
   templateUrl: './user-data.page.html',
   styleUrls: ['./admin-page.scss', './user-data.page.scss']
 })

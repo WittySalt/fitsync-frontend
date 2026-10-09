@@ -1,10 +1,10 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { Goal } from '../../../core/fitsync.models';
 import { GuideBackendFake, signInAs } from '../../../core/guide/guide-testing.spec';
-import { GuideService } from '../../../core/guide/guide.service';
+import { GuideService, MEAL_RETRY_DELAY_MS } from '../../../core/guide/guide.service';
 import { GuideCardComponent } from './guide-card.component';
 
 const goal = (goalType: string): Goal => ({ goalType, status: 'ACTIVE' }) as Goal;
@@ -14,11 +14,11 @@ describe('GuideCardComponent', () => {
   /** The server the guide reads; it lives across a reset of the testing module, like the real one. */
   let backend: GuideBackendFake;
 
-  function render(done: { goals?: Goal[]; plan?: boolean; meal?: boolean; session?: boolean }): HTMLElement {
+  function render(done: { goals?: Goal[]; plan?: boolean; meal?: boolean | 'fail'; session?: boolean }): HTMLElement {
     const data = backend.data as unknown as Record<string, unknown>;
     data['getWorkoutPlans'] = () => of(done.plan ? [{ status: 'ACTIVE' }] : []);
     data['getWorkoutSessionPage'] = () => of({ sessions: done.session ? [{}] : [] });
-    data['hasLoggedMeal'] = () => of(!!done.meal);
+    data['hasLoggedMeal'] = () => (done.meal === 'fail' ? throwError(() => new Error('503')) : of(!!done.meal));
     TestBed.configureTestingModule({ providers: [provideRouter([]), ...backend.providers()] });
     signInAs('card-user');
     fixture = TestBed.createComponent(GuideCardComponent);
@@ -49,6 +49,21 @@ describe('GuideCardComponent', () => {
     const links = Array.from(el.querySelectorAll('a.go')).map((a) => a.getAttribute('href'));
     expect(links).toEqual(['/me?guide=me#goal-lifecycle', '/workout?guide=workout', '/nutrition?log=BREAKFAST&guide=nutrition', '/workout?guide=workout-session']);
   });
+
+  it('keeps the meal step neutral when the meal check cannot be read, never showing it as open or done', fakeAsync(() => {
+    const el = render({ goals: [goal('WEIGHT')], plan: true, meal: 'fail' });
+    tick(MEAL_RETRY_DELAY_MS);
+    fixture.detectChanges();
+
+    const meal = el.querySelector('.tile[data-step="meal"]') as HTMLElement;
+    expect(meal.classList).toContain('unknown');
+    expect(meal.classList).not.toContain('done');
+    expect(meal.classList).not.toContain('current');
+    expect(meal.querySelector('.done-note')).toBeNull();
+    expect(meal.querySelector('.disc')?.textContent?.trim()).toBe('3');
+    expect(meal.querySelector('.go.primary')).toBeNull();
+    expect(el.querySelector('.tile[data-step="session"]')?.classList).toContain('current');
+  }));
 
   it('marks finished steps with a check, drops their button and moves the highlight on', () => {
     const el = render({ goals: [goal('WEIGHT')], plan: true });

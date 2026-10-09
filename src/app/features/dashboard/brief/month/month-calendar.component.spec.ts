@@ -202,7 +202,9 @@ describe('MonthCalendarComponent', () => {
 
     it('moves the tab stop with the focus', () => {
       open();
-      cell('2026-09-10').focus();
+      // The focus event the cell binds to is dispatched by hand: focus() fires none while the headless
+      // browser window itself has no focus, as happens in CI.
+      cell('2026-09-10').dispatchEvent(new FocusEvent('focus'));
       fixture.detectChanges();
       expect(cell('2026-09-10').tabIndex).toBe(0);
       expect(cell('2026-09-27').tabIndex).toBe(-1);

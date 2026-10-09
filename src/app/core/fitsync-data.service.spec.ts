@@ -1389,20 +1389,24 @@ describe('FitSyncDataService', () => {
     expect(failed).toBeTrue();
   });
 
-  it('answers whether any meal was logged lately, and lets a failure through', () => {
+  it('answers whether any meal was ever logged from the latest meal alone, and lets a failure through', () => {
     const answers: boolean[] = [];
     let failed = false;
     service.hasLoggedMeal().subscribe((value) => answers.push(value));
     service.hasLoggedMeal().subscribe((value) => answers.push(value));
+    service.hasLoggedMeal().subscribe((value) => answers.push(value));
     service.hasLoggedMeal().subscribe({ error: () => (failed = true) });
 
-    const requests = httpTesting.match((req) => req.url === '/api/v1/nutrition/meals');
-    expect(requests.length).toBe(3);
-    requests[0].flush([{ mealId: 'm1' }]);
-    requests[1].flush([]);
-    requests[2].flush('nope', { status: 500, statusText: 'Server Error' });
+    const requests = httpTesting.match((req) => req.url === '/api/v1/nutrition/meals/latest');
+    expect(requests.length).toBe(4);
+    expect(requests.every((request) => request.request.method === 'GET' && request.request.params.keys().length === 0)).toBeTrue();
+    httpTesting.expectNone((req) => req.url === '/api/v1/nutrition/meals');
+    requests[0].flush({ mealId: 'm1', mealType: 'BREAKFAST' });
+    requests[1].flush(null);
+    requests[2].flush({});
+    requests[3].flush('nope', { status: 503, statusText: 'Service Unavailable' });
 
-    expect(answers).toEqual([true, false]);
+    expect(answers).toEqual([true, false, false]);
     expect(failed).toBeTrue();
   });
 

@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, Injector, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, Subject, catchError, forkJoin, map, of } from 'rxjs';
+import { Observable, Subject, catchError, forkJoin, map, of, retry } from 'rxjs';
 
 import { AccountDataService } from '../account-data.service';
 import { AUTH_STORAGE_KEYS } from '../auth/auth.config';
@@ -93,7 +93,11 @@ const LEGACY_KEYS = ['card-hidden', 'first-seen', 'restarted', 'tour-skipped', '
 /** A goal of one of these types counts as a target for step 1. */
 const TARGET_GOAL_TYPES = ['WEIGHT', 'WORKOUT_FREQUENCY'];
 
-export type GuideProgress = Record<GuideStepId, boolean>;
+/** Whether each step is done; null when it could not be read, so the card neither ticks it nor calls it open. */
+export type GuideProgress = Record<GuideStepId, boolean | null>;
+
+/** A meal check that fails is asked once more after this pause, which covers a service that is still starting. */
+export const MEAL_RETRY_DELAY_MS = 1500;
 
 /** How often a followed task is looked at again while the person works on it. */
 const FOLLOW_POLL_MS = 6000;
@@ -203,8 +207,8 @@ export class GuideService {
   readonly steps = this.progress.asReadonly();
   readonly doneCount = computed(() => GUIDE_STEP_IDS.filter((id) => this.progress()[id]).length);
   readonly allDone = computed(() => this.doneCount() === GUIDE_STEP_IDS.length);
-  /** The first step that is not done, or null when all four are. */
-  readonly nextStep = computed<GuideStepId | null>(() => GUIDE_STEP_IDS.find((id) => !this.progress()[id]) ?? null);
+  /** The first step known not to be done, or null when there is none; a step that could not be read is passed over. */
+  readonly nextStep = computed<GuideStepId | null>(() => GUIDE_STEP_IDS.find((id) => this.progress()[id] === false) ?? null);
   /** The card is shown once the data is in, until the person hides it. */
   readonly cardVisible = computed(() => this.ready() && this.loaded() && !this.cardHidden());
 
@@ -311,7 +315,8 @@ export class GuideService {
 
   /**
    * Reads whether each step is done. The goals come from Home, which has them already, so only the plan, the
-   * sessions and the meals are asked for here. A request that fails leaves its step open.
+   * sessions and the meals are asked for here. A plan or session request that fails leaves its step open; a meal
+   * check that fails twice leaves its step unknown.
    */
   load(goals: readonly Pick<Goal, 'goalType' | 'status'>[]): void {
     this.start();
@@ -346,7 +351,7 @@ export class GuideService {
       case 'plan':
         return this.planDone(data);
       case 'meal':
-        return this.mealDone(data);
+        return this.mealDone(data).pipe(map((done) => done === true));
       case 'session':
         return this.sessionDone(data);
     }
@@ -411,8 +416,15 @@ export class GuideService {
     );
   }
 
-  private mealDone(data: FitSyncDataService): Observable<boolean> {
-    return data.hasLoggedMeal().pipe(catchError(() => of(false)));
+  /**
+   * Asks once more after a pause when the check fails. If it still fails the answer is null, unknown, because a
+   * meal service that is down says nothing about whether a meal was logged.
+   */
+  private mealDone(data: FitSyncDataService): Observable<boolean | null> {
+    return data.hasLoggedMeal().pipe(
+      retry({ count: 1, delay: MEAL_RETRY_DELAY_MS }),
+      catchError(() => of(null))
+    );
   }
 
   hideCard(): void {

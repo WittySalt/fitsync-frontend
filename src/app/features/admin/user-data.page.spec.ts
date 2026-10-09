@@ -85,8 +85,17 @@ describe('UserDataPage', () => {
       'rebuildDashboard',
       'rebuildNutrition',
       'rebuildWorkouts',
-      'reconcileGoals'
+      'reconcileGoals',
+      'getEmailAvailability',
+      'sendEmail'
     ]);
+    api.getEmailAvailability.and.returnValue(
+      of([
+        { kind: 'TRAINING_REMINDER', available: true, reason: null, message: null },
+        { kind: 'GOAL_REACHED', available: true, reason: null, message: null },
+        { kind: 'WEEKLY_REPORT', available: true, reason: null, message: null }
+      ])
+    );
     await TestBed.configureTestingModule({
       imports: [UserDataPage],
       providers: [{ provide: AdminApiService, useValue: api }]
@@ -212,6 +221,20 @@ describe('UserDataPage', () => {
 
       expect(element.querySelector('dl')).toBeNull();
       expect(panel('Rebuild analytics')).toBeUndefined();
+    });
+
+    it('opens the send email panel for the found user by id, without their address', () => {
+      findUser();
+
+      const send = panel('Send an email now');
+      expect(send).toBeDefined();
+      expect(api.getEmailAvailability).toHaveBeenCalledWith('u-1');
+      expect(text(send)).not.toContain('member@example.com');
+      expect(text(send)).not.toContain('@');
+      expect(send.querySelector('input')).toBeNull();
+
+      type('#admin-user-email', 'other@example.com');
+      expect(panel('Send an email now')).toBeUndefined();
     });
 
     it('keeps the user when the input still names the same address in another case', () => {
@@ -440,5 +463,19 @@ describe('UserDataPage requests', () => {
     const request = httpTesting.expectOne((req) => req.url.endsWith('/dashboard/rebuild'));
     expect(request.request.urlWithParams).toBe('/api/v1/admin/analytics/analytics/users/u-1/dashboard/rebuild');
     request.flush({ userId: 'u-1', scope: 'DASHBOARD', date: '', rebuiltAt: '' });
+
+    // The send email panel loads by user id; neither its address nor its body carries the email.
+    const emails = httpTesting.expectOne('/api/v1/admin/notifications/users/u-1/emails');
+    expect(emails.request.method).toBe('GET');
+    expect(emails.request.urlWithParams).not.toContain('example.com');
+    emails.flush({ kinds: [{ kind: 'TRAINING_REMINDER', available: true, reason: null, message: null }] });
+    fixture.detectChanges();
+
+    Array.from(element.querySelectorAll('button')).find((candidate) => text(candidate) === 'Training reminder')?.click();
+    const send = httpTesting.expectOne((req) => req.method === 'POST' && req.url.endsWith('/emails'));
+    expect(send.request.body).toEqual({ kind: 'TRAINING_REMINDER' });
+    expect(JSON.stringify(send.request.body)).not.toContain('example.com');
+    send.flush({ kind: 'TRAINING_REMINDER', outcome: 'SENT' });
+    httpTesting.expectOne('/api/v1/admin/notifications/users/u-1/emails').flush({ kinds: [] });
   });
 });

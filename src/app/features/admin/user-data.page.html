@@ -82,6 +82,13 @@
         </div>
       </div>
     </section>
+
+    <section class="panel" aria-labelledby="send-email-heading">
+      <div class="panel-head">
+        <h2 id="send-email-heading">Send an email now</h2>
+      </div>
+      <app-admin-send-email [userId]="found.userId" />
+    </section>
   }
 
   <section class="panel" aria-labelledby="goals-heading">
