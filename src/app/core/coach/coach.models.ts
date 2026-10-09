@@ -183,7 +183,12 @@ export interface DraftMetrics {
   repairRate: number;
 }
 
-/** The tier that answered, as the trace shows it. -1 means the AI tier was switched off. */
+/**
+ * The tier that answered, as the trace shows it. -1 means the AI tier was switched off.
+ *
+ * The server records tier 2 for every model call, whichever provider is configured (Anthropic,
+ * Bedrock or a local Ollama), so the label says "model" and leaves naming it to {@link modelLabel}.
+ */
 export function tierLabel(tier: number | null | undefined): string {
   switch (tier) {
     case 0:
@@ -191,14 +196,30 @@ export function tierLabel(tier: number | null | undefined): string {
     case 1:
       return 'template';
     case 2:
-      return 'local model';
     case 3:
-      return 'frontier model';
+      return 'model';
     case -1:
       return 'model off';
     default:
       return 'unknown';
   }
+}
+
+/**
+ * A model id cut down to its name, for example "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+ * becomes "claude-haiku-4-5". Drops an ARN path, a Bedrock region and vendor prefix, the Bedrock
+ * version suffix and a date stamp. Null when there is no id.
+ */
+export function modelLabel(model: string | null | undefined): string | null {
+  const id = model?.trim();
+  if (!id) {
+    return null;
+  }
+  return id
+    .slice(id.lastIndexOf('/') + 1)
+    .replace(/^(?:[a-z]{2,6}\.)?(?:anthropic|amazon|meta|mistral|cohere|ai21|deepseek)\./, '')
+    .replace(/-v\d+(?::\d+)?$/, '')
+    .replace(/-\d{8}$/, '');
 }
 
 /** Which page a reading belongs to. */

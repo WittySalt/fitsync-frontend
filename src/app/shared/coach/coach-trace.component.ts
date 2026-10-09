@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 
-import { CoachTurn, tierLabel } from '../../core/coach/coach.models';
+import { CoachTurn, ToolInvocation, modelLabel, tierLabel } from '../../core/coach/coach.models';
 
 /**
  * How an answer was produced, under the answer.
@@ -17,8 +17,8 @@ import { CoachTurn, tierLabel } from '../../core/coach/coach.models';
       <div class="trace-body">
         <div class="trace-hdr">
           <span class="tier" [class.model]="(turn.tier ?? 0) >= 2">tier {{ turn.tier ?? '?' }} · {{ tier() }}</span>
-          @if (turn.model) {
-            <span class="mono">{{ turn.model }}</span>
+          @if (model(); as name) {
+            <span class="mono trace-model" [attr.title]="turn.model">{{ name }}</span>
           }
           @if (turn.latencyMs != null) {
             <span class="mono">{{ turn.latencyMs }} ms</span>
@@ -29,12 +29,13 @@ import { CoachTurn, tierLabel } from '../../core/coach/coach.models';
         </div>
         @for (tool of turn.tools; track tool.seq) {
           <div class="trace-row" [class.failed]="!tool.ok">
-            <b>{{ tool.tool }}<span class="args">{{ argsLabel(tool.args) }}</span></b>
-            <span>{{ tool.ok ? (tool.resultSummary ?? 'ok') : (tool.error ?? 'failed') }} · {{ tool.latencyMs }} ms</span>
+            <b class="trace-tool">{{ tool.tool }}</b>
+            <span class="args">{{ argsLabel(tool.args) }}</span>
+            <span class="trace-result" [attr.title]="resultLabel(tool)">{{ resultLabel(tool) }}</span>
           </div>
         }
         @if (!turn.tools.length) {
-          <div class="trace-row"><b>no tools</b><span>answered from the conversation alone</span></div>
+          <div class="trace-row"><b class="trace-tool">no tools</b><span class="trace-result">answered from the conversation alone</span></div>
         }
       </div>
     </details>
@@ -99,25 +100,33 @@ import { CoachTurn, tierLabel } from '../../core/coach/coach.models';
       }
       .trace-row {
         display: flex;
-        gap: 8px;
-        justify-content: space-between;
+        align-items: baseline;
+        min-width: 0;
       }
-      .trace-row b {
+      .trace-tool {
+        flex: none;
         color: var(--text-secondary);
         font-weight: var(--fw-medium);
+        white-space: nowrap;
+      }
+      .trace-row .args {
+        flex: 0 3 auto;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-      .trace-row .args {
         color: var(--text-muted);
-        font-weight: var(--fw-normal);
       }
-      .trace-row span {
+      .trace-result {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin-left: 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
+        text-align: right;
       }
-      .trace-row.failed span {
+      .trace-row.failed .trace-result {
         color: var(--danger);
       }
     `
@@ -128,6 +137,17 @@ export class CoachTraceComponent {
 
   tier(): string {
     return tierLabel(this.turn.tier);
+  }
+
+  /** The model's short name, or null when the turn recorded none. */
+  model(): string | null {
+    return modelLabel(this.turn.model);
+  }
+
+  /** What a tool found, or why it failed, with how long it took. */
+  resultLabel(tool: ToolInvocation): string {
+    const outcome = tool.ok ? (tool.resultSummary ?? 'ok') : (tool.error ?? 'failed');
+    return `${outcome} · ${tool.latencyMs} ms`;
   }
 
   /** Arguments as a short parenthesised list, or nothing when the call took none. */
