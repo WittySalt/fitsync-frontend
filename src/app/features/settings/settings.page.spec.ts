@@ -610,11 +610,37 @@ describe('SettingsPage', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     const submit = element.querySelector<HTMLButtonElement>('.danger-zone button.danger');
-    expect(element.querySelector('.danger-zone')?.textContent).toContain(
-      'Your account is scheduled for deletion and you are signed out. Sign in again within 30 days to cancel. After that, your data is removed.'
+    const zoneText = element.querySelector('.danger-zone')?.textContent ?? '';
+    expect(zoneText).toContain(
+      'Deleting your account signs you out and schedules your data for removal in 30 days. Signing in again within that time cancels it.'
     );
+    expect(zoneText).toContain('Export your data first if you want to keep a copy.');
+    expect(zoneText).not.toContain('Your account is scheduled for deletion');
     expect(submit?.textContent?.trim()).toBe('Delete my account');
     expect(element.querySelector('.danger-zone')?.textContent).not.toContain('Submit deletion request');
+  });
+
+  it('keeps the pending wording with the date when a removal date is already known', () => {
+    const component = fixture.componentInstance;
+    const status = {
+      status: 'NOT_REQUESTED',
+      requestedAt: '2026-10-01T08:00:00Z',
+      scheduledFor: '2026-10-31T12:00:00Z',
+      passwordConfirmationRequired: false
+    };
+    component.data.set({ ...accountData, accountDeletion: status });
+
+    expect(component.deletionGraceLine(status)).toBe(
+      'Your account is scheduled for deletion and you are signed out. Sign in again before 31 Oct 2026 to cancel. After that, your data is removed.'
+    );
+  });
+
+  it('keeps the pending wording without a date when only the status says a request was made', () => {
+    const status = { status: 'REQUESTED', requestedAt: null, scheduledFor: null, passwordConfirmationRequired: false };
+
+    expect(fixture.componentInstance.deletionGraceLine(status)).toBe(
+      'Your account is scheduled for deletion and you are signed out. Sign in again within 30 days to cancel. After that, your data is removed.'
+    );
   });
 
   describe('delete account form', () => {
