@@ -6,6 +6,12 @@ import { ActivityLevel } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { OnboardingFormValue, OnboardingSeed } from '../../core/fitsync.models';
 import { ToastService } from '../../core/toast/toast.service';
+import {
+  birthDateErrorMessage,
+  latestAllowedBirthDate,
+  minimumAgeValidator,
+  serverValidationMessage
+} from '../../shared/min-age';
 import { EntryTarget } from '../workout/plan-flow/plan-entry';
 import { PlanEntrySheetComponent } from '../workout/plan-flow/plan-entry-sheet.component';
 import {
@@ -181,7 +187,7 @@ export class OnboardingPage implements OnInit {
     primaryGoal: [null as PrimaryGoal | null, Validators.required],
     displayName: ['', [Validators.required, Validators.maxLength(80)]],
     gender: ['', Validators.required],
-    birthDate: ['', Validators.required],
+    birthDate: ['', [Validators.required, minimumAgeValidator()]],
     preferredUnits: ['METRIC' as PreferredUnits, Validators.required],
     heightCm: [null as number | null],
     heightFt: [null as number | null],
@@ -334,7 +340,9 @@ export class OnboardingPage implements OnInit {
         this.entryOpen.set(true);
       },
       error: (error: Error) => {
-        const message = error.message || 'Unable to save onboarding data. Please check the backend connection.';
+        const message = serverValidationMessage(error)
+          || error.message
+          || 'Unable to save onboarding data. Please check the backend connection.';
         this.error.set(message);
         this.toast.error(message);
         this.submitting.set(false);
@@ -432,6 +440,19 @@ export class OnboardingPage implements OnInit {
 
   isMultiSelected(controlName: 'equipmentInventory' | 'focusAreas' | 'injuryAreas', value: string): boolean {
     return this.form.controls[controlName].value?.includes(value) ?? false;
+  }
+
+  /** The latest birth date the date picker offers: today, 16 years ago. */
+  readonly maxBirthDate = latestAllowedBirthDate();
+
+  /** Why the birth date is refused (too young, in the future, not a date), or null when it is fine or empty. */
+  birthDateError(): string | null {
+    return birthDateErrorMessage(this.form.controls.birthDate.errors);
+  }
+
+  /** Continue stays off on the profile step while the birth date is refused, not merely empty. */
+  continueBlocked(): boolean {
+    return this.currentStep() === 1 && this.birthDateError() !== null;
   }
 
   isInvalid(controlName: ControlName): boolean {

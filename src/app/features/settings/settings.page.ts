@@ -24,6 +24,12 @@ import { ThemePreference, ThemeService } from '../../core/theme/theme.service';
 import { GuideService } from '../../core/guide/guide.service';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ToggleComponent } from '../../shared/toggle.component';
+import {
+  birthDateErrorMessage,
+  latestAllowedBirthDate,
+  minimumAgeValidator,
+  serverValidationMessage
+} from '../../shared/min-age';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
 import { DevicesListComponent } from './devices-list.component';
 
@@ -194,7 +200,7 @@ export class SettingsPage implements OnInit {
     displayName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     firstName: ['', [Validators.maxLength(80)]],
     lastName: ['', [Validators.maxLength(80)]],
-    birthDate: [''],
+    birthDate: ['', [minimumAgeValidator()]],
     gender: [''],
     bio: ['', [Validators.maxLength(300)]],
     onboardingCompleted: [false]
@@ -527,6 +533,14 @@ export class SettingsPage implements OnInit {
     this.editPanel.set(null);
   }
 
+  /** The latest birth date the date picker offers: today, 16 years ago. */
+  readonly maxBirthDate = latestAllowedBirthDate();
+
+  /** Why the birth date in the identity form is refused, or null when it is fine or empty. */
+  birthDateError(): string | null {
+    return birthDateErrorMessage(this.identityForm.controls.birthDate.errors);
+  }
+
   saveIdentity(): void {
     const data = this.data();
     if (!data || this.identityForm.invalid) {
@@ -793,7 +807,11 @@ export class SettingsPage implements OnInit {
         this.setData({ ...data, user: { ...data.user, profile: updatedProfile } });
         this.finishSave(panel, 'Profile updated.');
       },
-      error: (error: Error) => this.handleSaveError(panel, error)
+      error: (error: Error) => {
+        // A 400 carries the reason, such as a birth date under the minimum age; show it as the server wrote it.
+        const reason = serverValidationMessage(error);
+        this.handleSaveError(panel, reason ? new Error(reason) : error);
+      }
     });
   }
 
