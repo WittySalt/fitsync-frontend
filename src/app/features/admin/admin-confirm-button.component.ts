@@ -22,6 +22,8 @@ import { Component, ElementRef, Injector, afterNextRender, inject, input, output
     }
   `,
   styles: `
+    @use './admin-button' as button;
+
     :host {
       display: inline-flex;
       align-items: center;
@@ -30,33 +32,7 @@ import { Component, ElementRef, Injector, afterNextRender, inject, input, output
     }
 
     button {
-      min-height: 44px;
-      padding: 0 16px;
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      color: var(--text-primary);
-      background: var(--surface);
-      font-size: 14px;
-      font-weight: var(--fw-semibold);
-      cursor: pointer;
-    }
-
-    button:hover:not(:disabled) {
-      background: var(--surface-sunken);
-    }
-
-    button:focus-visible {
-      outline: 0;
-      box-shadow: var(--shadow-focus);
-    }
-
-    button:disabled {
-      color: var(--text-secondary);
-      cursor: default;
-    }
-
-    button[aria-busy='true'] {
-      cursor: progress;
+      @include button.outline-button;
     }
 
     .confirm {
