@@ -102,11 +102,11 @@
                     </div>
                   </div>
                 </div>
-                <label>Date of birth<input type="date" formControlName="birthDate" /></label>
+                <label>Date of birth<input type="date" formControlName="birthDate" autocomplete="bday" [max]="maxBirthDate" />@if (birthDateError(); as message) { <span class="field-error">{{ message }}</span> }</label>
                 <label>Gender<select formControlName="gender">@for (option of genderOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }</select></label>
                 <label class="wide">Bio<textarea rows="3" formControlName="bio"></textarea></label>
                 <label class="toggle-row"><input type="checkbox" formControlName="onboardingCompleted" /> Onboarding completed</label>
-                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'identity'">{{ saving() === 'identity' ? 'Saving...' : 'Save identity' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+                <div class="editor-actions"><button class="button primary" type="submit" [disabled]="saving() === 'identity' || birthDateError() !== null">{{ saving() === 'identity' ? 'Saving...' : 'Save identity' }}</button><button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
               </form>
             } @else {
               <div class="field-list">

@@ -89,8 +89,10 @@
 
                 <label>
                   Birth date
-                  <input type="date" formControlName="birthDate" autocomplete="bday" />
-                  @if (isInvalid('birthDate')) {
+                  <input type="date" formControlName="birthDate" autocomplete="bday" [max]="maxBirthDate" />
+                  @if (birthDateError(); as message) {
+                    <span class="field-error">{{ message }}</span>
+                  } @else if (isInvalid('birthDate')) {
                     <span class="field-error">Birth date is required.</span>
                   }
                 </label>
@@ -446,7 +448,7 @@
         }
 
         @if (currentStep() < steps.length - 1) {
-          <button class="button primary" type="button" (click)="nextStep()" [disabled]="submitting()">Continue</button>
+          <button class="button primary" type="button" (click)="nextStep()" [disabled]="submitting() || continueBlocked()">Continue</button>
         } @else {
           <button class="button primary" type="submit" [disabled]="submitting()">
             {{ submitting() ? 'Saving...' : 'Save and continue' }}

@@ -14,6 +14,7 @@ import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import { GuideService } from '../../core/guide/guide.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { ToastService } from '../../core/toast/toast.service';
+import { latestAllowedBirthDate } from '../../shared/min-age';
 import { SettingsPage } from './settings.page';
 
 describe('SettingsPage', () => {
@@ -321,6 +322,48 @@ describe('SettingsPage', () => {
       gender: 'FEMALE',
       birthDate: '1995-04-12'
     }));
+  });
+
+  it('refuses a birth date under 16, shows why, and keeps Save identity off', () => {
+    const component = fixture.componentInstance;
+    accountDataService.updateProfile.calls.reset();
+
+    component.startEdit('identity');
+    component.identityForm.patchValue({ birthDate: `${new Date().getFullYear() - 15}-01-01` });
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const save = Array.from(element.querySelectorAll<HTMLButtonElement>('.editor-actions button'))
+      .find((button) => button.textContent?.trim() === 'Save identity');
+    expect(element.textContent).toContain('You need to be 16 or older to use FitSync.');
+    expect(save?.disabled).toBeTrue();
+    expect(element.querySelector<HTMLInputElement>('input[formControlName="birthDate"]')?.max).toBe(latestAllowedBirthDate());
+
+    component.saveIdentity();
+    expect(accountDataService.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('refuses a birth date in the future', () => {
+    const component = fixture.componentInstance;
+
+    component.startEdit('identity');
+    component.identityForm.patchValue({ birthDate: `${new Date().getFullYear() + 1}-01-01` });
+
+    expect(component.birthDateError()).toBe('Birth date cannot be in the future.');
+  });
+
+  it('shows the reason the server gives when it refuses the birth date', () => {
+    const component = fixture.componentInstance;
+    accountDataService.updateProfile.and.returnValue(throwError(() => new HttpErrorResponse({
+      status: 400,
+      error: { message: 'Validation failed', details: ['birthDate: You need to be 16 or older to use FitSync.'] }
+    })));
+
+    component.startEdit('identity');
+    component.saveIdentity();
+
+    expect(component.sectionErrors().identity).toBe('You need to be 16 or older to use FitSync.');
+    expect(toast.error).toHaveBeenCalledWith('You need to be 16 or older to use FitSync.');
   });
 
   it('shows a birth date as the same calendar date whatever the account zone', () => {

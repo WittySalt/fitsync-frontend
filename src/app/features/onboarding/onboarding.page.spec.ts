@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 
 import { OnboardingSeed } from '../../core/fitsync.models';
@@ -7,6 +8,7 @@ import { FitSyncDataService } from '../../core/fitsync-data.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { OnboardingPage } from './onboarding.page';
 import { entryTarget } from '../workout/plan-flow/plan-entry';
+import { latestAllowedBirthDate } from '../../shared/min-age';
 
 function emptySeed(): OnboardingSeed {
   return {
@@ -552,6 +554,85 @@ describe('OnboardingPage', () => {
     expect(component.error()).toBe('Save failed');
     expect(toast.error).toHaveBeenCalledWith('Save failed');
     expect(component.submitting()).toBeFalse();
+  });
+
+  describe('minimum age', () => {
+    const fifteenYearsOld = `${new Date().getFullYear() - 15}-01-01`;
+    const nextYear = `${new Date().getFullYear() + 1}-01-01`;
+
+    function openProfileStep(): void {
+      component.selectPrimaryGoal('LOSE_FAT');
+      component.currentStep.set(1);
+      component.form.patchValue({ displayName: 'Alice Tan', gender: 'FEMALE', heightCm: 168, currentWeightKg: 72, targetWeightKg: 65 });
+    }
+
+    function continueButton(): HTMLButtonElement {
+      const button = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.form-actions button'))
+        .find((candidate) => candidate.textContent?.trim() === 'Continue');
+      if (!button) {
+        throw new Error('The Continue button is missing.');
+      }
+      return button;
+    }
+
+    it('refuses a birth date under 16, shows why, and turns Continue off', () => {
+      openProfileStep();
+      component.form.controls.birthDate.setValue(fifteenYearsOld);
+      component.form.controls.birthDate.markAsTouched();
+      fixture.detectChanges();
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(component.form.controls.birthDate.hasError('underMinimumAge')).toBeTrue();
+      expect(element.textContent).toContain('You need to be 16 or older to use FitSync.');
+      expect(continueButton().disabled).toBeTrue();
+    });
+
+    it('refuses a birth date in the future', () => {
+      openProfileStep();
+      component.form.controls.birthDate.setValue(nextYear);
+      fixture.detectChanges();
+
+      expect(component.birthDateError()).toBe('Birth date cannot be in the future.');
+      expect(continueButton().disabled).toBeTrue();
+    });
+
+    it('accepts someone who turns 16 today and limits the date picker to that day', () => {
+      openProfileStep();
+      component.form.controls.birthDate.setValue(latestAllowedBirthDate());
+      fixture.detectChanges();
+
+      const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[formControlName="birthDate"]');
+      expect(component.form.controls.birthDate.valid).toBeTrue();
+      expect(input?.max).toBe(latestAllowedBirthDate());
+      expect(continueButton().disabled).toBeFalse();
+    });
+
+    it('does not submit an under-16 birth date', () => {
+      fillValidOnboarding(component);
+      component.form.controls.birthDate.setValue(fifteenYearsOld);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).not.toHaveBeenCalled();
+      expect(component.error()).toContain('Please fix');
+    });
+
+    it('shows the reason the server gives when it refuses the birth date', () => {
+      dataService.saveOnboarding.and.returnValue(throwError(() => new HttpErrorResponse({
+        status: 400,
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: 'Validation failed',
+          details: ['birthDate: You need to be 16 or older to use FitSync.']
+        }
+      })));
+      fillValidOnboarding(component);
+
+      component.submit();
+
+      expect(component.error()).toBe('You need to be 16 or older to use FitSync.');
+      expect(toast.error).toHaveBeenCalledWith('You need to be 16 or older to use FitSync.');
+    });
   });
 
   describe('weekly workout days', () => {
