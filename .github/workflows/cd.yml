@@ -9,7 +9,19 @@
 #
 # Deploys are manual: trigger from the Actions tab → "Run workflow", and choose
 # the target. Add required reviewers to the `production` Environment for approval.
+#
+# Release gates (the same standard as the backend CD). Every job needs ci-gate,
+# which is read only and stops the run unless:
+#   1. the run is on main, and
+#   2. the CI workflow (ci.yml) succeeded on a push for exactly this commit, and
+#   3. for deploy_production only, an earlier CD run on main for this same commit
+#      has a `deploy-staging` job that succeeded. The check reads the jobs of past
+#      runs through the Actions API, so it trusts the job conclusion rather than
+#      the run title or the inputs (the inputs of past runs cannot be queried).
+# The one way past check 3 is break-glass: tick skip_staging and give a
+# skip_reason, which is written to the run summary. Checks 1 and 2 always apply.
 name: CD
+run-name: "CD ${{ inputs.action }} @ ${{ github.sha }}"
 
 on:
   workflow_dispatch:
@@ -21,20 +33,91 @@ on:
         options:
           - infra_staging       # terraform apply the S3 bucket + CloudFront
           - deploy_staging      # s3 sync the build to the STAGING bucket
-          - deploy_production   # s3 sync the build to the PRODUCTION bucket
+          - deploy_production   # s3 sync the build to the PRODUCTION bucket (this commit must be on staging first)
+      skip_staging:
+        description: "Break-glass: deploy production without this commit on staging (needs a reason)"
+        type: boolean
+        default: false
+      skip_reason:
+        description: "Why staging is skipped (recorded in the run summary)"
+        type: string
+        default: ""
 
-permissions:
-  id-token: write
-  contents: read
+# Each job sets its own permissions; nothing is granted by default.
+permissions: {}
 
 env:
+  # The commit this run builds and deploys (the head of main when the run started).
+  RELEASE_SHA: ${{ github.sha }}
   TF_VERSION: "1.15.7"
   AWS_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
+  # ── ci-gate: deploy only a commit on main whose CI passed (read only) ────────
+  ci-gate:
+    if: ${{ vars.AWS_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read   # reads the CI and CD runs of this commit
+    steps:
+      - name: Require a successful CI run on main for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "CD deploys main only, not $GITHUB_REF."; exit 1
+          fi
+          passed="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$RELEASE_SHA&event=push&status=success" --jq '.total_count')"
+          if [ "$passed" -lt 1 ]; then
+            echo "No successful CI run on main for $RELEASE_SHA yet; wait for CI, then run CD again."; exit 1
+          fi
+          echo "CI passed for $RELEASE_SHA."
+
+      - name: Require this commit on staging before production
+        if: ${{ inputs.action == 'deploy_production' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKIP_STAGING: ${{ inputs.skip_staging }}
+          SKIP_REASON: ${{ inputs.skip_reason }}
+        run: |
+          set -euo pipefail
+          if [ "$SKIP_STAGING" = "true" ]; then
+            reason="$(printf '%s' "$SKIP_REASON" | tr '\r\n' '  ' | sed 's/^ *//; s/ *$//')"
+            if [ -z "$reason" ]; then
+              echo "skip_staging is ticked but skip_reason is empty; give a reason to skip staging."; exit 1
+            fi
+            {
+              echo "### Break-glass: staging check skipped"
+              echo ""
+              echo "- Commit: \`$RELEASE_SHA\`"
+              echo "- Started by: $GITHUB_ACTOR"
+              echo "- Reason: $reason"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Staging check skipped for $RELEASE_SHA by $GITHUB_ACTOR."
+            exit 0
+          fi
+          # Earlier CD runs on main for this commit; one of them must have a successful
+          # deploy-staging job (filter=all also counts a re-run attempt that succeeded).
+          run_ids="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/cd.yml/runs?head_sha=$RELEASE_SHA&branch=main&event=workflow_dispatch&per_page=100" --jq '.workflow_runs[].id')"
+          for run_id in $run_ids; do
+            [ "$run_id" = "$GITHUB_RUN_ID" ] && continue
+            staged="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?filter=all&per_page=100" --jq '.jobs[] | select(.name == "deploy-staging" and .conclusion == "success") | .id')"
+            if [ -n "$staged" ]; then
+              echo "Staging received $RELEASE_SHA in CD run $run_id."
+              echo "Staging check passed: CD run [$run_id]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id) deployed \`$RELEASE_SHA\` to staging." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+          echo "$RELEASE_SHA has not been deployed to staging by this workflow; run CD with deploy_staging first, then deploy_production."; exit 1
+
   infra-staging:
     if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'infra_staging' }}
+    needs: [ci-gate]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # AWS OIDC
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -50,11 +133,32 @@ jobs:
           terraform init
           terraform workspace select staging || terraform workspace new staging
           terraform apply -auto-approve -var-file=staging.tfvars
+      - name: Record the run in the job summary
+        if: ${{ always() }}
+        env:
+          ACTION: ${{ inputs.action }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "### CD $ACTION (staging infrastructure)"
+            echo ""
+            echo "- Commit: \`$RELEASE_SHA\`"
+            echo "- Started by: $GITHUB_ACTOR"
+            echo "- Result: $JOB_STATUS"
+          } >> "$GITHUB_STEP_SUMMARY"
 
+  # ci-gate looks for a successful job named `deploy-staging` in past runs before it
+  # lets a production deploy through. Renaming this job makes production refuse
+  # every commit until the gate is updated to match.
   deploy-staging:
+    name: deploy-staging
     if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy_staging' }}
+    needs: [ci-gate]
     runs-on: ubuntu-latest
     environment: staging
+    permissions:
+      id-token: write   # AWS OIDC
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,11 +186,28 @@ jobs:
           else
             echo "CLOUDFRONT_DISTRIBUTION_ID_STAGING not set; skipping invalidation."
           fi
+      - name: Record the release in the job summary
+        if: ${{ always() }}
+        env:
+          ACTION: ${{ inputs.action }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "### CD $ACTION (staging)"
+            echo ""
+            echo "- Commit: \`$RELEASE_SHA\`"
+            echo "- Started by: $GITHUB_ACTOR"
+            echo "- Result: $JOB_STATUS"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy-production:
     if: ${{ vars.AWS_ROLE_ARN != '' && inputs.action == 'deploy_production' }}
+    needs: [ci-gate]
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write   # AWS OIDC
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -114,3 +235,18 @@ jobs:
           else
             echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
           fi
+      - name: Record the release in the job summary
+        if: ${{ always() }}
+        env:
+          ACTION: ${{ inputs.action }}
+          JOB_STATUS: ${{ job.status }}
+          SKIP_STAGING: ${{ inputs.skip_staging }}
+        run: |
+          {
+            echo "### CD $ACTION (production)"
+            echo ""
+            echo "- Commit: \`$RELEASE_SHA\`"
+            echo "- Started by: $GITHUB_ACTOR"
+            echo "- Staging check skipped (break-glass): $SKIP_STAGING"
+            echo "- Result: $JOB_STATUS"
+          } >> "$GITHUB_STEP_SUMMARY"
