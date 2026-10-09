@@ -1,4 +1,4 @@
-# ── Custom domain for the SPA (e.g. staging.fitsyncapp.click) ────────────────
+# ── Custom domain for the SPA (staging.fitsyncapp.click; prod fitsyncapp.click + www) ──
 # Everything here is created only when custom_domain is set. The hosted zone is
 # owned by the backend bootstrap Terraform; it is looked up here, never managed.
 
@@ -9,10 +9,11 @@ data "aws_route53_zone" "public" {
 }
 
 resource "aws_acm_certificate" "frontend" {
-  count             = local.use_custom_domain ? 1 : 0
-  provider          = aws.us_east_1
-  domain_name       = var.custom_domain
-  validation_method = "DNS"
+  count                     = local.use_custom_domain ? 1 : 0
+  provider                  = aws.us_east_1
+  domain_name               = var.custom_domain
+  subject_alternative_names = length(var.alternative_names) > 0 ? var.alternative_names : null
+  validation_method         = "DNS"
 
   tags = { Name = "${local.name}-frontend" }
 
@@ -46,11 +47,11 @@ resource "aws_acm_certificate_validation" "frontend" {
 }
 
 resource "aws_route53_record" "frontend_alias" {
-  for_each = local.use_custom_domain ? toset(["A", "AAAA"]) : toset([])
+  for_each = local.alias_records
 
   zone_id = data.aws_route53_zone.public[0].zone_id
-  name    = var.custom_domain
-  type    = each.key
+  name    = each.value.name
+  type    = each.value.type
 
   alias {
     name                   = aws_cloudfront_distribution.frontend[0].domain_name
