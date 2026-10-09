@@ -28,16 +28,18 @@ for the full SPA distribution.
 ### Through the CD workflow
 
 The CD workflow (Actions → CD → Run workflow on `main`) can run the same apply
-with `action: infra_staging`, and it deploys the SPA with `deploy_staging` and
-`deploy_production`. Every action first passes `ci-gate`: the commit must be on
-`main` with a successful CI push run. `deploy_production` also requires an earlier
-successful `deploy_staging` run for the same commit, unless `skip_staging` is
-ticked with a `skip_reason`, which is recorded in the run summary. The full rules
-are in [`.github/CICD-VARIABLES.md`](../../.github/CICD-VARIABLES.md).
+with `action: infra_staging`. With `action: deploy` it builds the SPA once,
+deploys it to staging and smoke-tests the staging site; ticking `deploy_prod`
+then promotes that same artifact to production in the same run. Every action
+first passes `ci-gate`: the commit must be on `main` with a successful CI push
+run. Production is skipped unless staging passed its smoke test in that run, or
+`skip_staging` is ticked with a `skip_reason`, which is recorded in the run
+summary. The full rules are in
+[`.github/CICD-VARIABLES.md`](../../.github/CICD-VARIABLES.md).
 
 CD has no prod infrastructure action. The prod workspace is planned and applied
-by hand (see "Prod" below). `deploy_production` only syncs the build to the prod
-bucket and invalidates the distribution; it reads `S3_BUCKET_PROD`
+by hand (see "Prod" below). The production deploy only syncs the build to the
+prod bucket and invalidates the distribution; it reads `S3_BUCKET_PROD`
 (`fitsync-frontend-prod`) and `CLOUDFRONT_DISTRIBUTION_ID` (`E1APOLMHRQOW5Y`),
 which stay the same after prod is adopted into Terraform.
 

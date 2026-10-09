@@ -13,28 +13,51 @@ GitHub Actions is the only CI/CD for this repo (the old GitLab CI/CD has been re
 
 Set under **Settings → Secrets and variables → Actions**.
 
-## Release gates
+## Release flow
 
-Every CD job waits for the read-only `ci-gate` job, which follows the same rules
-as the backend CD:
+A CD run with `action: deploy` builds the SPA once and promotes that one build,
+the same shape as the backend CD:
 
-1. The run must be on `main`; any other ref is refused.
-2. The CI workflow (`ci.yml`) must have succeeded on a push for exactly the commit
-   being deployed. If CI is still running, wait for it and start CD again.
-3. `deploy_production` also needs the same commit on staging first: an earlier CD
-   run on `main` for that commit must have a `deploy-staging` job that succeeded.
-   The gate reads the jobs of past CD runs through the Actions API, so the normal
-   order is `deploy_staging`, check staging, then `deploy_production` on the same
-   commit. The job name `deploy-staging` is part of this check and must not be
-   renamed.
+```
+ci-gate → build → deploy-staging → smoke-staging → deploy-production (if deploy_prod)
+```
 
-The only way past rule 3 is break-glass: tick `skip_staging` and fill in
-`skip_reason`. An empty reason fails the run. The reason, the commit and who
-started the run are written to the run summary. Rules 1 and 2 always apply.
+1. `ci-gate` is read only and stops the run unless it is on `main` and the CI
+   workflow (`ci.yml`) succeeded on a push for exactly this commit. If CI is
+   still running, wait for it and start CD again. It also refuses inputs that do
+   not fit together (for example `deploy_prod` with `infra_staging`).
+2. `build` runs `npm run build -- --configuration production` once and uploads
+   the output as the artifact `spa-<sha>`. Its job summary records the file
+   count and a sha256 of a sorted manifest of every file. One build serves both
+   environments because the app chooses its Cognito pool from the hostname at
+   runtime (`src/app/core/auth/auth.config.ts`) and calls a same-origin `/api`.
+3. `deploy-staging` downloads the artifact, checks its fingerprint, syncs it to
+   the staging bucket and invalidates the staging distribution.
+4. `smoke-staging` retries for up to three minutes until the staging site
+   serves this build: `/` returns 200 and names this artifact's `main-*.js`, that
+   bundle returns 200, the deep link `/progress` returns 200 through the SPA
+   fallback, and `/api/v1/health` returns 200 with status `UP`.
+5. `deploy-production` runs only when `deploy_prod` is ticked and
+   `smoke-staging` succeeded in the same run. It downloads the same artifact,
+   refuses it if the fingerprint differs from the one `build` recorded, syncs
+   it to the prod bucket, invalidates the prod distribution and runs the same
+   smoke test against production.
 
-Each run is titled `CD <action> @ <sha>`, and every deploy writes the action, the
-commit and the result to its job summary. The gate needs only `actions: read`;
-the deploy jobs keep `id-token: write` for OIDC and `contents: read`.
+Leaving `deploy_prod` unticked deploys staging only. A later run with
+`deploy_prod` ticked builds again and goes through staging again; production is
+never fed from an earlier run.
+
+The only way to production without staging is break-glass: tick `deploy_prod`
+and `skip_staging` and fill in `skip_reason`. An empty reason fails `ci-gate`.
+The reason, the commit and who started the run are written to the run summary.
+The `ci-gate` checks always apply.
+
+The run is titled after the action and its targets, for example
+`CD deploy → staging → production @ <sha>`. Every job writes the commit, who
+started it and its result to the job summary. Only one CD run per ref runs at a
+time (`concurrency: cd-<ref>`, queued runs wait). The gate needs only
+`actions: read`; `build` and `smoke-staging` need only `contents: read`; the
+deploy jobs add `id-token: write` for OIDC.
 
 ## Repository variables
 
@@ -46,6 +69,8 @@ the deploy jobs keep `id-token: write` for OIDC and `contents: read`.
 | `S3_BUCKET_PROD` | production SPA bucket |
 | `CLOUDFRONT_DISTRIBUTION_ID_STAGING` | optional; invalidation skipped if unset |
 | `CLOUDFRONT_DISTRIBUTION_ID` | optional; prod invalidation skipped if unset |
+| `STAGING_SITE_URL` | optional; the staging smoke test target, default `https://staging.fitsyncapp.click` |
+| `PROD_SITE_URL` | optional; the production smoke test target, default `https://fitsyncapp.click` |
 
 ## Secrets
 
