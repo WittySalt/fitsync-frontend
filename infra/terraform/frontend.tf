@@ -195,6 +195,22 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
+  # The gateway health check, so k6 and ZAP reach the gateway through the custom
+  # domain instead of getting the SPA's index.html. Exact path only: the rest of
+  # /actuator/* must stay private and keeps falling through to the SPA.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      path_pattern             = "/actuator/health"
+      target_origin_id         = "ec2-api"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD"]
+      cached_methods           = ["GET", "HEAD"]
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # Managed-AllViewer
+    }
+  }
+
   restrictions {
     geo_restriction { restriction_type = "none" }
   }
