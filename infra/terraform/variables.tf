@@ -63,3 +63,91 @@ variable "hosted_zone_name" {
   type        = string
   default     = "fitsyncapp.click"
 }
+
+# Further hostnames on the same certificate and distribution, e.g. www for prod.
+variable "alternative_names" {
+  description = "Extra hostnames for the certificate (SANs), the aliases and the DNS records"
+  type        = list(string)
+  default     = []
+}
+
+# ── Settings where the hand-built prod distribution differs from staging ─────
+# Defaults are staging's values, so staging.tfvars does not need to set them.
+
+variable "bucket_name" {
+  description = "SPA bucket name (empty = <project>-<env>-frontend-<account id>)"
+  type        = string
+  default     = ""
+}
+
+variable "s3_origin_type" {
+  description = "How CloudFront reads the bucket: website (public website endpoint) or oac (private bucket, Origin Access Control)"
+  type        = string
+  default     = "website"
+
+  validation {
+    condition     = contains(["website", "oac"], var.s3_origin_type)
+    error_message = "s3_origin_type must be website or oac."
+  }
+}
+
+variable "oac_name" {
+  description = "Name of the Origin Access Control when s3_origin_type = oac (empty = <project>-<env>-frontend-oac)"
+  type        = string
+  default     = ""
+}
+
+variable "oac_description" {
+  description = "Description of the Origin Access Control"
+  type        = string
+  default     = "OAC for the FitSync frontend bucket"
+}
+
+variable "distribution_comment" {
+  description = "CloudFront comment (empty = <project>-<env>-frontend)"
+  type        = string
+  default     = ""
+}
+
+variable "price_class" {
+  description = "CloudFront price class"
+  type        = string
+  default     = "PriceClass_All"
+}
+
+variable "ipv6_enabled" {
+  description = "Answer on IPv6 at the edge"
+  type        = bool
+  default     = false
+}
+
+variable "default_cache_policy_id" {
+  description = "Cache policy on the default (S3) behaviour (empty = legacy forwarded_values, no query string or cookies)"
+  type        = string
+  default     = ""
+}
+
+variable "default_compress" {
+  description = "Compress responses on the default (S3) behaviour"
+  type        = bool
+  default     = false
+}
+
+variable "default_allowed_methods" {
+  description = "Allowed methods on the default (S3) behaviour"
+  type        = list(string)
+  default     = ["GET", "HEAD", "OPTIONS"]
+}
+
+# ── One-time adoption of hand-built resources (imports.tf) ───────────────────
+# null = import nothing (staging). Set only in prod.tfvars, for the import apply.
+variable "adopt" {
+  description = "Ids of existing resources to import into this workspace (null = none)"
+  type = object({
+    distribution_id         = string
+    oac_id                  = string
+    certificate_arn         = string
+    cert_validation_records = map(string) # hostname => validation CNAME name
+  })
+  default = null
+}

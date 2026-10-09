@@ -1,14 +1,13 @@
 # Frontend infrastructure (Terraform)
 
-Owns the **frontend** AWS resources only — the SPA S3 bucket and its CloudFront
-distribution. Backend infra (VPC, ALB, EC2, RDS, ECR, Cognito, media S3) stays in
+Owns the **frontend** AWS resources only: the SPA S3 bucket, its CloudFront
+distribution, and the custom domain's certificate and DNS records. Backend infra (VPC, ALB, EC2, RDS, ECR, Cognito, media S3) stays in
 the backend repo's `infra/terraform/`. Separate state ⇒ separate blast radius.
 
 | | |
 |---|---|
 | State | `s3://fitsync-tfstate-437659978621/env:/<workspace>/fitsync/frontend/terraform.tfstate` |
-| Workspaces | `staging` (run now), `prod` (reserved — prod FE is hand-built) |
-| Prod domain | separate root `infra/terraform-prod-domain/` (own state key, no workspaces); see "Prod custom domain" below |
+| Workspaces | `staging` (`staging.tfvars`), `prod` (`prod.tfvars`, adopted from the hand-built prod; see "Prod" below) |
 | Shared (not owned here) | **Cognito** lives in the backend state; the SPA only *references* the pool/client IDs, which are set per environment in `src/app/core/auth/auth.config.ts`. The `/api/*` CloudFront origin is the backend **ALB** (`api_origin_domain`, the backend's `alb_dns_name` output; `api_origin_port`, default 80; 60 s read timeout so the streamed coach answer is not cut off at CloudFront's 30 s default). These are plain variables, so there is no hard cross-stack dependency. |
 
 ## Normal use (staging)
@@ -36,14 +35,24 @@ successful `deploy_staging` run for the same commit, unless `skip_staging` is
 ticked with a `skip_reason`, which is recorded in the run summary. The full rules
 are in [`.github/CICD-VARIABLES.md`](../../.github/CICD-VARIABLES.md).
 
+CD has no prod infrastructure action. The prod workspace is planned and applied
+by hand (see "Prod" below). `deploy_production` only syncs the build to the prod
+bucket and invalidates the distribution; it reads `S3_BUCKET_PROD`
+(`fitsync-frontend-prod`) and `CLOUDFRONT_DISTRIBUTION_ID` (`E1APOLMHRQOW5Y`),
+which stay the same after prod is adopted into Terraform.
+
+The `.tf` and `.tfvars` files are kept LF by `.gitattributes`. With
+`core.autocrlf=true`, a Windows checkout would otherwise turn the CloudFront
+function's heredoc into CRLF, and plan would then rewrite the live function.
+
 ## Custom domain (staging.fitsyncapp.click)
 
 Staging is served at **https://staging.fitsyncapp.click**. The old
 https://d1z92tpb353lfi.cloudfront.net keeps working, because CloudFront always
 answers on its own `*.cloudfront.net` name as well as its aliases.
 
-Set by `custom_domain` in `staging.tfvars` (empty = nothing is created; `prod.tfvars`
-leaves it empty because prod is hand-built). `domain.tf` then creates:
+Set by `custom_domain` in `staging.tfvars` (empty = nothing is created). Further
+names on the same certificate come from `alternative_names` (prod sets `www`). `domain.tf` then creates:
 
 - an ACM certificate in **us-east-1** (CloudFront only accepts certificates from
   there) through the `aws.us_east_1` provider alias, validated by DNS;
@@ -76,153 +85,191 @@ the zone in this state.
    `src/app/core/auth/auth.config.ts`). Cognito callback URLs only matter for the
    hosted UI; the password sign-in flow needs no change on the pool.
 
-## Prod custom domain (fitsyncapp.click and www.fitsyncapp.click)
+## Prod (fitsyncapp.click, www.fitsyncapp.click)
 
-Prod serves on **https://fitsyncapp.click** and **https://www.fitsyncapp.click**.
-Both names are aliases on the existing hand-built prod distribution
-`E1APOLMHRQOW5Y` (https://d26vi6hikexzev.cloudfront.net, which keeps working),
-and one ACM certificate covers both.
+Prod serves on **https://fitsyncapp.click**, **https://www.fitsyncapp.click** and
+the distribution's own name **https://d26vi6hikexzev.cloudfront.net**. It runs
+from the same code as staging, in workspace `prod`, with `prod.tfvars`.
 
-The prod distribution is not in any Terraform state, and this stack's `prod`
-workspace must not be applied against it. The domain therefore has its own small
-root, `infra/terraform-prod-domain/`, with its own state key
-(`fitsync/frontend-prod-domain/terraform.tfstate` in the same tfstate bucket, no
-workspaces). It only **reads** the distribution (`data "aws_cloudfront_distribution"`)
-and the hosted zone, and creates:
+The settings where prod differs from staging are variables whose defaults are
+staging's values, so `staging.tfvars` does not set them:
 
-| Phase | Resources |
-|---|---|
-| 1 (`create_alias_records = false`) | ACM certificate in us-east-1 for `fitsyncapp.click` with SAN `www.fitsyncapp.click`, its two DNS validation CNAMEs, `aws_acm_certificate_validation` |
-| 2 (`create_alias_records = true`) | `A` and `AAAA` alias records for the apex and `www`, pointing at the distribution |
+| Variable | Staging (default) | Prod |
+|---|---|---|
+| `bucket_name` | `fitsync-staging-frontend-<account>` | `fitsync-frontend-prod` |
+| `s3_origin_type` | `website`: public-read bucket, S3 website endpoint as a custom origin | `oac`: private bucket (all public access blocked), S3 REST endpoint, Origin Access Control `fitsync-frontend-oac`, bucket policy that lets only this distribution read |
+| `default_cache_policy_id` | empty: legacy `forwarded_values` | Managed-CachingOptimized |
+| `default_compress` | `false` | `true` |
+| `default_allowed_methods` | GET, HEAD, OPTIONS | GET, HEAD |
+| `price_class` | `PriceClass_All` | `PriceClass_200` |
+| `ipv6_enabled` | `false` | `true` |
+| `distribution_comment` | `fitsync-staging-frontend` | the hand-built comment |
+| `alternative_names` | none | `www.fitsyncapp.click` (certificate SAN, alias, A/AAAA records) |
 
-The aliases and the certificate are put on the distribution between the two
-phases by `infra/terraform-prod-domain/attach-prod-domain.ps1`, which changes only
-`Aliases` and `ViewerCertificate` (SNI, `TLSv1.2_2021`) and sends every other field
-back as CloudFront returned it. It is a dry run unless `-Apply` is passed, and it
-saves the current config to `backups/` first (git-ignored), which is the rollback.
+The `/api/*` behaviour (CachingDisabled, AllViewer, ALB on port 80, 60 s read
+timeout) and the `<env>-spa-fallback` viewer-request function are the same in
+both. Neither environment has custom error responses or access logging.
 
-**Why this order.** CloudFront refuses an alias unless an issued certificate on
-the distribution covers it, so the certificate comes first. DNS comes last,
-because a record that points a name at a distribution which does not list it as
-an alias gives users a CloudFront error. Phase 2 has preconditions that fail the
-plan unless the distribution already lists each name and is `Deployed`.
+The edge forwards only /api/*. /actuator is not exposed; the ALB health-checks the gateway inside the VPC.
 
-The SES records in the zone (DKIM, `mail.`, `_dmarc`) are not touched. The zone has
-no apex or `www` record and no CAA record today, so nothing is overwritten and ACM
-is free to issue.
+**Never `terraform destroy` the prod workspace.** It would delete the live site,
+and a new distribution gets a new `*.cloudfront.net` name. (Staging is destroyed
+after demos, so the code cannot carry `prevent_destroy`.)
 
-### Before you start
+### One-time adoption of the hand-built prod frontend
 
-1. **Backend CORS first.** CloudFront forwards the browser's `Origin` to the
-   gateway, and the gateway rejects origins it does not list with 403, which the
-   distribution serves as the SPA's `index.html`. Every POST from the new names
-   would fail. Merge the backend PR that adds both origins to the gateway's default
-   allowlist and deploy it to prod (backend CD, `deploy_prod`). Check:
-   ```powershell
-   curl.exe -s -i -X OPTIONS https://d26vi6hikexzev.cloudfront.net/api/v1/auth/bootstrap `
-     -H "Origin: https://fitsyncapp.click" -H "Access-Control-Request-Method: POST"
-   ```
-   Expect `Access-Control-Allow-Origin: https://fitsyncapp.click`, not `text/html`.
-2. **Frontend.** Merge this repo's PR and deploy the SPA to prod (CD
-   `deploy_staging`, then `deploy_production` on the same commit). `auth.config.ts`
-   lists the apex, `www` and the CloudFront name in `PROD_HOSTS`, so all three use
-   the prod Cognito pool. Sign-in is direct `InitiateAuth`, so no callback URL is
-   added on the pool.
-3. Credentials with ACM (us-east-1), Route 53 and CloudFront rights, account
-   437659978621.
+Prod was built by hand: the distribution `E1APOLMHRQOW5Y`, the bucket, the OAC
+and the function with the AWS CLI, and the certificate, its two validation
+records and the four A/AAAA alias records by a separate root,
+`infra/terraform-prod-domain` (state key `fitsync/frontend-prod-domain/terraform.tfstate`).
+That root and its `attach-prod-domain.ps1` are deleted by the PR that adds this
+section; their job is done.
 
-### Phase 1: certificate
+`imports.tf` adopts all of it into the `prod` workspace. Import blocks cannot be
+tied to a workspace, so each one has a `for_each` over a map that is empty unless
+`var.adopt` is set, and only `prod.tfvars` sets it. Staging plans them as nothing.
+
+The domain resources are adopted with **import here, then `state rm` in the old
+root**, not `terraform state mv`: `state mv` across two S3 backends means pulling,
+editing and pushing state files by hand, while import plus `state rm` only touches
+state through Terraform and never deletes anything. Between the two steps both
+states list the same records; that is safe as long as nobody runs `apply` or
+`destroy` in the old root, which is why the old root is cleaned up right after.
+
+Expected prod plan (checked on 2026-10-09 against the live resources):
+
+```
+Plan: 13 to import, 1 to add, 6 to change, 0 to destroy.
+```
+
+| Resource | Action | Why it is safe |
+|---|---|---|
+| bucket, public access block, bucket policy, OAC, 4 alias records | import, no change | live values match the code |
+| `aws_s3_bucket.frontend` | import + tags | adds the default tags (the bucket has none); `force_destroy = false` is state only |
+| `aws_cloudfront_distribution.frontend[0]` | import + tags | tags only; the provider tags the distribution without an `UpdateDistribution`, so nothing redeploys |
+| `aws_cloudfront_function.spa_fallback[0]` | import + `publish = true` | republishes the same code (DEVELOPMENT and LIVE are identical) |
+| `aws_acm_certificate.frontend[0]` | import + tags | tag `Component` changes from `frontend-domain` to `frontend` |
+| 2 certificate validation records | import + `allow_overwrite = true` | state only; the record values do not change |
+| `aws_acm_certificate_validation.frontend[0]` | create | has no import; it only waits until the certificate is `ISSUED`, which it already is |
+
+Anything else in the plan, above all a `destroy`, `must be replaced` or a change to
+`origin`, `aliases` or `viewer_certificate`, means the live config has drifted:
+stop and do not apply.
+
+#### Before you start
+
+- Run this by hand from your machine, not through CD. Merging the PR first is
+  safe: CD's `infra_staging` then only applies the staging move, and nothing
+  touches prod until you apply the `prod` workspace.
+- Credentials for account 437659978621 with S3, CloudFront, ACM (us-east-1) and
+  Route 53 rights.
+- Save the live distribution config, for the record and for the rollback:
+  ```powershell
+  aws cloudfront get-distribution-config --id E1APOLMHRQOW5Y > prod-dist-before.json
+  ```
+- The old-root steps need a checkout that still has `infra/terraform-prod-domain`.
+  From the repo root, add one at the base of this PR (any commit before the
+  merge works; on `main` after the merge the folder is gone):
+  ```powershell
+  git worktree add ..\frontend-old-domain 3ed6c6a
+  ```
+
+#### Apply sequence
 
 ```powershell
-cd infra/terraform-prod-domain
+# 1. The old root must show no changes, so nothing there is pending.
+cd <repo>\..\frontend-old-domain\infra\terraform-prod-domain
 terraform init
-terraform plan -var-file="prod.tfvars" "-out=phase1.tfplan"
-terraform apply phase1.tfplan
-terraform output certificate_arn
+terraform plan -var-file="prod.tfvars"          # expect: No changes
+
+# 2. Adopt everything into the prod workspace.
+cd <repo>\infra\terraform
+terraform init
+terraform workspace select prod 2>$null; if (-not $?) { terraform workspace new prod }
+terraform plan -var-file="prod.tfvars" "-out=prod-adopt.tfplan"
+#    Check: 13 to import, 1 to add, 6 to change, 0 to destroy, and only the diffs
+#    in the table above.
+terraform apply prod-adopt.tfplan
+
+# 3. Prod is now in this state; a second plan must be clean.
+terraform plan -var-file="prod.tfvars"          # expect: No changes
+
+# 4. Drop the domain resources from the OLD state. state rm forgets them;
+#    it does not touch AWS.
+cd <repo>\..\frontend-old-domain\infra\terraform-prod-domain
+terraform state rm `
+  aws_acm_certificate.prod `
+  aws_acm_certificate_validation.prod `
+  'aws_route53_record.cert_validation[\"fitsyncapp.click\"]' `
+  'aws_route53_record.cert_validation[\"www.fitsyncapp.click\"]' `
+  'aws_route53_record.alias[\"fitsyncapp.click/A\"]' `
+  'aws_route53_record.alias[\"fitsyncapp.click/AAAA\"]' `
+  'aws_route53_record.alias[\"www.fitsyncapp.click/A\"]' `
+  'aws_route53_record.alias[\"www.fitsyncapp.click/AAAA\"]'
+terraform state list                            # expect only the two data sources
+
+# 5. Remove the old checkout.
+cd <repo>
+git worktree remove ..\frontend-old-domain
 ```
 
-Expect **4 to add, 0 to change, 0 to destroy** (certificate, two validation
-records, certificate validation). The apply waits until ACM has issued the
-certificate, usually a few minutes.
+In Windows PowerShell 5.1 the inner quotes of a resource address have to be
+escaped as `\"` inside single quotes, as above; in bash use
+`'aws_route53_record.alias["fitsyncapp.click/A"]'`.
 
-### Attach the aliases and the certificate
+The old state object, `fitsync/frontend-prod-domain/terraform.tfstate` in the
+tfstate bucket, then holds no resources. It can stay; deleting it is optional.
 
-```powershell
-.\attach-prod-domain.ps1           # dry run: shows current and new Aliases/ViewerCertificate
-.\attach-prod-domain.ps1 -Apply    # update-distribution with the ETag it just read
-aws cloudfront wait distribution-deployed --id E1APOLMHRQOW5Y
-```
+After the PR is merged, `adopt` in `prod.tfvars` can be removed in a follow-up
+(the import blocks are no-ops once the resources are in state, so keeping it is
+harmless too).
 
-The script reads the certificate ARN from `terraform output`, and refuses to run
-unless the certificate is `ISSUED` in us-east-1 and covers both names. Note the
-backup file name it prints, for example
-`backups\E1APOLMHRQOW5Y-20261009-120000.json`.
-
-Before any DNS exists, check the distribution already serves the names with the new
-certificate by connecting to the CloudFront name directly:
+#### Verify
 
 ```powershell
-curl.exe -sI https://fitsyncapp.click/ --connect-to fitsyncapp.click:443:d26vi6hikexzev.cloudfront.net:443
-curl.exe -sI https://www.fitsyncapp.click/ --connect-to www.fitsyncapp.click:443:d26vi6hikexzev.cloudfront.net:443
-```
-
-Both should answer `HTTP/1.1 200 OK` with no certificate error.
-
-### Phase 2: DNS
-
-Set `create_alias_records = true` in `infra/terraform-prod-domain/prod.tfvars` and
-keep it that way (commit that one-line change afterwards).
-
-```powershell
-terraform plan -var-file="prod.tfvars" "-out=phase2.tfplan"
-terraform apply phase2.tfplan
-```
-
-Expect **4 to add, 0 to change, 0 to destroy** (A and AAAA for the apex and `www`).
-If the plan stops on a precondition, the attach step has not finished; wait for
-`Deployed` and plan again.
-
-### Verify
-
-```powershell
-Resolve-DnsName fitsyncapp.click -Type A -Server 8.8.8.8
-Resolve-DnsName fitsyncapp.click -Type AAAA -Server 8.8.8.8
-Resolve-DnsName www.fitsyncapp.click -Type A -Server 8.8.8.8
-# or: dig +short fitsyncapp.click A; dig +short www.fitsyncapp.click AAAA
+aws cloudfront get-distribution --id E1APOLMHRQOW5Y --query "Distribution.Status"   # Deployed
 curl.exe -sI https://fitsyncapp.click/
-curl.exe -sI https://www.fitsyncapp.click/
-curl.exe -sI http://fitsyncapp.click/            # 301 to https
-curl.exe -s -i -X OPTIONS https://fitsyncapp.click/api/v1/auth/bootstrap `
-  -H "Origin: https://fitsyncapp.click" -H "Access-Control-Request-Method: POST"
-curl.exe -sI https://d26vi6hikexzev.cloudfront.net/   # old name still 200
+curl.exe -sI https://www.fitsyncapp.click/workout                                   # 200, SPA fallback
+curl.exe -sI https://d26vi6hikexzev.cloudfront.net/
+Resolve-DnsName fitsyncapp.click -Type A -Server 8.8.8.8
+Resolve-DnsName www.fitsyncapp.click -Type AAAA -Server 8.8.8.8
 ```
 
-Then sign in on `https://fitsyncapp.click` in a browser and save something (a POST),
-to confirm the gateway accepts the origin. Sessions are stored per origin, so a
-user signed in on the CloudFront name signs in again on the new domain.
+#### Rollback
 
-### Rollback
+The apply only writes tags and republishes the function; everything else is state.
+To undo the adoption without touching AWS:
 
-Undo in reverse order, and only as far as needed.
-
-1. **DNS only** (the names stop resolving; the CloudFront name is unaffected): set
-   `create_alias_records = false`, then
-   `terraform apply -var-file="prod.tfvars"`. Expect 4 to destroy.
-2. **Distribution**: put back the config saved by the attach step:
+1. **Before step 4** (the old state still owns the domain): forget everything in
+   the prod workspace and the old root keeps working as before.
    ```powershell
-   .\attach-prod-domain.ps1 -RestoreFrom .\backups\E1APOLMHRQOW5Y-<stamp>.json          # dry run
-   .\attach-prod-domain.ps1 -RestoreFrom .\backups\E1APOLMHRQOW5Y-<stamp>.json -Apply
-   aws cloudfront wait distribution-deployed --id E1APOLMHRQOW5Y
+   cd <repo>\infra\terraform
+   terraform workspace select prod
+   terraform state list                     # then, for every address listed:
+   terraform state rm <address> ...
    ```
-   Use the **first** backup, taken before `-Apply`. If `backups/` is lost, get the
-   config, set `Aliases` to `{"Quantity": 0}` and `ViewerCertificate` to
-   `{"CloudFrontDefaultCertificate": true, "MinimumProtocolVersion": "TLSv1"}`, and
-   call `update-distribution` with the ETag.
-3. **Certificate**: `terraform destroy -var-file="prod.tfvars"`, only after step 2,
-   because ACM will not delete a certificate a distribution still uses.
+2. **After step 4**: do step 1, then import the domain back into the old root,
+   from the old checkout (add it again as in "Before you start" if it is gone;
+   Route 53 ids are `<zone>_<name>_<type>`):
+   ```powershell
+   $Z = 'Z03373831R8G5N1TEF6LB'
+   terraform import aws_acm_certificate.prod arn:aws:acm:us-east-1:437659978621:certificate/78a6d0bd-f182-4157-8771-463c7c9c32db
+   terraform import 'aws_route53_record.cert_validation[\"fitsyncapp.click\"]' "${Z}__6b584e9a754a1e576cbf9f52c69930f8.fitsyncapp.click_CNAME"
+   terraform import 'aws_route53_record.cert_validation[\"www.fitsyncapp.click\"]' "${Z}__6fc2078ac07d00df49eb45b07f2439c7.www.fitsyncapp.click_CNAME"
+   terraform import 'aws_route53_record.alias[\"fitsyncapp.click/A\"]' "${Z}_fitsyncapp.click_A"
+   terraform import 'aws_route53_record.alias[\"fitsyncapp.click/AAAA\"]' "${Z}_fitsyncapp.click_AAAA"
+   terraform import 'aws_route53_record.alias[\"www.fitsyncapp.click/A\"]' "${Z}_www.fitsyncapp.click_A"
+   terraform import 'aws_route53_record.alias[\"www.fitsyncapp.click/AAAA\"]' "${Z}_www.fitsyncapp.click_AAAA"
+   terraform apply -var-file="prod.tfvars"  # creates only the validation wait resource
+   ```
+3. **If a later prod apply changed the distribution** in a way you want to undo,
+   send back the config saved in "Before you start" (strip the `ETag` wrapper,
+   keep `DistributionConfig`) with
+   `aws cloudfront update-distribution --id E1APOLMHRQOW5Y --if-match <current ETag> --distribution-config file://...`.
 
-The backend CORS change can stay: an extra allowed origin that nobody serves does
-no harm.
+Do not run `terraform destroy` in either place as a rollback: in the prod
+workspace it deletes the live site, in the old root it deletes the certificate
+and the DNS records.
 
 ## History: one-time split out of the backend state (done, June 2026)
 
