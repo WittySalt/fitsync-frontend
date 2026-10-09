@@ -12,6 +12,7 @@ import {
   AccountSummary,
   AccountUserResponse,
   CreateBodyMetricRequest,
+  FullAccountDataExport,
   SecurityOverview,
   formatDeletionDate,
   initialsFor,
@@ -221,6 +222,54 @@ describe('AccountDataService', () => {
     expect(recoveryRequest.request.method).toBe('PATCH');
     expect(recoveryRequest.request.body).toEqual({ email: 'new@example.com', currentPassword: 'current-password' });
     recoveryRequest.flush(securityFixture());
+  });
+
+  it('puts the account, nutrition, workout and coach exports into one object', () => {
+    let result: FullAccountDataExport | undefined;
+    service.downloadFullDataExport('export-1').subscribe((value) => { result = value; });
+
+    const account = { generatedAt: '2026-10-09T08:00:00Z', account: userFixture(), goals: [], bodyMetrics: [], healthReadiness: null, relatedExports: [] };
+    httpTesting.expectOne('/api/v1/users/me/data-export/requests/export-1/download').flush(account);
+    const nutrition = httpTesting.expectOne('/api/v1/nutrition/me/export');
+    const workouts = httpTesting.expectOne('/api/v1/workouts/me/export');
+    const coach = httpTesting.expectOne('/api/v1/coach/me/export');
+    expect([nutrition, workouts, coach].every((request) => request.request.method === 'GET')).toBeTrue();
+    nutrition.flush({ meals: [] });
+    workouts.flush({ sessions: [] });
+    coach.flush({ threads: [] });
+
+    expect(result?.account).toEqual(account as unknown as FullAccountDataExport['account']);
+    expect(result?.nutrition).toEqual({ meals: [] });
+    expect(result?.workouts).toEqual({ sessions: [] });
+    expect(result?.coach).toEqual({ threads: [] });
+    expect(Number.isNaN(Date.parse(result!.exportedAt))).toBeFalse();
+  });
+
+  it('fails the whole export and names every part that could not be fetched', () => {
+    let result: FullAccountDataExport | undefined;
+    let error: Error | undefined;
+    service.downloadFullDataExport('export-1').subscribe({ next: (value) => { result = value; }, error: (value: Error) => { error = value; } });
+
+    httpTesting.expectOne('/api/v1/users/me/data-export/requests/export-1/download')
+      .flush({ generatedAt: '2026-10-09T08:00:00Z', account: userFixture(), goals: [], bodyMetrics: [] });
+    httpTesting.expectOne('/api/v1/nutrition/me/export').flush({ meals: [] });
+    httpTesting.expectOne('/api/v1/workouts/me/export').flush('down', { status: 503, statusText: 'Service Unavailable' });
+    httpTesting.expectOne('/api/v1/coach/me/export').flush('down', { status: 500, statusText: 'Server Error' });
+
+    expect(result).toBeUndefined();
+    expect(error?.message).toBe('Could not export the workout and coach parts of your data, so nothing was downloaded. Please try again.');
+  });
+
+  it('names a single failed part on its own', () => {
+    let error: Error | undefined;
+    service.downloadFullDataExport('export-1').subscribe({ error: (value: Error) => { error = value; } });
+
+    httpTesting.expectOne('/api/v1/users/me/data-export/requests/export-1/download').flush('gone', { status: 404, statusText: 'Not Found' });
+    httpTesting.expectOne('/api/v1/nutrition/me/export').flush({});
+    httpTesting.expectOne('/api/v1/workouts/me/export').flush({});
+    httpTesting.expectOne('/api/v1/coach/me/export').flush({});
+
+    expect(error?.message).toBe('Could not export the account part of your data, so nothing was downloaded. Please try again.');
   });
 
   it('requests, downloads, and reads data export/account deletion state', () => {

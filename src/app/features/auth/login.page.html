@@ -130,6 +130,7 @@
           New to FitSync?
           <button class="link-button" type="button" (click)="showMode('signup')">Create account</button>
         </p>
+        <p class="auth-legal"><a routerLink="/privacy">Privacy notice</a></p>
       } @else if (mode() === 'signup') {
         <form class="auth-form" [formGroup]="signUpForm" (ngSubmit)="signUp()" novalidate>
           <label for="displayName">Display name</label>
@@ -149,6 +150,9 @@
         <p class="auth-switch">
           Already registered?
           <button class="link-button" type="button" (click)="showMode('signin')">Sign in</button>
+        </p>
+        <p class="auth-legal">
+          Read how FitSync collects and uses your data in the <a routerLink="/privacy">privacy notice</a>.
         </p>
       } @else if (mode() === 'confirm') {
         <form class="auth-form" [formGroup]="confirmForm" (ngSubmit)="confirmSignUp()" novalidate>

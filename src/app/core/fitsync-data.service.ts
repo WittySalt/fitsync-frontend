@@ -1909,6 +1909,7 @@ export class FitSyncDataService {
       workoutReminderEnabled: value.workoutReminderEnabled,
       mealReminderEnabled: value.mealReminderEnabled,
       weighInReminderEnabled: true,
+      healthDataConsent: value.healthDataConsent === true,
       ...(healthReadiness ? { healthReadiness } : {})
     }).pipe(
       // Onboarding writes onboardingCompleted=true server-side; the auth guard

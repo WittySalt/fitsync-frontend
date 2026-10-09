@@ -6,7 +6,8 @@ import { Subject, of, throwError } from 'rxjs';
 import {
   AccountCenterData,
   AccountDataService,
-  AccountDataExportPayload
+  AccountDataExportPayload,
+  FullAccountDataExport
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SessionsApiService } from '../../core/auth/sessions-api.service';
@@ -16,6 +17,16 @@ import { ThemeService } from '../../core/theme/theme.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { latestAllowedBirthDate } from '../../shared/min-age';
 import { SettingsPage } from './settings.page';
+
+function fullExport(): FullAccountDataExport {
+  return {
+    exportedAt: '2026-10-09T08:00:00.000Z',
+    account: { generatedAt: '2026-10-09T08:00:00Z', goals: [], bodyMetrics: [] } as unknown as AccountDataExportPayload,
+    nutrition: { meals: [] },
+    workouts: { sessions: [] },
+    coach: { threads: [] }
+  };
+}
 
 describe('SettingsPage', () => {
   let fixture: ComponentFixture<SettingsPage>;
@@ -173,7 +184,7 @@ describe('SettingsPage', () => {
         'replaceBodyMetric',
         'updateRecoveryEmail',
         'requestDataExport',
-        'downloadDataExport',
+        'downloadFullDataExport',
         'requestAccountDeletion',
         'invalidateCurrentUser'
       ]
@@ -190,7 +201,7 @@ describe('SettingsPage', () => {
       recoveryEmailUpdatable: true
     }));
     accountDataService.requestDataExport.and.returnValue(of(accountData.latestDataExport!));
-    accountDataService.downloadDataExport.and.returnValue(of({} as AccountDataExportPayload));
+    accountDataService.downloadFullDataExport.and.returnValue(of(fullExport()));
     accountDataService.requestAccountDeletion.and.returnValue(of(accountData.accountDeletion));
     authService.changePassword.and.returnValue(of(undefined));
     authService.signOutEverywhere.and.returnValue(of(undefined));
@@ -211,6 +222,8 @@ describe('SettingsPage', () => {
 
     router = TestBed.inject(Router);
     spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    // A test that downloads the export must not make the browser save a file.
+    spyOn(HTMLAnchorElement.prototype, 'click');
     fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
   });
@@ -600,11 +613,12 @@ describe('SettingsPage', () => {
 
     component.formattingForm.patchValue({ preferredUnits: '100002', language: '110002' });
     component.savePreferences('formatting');
-    component.privacyForm.patchValue({ privacyLevel: '120003', dataSharingConsent: true });
+    component.privacyForm.patchValue({ privacyLevel: '120003' });
     component.savePreferences('privacy');
 
+    // Saving visibility keeps the stored consent as it is; consent has its own card.
     expect(accountDataService.updatePreferences).toHaveBeenCalledWith(jasmine.objectContaining({
-      app: jasmine.objectContaining({ privacyLevel: '120003', dataSharingConsent: true })
+      app: jasmine.objectContaining({ privacyLevel: '120003', dataSharingConsent: false })
     }));
 
     component.data.set({
@@ -621,7 +635,7 @@ describe('SettingsPage', () => {
     component.downloadDataExport();
 
     expect(accountDataService.requestDataExport).toHaveBeenCalled();
-    expect(accountDataService.downloadDataExport).toHaveBeenCalledWith('export-1');
+    expect(accountDataService.downloadFullDataExport).toHaveBeenCalledWith('export-1');
 
     component.deletionForm.patchValue({ confirmationText: ' DELETE ', currentPassword: 'password123' });
     component.requestAccountDeletion();
@@ -690,6 +704,201 @@ describe('SettingsPage', () => {
     expect(fixture.componentInstance.deletionGraceLine(status)).toBe(
       'Your account is scheduled for deletion and you are signed out. Sign in again within 30 days to cancel. After that, your data is removed.'
     );
+  });
+
+  describe('health data consent', () => {
+    function withConsent(given: boolean, consentedAt?: string): void {
+      const preferences = {
+        ...accountData.user.preferences,
+        app: { ...accountData.user.preferences.app, dataSharingConsent: given, healthDataConsentAt: consentedAt ?? null }
+      };
+      fixture.componentInstance.data.set({ ...accountData, user: { ...accountData.user, preferences } });
+    }
+
+    function openPrivacy(): HTMLElement {
+      fixture.componentInstance.selectedSection.set('privacy-data');
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function consentState(element: HTMLElement): string {
+      return element.querySelector('.health-consent .field-row.readonly strong')?.textContent?.trim() ?? '';
+    }
+
+    it('shows the consent state and links to the privacy notice', () => {
+      withConsent(true);
+      const element = openPrivacy();
+
+      expect(consentState(element)).toBe('Given');
+      expect(element.querySelector<HTMLAnchorElement>('.health-consent a')?.getAttribute('href')).toBe('/privacy');
+      expect(element.textContent).not.toContain('Health data sharing');
+      expect(element.querySelector('.health-consent')?.textContent?.replace(/\s+/g, ' '))
+        .toContain('are processed by Amazon Bedrock and may be processed outside Singapore');
+    });
+
+    it('shows when consent was given once the server sends the time', () => {
+      withConsent(true, '2026-10-09T02:30:00Z');
+      const element = openPrivacy();
+
+      expect(consentState(element)).toContain('Given on');
+      expect(consentState(element)).toContain('2026');
+    });
+
+    it('explains the effect in the page and withdraws only from the red button, with no native dialog', () => {
+      const confirmSpy = spyOn(window, 'confirm');
+      withConsent(true);
+      const withdrawn = {
+        ...accountData.user.preferences,
+        app: { ...accountData.user.preferences.app, dataSharingConsent: false }
+      };
+      accountDataService.updatePreferences.and.returnValue(of(withdrawn));
+      const element = openPrivacy();
+
+      element.querySelector<HTMLButtonElement>('.health-consent .danger-action')!.click();
+      fixture.detectChanges();
+      expect(element.querySelector('.consent-panel')?.textContent).toContain('Withdrawing consent stops the coach from using your health answers.');
+      expect(element.querySelector('.consent-panel')?.textContent?.replace(/\s+/g, ' ')).toContain('deleting your account erases everything');
+      expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
+
+      const withdraw = element.querySelector<HTMLButtonElement>('.consent-panel button.danger')!;
+      expect(withdraw.textContent?.trim()).toBe('Withdraw consent');
+      withdraw.click();
+      fixture.detectChanges();
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(accountDataService.updatePreferences).toHaveBeenCalledOnceWith(jasmine.objectContaining({
+        app: jasmine.objectContaining({ dataSharingConsent: false, privacyLevel: '120001' })
+      }));
+      expect(toast.success).toHaveBeenCalledWith('Consent withdrawn.');
+      expect(consentState(element)).toBe('Not given');
+    });
+
+    it('keeps consent when the panel is closed', () => {
+      withConsent(true);
+      const element = openPrivacy();
+
+      element.querySelector<HTMLButtonElement>('.health-consent .danger-action')!.click();
+      fixture.detectChanges();
+      Array.from(element.querySelectorAll<HTMLButtonElement>('.consent-panel button'))
+        .find((button) => button.textContent?.trim() === 'Keep consent')!
+        .click();
+      fixture.detectChanges();
+
+      expect(element.querySelector('.consent-panel')).toBeNull();
+      expect(accountDataService.updatePreferences).not.toHaveBeenCalled();
+    });
+
+    it('shows a failed withdrawal and leaves the consent in place', () => {
+      withConsent(true);
+      accountDataService.updatePreferences.and.returnValue(throwError(() => new Error('Could not save')));
+      const element = openPrivacy();
+
+      fixture.componentInstance.startEdit('consent');
+      fixture.detectChanges();
+      element.querySelector<HTMLButtonElement>('.consent-panel button.danger')!.click();
+      fixture.detectChanges();
+
+      expect(element.querySelector('.health-consent .section-error')?.textContent).toContain('Could not save');
+      expect(consentState(element)).toBe('Given');
+    });
+
+    it('gives consent again only after an unticked box is ticked', () => {
+      withConsent(false);
+      const given = {
+        ...accountData.user.preferences,
+        app: { ...accountData.user.preferences.app, dataSharingConsent: true }
+      };
+      accountDataService.updatePreferences.and.returnValue(of(given));
+      const element = openPrivacy();
+      const box = element.querySelector<HTMLInputElement>('.health-consent input[type="checkbox"]')!;
+      const submit = element.querySelector<HTMLButtonElement>('.health-consent button[type="submit"]')!;
+
+      expect(consentState(element)).toBe('Not given');
+      expect(box.checked).toBeFalse();
+      expect(submit.disabled).toBeTrue();
+
+      box.click();
+      fixture.detectChanges();
+      expect(submit.disabled).toBeFalse();
+      submit.click();
+      fixture.detectChanges();
+
+      expect(accountDataService.updatePreferences).toHaveBeenCalledOnceWith(jasmine.objectContaining({
+        app: jasmine.objectContaining({ dataSharingConsent: true })
+      }));
+      expect(consentState(element)).toBe('Given');
+    });
+  });
+
+  describe('data export', () => {
+    function openPrivacy(): HTMLElement {
+      fixture.componentInstance.selectedSection.set('privacy-data');
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function downloadButton(element: HTMLElement): HTMLButtonElement {
+      const button = Array.from(element.querySelectorAll<HTMLButtonElement>('.action-row button'))
+        .find((candidate) => ['Download', 'Preparing...'].includes(candidate.textContent?.trim() ?? ''));
+      if (!button) {
+        throw new Error('The Download button is missing.');
+      }
+      return button;
+    }
+
+    it('saves every part of the data as one dated JSON file', async () => {
+      const saved: Blob[] = [];
+      spyOn(URL, 'createObjectURL').and.callFake((blob: Blob | MediaSource) => {
+        saved.push(blob as Blob);
+        return 'blob:export';
+      });
+      spyOn(URL, 'revokeObjectURL');
+      const element = openPrivacy();
+
+      downloadButton(element).click();
+      fixture.detectChanges();
+
+      expect(accountDataService.downloadFullDataExport).toHaveBeenCalledOnceWith('export-1');
+      const anchor = (HTMLAnchorElement.prototype.click as jasmine.Spy).calls.mostRecent().object as HTMLAnchorElement;
+      expect(anchor.download).toBe('fitsync-export-2026-10-09.json');
+      expect(anchor.href).toBe('blob:export');
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:export');
+      const content = JSON.parse(await saved[0].text()) as FullAccountDataExport;
+      expect(Object.keys(content)).toEqual(['exportedAt', 'account', 'nutrition', 'workouts', 'coach']);
+      expect(content.coach).toEqual({ threads: [] });
+      expect(toast.success).toHaveBeenCalledWith('Your data was downloaded.');
+    });
+
+    it('shows a loading label while the parts are fetched', () => {
+      const pending = new Subject<FullAccountDataExport>();
+      accountDataService.downloadFullDataExport.and.returnValue(pending.asObservable());
+      const element = openPrivacy();
+
+      downloadButton(element).click();
+      fixture.detectChanges();
+
+      expect(downloadButton(element).textContent?.trim()).toBe('Preparing...');
+      expect(downloadButton(element).disabled).toBeTrue();
+
+      pending.next(fullExport());
+      pending.complete();
+      fixture.detectChanges();
+      expect(downloadButton(element).textContent?.trim()).toBe('Download');
+    });
+
+    it('shows which part failed and saves no file', () => {
+      const message = 'Could not export the coach part of your data, so nothing was downloaded. Please try again.';
+      accountDataService.downloadFullDataExport.and.returnValue(throwError(() => new Error(message)));
+      const element = openPrivacy();
+
+      downloadButton(element).click();
+      fixture.detectChanges();
+
+      expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+      expect(element.querySelector('.section-error[role="alert"]')?.textContent).toContain('coach part');
+      expect(toast.error).toHaveBeenCalledWith(message);
+      expect(downloadButton(element).disabled).toBeFalse();
+    });
   });
 
   describe('delete account form', () => {
@@ -920,7 +1129,7 @@ describe('SettingsPage', () => {
     accountDataService.updatePreferences.calls.reset();
     accountDataService.updateRecoveryEmail.calls.reset();
     accountDataService.requestDataExport.calls.reset();
-    accountDataService.downloadDataExport.calls.reset();
+    accountDataService.downloadFullDataExport.calls.reset();
     accountDataService.requestAccountDeletion.calls.reset();
 
     component.identityForm.patchValue({ displayName: '' });
@@ -945,7 +1154,7 @@ describe('SettingsPage', () => {
     component.downloadDataExport();
 
     expect(accountDataService.requestDataExport).not.toHaveBeenCalled();
-    expect(accountDataService.downloadDataExport).not.toHaveBeenCalled();
+    expect(accountDataService.downloadFullDataExport).not.toHaveBeenCalled();
   });
 
   it('records save errors from every asynchronous settings mutation', () => {
@@ -977,10 +1186,10 @@ describe('SettingsPage', () => {
 
     expect(component.sectionErrors().privacy).toBe('export failed');
 
-    accountDataService.downloadDataExport.and.returnValue(throwError(() => new Error('download failed')));
+    accountDataService.downloadFullDataExport.and.returnValue(throwError(() => new Error('download failed')));
     component.downloadDataExport();
 
-    expect(component.sectionErrors().privacy).toBe('download failed');
+    expect(component.sectionErrors().export).toBe('download failed');
 
     accountDataService.requestAccountDeletion.and.returnValue(throwError(() => new Error('delete failed')));
     component.deletionForm.patchValue({ confirmationText: 'DELETE', currentPassword: 'password123' });

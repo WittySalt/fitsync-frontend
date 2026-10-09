@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, shareReplay, tap } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
 import { AuthService } from './auth/auth.service';
 import { UserTimezoneService } from './user-timezone.service';
@@ -65,7 +65,12 @@ export interface AppPreferences {
   language: string;
   timezone: string | null;
   privacyLevel: string;
+  /** Explicit consent to the processing of health data (readiness answers and body data). */
   dataSharingConsent: boolean;
+  /**
+   * When that consent was given. user-service does not send it yet; the page shows it once it does.
+   */
+  healthDataConsentAt?: string | null;
 }
 
 export interface TrainingPreferences {
@@ -196,6 +201,40 @@ export interface AccountDataExportPayload {
   account: AccountUserResponse;
   goals: UserGoal[];
   bodyMetrics: AccountBodyMetric[];
+  /** The readiness answers, or null when none were given. */
+  healthReadiness?: Record<string, unknown> | null;
+  /** The gateway paths of the other services' parts of the same export. */
+  relatedExports?: string[];
+}
+
+/** Every service's part of the account data, put together into the one file the person downloads. */
+export interface FullAccountDataExport {
+  exportedAt: string;
+  account: AccountDataExportPayload;
+  nutrition: unknown;
+  workouts: unknown;
+  coach: unknown;
+}
+
+type ExportPart = 'account' | 'nutrition' | 'workouts' | 'coach';
+
+const EXPORT_PART_LABELS: Record<ExportPart, string> = {
+  account: 'account',
+  nutrition: 'nutrition',
+  workouts: 'workout',
+  coach: 'coach'
+};
+
+/** A part that failed, kept apart from data so a service that answers null is not taken for a failure. */
+class ExportPartFailure {
+  constructor(readonly part: ExportPart) {}
+}
+
+function joinLabels(labels: string[]): string {
+  if (labels.length <= 1) {
+    return labels.join('');
+  }
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
 }
 
 export interface AccountCenterData {
@@ -365,6 +404,42 @@ export class AccountDataService {
 
   downloadDataExport(exportRequestId: string): Observable<AccountDataExportPayload> {
     return this.http.get<AccountDataExportPayload>(`${this.apiBaseUrl}/users/me/data-export/requests/${exportRequestId}/download`);
+  }
+
+  /**
+   * Fetches the account export and the nutrition, workout and coach exports at the same time and puts them
+   * into one object. When any part fails, the whole export fails with a message naming the parts, so a
+   * partial file is never offered as if it were complete.
+   */
+  downloadFullDataExport(exportRequestId: string): Observable<FullAccountDataExport> {
+    const part = <T>(name: ExportPart, request: Observable<T>): Observable<T | ExportPartFailure> =>
+      request.pipe(catchError(() => of(new ExportPartFailure(name))));
+
+    return forkJoin({
+      account: part('account', this.downloadDataExport(exportRequestId)),
+      nutrition: part('nutrition', this.http.get<unknown>(`${this.apiBaseUrl}/nutrition/me/export`)),
+      workouts: part('workouts', this.http.get<unknown>(`${this.apiBaseUrl}/workouts/me/export`)),
+      coach: part('coach', this.http.get<unknown>(`${this.apiBaseUrl}/coach/me/export`))
+    }).pipe(
+      switchMap((parts) => {
+        const failed = Object.values(parts)
+          .filter((value): value is ExportPartFailure => value instanceof ExportPartFailure)
+          .map((failure) => EXPORT_PART_LABELS[failure.part]);
+        if (failed.length > 0) {
+          const noun = failed.length === 1 ? 'part' : 'parts';
+          return throwError(() => new Error(
+            `Could not export the ${joinLabels(failed)} ${noun} of your data, so nothing was downloaded. Please try again.`
+          ));
+        }
+        return of({
+          exportedAt: new Date().toISOString(),
+          account: parts.account as AccountDataExportPayload,
+          nutrition: parts.nutrition,
+          workouts: parts.workouts,
+          coach: parts.coach
+        });
+      })
+    );
   }
 
   getAccountDeletionStatus(): Observable<AccountDeletionStatus> {

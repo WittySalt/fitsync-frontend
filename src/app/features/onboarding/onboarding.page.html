@@ -305,63 +305,89 @@
             }
 
             @case (3) {
-              <fieldset class="parq-list" aria-label="Health readiness questions">
-                <label class="toggle-row">
-                  <input type="checkbox" formControlName="parqHeartCondition" />
-                  <span>Has a doctor ever said you have a heart condition?</span>
+              <section class="consent-card" aria-labelledby="health-consent-title">
+                <h3 id="health-consent-title">Your consent to health data</h3>
+                <p>
+                  The readiness answers on this step, and the body data you entered earlier such as your height and
+                  weight, are health data. FitSync uses them to work out your daily targets and to personalise your
+                  training plans and coaching. You can withdraw this consent at any time in Settings.
+                </p>
+                <p>
+                  Questions you ask the coach and the data it reads, such as your weight and meals, are processed by
+                  Amazon Bedrock and may be processed outside Singapore.
+                </p>
+                <p>
+                  <a routerLink="/privacy" target="_blank" rel="noopener">Read the privacy notice</a> to see where
+                  this data is stored, who processes it and how long it is kept.
+                </p>
+                <label class="toggle-row consent-row">
+                  <input type="checkbox" formControlName="healthDataConsent" />
+                  <span>I consent to FitSync processing my health data for these purposes.</span>
                 </label>
-                <label class="toggle-row">
-                  <input type="checkbox" formControlName="parqChestPainActivity" />
-                  <span>Do you feel chest pain during physical activity?</span>
-                </label>
-                <label class="toggle-row">
-                  <input type="checkbox" formControlName="parqDizziness" />
-                  <span>Do you lose balance from dizziness or ever lose consciousness?</span>
-                </label>
-                <label class="toggle-row">
-                  <input type="checkbox" formControlName="parqBoneJointIssue" />
-                  <span>Do you have a bone or joint issue that could worsen with activity?</span>
-                </label>
-                <label class="toggle-row">
-                  <input type="checkbox" formControlName="parqBpOrHeartMeds" />
-                  <span>Do you take blood pressure or heart medication?</span>
-                </label>
-                <label class="toggle-row">
-                  <input type="checkbox" formControlName="parqOtherReason" />
-                  <span>Is there another reason you should avoid unsupervised exercise?</span>
-                </label>
-              </fieldset>
+                @if (isInvalid('healthDataConsent')) {
+                  <span class="field-error">FitSync needs your consent to save your plan.</span>
+                }
+              </section>
 
-              <div class="choice-section">
-                <h3>Any areas we should be careful with?</h3>
-                <div class="chip-grid" aria-label="Injury areas">
-                  @for (option of injuryOptions; track option.value) {
-                    <button
-                      type="button"
-                      class="select-chip"
-                      [class.selected]="isMultiSelected('injuryAreas', option.value)"
-                      [attr.aria-pressed]="isMultiSelected('injuryAreas', option.value)"
-                      (click)="toggleMultiSelect('injuryAreas', option.value)"
-                    >
-                      {{ option.label }}
-                    </button>
+              @if (form.controls.healthDataConsent.value) {
+                <fieldset class="parq-list" aria-label="Health readiness questions">
+                  <label class="toggle-row">
+                    <input type="checkbox" formControlName="parqHeartCondition" />
+                    <span>Has a doctor ever said you have a heart condition?</span>
+                  </label>
+                  <label class="toggle-row">
+                    <input type="checkbox" formControlName="parqChestPainActivity" />
+                    <span>Do you feel chest pain during physical activity?</span>
+                  </label>
+                  <label class="toggle-row">
+                    <input type="checkbox" formControlName="parqDizziness" />
+                    <span>Do you lose balance from dizziness or ever lose consciousness?</span>
+                  </label>
+                  <label class="toggle-row">
+                    <input type="checkbox" formControlName="parqBoneJointIssue" />
+                    <span>Do you have a bone or joint issue that could worsen with activity?</span>
+                  </label>
+                  <label class="toggle-row">
+                    <input type="checkbox" formControlName="parqBpOrHeartMeds" />
+                    <span>Do you take blood pressure or heart medication?</span>
+                  </label>
+                  <label class="toggle-row">
+                    <input type="checkbox" formControlName="parqOtherReason" />
+                    <span>Is there another reason you should avoid unsupervised exercise?</span>
+                  </label>
+                </fieldset>
+
+                <div class="choice-section">
+                  <h3>Any areas we should be careful with?</h3>
+                  <div class="chip-grid" aria-label="Injury areas">
+                    @for (option of injuryOptions; track option.value) {
+                      <button
+                        type="button"
+                        class="select-chip"
+                        [class.selected]="isMultiSelected('injuryAreas', option.value)"
+                        [attr.aria-pressed]="isMultiSelected('injuryAreas', option.value)"
+                        (click)="toggleMultiSelect('injuryAreas', option.value)"
+                      >
+                        {{ option.label }}
+                      </button>
+                    }
+                  </div>
+                  @if (isInvalid('injuryAreas')) {
+                    <span class="field-error">Choose up to 8 valid injury areas.</span>
                   }
                 </div>
-                @if (isInvalid('injuryAreas')) {
-                  <span class="field-error">Choose up to 8 valid injury areas.</span>
-                }
-              </div>
 
-              <label class="toggle-row disclaimer-row">
-                <input
-                  type="checkbox"
-                  formControlName="parqAcknowledged"
-                  (change)="setParqAcknowledged($any($event.target).checked)"
-                />
-                <span>I understand FitSync is not medical advice and I should consult a qualified professional when needed.</span>
-              </label>
-              @if (hasParqRisk() && !form.controls.parqAcknowledged.value) {
-                <span class="field-error">Confirm the disclaimer to save these health readiness answers.</span>
+                <label class="toggle-row disclaimer-row">
+                  <input
+                    type="checkbox"
+                    formControlName="parqAcknowledged"
+                    (change)="setParqAcknowledged($any($event.target).checked)"
+                  />
+                  <span>I understand FitSync is not medical advice and I should consult a qualified professional when needed.</span>
+                </label>
+                @if (hasParqRisk() && !form.controls.parqAcknowledged.value) {
+                  <span class="field-error">Confirm the disclaimer to save these health readiness answers.</span>
+                }
               }
             }
 

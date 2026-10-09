@@ -39,6 +39,7 @@ function fillValidOnboarding(component: OnboardingPage): void {
     intensityPreference: 'MODERATE',
     equipmentInventory: ['DUMBBELLS'],
     focusAreas: ['FULL_BODY'],
+    healthDataConsent: true,
     injuryAreas: [],
     dietaryPattern: 'NONE',
     calorieTrackingMode: 'STRICT',
@@ -175,6 +176,7 @@ describe('OnboardingPage', () => {
 
   it('requires PAR-Q disclaimer acknowledgement when a readiness risk is selected', () => {
     component.currentStep.set(3);
+    component.form.controls.healthDataConsent.setValue(true);
     component.form.controls.parqHeartCondition.setValue(true);
 
     component.nextStep();
@@ -632,6 +634,79 @@ describe('OnboardingPage', () => {
 
       expect(component.error()).toBe('You need to be 16 or older to use FitSync.');
       expect(toast.error).toHaveBeenCalledWith('You need to be 16 or older to use FitSync.');
+    });
+  });
+
+  describe('health data consent', () => {
+    function consentBox(): HTMLInputElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[formControlName="healthDataConsent"]');
+    }
+
+    it('asks for consent first on the health step, unticked, with a link to the privacy notice', () => {
+      component.currentStep.set(3);
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(consentBox()).not.toBeNull();
+      expect(consentBox()!.checked).toBeFalse();
+      expect(component.form.controls.healthDataConsent.value).toBeFalse();
+      expect(element.textContent).toContain('are health data');
+      expect(element.querySelector('.consent-card')?.textContent?.replace(/\s+/g, ' '))
+        .toContain('are processed by Amazon Bedrock and may be processed outside Singapore');
+      const link = element.querySelector<HTMLAnchorElement>('.consent-card a');
+      expect(link?.getAttribute('href')).toBe('/privacy');
+      // The readiness questions come only after the consent.
+      expect(element.querySelector('[aria-label="Health readiness questions"]')).toBeNull();
+
+      consentBox()!.click();
+      fixture.detectChanges();
+
+      expect(component.form.controls.healthDataConsent.value).toBeTrue();
+      expect(element.querySelector('[aria-label="Health readiness questions"]')).not.toBeNull();
+    });
+
+    it('does not leave the health step without consent', () => {
+      component.currentStep.set(3);
+
+      component.nextStep();
+      expect(component.currentStep()).toBe(3);
+      expect(component.isInvalid('healthDataConsent')).toBeTrue();
+
+      component.form.controls.healthDataConsent.setValue(true);
+      component.nextStep();
+      expect(component.currentStep()).toBe(4);
+    });
+
+    it('cannot complete onboarding without consent', () => {
+      fillValidOnboarding(component);
+      component.form.controls.healthDataConsent.setValue(false);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).not.toHaveBeenCalled();
+      expect(component.error()).toContain('Please fix');
+    });
+
+    it('sends the consent with the onboarding in one save', () => {
+      spyOn(router, 'navigateByUrl').and.resolveTo(true);
+      fillValidOnboarding(component);
+
+      component.submit();
+
+      expect(dataService.saveOnboarding).toHaveBeenCalledTimes(1);
+      expect(dataService.saveOnboarding.calls.mostRecent().args[0].healthDataConsent).toBeTrue();
+      expect(component.entryOpen()).toBeTrue();
+    });
+
+    it('reports a failed save and keeps the form ready for retry', () => {
+      dataService.saveOnboarding.and.returnValue(throwError(() => new Error('Onboarding not saved')));
+      fillValidOnboarding(component);
+
+      component.submit();
+
+      expect(component.error()).toBe('Onboarding not saved');
+      expect(component.entryOpen()).toBeFalse();
+      expect(component.submitting()).toBeFalse();
     });
   });
 

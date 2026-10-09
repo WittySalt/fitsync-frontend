@@ -54,8 +54,10 @@ export class App implements OnInit {
     { path: '/me', label: 'Me', icon: 'user' }
   ];
 
+  /** The pages that work without a session: sign-in, sign-out and the public privacy notice. */
   protected isAuthRoute(): boolean {
-    return this.router.url.startsWith('/auth') || this.router.url.startsWith('/logout');
+    const url = this.router.url;
+    return url.startsWith('/auth') || url.startsWith('/logout') || /^\/privacy(?:[/?#]|$)/.test(url);
   }
 
   /** The admin area brings its own layout, so the member navigation and coach dock stay out of it. */

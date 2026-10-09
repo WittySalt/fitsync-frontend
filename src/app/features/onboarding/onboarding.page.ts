@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { ActivityLevel } from '../../core/account-data.service';
 import { FitSyncDataService } from '../../core/fitsync-data.service';
@@ -72,6 +72,7 @@ type ControlName =
   | 'parqOtherReason'
   | 'injuryAreas'
   | 'parqAcknowledged'
+  | 'healthDataConsent'
   | 'dietaryPattern'
   | 'calorieTrackingMode'
   | 'targetCalories'
@@ -95,6 +96,7 @@ interface ChoiceOption {
   selector: 'app-onboarding-page',
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     PlanEntrySheetComponent,
     OnboardingExplainCardComponent,
     OnboardingStepLineComponent
@@ -206,6 +208,8 @@ export class OnboardingPage implements OnInit {
     intensityPreference: ['MODERATE', Validators.required],
     equipmentInventory: [[] as string[], [maxSelected(8)]],
     focusAreas: [['FULL_BODY'] as string[], [maxSelected(6)]],
+    // Explicit consent to the processing of health data. Never pre-ticked; onboarding cannot finish without it.
+    healthDataConsent: [false, Validators.requiredTrue],
     parqHeartCondition: [false],
     parqChestPainActivity: [false],
     parqDizziness: [false],
@@ -333,6 +337,7 @@ export class OnboardingPage implements OnInit {
     this.error.set(null);
     this.success.set(null);
 
+    // The consent travels with the onboarding, so the server records it in the same save.
     this.dataService.saveOnboarding(this.toOnboardingValue()).subscribe({
       next: () => {
         this.toast.success('Your plan is ready.');
@@ -660,6 +665,7 @@ export class OnboardingPage implements OnInit {
 
   private isHealthStepValid(): boolean {
     return (
+      this.form.controls.healthDataConsent.valid &&
       this.form.controls.injuryAreas.valid &&
       (!this.hasParqRisk() || this.form.controls.parqAcknowledged.value === true)
     );
@@ -710,6 +716,7 @@ export class OnboardingPage implements OnInit {
         'focusAreas'
       ],
       [
+        'healthDataConsent',
         'parqHeartCondition',
         'parqChestPainActivity',
         'parqDizziness',
@@ -762,6 +769,7 @@ export class OnboardingPage implements OnInit {
       injuryAreas: raw.injuryAreas ?? [],
       parqAcknowledged: raw.parqAcknowledged ?? false,
       parqAcknowledgedAt: this.parqAcknowledgedAt,
+      healthDataConsent: raw.healthDataConsent === true,
       dietaryPattern: raw.dietaryPattern ?? 'NONE',
       calorieTrackingMode: raw.calorieTrackingMode ?? 'FLEXIBLE',
       targetCalories: raw.targetCalories,

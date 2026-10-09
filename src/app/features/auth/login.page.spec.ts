@@ -98,6 +98,19 @@ describe('LoginPage', () => {
     expect(element.textContent).toContain('Training / Meals / Progress');
   });
 
+  it('links to the public privacy notice from sign-in and from sign-up', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const privacyLink = (): HTMLAnchorElement | null => element.querySelector<HTMLAnchorElement>('.auth-legal a');
+
+    expect(privacyLink()?.getAttribute('href')).toBe('/privacy');
+
+    fixture.componentInstance.showMode('signup');
+    fixture.detectChanges();
+
+    expect(privacyLink()?.getAttribute('href')).toBe('/privacy');
+    expect(element.querySelector('.auth-legal')?.textContent).toContain('privacy notice');
+  });
+
   it('shows validation errors for an invalid sign-in form', () => {
     const component = fixture.componentInstance;
 
