@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { AuthService } from '../../core/auth/auth.service';
@@ -17,6 +17,20 @@ export class AccountSecurityActionsComponent {
 
   readonly changingPassword = signal(false);
   readonly signingOut = signal(false);
+  readonly confirmingSignOut = signal(false);
+
+  /**
+   * The Cognito sign-out covers every device, this one included. With session refresh, "Your devices"
+   * signs out the other devices instead, so this entry is shown only when that list is not available.
+   */
+  readonly showSignOutEverywhere = !this.authService.hasRefreshToken();
+
+  private readonly confirmButton = viewChild<ElementRef<HTMLButtonElement>>('confirmSignOut');
+
+  constructor() {
+    // The confirm step replaces the button that opened it, so focus moves to the confirm button.
+    effect(() => this.confirmButton()?.nativeElement.focus());
+  }
 
   readonly passwordForm = this.fb.group({
     currentPassword: ['', [Validators.required, Validators.maxLength(120)]],
@@ -55,11 +69,9 @@ export class AccountSecurityActionsComponent {
   }
 
   signOutEverywhere(): void {
-    const confirmed = window.confirm('Sign out of all devices? You will need to sign in again on every device.');
-    if (!confirmed) {
+    if (this.signingOut()) {
       return;
     }
-
     this.signingOut.set(true);
     this.authService.signOutEverywhere().subscribe({
       error: (error: Error) => {

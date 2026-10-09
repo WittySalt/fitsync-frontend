@@ -78,6 +78,46 @@
   font-weight: var(--fw-semibold);
 }
 
+// Destructive actions: red text, a red outline on hover and focus, or a filled red button.
+.danger-text {
+  color: var(--danger-hover);
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    outline: 1.5px solid var(--danger-hover);
+    outline-offset: -1.5px;
+  }
+}
+
+.danger-solid {
+  background: var(--danger-hover);
+  color: var(--white);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger-hover) 82%, black);
+  }
+}
+
+.confirm-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+
+  p {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: var(--fw-semibold);
+  }
+}
+
+.confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .action-row {
   grid-column: 1 / -1;
   display: flex;

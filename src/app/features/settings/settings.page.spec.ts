@@ -9,6 +9,7 @@ import {
   AccountDataExportPayload
 } from '../../core/account-data.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { SessionsApiService } from '../../core/auth/sessions-api.service';
 import { anchorSteps } from '../../core/guide/guide-testing.spec';
 import { GuideService } from '../../core/guide/guide.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -156,7 +157,8 @@ describe('SettingsPage', () => {
       'signOutEverywhere',
       'deleteAccount',
       'noteDeletionRequested',
-      'completeLogout'
+      'completeLogout',
+      'hasRefreshToken'
     ]);
     accountDataService = jasmine.createSpyObj<AccountDataService>(
       'AccountDataService',
@@ -192,6 +194,7 @@ describe('SettingsPage', () => {
     authService.changePassword.and.returnValue(of(undefined));
     authService.signOutEverywhere.and.returnValue(of(undefined));
     authService.deleteAccount.and.returnValue(of(undefined));
+    authService.hasRefreshToken.and.returnValue(false);
     toast = jasmine.createSpyObj<ToastService>('ToastService', ['success', 'error', 'info']);
 
     await TestBed.configureTestingModule({
@@ -200,6 +203,7 @@ describe('SettingsPage', () => {
         { provide: AuthService, useValue: authService },
         { provide: AccountDataService, useValue: accountDataService },
         { provide: ToastService, useValue: toast },
+        { provide: SessionsApiService, useValue: jasmine.createSpyObj<SessionsApiService>('SessionsApiService', ['list', 'revoke', 'revokeOthers']) },
         provideRouter([])
       ]
     }).compileComponents();
@@ -371,7 +375,9 @@ describe('SettingsPage', () => {
     fixture.detectChanges();
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('expires 17 Jun 2026, 3:00 pm');
+    expect(text).toContain('Your devices');
+    expect(text).toContain('Device list is not available yet.');
+    expect(text).not.toContain('127.0.0.1');
     expect(text).not.toContain('2026年');
   });
 

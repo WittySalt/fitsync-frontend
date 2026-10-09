@@ -25,6 +25,7 @@ import { GuideService } from '../../core/guide/guide.service';
 import { SpotlightDirective } from '../../core/guide/spotlight.directive';
 import { ToggleComponent } from '../../shared/toggle.component';
 import { AccountSecurityActionsComponent } from './account-security-actions.component';
+import { DevicesListComponent } from './devices-list.component';
 
 // auth-service accepts a deletion request only when the trimmed confirmation text equals this word exactly,
 // and keeps the account for fitsync.account-deletion.grace-days (30 by default) before removing the data.
@@ -68,7 +69,7 @@ const DISPLAY_LOCALE = 'en-SG';
 
 @Component({
   selector: 'app-settings-page',
-  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent, SpotlightDirective, ToggleComponent],
+  imports: [ReactiveFormsModule, RouterLink, AccountSecurityActionsComponent, DevicesListComponent, SpotlightDirective, ToggleComponent],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss'
 })
@@ -96,7 +97,7 @@ export class SettingsPage implements OnInit {
     { id: 'personal', label: 'Personal', description: 'Identity, location, activity, and targets.' },
     { id: 'appearance', label: 'Appearance', description: 'Theme mode and display preferences.' },
     { id: 'preferences', label: 'Preferences', description: 'Formatting, training defaults, and nutrition tracking.' },
-    { id: 'security', label: 'Security', description: 'Password state, recovery email, and active sessions.' },
+    { id: 'security', label: 'Security', description: 'Password state, recovery email, and your devices.' },
     { id: 'notifications', label: 'Notifications', description: 'Channels, reminders, reports, and quiet hours.' },
     { id: 'privacy-data', label: 'Privacy & Data', description: 'Visibility, sharing, exports, and account deletion.' }
   ];
