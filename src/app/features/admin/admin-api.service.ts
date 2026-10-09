@@ -121,6 +121,27 @@ export interface GoalReconcileResult {
   publishedCount: number;
 }
 
+export type EmailKind = 'TRAINING_REMINDER' | 'GOAL_REACHED' | 'WEEKLY_REPORT';
+
+/** The emails an administrator can send to one user now, always in this order. */
+export const EMAIL_KINDS: readonly EmailKind[] = ['TRAINING_REMINDER', 'GOAL_REACHED', 'WEEKLY_REPORT'];
+
+export interface EmailKindAvailability {
+  kind: EmailKind;
+  available: boolean;
+  /** A reason code such as EMAIL_OFF, or null when the email can be sent. */
+  reason: string | null;
+  /** The reason as an English sentence, or null when the email can be sent. */
+  message: string | null;
+}
+
+export type EmailSendOutcome = 'SENT' | 'RETRYING' | 'DROPPED';
+
+export interface EmailSendResult {
+  kind: EmailKind;
+  outcome: EmailSendOutcome;
+}
+
 /** How many waiting events one press of Publish sends. */
 export const OUTBOX_BATCH_SIZE = 50;
 
@@ -187,6 +208,20 @@ export class AdminApiService {
 
   reconcileGoals(): Observable<GoalReconcileResult> {
     return this.http.post<Loose<GoalReconcileResult>>(`${this.adminUrl}/users/goals/reconcile`, null).pipe(map((body) => toReconcileResult(body)));
+  }
+
+  getEmailAvailability(userId: string): Observable<EmailKindAvailability[]> {
+    return this.http
+      .get<{ kinds?: Loose<EmailKindAvailability>[] | null } | null>(this.notificationEmailsUrl(userId))
+      .pipe(map((body) => toEmailAvailability(body)));
+  }
+
+  sendEmail(userId: string, kind: EmailKind): Observable<EmailSendResult> {
+    return this.http.post<Loose<EmailSendResult>>(this.notificationEmailsUrl(userId), { kind }).pipe(map((body) => toEmailSendResult(body, kind)));
+  }
+
+  private notificationEmailsUrl(userId: string): string {
+    return `${this.adminUrl}/notifications/users/${encodeURIComponent(userId)}/emails`;
   }
 
   private analyticsUrl(userId: string): string {
@@ -278,6 +313,29 @@ export function toRebuildResult(body: Loose<RebuildResult> | null | undefined): 
 
 export function toReconcileResult(body: Loose<GoalReconcileResult> | null | undefined): GoalReconcileResult {
   return { publishedCount: count(body?.publishedCount) };
+}
+
+/** One row per kind in the fixed order; a kind the response leaves out counts as not available. */
+export function toEmailAvailability(body: { kinds?: Loose<EmailKindAvailability>[] | null } | null | undefined): EmailKindAvailability[] {
+  const rows = list(body?.kinds);
+  return EMAIL_KINDS.map((kind) => {
+    const row = rows.find((candidate) => candidate.kind === kind);
+    return {
+      kind,
+      available: row?.available === true,
+      reason: text(row?.reason) || null,
+      message: text(row?.message) || null
+    };
+  });
+}
+
+export function toEmailSendResult(body: Loose<EmailSendResult> | null | undefined, kind: EmailKind): EmailSendResult {
+  const outcome = body?.outcome;
+  return {
+    kind: EMAIL_KINDS.find((candidate) => candidate === body?.kind) ?? kind,
+    // An outcome the page does not know is reported as a retry, the one that promises nothing.
+    outcome: outcome === 'SENT' || outcome === 'DROPPED' ? outcome : 'RETRYING'
+  };
 }
 
 function count(value: unknown): number {

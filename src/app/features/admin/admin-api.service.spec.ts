@@ -5,9 +5,13 @@ import { TestBed } from '@angular/core/testing';
 import {
   AdminApiService,
   CoachQuality,
+  EmailKindAvailability,
+  EmailSendResult,
   OutboxService,
   toAdminUser,
   toCoachQuality,
+  toEmailAvailability,
+  toEmailSendResult,
   toExerciseSummary,
   toImportResult,
   toOutboxPending,
@@ -183,6 +187,47 @@ describe('AdminApiService', () => {
     request.flush({ publishedCount: 12 });
 
     expect(published).toBe(12);
+  });
+
+  it('asks which emails can be sent to a user, by id only', () => {
+    let kinds: EmailKindAvailability[] = [];
+    service.getEmailAvailability('a/b').subscribe((value) => (kinds = value));
+
+    const request = httpTesting.expectOne('/api/v1/admin/notifications/users/a%2Fb/emails');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      kinds: [
+        { kind: 'TRAINING_REMINDER', available: true, reason: null, message: null },
+        { kind: 'GOAL_REACHED', available: false, reason: 'GOAL_NOT_REACHED', message: 'The weight goal is not reached yet.' },
+        { kind: 'WEEKLY_REPORT', available: true, reason: null, message: null }
+      ]
+    });
+
+    expect(kinds.map((row) => row.kind)).toEqual(['TRAINING_REMINDER', 'GOAL_REACHED', 'WEEKLY_REPORT']);
+    expect(kinds[1]).toEqual({ kind: 'GOAL_REACHED', available: false, reason: 'GOAL_NOT_REACHED', message: 'The weight goal is not reached yet.' });
+  });
+
+  it('sends one email with the kind in the body', () => {
+    let result: EmailSendResult | undefined;
+    service.sendEmail('u-1', 'WEEKLY_REPORT').subscribe((value) => (result = value));
+
+    const request = httpTesting.expectOne('/api/v1/admin/notifications/users/u-1/emails');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ kind: 'WEEKLY_REPORT' });
+    request.flush({ kind: 'WEEKLY_REPORT', outcome: 'SENT' });
+
+    expect(result).toEqual({ kind: 'WEEKLY_REPORT', outcome: 'SENT' });
+  });
+
+  it('keeps the three kinds in order and treats a missing or damaged row as not available', () => {
+    expect(toEmailAvailability({ kinds: [{ kind: 'WEEKLY_REPORT', available: true }, null as never] })).toEqual([
+      { kind: 'TRAINING_REMINDER', available: false, reason: null, message: null },
+      { kind: 'GOAL_REACHED', available: false, reason: null, message: null },
+      { kind: 'WEEKLY_REPORT', available: true, reason: null, message: null }
+    ]);
+    expect(toEmailAvailability(null).every((row) => !row.available)).toBeTrue();
+    expect(toEmailSendResult({ outcome: 'LOST' as never }, 'GOAL_REACHED')).toEqual({ kind: 'GOAL_REACHED', outcome: 'RETRYING' });
+    expect(toEmailSendResult({ kind: 'GOAL_REACHED', outcome: 'DROPPED' }, 'GOAL_REACHED')).toEqual({ kind: 'GOAL_REACHED', outcome: 'DROPPED' });
   });
 
   it('turns empty or damaged bodies into zeros, empty texts and empty lists', () => {
