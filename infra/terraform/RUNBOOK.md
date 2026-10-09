@@ -90,6 +90,8 @@ The `/api/*` behaviour (CachingDisabled, AllViewer, ALB on port 80, 60 s read
 timeout) and the `<env>-spa-fallback` viewer-request function are the same in
 both. Neither environment has custom error responses or access logging.
 
+The edge forwards only /api/*. /actuator is not exposed; the ALB health-checks the gateway inside the VPC.
+
 **Never `terraform destroy` the prod workspace.** It would delete the live site,
 and a new distribution gets a new `*.cloudfront.net` name. (Staging is destroyed
 after demos, so the code cannot carry `prevent_destroy`.)
