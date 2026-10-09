@@ -106,5 +106,6 @@ describe('AdminConfirmButtonComponent', () => {
 
     expect(buttons()[0].disabled).toBeTrue();
     expect(buttons()[0].getAttribute('aria-busy')).toBe('false');
+    expect(getComputedStyle(buttons()[0]).cursor).toBe('not-allowed');
   });
 });

@@ -1,0 +1,34 @@
+// The outlined button that every admin page and panel shares: Try again, Refresh, the confirm button
+// and the Send an email now rows. A disabled one is drawn sunken, with a faint border and grey text, so it
+// never looks clickable. The grey stays at the secondary text token so the label keeps readable contrast.
+@mixin outline-button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-sunken);
+  }
+
+  &:focus-visible {
+    outline: 0;
+    box-shadow: var(--shadow-focus);
+  }
+
+  &:disabled {
+    border-color: var(--border);
+    color: var(--text-secondary);
+    background: var(--surface-sunken);
+    cursor: not-allowed;
+  }
+
+  &[aria-busy='true'] {
+    cursor: progress;
+  }
+}

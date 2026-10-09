@@ -1,3 +1,5 @@
+@use './admin-button' as button;
+
 // Rules that every admin page shares: the page header, panels, stat tiles, tables, the error panel and
 // the loading skeleton. Each page lists this file before its own stylesheet.
 :host {
@@ -208,29 +210,9 @@ table {
 }
 
 .retry {
-  min-height: 44px;
+  @include button.outline-button;
+
   padding: 0 18px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  background: var(--surface);
-  font-size: 14px;
-  font-weight: var(--fw-semibold);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--surface-sunken);
-  }
-
-  &:focus-visible {
-    outline: 0;
-    box-shadow: var(--shadow-focus);
-  }
-
-  &:disabled {
-    color: var(--text-secondary);
-    cursor: default;
-  }
 }
 
 .action-row {
