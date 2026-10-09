@@ -458,6 +458,25 @@ describe('CoachDockComponent — first screen', () => {
     expect(rule).not.toMatch(/amber|peach|orange|#f/i);
   });
 
+  it('keeps a long tool step inside the bubble: the name stays whole, the summary is cut short', () => {
+    const summary = 'goal progress 2026-09-12 to 2026-10-09 · 3 goals across weight, sessions and protein';
+    store.pendingQuestion.set('How did my training go last week?');
+    store.liveSteps.set([{ tool: 'readGoalProgress', kind: 'TOOL_FINISHED', summary, latencyMs: 269 }]);
+    render();
+
+    expect(text('.turn-a.live .step b')).toEqual(['readGoalProgress']);
+    const meta = element.querySelector('.turn-a.live .step .meta');
+    expect(meta?.getAttribute('title')).toBe(`${summary} · 269 ms`);
+
+    const styles = ((CoachDockComponent as unknown as { ɵcmp: { styles: string[] } }).ɵcmp.styles ?? []).join('').replace(/\[_ngcontent-%COMP%\]/g, '');
+    const name = /\.step\s+b\s*\{[^}]*\}/.exec(styles)?.[0] ?? '';
+    const metaRule = /\.step\s+\.meta\s*\{[^}]*\}/.exec(styles)?.[0] ?? '';
+    expect(name).toMatch(/flex: none|flex-shrink: 0/);
+    expect(metaRule).toContain('min-width: 0');
+    expect(metaRule).toContain('overflow: hidden');
+    expect(metaRule).toContain('text-overflow: ellipsis');
+  });
+
   it('answers Ctrl+K typed in a text box on the coach workspace, where the request box lives', () => {
     store.surface.set({ id: 'coach', label: 'Coach workspace', suggestions: [], code: null });
     render();

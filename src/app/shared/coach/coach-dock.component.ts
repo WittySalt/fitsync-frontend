@@ -176,7 +176,7 @@ interface DockSuggestion {
                       <span class="tick" aria-hidden="true">{{ step.kind === 'TOOL_FINISHED' ? '✓' : '…' }}</span>
                       <b>{{ step.tool }}</b>
                       @if (step.kind === 'TOOL_FINISHED') {
-                        <span class="meta">{{ step.summary }} · {{ step.latencyMs }} ms</span>
+                        <span class="meta" [attr.title]="step.summary + ' · ' + step.latencyMs + ' ms'">{{ step.summary }} · {{ step.latencyMs }} ms</span>
                       }
                     }
                   </div>
@@ -634,12 +634,18 @@ interface DockSuggestion {
         min-width: 0;
       }
       .step b {
+        flex: none;
         color: var(--text-secondary);
         font-weight: var(--fw-medium);
+        white-space: nowrap;
       }
       .step .meta {
-        margin-left: auto;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
+        text-align: right;
       }
       .step.done .tick {
         color: var(--accent-text);
