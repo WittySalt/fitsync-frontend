@@ -202,7 +202,7 @@ function bestSingleObservation(insight: WeeklyTrainingInsight): BriefObservation
   if (!usable.length) {
     return null;
   }
-  const lead = usable.reduce((best, lift) => (Math.abs(liftChangePct(lift)) > Math.abs(liftChangePct(best)) ? lift : best));
+  const lead = usable.reduce((best, lift) => (Math.abs(liftChangePct(lift)) > Math.abs(liftChangePct(best)) ? lift : best), usable[0]);
   const pct = liftChangePct(lead);
   const now = formatE1rm(lead.e1rmNow);
   let fact: string;

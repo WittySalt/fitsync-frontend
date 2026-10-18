@@ -396,7 +396,7 @@ export function buildFocus(target: FocusTarget, facts: FocusFacts, zoneKey: (val
   }
   // A rest day: the groups worked lately, drawn light, and the days that remain this week.
   const recent = (insight?.muscleGroups ?? []).filter((group) => group.lastTrainedOn);
-  const newest = recent.map((group) => group.lastTrainedOn as string).sort().pop() ?? null;
+  const newest = recent.map((group) => group.lastTrainedOn as string).sort((a, b) => a.localeCompare(b)).pop() ?? null;
   const recovering = newest ? recent.filter((group) => daysBetween(group.lastTrainedOn as string, newest) <= 1 && group.inActivePlan !== false) : [];
   const labels = recovering.map((group) => labelOf(group.muscleGroup));
   const since = newest ? daysBetween(newest, target.today) : null;

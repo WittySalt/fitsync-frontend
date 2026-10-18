@@ -104,7 +104,7 @@ function joinDays(names: string[]): string {
 
 /** The four figures beside the calendar: days trained, the longest break, the most regular and the never-trained weekdays. */
 export function logStats(from: string, to: string, days: readonly CalendarDay[]): LogStats | null {
-  const trained = [...new Set(days.map((day) => day.date).filter((date) => date >= from && date <= to))].sort();
+  const trained = [...new Set(days.map((day) => day.date).filter((date) => date >= from && date <= to))].sort((a, b) => a.localeCompare(b));
   if (!trained.length) {
     return null;
   }

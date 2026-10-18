@@ -26,7 +26,7 @@ export function strengthFactsAsBestSingle(facts: readonly ReadingFact[], lifts: 
   if (!usable.length) {
     return [...facts];
   }
-  const lead = usable.reduce((best, lift) => (Math.abs(change(lift)) > Math.abs(change(best)) ? lift : best));
+  const lead = usable.reduce((best, lift) => (Math.abs(change(lift)) > Math.abs(change(best)) ? lift : best), usable[0]);
   const pct = change(lead);
   const note = pct > 0 ? `Up ${pct}%` : pct < 0 ? `Down ${Math.abs(pct)}%` : 'Steady';
   return facts.map((fact) =>
