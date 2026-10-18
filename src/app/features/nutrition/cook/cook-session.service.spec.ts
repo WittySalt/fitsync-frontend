@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { CookTimerDef } from './cook.models';
-import { COOK_SESSION_KEY, CookSessionService } from './cook-session.service';
+import { COOK_SESSION_KEY, CookSessionService, newCookId } from './cook-session.service';
 import { pauseTimer, setRemaining, startStage } from './cook-timer';
 
 const sides: CookTimerDef = { seconds: 180, maxSeconds: 240, eachSide: true, phrase: '3-4 mins' };
@@ -251,5 +251,22 @@ describe('CookSessionService', () => {
   it('ignores a broken stored record', () => {
     sessionStorage.setItem(COOK_SESSION_KEY, '{not json');
     expect(create().data()).toBeNull();
+  });
+});
+
+describe('newCookId', () => {
+  it('falls back to crypto.getRandomValues when randomUUID is missing', () => {
+    const original = crypto.randomUUID;
+    Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+    const getRandomValues = spyOn(crypto, 'getRandomValues').and.callThrough();
+    try {
+      const first = newCookId();
+      const second = newCookId();
+      expect(first).toMatch(/^[0-9a-z]+-[0-9a-f]{12}$/);
+      expect(second).not.toBe(first);
+      expect(getRandomValues).toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { value: original, configurable: true });
+    }
   });
 });
