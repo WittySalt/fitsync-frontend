@@ -159,5 +159,23 @@ jobs:
           path: coverage/
       - name: sonar-scanner
         if: env.SONAR_TOKEN != ''
+        env:
+          # Passed through env, not inlined, so branch names never reach the script as code.
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          docker run --rm -e SONAR_TOKEN -v "$PWD:/usr/src" -w /usr/src sonarsource/sonar-scanner-cli:11             -Dsonar.host.url="${SONAR_HOST_URL:-https://sonarcloud.io}"             -Dsonar.projectKey="$SONAR_PROJECT_KEY"             -Dsonar.organization="$SONAR_ORGANIZATION"             -Dsonar.qualitygate.wait="${SONAR_QUALITYGATE_WAIT:-true}"
+          args=(-Dsonar.host.url="${SONAR_HOST_URL:-https://sonarcloud.io}"
+                -Dsonar.projectKey="$SONAR_PROJECT_KEY"
+                -Dsonar.organization="$SONAR_ORGANIZATION"
+                -Dsonar.qualitygate.wait="${SONAR_QUALITYGATE_WAIT:-true}")
+          # The scanner runs in a container and cannot see the GitHub context, so it is told what it
+          # is analysing; otherwise a pull request would be recorded as an analysis of main.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            args+=(-Dsonar.pullrequest.key="$PR_NUMBER" -Dsonar.pullrequest.branch="$PR_BRANCH"
+                   -Dsonar.pullrequest.base="$PR_BASE" -Dsonar.scm.revision="$PR_SHA")
+          elif [ "$GITHUB_REF_NAME" != "main" ]; then
+            args+=(-Dsonar.branch.name="$GITHUB_REF_NAME")
+          fi
+          docker run --rm -e SONAR_TOKEN -v "$PWD:/usr/src" -w /usr/src sonarsource/sonar-scanner-cli:11 "${args[@]}"

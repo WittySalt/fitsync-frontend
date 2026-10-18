@@ -6,7 +6,7 @@ import { Subject, of, throwError } from 'rxjs';
 import { CoachApiService } from './coach-api.service';
 import { CoachContextService, Surface } from './coach-context.service';
 import { CoachMessageResponse, CoachReading, CoachStreamEvent, CoachThreadDetail } from './coach.models';
-import { CoachStore } from './coach.store';
+import { CoachStore, newTurnId } from './coach.store';
 
 /**
  * The store, against a scripted API.
@@ -500,5 +500,21 @@ describe('CoachStore — pinned card', () => {
     surface.set(homeSurface);
     TestBed.inject(ApplicationRef).tick();
     expect(store.pinnedCard()).toBeNull();
+  });
+});
+
+describe('newTurnId', () => {
+  it('builds a version 4 UUID from crypto.getRandomValues when randomUUID is missing', () => {
+    const original = crypto.randomUUID;
+    Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+    const getRandomValues = spyOn(crypto, 'getRandomValues').and.callThrough();
+    try {
+      const id = newTurnId();
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(newTurnId()).not.toBe(id);
+      expect(getRandomValues).toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { value: original, configurable: true });
+    }
   });
 });
