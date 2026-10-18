@@ -81,6 +81,18 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      # Angular ESLint rules from eslint.config.js; errors fail the job, warnings are reported only.
+      - run: npm run lint
+
   unit-test:
     runs-on: ubuntu-latest
     needs: typecheck
@@ -109,7 +121,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: unit-test
+    needs: [unit-test, lint]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
