@@ -178,7 +178,7 @@ export function mapRecipeDetail(raw: Wire): RecipeDetail {
     imageUrl: safeImageUrl(raw['imageUrl']),
     imageCredit: text(raw['imageCredit']),
     ingredients: list(raw['ingredients']).map(mapIngredient),
-    steps: list(raw['steps']).map(mapStep),
+    steps: list(raw['steps']).map((step, index) => mapStep(step, index)),
     perServing: mapPerServing(typeof raw['perServing'] === 'object' && raw['perServing'] !== null ? (raw['perServing'] as Wire) : {}),
     groupsGrams: mapGroupsGrams(raw['groupsGrams']),
     tags: words(raw['tags']),

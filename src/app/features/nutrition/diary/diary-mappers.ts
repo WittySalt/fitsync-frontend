@@ -340,7 +340,7 @@ export function mapDrinkDetail(raw: Wire): DrinkDetail {
     densityGramsPerMl: num(raw['densityGramsPerMl']),
     primaryBarcode: text(raw['primaryBarcode']) ?? '',
     sourceDataset: text(raw['sourceDataset']),
-    servings: list(raw['servings']).map(mapServing),
+    servings: list(raw['servings']).map((serving, index) => mapServing(serving, index)),
     foodGroup: text(raw['foodGroup']),
     countsTowardWater: raw['countsTowardWater'] === true,
     waterGrams: num(raw['waterGrams']),

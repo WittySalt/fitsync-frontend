@@ -72,8 +72,8 @@ export function weightChartGeometry(
   if (goal?.byDate) {
     dates.push(goal.byDate);
   }
-  const d0 = dates.reduce((a, b) => (a < b ? a : b));
-  const d1 = dates.reduce((a, b) => (a > b ? a : b));
+  const d0 = dates.reduce((a, b) => (a < b ? a : b), today);
+  const d1 = dates.reduce((a, b) => (a > b ? a : b), today);
   const kgs = [...line.map((p) => p.kg), ...daily.map((d) => d.kg), ...projection.map((p) => p.kg), ...(target === null ? [] : [target])];
   // Grid lines every kilo, or every two when the weights span more than 6 kg.
   const step = Math.max(...kgs) - Math.min(...kgs) > 6 ? 2 : 1;

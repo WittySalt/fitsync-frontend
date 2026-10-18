@@ -23,12 +23,12 @@ function startOfDay(date: Date): number {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Whole calendar days from `then` back to `now` in the device's zone, or null when the time cannot be read. */
-function daysAgo(iso: string | null, now: Date): { days: number; then: Date } | null {
+function daysAgo(iso: string | null, now: Date): { days: number; at: Date } | null {
   const then = iso ? new Date(iso) : null;
   if (!then || Number.isNaN(then.getTime())) {
     return null;
   }
-  return { days: Math.round((startOfDay(now) - startOfDay(then)) / DAY_MS), then };
+  return { days: Math.round((startOfDay(now) - startOfDay(then)) / DAY_MS), at: then };
 }
 
 /**
@@ -55,7 +55,7 @@ export function relativeWhen(iso: string | null, now: Date = new Date()): string
   if (!ago) {
     return '';
   }
-  const { days, then } = ago;
+  const { days, at: then } = ago;
   if (days <= 0) {
     const hh = String(then.getHours()).padStart(2, '0');
     const mm = String(then.getMinutes()).padStart(2, '0');
