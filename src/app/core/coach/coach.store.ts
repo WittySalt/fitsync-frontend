@@ -579,13 +579,16 @@ export class CoachStore {
 }
 
 /** A fresh UUID for one question; the fallback keeps an older WebView working. */
-function newTurnId(): string {
+export function newTurnId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // A version 4 layout: `y` takes the variant bits 10xx, so it is one of 8, 9, a or b.
+  // randomUUID needs a secure context; getRandomValues does not. A version 4 layout: `y` takes the
+  // variant bits 10xx, so it is one of 8, 9, a or b.
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let index = 0;
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (placeholder) => {
-    const nibble = Math.floor(Math.random() * 16);
+    const nibble = bytes[index++] & 0xf;
     return (placeholder === 'x' ? nibble : (nibble & 0x3) | 0x8).toString(16);
   });
 }

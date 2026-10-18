@@ -71,7 +71,7 @@ const TICK_MS = 250;
 export function newCookId(): string {
   return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    : `${Date.now().toString(36)}-${Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export function foundKey(step: number): string {
